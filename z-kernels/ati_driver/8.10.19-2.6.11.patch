@@ -1,0 +1,145 @@
+diff -Nur fglrx-xorg.orig/firegl_public.c fglrx-xorg/firegl_public.c
+--- fglrx-xorg.orig/firegl_public.c 2005-01-24 01:42:09.000000000 +0100
++++ fglrx-xorg/firegl_public.c 2005-01-24 01:28:21.000000000 +0100
+@@ -1659,13 +1659,16 @@
+ {
+     unsigned long pte_linear;
+     pgd_t* pgd_p;
++    pud_t* pud_p;
+     pmd_t* pmd_p;
+     pte_t* pte_p;
+     pte_t  pte;
+ 
+     pte_linear = VMALLOC_VMADDR(virtual_addr);  // convert to pte linear address (x86 => nop)
+     pgd_p = pgd_offset(mm, pte_linear);
+-    pmd_p = pmd_offset(pgd_p, pte_linear);
++    pud_p = pud_offset(pgd_p, pte_linear);
++    pmd_p = pmd_offset(pud_p, pte_linear);
++
+ #ifndef FGL_ATOMIC_PTE
+ #if LINUX_VERSION_CODE > 0x020500
+     pte_p = pte_offset_kernel(pmd_p, pte_linear);
+@@ -2085,6 +2088,7 @@
+                                                    unsigned long address)
+ {
+     pgd_t* pgd_p;
++    pud_t* pud_p;
+     pmd_t* pmd_p;
+     pte_t* pte_p;
+     pte_t  pte;
+@@ -2185,7 +2189,8 @@
+         /* alternatively we could generate a NOPAGE_OOM "out of memory" */
+     }
+     /*  locate medium level page table (x86 => nop) */
+-    pmd_p = pmd_offset(pgd_p, pte_linear);
++    pud_p = pud_offset(pgd_p, pte_linear);
++    pmd_p = pmd_offset(pud_p, pte_linear);
+     if (!pmd_present(*pmd_p))
+     {
+         __KE_ERROR("FATAL ERROR: User queue buffer not present! (pmd)\n");
+@@ -2549,13 +2554,15 @@
+ {
+     unsigned long pte_linear;
+     pgd_t* pgd_p;
++    pud_t* pud_p;
+     pmd_t* pmd_p;
+     pte_t* pte_p;
+     pte_t  pte;
+ 
+     pte_linear = VMALLOC_VMADDR(virtual_addr);  // convert to pte linear address (x86 => nop)
+     pgd_p = pgd_offset(vma->vm_mm, pte_linear);
+-    pmd_p = pmd_offset(pgd_p, pte_linear);
++    pud_p = pud_offset(pgd_p, pte_linear);
++    pmd_p = pmd_offset(pud_p, pte_linear);
+ #ifndef FGL_ATOMIC_PTE
+ #if LINUX_VERSION_CODE > 0x020500
+     pte_p = pte_offset_kernel(pmd_p, pte_linear);
+@@ -2704,13 +2711,13 @@
+ #endif /* __ia64__ */
+                 vma->vm_flags |= VM_IO; /* not in core dump */
+             }
+-            if (remap_page_range(FGL_VMA_API_PASS
++            if (remap_pfn_range(FGL_VMA_API_PASS
+                                  vma->vm_start,
+-                                 __ke_vm_offset(vma),
++                                 __ke_vm_offset(vma) >> PAGE_SHIFT,
+                                  vma->vm_end - vma->vm_start,
+                                  vma->vm_page_prot))
+             {
+-                __KE_DEBUG("remap_page_range failed\n");
++                __KE_DEBUG("remap_pfn_range failed\n");
+                 return -EAGAIN;
+             }
+             vma->vm_flags |= VM_SHM | VM_RESERVED; /* Don't swap */
+@@ -2771,13 +2778,13 @@
+ 			{
+				if (__ke_vm_offset(vma) >= __pa(high_memory))
+					vma->vm_flags |= VM_IO; /* not in core dump */
+-				if (remap_page_range(FGL_VMA_API_PASS
++				if (remap_pfn_range(FGL_VMA_API_PASS
+									 vma->vm_start,
+-									 __ke_vm_offset(vma),
++									 __ke_vm_offset(vma) >> PAGE_SHIFT,
+									 vma->vm_end - vma->vm_start,
+									 vma->vm_page_prot))
+ 				{
+-					__KE_DEBUG("remap_page_range failed\n");
++					__KE_DEBUG("remap_pfn_range failed\n");
+					return -EAGAIN;
+ 				}
+ #ifdef __x86_64__
+@@ -2808,13 +2815,13 @@
+ 			{
+				if (__ke_vm_offset(vma) >= __pa(high_memory))
+					vma->vm_flags |= VM_IO; /* not in core dump */
+-				if (remap_page_range(FGL_VMA_API_PASS
++				if (remap_pfn_range(FGL_VMA_API_PASS
+									 vma->vm_start,
+-									 __ke_vm_offset(vma),
++									 __ke_vm_offset(vma) >> PAGE_SHIFT,
+									 vma->vm_end - vma->vm_start,
+									 vma->vm_page_prot))
+ 				{
+-					__KE_DEBUG("remap_page_range failed\n");
++					__KE_DEBUG("remap_pfn_range failed\n");
+					return -EAGAIN;
+ 				}
+ #ifdef __x86_64__
+@@ -2858,6 +2865,37 @@
+ 
+ #if LINUX_VERSION_CODE >= 0x020400
+ 
++#if LINUX_VERSION_CODE >= 0x02060b
++
++typedef struct {
++       void                    (*free_memory)(struct agp_memory *);
++       struct agp_memory *     (*allocate_memory)(size_t, u32);
++       int                     (*bind_memory)(struct agp_memory *, off_t);
++       int                     (*unbind_memory)(struct agp_memory *);
++       void                    (*enable)(u32);
++       int                     (*acquire)(void);
++       void                    (*release)(void);
++       int                     (*copy_info)(struct agp_kern_info *);
++} drm_agp_t;
++
++static const drm_agp_t drm_agp = {
++       &agp_free_memory,
++       &agp_allocate_memory,
++       &agp_bind_memory,
++       &agp_unbind_memory,
++       &agp_enable,
++       &agp_backend_acquire,
++       &agp_backend_release,
++       &agp_copy_info
++};
++#undef DRM_AGP_MODULE_GET
++#undef DRM_AGP_MODULE_PUT
++
++#define DRM_AGP_MODULE_GET      &drm_agp
++#define DRM_AGP_MODULE_PUT 
++
++#endif
++
+ static const drm_agp_t  *drm_agp_module_stub = NULL;
+ 
+ #define AGP_FUNCTIONS  8 
