@@ -1,0 +1,1 @@
+OPTS="${OPTS} ${XMAN_XPRINT}"  &&

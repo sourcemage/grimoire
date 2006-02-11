@@ -1,0 +1,5 @@
+OPTS="${OPTS} ${XF86_INPUT_LIBAW_XAW6}"  &&
+OPTS="${OPTS} ${XF86_INPUT_LIBAW_XAW7}"  &&
+OPTS="${OPTS} ${XF86_INPUT_LIBAW_XAW8}"  &&
+
+default_build

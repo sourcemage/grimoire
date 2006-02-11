@@ -1,0 +1,5 @@
+OPTS="${OPTS} ${XF86_INPUT_LIBSM_UNIX_TRANSPORT}"  &&
+OPTS="${OPTS} ${XF86_INPUT_LIBSM_TCP_TRANSPORT}"   &&
+OPTS="${OPTS} ${XF86_INPUT_LIBSM_IPV6}"            &&
+
+default_build

@@ -1,0 +1,3 @@
+OPTS="${OPTS} ${XF86_INPUT_KEYBOARD_KEYBOARD_DRIVER}"  &&
+
+default_build

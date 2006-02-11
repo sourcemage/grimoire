@@ -1,0 +1,5 @@
+OPTS=${OPTS} ${XAUTH_UNIX_TRANSPORT}"  &&
+OPTS=${OPTS} ${XAUTH_TCP_TRANSPORT}"   &&
+OPTS=${OPTS} ${XAUTH_IPV6_SUPPORT}"    &&
+
+default_build

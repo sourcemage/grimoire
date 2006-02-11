@@ -1,0 +1,6 @@
+OPTS="${OPTS} ${XHOST_UNIX_TRANSPORT}"  &&
+OPTS="${OPTS} ${XHOST_TCP_TRANSPORT}"   &&
+OPTS="${OPTS} ${XHOST_IPV6_SUPPORT}"    &&
+OPTS="${OPTS} ${XHOST_SECURE_RPC}"      &&
+
+default_build
