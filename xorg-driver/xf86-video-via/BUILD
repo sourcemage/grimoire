@@ -1,3 +1,4 @@
+OPTS="$XF86_VIDEO_VIA_OPTS $OPTS"
 OPTS="${OPTS} ${XF86_VIDEO_VIA_DRI}"  &&
 
 default_build

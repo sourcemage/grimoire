@@ -1,3 +1,4 @@
+OPTS="$XCLIPBOARD_OPTS $OPTS"
 OPTS="${OPTS} ${XCLIPBOARD_XPRINT}"  &&
 
 default_build

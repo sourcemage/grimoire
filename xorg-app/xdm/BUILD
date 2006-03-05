@@ -1,3 +1,4 @@
+OPTS="$XDM_OPTS $OPTS"
 OPTS="${OPTS} ${XDM_XPRINT}"          &&
 OPTS="${OPTS} ${XDM_UNIX_TRANSPORT}"  &&
 OPTS="${OPTS} ${XDM_TCP_TRANSPORT}"   &&

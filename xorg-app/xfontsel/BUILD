@@ -1,3 +1,4 @@
+OPTS="$XFONTSEL_OPTS $OPTS"
 OPTS="${OPTS} ${XFONTSEL_XPRINT}"  &&
 
 default_build

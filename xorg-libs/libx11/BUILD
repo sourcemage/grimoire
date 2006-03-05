@@ -1,3 +1,4 @@
+OPTS="$LIBX11_OPTS $OPTS"
 OPTS="${OPTS} ${LIBX11_SRPC}"      &&
 OPTS="${OPTS} ${LIBX11_I18N}"      &&
 OPTS="${OPTS} ${LIBX11_CURSOR}"    &&

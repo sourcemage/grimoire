@@ -1,3 +1,4 @@
+OPTS="$SESSREG_OPTS $OPTS"
 OPTS="${OPTS} ${SESSREG_LARGEFILE}"  &&
 
 default_build

@@ -1,3 +1,4 @@
+OPTS="$XTERM_OPTS $OPTS"
 # group used for xterm
 #create_group utmp                                             &&
 

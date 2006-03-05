@@ -1,3 +1,4 @@
+OPTS="$XF86_VIDEO_TDFX_OPTS $OPTS"
 OPTS="${OPTS} ${XF86_VIDEO_TDFX_DRI}"  &&
 
 default_build

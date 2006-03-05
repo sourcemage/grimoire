@@ -1,3 +1,4 @@
+OPTS="$XF86_VIDEO_I810_OPTS $OPTS"
 OPTS="${OPTS} ${XF86_VIDEO_I810_DRI}"  &&
 
 default_build

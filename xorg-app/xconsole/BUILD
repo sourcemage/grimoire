@@ -1,3 +1,4 @@
+OPTS="$XCONSOLE_OPTS $OPTS"
 OPTS="${OPTS} ${XCONSOLE_XPRINT}"  &&
 
 default_build

@@ -1,3 +1,4 @@
+OPTS="$XDBEDIZZY_OPTS $OPTS"
 OPTS="${OPTS} ${XDBEDIZZY_XPRINT}"  &&
 
 export PKG_CONFIG=/usr/bin/pkg-config  &&

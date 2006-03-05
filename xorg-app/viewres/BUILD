@@ -1,3 +1,4 @@
+OPTS="$VIEWRES_OPTS $OPTS"
 OPTS="${OPTS} ${VIEWRES_XPRINT}"  &&
 
 default_build
