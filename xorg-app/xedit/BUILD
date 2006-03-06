@@ -1,4 +1,3 @@
-OPTS="$XEDIT_OPTS $OPTS"
-OPTS="${OPTS} ${XEDIT_XPRINT}"  &&
+OPTS="$XEDIT_OPTS $OPTS"  &&
 
 default_build

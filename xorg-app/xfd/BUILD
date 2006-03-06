@@ -1,4 +1,3 @@
-OPTS="$XFD_OPTS $OPTS"
-OPTS="${OPTS} ${XFD_XPRINT}"  &&
+OPTS="$XFD_OPTS $OPTS"  &&
 
 default_build

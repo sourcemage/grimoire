@@ -1,6 +1,3 @@
-OPTS="$XFS_OPTS $OPTS"
-OPTS="${OPTS} ${XFS_UNIX_TRANSPORT}"  &&
-OPTS="${OPTS} ${XFS_TCP_TRANSPORT}"   &&
-OPTS="${OPTS} ${XFS_IPV6_SUPPORT}"    &&
+OPTS="$XFS_OPTS $OPTS"  &&
 
 default_build

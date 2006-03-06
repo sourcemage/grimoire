@@ -1,4 +1,3 @@
-OPTS="$XDITVIEW_OPTS $OPTS"
-OPTS="${OPTS} ${XDITVIEW_XPRINT}"  &&
+OPTS="$XDITVIEW_OPTS $OPTS"  &&
 
 default_build

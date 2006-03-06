@@ -1,4 +1,3 @@
-OPTS="$XMAG_OPTS $OPTS"
-OPTS="${OPTS} ${XMAG_XPRINT}"  &&
+OPTS="$XMAG_OPTS $OPTS"  &&
 
 default_build

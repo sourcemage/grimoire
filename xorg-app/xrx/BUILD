@@ -1,4 +1,3 @@
-OPTS="$XRX_OPTS $OPTS"
-OPTS="${OPTS} ${XRX_XPRINT}"  &&
+OPTS="$XRX_OPTS $OPTS"  &&
 
 default_build

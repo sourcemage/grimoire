@@ -1,4 +1,3 @@
-OPTS="$LISTRES_OPTS $OPTS"
-OPTS="${OPTS} ${LISTRES_XPRINT}"  &&
+OPTS="$LISTRES_OPTS $OPTS"  &&
 
 default_build

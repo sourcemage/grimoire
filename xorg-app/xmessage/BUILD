@@ -1,4 +1,3 @@
-OPTS="$XMESSAGE_OPTS $OPTS"
-OPTS="${OPTS} ${XMESSAGE_XPRINT}"  &&
+OPTS="$XMESSAGE_OPTS $OPTS"  &&
 
 default_build

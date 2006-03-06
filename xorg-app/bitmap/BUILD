@@ -1,4 +1,3 @@
-OPTS="$BITMAP_OPTS $OPTS"
-OPTS="${OPTS} ${BITMAP_XPRINT}"  &&
+OPTS="$BITMAP_OPTS $OPTS"  &&
 
 default_build

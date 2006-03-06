@@ -1,4 +1,3 @@
-OPTS="$XGC_OPTS $OPTS"
-OPTS="${OPTS} ${XGC_XPRINT}"  &&
+OPTS="$XGC_OPTS $OPTS"  &&
 
 default_build

@@ -1,4 +1,3 @@
-OPTS="$XBIFF_OPTS $OPTS"
-OPTS="${OPTS} ${XBIFF_XPRINT}"  &&
+OPTS="$XBIFF_OPTS $OPTS"  &&
 
 default_build

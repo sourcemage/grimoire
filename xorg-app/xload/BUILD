@@ -1,4 +1,3 @@
-OPTS="$XLOAD_OPTS $OPTS"
-OPTS="${OPTS} ${XLOAD_XPRINT}"  &&
+OPTS="$XLOAD_OPTS $OPTS"  &&
 
 default_build

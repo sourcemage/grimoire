@@ -1,4 +1,3 @@
-OPTS="$XMAN_OPTS $OPTS"
-OPTS="${OPTS} ${XMAN_XPRINT}"  &&
+OPTS="$XMAN_OPTS $OPTS"  &&
 
 default_build

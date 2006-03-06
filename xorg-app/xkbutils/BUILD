@@ -1,4 +1,3 @@
-OPTS="$XKBUTILS_OPTS $OPTS"
-OPTS="${OPTS} ${XKBUTILS_XPRINT}"  &&
+OPTS="$XKBUTILS_OPTS $OPTS"  &&
 
 default_build

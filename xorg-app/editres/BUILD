@@ -1,4 +1,3 @@
-OPTS="$EDITRES_OPTS $OPTS"
-OPTS="${OPTS} ${EDITRES_XPRINT}"  &&
+OPTS="$EDITRES_OPTS $OPTS"  &&
 
 default_build

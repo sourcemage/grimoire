@@ -1,4 +1,3 @@
-OPTS="$XCALC_OPTS $OPTS"
-OPTS="${OPTS} ${XCALC_XPRINT}"  &&
+OPTS="$XCALC_OPTS $OPTS"  &&
 
 default_build

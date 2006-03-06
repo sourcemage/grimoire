@@ -1,4 +1,3 @@
-OPTS="$PROXYMNGR_OPTS $OPTS"
-OPTS="${OPTS} ${PROXYMNGR_IPV6}"  &&
+OPTS="$PROXYMNGR_OPTS $OPTS"  &&
 
 default_build

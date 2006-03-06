@@ -1,4 +1,3 @@
-OPTS="$XMH_OPTS $OPTS"
-OPTS="${OPTS} ${XMH_XPRINT}"  &&
+OPTS="$XMH_OPTS $OPTS"  &&
 
 default_build
