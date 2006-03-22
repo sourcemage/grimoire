@@ -1,0 +1,145 @@
+#---------------------------------------------------------------------
+## @param return_var (must not be i, foo, temp, returnvar, stuff or default)
+## @param default choice
+## @param elements, ..
+##
+## gives the user some nice select list and puts the selected
+## item in return_var
+## 
+#---------------------------------------------------------------------
+function select_list_multi()
+{
+    local i
+    local foo temp number
+    local returnvar=$1
+    local default=$2
+    local stuff=()
+
+    shift 2
+    hash_unset select_list_hash
+    # see note in select_provider
+    stuff=(0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z)
+
+    let i=0
+    for foo in "$@"; do
+        message "\t$DEFAULT_COLOR[${stuff[$i]}]  $SPELL_COLOR$foo$DEFAULT_COLOR"
+        hash_put select_list_hash "${stuff[$i]}" "$foo"
+        let i++
+    done
+
+    local msg="\n${QUERY_COLOR}You can select multiple choices by simply entering the proper numbers and/or chars. \nSelect your choice(es)? [$default]$DEFAULT_COLOR "
+    select_list_sub_multi "$returnvar" select_list_hash "$msg" "$default"
+    hash_unset select_list_hash
+}
+
+
+#---------------------------------------------------------------------
+## Modified to fit multi selection
+## The user should have already printed out the menu, this handles
+## getting a valid answer from the user.
+## @param name of return value
+## @param name of hash table mapping answers to results
+## @param message to print out for the query
+## @param default answer
+#---------------------------------------------------------------------
+function select_list_sub_multi() {
+  local returnvar=$1
+  local hashname=$2
+  local msgstr=$3
+  local default=$4
+
+  local result
+
+  while [[ ! $result ]] ; do
+    message -n "$msgstr"
+    read   -t  $PROMPT_DELAY  answer
+    [[ $answer ]] || answer=$default
+    answer=$(echo $answer | sed -e 's,\W,,g' -e 's/./& /g')
+    for answer_parsed in $answer
+    do
+       result="$result $(hash_get $hashname $answer_parsed)"
+    done
+  done
+  echo
+  eval $returnvar=\"$result\"
+}
+
+
+#---------------------------------------------------------------------
+## @param config file variable, return variable
+## @param question
+## @param elements, ...
+##
+## @return 0 in all cases
+##
+## Asks user for string, with numbered possibilities listed
+## Return variable is also marked as persistent
+##
+#---------------------------------------------------------------------
+function real_config_query_multi () {
+  local ANSWER
+  local VARIABLE="$1"
+  local QUESTION="$2"
+  local answers
+  shift
+  shift
+
+  if config_get_option "$VARIABLE" ANSWER; then
+    # option already ANSWERed in config
+    for answers in $ANSWER ; do
+    (
+        for foo in "$@"; do
+            [[ "$answers" == "$foo" ]] && exit 0
+        done
+        echo "!!!! WARNING !!!!"
+        echo "!!!! stored option '$answers' in config is not in list of provided options !!!!"
+        echo "!!!! WARNING !!!!"
+    )
+    done
+    echo -e "[[ ${QUERY_COLOR}${QUESTION}${DEFAULT_COLOR} -> '${QUERY_COLOR}$ANSWER${DEFAULT_COLOR}' ]]"
+  else
+    # if there was an answer before, find it
+    local defaults default default_num foo
+    config_get_last_option "$VARIABLE" default
+    [[ $default ]] || default="$1"
+    for defaults in $default; do
+    let i=0
+      for foo in "$@"; do
+        if [[ "$defaults" == "$foo" ]] ; then
+          default_num="$default_num $i"
+        fi
+        let i++
+      done
+    done
+    # we have to ask user
+    message "$QUESTION"
+    select_list_multi ANSWER "${default_num}" "$@"
+    config_set_option "$VARIABLE" "$ANSWER"
+  fi
+
+  eval $VARIABLE=\"$ANSWER\"
+  return 0
+}
+
+
+#---------------------------------------------------------------------
+## @See <@function var.lib.sorcery.modules.libmisc.html,real_config_query_list> for more details.
+## @param config file variable, return variable
+## @param question
+## @param elements, ...
+##
+## @return 0 in all cases
+##
+## Asks user for string, with numbered possibilities listed
+## Return variable is also marked as persistent
+## <pre>
+## Example:
+##    config_query_list COLOR "What color ?" "red" "white" "blue"
+##    echo Your color is $COLOR
+## </pre>
+##
+#---------------------------------------------------------------------
+function config_query_multi () {
+    debug "libapi" "config_query_multi - $*"
+    real_config_query_multi "$@"
+}
