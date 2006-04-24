@@ -1,0 +1,53 @@
+#!/bin/bash
+
+. /etc/sysconfig/omniorb-nameserver
+if [[ "$OMNISERVER" == "NAMES" ]] ; then
+  PROGRAM=/usr/bin/omniNames
+  ARGS="-start $OMNINAMES_PORT -logdir $OMNINAMES_LOGDIR -errlog $OMNINAMES_ERRLOG $OMNINAMES_ORBARGS"
+  DESC="omniORB Name Server daemon"
+elif [[ "$OMNISERVER" == "MAPPER" ]] ; then
+  PROGRAM=/usr/bin/omniMapper
+  ARGS="-port $OMNIMAPPER_PORT -config $OMNIMAPPER_CONFIG $OMNIMAPPER_ARGS"
+  DESC="omniORB Mapper Server daemon"
+else
+  return 1
+fi
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/init.d/smgl_init
+
+required_executable $PROGRAM
+
+start()
+{
+  # do some checking for logdir and stuff so the service will start
+  if [[ "$OMNISERVER" == "NAMES" ]] ; then
+    if [[ ! -d "$OMNINAMES_LOGDIR" ]] ; then
+      mkdir -p "$OMNINAMES_LOGDIR"
+    fi &&
+    if [[ ! -d "$(dirname $OMNINAMES_ERRLOG)" ]] ; then
+      mkdir -p "$(dirname $OMNINAMES_ERRLOG)"
+    fi &&
+    if [[ -f $OMNINAMES_LOGDIR/omninames-$(hostname).log ]] ; then
+      mv $OMNINAMES_LOGDIR/omninames-$(hostname).log $OMNINAMES_LOGDIR/omninames-$(hostname).log-$(date +%Y%m%d%H%M%S)
+    fi &&
+    if [[ -f $OMNINAMES_LOGDIR/omninames-$(hostname).bak ]] ; then 
+      mv $OMNINAMES_LOGDIR/omninames-$(hostname).bak $OMNINAMES_LOGDIR/omninames-$(hostname).bak-$(date +%Y%m%d%H%M%S) 
+    fi 
+  fi
+  echo "Starting: $DESC" &&
+  ( $PROGRAM $ARGS & ) &&
+  sleep 1 &&
+  pidof $(basename $PROGRAM) > /var/run/$(basename $PROGRAM).pid
+}
+
+stop()
+{
+  if [[ -f /var/run/$(basename $PROGRAM).pid ]] ; then
+    echo "Stopping: $DESC with pid $(cat /var/run/`basename $PROGRAM`.pid)" &&
+    kill $(cat /var/run/`basename $PROGRAM`.pid) >> /dev/null 2>&1
+  else
+    echo "$DESC not running..."
+  fi
+}
