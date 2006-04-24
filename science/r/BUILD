@@ -7,6 +7,9 @@ fi &&
 export FPICFLAGS="-fPIC" &&
 # Sergey change : export F77=$(which gfortran) &&
 export F77=g77 &&
-OPTS="$OPTS --enable-linux-fs" &&
+OPTS="--enable-linux-fs  \
+      --enable-R-shlib   \
+      $R_UTF8            \
+      $OPTS"             &&
 
 default_build
