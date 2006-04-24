@@ -1,35 +1,54 @@
-make_normal                              &&
-local TMPSTAGING=/tmp/sorcery/ncurses.$$ &&
-mkdir -p $TMPSTAGING/lib                 &&
-MVERSION=${VERSION/.*/}                  &&
+function fixlinks() { # $1 = install root
+  if [ ! -L $1/lib/libncurses.so.$VERSION  -a -f $1/lib/libncurses.so.$VERSION  ]; then
+    # hardcode this link for bash of an upgrade from not this spell
+    ln -fs libncurses.so.$VERSION   $1/lib/libncursesw.so.$MVERSION
+  fi &&
+  if [ ! -L $1/lib/libncursesw.so.$VERSION -a -f $1/lib/libncursesw.so.$VERSION ]; then
+    # hardcode this link for bash an upgrade from not this spell
+    ln -fs libncursesw.so.$VERSION  $1/lib/libncurses.so.$MVERSION
+  fi
+}
 
-{
-  make  install DESTDIR="$TMPSTAGING"    &&
-  # setting these off to the side -- they are protected as well
-  mv $INSTALL_ROOT/lib/libcurses* $TMPSTAGING/lib
-  true # but we don't care if there is nothing there (e.g. chroot install)
-}                                        &&
-if [ ! -L $TMPSTAGING/lib/libncurses.so.$VERSION  -a -f $TMPSTAGING/lib/libncurses.so.$VERSION  ]; then
-  # hardcode this link for bash of an upgrade from not this spell
-  ln -fs libncurses.so.$VERSION   $TMPSTAGING/lib/libncursesw.so.$MVERSION
-fi &&
-if [ ! -L $TMPSTAGING/lib/libncursesw.so.$VERSION -a -f $TMPSTAGING/lib/libncursesw.so.$VERSION ]; then
-  # hardcode this link for bash an upgrade from not this spell
-  ln -fs libncursesw.so.$VERSION  $TMPSTAGING/lib/libncurses.so.$MVERSION
-fi                                       &&
-ldconfig $TMPSTAGING/lib                 && # append this directory
-make  install DESTDIR="$INSTALL_ROOT"    &&
-if [ ! -L $INSTALL_ROOT/lib/libncurses.so.$VERSION  -a -f $INSTALL_ROOT/lib/libncurses.so.$VERSION  ]; then
-  # hardcode this link for bash an upgrade from not this spell
-  ln -fs libncurses.so.$VERSION   $INSTALL_ROOT/lib/libncursesw.so.$MVERSION
-fi                                       &&
-if [ ! -L $INSTALL_ROOT/lib/libncursesw.so.$VERSION -a -f $INSTALL_ROOT/lib/libncursesw.so.$VERSION ]; then
-  # hardcode this link for bash an upgrade from not this spell
-  ln -fs libncursesw.so.$VERSION  $INSTALL_ROOT/lib/libncurses.so.$MVERSION
-fi                                       &&
+make_normal                                     &&
+
+# setup staging
+local TMPSTAGING=/tmp/sorcery/ncurses.$$        &&
+mkdir -p $TMPSTAGING/lib                        &&
+MVERSION=${VERSION/.*/}                         &&
+
+# install libs to staging
+make  install.libs   DESTDIR="$TMPSTAGING"      &&
+{ # setting these off to the side -- they are protected as well
+  cp $INSTALL_ROOT/lib/lib*curses* $TMPSTAGING/lib/; true; # but we don't care if there is nothing there (e.g. chroot install)
+}  &&  ldconfig  &&  ldconfig $TMPSTAGING/lib   &&
+fixlinks                      $TMPSTAGING       &&
+ldconfig  &&  ldconfig        $TMPSTAGING/lib   &&
+
+# install to real install root
+make  install.libs  DESTDIR="$INSTALL_ROOT"     &&
+fixlinks                     $INSTALL_ROOT      &&
+
+# get rid of the old version of libncurses.so (otherwise tic will complain during 5.4 -> 5.5)
+{ 
+mv $INSTALL_ROOT/lib/libncurses.so.$VERSION      \
+   $INSTALL_ROOT/lib/libncurses.so-bak.$VERSION  &&
+mv $INSTALL_ROOT/lib/libncurses.so.$MVERSION      \
+   $INSTALL_ROOT/lib/libncurses.so-bak.$MVERSION &&
+{ rm $INSTALL_ROOT/lib/libncurses.so.* ; true; } && # we might not be using an old version
+mv $INSTALL_ROOT/lib/libncurses.so-bak.$VERSION  \
+   $INSTALL_ROOT/lib/libncurses.so.$VERSION      &&
+mv $INSTALL_ROOT/lib/libncurses.so-bak.$MVERSION \
+   $INSTALL_ROOT/lib/libncurses.so.$MVERSION     &&
+ldconfig; true # but we don't care if there is nothing there (chroot install)
+} &&
+
+# really install it -- all the libs should be in place
+make  install       DESTDIR="$INSTALL_ROOT"     &&
 
 if  [  "$UTF8"  ==  "y"  ]
 then
+
+  # links from non-utf-8 ncurses extras to utf-8 ncurses extras
   for  i  in  libformw  libmenuw  libncursesw  libpanelw  libcursesw
   do
     ln  -sf  $i.a                   \
