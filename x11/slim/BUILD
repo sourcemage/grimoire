@@ -1,2 +1,1 @@
-LDFLAGS="$LDFLAGS -lz -lm" &&
-default_build
+make DESTDIR=${TRACK_ROOT}/ CC=gcc CXX=g++
