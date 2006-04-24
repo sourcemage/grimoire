@@ -1,47 +1,33 @@
 #!/bin/bash
 
-. /etc/sysconfig/zope
-
-PROGRAM=/bin/false
 RUNLEVEL=3
 NEEDS="+network +remote_fs"
-PIDFILE=/usr/lib/zope/var/Z2.pid
+
+# the scripts for zope and zope3 are almost identical
+ZOPE=zope
+INSTANCE=/var/$ZOPE
+if [ ! -d $INSTANCE ];then
+  echo $ZOPE instance $INSTANCE not available. please create one
+  echo by running /usr/lib/$ZOPE/bin/mkzopeinstance -d $INSTANCE
+  exit 1
+fi
+
+PROGRAM=$INSTANCE/bin/zopectl
+ARGS="$1"
 
 . /etc/init.d/smgl_init
 
-start()
-{
-  echo "Starting Zope..."
-  umask 077
-  reldir=$(dirname $0)
-  cwd=$(cd $reldir; pwd)
-  export EVENT_LOG_FILE
-  /usr/bin/python  /usr/lib/zope/z2.py  -u zope
-  evaluate_retval
-}
-
 stop()
 {
-  echo "Stopping Zope..."
-  kill  $(cat $PIDFILE)
+  echo "Stopping $ZOPE..."
+  $PROGRAM stop
   evaluate_retval
-}
-
-reload()
-{
-  run_func restart
 }
 
 status()
 {
-  if [ -f $PIDFILE ]; then
-    if ps -p $(cat $PIDFILE) > /dev/null; then
-      echo "Zope is running with Process ID(s) $(cat $PIDFILE)"
-    else
-      echo "Zope is not running, but $PIDFILE exists"
-      exit 1
-    fi
-  else
-    echo "Zope is not running"
-  fi
+  echo "Status $ZOPE..."
+  $PROGRAM status
+  evaluate_retval
 }
+
