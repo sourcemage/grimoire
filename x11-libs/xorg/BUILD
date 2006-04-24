@@ -1,15 +1,8 @@
-invoke_gcc  &&
-message  "${MESSAGE_COLOR}Building X.org takes a very long time${DEFAULT_COLOR}"  &&
-
 # Do not remove PIC switches from compiler flags!
 
 if  (echo $CFLAGS | grep -q -- "-Os"); then
   export CFLAGS="-O2 ${CFLAGS//-Os/}"
 fi  &&
-
-if [ "$X_LATEST" == "n" ] ; then
-  patch -p1 < $SCRIPT_DIRECTORY/shared-Xau.patch 
-fi &&
 
 # don't install to /usr/X11R6/lib64 :) (malleus lib64arum)
 for i in \
