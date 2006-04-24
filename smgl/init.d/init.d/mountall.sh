@@ -85,12 +85,23 @@ start()
   mount    -a  -t tmpfs
   evaluate_retval
 
+#As per FHS sm bug #10509
+  echo "Cleaning out /var/run..."
+  [ -d /var/run ] && rm -rf /var/run/*
+  evaluate_retval
+
+  echo "Cleaning out /tmp..."
+  [ -d /tmp ] && rm -rf /tmp/*
+  evaluate_retval
+
   echo "Creating /var/run/utmp..."
   [ -d /var/run ] && touch /var/run/utmp
   evaluate_retval
+
   echo "Writing dmesg log to /var/log/dmesg..."
   [ -d /var/log ] && dmesg  >  /var/log/dmesg
   evaluate_retval
+
   echo "Making /tmp/.ICE-unix temporary directory..."
   [ -d /tmp     ] && mkdir -p /tmp/.ICE-unix && chmod 1777 /tmp/.ICE-unix
   evaluate_retval
