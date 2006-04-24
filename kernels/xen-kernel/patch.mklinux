@@ -1,0 +1,25 @@
+--- buildconfigs/mk.linux-2.6-xen.org	2005-12-26 11:35:20.000000000 +0100
++++ buildconfigs/mk.linux-2.6-xen	2005-12-26 11:36:33.000000000 +0100
+@@ -10,16 +10,20 @@ LINUX_DIR    = $(OS)-$(LINUX_VER)-$(EXTR
+ 
+ include buildconfigs/Rules.mk
+ 
+-.PHONY: build clean delete
++.PHONY: build clean delete xenify
+ 
+ # The real action starts here!
+-build: $(LINUX_DIR)/include/linux/autoconf.h
++build: $(LINUX_DIR)/include/linux/autoconf.h $(INSTALL_DIR)/boot/vmlinuz-$(FULLVERSION)
++
++$(INSTALL_DIR)/boot/vmlinuz-$(FULLVERSION):
+ 	if grep "^CONFIG_MODULES=" $(LINUX_DIR)/.config ; then \
+ 	    $(MAKE) -C $(LINUX_DIR) ARCH=$(LINUX_ARCH) modules ; \
+ 	    $(MAKE) -C $(LINUX_DIR) ARCH=$(LINUX_ARCH) INSTALL_MOD_PATH=$(DESTDIR) modules_install ; \
+ 	fi
+ 	$(MAKE) -C $(LINUX_DIR) ARCH=$(LINUX_ARCH) INSTALL_PATH=$(DESTDIR) install
+ 
++xenify: $(LINUX_DIR)/include/linux/autoconf.h
++
+ $(LINUX_DIR)/include/linux/autoconf.h: ref-$(OS)-$(LINUX_VER)/.valid-ref
+ 	rm -rf $(LINUX_DIR)
+ 	cp -al $(<D) $(LINUX_DIR)

@@ -1,23 +1,26 @@
---- Makefile~	2005-03-10 11:52:16.000000000 -0800
-+++ Makefile	2005-03-19 12:56:57.836469304 -0800
-@@ -38,7 +38,7 @@
- install: install-xen install-tools install-kernels install-docs
+--- Makefile.org	2005-12-26 11:32:13.000000000 +0100
++++ Makefile	2005-12-26 11:33:45.000000000 +0100
+@@ -43,7 +43,7 @@ test:
  
  # build and install everything into local dist directory
--dist: xen tools kernels docs
-+dist: xen tools kbuild docs
+ dist: DESTDIR=$(DISTDIR)/install
+-dist: dist-xen dist-kernels dist-tools dist-docs
++dist: dist-xen dist-kbuild dist-tools dist-docs
  	$(INSTALL_DIR) $(DISTDIR)/check
  	$(INSTALL_DATA) ./COPYING $(DISTDIR)
  	$(INSTALL_DATA) ./README $(DISTDIR)
-@@ -54,11 +54,14 @@
- kernels:
- 	for i in $(XKERNELS) ; do $(MAKE) $$i-build || exit 1; done
+@@ -68,6 +68,9 @@ install-tools:
+ install-kernels:
+ 	for i in $(XKERNELS) ; do $(MAKE) $$i-install || exit 1; done
  
 +patchkrn:
 +	for i in $(KERNELS) ; do $(MAKE) -f buildconfigs/mk.$$i xenify ; done
 +
- docs:
+ install-docs:
  	sh ./docs/check_pkgs && $(MAKE) -C docs install || true
+ 
+@@ -75,7 +78,7 @@ dev-docs:
+ 	$(MAKE) -C docs dev-docs
  
  # Build all the various kernels and modules
 -kbuild: kernels
