@@ -1,0 +1,157 @@
+
+  Well I recently upgraded to 1.6P and realized that I need to make my changes
+  to menu sizes again, so I made them all reference common #defines in
+  dirfilemenu.h so that it's easy to change the sizes of all file dialogs.  I've
+  also made the directory boxes the same width as the filename box.  Included is
+  the patch file.
+
+
+diff -ur gramofile-1.6P.orig/dirfilemenu.h gramofile-1.6P/dirfilemenu.h
+--- gramofile-1.6P.orig/dirfilemenu.h	Tue Mar 28 15:07:26 2000
++++ gramofile-1.6P/dirfilemenu.h	Wed Dec 27 11:19:46 2000
+@@ -21,4 +21,12 @@
+ 		   1 if dir, then new complete dirname in dirfile */
+ 
+ 
++/*
++ * Used to define the file menus used in various places
++ */
++#define DIR_FILEMENU_WIDTH 70
++#define DIR_FILEMENU_HEIGHT 12
++#define DIR_FILEMENU_X 5
++#define DIR_FILEMENU_Y 3
++
+ #endif /* HAVE_DIRFILEMENU_H */
+
+diff -ur gramofile-1.6P.orig/playwav.c gramofile-1.6P/playwav.c
+--- gramofile-1.6P.orig/playwav.c	Tue Mar 28 15:07:25 2000
++++ gramofile-1.6P/playwav.c	Wed Dec 27 11:17:25 2000
+@@ -44,11 +44,11 @@
+     case FILE_EXISTS:
+ 
+       if (usebeginendtime)
+-	sprintf (shellcmd, "bplay_gramo -S -s 44100 -b 16 -J %ld -T %ld %s",
++	sprintf (shellcmd, "bplay_gramo -S -s 44100 -b 16 -J %ld -T %ld \"%s\"",
+ 		 (long) (begintime * 44100),
+ 		 (long) ((endtime - begintime) * 44100), filename);
+       else
+-	sprintf (shellcmd, "bplay_gramo -S -s 44100 -b 16 %s", filename);
++	sprintf (shellcmd, "bplay_gramo -S -s 44100 -b 16 \"%s\"", filename);
+       /* defaults for raw files (but no -r, so .wav's supply their own
+          parameters) - you can even listen to executables in CD quality (: */
+ 
+@@ -188,10 +188,10 @@
+     " Back to main menu.                                             TAB: Next field",
+     " Play the specified (part of the) sound file.                   TAB: Next field"};
+ 
+-  dirfilelist.y = 3;
+-  dirfilelist.x = 5;
+-  dirfilelist.h = 12;
+-  dirfilelist.w = 32;
++  dirfilelist.y = DIR_FILEMENU_Y;
++  dirfilelist.x = DIR_FILEMENU_X;
++  dirfilelist.h = DIR_FILEMENU_HEIGHT;
++  dirfilelist.w = DIR_FILEMENU_WIDTH;
+   dirfilelist.firstonscreen = 0;
+   dirfilemenu (startdir, &dirfilelist);
+   dirfilelist.selected = dirfilelist.last_of_1st_part + 1;
+@@ -771,11 +771,11 @@
+       def_prog_mode ();		/* save terminal state */
+ 
+       if (usebeginendtime)
+-	sprintf (shellcmd, "bplay_gramo -S -s 44100 -b 16 -J %ld -T %ld %s",
++	sprintf (shellcmd, "bplay_gramo -S -s 44100 -b 16 -J %ld -T %ld \"%s\"",
+ 		 (long) (begintime * 44100),
+ 		 (long) ((endtime - begintime) * 44100), filename);
+       else
+-	sprintf (shellcmd, "bplay_gramo -S -s 44100 -b 16 %s", filename);
++	sprintf (shellcmd, "bplay_gramo -S -s 44100 -b 16 \"%s\"", filename);
+       /* defaults for raw files (but no -r, so .wav's supply their own
+          parameters */
+ 
+--- gramofile-1.6P.orig/reclp_filenm.c	Tue Mar 28 15:07:25 2000
++++ gramofile-1.6P/reclp_filenm.c	Wed Dec 27 11:17:53 2000
+@@ -56,10 +56,10 @@
+     " Start `xmixer' to adjust recording volumes.                    TAB: Next field",
+     " Start recording in the specified sound file.                   TAB: Next field"};
+ 
+-  dirfilelist.y = 3;
+-  dirfilelist.x = 5;
+-  dirfilelist.h = 12;
+-  dirfilelist.w = 32;
++  dirfilelist.y = DIR_FILEMENU_Y;
++  dirfilelist.x = DIR_FILEMENU_X;
++  dirfilelist.h = DIR_FILEMENU_HEIGHT;
++  dirfilelist.w = DIR_FILEMENU_WIDTH;
+   dirfilelist.firstonscreen = 0;
+   dirfilemenu (startdir, &dirfilelist);
+   dirfilelist.selected = dirfilelist.last_of_1st_part + 1;
+
+diff -ur gramofile-1.6P.orig/reclp_main.c gramofile-1.6P/reclp_main.c
+--- gramofile-1.6P.orig/reclp_main.c	Tue Mar 28 15:07:25 2000
++++ gramofile-1.6P/reclp_main.c	Wed Dec 27 01:17:45 2000
+@@ -30,7 +30,7 @@
+ 
+   def_prog_mode ();		/* save terminal state */
+ 
+-  sprintf (shellcmd, "brec_gramo -S -s 44100 -b 16 -t 6000 -w %s",
++  sprintf (shellcmd, "brec_gramo -S -s 44100 -b 16 -t 6000 -w \"%s\"",
+ 	   filename);
+   system (shellcmd);
+ 
+diff -ur gramofile-1.6P.orig/signpr_infilenm.c gramofile-1.6P/signpr_infilenm.c
+--- gramofile-1.6P.orig/signpr_infilenm.c	Tue Mar 28 15:07:26 2000
++++ gramofile-1.6P/signpr_infilenm.c	Wed Dec 27 11:16:15 2000
+@@ -54,10 +54,10 @@
+     " Back to main menu.                                             TAB: Next field",
+     " To Signal Processing - Filter Selection.                       TAB: Next field"};
+ 
+-  dirfilelist.y = 3;
+-  dirfilelist.x = 5;
+-  dirfilelist.h = 12;
+-  dirfilelist.w = 32;
++  dirfilelist.y = DIR_FILEMENU_Y;
++  dirfilelist.x = DIR_FILEMENU_X;
++  dirfilelist.h = DIR_FILEMENU_HEIGHT;
++  dirfilelist.w = DIR_FILEMENU_WIDTH;
+   dirfilelist.firstonscreen = 0;
+   dirfilemenu (startdir, &dirfilelist);
+   dirfilelist.selected = dirfilelist.last_of_1st_part + 1;
+
+diff -ur gramofile-1.6P.orig/signpr_outfilenm.c gramofile-1.6P/signpr_outfilenm.c
+--- gramofile-1.6P.orig/signpr_outfilenm.c	Tue Mar 28 15:07:26 2000
++++ gramofile-1.6P/signpr_outfilenm.c	Wed Dec 27 11:18:16 2000
+@@ -55,10 +55,10 @@
+     " Back to main menu.                                             TAB: Next field",
+     " Start processing the signal.                                   TAB: Next field"};
+ 
+-  dirfilelist.y = 3;
+-  dirfilelist.x = 5;
+-  dirfilelist.h = 12;
+-  dirfilelist.w = 32;
++  dirfilelist.y = DIR_FILEMENU_Y;
++  dirfilelist.x = DIR_FILEMENU_X;
++  dirfilelist.h = DIR_FILEMENU_HEIGHT;
++  dirfilelist.w = DIR_FILEMENU_WIDTH;
+   dirfilelist.firstonscreen = 0;
+   dirfilemenu (startdir, &dirfilelist);
+   dirfilelist.selected = dirfilelist.last_of_1st_part + 1;
+
+diff -ur gramofile-1.6P.orig/tracksplit_filenm.c gramofile-1.6P/tracksplit_filenm.c
+--- gramofile-1.6P.orig/tracksplit_filenm.c	Tue Mar 28 15:07:26 2000
++++ gramofile-1.6P/tracksplit_filenm.c	Wed Dec 27 11:18:33 2000
+@@ -54,10 +54,10 @@
+     " Back to main menu.                                             TAB: Next field",
+     " To Track Splitting - Parameters.                               TAB: Next field"};
+ 
+-  dirfilelist.y = 3;
+-  dirfilelist.x = 5;
+-  dirfilelist.h = 12;
+-  dirfilelist.w = 32;
++  dirfilelist.y = DIR_FILEMENU_Y;
++  dirfilelist.x = DIR_FILEMENU_X;
++  dirfilelist.h = DIR_FILEMENU_HEIGHT;
++  dirfilelist.w = DIR_FILEMENU_WIDTH;
+   dirfilelist.firstonscreen = 0;
+   dirfilemenu (startdir, &dirfilelist);
+   dirfilelist.selected = dirfilelist.last_of_1st_part + 1;

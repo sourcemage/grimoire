@@ -1,0 +1,735 @@
+*** /var/CONTRIB/gramofile-1.6/signpr_main.c	Tue Mar 28 23:07:26 2000
+--- /home/hp/inst/gramofile-1.6/signpr_main.c	Sun Jan 28 19:12:24 2001
+***************
+*** 33,39 ****
+  		      scrollmenu_t * filtlist, int *filtnumbers,
+  		      char **helptexts, scrollmenu_t * selectedfilts,
+  		      int *usetracktimes, int *usebeginendtime,
+! 		      double *begintime, double *endtime)
+  {
+    int currscreen = 0;
+    int options_ready = 0;
+--- 33,40 ----
+  		      scrollmenu_t * filtlist, int *filtnumbers,
+  		      char **helptexts, scrollmenu_t * selectedfilts,
+  		      int *usetracktimes, int *usebeginendtime,
+! 		      double *begintime, double *endtime,
+!                       int *adjustframes, long *framesize)
+  {
+    int currscreen = 0;
+    int options_ready = 0;
+***************
+*** 80,86 ****
+  
+  	switch (signproc_select_filters (filtlist, filtnumbers, helptexts,
+  					 selectedfilts, usetracktimes,
+! 				       usebeginendtime, begintime, endtime))
+  	  /* 0: Cancel, 
+  	     1: PreviousScreen, 
+  	     2: NextScreen/Start */
+--- 81,88 ----
+  
+  	switch (signproc_select_filters (filtlist, filtnumbers, helptexts,
+  					 selectedfilts, usetracktimes,
+! 				       usebeginendtime, begintime, endtime,
+!                                        adjustframes, framesize ))
+  	  /* 0: Cancel, 
+  	     1: PreviousScreen, 
+  	     2: NextScreen/Start */
+***************
+*** 283,288 ****
+--- 285,292 ----
+    static char *selectedfilts_items[MAX_FILTERS];
+    static int usebeginendtime = 0, usetracktimes = 1;
+    static double begintime = 0, endtime = 0;
++   static int adjustframes = 0;
++   static long framesize = 588;                /* 1/75 sec. @ 44.1 khz */
+  
+    struct stat buf;
+    int i;
+***************
+*** 291,297 ****
+    beginendsample_t tracktimes[100];	/* max. 99 tracks: 1 (!) - 99 */
+    int number_of_tracks;
+  
+- 
+    if (first_entry)
+      {
+        filtlist.items = filtlist_items;	/* malloc also works :) */
+--- 295,300 ----
+***************
+*** 323,329 ****
+  
+    if (!signproc_get_options (startdir, infilename, outfilename,
+  			  &filtlist, filtnumbers, helptexts, &selectedfilts,
+! 		    &usetracktimes, &usebeginendtime, &begintime, &endtime))
+      return;
+  
+    strcpy (baseoutfilename, outfilename);
+--- 326,333 ----
+  
+    if (!signproc_get_options (startdir, infilename, outfilename,
+  			  &filtlist, filtnumbers, helptexts, &selectedfilts,
+! 		    &usetracktimes, &usebeginendtime, &begintime, &endtime,
+!                     &adjustframes, &framesize))
+      return;
+  
+    strcpy (baseoutfilename, outfilename);
+***************
+*** 384,390 ****
+  
+        /* calculate #samples for this track */
+        tracksize_samples = tracktimes[i].end - tracktimes[i].begin + 1;
+! 
+        /* seek to beginsample */
+        if (!seeksamplesource (tracktimes[i].begin))
+  	{
+--- 388,398 ----
+  
+        /* calculate #samples for this track */
+        tracksize_samples = tracktimes[i].end - tracktimes[i].begin + 1;
+!       if (adjustframes){
+!         tracksize_samples -= tracksize_samples % framesize;
+!         /* set minimum length = 1 frame */
+!         if ( !tracksize_samples ) tracksize_samples = framesize;
+!       }
+        /* seek to beginsample */
+        if (!seeksamplesource (tracktimes[i].begin))
+  	{
+*** /var/CONTRIB/gramofile-1.6/signpr_main.h	Tue Mar 28 23:07:26 2000
+--- /home/hp/inst/gramofile-1.6/signpr_main.h	Sun Jan 28 19:21:42 2001
+***************
+*** 26,32 ****
+  			  scrollmenu_t * filtlist, int *filtnumbers,
+  			  char **helptexts, scrollmenu_t * selectedfilts,
+  			  int *usetracktimes, int *usebeginendtime,
+! 			  double *begintime, double *endtime);
+  
+  int load_track_times (char *filename, beginendsample_t * tracktimes,
+  		      int *number_of_tracks);
+--- 26,33 ----
+  			  scrollmenu_t * filtlist, int *filtnumbers,
+  			  char **helptexts, scrollmenu_t * selectedfilts,
+  			  int *usetracktimes, int *usebeginendtime,
+! 			  double *begintime, double *endtime,
+!                           int *adjustframes, long *framesize);
+  
+  int load_track_times (char *filename, beginendsample_t * tracktimes,
+  		      int *number_of_tracks);
+*** /var/CONTRIB/gramofile-1.6/signpr_filtmenu.h	Tue Mar 28 23:07:26 2000
+--- /home/hp/inst/gramofile-1.6/signpr_filtmenu.h	Sun Jan 28 19:21:29 2001
+***************
+*** 27,33 ****
+  			     char **helptexts,
+  			     scrollmenu_t * selectedfilts,
+  			     int *usetracktimes, int *usebeginendtime,
+! 			     double *begintime, double *endtime);
+  
+  
+  #endif /* HAVE_SIGNPR_FILTMENU_H */
+--- 27,34 ----
+  			     char **helptexts,
+  			     scrollmenu_t * selectedfilts,
+  			     int *usetracktimes, int *usebeginendtime,
+! 			     double *begintime, double *endtime,
+!                              int *adjustframes, long *framesize);
+  
+  
+  #endif /* HAVE_SIGNPR_FILTMENU_H */
+*** /var/CONTRIB/gramofile-1.6/signpr_filtmenu.c	Tue Mar 28 23:07:25 2000
+--- /home/hp/inst/gramofile-1.6/signpr_filtmenu.c	Sun Jan 28 19:59:42 2001
+***************
+*** 17,22 ****
+--- 17,23 ----
+  #include "stringinput.h"
+  #include "secshms.h"
+  #include <stdlib.h>
++ #include <stdio.h>
+  #include <string.h>
+  #ifndef OLD_CURSES
+  #include <ncurses.h>
+***************
+*** 31,49 ****
+  			 char **helptexts,
+  			 scrollmenu_t * selectedfilts,
+  			 int *usetracktimes, int *usebeginendtime,
+! 			 double *begintime, double *endtime)
+  /* Returns 0: canceled, 1: PrevScreen, 2: NextScreen */
+  {
+    button_t next_button, cancel_button, prev_button;
+    button_t beginend_check, tracktimes_check;
+    stringinput_t begintimestring, endtimestring;
+    int dont_stop = TRUE;
+    int returnval = 0;
+!   int focus = 0;
+    int in_ch;
+    int i;
+    double tempdouble = 0;
+    char tempstring[250];
+  
+    char *emptyhelpline =
+    "                                                                TAB: Next field";
+--- 32,67 ----
+  			 char **helptexts,
+  			 scrollmenu_t * selectedfilts,
+  			 int *usetracktimes, int *usebeginendtime,
+! 			 double *begintime, double *endtime,
+!                          int *adjustframes, long *framesize)
+  /* Returns 0: canceled, 1: PrevScreen, 2: NextScreen */
+  {
++ #define FILTLIST_FOCUS     0
++ #define SELFILTS_FOCUS     1
++ #define BEGINTIME_FOCUS    6
++ #define ENDTIME_FOCUS      7
++ #define PREV_FOCUS         8
++ #define NEXT_FOCUS        10
++ #define CANCEL_FOCUS       9
++ #define TRACKTIME_FOCUS    2
++ #define BEGINEND_FOCUS     5
++ #define ADJUSTFRAMES_FOCUS 3
++ #define FRAMESIZE_FOCUS    4
++ #define NUM_WIDGETS       11
++ 
+    button_t next_button, cancel_button, prev_button;
+    button_t beginend_check, tracktimes_check;
+    stringinput_t begintimestring, endtimestring;
++   stringinput_t framesizestring;
++   button_t adjustframes_check;
+    int dont_stop = TRUE;
+    int returnval = 0;
+!   int focus = FILTLIST_FOCUS;
+    int in_ch;
+    int i;
+    double tempdouble = 0;
+    char tempstring[250];
++   long templong = 0;
+  
+    char *emptyhelpline =
+    "                                                                TAB: Next field";
+***************
+*** 51,61 ****
+    int maxhelplength = 62;
+    char helphelpline[100];
+  
+!   char *helplines[9] =
+    {
+      " Enter: Add selected filter.                                    TAB: Next field",
+      " Enter: Parameters   U/D: Move   R/Del: Delete                  TAB: Next field",
+      " Use the .tracks file to split tracks.                          TAB: Next field",
+      " Process only the specified part of the sound.                  TAB: Next field",
+      " Enter begin time of part to be processed.                      TAB: Next field",
+      " Enter end time of part to be processed.                        TAB: Next field",
+--- 69,81 ----
+    int maxhelplength = 62;
+    char helphelpline[100];
+  
+!   char *helplines[11] =
+    {
+      " Enter: Add selected filter.                                    TAB: Next field",
+      " Enter: Parameters   U/D: Move   R/Del: Delete                  TAB: Next field",
+      " Use the .tracks file to split tracks.                          TAB: Next field",
++     " Adjust track lengths to frame size multiples                   TAB: Next field",
++     " Enter frame size for length adjustment                         TAB: Next field",
+      " Process only the specified part of the sound.                  TAB: Next field",
+      " Enter begin time of part to be processed.                      TAB: Next field",
+      " Enter end time of part to be processed.                        TAB: Next field",
+***************
+*** 82,88 ****
+    selectedfilts->firstonscreen = 0;
+    selectedfilts->selected = 0;
+  
+- 
+    begintimestring.maxlen = 500;
+    begintimestring.string = (char *) malloc (
+  				    begintimestring.maxlen * sizeof (char));
+--- 102,107 ----
+***************
+*** 128,133 ****
+--- 147,167 ----
+    beginend_check.x = 42;
+    beginend_check.selected = FALSE;
+  
++   adjustframes_check.text = "";
++   adjustframes_check.y = 17;
++   adjustframes_check.x = 4;
++   adjustframes_check.selected = FALSE;
++   
++   framesizestring.maxlen = 500;
++   framesizestring.string = (char *) malloc (
++                                       framesizestring.maxlen * sizeof (char));
++   sprintf( framesizestring.string, "%ld", *framesize );
++   framesizestring.y = 18;
++   framesizestring.x = 21;
++   framesizestring.w = 8;
++   framesizestring.cursorpos = strlen (framesizestring.string);
++   framesizestring.firstcharonscreen = 0;
++ 
+    clearscreen (SIGNPR_FILTMENU_HEADERTEXT);
+  
+    do
+***************
+*** 144,176 ****
+        else
+  	beginend_check.text = "[ ] Use begin and end times";
+  
+!       if (focus == 2)
+  	tracktimes_check.selected = TRUE;
+        else
+  	tracktimes_check.selected = FALSE;
+  
+!       if (focus == 3)
+  	beginend_check.selected = TRUE;
+        else
+  	beginend_check.selected = FALSE;
+  
+!       if (focus == 6)
+  	prev_button.selected = TRUE;
+        else
+  	prev_button.selected = FALSE;
+  
+!       if (focus == 7)
+  	cancel_button.selected = TRUE;
+        else
+  	cancel_button.selected = FALSE;
+  
+!       if (focus == 8)
+  	next_button.selected = TRUE;
+        else
+  	next_button.selected = FALSE;
+  
+!       filtlist->hasfocus = (focus == 0);
+!       selectedfilts->hasfocus = (focus == 1);
+  
+        scrollmenu_display (filtlist);
+        mybox (filtlist->y - 1, filtlist->x - 1,
+--- 178,220 ----
+        else
+  	beginend_check.text = "[ ] Use begin and end times";
+  
+!       if (*adjustframes)
+! 	adjustframes_check.text = "[X] Adjust to whole frames";
+!       else
+! 	adjustframes_check.text = "[ ] Adjust to whole frames";
+! 
+!       if (focus == TRACKTIME_FOCUS)
+  	tracktimes_check.selected = TRUE;
+        else
+  	tracktimes_check.selected = FALSE;
+  
+!       if (focus == BEGINEND_FOCUS)
+  	beginend_check.selected = TRUE;
+        else
+  	beginend_check.selected = FALSE;
+  
+!       if (focus == ADJUSTFRAMES_FOCUS)
+! 	adjustframes_check.selected = TRUE;
+!       else
+! 	adjustframes_check.selected = FALSE;
+! 
+!       if (focus == PREV_FOCUS)
+  	prev_button.selected = TRUE;
+        else
+  	prev_button.selected = FALSE;
+  
+!       if (focus == CANCEL_FOCUS)
+  	cancel_button.selected = TRUE;
+        else
+  	cancel_button.selected = FALSE;
+  
+!       if (focus == NEXT_FOCUS)
+  	next_button.selected = TRUE;
+        else
+  	next_button.selected = FALSE;
+  
+!       filtlist->hasfocus = (focus == FILTLIST_FOCUS);
+!       selectedfilts->hasfocus = (focus == SELFILTS_FOCUS);
+  
+        scrollmenu_display (filtlist);
+        mybox (filtlist->y - 1, filtlist->x - 1,
+***************
+*** 192,197 ****
+--- 236,245 ----
+        mvprintw (endtimestring.y, endtimestring.x - 12,
+  		"End time  :");
+  
++       stringinput_display( &framesizestring );
++       mvprintw (framesizestring.y, framesizestring.x - 12,
++                 "Frame size:" );
++ 
+        button_display (&prev_button);
+        mybox (prev_button.y - 1, prev_button.x - 1,
+  	     3, strlen (prev_button.text) + 2);
+***************
+*** 204,211 ****
+  
+        button_display (&tracktimes_check);
+        button_display (&beginend_check);
+  
+!       if (focus == 0)
+  	{
+  	  strcpy (helphelpline, emptyhelpline);
+  
+--- 252,260 ----
+  
+        button_display (&tracktimes_check);
+        button_display (&beginend_check);
++       button_display (&adjustframes_check);
+  
+!       if (focus == FILTLIST_FOCUS)
+  	{
+  	  strcpy (helphelpline, emptyhelpline);
+  
+***************
+*** 222,231 ****
+        else
+  	helpline (helplines[focus]);
+  
+!       if (focus == 4)
+  	stringinput_display (&begintimestring);
+!       else if (focus == 5)
+  	stringinput_display (&endtimestring);
+        else
+  	move (0, 79);
+  
+--- 271,282 ----
+        else
+  	helpline (helplines[focus]);
+  
+!       if (focus == BEGINTIME_FOCUS)
+  	stringinput_display (&begintimestring);
+!       else if (focus == ENDTIME_FOCUS)
+  	stringinput_display (&endtimestring);
++       else if (focus == FRAMESIZE_FOCUS)
++ 	stringinput_display (&framesizestring);
+        else
+  	move (0, 79);
+  
+***************
+*** 235,241 ****
+  
+        switch (focus)
+  	{
+! 	case 0:		/* filtlist */
+  	  if (scrollmenu_stdkeys (in_ch, filtlist) >= 0)
+  	    {
+  	      if (selectedfilts->number < MAX_FILTERS)
+--- 286,292 ----
+  
+        switch (focus)
+  	{
+! 	case FILTLIST_FOCUS:
+  	  if (scrollmenu_stdkeys (in_ch, filtlist) >= 0)
+  	    {
+  	      if (selectedfilts->number < MAX_FILTERS)
+***************
+*** 270,276 ****
+  	      }
+  	  break;
+  
+! 	case 1:		/* selectedfilts */
+  	  if (scrollmenu_stdkeys (in_ch, selectedfilts) >= 0)
+  	    {
+  	      if (number_of_filters > 0)
+--- 321,327 ----
+  	      }
+  	  break;
+  
+! 	case SELFILTS_FOCUS:
+  	  if (scrollmenu_stdkeys (in_ch, selectedfilts) >= 0)
+  	    {
+  	      if (number_of_filters > 0)
+***************
+*** 372,378 ****
+  	      }
+  	  break;
+  
+! 	case 2:		/* Use tracksplitting data */
+  	  switch (in_ch)
+  	    {
+  	    case KEY_ENTER:
+--- 423,429 ----
+  	      }
+  	  break;
+  
+! 	case TRACKTIME_FOCUS:
+  	  switch (in_ch)
+  	    {
+  	    case KEY_ENTER:
+***************
+*** 396,402 ****
+  	    }
+  	  break;
+  
+! 	case 3:		/* Use begin/end times */
+  	  switch (in_ch)
+  	    {
+  	    case KEY_ENTER:
+--- 447,475 ----
+  	    }
+  	  break;
+  
+! 	case ADJUSTFRAMES_FOCUS:
+! 	  switch (in_ch)
+! 	    {
+! 	    case KEY_ENTER:
+! 	    case 13:
+! 	    case ' ':
+! 	    case 'x':
+! 	    case 'X':
+! 	      *adjustframes = 1 - *adjustframes;
+! 	      break;
+! 
+! 	    case KEY_LEFT:
+! 	    case KEY_UP:
+! 	      focus--;
+! 	      break;
+! 	    case KEY_RIGHT:
+! 	    case KEY_DOWN:
+! 	      focus++;
+! 	      break;
+! 	    }
+! 	  break;
+! 
+! 	case BEGINEND_FOCUS:
+  	  switch (in_ch)
+  	    {
+  	    case KEY_ENTER:
+***************
+*** 420,426 ****
+  	    }
+  	  break;
+  
+! 	case 4:		/* begin time */
+  	  stringinput_stdkeys (in_ch, &begintimestring);
+  	  switch (in_ch)
+  	    {
+--- 493,499 ----
+  	    }
+  	  break;
+  
+! 	case BEGINTIME_FOCUS:
+  	  stringinput_stdkeys (in_ch, &begintimestring);
+  	  switch (in_ch)
+  	    {
+***************
+*** 453,459 ****
+  	    }
+  	  break;
+  
+! 	case 5:		/* end time */
+  	  stringinput_stdkeys (in_ch, &endtimestring);
+  	  switch (in_ch)
+  	    {
+--- 526,532 ----
+  	    }
+  	  break;
+  
+! 	case ENDTIME_FOCUS:
+  	  stringinput_stdkeys (in_ch, &endtimestring);
+  	  switch (in_ch)
+  	    {
+***************
+*** 473,479 ****
+  		  fsec2hmsf (tempdouble, endtimestring.string);
+  		  endtimestring.cursorpos =
+  		    strlen (endtimestring.string);
+! 		  focus = 8;
+  		}
+  	      break;
+  
+--- 546,552 ----
+  		  fsec2hmsf (tempdouble, endtimestring.string);
+  		  endtimestring.cursorpos =
+  		    strlen (endtimestring.string);
+! 		  focus = NEXT_FOCUS;
+  		}
+  	      break;
+  
+***************
+*** 487,493 ****
+  	  break;
+  
+  
+! 	case 6:		/* < Previous */
+  	  if (in_ch == KEY_ENTER || in_ch == 13)
+  	    {
+  	      returnval = 1;
+--- 560,598 ----
+  	  break;
+  
+  
+!         case FRAMESIZE_FOCUS:
+!           stringinput_stdkeys( in_ch, &framesizestring );
+!           switch (in_ch){
+!             case KEY_ENTER:
+!             case 13:
+!               templong = atol( framesizestring.string );
+!               if (templong < 1){
+!                 error_window( "Enter a whole number greater than 0, preferably\
+!  a multiple of 588." );
+!                 framesizestring.cursorpos = strlen( framesizestring.string );
+!               }else{
+!                 if (templong % 588 != 0)
+!                   error_window( "Warning: You may insist on this value, but \
+! it's not a multiple of 588." );
+!                 else
+!                   focus++;
+!                 *framesize = templong;
+!                 sprintf( framesizestring.string, "%ld", templong );
+!                 framesizestring.cursorpos = strlen( framesizestring.string );
+!               }
+!               break;
+! 
+! 	    case KEY_UP:
+! 	      focus--;
+! 	      break;
+! 	    case KEY_DOWN:
+! 	      focus++;
+! 	      break;
+!           }
+!           break;
+! 
+!           
+! 	case PREV_FOCUS:
+  	  if (in_ch == KEY_ENTER || in_ch == 13)
+  	    {
+  	      returnval = 1;
+***************
+*** 507,513 ****
+  	      }
+  	  break;
+  
+! 	case 7:		/* Cancel */
+  	  if (in_ch == KEY_ENTER || in_ch == 13)
+  	    {
+  	      returnval = 0;
+--- 612,618 ----
+  	      }
+  	  break;
+  
+! 	case CANCEL_FOCUS:
+  	  if (in_ch == KEY_ENTER || in_ch == 13)
+  	    {
+  	      returnval = 0;
+***************
+*** 527,539 ****
+  	      }
+  	  break;
+  
+! 	case 8:		/* Next > */
+  	  if (in_ch == KEY_ENTER || in_ch == 13)
+  	    {
+  	      if (number_of_filters < 1)
+  		{
+  		  error_window ("No filters have been selected.");
+! 		  focus = 0;
+  		  break;
+  		}
+  
+--- 632,644 ----
+  	      }
+  	  break;
+  
+! 	case NEXT_FOCUS:
+  	  if (in_ch == KEY_ENTER || in_ch == 13)
+  	    {
+  	      if (number_of_filters < 1)
+  		{
+  		  error_window ("No filters have been selected.");
+! 		  focus = FILTLIST_FOCUS;
+  		  break;
+  		}
+  
+***************
+*** 544,550 ****
+  minutes:seconds.fractions, for example 0:04:26.740");
+  		  begintimestring.cursorpos =
+  		    strlen (begintimestring.string);
+! 		  focus = 4;
+  		  break;
+  		}
+  
+--- 649,655 ----
+  minutes:seconds.fractions, for example 0:04:26.740");
+  		  begintimestring.cursorpos =
+  		    strlen (begintimestring.string);
+! 		  focus = BEGINTIME_FOCUS;
+  		  break;
+  		}
+  
+***************
+*** 557,563 ****
+  minutes:seconds.fractions, for example 0:04:26.740");
+  		  endtimestring.cursorpos =
+  		    strlen (endtimestring.string);
+! 		  focus = 5;
+  		  break;
+  		}
+  
+--- 662,668 ----
+  minutes:seconds.fractions, for example 0:04:26.740");
+  		  endtimestring.cursorpos =
+  		    strlen (endtimestring.string);
+! 		  focus = ENDTIME_FOCUS;
+  		  break;
+  		}
+  
+***************
+*** 572,581 ****
+  		  fsec2hmsf (*endtime, endtimestring.string);
+  		  endtimestring.cursorpos =
+  		    strlen (endtimestring.string);
+! 		  focus = 4;
+  		  break;
+  		}
+  
+  	      returnval = 2;
+  	      dont_stop = FALSE;
+  	    }
+--- 677,699 ----
+  		  fsec2hmsf (*endtime, endtimestring.string);
+  		  endtimestring.cursorpos =
+  		    strlen (endtimestring.string);
+! 		  focus = BEGINTIME_FOCUS;
+  		  break;
+  		}
+  
++               templong = atol( framesizestring.string );
++               if (templong < 1){
++                 error_window( "Enter a whole number greater than 0, preferably a multiple of 588." );
++                 framesizestring.cursorpos = strlen( framesizestring.string );
++                 focus = FRAMESIZE_FOCUS;
++                 break;
++               }
++               if (templong % 588 != 0){
++                 error_window( "Warning: This value is not a multiple of 588." );  
++               }
++               *framesize = templong;
++ 
++ 
+  	      returnval = 2;
+  	      dont_stop = FALSE;
+  	    }
+***************
+*** 601,610 ****
+        if (in_ch == 27)
+  	dont_stop = FALSE;
+  
+!       if (focus > 8)
+! 	focus -= 9;
+        if (focus < 0)
+! 	focus += 9;
+      }
+    while (dont_stop);
+  
+--- 719,728 ----
+        if (in_ch == 27)
+  	dont_stop = FALSE;
+  
+!       if (focus >= NUM_WIDGETS)
+! 	focus -= NUM_WIDGETS;
+        if (focus < 0)
+! 	focus += NUM_WIDGETS;
+      }
+    while (dont_stop);
+  

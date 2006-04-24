@@ -1,0 +1,29 @@
+--- wu-ftpd-2.6.1/util/privatepw/privatepw.c.original	Wed Dec 27 07:28:49 2000
++++ wu-ftpd-2.6.1/util/privatepw/privatepw.c	Wed Dec 27 07:33:34 2000
+@@ -211,6 +211,8 @@
+     int c;
+ 
+     FILE *tfp;
++    int tfd;
++    char tmpname[BUFLEN];
+ 
+     opterr = 0;
+     create = 0;
+@@ -294,9 +296,15 @@
+ 	return (0);
+     }
+ 
+-    tmp = tmpnam(NULL);
++    strcpy (tmpname, "/tmp/privatepwXXXXXX");
++    tmp = &tmpname[0];
++    tfd = mkstemp (tmp);
++    if (tfd < 0) {
++	fprintf(stderr, "Could not open temp file.\n");
++	return (1);
++    }
+ 
+-    if ((tfp = fopen(tmp, "w")) == NULL) {
++    if ((tfp = fdopen(tfd, "w")) == NULL) {
+ 	fprintf(stderr, "Could not open temp file.\n");
+ 	return (1);
+     }

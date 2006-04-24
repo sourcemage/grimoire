@@ -1,0 +1,51 @@
+if [ "$FILE_SYSTEM" == "y" ] ; then
+  INITRD_NAME="initrd-$KVERSION-${MKINITRD_SCRIPT#*.}"
+  case "$FILESYS_TYPE" in
+    mkfs.cramfs)
+      message "${MESSAGE_COLOR}Using cramfs to make initrd${DEFAULT_COLOR}" &&
+      $FILESYS_TYPE ${BUILD_DIRECTORY}/initrd ${INSTALL_ROOT}/boot/${INITRD_NAME}
+    ;;
+    mkisofs)
+      message "${MESSAGE_COLOR}Using isofs to make initrd${DEFAULT_COLOR}" &&
+      $FILESYS_TYPE -o ${INSTALL_ROOT}/boot/${INITRD_NAME} ${BUILD_DIRECTORY}/initrd
+    ;;
+    mksquashfs)
+      message "${MESSAGE_COLOR}Using squashfs to make initrd${DEFAULT_COLOR}" &&
+      $FILESYS_TYPE ${BUILD_DIRECTORY}/initrd ${INSTALL_ROOT}/boot/${INITRD_NAME}
+    ;;
+    mkfs.ext[23] | mkfs | mkfs.minix)
+      message "${MESSAGE_COLOR}Making file system out of device${DEFAULT_COLOR}" &&
+      REAL_SIZE=`du -s ${BUILD_DIRECTORY}/initrd | awk '{ print $1 }'`
+      message "${MESSAGE_COLOR}du -s ${BUILD_DIRECTORY}/initrd == ${REAL_SIZE}${DEFAULT_COLOR}" &&
+      # add a little bit just for kicks
+      dd if=/dev/zero of=${BUILD_DIRECTORY}/${INITRD_NAME} bs=1k count=$(( $REAL_SIZE + 1000 )) &&
+      mk_source_dir ${BUILD_DIRECTORY}/initrd.mnt &&
+      $FILESYS_TYPE ${BUILD_DIRECTORY}/${INITRD_NAME}
+      mount -o loop ${BUILD_DIRECTORY}/${INITRD_NAME} ${BUILD_DIRECTORY}/initrd.mnt &&
+      cp -a ${BUILD_DIRECTORY}/initrd/* ${BUILD_DIRECTORY}/initrd.mnt &&
+      umount ${BUILD_DIRECTORY}/initrd.mnt &&
+      mv ${BUILD_DIRECTORY}/${INITRD_NAME} ${INSTALL_ROOT}/boot &&
+      rm_source_dir ${BUILD_DIRECTORY}/initrd.mnt
+    ;;
+    *)
+      message "${PROBLEM_COLOR}Eeek I don't know what ${FILESYS_TYPE} is.${DEFAULT_COLOR}" &&
+      message "${PROBLEM_COLOR}Error because of unknown/unimplemented filesystem type${DEFAULT_COLOR}" &&
+      return 1
+    ;;
+  esac
+fi &&
+if [ "$SPLASH_IMAGE" == "y" ] ; then
+  if [ -z ${INITRD_NAME} ] ; then
+    INITRD_NAME="initrd.splash"
+  fi &&
+  mkdir -p ${INSTALL_ROOT}/etc/bootsplash/themes                                       &&
+  cp -rv $THEME ${INSTALL_ROOT}/etc/bootsplash/themes/                           &&
+  touch ${INSTALL_ROOT}/boot/${INITRD_NAME}                                            &&
+
+  for file in $(find ${INSTALL_ROOT}/etc/bootsplash/themes/$THEME/config -type f); do
+    splash -s -f $file >> ${INSTALL_ROOT}/boot/${INITRD_NAME}
+  done &&
+  mv ${INSTALL_ROOT}/boot/${INITRD_NAME} ${INSTALL_ROOT}/boot/${INITRD_NAME}-${THEME}
+  message "${PROBLEM_COLOR}Please make sure the bootsplash.conf has the right boot theme or boot splash will not work correctly next reboot${DEFAULT_COLOR}"
+  #install_config_file "$SCRIPT_DIRECTORY/bootsplash" "/etc/sysconfig/bootsplash"
+fi

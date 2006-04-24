@@ -1,0 +1,145 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+# vim:set ts=2 sw=2 et:
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+##
+##=head1 DESCRIPTION
+##
+##
+##=head1 COPYRIGHT
+##
+## Copyright (C) 2003 Robert Helgesson <rycee@home.se>
+## 
+##=head1 FUNCTIONS
+#---------------------------------------------------------------------
+
+PATH="/sbin:/bin"
+RUNLEVELS_DIR="/etc/init.d/runlevels"
+
+# Get some configurations that alter the behavior of this script
+. /etc/sysconfig/init
+. /etc/init.d/smgl_functions
+
+######################
+######################
+
+# $1 - full path to directory
+start_dir()
+{
+  (
+    set $1 start
+    [ -f "$1/runlevel.config" ] && . $1/runlevel.config
+    . /etc/init.d/smgl_runlevel
+  )
+}
+
+# $1 - full path to directory
+stop_dir()
+{
+  runlevel=${1#*%}
+  echo "Leaving runlevel $runlevel..."
+}
+
+######################
+######################
+
+# $1 - runlevel to start
+start()
+{
+  [ "$1" ] && target_runlevel=$1 || target_runlevel=default
+  echo
+  echo "Booting to runlevel $target_runlevel..."
+  echo
+  need "%$target_runlevel" # not PARALLEL so login prompt comes after
+}
+
+######################
+######################
+
+# $1 - requested runlevel
+run_runlevel()
+{
+  [ $# -eq 0 ] && echo "missing runlevel argument" > /dev/stderr && exit 1
+  local OK_ERR=
+  (
+    lvl=$1
+    lvl_file="$RUNLEVELS_DIR/%$1"
+
+    set $lvl_file switch
+
+    trap "echo 'Got signal, exiting' ; exit 1" USR1
+
+    if [ -d "$lvl_file" ] ; then
+      [ -f "$lvl_file/runlevel.config" ] && . $lvl_file/runlevel.config
+      . /etc/init.d/smgl_runlevel
+    elif [ -f "$lvl_file" -a -x "$lvl_file" ] ; then
+      . $lvl_file
+    else
+      echo "not a runlevel: $lvl" > /dev/stderr
+      OK_ERR=1
+    fi
+  )
+  [ -n "$OK_ERR" ] && exit 1
+}
+
+# $1 - requested script
+# $@ - arguments
+run_script()
+{
+  local script=$1
+  shift 2
+  if [ $# -gt 0 ] ; then
+  bash   $RUNLEVELS_DIR/*/$script "$@"
+  else
+    echo "missing script argument" > /dev/stderr && exit 1
+  fi
+}
+
+telinit()
+{
+  # source smgl_telinit for user functions
+  . /etc/init.d/smgl_telinit
+
+  smgl_telinit "$@"
+}
+
+
+######################
+
+#echo -$0- -$1- -$2- -$3-
+
+case "$1" in
+  start-dir)  start_dir $2        ;;
+  stop-dir)   stop_dir $2         ;;
+  start)      start $2            ;;
+  stop)       true                ;;
+  telinit)    shift; telinit "$@" ;;
+  *)          echo "Bad argument: $1"
+              exit 1
+              ;;
+esac
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

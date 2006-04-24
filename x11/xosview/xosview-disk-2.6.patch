@@ -1,0 +1,158 @@
+diff -ruN xosview-1.8.1/linux/diskmeter.cc xosview-disk-2.6/linux/diskmeter.cc
+--- xosview-1.8.1/linux/diskmeter.cc	2003-10-20 10:59:25.000000000 +1000
++++ xosview-disk-2.6/linux/diskmeter.cc	2003-12-10 02:33:05.946203885 +1100
+@@ -12,6 +12,8 @@
+ #include <stdlib.h>
+ 
+ static const char STATFILENAME[] = "/proc/stat";
++// kernel >= 2.5 support
++static const char VMSTATFILENAME[] = "/proc/vmstat";
+ #define MAX_PROCSTAT_LENGTH 2048
+ 
+ DiskMeter::DiskMeter( XOSView *parent, float max ) : FieldMeterGraph(
+@@ -51,27 +53,63 @@
+     IntervalTimerStop();
+     total_ = maxspeed_;
+     char buf[MAX_PROCSTAT_LENGTH];
++    unsigned char new_kernel = 1;
++    std::ifstream vmstats( VMSTATFILENAME );
+     std::ifstream stats( STATFILENAME );
+ 
+-    if ( !stats )
++    if ( new_kernel && !vmstats )
+         {
+-        std::cerr <<"Can not open file : " <<STATFILENAME << std::endl;
+-        exit( 1 );
++	new_kernel = 0;
+         }
+ 
+-    // Find the line with 'page'
+-    stats >> buf;
+-    while (strncmp(buf, "page", 9))
++    if ( !new_kernel && !stats )
+         {
+-        stats.ignore(MAX_PROCSTAT_LENGTH, '\n');
+-        stats >> buf;
++        std::cerr <<"Can not open file : " <<STATFILENAME <<std::endl;
++        exit( 1 );
+         }
+ 
+-	// read values
+     unsigned long one, two;
+-    stats >> one >> two;
++
++    if (new_kernel) {
++        vmstats >> buf;
++        // kernel >= 2.5
++        while (!vmstats.eof() && strncmp(buf, "pgpgin", 7))
++            {
++            vmstats.ignore(MAX_PROCSTAT_LENGTH, '\n');
++            vmstats >> buf;
++            }
++
++       // read first value
++        vmstats >> one;
++
++        while (!vmstats.eof() && strncmp(buf, "pgpgout", 7))
++            {
++            vmstats.ignore(MAX_PROCSTAT_LENGTH, '\n');
++            vmstats >> buf;
++            }
++       // read second value
++        vmstats >> two;
++    } else {
++        stats >> buf;
++	while (strncmp(buf, "disk_io:", 8))
++            {
++            stats.ignore(MAX_PROCSTAT_LENGTH, '\n');
++            stats >> buf;
++            }
++
++    unsigned long one=0, two=0;
++    unsigned long junk,read1,write1;
++    stats >> buf;
++    while (7 == sscanf(buf,"(%lu,%lu):(%lu,%lu,%lu,%lu,%lu)",&junk,&junk,&junk,&junk,&read1,&junk,&write1))
++    {
++           one += read1;
++           two += write1;
++           stats >> buf;
++    }
++    }
+ 
+     // assume each "unit" is 1k.
++    // (As per the kernel docs...
+     // This is true for ext2, but seems to be 512 bytes
+     // for vfat and 2k for cdroms
+     // work in 512-byte blocks
+@@ -83,8 +121,8 @@
+     // So this is a FIXME - but how ???
+ 
+     float itim = IntervalTimeInMicrosecs();
+-    unsigned long read_curr = one * 2;  // FIXME!
+-    unsigned long write_curr = two * 2; // FIXME!
++    unsigned long read_curr = one;  // FIXME!
++    unsigned long write_curr = two; // FIXME!
+ 
+     // avoid strange values at first call
+     if(read_prev_ == 0) read_prev_ = read_curr;
+diff -ruN xosview-1.8.1/linux/pagemeter.cc xosview-disk-2.6/linux/pagemeter.cc
+--- xosview-1.8.1/linux/pagemeter.cc	2003-10-20 11:24:32.000000000 +1000
++++ xosview-disk-2.6/linux/pagemeter.cc	2003-12-10 02:29:41.259134595 +1100
+@@ -13,6 +13,8 @@
+ 
+ 
+ static const char STATFILENAME[] = "/proc/stat";
++// kernel >= 2.5 support
++static const char VMSTATFILENAME[] = "/proc/vmstat";
+ #define MAX_PROCSTAT_LENGTH 2048
+ 
+ 
+@@ -50,19 +52,41 @@
+ void PageMeter::getpageinfo( void ){
+   total_ = 0;
+   char buf[MAX_PROCSTAT_LENGTH];
++  unsigned char new_kernel = 1;
++
++  std::ifstream vmstats( VMSTATFILENAME );
+   std::ifstream stats( STATFILENAME );
+ 
+-  if ( !stats ){
+-    std::cerr <<"Cannot open file : " <<STATFILENAME << std::endl;
+-    exit( 1 );
++  if ( new_kernel && !vmstats ){
++    new_kernel = 0;
+   }
+ 
+-  do {
+-    stats >>buf;
+-  } while (strncasecmp(buf, "swap", 5));
++  if ( !new_kernel && !stats ) {
++      std::cerr <<"Cannot open file : " <<STATFILENAME <<std::endl;
++      exit( 1 );
++  }
+ 
+-  stats >>pageinfo_[pageindex_][0] >>pageinfo_[pageindex_][1];
++  if ( new_kernel ) {
++      // kernel >= 2.5
++      do {
++        vmstats >>buf;
++      } while (!vmstats.eof() && strncasecmp(buf, "pswpin", 7));
++
++      vmstats >>pageinfo_[pageindex_][0];
++
++      do {
++        vmstats >>buf;
++      } while (!vmstats.eof() && strncasecmp(buf, "pswpout", 8)) ;
++
++      vmstats >>pageinfo_[pageindex_][1];
++  } else {
++      // kernel < 2.5
++      do {
++        stats >>buf;
++      } while (strncasecmp(buf, "swap", 5));
+ 
++      stats >>pageinfo_[pageindex_][0] >>pageinfo_[pageindex_][1];
++  }
+   int oldindex = (pageindex_+1)%2;
+ 
+   for ( int i = 0; i < 2; i++ ) {

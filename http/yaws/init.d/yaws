@@ -1,0 +1,84 @@
+#!/bin/bash
+#
+# Startup script for the Yaws Web Server
+#
+# config: /etc/yaws.conf
+#
+# chkconfig: 2345 65 35
+# description: yaws - Erlang enabled http server
+# use "/sbin/chkconfig --add yaws" to install
+
+# Modified from supplied version in YAWS tarball
+
+RUNLEVEL=3
+PROGRAM=/usr/bin/yaws
+NEEDS="+network +remote_fs"
+
+. /etc/init.d/smgl_init
+
+prog=yaws
+
+start() {
+        echo -n $"Starting $prog: "
+        $PROGRAM -D -heart
+        RETVAL=$?
+        echo
+        [ $RETVAL = 0 ] && touch /var/lock/subsys/yaws
+        return $RETVAL
+}
+
+stop() {
+	echo -n $"Stopping $prog: "
+	str=`$PROGRAM -s`
+	if [ "$str" = "stopping" ]; then
+	    RETVAL=0
+	else
+	    RETVAL=1
+	fi
+	rm -f /var/lock/subsys/yaws /var/run/yaws.pid
+	return $RETVAL
+}
+
+
+reload() {
+	echo -n $"Reloading $prog: "
+	r=`$PROGRAM -h` 
+	RETVAL=$?
+	echo $r
+	return $RETVAL
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+        $PROGRAM -S
+	RETVAL=$?
+	;;
+  restart)
+	stop
+	start
+	;;
+  condrestart)
+	if [ -f /tmp/yaws.ctl ] ; then
+		stop
+		start
+	fi
+	;;
+  reload)
+        reload
+	;;
+  help)
+	$yaws -?
+	;;
+  *)
+	echo $"Usage: $prog {start|stop|restart|condrestart|reload|status|fullstatus|help}"
+	exit 1
+esac
+
+exit $RETVAL

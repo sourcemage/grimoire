@@ -1,0 +1,212 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+# vim:set ts=2 sw=2 et:
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+##
+##
+##=head1 DESCRIPTION
+##
+##
+##
+##=head1 COPYRIGHT
+##
+## Copyright (C) 2003 Robert Helgesson <rycee@home.se>
+## 
+##=head1 FUNCTIONS
+#---------------------------------------------------------------------
+
+
+# Always source the utility-functions
+. /etc/init.d/smgl_functions
+
+
+# Reset some environment variables so the script won't get any surprises
+PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+
+# Set the default list of init script functions.
+FUNCS="start stop restart reload force-reload status"
+
+# /usr/bin/basename might not be available
+# $1 - path
+basename()
+{
+  path=$1
+
+  # Strip trailing '/' chars
+  while [ -z "${path##*/}" ] ; do
+    [ "$path" = "/" ] && { builtin echo "/"; return; }
+    path="${path%/}"
+  done
+
+  # Remove everything up to (and including) the last '/' char
+  path=${path##*/}
+
+  # Print the result
+  builtin echo $path
+}
+
+# Some variables used in this script
+scriptname=$( basename $0 )
+
+
+##################################
+
+
+print_error()
+{
+  $FAILURE
+  echo "$scriptname: $*"
+  $NORMAL
+}
+
+handle_needs()
+{
+  # Well, if the script doesn't need anything don't bother going further
+  [ -z "$NEEDS" ] && return
+
+  _SUB_NEEDED=1
+  for service in $NEEDS ; do
+    if [ ${service:0:1} == "+" ] ; then
+      facility=${service:1}
+      service=$( eval builtin echo "\$$facility" )
+    fi
+
+    if [ -z "$service" ] ; then
+      print_error "Provider for facility $facility not configured."
+      exit 7
+    fi
+
+    need $service || exit 7
+  done
+  unset _SUB_NEEDED
+}
+
+handle_provides()
+{
+  # Only run if this script is a facility provider...
+  # ... and if the script is not called by use of NEEDS variable...
+  # ... and the script action is start
+
+  [ -z "$PROVIDES" -o "${_SUB_NEEDED}" ] && return
+
+  # Find out if this is the script configured by the user to run when the
+  # facility is requested.
+
+  parent_provides=$( eval "builtin echo \$$PROVIDES" )
+
+  if [ -z "$parent_provides" ] ; then
+    # If some other script already managed to start then exit silently
+    #provide "+$PROVIDES" || exit 1
+    print_error "Provider for facility $PROVIDES not configured..."
+  elif [ "$parent_provides" = "$scriptname" ] ; then
+    #provide "+$PROVIDES" || {
+    #  print_error "Requested provider for facility $PROVIDES unable to start."
+    #  exit 1
+    #}
+    :
+  else
+    # This script is not the requested provider
+    exit 1
+  fi
+}
+
+# $1 - action to take (abort, ask, ignore)
+_handle_essential_failure()
+{
+  case "$1" in
+    ignore) exit $exit_code
+            ;;
+    abort)  echo "Starting rescue shell, the computer will be rebooted"
+            echo "when logging out..."
+            /sbin/sulogin
+            /sbin/reboot
+            ;;
+    ask)    echo "Which action do you wish to take?"
+            while true ; do
+              read -n 1 -p "[a]bort, [i]gnore: " in
+              echo
+              case "$in" in
+                a)    _handle_essential_failure abort   ;;
+                i)    _handle_essential_failure ignore  ;;
+                *)    continue                          ;;
+              esac
+              break   # Just to be sure we don't get an infinite loop
+            done
+            ;;
+    *)      echo -n "Bad value specified for ESSENTIAL_FAIL_ACTION: "
+            echo $ESSENTIAL_FAIL_ACTION
+            ;;
+  esac
+}
+
+_handle_exit()
+{
+  if [ "$1" = "start" ] ; then
+    if [ $exit_code -eq 0 -a "$PROGRAM" ] ; then
+      ( . /etc/init.d/auto_init ; )
+      exit_code=$?
+    fi
+
+    if [ $exit_code -ne 0 -a "$ESSENTIAL" = "yes" ] ; then
+      . /etc/sysconfig/init
+      echo
+      echo "Essential script failed..."
+      echo
+      _handle_essential_failure "$ESSENTIAL_FAIL_ACTION"
+    fi
+  else
+    if [ $exit_code -eq 0 -a "$PROGRAM" ] ; then
+      . /etc/init.d/auto_init
+    else
+      exit $exit_code
+    fi
+  fi
+}
+
+##################################
+
+trap 'exit_code=$? _handle_exit "$@"' EXIT
+
+# Do this in a sub-shell to not pollute namespace with content of facilities.
+if [ "$1" = "start" ] ; then
+  (
+    . /etc/sysconfig/facilities || {
+      print_error "Unable to load file containing facility definitions."
+      exit 1
+    }
+    handle_needs
+    handle_provides
+  ) || exit $?
+fi
+
+
+##################################
+
+
+# Delete variables and functions local to this script
+unset parent_provides scriptname print_error handle_needs handle_provides
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

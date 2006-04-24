@@ -1,0 +1,56 @@
+#! /bin/sh
+# $Id: pop3d-ssl.rc.in,v 1.7 2002/10/25 12:15:17 mrsam Exp $
+#
+# Copyright 1998 - 2002 Double Precision, Inc.
+# See COPYING for distribution information.
+
+RUNLEVEL=3
+NEEDS="+network +remotefs"
+.  /etc/init.d/smgl_functions
+
+prefix=/usr
+exec_prefix=/usr
+bindir=${exec_prefix}/bin
+libexecdir=/usr/libexec/courier-imap
+
+. /etc/courier-imap/pop3d
+. /etc/courier-imap/pop3d-ssl
+
+case $1 in
+start)
+	LIBAUTHMODULES=""
+	for f in `builtin echo $AUTHMODULES`; do
+		LIBAUTHMODULES="$LIBAUTHMODULES ${libexecdir}/authlib/$f"
+	done
+
+	if test -x ${libexecdir}/authlib/authdaemond; then
+		/bin/env - ${libexecdir}/authlib/authdaemond start
+	fi
+
+	/bin/env - /bin/sh -c " set -a ;
+			prefix=/usr ;
+			exec_prefix=/usr ;
+			bindir=${exec_prefix}/bin ;
+			libexecdir=${libexecdir} ;
+			. /etc/courier-imap/pop3d ; \
+			. /etc/courier-imap/pop3d-ssl ; \
+			POP3_TLS=1; export POP3_TLS; \
+			POP3_STARTTLS=NO; export POP3_STARTTLS; \
+			POP3_TLS_REQUIRED=0; export POP3_TLS_REQUIRED; \
+			${libexecdir}/couriertcpd -address=$SSLADDRESS \
+			-stderrlogger=${exec_prefix}/sbin/courierlogger \
+			-stderrloggername=pop3d-ssl \
+			-maxprocs=$MAXDAEMONS -maxperip=$MAXPERIP \
+			-pid=$SSLPIDFILE $TCPDOPTS \
+			$SSLPORT $COURIERTLS -server -tcpd \
+			${exec_prefix}/sbin/pop3login $LIBAUTHMODULES \
+			${exec_prefix}/bin/pop3d Maildir"
+	;;
+stop)
+	${libexecdir}/couriertcpd -pid=$SSLPIDFILE -stop
+	if test -x ${libexecdir}/authlib/authdaemond; then
+		${libexecdir}/authlib/authdaemond stop
+	fi
+	;;
+esac
+exit 0

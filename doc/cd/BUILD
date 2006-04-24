@@ -1,0 +1,1 @@
+yes | tex  cd.ins

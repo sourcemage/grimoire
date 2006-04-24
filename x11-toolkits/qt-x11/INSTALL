@@ -1,0 +1,21 @@
+default_install  &&
+ln -sf ${INSTALL_ROOT}/usr/lib/libqt-mt.so.${VERSION} /usr/lib/libqt-mt.so  &&
+ln -sf ${INSTALL_ROOT}/usr/lib/libqt-mt.so  /usr/lib/libqt.so               &&
+
+mkdir -p ${INSTALL_ROOT}/etc/profile.d/   &&
+install -m 0644 $SCRIPT_DIRECTORY/qt.sh   \
+         ${INSTALL_ROOT}/etc/profile.d/   &&
+
+# fixing the include dir problem
+sed -e 's/QTDIR)\/include/QTDIR)\/include\/qt/'                 \
+    -i ${INSTALL_ROOT}/usr/share/qt/mkspecs/default/qmake.conf  &&
+
+# The qmake program is installed incorrectly by make install.
+rm /usr/bin/qmake  &&
+install -m 0755 qmake/qmake /usr/bin
+
+# Delete spurious symlink
+LINK=/usr/share/qt/mkspecs/default/linux*
+if [ -e $LINK ]; then
+  rm $LINK
+fi

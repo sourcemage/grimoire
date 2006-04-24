@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Init file for Palantir and related services
+#
+# processname: palantir
+# processname: sysfeed
+
+. /etc/init.d/smgl_init
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+network"
+
+PLOGFILE=/var/log/palantir
+USER=palantir
+
+case "$1" in
+  start)
+    if [ ! -e /dev/video0 ]; then
+       echo "No video devices found"
+       exit 1
+    fi   
+    echo "Starting Palantir services..."
+    if [ ! -f /var/log/palantir ] ; then
+       touch $PLOGFILE
+       chown $USER $PLOGFILE
+    fi
+    su $USER -c "palantir &"
+    su $USER -c "sysfeed >& /dev/null &"
+    evaluate_retval
+    ;;
+
+  stop)
+    echo -n "Stopping Palantir:"
+    killproc palantir
+    echo
+    echo -n "Stopping sysfeed:"
+    killproc sysfeed
+    echo
+    evaluate_retval
+    ;;
+
+  restart)
+    $0 stop
+    $0 start
+    evaluate_retval
+    ;;
+
+  *)
+    echo "Usage: palantir {start|stop|restart}"
+    ;;
+esac
+

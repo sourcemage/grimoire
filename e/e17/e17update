@@ -1,0 +1,49 @@
+#!/bin/bash
+#
+# This is a simple script to update all of your installed e17 packages
+# for Source Mage GNU/Linux <http://www.sourcemage.org/>
+#
+# (C) 2005 Eric Sandall <eric@sandall.us>
+#
+# Released under the GNU GPLv2
+#
+# 2006-01-07 Eric Sandall <eric@sandall.us>
+#   * Added code to allow download only of sources
+#
+# Usage: e17update
+#
+
+#
+# We'll use some Sorcery functions to make this easy
+#
+source  /etc/sorcery/config  &&
+
+function get_spell_list () {
+  message  "${MESSAGE_COLOR}Building list of packages to update..."  \
+           "${DEFAULT_COLOR}"                                        &&
+  for e_spell in `gaze section e`;  do
+    if  [[  `installed_version  $e_spell`  ==  "cvs"  ]];  then
+      update_spells="$update_spells $e_spell"
+    fi
+  done
+}
+
+if    [  "$#"  ==  '0'  ];  then
+  get_spell_list  &&
+  cast  -c  $update_spells
+elif  [  "$#"  ==  '1'  ];  then
+  case $1 in
+      -h|--help) echo  "usage: $0 [option]"
+                 echo  "-s|--summon  Do a CVS checkout only (using summon)";
+                 echo  "-h|--help    Print this help message";
+                 ;;
+    -s|--summon) get_spell_list  &&
+                 summon  $update_spells;
+                 ;;
+              *) echo  "Invalid option: $1";
+                 ;;
+  esac
+else
+  echo  "Invalid options: $@"
+fi
+

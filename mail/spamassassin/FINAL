@@ -1,0 +1,72 @@
+if spell_ok postfix; 
+  then
+  if  [  "$POSTFIX_GLOBAL"  ==  "y"  ];
+  then
+    OUTPUT_FILE="/etc/postfix/master.cf"
+
+    create_account postfixfilter
+
+  else
+    message "Skipping... (output to /etc/postfix/master.cf-Mail-SpamAssassin-sample instead)."
+    OUTPUT_FILE="/etc/postfix/master.cf-Mail-SpamAssassin-sample"
+  fi
+
+  CUR_DATE=`date +%y.%m.%d-%H.%M.%S`
+  cp /etc/postfix/master.cf /etc/postfix/master.cf.backup-Mail-SpamAssassin-$CUR_DATE
+
+  FILTER_SIGNATURE="# Begin Mail-SpamAssassin filtering rules...DO NOT REMOVE THIS LINE..."
+  grep "$FILTER_SIGNATURE" $OUTPUT_FILE 1>/dev/null 2>&1
+
+  if [ $? -eq 0 ] && [ "$OUTPUT_FILE" == "/etc/postfix/master.cf" ]; then
+    message "Mail-SpamAssassin filter signature found in master.cf."
+    message "master.cf update skiped.".
+  else
+    message "Updating $OUTPUT_FILE"
+    echo "# ==========================================================================" >> $OUTPUT_FILE
+    echo $FILTER_SIGNATURE >> $OUTPUT_FILE
+    echo "# ==========================================================================" >> $OUTPUT_FILE
+
+    if [ "$OUTPUT_FILE" == "/etc/postfix/master.cf-Mail-SpamAssassin-sample" ]; then
+      cp /etc/postfix/master.cf $OUTPUT_FILE 1>/dev/null 2>&1
+    fi
+
+    cp $SCRIPT_DIRECTORY/postfixfilter /usr/sbin &&
+    perl -i -pe 's/^(smtp\s.*\ssmtpd\s*)$/$1 -o content_filter=postfixfilter:\n/' $OUTPUT_FILE
+
+    PFF_EXE=/usr/sbin/postfixfilter
+    echo >> $OUTPUT_FILE 'postfixfilter unix - n n - - pipe'
+    echo >> $OUTPUT_FILE "  flags=Rq user=postfixfilter argv=$PFF_EXE "     ' -f ${sender} -- ${recipient}'
+
+    if [ -e /etc/postfix/master.cf-rollback.patch ] && [ "$OUTPUT_FILE" == "/etc/postfix/master.cf" ]; then
+      message "A previous rollback file (used to restore your master.cf without"
+      message "Mail-SpamAssassin) was found."
+      message "Updating twice master.cf, or rollbacking (at dispel time) using"
+      message "an  incorrect  rollback  file  may cause  unpredictable result,"
+      message "and corrupt your master.cf file..."
+       
+      if [ "$ERASE_ROLLBACK" == "n" ]; then
+        message "A copy of original master.cf file is left in /etc/postfix directory..."
+        message "(just in case ;)"
+      else
+        diff /etc/postfix/master.cf /etc/postfix/master.cf.backup-Mail-SpamAssassin-$CUR_DATE > /etc/postfix/master.cf-rollback.patch
+        rm -f /etc/postfix/master.cf.backup-Mail-SpamAssassin-$CUR_DATE
+      fi
+    else
+      diff /etc/postfix/master.cf /etc/postfix/master.cf.backup-Mail-SpamAssassin-$CUR_DATE > /etc/postfix/master.cf-rollback.patch
+      rm -f /etc/postfix/master.cf.backup-Mail-SpamAssassin-$CUR_DATE
+    fi
+
+  /etc/init.d/postfix.sh restart
+
+  fi
+fi
+
+#if [ "$SPAMD" == "y" ]; then
+#  /etc/init.d/spamd.sh stop 1> /dev/null 2>&1
+#  sleep 1
+#  /etc/init.d/spamd.sh start
+#fi
+
+message  "${MESSAGE_COLOR}SpamAssassin databases from <3.0 will not work."     \
+         "Please remove ~/.spamassassin and re-teach SpamAssassin about your"  \
+         "spam and ham e-mail${DEFAULT_COLOR}"

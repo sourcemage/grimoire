@@ -1,0 +1,97 @@
+FIREFOX_HOME=${INSTALL_ROOT}/usr/lib/firefox  &&
+
+if  spell_ok  Firebird;  then
+  dispel Firebird
+fi  &&
+
+#
+# Firefox now installs to /usr/lib/firefox and leaves /usr/lib/mozilla alone
+
+#
+# Make sure these directories exist, symlink them, and /then/ install
+# This fixes both Wolfgang's problems and johnny17's problems. :)
+#
+if  [  !  -d  $FIREFOX_HOME  ];  then
+  mkdir  -p  $FIREFOX_HOME
+fi  &&
+
+if  [  !  -d  ${INSTALL_ROOT}/usr/share/idl/firefox-$VERSION  ];  then
+  mkdir  -p  ${INSTALL_ROOT}/usr/share/idl/firefox-$VERSION
+fi  &&
+
+if  [  !  -d  ${INSTALL_ROOT}/usr/include/firefox-$VERSION  ];  then
+  mkdir  -p  ${INSTALL_ROOT}/usr/include/firefox-$VERSION
+fi  &&
+
+ln  -fns   $FIREFOX_HOME  $FIREFOX_HOME-$VERSION           &&
+ln  -fns   ${INSTALL_ROOT}/usr/share/idl/firefox-$VERSION  \
+           ${INSTALL_ROOT}/usr/share/idl/firefox           &&
+ln  -fns   ${INSTALL_ROOT}/usr/include/firefox-$VERSION    \
+           ${INSTALL_ROOT}/usr/include/firefox             &&
+make  install                                              &&
+
+#
+# Don't do this!
+# http://lists.freebsd.org/pipermail/freebsd-gnome/2004-October/008443.html
+#
+#if  !  grep  -q  firefox  /etc/ld.so.conf;  then
+#  echo  '/usr/lib/firefox'  >>  /etc/ld.so.conf
+#fi  &&
+
+#
+# Make sure $INSTALL_ROOT/usr/lib/firefox is not in $INSTALL_ROOT/etc/ld.so.conf
+#
+if  grep  -q  firefox  $INSTALL_ROOT/etc/ld.so.conf;  then
+  sedit  "s:/usr/lib/firefox::"  $INSTALL_ROOT/etc/ld.so.conf  &&
+  /sbin/ldconfig
+fi  &&
+
+#
+# Create symlink to mozilla for hardwired applications
+# Only create if /usr/bin/mozilla does not exist or is
+# already a symlink
+#
+if  [  "$FIREFOX_MOZLINK"  =  "y"  ];  then
+  if  !  test  -f   $INSTALL_ROOT/usr/bin/mozilla  ||
+         test  -h   $INSTALL_ROOT/usr/bin/mozilla  ;  then
+    ln  -sf  /usr/bin/firefox  /usr/bin/mozilla
+  fi
+fi  &&
+
+#
+# Create symlink from NSS Root CA store, if it exists.  NSS requires this
+# to be in the same directory as the current application binary.  See:
+# http://www.mozilla.org/projects/security/pki/nss/loadable_certs.html
+# https://bugzilla.mozilla.org/show_bug.cgi?id=128290
+# Only create if $FIREFOX_HOME/libnssckbi.so does not exist or is already a
+# symlink.
+#
+if  test  -f   $INSTALL_ROOT/usr/lib/libnssckbi.so;  then
+  if  !  test  -f   $FIREFOX_HOME/libnssckbi.so  ||
+         test  -h   $FIREFOX_HOME/libnssckbi.so; then
+    ln  -sf  $INSTALL_ROOT/usr/lib/libnssckbi.so  $FIREFOX_HOME/libnssckbi.so
+  fi
+fi  &&
+
+#
+# Fix for starting firefox without running as root first
+# Bug #7114 (thanks to Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+#
+# first remove the files the patch creates so patch doesn't fail, see bug #8874
+while read firefox_remove_file; do
+  rm  -f  $FIREFOX_HOME/$firefox_remove_file
+done < $SCRIPT_DIRECTORY/init-files  &&
+# now patch
+patch  -d  $FIREFOX_HOME           -p1  -N      \
+       <  $SCRIPT_DIRECTORY/firefox-init.patch  &&
+
+#
+# Script to set MOZILLA_FIVE_HOME
+#
+cp  ${SCRIPT_DIRECTORY}/${SPELL}.sh  $INSTALL_ROOT/etc/profile.d  &&
+
+#
+# Install firefox script so it loads properly
+#
+install  -m  755  -o  root  -g  root  $SCRIPT_DIRECTORY/firefox  \
+         $INSTALL_ROOT/usr/bin

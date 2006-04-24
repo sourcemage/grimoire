@@ -1,0 +1,2 @@
+  make gtk                       &&
+  make clean

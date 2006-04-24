@@ -1,0 +1,337 @@
+Index: Changelog
+===================================================================
+RCS file: /repository/xdebug/Changelog,v
+retrieving revision 1.74
+retrieving revision 1.77
+diff -u -r1.74 -r1.77
+--- Changelog	23 Jun 2002 16:37:54 -0000	1.74
++++ Changelog	1 Jul 2002 16:08:19 -0000	1.77
+@@ -1,3 +1,15 @@
++Mon Jul 1 18:08:16 CEST 2002 Derick Rethans <d.rethans@jdimedia.nl>
++/xdebug/xdebug.c:
++- Fix include stuff (thanks to sweede <sweede@gallatinriver.net>)
++
++Mon Jun 24 10:04:14 CEST 2002 Derick Rethans <d.rethans@jdimedia.nl>
++/xdebug/xdebug.c:
++- Fix building on Windows
++
++Sun Jun 23 23:29:09 CEST 2002 Derick Rethans <d.rethans@jdimedia.nl>
++/xdebug/xdebug.c:
++- Attempt to make it build on windows again
++
+ Sun Jun 23 18:37:53 CEST 2002 Derick Rethans <d.rethans@jdimedia.nl>
+ /xdebug/package.xml
+ /xdebug/xdebug.c:
+Index: EXPERIMENTAL
+===================================================================
+RCS file: EXPERIMENTAL
+diff -N EXPERIMENTAL
+Index: srm_llist.c
+===================================================================
+RCS file: srm_llist.c
+diff -N srm_llist.c
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ srm_llist.c	9 May 2002 12:12:44 -0000	1.2
+@@ -0,0 +1,181 @@
++/* $Id: xdebug.patch,v 1.1 2002/08/06 20:38:32 julianb Exp $ */
++
++/* The contents of this file are subject to the Vulcan Logic Public
++ * License Version 1.1 (the "License"); you may not use this file
++ * except in compliance with the License. You may obtain a copy of
++ * the License at http://www.vl-srm.net/vlpl/
++ *
++ * Software distributed under the License is distributed on an "AS
++ * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
++ * implied. See the License for the specific language governing
++ * rights and limitations under the License.
++ *
++ * The Original Code is vl-srm.net code.
++ *
++ * The Initial Developer of the Original Code is the Vulcan Logic 
++ * Group.  Portions created by Vulcan Logic Group are Copyright (C) 
++ * 2000, 2001, 2002 Vulcan Logic Group. All Rights Reserved.
++ *
++ * Author(s): Sterling Hughes <sterling@php.net> 
++ */
++
++#include <stdlib.h>
++#include <string.h>
++
++#include "srm_llist.h"
++
++srm_llist *srm_llist_alloc(srm_llist_dtor dtor)
++{
++	srm_llist *l;
++
++	l = malloc(sizeof(srm_llist));
++	l->size = 0;
++	l->dtor = dtor;
++	l->head = NULL;
++	l->tail = NULL;
++
++	return l;
++}
++
++int srm_llist_insert_next(srm_llist *l, srm_llist_element *e, const void *p)
++{
++	srm_llist_element  *ne;
++
++	if (!e) {
++		e = SRM_LLIST_TAIL(l);
++	}
++
++	ne = (srm_llist_element *) malloc(sizeof(srm_llist_element));
++	ne->ptr = (void *) p;
++	if (l->size == 0) {
++		l->head = ne;
++		l->head->prev = NULL;
++		l->head->next = NULL;
++		l->tail = ne;
++	} else {
++		ne->next = e->next;
++		ne->prev = e;
++		if (e->next) {
++			e->next->prev = ne;
++		} else {
++			l->tail = ne;
++		}
++		e->next = ne;
++	}
++
++	++l->size;
++
++	return 1;
++}
++
++int srm_llist_insert_prev(srm_llist *l, srm_llist_element *e, const void *p)
++{
++	srm_llist_element *ne;
++
++	if (!e) {
++		e = SRM_LLIST_HEAD(l);
++	}
++
++	ne = (srm_llist_element *) malloc(sizeof(srm_llist_element));
++	ne->ptr = (void *) p;
++	if (l->size == 0) {
++		l->head = ne;
++		l->head->prev = NULL;
++		l->head->next = NULL;
++		l->tail = ne;
++	} else {
++		ne->next = e;
++		ne->prev = e->prev;
++		if (e->prev)
++			e->prev->next = ne;
++		else
++			l->head = ne;
++		e->prev = ne;
++	}
++
++	++l->size;
++
++	return 0;
++}
++
++int srm_llist_remove(srm_llist *l, srm_llist_element *e, void *user)
++{
++	if (e == NULL || l->size == 0)
++		return 0;
++
++	if (e == l->head) {
++		l->head = e->next;
++
++		if (l->head == NULL)
++			l->tail = NULL;
++		else
++			e->next->prev = NULL;
++	} else {
++		e->prev->next = e->next;
++		if (!e->next)
++			l->tail = e->prev;
++		else
++			e->next->prev = e->prev;
++	}
++
++	l->dtor(user, e->ptr);
++	free(e);
++	--l->size;
++
++	return 0;
++}
++
++int srm_llist_remove_next(srm_llist *l, srm_llist_element *e, void *user)
++{
++	return srm_llist_remove(l, e->next, user);
++}
++
++int srm_llist_remove_prev(srm_llist *l, srm_llist_element *e, void *user)
++{
++	return srm_llist_remove(l, e->prev, user);
++}
++
++srm_llist_element *srm_llist_jump(srm_llist *l, int where, int pos)
++{
++    srm_llist_element *e=NULL;
++    int i;
++
++    if (where == LIST_HEAD) {
++        e = SRM_LLIST_HEAD(l);
++        for (i = 0; i < pos; ++i) {
++            e = SRM_LLIST_NEXT(e);
++        }
++    }
++    else if (where == LIST_TAIL) {
++        e = SRM_LLIST_TAIL(l);
++        for (i = 0; i < pos; ++i) {
++            e = SRM_LLIST_PREV(e);
++        }
++    }
++
++    return e;
++}
++
++size_t srm_llist_count(srm_llist *l)
++{
++	return l->size;
++}
++
++void srm_llist_destroy(srm_llist *l, void *user)
++{
++	while (srm_llist_count(l) > 0) {
++		srm_llist_remove(l, SRM_LLIST_TAIL(l), user);
++	}
++
++	free (l);
++	l = NULL;
++}
++
++/*
++ * Local Variables:
++ * c-basic-offset: 4
++ * tab-width: 4
++ * End:
++ * vim600: fdm=marker
++ * vim: noet sw=4 ts=4
++ */
+Index: srm_llist.h
+===================================================================
+RCS file: srm_llist.h
+diff -N srm_llist.h
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ srm_llist.h	9 May 2002 12:12:44 -0000	1.2
+@@ -0,0 +1,71 @@
++/* $Id: xdebug.patch,v 1.1 2002/08/06 20:38:32 julianb Exp $ */
++
++/* The contents of this file are subject to the Vulcan Logic Public
++ * License Version 1.1 (the "License"); you may not use this file
++ * except in compliance with the License. You may obtain a copy of
++ * the License at http://www.vl-srm.net/vlpl/
++ *
++ * Software distributed under the License is distributed on an "AS
++ * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
++ * implied. See the License for the specific language governing
++ * rights and limitations under the License.
++ *
++ * The Original Code is vl-srm.net code.
++ *
++ * The Initial Developer of the Original Code is the Vulcan Logic 
++ * Group.  Portions created by Vulcan Logic Group are Copyright (C) 
++ * 2000, 2001, 2002 Vulcan Logic Group. All Rights Reserved.
++ *
++ * Contributor(s): Sterling Hughes <sterling@php.net> 
++ * Daniel R. Kalowsky <dank@deadmime.org>
++ */
++
++#ifndef __SRM_LLIST_H__
++#define __SRM_LLIST_H__
++
++#include <stddef.h>
++
++typedef void (*srm_llist_dtor)(void *, void *);
++
++typedef struct _srm_llist_element {
++	void *ptr;
++
++	struct _srm_llist_element *prev;
++	struct _srm_llist_element *next;
++} srm_llist_element;
++
++typedef struct _srm_llist {
++	srm_llist_element *head;
++	srm_llist_element *tail;
++
++	srm_llist_dtor dtor;
++
++	size_t size;
++} srm_llist;
++
++srm_llist *srm_llist_alloc(srm_llist_dtor dtor);
++int srm_llist_insert_next(srm_llist *l, srm_llist_element *e, const void *p);
++int srm_llist_insert_prev(srm_llist *l, srm_llist_element *e, const void *p);
++int srm_llist_remove(srm_llist *l, srm_llist_element *e, void *user);
++int srm_llist_remove_next(srm_llist *l, srm_llist_element *e, void *user);
++srm_llist_element *srm_llist_jump(srm_llist *l, int where, int pos);
++size_t srm_llist_count(srm_llist *l);
++void srm_llist_destroy(srm_llist *l, void *user);
++
++#if !defined(LIST_HEAD)
++#define LIST_HEAD 0
++#endif
++
++#if !defined(LIST_TAIL)
++#define LIST_TAIL 1
++#endif
++
++#define SRM_LLIST_HEAD(__l) ((__l)->head)
++#define SRM_LLIST_TAIL(__l) ((__l)->tail)
++#define SRM_LLIST_NEXT(__e) ((__e)->next)
++#define SRM_LLIST_PREV(__e) ((__e)->prev)
++#define SRM_LLIST_VALP(__e) ((__e)->ptr)
++#define SRM_LLIST_IS_TAIL(__e) ((__e)->next ? 0 : 1)
++#define SRM_LLIST_IS_HEAD(__e) ((__e)->prev ? 0 : 1)
++
++#endif /* __SRM_LLIST_H__ */
+Index: xdebug.c
+===================================================================
+RCS file: /repository/xdebug/xdebug.c,v
+retrieving revision 1.46
+retrieving revision 1.49
+diff -u -r1.46 -r1.49
+--- xdebug.c	23 Jun 2002 16:37:53 -0000	1.46
++++ xdebug.c	1 Jul 2002 16:08:15 -0000	1.49
+@@ -24,9 +24,13 @@
+ 
+ #if HAVE_XDEBUG
+ 
+-#define XDEBUG_VERSION "0.9.0"
++#define XDEBUG_VERSION "1.0.0dev"
+ 
++#ifndef PHP_WIN32
+ #include <sys/time.h>
++#else
++#include "win32/time.h"
++#endif
+ 
+ #include "TSRM.h"
+ #include "SAPI.h"
+@@ -1090,7 +1094,7 @@
+ 
+ 	if (fse->delayed_fname) { /* variable function name */
+ #if HAVE_EXECUTE_DATA_PTR
+-		fse->function.function = estrdup (executor_globals.execute_data_ptr->function_state.function->common.function_name);
++		fse->function.function = estrdup (EG(execute_data_ptr)->function_state.function->common.function_name);
+ #else
+ 		fse->function.function = estrdup ("{unknown}");
+ #endif
+@@ -1098,8 +1102,8 @@
+ 	fse->delayed_fname = 0;
+ 
+ 	if (fse->delayed_cname) { /* variable class name */
+-		if (((zval*) executor_globals.active_symbol_table->pListHead->pDataPtr)->type == IS_OBJECT) {
+-			fse->function.class = estrdup (((zval*) executor_globals.active_symbol_table->pListHead->pDataPtr)->value.obj.ce->name);
++		if (((zval*) EG(active_symbol_table)->pListHead->pDataPtr)->type == IS_OBJECT) {
++			fse->function.class = estrdup (((zval*) EG(active_symbol_table)->pListHead->pDataPtr)->value.obj.ce->name);
+ 		}
+ 	}
+ 	fse->delayed_cname = 0;

@@ -1,0 +1,59 @@
+#!/bin/bash
+# PRE_BUILD for rejected spells
+#
+# Modified 2002 Aug 23 05:10 by Derek Moyes <sorcerer@flamesnyper.com>
+#   Default behavior changed to NOT AUTOMATICALLY install or update rejected
+#     spells. This prevents silly third-party install scripts from halting a
+#     sorcery update, while waiting for input.
+#   Added test for UNATTEND_SAFE placeholder file in the spell. This file skips
+#     the warning altogether & allows the spell to cast automatically. Simply
+#     create an empty file named UNATTEND_SAFE in the spell's directory.
+#   Check if spell installed routine added (thx to dufflebunk for bash help).
+#   Comments added for future BASHers.
+#   Warning text clarified & expanded.
+#   Sorcery colors added.
+
+# Test if spell is already installed.
+if  !  [ `gaze installed $SPELL | cut -d" " -f3` == "not" ];  then PRE_BUILD_SPELL_INSTALLED="is";  else PRE_BUILD_SPELL_INSTALLED="is NOT";  fi
+
+#Test if spell is UNATTEND_SAFE.
+if  [ -e $SCRIPT_DIRECTORY/UNATTEND_SAFE ];  then  PRE_BUILD_SPELL_UNATTEND_SAFE="is";  else PRE_BUILD_SPELL_UNATTEND_SAFE="is NOT";  fi
+
+# Warn user about problems with spell.
+message  "${MESSAGE_COLOR}This spell is considered ${PROBLEM_COLOR}rejected${DEFAULT_COLOR}${MESSAGE_COLOR} because the software it installs "                                    \
+         " $REJECT."  \
+         ""  \
+         " Please view this software's website for more information:${DEFAULT_COLOR}"              \
+	 " `gaze website $SPELL`${MESSAGE_COLOR}"                                                  \
+         ""  \
+         " You may continue casting the spell and it will still be tracked by Sorcery."            \
+         " However, the software's installation process may have questions that need"              \
+	 " answered and/or licensing agreements that must be agreed to."                           \
+	 ""
+
+# Ask if user wants to continue anyway. (defaults to NO), unless running in UNATTEND_SAFE mode.
+  if  [[ $PRE_BUILD_SPELL_INSTALLED == "is" && $PRE_BUILD_SPELL_UNATTEND_SAFE == "is" ]]; then
+    message  " ${MESSAGE_COLOR}$SPELL ${FILE_COLOR}is${DEFAULT_COLOR}${MESSAGE_COLOR} previously installed, and has been determined to be ${FILE_COLOR}UNATTEND_SAFE${DEFAULT_COLOR}${MESSAGE_COLOR},"  \
+             " so the prompt will be skipped.${DEFAULT_COLOR}"
+  else
+    message  " Allowing the next question to timeout will choose not to install this spell."  \
+      	     " ${PROBLEM_COLOR}This means that rejected spells will NOT be installed or updated automatically.${DEFAULT_COLOR}${MESSAGE_COLOR}"  \
+	     ""  \
+	     " If you want a rejected spell to be installed or updated you must:"             \
+	     " hit ${FILE_COLOR}y${DEFAULT_COLOR}${MESSAGE_COLOR} now or perform ${FILE_COLOR}cast -r -c${DEFAULT_COLOR}${MESSAGE_COLOR} later.${DEFAULT_COLOR}"  \
+	     ""
+	     
+      if  query  "${MESSAGE_COLOR}To CONTINUE casting enter a 'y': ${DEFAULT_COLOR}"  n;  then
+        message  ""  \
+	         "${MESSAGE_COLOR}Ok, here we go... you're on your own!${DEFAULT_COLOR}"
+      else
+        message  ""  \
+	         "${MESSAGE_COLOR}You chose to stop the installation, or you let the prompt timeout. Maybe"  \
+                 " you'll be braver next time?${DEFAULT_COLOR}"
+	return 1
+      fi
+   fi
+    
+mk_source_dir   $SOURCE_DIRECTORY       &&
+unpack          $SOURCE  ${MD5[0]}
+  

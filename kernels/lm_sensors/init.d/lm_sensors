@@ -1,0 +1,52 @@
+#!/bin/bash
+# description: sensors is used for monitoring motherboard sensor values.
+# See also the lm_sensors homepage at:
+#     http://www2.lm-sensors.nu/~lm78/index.html
+# This uses /etc/sysconfig/sensors that contains the modules to
+# be loaded/unloaded. /etc/sysconfig/sensors is written by sensors-detect.
+# /etc/modules.conf also needs to be updated before using this script.
+#
+# SMGL-script-version=20030224
+# no symlinks are made for this one, must do it by hand!
+
+NEEDS="+remote_fs"
+PROGRAM=/usr/bin/sensors
+RUNLEVEL=3
+
+. /etc/init.d/smgl_init
+
+CONFIG=/etc/sysconfig/lm_sensors
+MODULES=`grep \^MODULE_ $CONFIG | cut -d= -f2`
+
+start()
+{
+  for i in $MODULES; do
+    echo "Starting hardware sensor $i ..."
+    modprobe $i 2>&1 >/dev/null
+    evaluate_retval
+  done
+  echo "Starting sensors ..."
+  ${PROGRAM} -s > /dev/null
+  evaluate_retval
+}
+
+stop()
+{
+  for i in $MODULES; do
+    echo "Stopping hardware sensor $i ..."
+    modprobe -r $i 2>&1 >/dev/null
+    evaluate_retval
+  done
+}
+
+restart()
+{
+  stop      &&
+  sleep  1  &&
+  start
+}
+
+status()
+{
+  ${PROGRAM}
+}

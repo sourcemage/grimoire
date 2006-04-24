@@ -1,0 +1,97 @@
+diff -Nur simpleinit-msb-1.2/lib/pathnames.h simpleinit-msb-1.2-smgl/lib/pathnames.h
+--- simpleinit-msb-1.2/lib/pathnames.h	2001-09-26 12:59:46.000000000 +0200
++++ simpleinit-msb-1.2-smgl/lib/pathnames.h	2004-02-20 14:33:35.000000000 +0100
+@@ -130,7 +130,7 @@
+ #define _PATH_MTAB		"/etc/mtab"
+ #define _PATH_PROC_MOUNTS	"/proc/mounts"
+ #define _PATH_UMOUNT		"/bin/umount"
+-#define UMOUNT_ARGS		"umount", "-a", "-t", "nodevfs,noproc"
++#define UMOUNT_ARGS		"umount", "-a", "-t", "nodevfs,noproc,noramfs"
+ #define SWAPOFF_ARGS            "swapoff", "-a"
+ 
+ /* used in login-utils/setpwnam.h and login-utils/islocal.c */
+diff -Nur simpleinit-msb-1.2/login-utils/shutdown.c simpleinit-msb-1.2-smgl/login-utils/shutdown.c
+--- simpleinit-msb-1.2/login-utils/shutdown.c	2001-09-26 12:59:46.000000000 +0200
++++ simpleinit-msb-1.2-smgl/login-utils/shutdown.c	2004-02-20 15:53:27.000000000 +0100
+@@ -746,6 +746,7 @@
+ 	n = 0;
+ 	while (n < 100 && (mnt = getmntent(mtab))) {
+ 		if (strcmp (mnt->mnt_type, "devfs") == 0) continue;
++    if (strcmp (mnt->mnt_type, "ramfs") == 0) continue;
+ 		mntlist[n++] = strdup(mnt->mnt_dir);
+ 	}
+ 	endmntent(mtab);
+diff -Nur simpleinit-msb-1.2/login-utils/simpleinit.c simpleinit-msb-1.2-smgl/login-utils/simpleinit.c
+--- simpleinit-msb-1.2/login-utils/simpleinit.c	2004-01-11 00:24:42.000000000 +0100
++++ simpleinit-msb-1.2-smgl/login-utils/simpleinit.c	2004-02-20 14:28:31.000000000 +0100
+@@ -321,6 +321,8 @@
+ void sigquit_handler (int sig);
+ void userspace_sigquit_handler (int sig);
+ void sigterm_handler (int sig);
++void open_initctl_fifo (void);
++void sigusr_handler (int sig);
+ #ifdef SET_TZ
+ void set_tz (void);
+ #endif
+@@ -396,6 +398,8 @@
+ 	sigaction (SIGCHLD, &sa, NULL);
+ 	sa.sa_handler = userspace_sigquit_handler;
+ 	sigaction (SIGQUIT, &sa, NULL);
++  sa.sa_handler = sigusr_handler;
++  sigaction (SIGUSR1, &sa, NULL);
+ 	if (userspace) fix_userspace_paths(); else
+ 	{
+   	  sa.sa_handler = sigtstp_handler;
+@@ -440,12 +444,7 @@
+ 			}	
+ 	}
+ 
+-	if ( ( initctl_fd = open (initctl_name, O_RDWR|O_NONBLOCK, 0) ) < 0 ) {
+-		mkfifo (initctl_name, S_IRUSR | S_IWUSR);
+-		if ( ( initctl_fd = open (initctl_name, O_RDWR|O_NONBLOCK, 0) ) < 0 )
+-			err ( _("error opening fifo\n") );
+-	}
+-	fcntl(initctl_fd,F_SETFD,FD_CLOEXEC); /*make sure no one inherits the fd*/
++  open_initctl_fifo();
+ 	
+ 	if (userspace){
+ 	  pid_t mypid=getpid();
+@@ -885,6 +884,28 @@
+     if (!stopped) hup_handler (sig);
+ }   /*  End Function sigtstp_handler  */
+ 
++void open_initctl_fifo()
++{
++	if ( ( initctl_fd = open (initctl_name, O_RDWR|O_NONBLOCK, 0) ) < 0 ) {
++		mkfifo (initctl_name, S_IRUSR | S_IWUSR);
++		if ( ( initctl_fd = open (initctl_name, O_RDWR|O_NONBLOCK, 0) ) < 0 )
++			err ( _("error opening fifo\n") );
++	}
++	fcntl(initctl_fd,F_SETFD,FD_CLOEXEC); /*make sure no one inherits the fd*/
++}
++
++void sigusr_handler (int sig)
++{
++    close (0);
++    close (1);
++    close (2);
++	  open ("/dev/console", O_RDONLY, 0);
++	  open ("/dev/console", O_RDWR, 0);
++	  dup2 (1, 2);
++    open_initctl_fifo();
++    sig=sig;
++}
++
+ void sigterm_handler (int sig)
+ {
+     int i;
+@@ -1686,6 +1707,9 @@
+ 	    for (i = 1; i < NSIG; i++) signal (i, SIG_DFL);
+ 	    sigprocmask(SIG_UNBLOCK,&all_signals,NULL);
+ 	    if (!userspace) {
++        close (0);
++        close (1);
++        close (2);
+ 	    	open ("/dev/console", O_RDONLY, 0);
+ 	    	open ("/dev/console", O_RDWR, 0);
+ 	    	dup2 (1, 2);

@@ -1,0 +1,183 @@
+#!/bin/sh
+# Copyright Abandoned 1996 TCX DataKonsult AB & Monty Program KB & Detron HB
+# This file is public domain and comes with NO WARRANTY of any kind
+#
+# If you install MySQL on some other places than /usr, then you
+# have to do one of the following things for this script to work:
+#
+# - Run this script from within the MySQL installation directory
+# - Create a /etc/my.cnf file with the following information:
+#   [mysqld]
+#   basedir=<path-to-mysql-installation-directory>
+# - Add the above to any other configuration file (for example ~/.my.ini)
+#   and copy my_print_defaults to /usr/bin
+# - Add the path to the mysql-installation-directory to the basedir variable
+#   below.
+#
+# If you want to affect other MySQL variables, you should make your changes
+# in the /etc/my.cnf, ~/.my.cnf or other MySQL configuration files.
+#
+# SMGL-script-version=20030723
+# SMGL-START:3 4 5:S90
+# SMGL-STOP:0 1 2 6:K10
+
+PROGRAM=
+RUNLEVEL=3
+NEEDS="+remote_fs"
+
+. /etc/init.d/smgl_init
+
+basedir=
+
+# The following variables are only set for letting mysql.server find things.
+
+# Set some defaults
+datadir=/var/lib/mysql
+pid_file=
+if test -z "$basedir"
+then
+  basedir=/usr
+  bindir=/usr/bin
+else
+  bindir="$basedir/bin"
+fi
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
+export PATH
+
+if test -z "$pid_file"
+then
+  pid_file=$datadir/`/bin/hostname`.pid
+else
+  case "$pid_file" in
+    /* ) ;;
+    * )  pid_file="$datadir/$pid_file" ;;
+  esac
+fi
+
+mode=$1    # start or stop
+
+parse_arguments() {
+  for arg do
+    case "$arg" in
+      --basedir=*)  basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --datadir=*)  datadir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --pid-file=*) pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+    esac
+  done
+}
+
+# Get arguments from the my.cnf file,
+# groups [mysqld] [mysql_server] and [mysql.server]
+if test -x ./bin/my_print_defaults
+then
+  print_defaults="./bin/my_print_defaults"
+elif test -x $bindir/my_print_defaults
+then
+  print_defaults="$bindir/my_print_defaults"
+elif test -x $bindir/mysql_print_defaults
+then
+  print_defaults="$bindir/mysql_print_defaults"
+else
+  # Try to find basedir in /etc/my.cnf
+  conf=/etc/my.cnf
+  print_defaults=
+  if test -r $conf
+  then
+    subpat='^[^=]*basedir[^=]*=\(.*\)$'
+    dirs=`sed -e "/$subpat/!d" -e 's//\1/' $conf`
+    for d in $dirs
+    do
+      d=`echo $d | sed -e 's/[ 	]//g'`
+      if test -x "$d/bin/my_print_defaults"
+      then
+        print_defaults="$d/bin/my_print_defaults"
+        break
+      fi
+      if test -x "$d/bin/mysql_print_defaults"
+      then
+        print_defaults="$d/bin/mysql_print_defaults"
+        break
+      fi
+    done
+  fi
+
+  # Hope it's in the PATH ... but I doubt it
+  test -z "$print_defaults" && print_defaults="my_print_defaults"
+fi
+
+parse_arguments `$print_defaults mysqld mysql_server mysql.server`
+
+# Safeguard (relative paths, core dumps..)
+cd $basedir
+
+case "$mode" in
+  'start')
+    # Start daemon
+
+    if test -x $bindir/mysqld_safe
+    then
+      # Give extra arguments to mysqld with the my.cnf file. This script may
+      # be overwritten at next upgrade.
+      echo "Starting mysqld_safe..."
+      iter=0
+      ( unset -f echo
+      $bindir/mysqld_safe --datadir=$datadir --pid-file=$pid_file 2>&1 > /dev/null ) &
+      while [ ! -e $pid_file ] && [ $((iter++)) -lt 10 ] ; do sleep 1; echo -n . ; done
+      [ $((iter++)) -lt 11 ]
+      evaluate_retval
+      # Make lock for RedHat / SuSE
+      if test -w /var/lock/subsys
+      then
+        touch /var/lock/subsys/mysql
+      fi
+    else
+      echo "Can't execute $bindir/mysqld_safe from dir $basedir"
+    fi
+    evaluate_retval
+    ;;
+
+  'stop')
+    # Stop daemon. We use a signal here to avoid having to know the
+    # root password.
+    if test -s "$pid_file"
+    then
+      mysqld_pid=`cat $pid_file`
+      echo "Killing mysqld with pid $mysqld_pid"
+      kill $mysqld_pid
+      # mysqld should remove the pid_file when it exits, so wait for it.
+
+      sleep 1
+      while [ -s $pid_file -a "$flags" != aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]
+      do
+        [ -z "$flags" ] && echo -n "Wait for mysqld to exit" || echo -n "."
+        flags=a$flags
+        sleep 1
+      done
+      if [ -s $pid_file ]
+         then echo " gave up waiting!"
+      elif [ -n "$flags" ]
+         then echo " done"
+      fi
+      # delete lock for RedHat / SuSE
+      if test -f /var/lock/subsys/mysql
+      then
+        rm /var/lock/subsys/mysql
+      fi
+    else
+      echo "No mysqld pid file found. Looked for $pid_file."
+    fi
+    evaluate_retval
+    ;;
+  'restart')
+     echo "Restarting mysql server"
+     $0 stop
+     $0 start
+     evaluate_retval
+     ;;
+  *)
+    # usage
+    echo "usage: $0 start|stop|restart"
+    exit 1
+    ;;
+esac

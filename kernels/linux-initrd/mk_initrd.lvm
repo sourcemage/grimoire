@@ -1,0 +1,329 @@
+#!/bin/sh
+# $1 is the kernel version
+# this is a really simple way to create an initrd
+# if you want to have modules instead of compiling
+# support directly into the kernel
+# this doesn't deal with software RAID 
+# This uses busybox
+
+## Create multiple symbolic links to the same target file
+## $1 -- target of each link
+## $2+ -- link names
+function multilink() {
+  local -r TARGET="$1" &&
+  local LINK= &&
+  shift &&
+  for LINK in "$@"; do
+    if [[ -n "$LINK" ]]; then
+      ln -fnsv "$TARGET" "$LINK"
+	fi
+  done
+}
+
+# initrd parameters
+
+# init command
+declare -r INIT_CMD=/sbin/init &&
+# where the initrd will be put after "pivot_root"
+declare -r OLD_PUT=initrd &&
+# console device to use for init
+declare -r CONSOLE_DEV=/dev/console &&
+# debug initrd?
+declare -r DEBUG=off
+
+# make sure we're not wrecking havoc in /initrd
+[[ -d "$BUILD_DIRECTORY" ]] &&
+cd "$BUILD_DIRECTORY/initrd" &&
+
+# make basic dir structure
+mkdir -pv bin dev etc etc.ro lib/modules proc sbin var sys usr/bin mnt initrd tmp &&
+
+# copy config files
+cp -av "$INSTALL_ROOT/etc"/{udev,lvm} "$BUILD_DIRECTORY/initrd/etc/" &&
+
+# create dummy passwd, group and fstab
+echo "root:x:0:0:root:/root:/bin/sh" > etc/passwd &&
+echo "root:x:0:" > etc/group &&
+touch etc/fstab &&
+
+# make a read-only copy as well
+cp -av etc/* etc.ro/ &&
+
+# copy busybox
+cp -av "$INSTALL_ROOT/sbin/busybox" sbin/ &&
+
+# copy device mapper, LVM, and UDEV
+cp -av "$INSTALL_ROOT/usr/sbin"/{dmsetup,lvm,udevstart}.static sbin/ &&
+
+# link everything
+
+pushd sbin &&
+multilink busybox \
+  init \
+  insmod \
+  halt \
+  lsmod \
+  makedevs \
+  mesg \
+  modprobe \
+  pivot_root \
+  reboot \
+  rmmod \
+  swapoff \
+  swapon \
+  &&
+multilink udevstart.static \
+  udevstart \
+  &&
+multilink dmsetup.static \
+  dmsetup \
+  &&
+multilink lvm.static \
+  vgchange \
+  vgdisplay \
+  vgscan \
+  &&
+popd &&
+
+pushd bin &&
+multilink ../sbin/busybox \
+  '[' \
+  ash \
+  ls \
+  echo \
+  mount \
+  ln \
+  mkdir \
+  mknod \
+  chown \
+  chmod \
+  umount \
+  tar \
+  basename \
+  chgrp \
+  cat \
+  chroot \
+  cp \
+  cut \
+  dd \
+  df \
+  dirname \
+  du \
+  env \
+  expr \
+  false \
+  head \
+  id \
+  install \
+  md5sum \
+  mv \
+  printf \
+  pwd \
+  realpath \
+  rm \
+  rmdir \
+  sleep \
+  sort \
+  sync \
+  tail \
+  tee \
+  touch \
+  tr \
+  true \
+  uname \
+  uniq \
+  who \
+  whoami \
+  yes \
+  which \
+  readlink \
+  sed \
+  dmesg \
+  more \
+  awk \
+  test \
+  wc \
+  sh \
+  &&
+popd &&
+
+pushd usr/bin &&
+multilink ../../sbin/busybox \
+  grep \
+  bunzip2 \
+  gzip \
+  gunzip \
+  unzip \
+  patch \
+  find \
+  xargs \
+  &&
+popd &&
+
+# copy kernel modules
+if [[ -d "$INSTALL_ROOT/lib/modules/$1" ]]; then
+  cp -av "$INSTALL_ROOT/lib/modules/$1" lib/modules/
+fi &&
+# copy firmware
+if [[ -d "$INSTALL_ROOT/lib/firmware" ]]; then
+  cp -av "$INSTALL_ROOT/lib/firmware" lib/
+fi &&
+
+# copy console and null nodes
+cp -av "$INSTALL_ROOT/dev"/{console,null} dev/ &&
+
+# create linuxrc
+cat << EOF > linuxrc &&
+#!/bin/sh
+# This script is written for Busybox's ash, supposedly it's POSIX compliant now :-).
+#
+# If you see an error "can't access tty; job control turned off", read this:
+# http://www.uclibc.org/FAQ.html#job_control.
+#
+# Debug: $DEBUG
+
+panic() {
+  /bin/echo \$1 &&
+  /bin/echo "!!! Dropping into shell, quitting this shell will bring kernel panic..." &&
+  exec /bin/sh
+}
+
+debug_shell() {
+  if ! /bin/[ '$DEBUG' = 'on' ]; then
+    return
+  fi &&
+  /bin/echo "*** \$1. Hit CTRL-D to proceed..." &&
+  /bin/sh
+}
+
+# somehow this doesn't work with busybox's ash
+#export PATH="/bin:/usr/bin:/sbin:/usr/sbin"
+
+debug_shell 'Before filesystems...'
+
+# need this for various diagnostics
+/bin/echo "Mounting /proc..."
+/bin/mount -nt proc none /proc
+
+# UDEV doesn't support it anywhere else but /sys
+/bin/echo "Mounting /sys..."
+/bin/mount -nt sysfs none /sys
+
+/bin/echo "Mounting /etc and copying files..."
+/bin/mount -nt tmpfs none /etc
+/bin/cp -a /etc.ro/* /etc
+/bin/ln -s /proc/mounts /etc/mtab
+
+/bin/echo "Mounting /dev..."
+/bin/mount -nt ramfs none /dev
+
+/bin/echo "Mounting pts and shm..."
+/bin/mkdir -p /dev/pts /dev/shm
+/bin/mount -nt devpts none /dev/pts
+/bin/mount -nt tmpfs none /dev/shm
+
+/bin/echo "Mounting writeable /tmp and /var..."
+/bin/mount -nt tmpfs none /tmp
+/bin/mount -nt tmpfs none /var
+/bin/mkdir -p /var/lock /var/log
+
+debug_shell 'Before creating device nodes...'
+
+# this is MKNODES on steroids
+# this also activates something in the kernel, not sure if it's good
+/bin/echo "Creating all available device nodes..."
+/sbin/udevstart
+
+# UDEV doesn't create those; it does create /dev/{console,null}
+/bin/echo "Creating std* device links..."
+/bin/ln -s /proc/self/fd /dev/fd
+/bin/ln -s /dev/fd/0 /dev/stdin
+/bin/ln -s /dev/fd/1 /dev/stdout
+/bin/ln -s /dev/fd/2 /dev/stderr
+
+/bin/echo "Invoking disk mapper and LVM..."
+/sbin/dmsetup mknodes
+/sbin/vgscan   --ignorelockingfailure --mknodes
+/sbin/vgchange --ignorelockingfailure -a y
+
+# ========================================================================== #
+# This is where you can add code to load modules for devices and filesystems #
+# ========================================================================== #
+# /sbin/modprobe xxx
+
+# ============================================================== #
+# Don't edit past here unless you really know what you are doing #
+# ============================================================== #
+
+debug_shell 'Before real root...'
+
+# do we have real_root?
+if ! /bin/cat /proc/cmdline | /usr/bin/grep -q 'real_root=[^[:space:]]\\+'; then
+  panic '!!! VARIABLE real_root NOT SPECIFIED'
+fi
+
+# extract real_root device name; must not have whitespace in the name
+#ROOT_DEV=\$(/bin/cat /proc/cmdline | /bin/sed -e 's|^.*real_root=\\(\\S\\+\\)\\(\\s.*\\)\\?$|\1|g')
+ROOT_DEV=\$(/bin/cat /proc/cmdline)
+ROOT_DEV=\${ROOT_DEV##*real_root=}
+# the brackets below must have a SPACE and a TAB
+ROOT_DEV=\${ROOT_DEV%%[ 	]*}
+/bin/echo "Mounting real root: \$ROOT_DEV..."
+/bin/echo "0x100" > /proc/sys/kernel/real-root-dev
+# kernel must know this filesystem; it'd be nice to do a pre-test here
+/bin/mount -n \$ROOT_DEV /mnt
+
+if ! /bin/test -x "/mnt$INIT_CMD"; then
+  panic "!!! REAL ROOT MOUNTED BUT HAS NO INIT: $INIT_CMD"
+fi
+
+# if this directory doesn't exist, pivot_root fails
+/bin/echo "Checking for $OLD_PUT directory on real root..."
+/bin/mkdir -p /mnt/$OLD_PUT
+
+# make sure the /dev/console device node exists in the new root
+/bin/echo "Checking for $CONSOLE_DEV device node on real root..."
+if ! /bin/test -c "/mnt$CONSOLE_DEV"; then
+  /bin/cp -a $CONSOLE_DEV /mnt$CONSOLE_DEV
+fi
+
+# BASH only: last precaution
+# we need that many backslahes here before the single backquote
+#read -n 3 -p "Type \\\`yes' now to drop into shell (16 seconds): " -t 16 PAUSE && (
+#  if [[ "\$PAUSE" == 'yes' ]]; then
+#    /bin/echo "*** Press CTRL-D to exit and continue..."
+#    /bin/sh
+#  fi
+#)
+
+/bin/echo "Umounting filesystems..."
+/bin/umount -n /tmp
+/bin/umount -n /var
+/bin/umount -n /dev/pts
+/bin/umount -n /dev/shm
+/bin/umount -n /sys
+/bin/umount -n /proc
+# those two should go last to minimize ocurrence of "/etc/mtab not found" error
+/bin/umount -n /dev
+/bin/umount -n /etc
+
+debug_shell 'Before pivot_root...'
+
+/bin/echo "Doing pivot root; initrd root: /$OLD_PUT"
+cd /mnt
+if ! /sbin/pivot_root . $OLD_PUT; then
+  panic "!!! THE PIVOT-ROOT COMMAND FAILED"
+fi
+
+### WE ARE IN THE NEW ROOT NOW; OUR OLD FILESYSTEM IS IN /$OLD_PUT
+
+# this \`cd' is just cosmetic, so that \`pwd' command produces correct output
+cd /
+
+debug_shell 'Before init...'
+
+/bin/echo "Starting init: $INIT_CMD \$@"
+exec /bin/chroot . $INIT_CMD \$@ < $CONSOLE_DEV > $CONSOLE_DEV 2>&1
+EOF
+
+chmod +x linuxrc

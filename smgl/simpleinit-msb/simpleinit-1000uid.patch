@@ -1,0 +1,40 @@
+--- login-utils/shutdown.8.bak	2004-06-04 15:48:59.310506982 -0700
++++ login-utils/shutdown.8	2001-09-26 03:59:46.000000000 -0700
+@@ -64,7 +64,7 @@
+ .I /var/log/wtmp
+ file and terminates all processes as follows: 
+ 
+-It kills (SIGTERM) all non-privileged (uid>=100) processes on the system,
++It kills (SIGTERM) all non-privileged (uid>=1000) processes on the system,
+ executes \fBfinalprog\fP as specified in \fI/etc/inittab\fP (see
+ .BR init (8) 
+ ) with the argument "stop", tells
+--- login-utils/shutdown.c.bak	2004-06-04 15:47:48.586379290 -0700
++++ login-utils/shutdown.c	2004-06-04 15:48:17.197949294 -0700
+@@ -413,7 +413,7 @@
+ #ifndef DEBUGGING
+ 	my_puts ("");
+ 	my_puts ("");                 /*  Get past the login prompt         */
+-	/* a gentle kill of all other processes except those with uid>=100 */
++	/* a gentle kill of all other processes except those with uid>=1000 */
+ 	/* the message stating this is in kill_mortals() because it is */
+ 	/* only printed if some processes are actually killed.*/
+ 	kill_mortals (SIGTERM);
+@@ -789,7 +789,7 @@
+ 	pid = atoi (de->d_name);
+ 	sprintf (path, "/proc/%d", pid);
+ 	if (stat (path, &statbuf) != 0) continue;
+-	if (statbuf.st_uid < 100) continue;
++	if (statbuf.st_uid < 1000) continue;
+ 	if (index >= npids)
+ 	{
+ 	    pids2 = realloc (pids, (npids+4096)*sizeof(pid_t));
+@@ -801,7 +801,7 @@
+     }
+     closedir (dp);
+     if (pids == NULL) return;
+-    my_puts ("Sending TERM signal to processes with UID>=100...");
++    my_puts ("Sending TERM signal to processes with UID>=1000...");
+     for (--index; index >= 0; --index) kill (pids[index], sig);
+     free (pids);
+ }   /*  End Function kill_mortals  */

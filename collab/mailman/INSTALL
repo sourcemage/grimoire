@@ -1,0 +1,25 @@
+function mk_mailman_dir() {
+  local DIRECTORY=$1            &&
+  local TAG=${2:-unclassified}  &&
+
+  message "${MESSAGE_COLOR}Preparing ${TAG} directory ${DIRECTORY}${DEFAULT_COLOR}"  &&
+  if [ ! -d $DIRECTORY ]; then mkdir -p $DIRECTORY; fi  &&
+  chown -R mailman.mailman $DIRECTORY                   &&
+  chmod -R a+rx,g+ws $DIRECTORY
+}
+
+make_normal   &&
+make install  &&
+
+mk_mailman_dir $MAILMAN_PREFIX 'program'      &&
+mk_mailman_dir $MAILMAN_CONF 'configuration'  &&
+
+if [ ! -f $MAILMAN_CONF/mm_cfg.py ];  then
+  mv -f $MAILMAN_PREFIX/Mailman/mm_cfg.py $MAILMAN_CONF/
+fi &&
+
+ln -fns $MAILMAN_CONF/mm_cfg.py $MAILMAN_PREFIX/Mailman/  &&
+
+$MAILMAN_PREFIX/bin/check_perms -f  &&
+
+persistent_remove  MAILMAN_PREFIX  MAILMAN_CONF

@@ -1,0 +1,36 @@
+#!/bin/bash
+
+PROGRAM=/usr/libexec/postfix/master
+RUNLEVEL=3
+PROVIDES=mta
+NEEDS="+network +remote_fs"
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo     "Starting postfix..."
+	   if [ -e /etc/aliases ]; then
+	     if [ -e /etc/aliases.db ] &&
+	        [ ""`/usr/bin/find /etc/aliases -follow -newer /etc/aliases.db` != "" ]; then
+   	            echo "/etc/aliases is modified. You may want to run newaliases"
+	     fi
+           fi
+           loadproc  postfix  start
+}
+
+stop() {
+           echo     "Stopping postfix..."
+           postfix  stop
+           loadproc true
+}
+
+restart() {
+	   			 $0 stop
+            	sleep 1
+	   			 $0 start
+}
+
+reload() {
+            echo     "Reloading postfix..."
+					 loadproc  postfix  reload
+}

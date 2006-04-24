@@ -1,0 +1,47 @@
+make_single  &&
+
+if  [  "$GVIM_GUI"  !=  "none"  ];  then
+  #
+  # Modify src/Makefile to not symlink gvim
+  #
+  sedit  's:cd $(DEST_BIN); ln -s $(VIMTARGET) $(GVIMTARGET)::'  \
+         src/Makefile  &&
+
+  #
+  # Setup gview, gvimdiff, rgview, and rgvim to link to gvim, not vim
+  #
+  sedit  's:$(VIMTARGET) $(GVIEWTARGET):$(GVIMTARGET) $(GVIEWTARGET):'        \
+         src/Makefile                                                         &&
+  sedit  's:$(VIMTARGET) $(GVIMDIFFTARGET):$(GVIMTARGET) $(GVIMDIFFTARGET):'  \
+         src/Makefile                                                         &&
+  sedit  's:$(VIMTARGET) $(RGVIMTARGET):$(GVIMTARGET) $(RGVIMTARGET):'        \
+         src/Makefile                                                         &&
+  sedit  's:$(VIMTARGET) $(RGVIEWTARGET):$(GVIMTARGET) $(RGVIEWTARGET):'      \
+         src/Makefile                                                         &&
+
+  #
+  # Install vim (the vim binary this installs will be the GUI version)
+  # so we'll replace it later. Install gvim.desktop.
+  #
+  install  -m  0755  src/vim  $INSTALL_ROOT/usr/bin/gvim  &&
+  default_install                                         &&
+  mkdir -p ${INSTALL_ROOT}/usr/share/applications         &&
+  cp ${SCRIPT_DIRECTORY}/gvim.desktop ${INSTALL_ROOT}/usr/share/applications  &&
+
+  #
+  # Now install the non-X vim binary, which default_install wrote with the X
+  # binary above
+  #
+  install  -m  0755  vim.nox  $INSTALL_ROOT/usr/bin/vim
+else
+  #
+  # Normal default_install with non-X vim
+  #
+  default_install
+fi  &&
+
+if  [  "$GVIM_SYMLINK"  ==  "y"  ];  then
+  pushd  $INSTALL_ROOT/usr/bin  &&
+  ln  -sf  vim  vi              &&
+  popd
+fi

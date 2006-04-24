@@ -1,0 +1,81 @@
+#!/bin/sh
+#
+# hotplug This scripts starts hotpluggable subsystems.
+#
+# chkconfig: 2345 01 99
+# description:	Starts and stops each hotpluggable subsystem. \
+#		On startup, may simulate hotplug events for devices \
+#		that were present at boot time, before filesystems \
+#		(or other resources) used by hotplug agents were available.
+#
+# $Id: hotplug,v 1.3 2002/12/03 02:01:48 dbrownell Exp $
+#
+# Modified for Source Mage GNU/Linux (http://www.sourcemage.org)
+# 2004-06-15 Seth Woolley <seth@tautology.org>
+# 	* init.d echo underrides for child scripts.
+#
+# Modified for Source Mage GNU/Linux (http://www.sourcemage.org)
+# 2003-07-10 Eric Sandall <eric@sandall.us>
+#
+# Modified for Source Mage GNU/Linux (http://www.sourcemage.org)
+# 2003-07-31 Jose Bernardo Silva <jbernardo@sourcemage.org>
+#
+# SMGL-script-version=20030731
+#
+# SMGL-START:1 2 3 4 S:S11
+# SMGL-STOP:0 6:K89
+#
+
+PROGRAM=/bin/true
+RUNLEVEL=S
+NEEDS="+local_fs"
+
+# source function library
+. /etc/init.d/smgl_init
+
+
+start(){
+	[ -d /var/lock/subsys ] || mkdir -p /var/lock/subsys
+	for RC in /etc/hotplug/*.rc
+	do
+	    ( unset -f echo; $RC start )
+	done
+	touch /var/lock/subsys/hotplug
+	echo "Hotplug started"
+}
+
+restart(){
+	for RC in /etc/hotplug/*.rc
+	do
+	    ( unset -f echo; $RC restart )
+	done
+}
+
+status(){
+	for RC in /etc/hotplug/*.rc
+	do
+	    ( unset -f echo; $RC status )
+	done
+}
+
+stop(){
+	for RC in /etc/hotplug/*.rc
+        do
+	    ( unset -f echo; $RC stop )
+        done
+        rm -f /var/lock/subsys/hotplug
+	echo "Hotplug stopped"
+}
+
+reload(){
+	for RC in /etc/hotplug/*.rc
+        do
+	    ( unset -f echo; $RC stop )
+        done
+	for RC in /etc/hotplug/*.rc
+        do
+	    ( unset -f echo; $RC start )
+        done
+        rm -f /var/lock/subsys/hotplug
+}
+

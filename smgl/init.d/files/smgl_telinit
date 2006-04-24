@@ -1,0 +1,341 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+# vim:set ts=2 sw=2 et:
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+##
+##=head1 DESCRIPTION
+##
+## user functions for telinit
+##
+##=head1 COPYRIGHT
+##
+## Copyright (C) 2003 Robert Helgesson <rycee@home.se>
+## 
+##=head1 FUNCTIONS
+#---------------------------------------------------------------------
+
+query()
+{ (
+  while true ; do
+    RESPONSE=""
+    builtin echo  -e  -n  "$1 [$2] "
+    read   -t  10  -n  1  RESPONSE
+    builtin echo
+    RESPONSE=${RESPONSE:=$2}
+    case  $RESPONSE  in
+      n|N)  return 1  ;;
+      y|Y)  return 0  ;;
+    esac
+  done
+) }
+
+run_enable()
+{
+  local i
+  for i in $*; do
+    local FILE="$(ls $RUNLEVELS_DIR/*/"$i")"
+    if [ ! -x "$FILE" ]; then
+      chmod ug+x "$FILE" && echo "Service $i successfully enabled." &&
+      (
+        local RL="$(echo $FILE | sed -e 's!^.*/%\(.*\)/.*$!\1!')"
+        if display-services | grep -q "^%$RL" ; then
+          echo "Starting script $i because it was enabled within a running runlevel."
+          need "$i" || exit 1
+          #run_script "$i" "$i" start || exit 1
+        else
+          echo "Not starting script $i because it was enabled within a non-running runlevel."
+        fi
+      ) ||
+        ( echo "an error occurred enabling service $i" > /dev/stderr && exit 1 ) || INIT_FAIL_LOG=yes
+    else
+      echo "Service $i already enabled." > /dev/stderr
+      INIT_FAIL_LOG=yes
+    fi
+  done
+}
+
+run_disable()
+{
+  local i
+  for i in $*; do
+    local FILE="$(ls $RUNLEVELS_DIR/*/"$i")"
+    local SKIP=
+    if [ -x "$FILE" ]; then
+      if grep -Fq 'ESSENTIAL=yes' "$FILE" ; then query "Are you sure you want to disable this ESSENTIAL script?" n || SKIP=yes; fi
+      if [ -z "$SKIP" ] ; then
+      (
+        local RL="$(echo $FILE | sed -e 's!^.*/%\(.*\)/.*$!\1!')"
+        if display-services | grep -q "^%$RL" ; then
+          echo "Stopping script $i because it was disabled within a running runlevel."
+          run_script "$i" "$i" stop && { initctl -c "$i" || true ; } || exit 1
+        else
+          echo "Not stopping script $i because it was disabled within a non-running runlevel."
+        fi
+      ) && 
+        chmod ug-x "$FILE" && echo "Service $i successfully disabled." ||
+          ( echo "an error occurred disabling service $i" > /dev/stderr && exit 1 ) || INIT_FAIL_LOG=yes
+      else
+        echo "ESSENTIAL service $i skipped."
+      fi
+    else
+      echo "Service $i already disabled." > /dev/stderr
+      INIT_FAIL_LOG=yes
+    fi
+  done
+}
+
+run_delete()
+{
+  local i
+  for i in $*; do
+    local FILE="$(ls $RUNLEVELS_DIR/*/"$i")"
+    local SKIP=
+    if [ ! -x "$FILE" ]; then
+      if grep -Fq 'ESSENTIAL=yes' "$FILE" ; then
+        query "Are you sure you want to DELETE this ESSENTIAL script?" n || SKIP=yes
+      else
+        query "Are you sure you want to DELETE this script?" n || SKIP=yes
+      fi
+      if [ -z "$SKIP" ] ; then
+        rm "$FILE" && echo "Service $i successfully deleted." ||
+          ( echo "an error occurred deleting service $i" > /dev/stderr && exit 1 ) || INIT_FAIL_LOG=yes
+      else
+        echo "Delete of service $i skipped."
+      fi
+    else
+      echo "Service $i is enabled, please disable it first." > /dev/stderr
+      INIT_FAIL_LOG=yes
+    fi
+  done
+}
+
+run_bootenable()
+{
+  local i
+  for i in $*; do
+    local FILE="$(ls $RUNLEVELS_DIR/*/"$i")"
+    if [ ! -x "$FILE" ]; then
+      chmod ug+x "$FILE" && echo "Service $i successfully enabled." ||
+      ( echo "an error occurred enabling service $i" > /dev/stderr && exit 1 ) || INIT_FAIL_LOG=yes
+    else
+      echo "Service $i already enabled." > /dev/stderr
+      INIT_FAIL_LOG=yes
+    fi
+  done
+}
+
+run_bootdisable()
+{
+  local i
+  for i in $*; do
+    local FILE="$(ls $RUNLEVELS_DIR/*/"$i")"
+    local SKIP=
+    if [ -x "$FILE" ]; then
+      if grep -Fq 'ESSENTIAL=yes' "$FILE" ; then query "Are you sure you want to disable this ESSENTIAL script?" n || SKIP=yes; fi
+      if [ -z "$SKIP" ] ; then
+        chmod ug-x "$FILE" && echo "Service $i successfully disabled." ||
+          ( echo "an error occurred disabling service $i" > /dev/stderr && exit 1 ) || INIT_FAIL_LOG=yes
+      else
+        echo "ESSENTIAL service $i skipped."
+      fi
+    else
+      echo "Service $i already disabled." > /dev/stderr
+      INIT_FAIL_LOG=yes
+    fi
+  done
+}
+
+run_enabled()
+{ 
+  ls -l "$RUNLEVELS_DIR"/*/* | grep -v runlevel.config$ | grep "^...x..x" | sed -e 's!^.*/!!'
+}
+
+run_disabled()
+{ 
+  ls -l "$RUNLEVELS_DIR"/*/* | grep -v runlevel.config$ | grep -v "^...x..x" | sed -e 's!^.*/!!'
+}
+
+run_list()
+{ 
+  echo "RUNLEVEL SCRIPT"
+  ls -l "$RUNLEVELS_DIR"/*/* | grep -v runlevel.config | sed -e 's!^.*/%\(.*\)/!\1        !'
+}
+
+run_move()
+{
+  local FILE="$(ls $RUNLEVELS_DIR/*/"$1" 2> /dev/null)"
+  if [ -f "$FILE" ] ; then
+    if [ -d "$RUNLEVELS_DIR/%$2" ] ; then
+      local OLD_RUNLEVEL="$(echo "$FILE" | sed -e 's!^/.*/%!!' | cut -d'/' -f1)"
+      if [ "$OLD_RUNLEVEL" != "$2" ] ; then
+        mv "$FILE" "$RUNLEVELS_DIR/%$2" &&
+        echo "Script $1 moved from runlevel $OLD_RUNLEVEL to runlevel $2." || exit 1
+        if display-services | grep -q "^%$2" && ! display-services | grep -q "^%$OLD_RUNLEVEL"; then 
+          if [ -x "$RUNLEVELS_DIR/%$2/$1" ] ; then
+            echo "Starting script $1 because it moved from a non-running to a running runlevel"
+            run_script "$1" "$1" start
+          else
+            echo "Script $1 would have been started if it were enabled."
+          fi
+        elif ! display-services | grep -q "^%$2" && display-services | grep -q "^%$OLD_RUNLEVEL"; then
+          if [ -x "$RUNLEVELS_DIR/%$2/$1" ] ; then
+            echo "Stopping script $1 because it moved from a running to a non-running runlevel"
+            run_script "$1" "$1" stop
+          else
+            echo "Script $1 would have been stopped if it were enabled."
+          fi
+        else
+          echo "Script $1 not started or stopped because it stayed either in a non-running or running runlevel."
+        fi
+      else
+        echo "Script $1 already in runlevel $2." && exit 1
+      fi
+    else
+      echo "runlevel $2 is not a valid runlevel container." > /dev/stderr
+      echo "valid runlevel containers are:" > /dev/stderr
+      ls -ld "$RUNLEVELS_DIR"/* | grep "^d" | sed -e 's!^.*/%!!' > /dev/stderr
+      exit 1
+    fi
+  else
+    echo "script $1 does not exist" > /dev/stderr
+    exit 1
+  fi
+}
+
+run_runlevels()
+{
+  echo "TYPE RUNLEVEL"
+  ls -ld "$RUNLEVELS_DIR"/%* | sed -e 's! -> /.*/%! -> !' -e 's!^\(.\).*/%!\1    !'
+}
+
+run_install()
+{
+  if [ -f "$1" ] ; then
+    if [ -d "$RUNLEVELS_DIR/%$2" ] ; then
+      cp "$1" "$RUNLEVELS_DIR/%$2" &&
+      echo "Script $1 installed to runlevel $2." || exit 1
+    else
+      echo "runlevel $2 is not a valid runlevel container." > /dev/stderr
+      echo "valid runlevel containers are:" > /dev/stderr
+      ls -ld "$RUNLEVELS_DIR"/* | grep -v "^d" | sed -e 's!^.*/%!!' > /dev/stderr
+      exit 1
+    fi
+  else
+    echo "file $1 does not exist" > /dev/stderr
+    exit 1
+  fi
+}
+
+run_spellinstall()
+{
+  (
+    unset -f echo
+    . /etc/sorcery/config
+    SPELL="$1"
+    SPELL_CONFIG=$DEPENDS_CONFIG/$SPELL
+    SCRIPT_DIRECTORY="`codex_find_spell_by_name $SPELL`"
+    persistent_load   &&
+    query_services    &&
+    install_xinetd    &&
+    install_initd     &&
+    init_post_install &&
+    persistent_save
+  )
+}
+
+run_rmservice()
+{
+  if run_services | grep -qF "$1" ; then initctl -c "$1" ; else exit 1; fi
+}
+
+run_services()
+{
+  display-services | sed -n '/^AVAILABLE SERVICES:/,/^STARTING SERVICES:/ p' | grep -v '\(AVAILABLE\|STARTING\) SERVICES:'
+}
+
+run_runlevel_display()
+{
+  display-services | grep '^%' | head -n 1 | cut -c2-
+}
+
+smgl_telinit()
+{
+  # source smgl_telinit for user functions
+  . /etc/init.d/smgl_telinit
+
+  local FAIL=no
+  (
+  INIT_FAIL_LOG=
+  case "$1" in
+    run)           shift; run_script       "$1" "$@" ;;
+    switch)        shift; run_runlevel     "$1"      ;;
+    enable)        shift; run_enable       "$@"      ;;
+    disable)       shift; run_disable      "$@"      ;;
+    bootenable)    shift; run_bootenable   "$@"      ;;
+    bootdisable)   shift; run_bootdisable  "$@"      ;;
+    delete)        shift; run_delete       "$@"      ;;
+    enabled)       shift; run_enabled                ;;
+    disabled)      shift; run_disabled               ;;
+    list)          shift; run_list                   ;;
+    runlevels)     shift; run_runlevels              ;;
+    runlevel)      shift; run_runlevel_display       ;;
+    move)          shift; run_move         "$1" "$2" ;;
+    install)       shift; run_install      "$1" "$2" ;;
+    spellinstall)  shift; run_spellinstall "$1"      ;;
+    services)      shift; run_services               ;;
+    rmservice)     shift; run_rmservice    "$1"      ;;
+    insservice)    shift; run_insservice   "$1" "$2" ;;
+    *)             cat > /dev/stderr << EOF
+usage:   
+telinit run <script> [<args>]        run init <script> with arguments <args>
+telinit switch <rlvl>                switch to runlevel <rlvl>
+telinit enable [<script> ... ]       enable and start <script> if not enabled
+telinit disable [<script> ... ]      stop and disable <script> if not disabled
+telinit bootenable [<script> ... ]   enable <script> if not enabled
+telinit bootdisable [<script> ... ]  disable <script> if not disabled
+telinit delete [<script> ... ]       delete <script> if disabled
+telinit enabled                      list enabled startup scripts
+telinit disabled                     list disabled startup scripts
+telinit list                         list startup scripts and their runlevels
+telinit runlevels                    list all runlevels
+telinit runlevel                     print the highest completed runlevel
+telinit move <script> <rlvl>         move <script> to runlevel <rlvl>
+telinit install <file> <rlvl>        install <file> into runlevel <rlvl>
+telinit spellinstall <spell>         install <spell>'s init or xinetd scripts
+EOF
+    exit 1
+    ;;
+  esac
+  [ "$INIT_FAIL_LOG" == "yes" ]  && exit 1
+  true
+  ) || FAIL=yes
+  case "$1" in
+    run|switch|enabled|disabled|list|runlevels|runlevel) exit 0 ;;
+  esac
+  [ "$FAIL" == "no" ]  ;  evaluate_retval
+  [ "$FAIL" == "yes" ] && exit 1
+}
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

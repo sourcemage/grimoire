@@ -1,0 +1,1028 @@
+Index: extensions/typeaheadfind/Makefile.in
+===================================================================
+RCS file: /cvsroot/mozilla/extensions/typeaheadfind/Makefile.in,v
+retrieving revision 1.14
+diff -p -u -u -p -r1.14 Makefile.in
+--- extensions/typeaheadfind/Makefile.in	16 Jul 2004 18:48:33 -0000	1.14
++++ extensions/typeaheadfind/Makefile.in	22 Jan 2005 00:44:24 -0000
+@@ -41,7 +41,7 @@ VPATH = @srcdir@
+ 
+ include $(DEPTH)/config/autoconf.mk
+ 
+-MODULE		= typeaheadfind
++MODULE		= typeaheadfindsea
+ DIRS		= public src resources
+ 
+ include $(topsrcdir)/config/rules.mk
+Index: extensions/typeaheadfind/public/Makefile.in
+===================================================================
+RCS file: /cvsroot/mozilla/extensions/typeaheadfind/public/Makefile.in,v
+retrieving revision 1.5
+diff -p -u -u -p -r1.5 Makefile.in
+--- extensions/typeaheadfind/public/Makefile.in	16 Jul 2004 18:48:34 -0000	1.5
++++ extensions/typeaheadfind/public/Makefile.in	22 Jan 2005 00:44:24 -0000
+@@ -41,11 +41,11 @@ VPATH = @srcdir@
+ 
+ include $(DEPTH)/config/autoconf.mk
+ 
+-MODULE=typeaheadfind
+-XPIDL_MODULE=typeaheadfind
++MODULE=typeaheadfindsea
++XPIDL_MODULE=typeaheadfindsea
+ GRE_MODULE	= 1
+ 
+-XPIDLSRCS= ./nsITypeAheadFind.idl \
++XPIDLSRCS= ./nsITypeAheadFindSea.idl \
+   $(NULL)
+ 
+ 
+Index: extensions/typeaheadfind/public/nsITypeAheadFindSea.idl
+===================================================================
+RCS file: extensions/typeaheadfind/public/nsITypeAheadFindSea.idl
+diff -N extensions/typeaheadfind/public/nsITypeAheadFindSea.idl
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ extensions/typeaheadfind/public/nsITypeAheadFindSea.idl	22 Jan 2005 00:44:24 -0000
+@@ -0,0 +1,88 @@
++/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
++/* ***** BEGIN LICENSE BLOCK *****
++ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
++ *
++ * The contents of this file are subject to the Mozilla Public License Version
++ * 1.1 (the "License"); you may not use this file except in compliance with
++ * the License. You may obtain a copy of the License at
++ * http://www.mozilla.org/MPL/
++ *
++ * Software distributed under the License is distributed on an "AS IS" basis,
++ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
++ * for the specific language governing rights and limitations under the
++ * License.
++ *
++ * The Original Code is mozilla.org code.
++ *
++ * The Initial Developer of the Original Code is
++ * Netscape Communications Corporation.
++ * Portions created by the Initial Developer are Copyright (C) 1998
++ * the Initial Developer. All Rights Reserved.
++ *
++ * Contributor(s):
++ *   Original Author: Aaron Leventhal (aaronl@netscape.com)
++ *
++ * Alternatively, the contents of this file may be used under the terms of
++ * either the GNU General Public License Version 2 or later (the "GPL"), or
++ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
++ * in which case the provisions of the GPL or the LGPL are applicable instead
++ * of those above. If you wish to allow use of your version of this file only
++ * under the terms of either the GPL or the LGPL, and not to allow others to
++ * use your version of this file under the terms of the MPL, indicate your
++ * decision by deleting the provisions above and replace them with the notice
++ * and other provisions required by the GPL or the LGPL. If you do not delete
++ * the provisions above, a recipient may use your version of this file under
++ * the terms of any one of the MPL, the GPL or the LGPL.
++ *
++ * ***** END LICENSE BLOCK ***** */
++
++#include "nsISupports.idl"
++#include "domstubs.idl"
++#include "nsISupportsPrimitives.idl"
++
++%{ C++
++  #include "nsIDOMEvent.h"
++
++  #define NS_TYPEAHEADFINDSEA_CID \
++    {0x46590685, 0xbc00, 0x4aac, {0xab, 0xed, 0x2c, 0x10, 0xa5, 0xb9, 0x45, 0xa4}}
++
++  #define NS_TYPEAHEADFINDSEA_CONTRACTID "@mozilla.org/typeaheadfindsea;1"
++%}
++
++interface nsIDOMEvent;
++
++[scriptable, uuid(a565f6e0-d521-4ffe-8cea-569fbb163cd1)]
++interface nsITypeAheadFindSea : nsISupports
++{
++  /** Is type ahead find mode currently on? */
++  readonly attribute boolean isActive;
++
++  /** Manually start type ahead find mode */
++  void startNewFind(in nsIDOMWindow aWindow, in boolean aLinksOnly);
++
++  /** Manually cancel type ahead find mode */
++  void cancelFind();
++
++  /**
++    * Will find as you type start automatically if the user
++    * types with the focus on page content other than a textfield or select?
++    * If autostart is off, the startNewFind() method can be used to enact
++    * type ahead find, as well as cmd_findTypeLinks or cmd_findTypeText.
++    */
++  void setAutoStart(in nsIDOMWindow aWindow, in boolean aIsAutoStartOn);
++  boolean getAutoStart(in nsIDOMWindow aWindow);  
++
++  /**
++    * Find next recurrence if typeaheadfind was the last used find, 
++    * as opposed to regular find. Returns false in nsISupportsPRBool if we
++    * don't handle the request.
++    */
++  void findNext(in boolean aReverse, in nsISupportsInterfacePointer aCallerWindowSupports);
++
++  /*
++   * Go back and remove one character from find string
++   * Returns true if backspace used
++   */
++  boolean backOneChar();
++};
++
+Index: extensions/typeaheadfind/resources/jar.mn
+===================================================================
+RCS file: /cvsroot/mozilla/extensions/typeaheadfind/resources/jar.mn,v
+retrieving revision 1.5
+diff -p -u -u -p -r1.5 jar.mn
+--- extensions/typeaheadfind/resources/jar.mn	25 May 2004 01:47:22 -0000	1.5
++++ extensions/typeaheadfind/resources/jar.mn	22 Jan 2005 00:44:24 -0000
+@@ -1,5 +1,5 @@
+ en-US.jar:
+-    locale/en-US/global/typeaheadfind.properties  (locale/en-US/typeaheadfind.properties)
++    locale/en-US/global/typeaheadfindsea.properties  (locale/en-US/typeaheadfindsea.properties)
+ 
+ toolkit.jar:
+     content/global/notfound.wav                   (content/notfound.wav)
+Index: extensions/typeaheadfind/resources/content/prefs/typeaheadfind.js
+===================================================================
+RCS file: /cvsroot/mozilla/extensions/typeaheadfind/resources/content/prefs/typeaheadfind.js,v
+retrieving revision 1.15
+diff -p -u -u -p -r1.15 typeaheadfind.js
+--- extensions/typeaheadfind/resources/content/prefs/typeaheadfind.js	18 Apr 2004 22:14:01 -0000	1.15
++++ extensions/typeaheadfind/resources/content/prefs/typeaheadfind.js	22 Jan 2005 00:44:24 -0000
+@@ -35,7 +35,7 @@
+  *
+  * ***** END LICENSE BLOCK ***** */
+ 
+-pref("accessibility.typeaheadfind", true);
+-pref("accessibility.typeaheadfind.linksonly", true);
+-pref("accessibility.typeaheadfind.startlinksonly", false);
+-pref("accessibility.typeaheadfind.timeout", 5000);
++pref("accessibility.typeaheadfindsea", false);
++pref("accessibility.typeaheadfindsea.linksonly", true);
++pref("accessibility.typeaheadfindsea.startlinksonly", false);
++pref("accessibility.typeaheadfindsea.timeout", 5000);
+Index: extensions/typeaheadfind/resources/locale/en-US/typeaheadfind.properties
+===================================================================
+RCS file: extensions/typeaheadfind/resources/locale/en-US/typeaheadfind.properties
+diff -N extensions/typeaheadfind/resources/locale/en-US/typeaheadfind.properties
+--- extensions/typeaheadfind/resources/locale/en-US/typeaheadfind.properties	14 Jan 2003 04:03:29 -0000	1.6
++++ /dev/null	1 Jan 1970 00:00:00 -0000
+@@ -1,13 +0,0 @@
+-openparen     = (
+-closeparen    = )
+-textfound     = Text found: "
+-textnotfound  = Text not found: "
+-linkfound     = Link found: "
+-linknotfound  = Link not found: "
+-closequote    = "
+-stopfind      = Find stopped.
+-starttextfind = Starting -- find text as you type
+-startlinkfind = Starting -- find links as you type
+-repeated      = repeated
+-nextmatch     = - next match
+-prevmatch     = - previous match
+Index: extensions/typeaheadfind/resources/locale/en-US/typeaheadfindsea.properties
+===================================================================
+RCS file: extensions/typeaheadfind/resources/locale/en-US/typeaheadfindsea.properties
+diff -N extensions/typeaheadfind/resources/locale/en-US/typeaheadfindsea.properties
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ extensions/typeaheadfind/resources/locale/en-US/typeaheadfindsea.properties	22 Jan 2005 00:44:24 -0000
+@@ -0,0 +1,13 @@
++openparen     = (
++closeparen    = )
++textfound     = Text found: "
++textnotfound  = Text not found: "
++linkfound     = Link found: "
++linknotfound  = Link not found: "
++closequote    = "
++stopfind      = Find stopped.
++starttextfind = Starting -- find text as you type
++startlinkfind = Starting -- find links as you type
++repeated      = repeated
++nextmatch     = - next match
++prevmatch     = - previous match
+Index: extensions/typeaheadfind/src/Makefile.in
+===================================================================
+RCS file: /cvsroot/mozilla/extensions/typeaheadfind/src/Makefile.in,v
+retrieving revision 1.9
+diff -p -u -u -p -r1.9 Makefile.in
+--- extensions/typeaheadfind/src/Makefile.in	16 Jul 2004 18:48:34 -0000	1.9
++++ extensions/typeaheadfind/src/Makefile.in	22 Jan 2005 00:44:24 -0000
+@@ -41,14 +41,14 @@ VPATH = @srcdir@
+ 
+ include $(DEPTH)/config/autoconf.mk
+ 
+-MODULE = typeaheadfind
+-LIBRARY_NAME = typeaheadfind
++MODULE = typeaheadfindsea
++LIBRARY_NAME = typeaheadfindsea
+ ifneq ($(OS_ARCH),WINNT)
+-SHORT_LIBNAME = typahead
++SHORT_LIBNAME = typaheadsea
+ endif
+ GRE_MODULE	= 1
+ 
+-PACKAGE_FILE = typeaheadfind.pkg
++PACKAGE_FILE = typeaheadfindsea.pkg
+ 
+ REQUIRES	= appcomps \
+ 		  embedcomponents \
+@@ -76,7 +76,7 @@ REQUIRES	= appcomps \
+ 
+ EXPORT_LIBRARY = 1
+ IS_COMPONENT = 1
+-MODULE_NAME	= nsTypeAheadFind
++MODULE_NAME	= nsTypeAheadFindSea
+ 
+ CPPSRCS =   \
+   nsTypeAheadFind.cpp	   \
+Index: extensions/typeaheadfind/src/nsTypeAheadFind.cpp
+===================================================================
+RCS file: /cvsroot/mozilla/extensions/typeaheadfind/src/nsTypeAheadFind.cpp,v
+retrieving revision 1.101
+diff -p -u -u -p -r1.101 nsTypeAheadFind.cpp
+--- extensions/typeaheadfind/src/nsTypeAheadFind.cpp	26 Dec 2004 19:48:52 -0000	1.101
++++ extensions/typeaheadfind/src/nsTypeAheadFind.cpp	22 Jan 2005 00:44:26 -0000
+@@ -114,8 +114,8 @@
+ ////////////////////////////////////////////////////////////////////////
+ 
+ 
+-NS_INTERFACE_MAP_BEGIN(nsTypeAheadFind)
+-  NS_INTERFACE_MAP_ENTRY(nsITypeAheadFind)
++NS_INTERFACE_MAP_BEGIN(nsTypeAheadFindSea)
++  NS_INTERFACE_MAP_ENTRY(nsITypeAheadFindSea)
+   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
+   NS_INTERFACE_MAP_ENTRY(nsITimerCallback)
+   NS_INTERFACE_MAP_ENTRY(nsIScrollPositionListener)
+@@ -128,8 +128,8 @@ NS_INTERFACE_MAP_BEGIN(nsTypeAheadFind)
+   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsIDOMEventListener, nsIDOMKeyListener)
+ NS_INTERFACE_MAP_END
+ 
+-NS_IMPL_ADDREF(nsTypeAheadFind)
+-NS_IMPL_RELEASE(nsTypeAheadFind)
++NS_IMPL_ADDREF(nsTypeAheadFindSea)
++NS_IMPL_RELEASE(nsTypeAheadFindSea)
+ 
+ static NS_DEFINE_IID(kRangeCID, NS_RANGE_CID);
+ static NS_DEFINE_CID(kStringBundleServiceCID,  NS_STRINGBUNDLESERVICE_CID);
+@@ -138,11 +138,11 @@ static NS_DEFINE_CID(kLookAndFeelCID, NS
+ 
+ #define NS_FIND_CONTRACTID "@mozilla.org/embedcomp/rangefind;1"
+ 
+-nsTypeAheadFind* nsTypeAheadFind::sInstance = nsnull;
+-PRInt32 nsTypeAheadFind::sAccelKey = -1;  // magic value of -1 when unitialized
++nsTypeAheadFindSea* nsTypeAheadFindSea::sInstance = nsnull;
++PRInt32 nsTypeAheadFindSea::sAccelKey = -1;  // magic value of -1 when unitialized
+ 
+ 
+-nsTypeAheadFind::nsTypeAheadFind():
++nsTypeAheadFindSea::nsTypeAheadFindSea():
+   mIsFindAllowedInWindow(PR_FALSE), mAutoStartPref(PR_FALSE),
+   mLinksOnlyPref(PR_FALSE), mStartLinksOnlyPref(PR_FALSE),
+   mLinksOnly(PR_FALSE), mIsTypeAheadOn(PR_FALSE), mCaretBrowsingOn(PR_FALSE),
+@@ -161,25 +161,25 @@ nsTypeAheadFind::nsTypeAheadFind():
+   static PRInt32 gInstanceCount;
+   ++gInstanceCount;
+   NS_ASSERTION(gInstanceCount == 1,
+-    "There should be only 1 instance of nsTypeAheadFind!");
++    "There should be only 1 instance of nsTypeAheadFindSea!");
+ #endif
+ }
+ 
+ 
+-nsTypeAheadFind::~nsTypeAheadFind()
++nsTypeAheadFindSea::~nsTypeAheadFindSea()
+ {
+   RemoveDocListeners();
+   mTimer = nsnull;
+ 
+   nsCOMPtr<nsIPrefBranchInternal> prefInternal(do_GetService(NS_PREFSERVICE_CONTRACTID));
+   if (prefInternal) {
+-    prefInternal->RemoveObserver("accessibility.typeaheadfind", this);
++    prefInternal->RemoveObserver("accessibility.typeaheadfindsea", this);
+     prefInternal->RemoveObserver("accessibility.browsewithcaret", this);
+   }
+ }
+ 
+ nsresult
+-nsTypeAheadFind::Init()
++nsTypeAheadFindSea::Init()
+ {
+   nsresult rv = NS_NewISupportsArray(getter_AddRefs(mManualFindWindows));
+   NS_ENSURE_SUCCESS(rv, rv);
+@@ -196,7 +196,7 @@ nsTypeAheadFind::Init()
+   }
+ 
+   // ----------- Listen to prefs ------------------
+-  rv = prefInternal->AddObserver("accessibility.typeaheadfind", this, PR_FALSE);
++  rv = prefInternal->AddObserver("accessibility.typeaheadfindsea", this, PR_FALSE);
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
+   rv = prefInternal->AddObserver("accessibility.browsewithcaret", this, PR_FALSE);
+@@ -217,11 +217,11 @@ nsTypeAheadFind::Init()
+   return rv;
+ }
+ 
+-nsTypeAheadFind *
+-nsTypeAheadFind::GetInstance()
++nsTypeAheadFindSea *
++nsTypeAheadFindSea::GetInstance()
+ {
+   if (!sInstance) {
+-    sInstance = new nsTypeAheadFind();
++    sInstance = new nsTypeAheadFindSea();
+     if (!sInstance)
+       return nsnull;
+ 
+@@ -241,14 +241,14 @@ nsTypeAheadFind::GetInstance()
+ 
+ 
+ void
+-nsTypeAheadFind::ReleaseInstance()
++nsTypeAheadFindSea::ReleaseInstance()
+ {
+   NS_IF_RELEASE(sInstance);
+ }
+ 
+ 
+ void 
+-nsTypeAheadFind::Shutdown()
++nsTypeAheadFindSea::Shutdown()
+ {
+   // Application shutdown 
+   mTimer = nsnull;
+@@ -264,14 +264,14 @@ nsTypeAheadFind::Shutdown()
+ // ------- Pref Callbacks (2) ---------------
+ 
+ nsresult
+-nsTypeAheadFind::PrefsReset()
++nsTypeAheadFindSea::PrefsReset()
+ {
+   nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
+   NS_ENSURE_TRUE(prefBranch, NS_ERROR_FAILURE);
+ 
+   PRBool wasTypeAheadOn = mIsTypeAheadOn;
+ 
+-  prefBranch->GetBoolPref("accessibility.typeaheadfind", &mIsTypeAheadOn);
++  prefBranch->GetBoolPref("accessibility.typeaheadfindsea", &mIsTypeAheadOn);
+ 
+   if (mIsTypeAheadOn != wasTypeAheadOn) {
+     if (!mIsTypeAheadOn) {
+@@ -291,7 +291,7 @@ nsTypeAheadFind::PrefsReset()
+         do_GetService(kStringBundleServiceCID);
+ 
+       if (stringBundleService)
+-        stringBundleService->CreateBundle(TYPEAHEADFIND_BUNDLE_URL,
++        stringBundleService->CreateBundle(TYPEAHEADFINDSEA_BUNDLE_URL,
+                                           getter_AddRefs(mStringBundle));
+ 
+       // Observe find again commands. We'll handle them if we were the last find
+@@ -306,34 +306,34 @@ nsTypeAheadFind::PrefsReset()
+   }
+ 
+   PRBool oldAutoStartPref = mAutoStartPref;
+-  prefBranch->GetBoolPref("accessibility.typeaheadfind.autostart",
++  prefBranch->GetBoolPref("accessibility.typeaheadfindsea.autostart",
+                            &mAutoStartPref);
+   if (mAutoStartPref != oldAutoStartPref) {
+     ResetGlobalAutoStart(mAutoStartPref);
+   }
+  
+-  prefBranch->GetBoolPref("accessibility.typeaheadfind.linksonly",
++  prefBranch->GetBoolPref("accessibility.typeaheadfindsea.linksonly",
+                           &mLinksOnlyPref);
+ 
+-  prefBranch->GetBoolPref("accessibility.typeaheadfind.startlinksonly",
++  prefBranch->GetBoolPref("accessibility.typeaheadfindsea.startlinksonly",
+                           &mStartLinksOnlyPref);
+ 
+   PRBool isSoundEnabled = PR_TRUE;
+-  prefBranch->GetBoolPref("accessibility.typeaheadfind.enablesound",
++  prefBranch->GetBoolPref("accessibility.typeaheadfindsea.enablesound",
+                            &isSoundEnabled);
+   nsXPIDLCString soundStr;
+   if (isSoundEnabled) {
+-    prefBranch->GetCharPref("accessibility.typeaheadfind.soundURL",
++    prefBranch->GetCharPref("accessibility.typeaheadfindsea.soundURL",
+                              getter_Copies(soundStr));
+   }
+   mNotFoundSoundURL = soundStr;
+ 
+   PRBool isTimeoutEnabled;
+-  prefBranch->GetBoolPref("accessibility.typeaheadfind.enabletimeout",
++  prefBranch->GetBoolPref("accessibility.typeaheadfindsea.enabletimeout",
+                           &isTimeoutEnabled);
+   PRInt32 timeoutLength = 0;
+   if (isTimeoutEnabled) {
+-    prefBranch->GetIntPref("accessibility.typeaheadfind.timeout",
++    prefBranch->GetIntPref("accessibility.typeaheadfindsea.timeout",
+                            &timeoutLength);
+   }
+   mTimeoutLength = timeoutLength;
+@@ -349,7 +349,7 @@ nsTypeAheadFind::PrefsReset()
+ // ------- nsITimer Methods (1) ---------------
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::Notify(nsITimer *timer)
++nsTypeAheadFindSea::Notify(nsITimer *timer)
+ {
+   CancelFind();
+   return NS_OK;
+@@ -358,7 +358,7 @@ nsTypeAheadFind::Notify(nsITimer *timer)
+ // ----------- nsIObserver Methods (1) -------------------
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::Observe(nsISupports *aSubject, const char *aTopic,
++nsTypeAheadFindSea::Observe(nsISupports *aSubject, const char *aTopic,
+                          const PRUnichar *aData)
+ {
+   PRBool isOpening;
+@@ -476,7 +476,7 @@ nsTypeAheadFind::Observe(nsISupports *aS
+ 
+ 
+ nsresult
+-nsTypeAheadFind::UseInWindow(nsIDOMWindow *aDOMWin)
++nsTypeAheadFindSea::UseInWindow(nsIDOMWindow *aDOMWin)
+ {
+   NS_ENSURE_ARG_POINTER(aDOMWin);
+ 
+@@ -529,7 +529,7 @@ nsTypeAheadFind::UseInWindow(nsIDOMWindo
+ // ------- nsIDOMEventListener Methods (1) ---------------
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::HandleEvent(nsIDOMEvent* aEvent)
++nsTypeAheadFindSea::HandleEvent(nsIDOMEvent* aEvent)
+ {
+   nsAutoString eventType;
+   aEvent->GetType(eventType);
+@@ -589,21 +589,21 @@ nsTypeAheadFind::HandleEvent(nsIDOMEvent
+ // ------- nsIDOMKeyListener Methods (3) ---------------
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::KeyDown(nsIDOMEvent* aEvent)
++nsTypeAheadFindSea::KeyDown(nsIDOMEvent* aEvent)
+ {
+   return NS_OK;
+ }
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::KeyUp(nsIDOMEvent* aEvent)
++nsTypeAheadFindSea::KeyUp(nsIDOMEvent* aEvent)
+ {
+   return NS_OK;
+ }
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::KeyPress(nsIDOMEvent* aEvent)
++nsTypeAheadFindSea::KeyPress(nsIDOMEvent* aEvent)
+ {
+   if (!mIsTypeAheadOn || mIsMenuBarActive || mIsMenuPopupActive) {
+     return NS_OK;
+@@ -726,14 +726,15 @@ nsTypeAheadFind::KeyPress(nsIDOMEvent* a
+     return NS_OK;
+   }
+ 
+-  aEvent->StopPropagation();  // We're using this key, no one else should
++  // We're using this key, no one else should
++  aEvent->PreventDefault();
+ 
+   return HandleChar(charCode);
+ }
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::BackOneChar(PRBool *aIsBackspaceUsed)
++nsTypeAheadFindSea::BackOneChar(PRBool *aIsBackspaceUsed)
+ {
+   if (!mFocusedDocSelection) {
+     *aIsBackspaceUsed = PR_FALSE;
+@@ -863,7 +864,7 @@ nsTypeAheadFind::BackOneChar(PRBool *aIs
+ 
+ 
+ nsresult
+-nsTypeAheadFind::HandleChar(PRUnichar aChar)
++nsTypeAheadFindSea::HandleChar(PRUnichar aChar)
+ {
+   // Add a printable char to mTypeAheadBuffer, then search for buffer contents
+ 
+@@ -1039,7 +1040,7 @@ nsTypeAheadFind::HandleChar(PRUnichar aC
+ 
+ 
+ void
+-nsTypeAheadFind::SaveFind()
++nsTypeAheadFindSea::SaveFind()
+ {
+   // Store find string for find-next
+   mFindNextBuffer = mTypeAheadBuffer;
+@@ -1067,7 +1068,7 @@ nsTypeAheadFind::SaveFind()
+ 
+ 
+ void
+-nsTypeAheadFind::PlayNotFoundSound()
++nsTypeAheadFindSea::PlayNotFoundSound()
+ {
+   if (mNotFoundSoundURL.IsEmpty())    // no sound
+     return;
+@@ -1097,7 +1098,7 @@ nsTypeAheadFind::PlayNotFoundSound()
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::HandleText(nsIDOMEvent* aTextEvent)
++nsTypeAheadFindSea::HandleText(nsIDOMEvent* aTextEvent)
+ {
+   // This is called multiple times in the middle of an 
+   // IME composition
+@@ -1145,7 +1146,7 @@ nsTypeAheadFind::HandleText(nsIDOMEvent*
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::HandleStartComposition(nsIDOMEvent* aCompositionEvent)
++nsTypeAheadFindSea::HandleStartComposition(nsIDOMEvent* aCompositionEvent)
+ {
+   // This is called once at the start of an IME composition
+ 
+@@ -1167,7 +1168,7 @@ nsTypeAheadFind::HandleStartComposition(
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::HandleEndComposition(nsIDOMEvent* aCompositionEvent)
++nsTypeAheadFindSea::HandleEndComposition(nsIDOMEvent* aCompositionEvent)
+ {
+   // This is called once at the end of an IME composition
+ 
+@@ -1198,21 +1199,21 @@ nsTypeAheadFind::HandleEndComposition(ns
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::HandleQueryComposition(nsIDOMEvent* aCompositionEvent)
++nsTypeAheadFindSea::HandleQueryComposition(nsIDOMEvent* aCompositionEvent)
+ {
+   return NS_OK;
+ }
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::HandleQueryReconversion(nsIDOMEvent* aCompositionEvent)
++nsTypeAheadFindSea::HandleQueryReconversion(nsIDOMEvent* aCompositionEvent)
+ {
+   return NS_OK;
+ }
+ 
+ 
+ nsresult
+-nsTypeAheadFind::FindItNow(nsIPresShell *aPresShell,
++nsTypeAheadFindSea::FindItNow(nsIPresShell *aPresShell,
+                            PRBool aIsRepeatingSameChar, PRBool aIsLinksOnly,
+                            PRBool aIsFirstVisiblePreferred)
+ {
+@@ -1235,7 +1236,7 @@ nsTypeAheadFind::FindItNow(nsIPresShell 
+ 
+   nsCOMPtr<nsISupports> startingContainer = presContext->GetContainer();
+   nsCOMPtr<nsIDocShellTreeItem> treeItem(do_QueryInterface(startingContainer));
+-  NS_ASSERTION(treeItem, "Bug 175321 Crashes with Type Ahead Find [@ nsTypeAheadFind::FindItNow]");
++  NS_ASSERTION(treeItem, "Bug 175321 Crashes with Type Ahead Find [@ nsTypeAheadFindSea::FindItNow]");
+   if (!treeItem) {
+     return NS_ERROR_FAILURE;
+   }
+@@ -1458,7 +1459,7 @@ nsTypeAheadFind::FindItNow(nsIPresShell 
+ 
+ 
+ nsresult
+-nsTypeAheadFind::GetSearchContainers(nsISupports *aContainer,
++nsTypeAheadFindSea::GetSearchContainers(nsISupports *aContainer,
+                                      PRBool aIsRepeatingSameChar,
+                                      PRBool aIsFirstVisiblePreferred,
+                                      PRBool aCanUseDocSelection,
+@@ -1567,7 +1568,7 @@ nsTypeAheadFind::GetSearchContainers(nsI
+ 
+ 
+ void
+-nsTypeAheadFind::RangeStartsInsideLink(nsIDOMRange *aRange,
++nsTypeAheadFindSea::RangeStartsInsideLink(nsIDOMRange *aRange,
+                                        nsIPresShell *aPresShell,
+                                        PRBool *aIsInsideLink,
+                                        PRBool *aIsStartingLink)
+@@ -1674,7 +1675,7 @@ nsTypeAheadFind::RangeStartsInsideLink(n
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::ScrollPositionWillChange(nsIScrollableView *aView,
++nsTypeAheadFindSea::ScrollPositionWillChange(nsIScrollableView *aView,
+                                           nscoord aX, nscoord aY)
+ {
+   return NS_OK;
+@@ -1682,7 +1683,7 @@ nsTypeAheadFind::ScrollPositionWillChang
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::ScrollPositionDidChange(nsIScrollableView *aScrollableView,
++nsTypeAheadFindSea::ScrollPositionDidChange(nsIScrollableView *aScrollableView,
+                                          nscoord aX, nscoord aY)
+ {
+   if (!mIsFindingText)
+@@ -1693,7 +1694,7 @@ nsTypeAheadFind::ScrollPositionDidChange
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::NotifySelectionChanged(nsIDOMDocument *aDoc,
++nsTypeAheadFindSea::NotifySelectionChanged(nsIDOMDocument *aDoc,
+                                         nsISelection *aSel, short aReason)
+ {
+   if (!mIsFindingText) {
+@@ -1710,10 +1711,10 @@ nsTypeAheadFind::NotifySelectionChanged(
+ }
+ 
+ 
+-// ---------------- nsITypeAheadFind --------------------
++// ---------------- nsITypeAheadFindSea --------------------
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::FindNext(PRBool aFindBackwards, nsISupportsInterfacePointer *aCallerWindowSupports)
++nsTypeAheadFindSea::FindNext(PRBool aFindBackwards, nsISupportsInterfacePointer *aCallerWindowSupports)
+ {
+   NS_ENSURE_TRUE(aCallerWindowSupports, NS_ERROR_FAILURE);
+ 
+@@ -1826,7 +1827,7 @@ nsTypeAheadFind::FindNext(PRBool aFindBa
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::GetIsActive(PRBool *aIsActive)
++nsTypeAheadFindSea::GetIsActive(PRBool *aIsActive)
+ {
+   *aIsActive = mLinksOnlyManuallySet || !mTypeAheadBuffer.IsEmpty();
+ 
+@@ -1839,7 +1840,7 @@ nsTypeAheadFind::GetIsActive(PRBool *aIs
+  */
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::StartNewFind(nsIDOMWindow *aWindow, PRBool aLinksOnly)
++nsTypeAheadFindSea::StartNewFind(nsIDOMWindow *aWindow, PRBool aLinksOnly)
+ {
+   if (!mFind || !mIsTypeAheadOn || !aWindow)
+     return NS_ERROR_FAILURE;  // Type Ahead Find not correctly initialized
+@@ -1872,7 +1873,7 @@ nsTypeAheadFind::StartNewFind(nsIDOMWind
+ }
+ 
+ void
+-nsTypeAheadFind::ResetGlobalAutoStart(PRBool aAutoStart)
++nsTypeAheadFindSea::ResetGlobalAutoStart(PRBool aAutoStart)
+ {
+   // Enumerate through the current top level windows
+   // and either attach or remove window listeners
+@@ -1910,7 +1911,7 @@ nsTypeAheadFind::ResetGlobalAutoStart(PR
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::SetAutoStart(nsIDOMWindow *aDOMWin, PRBool aAutoStartOn)
++nsTypeAheadFindSea::SetAutoStart(nsIDOMWindow *aDOMWin, PRBool aAutoStartOn)
+ {
+   if (!aDOMWin) {
+     return NS_ERROR_FAILURE;
+@@ -1940,7 +1941,7 @@ nsTypeAheadFind::SetAutoStart(nsIDOMWind
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::GetAutoStart(nsIDOMWindow *aDOMWin, PRBool *aIsAutoStartOn)
++nsTypeAheadFindSea::GetAutoStart(nsIDOMWindow *aDOMWin, PRBool *aIsAutoStartOn)
+ {
+   *aIsAutoStartOn = PR_FALSE;
+ 
+@@ -2008,7 +2009,7 @@ nsTypeAheadFind::GetAutoStart(nsIDOMWind
+ 
+ 
+ NS_IMETHODIMP
+-nsTypeAheadFind::CancelFind()
++nsTypeAheadFindSea::CancelFind()
+ {
+   // Stop current find if:
+   //   1. Escape pressed
+@@ -2064,7 +2065,7 @@ nsTypeAheadFind::CancelFind()
+ // ------- Helper Methods ---------------
+ 
+ void 
+-nsTypeAheadFind::GetTopContentPresShell(nsIDocShellTreeItem *aDocShellTreeItem, 
++nsTypeAheadFindSea::GetTopContentPresShell(nsIDocShellTreeItem *aDocShellTreeItem, 
+                                         nsIPresShell **aPresShell)
+ {
+   *aPresShell = nsnull;
+@@ -2080,7 +2081,7 @@ nsTypeAheadFind::GetTopContentPresShell(
+ }
+ 
+ void 
+-nsTypeAheadFind::GetStartWindow(nsIDOMWindow *aWindow, nsIDOMWindow **aStartWindow)
++nsTypeAheadFindSea::GetStartWindow(nsIDOMWindow *aWindow, nsIDOMWindow **aStartWindow)
+ {
+   // Return the root ancestor content window of aWindow
+ 
+@@ -2112,7 +2113,7 @@ nsTypeAheadFind::GetStartWindow(nsIDOMWi
+ }
+ 
+ nsresult
+-nsTypeAheadFind::GetWebBrowserFind(nsIDOMWindow *aWin, 
++nsTypeAheadFindSea::GetWebBrowserFind(nsIDOMWindow *aWin, 
+                                    nsIWebBrowserFind **aWebBrowserFind)
+ {
+   NS_ENSURE_ARG_POINTER(aWin);
+@@ -2137,7 +2138,7 @@ nsTypeAheadFind::GetWebBrowserFind(nsIDO
+ 
+ 
+ void
+-nsTypeAheadFind::StartTimeout()
++nsTypeAheadFindSea::StartTimeout()
+ {
+   if (mTimeoutLength) {
+     if (!mTimer) {
+@@ -2153,7 +2154,7 @@ nsTypeAheadFind::StartTimeout()
+ }
+ 
+ void
+-nsTypeAheadFind::SetSelectionLook(nsIPresShell *aPresShell, 
++nsTypeAheadFindSea::SetSelectionLook(nsIPresShell *aPresShell, 
+                                   PRBool aChangeColor, 
+                                   PRBool aEnabled)
+ {
+@@ -2205,7 +2206,7 @@ nsTypeAheadFind::SetSelectionLook(nsIPre
+ 
+ 
+ void
+-nsTypeAheadFind::RemoveDocListeners()
++nsTypeAheadFindSea::RemoveDocListeners()
+ {
+   nsCOMPtr<nsIPresShell> presShell(do_QueryReferent(mFocusedWeakShell));
+   nsIViewManager* vm = nsnull;
+@@ -2239,7 +2240,7 @@ nsTypeAheadFind::RemoveDocListeners()
+ 
+ 
+ void
+-nsTypeAheadFind::AttachDocListeners(nsIPresShell *aPresShell)
++nsTypeAheadFindSea::AttachDocListeners(nsIPresShell *aPresShell)
+ {
+   if (!aPresShell) {
+     return;
+@@ -2269,7 +2270,7 @@ nsTypeAheadFind::AttachDocListeners(nsIP
+ 
+ 
+ void
+-nsTypeAheadFind::RemoveWindowListeners(nsIDOMWindow *aDOMWin)
++nsTypeAheadFindSea::RemoveWindowListeners(nsIDOMWindow *aDOMWin)
+ {
+   nsCOMPtr<nsIDOMEventTarget> chromeEventHandler;
+   GetChromeEventHandler(aDOMWin, getter_AddRefs(chromeEventHandler));
+@@ -2326,7 +2327,7 @@ nsTypeAheadFind::RemoveWindowListeners(n
+ 
+ 
+ void
+-nsTypeAheadFind::AttachWindowListeners(nsIDOMWindow *aDOMWin)
++nsTypeAheadFindSea::AttachWindowListeners(nsIDOMWindow *aDOMWin)
+ {
+   nsCOMPtr<nsIDOMEventTarget> chromeEventHandler;
+   GetChromeEventHandler(aDOMWin, getter_AddRefs(chromeEventHandler));
+@@ -2379,7 +2380,7 @@ nsTypeAheadFind::AttachWindowListeners(n
+ 
+ 
+ void
+-nsTypeAheadFind::GetChromeEventHandler(nsIDOMWindow *aDOMWin,
++nsTypeAheadFindSea::GetChromeEventHandler(nsIDOMWindow *aDOMWin,
+                                        nsIDOMEventTarget **aChromeTarget)
+ {
+   nsCOMPtr<nsPIDOMWindow> privateDOMWindow(do_QueryInterface(aDOMWin));
+@@ -2395,7 +2396,7 @@ nsTypeAheadFind::GetChromeEventHandler(n
+ }
+ 
+ PRBool
+-nsTypeAheadFind::IsTargetContentOkay(nsIContent *aContent)
++nsTypeAheadFindSea::IsTargetContentOkay(nsIContent *aContent)
+ {
+   if (!aContent) {
+     return PR_FALSE;
+@@ -2433,7 +2434,7 @@ nsTypeAheadFind::IsTargetContentOkay(nsI
+ 
+ 
+ nsresult
+-nsTypeAheadFind::GetTargetIfTypeAheadOkay(nsIDOMEvent *aEvent, 
++nsTypeAheadFindSea::GetTargetIfTypeAheadOkay(nsIDOMEvent *aEvent, 
+                                           nsIContent **aTargetContent,
+                                           nsIPresShell **aTargetPresShell)
+ {
+@@ -2516,7 +2517,7 @@ nsTypeAheadFind::GetTargetIfTypeAheadOka
+ 
+ 
+ void
+-nsTypeAheadFind::GetSelection(nsIPresShell *aPresShell,
++nsTypeAheadFindSea::GetSelection(nsIPresShell *aPresShell,
+                               nsISelectionController **aSelCon,
+                               nsISelection **aDOMSel)
+ {
+@@ -2538,7 +2539,7 @@ nsTypeAheadFind::GetSelection(nsIPresShe
+ 
+ 
+ PRBool
+-nsTypeAheadFind::IsRangeVisible(nsIPresShell *aPresShell,
++nsTypeAheadFindSea::IsRangeVisible(nsIPresShell *aPresShell,
+                                 nsIPresContext *aPresContext,
+                                 nsIDOMRange *aRange, PRBool aMustBeInViewPort,
+                                 PRBool aGetTopVisibleLeaf,
+@@ -2692,7 +2693,7 @@ nsTypeAheadFind::IsRangeVisible(nsIPresS
+ 
+ 
+ nsresult
+-nsTypeAheadFind::GetTranslatedString(const nsAString& aKey,
++nsTypeAheadFindSea::GetTranslatedString(const nsAString& aKey,
+                                      nsAString& aStringOut)
+ {
+   nsXPIDLString xsValue;
+@@ -2710,7 +2711,7 @@ nsTypeAheadFind::GetTranslatedString(con
+ 
+ 
+ void
+-nsTypeAheadFind::DisplayStatus(PRBool aSuccess, nsIContent *aFocusedContent,
++nsTypeAheadFindSea::DisplayStatus(PRBool aSuccess, nsIContent *aFocusedContent,
+                                PRBool aClearStatus, const PRUnichar *aText)
+ {
+   // pres shell -> pres context -> container -> tree item ->
+@@ -2857,7 +2858,7 @@ nsTypeAheadController::IsCommandEnabled(
+   // Make sure we're not focused on a text field, listbox
+   // or other form control that needs typeahead keystrokes
+   if (focusedContent) {
+-    *aResult = nsTypeAheadFind::IsTargetContentOkay(focusedContent);
++    *aResult = nsTypeAheadFindSea::IsTargetContentOkay(focusedContent);
+     return NS_OK;
+   }
+ 
+@@ -2922,8 +2923,8 @@ nsTypeAheadController::DoCommand(const c
+   EnsureContentWindow(domWinInternal, getter_AddRefs(startContentWin));
+   NS_ENSURE_TRUE(startContentWin, NS_ERROR_FAILURE);
+ 
+-  nsCOMPtr<nsITypeAheadFind> typeAhead = 
+-    do_GetService(NS_TYPEAHEADFIND_CONTRACTID);
++  nsCOMPtr<nsITypeAheadFindSea> typeAhead = 
++    do_GetService(NS_TYPEAHEADFINDSEA_CONTRACTID);
+   NS_ENSURE_TRUE(typeAhead, NS_ERROR_FAILURE);
+ 
+   return typeAhead->StartNewFind(startContentWin, isLinkSearch);
+Index: extensions/typeaheadfind/src/nsTypeAheadFind.h
+===================================================================
+RCS file: /cvsroot/mozilla/extensions/typeaheadfind/src/nsTypeAheadFind.h,v
+retrieving revision 1.32
+diff -p -u -u -p -r1.32 nsTypeAheadFind.h
+--- extensions/typeaheadfind/src/nsTypeAheadFind.h	25 Aug 2004 23:02:44 -0000	1.32
++++ extensions/typeaheadfind/src/nsTypeAheadFind.h	22 Jan 2005 00:44:26 -0000
+@@ -60,13 +60,13 @@
+ #include "nsIDOMRange.h"
+ #include "nsIDOMWindow.h"
+ #include "nsIDocShellTreeItem.h"
+-#include "nsITypeAheadFind.h"
++#include "nsITypeAheadFindSea.h"
+ #include "nsIStringBundle.h"
+ #include "nsISupportsArray.h"
+ #include "nsISound.h"
+ 
+-#define TYPEAHEADFIND_BUNDLE_URL \
+-        "chrome://global/locale/typeaheadfind.properties"
++#define TYPEAHEADFINDSEA_BUNDLE_URL \
++        "chrome://global/locale/typeaheadfindsea.properties"
+ #define TYPEAHEADFIND_NOTFOUND_WAV_URL \
+         "chrome://global/content/notfound.wav"
+ 
+@@ -80,7 +80,7 @@ enum {
+ 
+ const int kMaxBadCharsBeforeCancel = 3;
+ 
+-class nsTypeAheadFind : public nsITypeAheadFind,
++class nsTypeAheadFindSea : public nsITypeAheadFindSea,
+                         public nsIDOMKeyListener,
+                         public nsIDOMTextListener,
+                         public nsIDOMCompositionListener,
+@@ -91,13 +91,13 @@ class nsTypeAheadFind : public nsITypeAh
+                         public nsSupportsWeakReference
+ {
+ public:
+-  nsTypeAheadFind();
+-  virtual ~nsTypeAheadFind();
++  nsTypeAheadFindSea();
++  virtual ~nsTypeAheadFindSea();
+ 
+-  NS_DEFINE_STATIC_CID_ACCESSOR(NS_TYPEAHEADFIND_CID);
++  NS_DEFINE_STATIC_CID_ACCESSOR(NS_TYPEAHEADFINDSEA_CID);
+ 
+   NS_DECL_ISUPPORTS
+-  NS_DECL_NSITYPEAHEADFIND
++  NS_DECL_NSITYPEAHEADFINDSEA
+   NS_DECL_NSIOBSERVER
+   NS_DECL_NSIDOMEVENTLISTENER
+   NS_DECL_NSISELECTIONLISTENER
+@@ -125,7 +125,7 @@ public:
+   // ----- nsITimerCallback -----------------------------
+   NS_DECL_NSITIMERCALLBACK
+ 
+-  static nsTypeAheadFind *GetInstance();
++  static nsTypeAheadFindSea *GetInstance();
+   static void ReleaseInstance(void);
+   static PRBool IsTargetContentOkay(nsIContent *aContent);
+ 
+@@ -183,7 +183,7 @@ protected:
+   nsresult GetTranslatedString(const nsAString& aKey, nsAString& aStringOut);
+ 
+   // Used by GetInstance and ReleaseInstance
+-  static nsTypeAheadFind *sInstance;
++  static nsTypeAheadFindSea *sInstance;
+ 
+   // Current find state
+   nsString mTypeAheadBuffer;
+Index: extensions/typeaheadfind/src/nsTypeAheadFindRegistration.cpp
+===================================================================
+RCS file: /cvsroot/mozilla/extensions/typeaheadfind/src/nsTypeAheadFindRegistration.cpp,v
+retrieving revision 1.5
+diff -p -u -u -p -r1.5 nsTypeAheadFindRegistration.cpp
+--- extensions/typeaheadfind/src/nsTypeAheadFindRegistration.cpp	18 Apr 2004 22:14:01 -0000	1.5
++++ extensions/typeaheadfind/src/nsTypeAheadFindRegistration.cpp	22 Jan 2005 00:44:26 -0000
+@@ -54,7 +54,7 @@
+ 
+ // This function is called at component registration time
+ static NS_METHOD
+-nsTypeAheadFindRegistrationProc(nsIComponentManager *aCompMgr, nsIFile *aPath,
++nsTypeAheadFindSeaRegistrationProc(nsIComponentManager *aCompMgr, nsIFile *aPath,
+                                 const char *registryLocation,
+                                 const char *componentType,
+                                 const nsModuleComponentInfo *info)
+@@ -71,9 +71,9 @@ nsTypeAheadFindRegistrationProc(nsICompo
+ 
+   if (NS_SUCCEEDED(rv)) {
+     rv = categoryManager->AddCategoryEntry(APPSTARTUP_CATEGORY,
+-                                           "Type Ahead Find", 
++                                           "Type Ahead Find Sea", 
+                                            "service,"
+-                                           NS_TYPEAHEADFIND_CONTRACTID,
++                                           NS_TYPEAHEADFINDSEA_CONTRACTID,
+                                            PR_TRUE, PR_TRUE, nsnull);
+   }
+ 
+@@ -81,22 +81,22 @@ nsTypeAheadFindRegistrationProc(nsICompo
+ }
+ 
+ 
+-NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsTypeAheadFind,
+-                                         nsTypeAheadFind::GetInstance)
++NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsTypeAheadFindSea,
++                                         nsTypeAheadFindSea::GetInstance)
+ 
+ static void PR_CALLBACK
+-TypeAheadFindModuleDtor(nsIModule* self)
++TypeAheadFindSeaModuleDtor(nsIModule* self)
+ {
+-  nsTypeAheadFind::ReleaseInstance();
++  nsTypeAheadFindSea::ReleaseInstance();
+ }
+ 
+ static const nsModuleComponentInfo components[] =
+ {
+-  { "TypeAheadFind Component", NS_TYPEAHEADFIND_CID,
+-    NS_TYPEAHEADFIND_CONTRACTID, nsTypeAheadFindConstructor,
+-    nsTypeAheadFindRegistrationProc, nsnull  // Unregistration proc
++  { "TypeAheadFindSea Component", NS_TYPEAHEADFINDSEA_CID,
++    NS_TYPEAHEADFINDSEA_CONTRACTID, nsTypeAheadFindSeaConstructor,
++    nsTypeAheadFindSeaRegistrationProc, nsnull  // Unregistration proc
+   }
+ };
+ 
+-NS_IMPL_NSGETMODULE_WITH_DTOR(nsTypeAheadFind, components,
+-                              TypeAheadFindModuleDtor)
++NS_IMPL_NSGETMODULE_WITH_DTOR(nsTypeAheadFindSea, components,
++                              TypeAheadFindSeaModuleDtor)
+Index: extensions/typeaheadfind/src/typeaheadfind.pkg
+===================================================================
+RCS file: extensions/typeaheadfind/src/typeaheadfind.pkg
+diff -N extensions/typeaheadfind/src/typeaheadfind.pkg
+--- extensions/typeaheadfind/src/typeaheadfind.pkg	7 Jan 2004 01:21:30 -0000	1.2
++++ /dev/null	1 Jan 1970 00:00:00 -0000
+@@ -1,9 +0,0 @@
+-# why not ship this with GRE/embedding, if we're building it?
+-
+-[xpfe-browser browser]
+-#if SHARED_LIBRARY
+-dist/bin/components/@SHARED_LIBRARY@
+-#else
+-!staticcomp @LIBRARY@ @MODULE_NAME@
+-#endif
+-!xpt dist/bin/components/typeaheadfind.xpt
+Index: extensions/typeaheadfind/src/typeaheadfindsea.pkg
+===================================================================
+RCS file: extensions/typeaheadfind/src/typeaheadfindsea.pkg
+diff -N extensions/typeaheadfind/src/typeaheadfindsea.pkg
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ extensions/typeaheadfind/src/typeaheadfindsea.pkg	22 Jan 2005 00:44:26 -0000
+@@ -0,0 +1,9 @@
++# why not ship this with GRE/embedding, if we're building it?
++
++[xpfe-browser browser]
++#if SHARED_LIBRARY
++dist/bin/components/@SHARED_LIBRARY@
++#else
++!staticcomp @LIBRARY@ @MODULE_NAME@
++#endif
++!xpt dist/bin/components/typeaheadfindsea.xpt

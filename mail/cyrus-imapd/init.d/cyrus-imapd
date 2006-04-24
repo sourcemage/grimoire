@@ -1,0 +1,35 @@
+#!/bin/bash
+
+PROGRAM=/usr/cyrus/bin/master
+RUNLEVEL=3
+NEEDS="+network +remote_fs"
+PIDFILE=/var/run/cyrus-master.pid
+
+. /etc/init.d/smgl_init
+
+start(){
+	echo -n "Starting cyrus-imapd..."
+	$PROGRAM &
+	while [ ! -e $PIDFILE ] && [ "$ITER" -lt 10 ] ; do sleep 1; echo -n . ;ITER=$((++ITER)); done
+	echo
+
+	if [ -e /var/run/cyrus-master.pid ]; then
+		ps -p `cat $PIDFILE` > /dev/null  && evaluate_retval
+	else
+		print_status failure
+		exit 1
+	fi
+}
+
+stop(){
+	if test -s "$PIDFILE"
+	then
+		cyrus_pid=`cat $PIDFILE`
+		echo "Killing  with pid $PIDFILE"
+		kill $cyrus_pid
+		rm $PIDFILE
+	else
+		echo "Cyrus-master pidfile not found. Possibly not running"
+	fi
+	evaluate_retval
+}

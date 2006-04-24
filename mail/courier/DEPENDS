@@ -1,0 +1,61 @@
+depends  courier-authlib                                                             &&
+depends  perl                                                                        &&
+
+case  "${COURIER_DBLIB}"  in
+    "gdbm")  depends  gdbm  "--with-db=gdbm"
+             ;;
+      "db")  depends  db    "--with-db=db"
+             ;;
+esac                                                                                 &&
+
+if  [  "${COURIER_IMAP}"  ==  "y"  ];  then
+    optional_depends  "fam"                                                          \
+                      ""                                                             \
+                      ""                                                             \
+                      "for enhanced IMAP idle implementation"
+fi                                                                                   &&
+
+if  [  "${COURIER_WEBMAIL}"  ==  "y"  ];  then
+    depends  WEBSERVER                                                               &&
+
+    if  [  "${COURIER_SSLWEBMAIL}"  !=  "no"  ];  then
+        depends  openssl
+    else
+        optional_depends  "openssl"                                                  \
+                          ""                                                         \
+                          ""                                                         \
+                          "for SSL/TLS enrypted mail delivery support"
+    fi                                                                               &&
+
+    if  [  "${COURIER_SPELLCHECK}"  ==  "y"  ];  then
+        if  !  [  "${COURIER_SPLCHECKER}"  ==  ""  ];  then
+            depends  ${COURIER_SPLCHECKER}  "--with-ispell=${COURIER_SPLCHECKER}"
+        fi
+    fi
+fi                                                                                   &&
+
+optional_depends  "openldap"                                                         \
+                  ""                                                                 \
+                  ""                                                                 \
+                  "for LDAP directory services"                                      &&
+
+if  [  "${COURIER_FAXES}"  ==  "y"  ];  then
+    depends  mgetty                                                                  &&
+    depends  groff                                                                   &&
+
+    optional_depends  "netpbm"                                                       \
+                      ""                                                             \
+                      ""                                                             \
+                      "to send e-mail messages via fax - GIF, JPEG and PNG support"  &&
+
+    optional_depends  "POSTSCRIPT-INTERPRETER"                                       \
+                      ""                                                             \
+                      ""                                                             \
+                      "to send e-mail via fax - Postscript and PDF support"
+fi                                                                                   &&
+
+optional_depends  "uucp"                                                             \
+                  ""                                                                 \
+                  ""                                                                 \
+                  "for using Courier as a gateway to or from another UUCP server"
+

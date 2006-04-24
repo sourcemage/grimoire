@@ -1,0 +1,2 @@
+xmkmf      &&
+make World

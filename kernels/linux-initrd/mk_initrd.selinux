@@ -1,0 +1,154 @@
+#!/bin/sh
+# $1 is the kernel version
+# this is a really simple way to create an initrd
+# if you want to have modules instead of compiling
+# support directly into the kernel
+# this doesn't deal with RAID LVM 
+# This uses busybox
+
+# make basic dir structure
+cd ${BUILD_DIRECTORY}/initrd
+mkdir bin dev etc etc.ro lib proc sbin var sys usr mnt initrd
+cd var
+mkdir lock log
+cd ../lib
+mkdir -p modules/
+cd ../usr
+mkdir bin
+
+# copy config files
+cd ${INSTALL_ROOT}/etc
+cp -a init.d udev fstab group passwd ${BUILD_DIRECTORY}/initrd/etc.ro/
+cp -a init.d udev fstab group passwd ${BUILD_DIRECTORY}/initrd/etc/
+
+# copy busybox
+cd ${INSTALL_ROOT}/sbin
+cp -a busybox ${BUILD_DIRECTORY}/initrd/sbin/
+
+# link everything
+cd ${BUILD_DIRECTORY}/initrd/sbin/
+for i in insmod modprobe pivot_root reboot halt init mesg lsmod rmmod swapon \
+         swapoff makedevs
+do
+	ln -s busybox $i
+done
+
+cd ../bin
+for i in ash sh ls echo mount ln mkdir mknod chown chmod umount tar basename \
+         chgrp cat chroot cp cut dd df dirname du env expr false head id \
+	 install md5sum mv printf pwd realpath rm rmdir sleep sort sync tail \
+	 tee touch tr true uname uniq who whoami yes which readlink sed dmesg \
+	 more awk test
+do
+	ln -s ../sbin/busybox $i
+done
+cd ../usr/bin
+for i in grep bunzip2 gzip gunzip unzip patch find xargs
+do
+	ln -s ../../sbin/busybox $i
+done
+
+# Copy kernel modules
+cp -a ${INSTALL_ROOT}/lib/modules/$1 ${BUILD_DIRECTORY}/initrd/lib/modules/
+
+# cp console null hd's
+cp -a ${INSTALL_ROOT}/dev/console ${BUILD_DIRECTORY}/initrd/dev/
+cp -a ${INSTALL_ROOT}/dev/null ${BUILD_DIRECTORY}/initrd/dev/
+
+# create linuxrc
+(
+cat << EOF
+#!/bin/ash
+
+export PATH="/bin:/usr/bin:/sbin:/usr/sbin"
+
+# =================================================== #
+# Setting up a suitable environment but no /dev/      #
+# =================================================== #
+udev_root=/dev
+# mount sysfs
+/bin/echo "Mounting sysfs at /sys"
+/bin/mount -nt sysfs none /sys
+# mount proc
+/bin/echo "Mounting /proc"
+/bin/mount -nt proc none /proc
+/bin/echo "Mounting tmpfs at /etc/"
+/bin/mount -nt tmpfs none /etc
+/bin/echo "Copying etc.ro to etc"
+/bin/cp -a /etc.ro/* /etc
+/bin/touch /etc/mtab
+/bin/echo "Mounting ramfs at \$udev_root"
+/bin/mount -nt ramfs none \$udev_root
+# create some needed stuff
+/bin/ln -s /proc/self/fd \$udev_root/fd
+/bin/ln -s /dev/fd/0 \$udev_root/stdin
+/bin/ln -s /dev/fd/1 \$udev_root/stdout
+/bin/ln -s /dev/fd/2 \$udev_root/stderr
+/bin/mkdir \$udev_root/shm
+/bin/mkdir \$udev_root/pts
+# =================================================== #
+# Okay this is where you can add code to load modules #
+# =================================================== #
+# /sbin/modprobe ipv6
+
+
+# =================================================== #
+# Don't edit past here unless you really know what    #
+# you are doing                                       #
+# =================================================== #
+/bin/echo "Getting real root dev"
+real_root="\`/bin/cat /proc/cmdline | /bin/awk '{ for ( i = 1; i <= NF; i++ )  
+						if ( \$i ~ /real_root=.*/ )
+							print \$i
+					}' | /bin/awk -F= '{ print \$2 }'\`"
+/bin/echo "Getting selinux policy"
+selinux_policy="\`/bin/cat /proc/cmdline | /bin/awk '{ for ( i = 1; i <= NF; i++ )  
+						if ( \$i ~ /selinux_policy=.*/ )
+							print \$i
+					}' | /bin/awk -F= '{ print \$2 }'\`"
+/bin/echo "Real Root is \${real_root}"
+/bin/echo "selinux policy \${selinux_policy}"
+/bin/echo "Creating initial udev device nodes"
+number="\`/bin/echo \$real_root | /bin/sed 's/\/dev\/hd[a-z]//g'\`"
+real_dev="\`/bin/echo \$real_root | /bin/sed 's/[0-9]//g'\`"
+letter="\`/bin/echo \$real_dev | /bin/sed 's/\/dev\/hd//g'\`"
+if /bin/test \$letter = a || /bin/test \$letter = b ; then
+	major="3"
+elif /bin/test \$letter = c || /bin/test \$letter = d ; then
+	major="22"
+elif /bin/test \$letter = e || /bin/test \$letter = f ; then
+	major="33"
+elif /bin/test \$letter = g || /bin/test \$letter = h ; then
+	major="34"
+else
+	/bin/echo "Bad real root dev \$real_root"
+	exit 1
+fi
+if /bin/test \$letter = a || /bin/test \$letter = c ||
+   /bin/test \$letter = e || /bin/test \$letter = g ; then
+   	minor="0"
+else
+	minor="64"
+fi
+minor="\`/bin/expr \$minor + \$number\`"
+/bin/mknod  \$real_root b \$major \$minor
+/bin/echo "0x100" > /proc/sys/kernel/real-root-dev
+/bin/mount -n \${real_root} /mnt
+/bin/umount -n /proc
+/bin/umount -n /sys
+/bin/umount -n /dev
+/bin/umount -n /etc
+cd /mnt
+/sbin/pivot_root . initrd
+/bin/mount -nt selinuxfs none /selinux
+/usr/sbin/load_policy /etc/selinux/\${selinux_policy}/policy/policy.18
+/bin/echo "args to init \$@"
+exec /bin/chroot . /sbin/init \$@ < /dev/console > /dev/console 2>&1
+
+EOF
+) > ${BUILD_DIRECTORY}/initrd/linuxrc
+
+chmod +x ${BUILD_DIRECTORY}/initrd/linuxrc
+if [ ! -d ${INSTALL_ROOT} ] ; then
+  mkdir ${INSTALL_ROOT}/initrd
+fi

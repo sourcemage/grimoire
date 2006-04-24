@@ -1,0 +1,54 @@
+show_themes()  {
+  local COUNT_THEMES=${#T_NAMES[@]}
+  local INDEX=0
+  while [[ $INDEX -lt $COUNT_THEMES ]]; do
+    echo ${T_NAMES[$INDEX]}
+    echo ${T_DESC[$INDEX]}
+    echo ${T_SBDESC[$INDEX]}
+    INDEX=$(( $INDEX + 1 ))
+  done
+}
+
+which_theme() {
+  local COUNT_THEMES=${#T_NAMES[@]}
+  local INDEX=0
+  while [[ $INDEX -lt $COUNT_THEMES ]]; do
+    if [ "$1" == "${T_NAMES[$INDEX]}" ]; then
+      echo $INDEX
+    fi
+    INDEX=$(( $INDEX + 1 ))
+  done
+
+}
+
+. $SCRIPT_DIRECTORY/themes
+
+if ! grep  -q  "THEME="  $SPELL_CONFIG;  then
+  THEME=$DEFAULT_THEME
+else
+  THEME=$THEME
+fi
+
+if    query "Would you like to choose a theme?" n; then
+  OLD_IFS=$IFS
+  IFS="
+"
+  THEME=`dialog --backtitle "Bootsplash Theme Menu"  \
+                --stdout                             \
+                --title     "Please select a theme"  \
+                --default-item "$THEME"              \
+                --item-help                          \
+                --menu                               \
+                "$SHORT"                             \
+                0 0 0                                \
+                $(show_themes)`                      &&
+  IFS=$OLD_IFS
+  INDEX=`which_theme $THEME`                         &&
+
+  echo "THEME=$THEME" >> $SPELL_CONFIG               &&
+
+  SOURCE=`basename ${T_URL[$INDEX]}`                 &&
+  echo "SOURCE=$SOURCE" >> ${SPELL_CONFIG}.DETAILS   &&
+  echo "SOURCE_URL=${T_URL[$INDEX]}" >> ${SPELL_CONFIG}.DETAILS  &&
+  echo "MD5[0]=${T_MD5[$INDEX]}" >> ${SPELL_CONFIG}.DETAILS
+fi

@@ -1,0 +1,189 @@
+#!/bin/bash
+###
+##
+## Java grimoire functions
+##
+###
+
+##
+# Environment var. def.
+##
+
+SM_JAVA_HOME=/usr/lib/java
+
+# jakarta
+SM_JAKARTA_HOME=${SM_JAVA_HOME}/jakarta
+SM_JAKARTA_DIST_HOME=${SM_JAVA_HOME}/jakarta-dist
+
+# IBM
+SM_IBM_HOME=${SM_JAVA_HOME}/ibm
+SM_IBM_DIST_HOME=${SM_JAVA_HOME}/ibm-dist
+
+# SUN
+SM_SUN_HOME=${SM_JAVA_HOME}/sun
+SM_SUN_DIST_HOME=${SM_JAVA_HOME}/sun-dist
+
+# Other
+SM_OTH_HOME=${SM_JAVA_HOME}/other
+SM_OTH_DIST_HOME=${SM_JAVA_HOME}/other-dist
+
+# Where to put standalone java app
+SM_JAVA_APP_HOME=/usr/share
+
+##
+# Functions :
+##
+
+# Set environment for java (aka j2sdk)
+set_java_env() {
+  
+  # set JAVA_HOME
+  if  [  -z  $JAVA_HOME  ]; then
+    if  spell_ok  j2sdk; then
+        export  JAVA_HOME=/opt/java/j2sdk
+    elif  spell_ok  j2sdk-bin
+    then
+      export  JAVA_HOME=/usr/lib/j2sdk1.4.1
+    fi
+  fi
+  # to have clean environment
+  unset CLASSPATH
+  
+}
+
+# Set environment for ANT
+set_ant_env() {
+
+  set_java_env
+  
+  # set ANT_HOME
+  if [  -z  $ANT_HOME  ]; then
+     if  spell_ok  ant; then
+         export ANT_HOME=/opt/ant
+     fi
+  fi
+  
+  # make ANT accesible
+  export PATH=$ANT_HOME/bin:$PATH
+  
+}
+
+##
+# Functions for Apache Jakarta projects
+##
+
+# extract "install" java distribution tar ball
+# ${PKG_NAME} ${PKG_NAME}-${VERSION} ${SOURCE}
+extract_jakarta_dist() {
+
+  mkdir  -p  ${SM_JAKARTA_DIST_HOME} 	&&
+  cd  ${SM_JAKARTA_DIST_HOME}		&&
+  tar  -xzf  ${SOURCE_DIRECTORY}/$3	&&
+  mkdir  -p  ${SM_JAKARTA_HOME} &&
+  ln  -s  ${SM_JAKARTA_DIST_HOME}/$2  ${SM_JAKARTA_HOME}/$1
+  
+}
+
+# copy the content of SOURCE_DIR
+# ${name_of_package} ${name_of_package_with_version} ${dir_from_with_copy_the_content}
+extract_jakarta_src() {
+
+  mkdir  -p  ${SM_JAKARTA_DIST_HOME}/${2}			&&
+  mkdir  -p  ${SM_JAKARTA_HOME}					&&
+  ln  -s  ${SM_JAKARTA_DIST_HOME}/${2} ${SM_JAKARTA_HOME}/${1}	&&
+  cp  -Rv  ${3}/*  ${SM_JAKARTA_DIST_HOME}/${2}/
+  
+}
+
+# create simlink in jakarta/lib to given jar file - but without version
+# ${jar_file_path_and_file_name} ${name_of_simlink}
+register_jakarta_jar() {
+
+  mkdir  -p  ${SM_JAKARTA_HOME}/lib 			&&
+  ln  -s  ${SM_JAKARTA_DIST_HOME}/$1  ${SM_JAKARTA_HOME}/lib/$2
+
+}
+
+##
+# Functions for IBM java packages
+##
+
+# copy the content of SOURCE_DIR
+# ${name_of_package} ${name_of_package_with_version} ${dir_from_with_copy_the_content}
+extract_ibm_src() {
+
+  mkdir  -p  ${SM_IBM_DIST_HOME}/${2}			&&
+  mkdir  -p  ${SM_IBM_HOME}				&&
+  ln  -s  ${SM_IBM_DIST_HOME}/${2} ${SM_IBM_HOME}/${1}	&&
+  cp  -Rv  ${3}/*  ${SM_IBM_DIST_HOME}/${2}/
+  
+}
+
+# create simlink in ibm/lib to given jar file - but without version
+# ${jar_file_path_and_file_name} ${name_of_simlink}
+register_ibm_jar() {
+
+  mkdir  -p  ${SM_IBM_HOME}/lib 			&&
+  ln  -s  ${SM_IBM_DIST_HOME}/$1  ${SM_IBM_HOME}/lib/$2
+
+}
+
+##
+# Functions for SUN java packages
+##
+
+# copy the content of SOURCE_DIR
+# ${name_of_package} ${name_of_package_with_version} ${dir_from_with_copy_the_content}
+extract_sun_src() {
+
+  mkdir  -p  ${SM_SUN_DIST_HOME}/${2}			&&
+  mkdir  -p  ${SM_SUN_HOME}				&&
+  ln  -s  ${SM_SUN_DIST_HOME}/${2} ${SM_SUN_HOME}/${1}	&&
+  cp  -Rv  ${3}/*  ${SM_SUN_DIST_HOME}/${2}/
+  
+}
+
+# special case - some "java pkg. from sun" are only awaiable as single jar
+# ${name_of_package} ${name_of_package_with_version} ${dir_and_jar_file_name}
+extract_sun_single_jar() {
+
+  mkdir  -p  ${SM_SUN_DIST_HOME}/${2}			&&
+  mkdir  -p  ${SM_SUN_HOME}				&&
+  ln  -s  ${SM_SUN_DIST_HOME}/${2} ${SM_SUN_HOME}/${1}	&&
+  cp  -v  ${3}  ${SM_SUN_DIST_HOME}/${2}/
+  
+}
+
+
+# create simlink in sun/lib to given jar file - but without version
+# ${jar_file_path_and_file_name} ${name_of_simlink}
+register_sun_jar() {
+
+  mkdir  -p  ${SM_SUN_HOME}/lib 			&&
+  ln  -s  ${SM_SUN_DIST_HOME}/$1  ${SM_SUN_HOME}/lib/$2
+
+}
+
+##
+# Functions for java packages from other "companies"
+##
+
+# copy the content of SOURCE_DIR
+# ${name_of_package} ${name_of_package_with_version} ${dir_from_with_copy_the_content}
+extract_oth_src() {
+
+  mkdir  -p  ${SM_OTH_DIST_HOME}/${2}			&&
+  mkdir  -p  ${SM_OTH_HOME}				&&
+  ln  -s  ${SM_OTH_DIST_HOME}/${2} ${SM_OTH_HOME}/${1}	&&
+  cp  -Rv  ${3}/*  ${SM_OTH_DIST_HOME}/${2}/
+  
+}
+
+# create simlink in sun/lib to given jar file - but without version
+# ${jar_file_path_and_file_name} ${name_of_simlink}
+register_oth_jar() {
+
+  mkdir  -p  ${SM_OTH_HOME}/lib 			&&
+  ln  -s  ${SM_OTH_DIST_HOME}/$1  ${SM_OTH_HOME}/lib/$2
+
+}

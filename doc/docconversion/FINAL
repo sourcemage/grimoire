@@ -1,0 +1,49 @@
+#!/bin/bash
+
+#
+# Need to setup postgresql db for docconversion.
+#
+    INITDB="/usr/bin/initdb -U postgres /var/lib/postgres/data"
+  CREATEDB="/usr/bin/createdb -q -U postgres"
+CREATEUSER="/usr/bin/createuser -q -U postgres -A -D"
+	
+  DROPUSER="/usr/bin/dropuser -q -U postgres"
+	  DROPDB="/usr/bin/dropdb -q -U postgres"
+
+	 CONNECT="/usr/bin/psql -d clearinghouse -U postgres -q"
+
+if  [  -f  /usr/bin/createdb  ]; then
+
+	if query  "Is postgresql installation initialized with initdb?" "y"
+	then
+		message  "${MESSAGE_COLOR}Assuming postgresql initialization."
+		message  "${DEFAULT_COLOR}"
+	else
+		message  "${MESSAGE_COLOR}We will do this for you."
+		message  "Running: initdb -U postgres /var/lib/postgres/data"
+		message  "${DEFAULT_COLOR}"
+		mkdir -p /var/lib/postgres/data
+		chown -R postgres.postgres /var/lib/postgres
+		su -c "$INITDB" postgres  
+	fi
+
+	${DROPUSER} pronir
+	${DROPDB} clearinghouse
+
+	${CREATEUSER} pronir
+	${CREATEDB} clearinghouse
+
+	cd $SCRIPT_DIRECTORY
+
+	${CONNECT} --file create.psql  
+	message  "${MESSAGE_COLOR}DocConversion database has been setup."
+	message  "${DEFAULT_COLOR}"
+
+else
+	
+	message  "${PROBLEM_COLOR}DocConversion unable to setup database."
+	message  "${PROBLEM_COLOR}Postgresql most likely not installed..."
+	message  "${DEFAULT_COLOR}"
+	return 1
+	
+fi

@@ -1,0 +1,29 @@
+default_post_install &&
+
+if [ "$CRON" == "y" ]; then
+
+  message "${MESSAGE_COLOR}Adding a cron job on the root account to run changeip.sh automatically. ${DEFAULT_COLOR}"
+
+  SCHEDULE="15,45 * * * * /usr/sbin/changeip.sh"
+
+  if spell_ok fcron;
+  then
+    echo  -e  "`fcrontab  -l  2>/dev/null    |
+    grep  -v  changeip.sh`\n$SCHEDULE"       |
+    fcrontab -                2>/dev/null
+  fi
+
+  if spell_ok hc-cron;
+  then
+    echo  -e  "`crontab  -l                  |
+    sed   -n  4~1p                           |
+    grep  -v  changeip.sh`\n$SCHEDULE"       |
+    crontab -
+  fi
+
+else
+
+  message "${MESSAGE_COLOR}Remember to add a cron job on the root account to run changeip.sh automatically, or to run it yourself after every ip address changes. ${DEFAULT_COLOR}"
+
+fi
+

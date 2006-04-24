@@ -1,0 +1,39 @@
+#!/bin/bash
+
+
+PROGRAM="/usr/sbin/thttpd"
+RUNLEVEL=3
+NEEDS="+remote_fs +network"
+
+. /etc/init.d/smgl_init
+. /etc/sysconfig/thttpd
+
+start() {
+  echo   "Starting thttpd..."
+  local $HTARGLIST
+  if [ -n "$HTHOST"         ] ; then HTARGLIST="$HTARGLIST -h $HTHOST"; fi
+  if [ -n "$HTPORT"         ] ; then HTARGLIST="$HTARGLIST -p $HTPORT"; fi
+  if [ -n "$HTDOCS"         ] ; then HTARGLIST="$HTARGLIST -d $HTDOCS"; fi
+  if [ -n "$HTUSER"         ] ; then HTARGLIST="$HTARGLIST -u $HTUSER"; fi
+  if [ -n "$HTPIDF"         ] ; then HTARGLIST="$HTARGLIST -i $HTPIDF"; fi
+  if [ -n "$HTCGIP"         ] ; then HTARGLIST="$HTARGLIST -c $HTCGIP"; fi
+  if [ -n "$HTLOGF"         ] ; then HTARGLIST="$HTARGLIST -l $HTLOGF"; fi
+  if [ "$HTCHROOT" == "yes" ] ; then HTARGLIST="$HTARGLIST -r"          ; fi
+  if [ "$HTVHOST"  == "yes" ] ; then HTARGLIST="$HTARGLIST -v"          ; fi
+  if [ -n "$HTARGS"         ] ; then HTARGLIST="$HTARGLIST    $HTARGS"; fi
+  $PROGRAM $HTARGLIST
+  evaluate_retval
+}
+
+stop() {
+  echo   "Stopping thttpd..."
+  if [ -e $HTPIDF ]; then
+    kill `cat $HTPIDF` 2> /dev/null
+    true
+    evaluate_retval
+    rm -f $HTPIDF
+  else
+    false
+    evaluate_retval
+  fi
+}

@@ -1,0 +1,77 @@
+#!/bin/bash
+
+. /etc/sysconfig/dhcpcd
+
+PROGRAM=/bin/false    # To get auto_init functionality
+RUNLEVEL=3
+PROVIDES=network
+
+[ "$USE_SYSLOG" = "yes" ] && NEEDS="+syslog"
+
+. /etc/init.d/smgl_init
+
+required_executable /sbin/ifconfig
+required_executable /sbin/route
+required_executable /sbin/modprobe
+
+netdevdir=/etc/sysconfig/network
+
+# this provides you with the ability to start/stop/check status on 
+# one or more cards if you so desire.
+
+if [ $# -le 1 ]; then
+    devices="$(ls $netdevdir | grep dev$ | cut -d. -f1)"
+else
+    devices="$(builtin echo $@ | sed s/$1//)"
+fi
+
+start()
+{
+  required_executable  /sbin/ifup
+
+  export _OBEY_UP_ON_BOOT=1
+  for DEVICE in $devices ; do
+    [ "$DEVICE" = "lo" ] && continue
+    echo "$(unset -f echo; /sbin/ifup $DEVICE)"
+    evaluate_retval
+  done
+  unset _OBEY_UP_ON_BOOT
+}
+
+stop()
+{
+  required_executable /sbin/ifdown
+
+  for DEVICE in $devices ; do
+    [ "$DEVICE" = "lo" ] && continue
+    echo "$(unset -f echo; /sbin/ifdown $DEVICE)"
+    evaluate_retval
+  done
+}
+
+status()
+{
+  for DEVICE in $devices ; do
+    unset MODE on_status
+
+    . $netdevdir/$DEVICE.dev
+
+    if [ "$( type -t do_status )" = function ] ; then
+      do_status         # If on_status is defined in the device file
+    elif [ -z "$MODE" ] ; then
+      echo " There are errors in $netdevdir/$DEVICE.dev"
+    else
+      if [ "$MODE" = dynamic ]; then
+        statusproc dhcpcd
+      fi
+      ifconfig $DEVICE
+    fi
+  done
+}
+
+reload() { exit 3; }
+
+usage()
+{
+  echo "Usage: $0 {start|stop|restart|status} [DEVICE]"
+}

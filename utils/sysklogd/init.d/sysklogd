@@ -1,0 +1,32 @@
+#!/bin/bash
+
+RUNLEVEL=S
+NEEDS="+local_fs"
+PROVIDES=syslog
+
+. /etc/init.d/smgl_init
+
+case $1 in
+  start)    echo "Starting system log daemon..."
+            loadproc /sbin/syslogd -m 60
+            echo "Starting kernel log daemon..."
+            loadproc /sbin/klogd
+            ;;
+
+  restart)  $0 stop
+            $0 start
+            ;;
+
+  stop)     echo "Stopping kernel log daemon..."
+            killproc /sbin/klogd
+            echo "Stopping system log daemon..."
+            killproc /sbin/syslogd
+            ;;
+
+  status)   statusproc /sbin/syslogd
+            statusproc /sbin/klogd
+            ;;
+
+  *)        echo "Usage: $0 {start|stop|restart|status}"
+            ;;
+esac

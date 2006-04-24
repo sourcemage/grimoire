@@ -1,0 +1,194 @@
+#!/bin/sh
+
+PROGRAM=/bin/true
+RUNLEVEL=3
+NEEDS="+remote_fs +network +portmap"
+
+. /etc/init.d/smgl_init
+
+if ! [ -d /var/lock/subsys ]
+then mkdir -p /var/lock/subsys/
+fi
+
+# Init file for openMosix
+#
+# config: /etc/openmosix.map
+# config: /etc/openmosix/openmosix.config
+# Define some variables pointing to openMosix's necessary executables
+# which should be found in the userland-tools
+SETPE="/usr/sbin/setpe"
+OMDISCD="/usr/sbin/omdiscd"
+MOSCTL="/usr/bin/mosctl"
+
+# Variables used for info, warning and error messages
+OM_MSG="openMosix:"
+OM_MSG_WARN="$OM_MSG WARN:"
+OM_MSG_ERR="$OM_MSG ERROR:"
+OM_MSG_HINT="$OM_MSG HINT:"
+
+# Some standard hints: useful for pointing people to the right place
+# before bugging anyone on the mailing lists ;-)
+HINT_WEBSITE="$OM_MSG_HINT have you read the docs at http://openMosix.sf.net/ ?"
+HINT_RECOMPILE_KERNEL="$OM_MSG_HINT need to recompile your kernel with openMosix support enabled?"
+HINT_BOOT_MANAGER="$OM_MSG_HINT need to update your boot manager (lilo, grub, etc)?"
+HINT_USERLAND_TOOLS="$OM_MSG_HINT have you installed the userland-tools?"
+HINT_DEPRECATED_MAP="$OM_MSG_HINT # mv /etc/deprecated.map /etc/openmosix.map"
+
+# If we're not running an openMosix enabled kernel: exit
+if [ ! -d /proc/hpc ]; then
+    echo "$OM_MSG_ERR Cannot find the /proc/hpc directory."
+    echo "$OM_MSG_ERR Looks like this is not an openMosix enabled kernel."
+    echo "$OM_MSG_ERR Configuration ABORTED."
+    echo "$HINT_RECOMPILE_KERNEL"
+    echo "$HINT_BOOT_MANAGER"
+    echo "$HINT_WEBSITE"
+    exit 1
+fi
+
+# Find the openMosix map-file if any exists,
+# otherwise fall back to using the autodiscovery daemon
+AUTODISC=0
+if [ -f /etc/openmosix.map ]; then
+    OMOSIX_MAP=/etc/openmosix.map
+    echo "Using map file /etc/openmosix.map"
+elif [ -f /etc/mosix.map ]; then
+    OMOSIX_MAP=/etc/mosix.map
+    echo " Using map file /etc/mosix.map"
+    echo "$OM_MSG_WARN map-file /etc/mosix.map is DEPRECATED"
+    echo "$HINT_DEPRECATED_MAP"
+elif [ -f /etc/hpc.map ]; then
+    OMOSIX_MAP=/etc/hpc.map
+    echo " Using map-file /etc/hpc.map"
+    echo "$OM_MSG_WARN map-file /etc/hpc.map is DEPRECATED"
+    echo "$HINT_DEPRECATED_MAP"
+else
+    AUTODISC=1
+    echo "No map-file found."
+    echo "Falling back to autodiscovery mode using $OMDISCD"
+fi
+
+# Check the map-file for sanity
+if [ $AUTODISC -eq 0 ]; then
+    $SETPE -c -f $OMOSIX_MAP &> /dev/null
+    if [ ! $? -eq 0 ]; then
+	echo "$OM_MSG_WARN Invalid configuration in map-file $OMOSIX_MAP"
+	echo "Falling back to autodiscovery mode using $OMDISCD"
+	AUTODISC=1
+    fi
+fi
+
+# Source the configuration from /etc/openmosix/openmosix.config
+# This file would be a good place to force autodiscovery by setting AUTODISC=1
+[ -f /etc/openmosix/openmosix.config ] && . /etc/openmosix/openmosix.config
+
+# Make sure we have omdiscd installed
+if [ $AUTODISC -eq 1  ]; then
+    if [ ! -x $OMDISCD ]; then
+        echo "$OM_MSG_ERR cannot find executable file $OMDISCD"
+	echo "$OM_MSG_ERR $OMDISCD is not installed."
+        echo "$OM_MSG_ERR ABORTING"
+	echo "$HINT_USERLAND_TOOLS"
+        echo "$HINT_WEBSITE"
+	exit 1
+    fi
+fi
+
+
+stop() {
+    echo "Stopping openMosix..."
+    # Expel all processes
+    $MOSCTL expel
+    evaluate_retval
+    # disable openMosix configuration
+    $SETPE -off
+    evaluate_retval
+    # kill any autodiscovery deamon if running
+    killall -TERM omdiscd &> /dev/null
+    evaluate_retval
+    # remove lock file
+    rm -f /var/lock/subsys/openmosix
+    evaluate_retval
+}
+
+start() {
+    echo "Initializing openMosix..."
+    # The variables $OVERHEADS, $MFSCOSTS, $MYOMID, $MOSGATES,
+    # $AUTODISCIF and $NODESPEED can be set to desired values
+    # in /etc/openmosix/openmosix.config
+    [ $OVERHEADS ] && echo $OVERHEADS > /proc/hpc/admin/overheads
+    [ $MFSCOSTS  ] && echo $MFSCOSTS  > /proc/hpc/admin/mfscosts
+
+    if [ $AUTODISC -eq 0  ]; then
+        # Make sure we have setpe installed
+        if [ ! -x $SETPE ]; then
+            echo "$OM_MSG_ERR cannot find executable file $SETPE"
+	    echo "$OM_MSG_ERR $SETPE is not installed."
+            echo "$OM_MSG_ERR ABORTING"
+            echo "$HINT_USERLAND_TOOLS"
+            echo "$HINT_WEBSITE"
+            exit 1
+        fi
+
+        # Static configuration via $OMOSIX_MAP
+	SETPE_OPTIONS=""
+	[ $MYOMID ] && SETPE_OPTIONS="$SETPE_OPTIONS -p $MYOMID"
+	[ $MOSGATES ] && SETPE_OPTIONS="$SETPE_OPTIONS -g $MOSGATES"
+
+	$SETPE -W $SETPE_OPTIONS -f $OMOSIX_MAP
+	evaluate_retval
+    else
+        # Configure openMosix with the omdiscd
+	OMDISCD_OPTIONS=""
+	[ $AUTODISCIF ] && OMDISCD_OPTIONS="$OMDISCD_OPTIONS -i $AUTODISCIF"
+
+        # we have already checked that omdiscd exists and is executable
+        # so we just need to invoke it
+	$OMDISCD $OMDISCD_OPTIONS
+	evaluate_retval
+    fi
+
+    if [ $MIGRATE ]; then
+      if [ $MIGRATE == "yes" ]; then
+         $MOSCTL -lstay
+	 evaluate_retval
+         $MOSCTL -stay
+	 evaluate_retval
+      else
+         $MOSCTL lstay
+	 evaluate_retval
+      fi
+    fi
+
+    if [ $BLOCK ]; then
+      if [ $BLOCK == "yes" ]; then
+         $MOSCTL block
+	 evaluate_retval
+      else
+         $MOSCTL -block
+	 evaluate_retval
+      fi
+    fi
+
+    if [ $MFS ]; then
+      if [ $MFS == "yes" ]; then
+         $MOSCTL mfs
+	 evaluate_retval
+      else
+         $MOSCTL nomfs
+	 evaluate_retval
+      fi
+    fi
+
+    if [ $? -eq 0 ]; then
+        # if everything went ok, put a lock file into /var/lock/subsys
+	touch /var/lock/subsys/openmosix
+        # allow process migration now
+	[ ! $BLOCK ] && $MOSCTL noblock 1>/dev/null 2>&1
+	# set speed of node if specified in the .config file
+	[ $NODESPEED ] && $MOSCTL setspeed $NODESPEED 1>/dev/null 2>&1
+	echo "openMosix configuration was successful :)"
+    else
+	# print error message
+	echo "openMosix configuration failed :("
+    fi
+}

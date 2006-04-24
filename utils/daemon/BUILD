@@ -1,0 +1,2 @@
+conf/linux &&
+make

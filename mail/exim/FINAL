@@ -1,0 +1,22 @@
+chgrp  -R  mail   $INSTALL_ROOT/var/spool/mail  &&
+chmod  -R  g+rw   $INSTALL_ROOT/var/spool/mail  &&
+
+EXIM_SCHEDULE="0 * * * * /usr/sbin/exim  -q"  &&
+
+if  [  "$FCRON"  ==  "y"  ]
+then
+  echo  -e  "`fcrontab  -l  2>/dev/null  |
+  grep  -v  exim`\n$EXIM_SCHEDULE"       |
+  fcrontab -                2>/dev/null
+fi  &&
+
+if  [  "$EXIM_HCCRON"  ==  "y"  ]
+then
+ echo  -e  "`crontab  -l           |
+ sed   -n  4~1p                    |
+ grep  -v  exim`\n$EXIM_SCHEDULE"  |
+ crontab -
+fi  &&
+
+message  "${MESSAGE_COLOR}Be sure to verify your mail server still relays as"  \
+         "exim updates like to change the relay ACLs${DEFAULT_COLOR}"

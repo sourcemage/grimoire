@@ -1,0 +1,101 @@
+mk_source_dir  $SOURCE_DIRECTORY    &&
+unpack  $SOURCE  ${MD5[0]}          &&
+
+if [[ "$X_LATEST" = n ]]; then
+   cd ${SOURCE_DIRECTORY}/extras/Xpm/lib &&
+   patch -p0 < ${SCRIPT_DIRECTORY}/xpm-sec10.diff &&
+   cd ${SOURCE_DIRECTORY} &&
+   patch -p1 < ${SCRIPT_DIRECTORY}/xorg-x11-6.8.2-xft-releasefile-crash.patch &&
+   patch -p0 < ${SCRIPT_DIRECTORY}/CAN-2005-2495.patch
+fi &&
+
+cp  $SOURCE_DIRECTORY/config/cf/xorgsite.def  \
+    $SOURCE_DIRECTORY/config/cf/host.def      &&
+
+if    [  -f  $CONFIG_CACHE/host.def  ]
+then  cp     $CONFIG_CACHE/host.def                \
+             $SOURCE_DIRECTORY/config/cf/host.def
+fi  &&
+
+# Now that we're using PIC-enabled libraries, we need to prevent use of X's loader
+# This option is needed for compatibility with pre-20050406 host.def files
+if  !  grep  -q  MakeDllModules             $SOURCE_DIRECTORY/config/cf/host.def; then
+  echo  '#define MakeDllModules   YES'  >>  $SOURCE_DIRECTORY/config/cf/host.def  &&
+  echo  '#define DoLoadableServer YES'  >>  $SOURCE_DIRECTORY/config/cf/host.def  &&
+  message  "${MESSAGE_COLOR}You may want to update your host.def file...${DEFAULT_COLOR}"
+fi  &&
+
+if  !  grep  -q  InstallFontconfigLibrary  $SOURCE_DIRECTORY/config/cf/host.def
+  then echo  "#define InstallFontconfigLibrary NO"     \
+             >>  $SOURCE_DIRECTORY/config/cf/host.def
+fi  &&
+
+echo  "#define HasMotif NO"   >>  $SOURCE_DIRECTORY/config/cf/host.def  &&
+echo  "#define HasMotif2 NO"  >>  $SOURCE_DIRECTORY/config/cf/host.def  &&
+
+### fix the broken xcursor.pc file
+#sedit  '/Requires/d'  $SOURCE_DIRECTORY/lib/Xcursor/xcursor.pc.in  &&
+
+# Do not remove PIC or optimization switches from compiler flags!
+# The removal code used to be here.
+
+if  echo  $OPTS  |  grep  -q  with-pam;  then
+  echo  "#define  HasPam  YES"  >>  $SOURCE_DIRECTORY/config/cf/site.def
+fi  &&
+
+#
+# Let's give our OS name to X ;)
+#
+sedit  's:DefaultLinuxDistribution:LinuxSourceMage:'  \
+       $SOURCE_DIRECTORY/config/cf/site.def           &&
+
+#
+# don't create symlinks for libGL /usr, should fix the
+# conflicting files with nvidia_driver
+# Currently fails with at least dosbox
+#
+
+#echo "#define LinkGLToUsrLib     NO" >> $SOURCE_DIRECTORY/config/cf/site.def  &&
+
+#
+# Now to define some of our user-specified settings
+#
+if  [  "$X_IPV6"  =  "y"  ];  then
+  echo  "#define  BuildIPv6   YES"  >>  $SOURCE_DIRECTORY/config/cf/site.def
+fi  &&
+
+if  spell_ok  groff;  then
+  echo  "#define  HasGroff  YES"  >>  $SOURCE_DIRECTORY/config/cf/site.def
+fi  &&
+
+if  spell_ok  libpng;  then
+  echo  "#define  HasLibpng  YES"  >>  $SOURCE_DIRECTORY/config/cf/site.def
+fi  &&
+
+if  [  "$X_DEBUG"  = "n"  ]         ||
+    (echo $LDFLAGS | grep -q -- "-s");  then
+  echo  "#define  BuildDebug  NO"  >>  $SOURCE_DIRECTORY/config/cf/site.def
+fi  &&
+
+if  (echo $LDFLAGS | grep -q -- "-s");  then
+  echo  "#define  StripInstalledPrograms  YES"  \
+    >>  $SOURCE_DIRECTORY/config/cf/site.def
+fi  &&
+
+if  [  "$X_DRI_DEVEL"  =  "y"  ];  then
+  echo  "#define  BuildDevelDRIDrivers  YES"  \
+    >>  $SOURCE_DIRECTORY/config/cf/site.def
+fi  &&
+
+if  [  "$X_DOC_JAPANESE"  =  "y"  ];  then
+  echo  "#define  InstallJapaneseDocs  YES"  \
+    >>  $SOURCE_DIRECTORY/config/cf/site.def
+fi  &&
+
+if  provider_ok  POSTSCRIPT-INTERPRETER;  then
+  #sedit  's:# define HasGhostScript YES:# define HasGhostScript NO:'
+  #       >>  $SOURCE_DIRECTORY/config/cf/linux.cf
+  echo  "#define  HasGhostScript  YES"  >>  $SOURCE_DIRECTORY/config/cf/site.def
+else
+  echo  "#define  HasGhostScript  NO"  >>  $SOURCE_DIRECTORY/config/cf/site.def
+fi

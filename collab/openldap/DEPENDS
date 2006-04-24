@@ -1,0 +1,44 @@
+optional_depends  SYSTEM-LOGGER         \
+                  '--enable-syslog'     \
+				  '--disable-syslog'    \
+				  'for syslog support'  &&
+                  
+# TODO add gnutls here if it works, preferably using PROVIDES
+optional_depends  openssl                \
+                  '--with-tls'           \
+                  '--without-tls'        \
+                  'for SSL/TLS support'  &&
+
+optional_depends  cyrus-sasl  '--with-cyrus-sasl'  '--without-cyrus-sasl'            \
+  'for SASL authentication, if SLAPD is a backend authenticator for SASL, say "no"'  &&
+
+if echo $OPENLDAP_SLAPD | grep -q enable; then
+  case "$SLAPD_LDBM" in
+  db)
+    depends  db    '--enable-ldbm=mod --enable-ldbm-api=berkeley'
+    ;;
+  gdbm)
+    depends  gdbm  '--enable-ldbm=mod --enable-ldbm-api=gdbm'
+    ;;
+  esac
+
+  optional_depends  unixodbc            \
+                    '--enable-sql=mod'  \
+                    '--disable-sql'     \
+                    'for SQL backend'   &&
+
+  optional_depends  perl                 \
+                    '--enable-perl=mod'  \
+                    '--disable-perl'     \
+                    'for perl backend'   &&
+
+  optional_depends  shadow                 \
+                    '--enable-passwd=mod'  \
+                    '--disable-passwd'     \
+                    'for passwd backend'   &&
+
+  optional_depends  tcp_wrappers                \
+                    '--enable-wrappers'         \
+                    '--disable-wrappers'        \
+                    'for TCP wrappers support'
+fi

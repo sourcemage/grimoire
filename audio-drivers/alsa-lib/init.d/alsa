@@ -1,0 +1,138 @@
+#!/bin/bash
+
+. /etc/sysconfig/alsa
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+remote_fs"
+
+declare -r ASOUNDCFG=/etc/asound.state
+
+. /etc/init.d/smgl_init
+
+# modprobe returns 255 when failed..
+probe_module() {
+   /sbin/modprobe $*
+   test $? = 0 && return 0
+   return 1
+}
+
+# unload the module if loaded
+# loops through all of the matches even if some fail to unload
+# $1 -- inclusion pattern
+# $2 -- exclusion pattern (optional)
+remove_module_pattern() {
+  local __LIST=$(/sbin/lsmod | grep -E "$1")
+  [[ -z "$__LIST" ]] && return
+
+  if [[ -n "$2" ]]; then
+    __LIST=$(builtin echo $__LIST | grep -Ev "$2")
+  fi
+  [[ -z "$__LIST" ]] && return
+
+  local __MOD=
+  builtin echo $__LIST | while read __MOD; do
+    __MOD=${__MOD%% *}
+    echo "Unloading module: $__MOD"
+    /sbin/rmmod $__MOD
+    evaluate_retval
+  done
+}
+
+start() {
+  [[ "$START_ALSA" == no ]]  &&  exit 0
+
+  #
+  # insert all sound modules
+  #
+  for card in $CARDS; do
+    echo "Loading driver for $card..."
+    probe_module snd-$card
+    evaluate_retval
+  done
+
+  #
+  # insert sequencer modules
+  #
+  if [[ "$START_ALSA_SEQ" == yes ]] && [[ -r /proc/asound/seq/drivers ]]; then
+    local __LINE=
+    cat /proc/asound/seq/drivers | while read __LINE; do
+      if [[ -z "$__LINE" ]]; then
+        continue
+      fi
+
+      local __MOD=${__LINE%%,*}
+      if [[ "$__LINE" =~ ',loaded' ]]; then
+        echo "Built-in sequencer: $__MOD"
+      else
+        echo "Loading sequencer: $__MOD..."
+        /sbin/modprobe $__MOD
+        evaluate_retval
+      fi
+    done
+  fi
+
+  #
+  # load oss emulation
+  #
+  if [[ "$OSS" == yes ]]; then
+    echo "Loading OSS pcm emulation..."
+    /sbin/modprobe snd-pcm-oss
+    evaluate_retval
+    echo "Loading OSS mixer emulation..."
+    /sbin/modprobe snd-mixer-oss
+    evaluate_retval
+  fi
+  
+  #
+  # restore driver settings
+  #
+  if [[ -d /proc/asound ]]; then
+    if ! [[ -r "$ASOUNDCFG" ]]; then
+      echo "No mixer config in $ASOUNDCFG, you have to unmute your card!"
+    else
+      echo "Restoring settings..."
+      sleep 5
+      /usr/sbin/alsactl -F -f $ASOUNDCFG restore
+      evaluate_retval
+    fi
+  fi
+}
+
+stop() {
+  #
+  # store driver settings
+  #
+  echo "Saving settings..."
+  /usr/sbin/alsactl -f $ASOUNDCFG store
+  evaluate_retval
+
+  #
+  # mute master to avoid clicks at unload
+  #
+  /usr/bin/amixer set Master mute >/dev/null 2>&1
+
+  #
+  # remove all sound modules
+  #
+  remove_module_pattern "^snd" "(snd-page-alloc|snd_page_alloc)"
+  
+  # remove the 2.2 soundcore module (if possible)
+  remove_module_pattern "^soundcore "
+
+  remove_module_pattern "^gameport "
+
+  exit_code=$?
+  if [[ "$exit_code" -ne 0 ]]; then
+    /usr/bin/amixer set Master unmute >/dev/null 2>&1
+  fi
+  exit $exit_code
+}
+
+status() {
+  if [[ -d /proc/asound ]]; then
+    echo "Sound driver loaded."
+  else
+    echo "Sound driver not loaded."
+  fi
+}

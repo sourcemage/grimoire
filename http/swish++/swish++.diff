@@ -1,0 +1,156 @@
+diff -urN swish++-6.1.1/charsets/GNUmakefile swish++/charsets/GNUmakefile
+--- swish++-6.1.1/charsets/GNUmakefile	2004-04-12 17:54:04.000000000 -0400
++++ swish++/charsets/GNUmakefile	2005-07-06 11:42:45.000000000 -0400
+@@ -29,8 +29,6 @@
+ ROOT:=		..
+ include		$(ROOT)/config/config.mk
+ 
+-INCLUDES:=	-I$(ROOT)
+-CFLAGS:=	$(CCFLAGS) $(DEBUGFLAGS) $(INCLUDES)
+ SOURCES:=	$(foreach charset,$(CHARSET_LIST),$(charset).c)
+ 
+ ##
+diff -urN swish++-6.1.1/config/config.mk swish++/config/config.mk
+--- swish++-6.1.1/config/config.mk	2004-04-12 18:18:22.000000000 -0400
++++ swish++/config/config.mk	2005-07-06 11:43:43.000000000 -0400
+@@ -159,7 +159,7 @@
+ #		The command to remove files recursively and ignore errors;
+ #		usually "rm -fr" for Unix or "erase" for Windows.
+ 
+-PERL:=		/usr/local/bin/perl
++PERL:=		/usr/bin/perl
+ #		The full path to the Perl 5 executable; usually "/bin/perl" or
+ #		"/usr/local/bin/perl" for Unix or "\Perl\bin\perl" for
+ #		Windows.
+@@ -211,20 +211,20 @@
+ endif
+ endif # DEBUG
+ 
+-CCFLAGS:=	-I. $(CHARSET_DEFS) $(ENCODING_DEFS) $(DECODING) $(MOD_DEFS) \
++CFLAGS+=	-I. -I$(ROOT) $(CHARSET_DEFS) $(ENCODING_DEFS) $(DECODING) $(MOD_DEFS) \
+ 		$(FEATURE_DEFS) $(SEARCH_DAEMON) $(OPTIM)
+ #		Flags for the C++ compiler.
+ 
+ ifdef LINUX
+-CCFLAGS+=	-D_BSD_SOURCE
++CFLAGS+=	-D_BSD_SOURCE
+ endif
+ 
+ ifeq ($(findstring g++,$(CC)),g++)
+-CCFLAGS+=	-fno-exceptions
++CFLAGS+=	-fno-exceptions
+ #		Since SWISH++ doesn't use exceptions, turn off code generation
+ #		for them to save space in the executables.
+ ifneq ($(findstring word_pos,$(FEATURE_LIST)),word_pos)
+-CCFLAGS+=	-fno-rtti
++CFLAGS+=	-fno-rtti
+ #		SWISH++ uses RTTI only for the word_pos feature, so, if the
+ #		feature isn't being compiled in, turn off code generation for
+ #		RTTI to save space in the executables.
+@@ -232,7 +232,7 @@
+ endif
+ 
+ ifeq ($(findstring g++,$(CC)),g++)
+-#CCFLAGS+=	-fmessage-length=0 -W -Wcast-align -Wcast-qual -Wnon-virtual-dtor -Wpointer-arith -Wreorder -Wswitch -Wtraditional -Wuninitialized -Wunreachable-code -Wunused #-Winline -Wshadow
++#CFLAGS+=	-fmessage-length=0 -W -Wcast-align -Wcast-qual -Wnon-virtual-dtor -Wpointer-arith -Wreorder -Wswitch -Wtraditional -Wuninitialized -Wunreachable-code -Wunused #-Winline -Wshadow
+ endif
+ #		Warning flags specific to g++.  Unless you are modifying the
+ #		source code, you should leave this commented out.
+@@ -254,19 +254,19 @@
+ INSTALL:=	$(ROOT)/install-sh
+ #		Install command; usually "$(ROOT)/install-sh".
+ 
+-I_ROOT:=	/usr/local
++I_ROOT:=	/usr
+ #		The top-level directory of where SWISH++ will be installed.
+ 
+ I_BIN:=		$(I_ROOT)/bin
+ #		Where executables are installed; usually "$(I_ROOT)/bin".
+ 
+-I_ETC:=		$(I_ROOT)/etc
++I_ETC:=		/etc
+ #		Where .conf files are installed; usually "$(I_ROOT)/etc".
+ 
+-I_LIB:=		$(I_ROOT)/lib
++I_LIB:=		$(I_ROOT)/share/swish++
+ #		Where libraries are installed; usually "$(I_ROOT)/lib".
+ 
+-I_MAN:=		$(I_ROOT)/man
++I_MAN:=		$(I_ROOT)/share/man
+ #		Where manual pages are installed; usually "$(I_ROOT)/man".
+ 
+ I_OWNER:=	-o bin
+diff -urN swish++-6.1.1/config/GNUmakefile swish++/config/GNUmakefile
+--- swish++-6.1.1/config/GNUmakefile	2004-04-07 01:56:47.000000000 -0400
++++ swish++/config/GNUmakefile	2005-07-06 11:15:55.000000000 -0400
+@@ -34,7 +34,7 @@
+ ##
+ 
+ $(TARGET): src/*.c
+-	./config-sh $(TARGET) $(CC) $(CCFLAGS)
++	./config-sh $(TARGET) $(CC) $(CFLAGS)
+ 
+ ##
+ # Utility rules
+diff -urN swish++-6.1.1/config/mod.mk swish++/config/mod.mk
+--- swish++-6.1.1/config/mod.mk	2004-04-07 01:56:47.000000000 -0400
++++ swish++/config/mod.mk	2005-07-06 11:42:54.000000000 -0400
+@@ -26,8 +26,6 @@
+ 
+ include		$(ROOT)/config/config.mk
+ 
+-INCLUDES:=	-I$(ROOT)
+-CFLAGS:=	$(CCFLAGS) $(DEBUGFLAGS) $(INCLUDES)
+ SOURCES:=	$(wildcard *.c)
+ 
+ ##
+diff -urN swish++-6.1.1/config.h swish++/config.h
+--- swish++-6.1.1/config.h	2004-12-30 21:35:55.000000000 -0500
++++ swish++/config.h	2005-07-05 17:31:40.000000000 -0400
+@@ -199,9 +199,6 @@
+ #ifdef  __CYGWIN__
+ char const  TempDirectory_Default[]     = "/temp";
+ #else
+-#error      You have not set TempDirectory_Default for your system.
+-#error      Comment out these lines after you have set it.
+-
+ char const  TempDirectory_Default[]     = "/tmp";
+ #endif
+ //          Default directory to use for temporary files during indexing.  If
+@@ -235,10 +232,7 @@
+ //          is discarded as being too frequent; this can be overridden either
+ //          in a config. file or on the command line.
+ 
+-#error      You have not set WordThreshold_Default for your system.
+-#error      Comment out these lines after you have set it.
+-
+-int const   WordThreshold_Default       = 250000;
++int const   WordThreshold_Default       = 524288;
+ //          The word count past which partial indicies are generated and merged
+ //          since all the words are too big to fit into memory at the same
+ //          time.  If you index and your machine begins to swap like mad, lower
+diff -urN swish++-6.1.1/encodings/GNUmakefile swish++/encodings/GNUmakefile
+--- swish++-6.1.1/encodings/GNUmakefile	2004-04-12 17:53:26.000000000 -0400
++++ swish++/encodings/GNUmakefile	2005-07-06 11:43:04.000000000 -0400
+@@ -29,8 +29,6 @@
+ ROOT:=		..
+ include		$(ROOT)/config/config.mk
+ 
+-INCLUDES:=	-I$(ROOT)
+-CFLAGS:=	$(CCFLAGS) $(DEBUGFLAGS) $(INCLUDES)
+ SOURCES:=	$(foreach encoding,$(ENCODING_LIST),$(encoding).c)
+ 
+ ##
+diff -urN swish++-6.1.1/GNUmakefile swish++/GNUmakefile
+--- swish++-6.1.1/GNUmakefile	2005-06-23 11:45:33.000000000 -0400
++++ swish++/GNUmakefile	2005-07-06 11:23:21.000000000 -0400
+@@ -46,8 +46,7 @@
+ #		-DDEBUG_parse_query
+ #		-DDEBUG_stem_word
+ #		-DDEBUG_threads
+-CCFLAGS+=	$(DEBUGFLAGS)
+-CFLAGS:=	$(CCFLAGS)
++CFLAGS+=	$(DEBUGFLAGS)
+ 
+ ########## You shouldn't have to change anything below this line. #############
+ 

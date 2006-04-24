@@ -1,0 +1,35 @@
+#!/bin/bash
+
+. /etc/sysconfig/watchdog
+
+PROGRAM=/usr/sbin/watchdog
+ARGS="$WD_OPTS"
+RUNLEVEL=3
+NEEDS="+remote_fs"
+
+. /etc/init.d/smgl_init
+
+start()
+{
+  echo "Starting watchdog..."
+  . /etc/sysconfig/devices
+  if ! ([ -e $DEVICES/misc/watchdog ] && [ -e $DEVICES/misc/temperature ]); then
+    echo "No watchdog support in the kernel!"
+    exit 5
+  else
+    [ -e /dev/watchdog ]    || ln -s $DEVICES/misc/watchdog    /dev/watchdog
+    [ -e /dev/temperature ] || ln -s $DEVICES/misc/temperature /dev/temperature
+  fi
+  loadproc $PROGRAM $ARGS
+}
+
+stop()
+{
+  echo "Stopping watchdog..."
+  if [ -e /var/run/watchdog.pid ]; then
+    kill $(cat /var/run/watchdog.pid)
+  else
+    /bin/false
+  fi
+  evaluate_retval
+}

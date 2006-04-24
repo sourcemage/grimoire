@@ -1,0 +1,118 @@
+. $GRIMOIRE/FUNCTIONS
+show_themes()  {
+  local COUNT_THEMES=${#T_NAMES[@]}
+  local INDEX=0
+  while [[ $INDEX -lt $COUNT_THEMES ]]; do
+    echo "\"${T_NAMES[$INDEX]}\""
+    echo "\"${T_DESC[$INDEX]}\""
+    echo "\"${T_SBDESC[$INDEX]}\""
+    INDEX=$(( $INDEX + 1 ))
+  done
+}
+
+filesys_available() {
+  local f_sys
+  for f_sys in mkfs mkfs.ext2 mkfs.ext3 mkisofs mkfs.cramfs mkfs.minix mksquashfs ; do
+    if which $f_sys > /dev/null 2>&1 ; then
+      echo $f_sys
+      echo "\"file system\""
+      echo "\"stuff about the filesystem crap\""
+    fi
+  done
+}
+
+show_initrds() {
+  local COUNT_INITRDS=${#M_NAMES[@]}
+  local INDEX=0
+  while [[ $INDEX -lt $COUNT_INITRDS ]]; do
+    echo "\"${M_NAMES[$INDEX]}\""
+    echo "\"${M_DESC[$INDEX]}\""
+    echo "\"${M_SBDESC[$INDEX]}\""
+    INDEX=$(( $INDEX + 1 ))
+  done
+}
+
+which_theme() {
+  local COUNT_THEMES=${#T_NAMES[@]}
+  local INDEX=0
+  while [[ $INDEX -lt $COUNT_THEMES ]]; do
+    if [ "$1" == "${T_NAMES[$INDEX]}" ]; then
+      echo $INDEX
+    fi
+    INDEX=$(( $INDEX + 1 ))
+  done
+
+}
+
+. $SCRIPT_DIRECTORY/themes &&
+. $SCRIPT_DIRECTORY/mkinfo &&
+
+KVERSION=$(get_kernel_version) &&
+message "${MESSAGE_COLOR}Using kernel version $KVERSION for the initrd.${DEFAULT_COLOR}" &&
+persistent_add KVERSION &&
+config_query FILE_SYSTEM "Would you like to create a filesystem on the front of the initrd?" y &&
+#set -x
+if [ "$FILE_SYSTEM" == "y" ] ; then
+  if [ -z $FILESYS_TYPE ] ; then
+    FILESYS_TYPE="mkfs.ext2"
+  fi &&
+  MY_TMP=`filesys_available`
+  if [ $RECONFIGURE ] ; then
+  FILESYS_TYPE=`eval dialog '--backtitle "File System Type"                   \
+	                    --title "File System Selection"                   \
+			    --stdout                                          \
+		            --default-item "$FILESYS_TYPE"                    \
+		            --item-help                                       \
+		            --menu                                            \
+		            "Please select application to create file system" \
+		            0 0 0                                             \
+		            '$MY_TMP`                                         
+  fi &&
+  persistent_add FILESYS_TYPE &&
+  if [ -z $MKINITRD_SCRIPT ] ; then
+    MKINITRD_SCRIPT=$DEFAULT_INITRD
+  fi &&
+  MY_TMP=`show_initrds`
+  if [ $RECONFIGURE ] ; then
+  MKINITRD_SCRIPT=`eval dialog '--backtitle "Make Initrd Script"         \
+                          --stdout                                       \
+			  --title "mk_initrd Selection"                  \
+			  --default-item $MKINITRD_SCRIPT                \
+			  --item-help                                    \
+			  --menu                                         \
+			  "Please select which mk_initrd script to run"  \
+			  0 0 0                                          \
+			  '$MY_TMP`                                      
+  fi &&
+  persistent_add MKINITRD_SCRIPT 
+  config_query EDIT_LINUXRC "Would you like to edit the linuxrc script?" n 
+fi &&
+#set +x
+config_query SPLASH_IMAGE "Would you like to add a splash image?" y &&
+
+if [ "$SPLASH_IMAGE" == "y" ] ; then
+  if [ -z $THEME ];  then
+    THEME=$DEFAULT_THEME
+  fi &&
+  MY_TMP=`show_themes`
+  if [ $RECONFIGURE ] ; then
+  THEME=`eval dialog '--backtitle "Bootsplash Theme Menu"  \
+                --stdout                             \
+                --title     "Please select a theme"  \
+                --default-item "$THEME"              \
+                --item-help                          \
+                --menu                               \
+                "This is the short"                  \
+                0 0 0                                \
+                '$MY_TMP`                            
+  fi &&
+  persistent_add THEME &&
+  INDEX=`which_theme $THEME`                         &&
+
+  echo "THEME=$THEME" >> $SPELL_CONFIG               &&
+
+  SOURCE=`basename ${T_URL[$INDEX]}`                 &&
+  echo "SOURCE=$SOURCE" > ${SPELL_CONFIG}.DETAILS   &&
+  echo "SOURCE_URL=${T_URL[$INDEX]}" >> ${SPELL_CONFIG}.DETAILS  &&
+  echo "MD5[0]=${T_MD5[$INDEX]}" >> ${SPELL_CONFIG}.DETAILS
+fi

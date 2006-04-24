@@ -1,0 +1,57 @@
+#!/bin/bash
+
+PROGRAM=/usr/bin/dbus-daemon-1
+ARGS="--system"
+RUNLEVEL=3
+PIDFILE=/var/run/dbus/pid
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo  "Starting system message bus..."
+  mkdir -p  /var/run/dbus
+  loadproc $PROGRAM $ARGS
+}
+
+stop() {
+  if [ ! -f $PIDFILE ]; then
+    echo "System message bus is not running"
+    return 0
+  fi
+  echo  "Stopping system message bus..."
+  kill  $(cat $PIDFILE)
+  if [ $? -eq 0 ]; then
+    rm -f $PIDFILE
+  fi
+  evaluate_retval
+}
+
+restart() {
+  echo "Restarting system message bus..."
+  if [ -f $PIDFILE ]; then
+    $0 stop
+    sleep 2
+  fi
+  $0 start
+}
+
+status() {
+  if [ ! -f $PIDFILE ]; then
+    echo "System message bus is not running"
+    return 0
+  fi
+  local pid=$(cat $PIDFILE)
+  if ps -p $pid > /dev/null; then
+    echo  "System message bus is running with Process ID $pid"
+  else
+    echo  "System message bus is not running, but $PIDFILE exists"
+    return 1
+  fi
+}
+
+reload() { exit 3; }
+force_reload() { exit 3; }
+
+usage() {
+  echo "Usage: $0 {start|stop|restart|status}"
+}

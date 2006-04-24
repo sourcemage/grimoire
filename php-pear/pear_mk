@@ -1,0 +1,162 @@
+#!/bin/sh
+declare -r MY_NAME=$(basename "$0") &&
+declare -r MY_DIRECTORY=${0%\/$MY_NAME} &&
+
+# standard PEAR packages included with the PHP distribution as of PHP 5.0.5
+declare -ar PEAR_STANDARD=(Archive_Tar Console_Getopt HTML_Template_IT Net_UserAgent_Detect PEAR XML_RPC) &&
+
+function say() {
+  echo "$MY_NAME: $*"
+}
+
+# walks through the array and returns true if the package is found
+function is_standard_package() {
+  for p in ${PEAR_STANDARD[*]}; do
+    [[ "$1" == "$p" ]] && return
+  done
+  false
+}
+
+# convert input to lower case
+function tolower() {
+  tr '[:upper:]' '[:lower:]'
+}
+
+# extracts version from a DETAILS file; pass the path inside
+function get_version_from_details() {
+  gawk -F '=' '/VERSION=/ { print $2 }' "$1"
+}
+
+# extracts PEAR package name from a DETAILS file; pass the path inside
+function get_pear_package_from_details() {
+  gawk -F '=' '/PEAR_PACKAGE=/ { print $2 }' "$1"
+}
+
+#extract spell name from DETAILS
+function get_spell_from_details() {
+  gawk -F '=' '/SPELL=/ { print $2 }' "$1"
+}
+
+# convert PEAR package information into partial DETAILS file
+function info_to_details() {
+  pear remote-info "$1" | gawk -f "$MY_DIRECTORY/pear_info_to_details"
+}
+
+# create DEPENDS file based on the package information
+function info_to_depends() {
+  echo 'depends  PHP'
+}
+
+# replaces spell's file with the new ones, mostly the same except for DETAILS and DEPENDS
+function create_spell_for_package() {
+  local SPELL=$(echo "PEAR-$1" | tolower) &&
+  local DIR="$MY_DIRECTORY/$SPELL" &&
+  local DEP="$DIR/DEPENDS" &&
+
+  say "Creating/updating spell '$SPELL' in directory '$DIR'..." &&
+  mkdir -p "$DIR" &&
+  info_to_details "$1" > "$DIR/DETAILS" &&
+  if ! [[ -x "$DEP" ]]; then
+    info_to_depends "$1" > "$DEP"
+  fi &&
+  echo 'source  $SECTION_DIRECTORY/PEAR_PRE_BUILD' > "$DIR/PRE_BUILD" &&
+  echo 'source  $SECTION_DIRECTORY/PEAR_INSTALL' > "$DIR/INSTALL" &&
+  chmod +x "$DIR/DETAILS" "$DEP" "$DIR/PRE_BUILD" "$DIR/INSTALL"
+}
+
+## usage: update_spell_for_package <1:PEAR package> <2:new version>
+function update_spell_for_package() {
+  local SPELL=$(echo "PEAR-$1" | tolower) &&
+  local DIR="$MY_DIRECTORY/$SPELL" &&
+  local DET="$DIR/DETAILS" &&
+
+  if ! [[ -x "$DET" ]]; then
+    create_spell_for_package "$1"
+  else
+    local VER=$(get_version_from_details "$DET") &&
+    if [[ "$2" != "$VER" ]]; then
+      say "New version '$2' available for '$SPELL'..." &&
+      create_spell_for_package "$1"
+    fi
+  fi
+}
+
+# walk through remote packages and update each
+function update_packages() {
+  local INDEX=0 &&
+  local LINE= &&
+
+  pear remote-list | while read LINE; do
+    # skip first three lines
+    if [[ $((++INDEX)) -lt 4 ]]; then
+      continue
+    fi &&
+    # determine package name and version, and update
+    local PKG="${LINE%% *}" &&
+    local VER="${LINE##* }" &&
+#   if is_standard_package "$PKG"; then
+#     say "Skipping standard package '$PKG'..." &&
+#     continue
+#   fi &&
+    update_spell_for_package "$PKG" "$VER"
+  done
+}
+
+## usage update_checksum <1:DETAILS path>
+function update_details_checksum() {
+  local SPELL=$(get_spell_from_details "$1") &&
+  local PKG=$(get_pear_package_from_details "$1") &&
+  local VER=$(get_version_from_details "$1") &&
+  local FILE="/var/spool/sorcery/$PKG-$VER.tgz" &&
+
+  [[ -n "$PKG" ]] &&
+  [[ -n "$VER" ]] &&
+  if ! [[ -r "$FILE" ]]; then
+    summon "$SPELL"
+  fi &&
+  [[ -r "$FILE" ]] &&
+  local SUM=$(sha1sum "$FILE" | cut -d ' ' -f 1) &&
+
+  local T="$1-$$-$RANDOM" &&
+  cp "$1" "$T" &&
+  sed -e "s|\\(SOURCE_HASH\\)=.*|\\1='sha1:$SUM'|" "$T" > "$1" &&
+  rm "$T" &&
+  say "Updated checksum in '$1'..."
+}
+
+# walk DETAILS files and update the checksums
+function update_checksums() {
+  find "$MY_DIRECTORY" -type f -and -path '*/pear-*/DETAILS' | while read LINE; do
+    update_details_checksum "$LINE"
+  done
+}
+
+function main() {
+  if [[ $# == 2 ]]; then # two options
+    update_spell_for_package "$1" "$2" &&
+    scribe reindex &&
+    update_details_checksum "$MY_DIRECTORY/PEAR-$1/DETAILS"
+  elif [[ $# == 0 ]]; then # no options
+    say 'Updating ALL packages...' &&
+    update_packages &&
+    scribe reindex &&
+    update_checksums
+  else
+    say 'ERROR: Invalid number of options, must be no options or <package> <version>'
+  fi
+}
+
+say 'PEAR to SMGL (Package to Spell) Translation Script' &&
+
+[[ -z "$MY_DIRECTORY" ]] && (
+  say "Couldn't determine the base directory..." &&
+  exit 1
+)
+say "Base directory is '$MY_DIRECTORY'..."
+
+if [[ "$UID" == 0 ]]; then
+  main $*
+else
+  say 'Enter the root password, please'
+  su - -c "DISPLAY=$DISPLAY PATH=$PATH $0 $*"
+fi

@@ -1,0 +1,36 @@
+#!/bin/bash
+
+RUNLEVEL=S
+NEEDS="+local_fs"
+RECOMMENDED=yes
+
+. /etc/init.d/smgl_init
+
+test -x /sbin/depmod    || exit 5
+test -x /sbin/modprobe  || exit 5
+
+case $1 in
+  start)    ;;        # Fall through
+  stop)     exit 0  ;;
+  *)        echo "Usage: $0 {start|stop}"
+            exit 1
+            ;;
+esac
+
+# Handle start action
+
+if  [  -x  /sbin/depmod  ];  then
+  echo  "Running depmod..."
+  loadproc depmod  -a
+fi
+
+if [ -e /etc/modules ] && [ -x /sbin/modprobe ] ; then
+  ( cat  /etc/modules;  builtin echo ) |
+  while  read  MODULE ARGS;  do
+    case  $MODULE in
+      \#*|"")  continue  ;;
+    esac
+    echo "Loading module $MODULE..."
+    loadproc modprobe  $MODULE  $ARGS
+  done
+fi

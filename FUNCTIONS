@@ -1,0 +1,385 @@
+. $GRIMOIRE/libaccount
+. $GRIMOIRE/libgcc
+
+#---------------------------------------------------------------------
+## Replaces sorcerys default_build with a custom version using
+## the invoke_gcc function from libgcc
+#---------------------------------------------------------------------
+function default_build () {
+  invoke_gcc  &&
+  real_default_build
+}
+
+#---------------------------------------------------------------------
+## @return 0 if glibc was compiled with NPTL
+## @return 1 otherwise
+##
+## Detects if the current glibc includes NPTL support.
+##
+#---------------------------------------------------------------------
+function glibc_is_nptl ()
+{
+  if getconf GNU_LIBPTHREAD_VERSION | grep -q NPTL; then
+    return 0
+  fi
+  return 1
+}
+
+#---------------------------------------------------------------------
+# Runs update-desktop-database if it is installed
+#---------------------------------------------------------------------
+function update_desktop_database ()
+{
+  if test -x /usr/bin/update-desktop-database; then
+    message "${MESSAGE_COLOR}Updating application mime type database.${DEFAULT_COLOR}"
+    /usr/bin/update-desktop-database
+  fi
+}
+
+#---------------------------------------------------------------------
+## this function installs the *.desktop, start* files and qingy links
+## this function is intended to be used by spells for windowmanagers
+#---------------------------------------------------------------------
+function install_wmfiles ()
+{
+  local wm_desktopfile_dir="${INSTALL_ROOT}/usr/share/xsessions"
+  local wm_startwm_dir="${INSTALL_ROOT}/usr/bin"
+
+  # install the start* file for the windowmanager if it's not
+  # installed already
+  if [ -f ${SCRIPT_DIRECTORY}/start${SPELL} ] ; then
+    if ! [ -e ${wm_startwm}/start${SPELL} ] ; then
+      install  -m  755  ${SCRIPT_DIRECTORY}/start${SPELL}     \
+                        ${wm_startwm_dir}
+    fi
+  fi
+
+  # making sure the destination directory exists
+  if ! [ -d  ${wm_desktopfile_dir} ] ; then
+      mkdir  ${wm_desktopfile_dir}
+  fi                                                        &&
+
+  # install the windowmanagers desktop file
+  if [ -f ${SCRIPT_DIRECTORY}/${SPELL}.desktop ] ; then
+    if ! [ -e ${wm_desktopfile_dir}/${SPELL}.desktop ]; then
+      install  -m  755  ${SCRIPT_DIRECTORY}/${SPELL}.desktop   \
+                        ${wm_desktopfile_dir}
+    fi
+  fi
+
+  if ( spell_ok qingy ); then
+    if [ -x ${wm_startwm_dir}/start${SPELL} ] ; then
+      if  [  !  -d  ${INSTALL_ROOT}/etc/qingy/xsessions  ];  then
+        install  -d  -m  755  ${INSTALL_ROOT}/etc/qingy/xsessions
+      fi                                                 &&
+      ln -s ${wm_startwm_dir}/start${SPELL}              \
+            ${INSTALL_ROOT}/etc/qingy/xsessions/${SPELL}
+    fi
+  fi
+}
+
+#---------------------------------------------------------------------
+## Sets the current script to run only one make job
+#---------------------------------------------------------------------
+
+function make_single ()
+{
+  JOBS_PER_HOST=0  &&
+     MAKE_NJOBS=1
+}
+
+#---------------------------------------------------------------------
+## Re-enables the normal Sorcery make (cancels single_make)
+#---------------------------------------------------------------------
+
+function make_normal ()
+{
+  source $COMPILE_CONFIG
+}
+
+#---------------------------------------------------------------------
+## @param shellname
+## @param full path to shell
+##
+## Adds a shell to /etc/shells and optionally to qingy's sessions
+#---------------------------------------------------------------------
+function install_shell ()
+{
+  local qingy_session_dir="${INSTALL_ROOT}/etc/qingy/sessions"
+
+  if [ -z "$1" ] ; then
+    message "${PROBLEM_COLOR}no shell name specified, aborting${DEFAULT_COLOR}"
+    return 1
+  fi &&
+  if [ ! -e "$2" ] ; then
+    message "${PROBLEM_COLOR} $2 isn't executable, no use adding it as a shell${DEFAULT_COLOR}"
+    return 1
+  fi &&
+
+  #installing shell into /etc/shells
+  message "installing $1 into /etc/shells"
+  if ! ( grep -q "^${2}$" ${INSTALL_ROOT}/etc/shells ) ; then
+    echo "$2" >> ${INSTALL_ROOT}/etc/shells
+  fi || return 1
+
+  #installing shell into qingy's session dir if it's installed
+  if ( spell_ok qingy ) && ! [ -f ${qingy_session_dir}/$1 ] ; then
+    message "installing $1 into $qingy_session_dir"
+    echo "$2" > ${qingy_session_dir}/$1 &&
+    chmod 0755 ${qingy_session_dir}/$1
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param shellname
+## @param full path to shell
+##
+## Removes a shell from /etc/shells and optionally from qingy's sessions
+#---------------------------------------------------------------------
+function remove_shell ()
+{
+  local qingy_session_dir="${INSTALL_ROOT}/etc/qingy/sessions"
+
+  if [ -z "$1" ] ; then
+    message "${PROBLEM_COLOR}no shell name specified, aborting${DEFAULT_COLOR}"
+    return 1
+  fi &&
+  if [ -z "$2" ] ; then
+    message "${PROBLEM_COLOR}no shell path specified, aborting${DEFAULT_COLOR}"
+    return 1
+  fi &&
+
+  #removing shell from /etc/shells
+  if  [  -f  /etc/shells  ]  ;  then
+    sedit "\:^$2$:d"  /etc/shells
+  fi
+
+  # and optionally from qingy's session dir
+  if [ -f ${qingy_session_dir}/$1 ] ; then
+    message "removing $1 from $qingy_session_dir"
+    rm -f ${qingy_session_dir}/$1
+  fi
+}
+
+
+#---------------------------------------------------------------------
+## replacement for config_query_string to work around a short timeout
+## when entering long strings (hostnames, organisation names)
+#---------------------------------------------------------------------
+function config_query_long_string() {
+    local ANSWER
+    local DELAY=5 
+    if config_get_option "$1" ANSWER; then
+        # option allready answered in config
+        echo -e "[[ ${QUERY_COLOR}$2${DEFAULT} -> '${QUERY_COLOR}$ANSWER${DEFAULT}' ]]"
+    else
+        query_string ANSWER "$2" "$3"
+        read -t $DELAY -n 1 ANSWER_first
+        if [[ $ANSWER_first ]] ; then 
+          read ANSWER_rest
+        fi
+        ANSWER="${ANSWER_first}${ANSWER_rest}"
+        config_set_option "$1" "$ANSWER"
+    fi
+    return 0
+}
+
+#---------------------------------------------------------------------
+## @param Directory with files we might want to install
+## @param Destination directory (optional)
+##
+## Installs files to WWW_DEST ($INSTALL_ROOT/usr/share/www/$SPELL) and
+## sets up proper www-data permissions
+## Optionally the second parameter will override WWW_DATA (and make
+## sure INSTALL_ROOT exists only once in the WWW_DATA)
+#---------------------------------------------------------------------
+function  install_www_files ()
+{
+  if  [  !  -z  $2  ];  then
+    #
+    # Just in case the destination already includes INSTALL_ROOT, remove it
+    #
+    local  WWW_DEST="$INSTALL_ROOT/${2/\$INSTALL_ROOT/}"
+  else
+    local  WWW_DEST="$INSTALL_ROOT/usr/share/www/$SPELL"
+  fi  &&
+
+  #
+  # Make sure the www-data user exists
+  # Not sure if this will work :/
+  create_account www-data
+
+  #
+  # Make sure WWW_DEST exists
+  #
+  if  [  !  -d  "$WWW_DEST"  ];  then
+    if  [  !  -d  "${WWW_DEST/\/$SPELL/}"  ];  then
+      mkdir  -p  "${WWW_DEST/\/$SPELL/}"                   &&
+      chmod  0755                 "${WWW_DEST/\/$SPELL/}"  &&
+      chown  www-data:www-data    "${WWW_DEST/\/$SPELL/}"
+    fi  &&
+
+    mkdir  -p  "$WWW_DEST"                   &&
+    chmod  0755                 "$WWW_DEST"  &&
+    chown  www-data:www-data    "$WWW_DEST"
+  fi  &&
+
+  # find $@ | while read file; do install ... $file ...; done
+  # find  $1  -type  -f  |  while  read  file;  do
+  for  www_file  in  `find  $1  -type  f`;  do
+    if  install_config_file  "$www_file"   "$WWW_DEST/$www_file";  then
+      chmod  0644                 "$WWW_DEST/$www_file"  &&
+      chown  www-data:www-data    "$WWW_DEST/$www_file"
+    fi
+  done
+  #
+  # Warning message about new location for www files
+  # Remove around 2005-08-02 (one month in test, another in stable, supposedly)
+  #
+  message  "${MESSAGE_COLOR}Your web files have been moved out of the"        \
+           "APACHE specific locations (apache2/htdocs, httpd/htdocs, etc.)"   \
+           "and into a shared, non-DocumentRoot $INSTALL_ROOT/usr/share/www"  \
+           "directory. You can modify your web server to point there for"     \
+           "these files now.${DEFAULT_COLOR}"
+}
+
+#---------------------------------------------------------------------
+## Removes traces of NSPR and NSS from Mozilla-based software
+## TODO move patch to a central place
+#---------------------------------------------------------------------
+function mozilla_remove_nspr_nss() {
+  message 'Checking Mozilla source code...' &&
+  [[ "$(basename $(pwd))" == mozilla ]] &&
+  message 'Checking the spell...' &&
+  [[ -f $SCRIPT_DIRECTORY/security_manager_makefile.diff ]] &&
+  patch -p1 < $SCRIPT_DIRECTORY/security_manager_makefile.diff &&
+  rm -fr dbm nsprpub security/nss &&
+  # exclude DBM for top-level modules and don't build it
+  sedit 's@\<dbm\>@@g' Makefile.in &&
+  sedit 's@\<dbm\>@@g' build/unix/modules.mk &&
+  # don't define NSS libraries as dependencies and don't look for them in the tree
+  sedit 's@$(DIST)/lib/$(LIB_PREFIX)\(crmf\|dbm\|nss3\|softokn3\|smime3\|ssl3\)\.$(LIB_SUFFIX)@-l\1@g' config/config.mk &&
+  sedit 's@NSS_DEP_LIBS\s*=@__undefine_\0@g' config/config.mk &&
+  # align the makefile-s
+  find -name Makefile.in | while read __MAKEFILE; do
+    # use system NSPR's and NSS's headers
+    # option `--with-system-nspr' doesn't do it everywhere
+    sedit 's@-I\S*\(nss\|nspr\)\>@-I/usr/include/\1@g' $__MAKEFILE
+  done
+}
+
+#-------------------------------------------------------------------------
+## Returns the kernel version checks linux then linux-new (for now) and
+## then uname for the kernel version
+#-------------------------------------------------------------------------
+function get_kernel_version()
+{
+	local KVER=$(installed_version linux)
+	if [[ $KVER ]] ; then
+		echo $KVER
+	else
+		KVER=$(installed_version linux-new)
+		if [[ $KVER ]] ; then
+			echo $KVER
+		else
+			KVER=$(uname -r)
+			echo $KVER
+		fi
+	fi
+}
+
+#---------------------------------------------------------------------------
+## Invokes the unamechange spell any spell that uses this should depend on
+## unamechange otherwise this function does nothing.
+## to use this function simply call then change the variables listed ro have
+## any call to uname return that value
+#--------------------------------------------------------------------------
+function invoke_uname_change()
+{
+	if [[ $(installed_version unamechange) ]] ; then
+		export UNAME_CHANGE_SYSNAME=$(uname -s)
+		export UNAME_CHANGE_NODENAME=$(uname -n)
+		export UNAME_CHANGE_RELEASE=$(uname -r)
+		export UNAME_CHANGE_VERSION=$(uname -v)
+		export UNAME_CHANGE_MACHINE=$(uname -m)
+		export UNAME_CHANGE_DOMAINNAME=$(uname -o)
+	
+		export LD_PRELOAD="${LD_PRELOAD} /usr/lib/unamechange.so"
+	fi
+}
+
+#-------------------------------------------------------------------------
+## Returns the state of the system back to normal after calling 
+## invoke_uname_change unset's all environmental vars and returns
+## LD_PRELOAD back to normal
+#-------------------------------------------------------------------------
+function devoke_uname_change()
+{
+	if [[ $(installed_version unamechange) ]] ; then
+		unset UNAME_CHANGE_SYSNAME
+		unset UNAME_CHANGE_NODENAME
+		unset UNAME_CHANGE_RELEASE
+		unset UNAME_CHANGE_VERSION
+		unset UNAME_CHANGE_MACHINE
+		unset UNAME_CHANGE_DOMAINNAME
+	
+		export LD_PRELOAD="${LD_PRELOAD/\/usr\/lib\/unamechange.so/}"
+	fi
+}
+
+#-----------------------------------------------------------------------
+## Get the running kernel config status of a some part of the kernel
+## given by $1. Used for spells that don't have linux triggers
+##
+## $1 string Config variable to look for
+#-----------------------------------------------------------------------
+function get_running_kernel_config()
+{
+	local KVER
+	# use proc interface because even inside a uname change invoke this
+	# still returns the version of the running kernel
+	if [ -f /proc/sys/kernel/osrelease ] ; then
+		KVER=$(cat /proc/sys/kernel/osrelease)
+	else
+		# apparently you don't have proc mount
+		KVER=$(uname -r)
+	fi
+	if [ -f /proc/config.gz ] ; then
+		echo $(zgrep "^$1=" /proc/config.gz | awk -F= '{ print $2 }')
+	elif [ -f /boot/config-$KVER ] ; then
+		echo $(grep "^$1=" /boot/config-$KVER | awk -F= '{ print $2 }')
+	elif [ -f /usr/src/linux-$KVER/.config ] ; then
+		echo $(grep "^$1=" /usr/src/linux-$KVER/.config | awk -F= '{ print $2 }')
+	else
+		echo "-1"
+	fi
+}
+
+#-------------------------------------------------------------------------
+## Get the config status of some part of the kernel sorcery says is 
+## installed. Used by spells that have linux triggers.
+##
+## $1 string Config var to look for
+#-------------------------------------------------------------------------
+function get_sorcery_kernel_config()
+{
+	local KVER=$(get_kernel_version)
+	if [ -f /boot/config-$KVER ] ; then
+		echo $(grep "^$1=" /boot/config-$KVER | awk -F= '{ print $2 }')
+	elif [ -f /usr/src/linux-$KVER/.config ] ; then
+		echo $(grep "^$1=" /usr/src/linux-$KVER/.config | awk -F= '{ print $2 }')
+	else
+		echo "-1"
+	fi
+}
+
+
+#-------------------------------------------------------------------------
+## Compatibility code for gracefully failing if the user uses an older
+## version of sorcery with a spell that calls unpack_file.
+#-------------------------------------------------------------------------
+declare -f unpack_file &> /dev/null ||
+function unpack_file() {
+  message "This spell uses a function only available in sorcery 1.12.2 or newer, please update."
+  return 1
+}

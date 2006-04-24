@@ -1,0 +1,42 @@
+#!/bin/gawk -f
+
+function trim(line,     trimmed_line) {
+  trimmed_line = line
+  sub(/^ +/, "", trimmed_line)
+  sub(/ +$/, "", trimmed_line)
+  return trimmed_line
+}
+/^Latest/ {
+  print "         VERSION=" $2
+  print "     SOURCE_HASH=''"
+  print "         UPDATED=" strftime("%Y%m%d")
+}
+/^Package/ {
+  print "           SPELL=pear-" tolower($2)
+  print "    PEAR_PACKAGE=" $2
+  print "        WEB_SITE=http://pear.php.net/package/" $2 "/"
+}
+/^License/ {
+  print "      LICENSE[0]=" $2
+}
+/^Summary/ {
+  line = $0
+  sub(/^Summary/, "", line)
+  print "           SHORT='PEAR: " trim(line) "'"
+}
+/^Description/ {
+  in_description = 1
+  print "cat << EOF"
+  line = $0
+  sub(/^Description/, "", line)
+  print trim(line)
+}
+/^ / {
+  if (in_description == 1)
+    print trim($0)
+}
+END {
+  print "EOF"
+  print ""
+  print "source  $SECTION_DIRECTORY/PEAR_DETAILS"
+}

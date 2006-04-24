@@ -1,0 +1,61 @@
+if    [  "$POSTGRES_BOOT"  =  "y"  ]
+then  echo
+	  echo  "You need to run initdb and edit postgresql.conf manually."
+      echo  "The PGDATA directory defaults to /var/lib/postgres."
+      echo  "Logs are written to /var/log/postgres."
+      echo
+fi
+cat << EOF
+postgresql should be updated to 8.0.3.
+
+Moreover, according to the HISTORY file : 
+   A dump/restore is not required for those running 8.0.X. However, it is
+   one possible way of handling two significant security problems that
+   have been found in the initial contents of 8.0.X system catalogs. A
+   dump/initdb/reload sequence using 8.0.3's initdb will automatically
+   correct these problems.
+
+And : 
+If you wish not to do an initdb, perform the following procedures
+   instead. As the database superuser, do:
+BEGIN;
+UPDATE pg_proc SET proargtypes[3] = 'internal'::regtype
+WHERE pronamespace = 11 AND pronargs = 5
+      AND proargtypes[2] = 'cstring'::regtype;
+-- The command should report having updated 90 rows;
+-- if not, rollback and investigate instead of committing!
+COMMIT;
+
+   Next, if you have installed "contrib/tsearch2", do
+BEGIN;
+UPDATE pg_proc SET proargtypes[0] = 'internal'::regtype
+WHERE oid IN (
+    'dex_init(text)'::regprocedure,
+    'snb_en_init(text)'::regprocedure,
+    'snb_ru_init(text)'::regprocedure,
+    'spell_init(text)'::regprocedure,
+    'syn_init(text)'::regprocedure
+);
+-- The command should report having updated 5 rows;
+-- if not, rollback and investigate instead of committing!
+COMMIT;
+
+   If this command fails with a message like "function "dex_init(text)"
+   does not exist", then either "tsearch2" is not installed in this
+   database, or you already did the update.
+
+   The above procedures must be carried out in *each* database of an
+   installation, including template1, and ideally including template0 as
+   well. If you do not fix the template databases then any subsequently
+   created databases will contain the same errors. template1 can be fixed
+   in the same way as any other database, but fixing template0 requires
+   additional steps. First, from any database issue
+UPDATE pg_database SET datallowconn = true WHERE datname = 'template0';
+
+   Next connect to template0 and perform the above repair procedures.
+   Finally, do
+-- re-freeze template0:
+VACUUM FREEZE;
+-- and protect it against future alterations:
+UPDATE pg_database SET datallowconn = false WHERE datname = 'template0';
+EOF

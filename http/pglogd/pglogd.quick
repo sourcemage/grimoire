@@ -1,0 +1,64 @@
+			      Quick pglod setup 
+			
+			
+For full description see http://www.digitalstratum.com/pglogd/
+
+(Note: pglogd MUST be always started before Apache)
+(Remainder: postgresql MUST be started before pglogd :)
+
+1. create an postgresql DB + user
+
+# su - postgres
+$ createdb pglogd
+$ psql pglogd < /usr/doc/pglogd/pglogd_tables.sql
+$ exit
+
+
+If necessary modify /var/lib/pgsql/pg_hba.conf
+
+Example :
+ - add this lines
+local   pglogd                                          md5    pglogd.pwd                               
+host    pglogd          127.0.0.1     255.255.255.255   md5    pglogd.pwd
+
+ - don't forget to creat pwd. file using pg_passwd /var/lib/pgsql/pglogd.pwd 
+ 
+ 
+2. Adjust pglogd configuration 
+In /etc/pglogd.conf
+change the :
+
+ database_name = pglogd
+
+ connect_string = dbname=pglogd user=pglogdus 
+
+# if you have password for chosen pgsql user add this line :
+#  connect_string = dbname=pglogd user=pglogdus password=secret_pwd
+#
+
+ top_level_domain_only = FALSE
+
+
+3. Adjust apache configuration	
+In httpd.conf :
+add lines :
+LogFormat "%t %T %>s %b %m %v %h \"%U\" \"%{Referer}i\" \"%{User-agent}i\" \"%r\" %l %u" pglogd
+
+and for each virtual host you want enable the apache messages logging to postgresql add
+
+ CustomLog "/tmp/.f.PGLOGD" pglogd
+ 
+(an example :
+<VirtualHost _default_:80>
+    ServerName  sgl.distro.rulez.sk
+    ....
+    CustomLog "/tmp/.f.PGLOGD" pglogd 
+    ...
+</VirtualHost>
+)
+
+5. Stop Apache server
+6. Start pglogd
+7. Start Apache server
+
+4. for some examples queries - read the /usr/doc/pglog/queries.txt	 

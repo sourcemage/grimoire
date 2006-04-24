@@ -1,0 +1,45 @@
+#!/bin/bash
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+remote_fs +network +portmap"
+
+. /etc/init.d/smgl_init
+. /etc/sysconfig/nfs
+
+if [ ! -e /etc/exports ] ; then
+  $FAILURE
+  echo "Please create an /etc/exports file. Exiting without starting nfs..."
+  $NORMAL
+  exit 1
+fi
+
+start()
+{
+  required_executable /usr/sbin/exportfs
+  required_executable /usr/sbin/rpc.rquotad
+  required_executable /usr/sbin/rpc.mountd
+  required_executable /usr/sbin/rpc.nfsd
+  required_executable /usr/sbin/rpc.statd
+
+  echo "Starting NFS services"
+  /usr/sbin/exportfs -r 
+  evaluate_retval
+
+  loadproc /usr/sbin/rpc.rquotad
+  loadproc /usr/sbin/rpc.mountd  $MOUNTDOPTS
+  loadproc /usr/sbin/rpc.nfsd    $NUMSERVERS
+  loadproc /usr/sbin/rpc.statd
+}
+
+stop()
+{
+  echo "Stopping NFS services"
+  /usr/sbin/exportfs -au
+  evaluate_retval
+    
+  killproc /usr/sbin/rpc.rquotad
+  killproc /usr/sbin/rpc.mountd
+  killproc /usr/sbin/rpc.nfsd
+  killproc /usr/sbin/rpc.statd 
+}

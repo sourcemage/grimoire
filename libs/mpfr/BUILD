@@ -1,0 +1,2 @@
+autoreconf     &&
+default_build

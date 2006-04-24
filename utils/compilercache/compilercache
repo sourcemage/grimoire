@@ -1,0 +1,233 @@
+#!/bin/bash
+
+# this program was written for the bash shell. if you change the shell
+# to something different, it's your risk ;)
+
+#    compilercache - wraps your C and C++ compilers to cache compilations
+#    Copyright (C) 2001  Erik Thiele <erikyyy@erikyyy.de>
+#
+#    Enhanced by Kyle Sallee <cromwell@kublai.com>, for use with sorcery
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software
+#    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+# set the default configuration values
+
+CACHEDIR=/var/cache/compile
+COMPILERCACHEBINDIR="/usr/bin/compilercache"
+PATH=`echo  $PATH  |  sed  "s:$COMPILERCACHEBINDIR\:::"`
+
+ FOUNDCOPT="false"
+FOUNDDEBUG="false"
+unset  INPUT  OUTPUT  STRIPPEDARGS
+
+
+# setup exit trap
+
+cleanexit ()  {  rm  -f  $TMPFILE  $FASTTMPFILE  $FASTTF;  }
+trap  cleanexit  EXIT
+
+
+# determine compiler type
+
+COMP="$(  basename "$0"  )"
+
+
+# make sure there are no spaces in the commandline parameters.
+# also make sure there are no empty commandline parameters.
+
+spaceparms()  {
+
+  SPACES="false"
+  while  [  $#  !=  0  ];  do
+
+    if  [     -z  "$1" ]  ||
+        echo      "$1"    |
+        grep  -q  " "
+    then  SPACES="true";  break
+    else  shift
+    fi
+
+  done
+  $SPACES
+
+}
+
+if    spaceparms
+then  exec  $COMP "$@"
+fi
+
+
+strip_args()  {
+
+  ABORT="false"
+
+  while  [  $#  !=  0  ];  do
+
+    case "$1" in
+
+      -c)  FOUNDCOPT="true"  ;;     #  compilation command
+      -o)  shift                    #  output file selection
+           case "$1" in
+             -*)  ABORT="true";  break  ;;
+             "")  ABORT="true";  break  ;;
+              *)  OUTPUT="$1"
+                  ;;
+         esac
+         ;;
+
+    -g*)  STRIPPEDARGS="$STRIPPEDARGS $1"    # debugging mode
+          if    [  "$1"  ==  "-g0"  ]
+          then  FOUNDDEBUG="false"
+          else  FOUNDDEBUG="true"
+          fi
+          ;;
+
+
+    -O|-O*)  STRIPPEDARGS="$STRIPPEDARGS $1"
+               FOUNDDEBUG="false"
+             ;;
+    # options with arguments that are not source files
+
+    -include|-I|-L|-D)
+      STRIPPEDARGS="$STRIPPEDARGS $1 $2"
+      if    [  -z  "$2"  ]
+      then  ABORT="true";  break
+      else  shift
+      fi
+      ;;
+
+    -I*|-L*|-D*|-*)  STRIPPEDARGS="$STRIPPEDARGS $1"  ;;
+
+    *)  if    [  -n  "$INPUT"  ]
+        then  ABORT="true";  break
+        else  INPUT="$1"
+        fi
+        ;;
+
+    esac
+    shift
+  done
+
+  !  $ABORT
+
+}
+
+
+if    !  strip_args  "$@"  ||
+      !  $FOUNDCOPT        ||
+      [  -z  "$INPUT"  ]
+then  exec  $COMP  "$@"
+fi
+
+
+# is inputfilename valid?
+INPUTNAME="$(  basename  "$INPUT"                                    )"
+INPUTBASE="$(  echo  "$INPUTNAME" |  sed      's/\(^.*\)\..*$/\1/'   )"
+ INPUTEXT="$(  echo  "$INPUTNAME" |  sed  -n  's/^.*\.\(.*\)$/\1/p'  )"
+
+
+case "$INPUTEXT" in
+  c|C|m|cc|CC|cpp|CPP|cxx|CXX)  true               ;;
+                            *)  exec  $COMP  "$@"  ;;
+esac
+
+
+# calculate output name if no -o was given
+OUTPUT=${OUTPUT:=$INPUTBASE.o}
+
+
+# initialize temporary filenames
+    TMPFILE="/tmp/tmp.$$.$RANDOM"
+FASTTMPFILE="/tmp/fasttmp.$$.$RANDOM"
+     FASTTF="$FASTTMPFILE"_
+
+rm  -f  $TMPFILE  $FASTTMPFILE  $FASTTF
+
+
+# run the preprocessor
+
+$COMP  $STRIPPEDARGS  -E  $INPUT  >$FASTTMPFILE  2>$FASTTF
+COMPRETVAL=$?
+
+
+#  ignore if preprocessor produced stderr output
+#  ignore if preprocessor exited with error.
+
+if    [  -s  "$FASTTF"         ]  ||
+      [  "$COMPRETVAL"  !=  0  ]
+then  rm  -f  $TMPFILE  $FASTTMPFILE  $FASTTF
+      exec  $COMP  "$@"
+fi
+
+
+# run the sourcefile unifier if FOUNDDEBUG=no
+
+if  !  $FOUNDDEBUG;  then
+
+  $COMPILERCACHEBINDIR/compilercacheunifier  <  $FASTTMPFILE  >  $FASTTF
+  COMPRETVAL=$?
+
+  if    [  "$COMPRETVAL"  ==  0  ]
+  then  mv  -f  $FASTTF  $FASTTMPFILE
+  fi
+
+fi
+
+
+# compute the hashvalue
+
+$COMP  -v                         >>  $FASTTMPFILE  2>&1
+echo  "INPUTNAME=$INPUTNAME"      >>  $FASTTMPFILE
+echo  "STRIPEDARGS=$STRIPEDARGS"  >>  $FASTTMPFILE
+echo  "COMP=$COMP"                >>  $FASTTMPFILE
+
+HASHVAL="$(  md5sum  $FASTTMPFILE  | cut  -c  -32  )"
+HASHFILE="$CACHEDIR/$HASHVAL"
+
+rm  -f  $OUTPUT
+
+if  [  -e  $HASHFILE  ];  then
+
+  touch  -c  $HASHFILE
+  cp         $HASHFILE  $OUTPUT
+
+  if    [  -f  ${HASHFILE}.text  ]
+  then  touch  ${HASHFILE}.text
+        cat    ${HASHFILE}.text  1>&2
+  fi
+
+else  
+
+  $COMP  $STRIPPEDARGS  -c $INPUT  -o $TMPFILE  2>$FASTTMPFILE  1>&2
+  COMPRETVAL=$?
+
+  if    [  -s  $FASTTMPFILE  ]
+  then  cat    $FASTTMPFILE  1>&2
+  fi
+
+  if    !  [  -e  $TMPFILE          ]  ||
+        [     "$COMPRETVAL"  !=  0  ]
+  then  exit  "$COMPRETVAL"
+  else  cp  $TMPFILE  $OUTPUT
+        cp  $TMPFILE  $HASHFILE
+        if    [  -s  $FASTTMPFILE  ]
+        then  cp     $FASTTMPFILE  ${HASHFILE}.text
+        fi
+  fi
+
+fi
+
+exit 0

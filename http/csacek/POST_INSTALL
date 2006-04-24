@@ -1,0 +1,28 @@
+if [ -d /etc/httpd ]; then
+  DIR="/etc/httpd"
+elif [ -d /etc/httpsd ]; then
+  DIR="/etc/httpsd"
+else
+  echo "Expected that config dir is /etc/httpd or /etc/httpds"
+  return 1
+fi
+if ! [ -f $DIR/httpd.conf ]; then
+  echo "Expected that config file is $DIR/httpd.conf";
+  return 1
+fi
+
+cp $DIR/httpd.conf $DIR/httpd.conf.old
+X=`grep 'LoadModule.*libssl.so' $DIR/httpd.conf`
+if ! [ "x$X" = "x" ]; then
+  sed 's:.*\(LoadModule.*libssl.so\).*:LoadModule csacek_module      libexec/mod_csacek.so§\1:' < $DIR/httpd.conf | tr '§' '\n' > $DIR/httpd.conf.tmp
+  mv $DIR/httpd.conf.tmp $DIR/httpd.conf
+  sed 's:.*\(AddModule.*mod_ssl.c\).*:AddModule mod_csacek.c§\1:' < $DIR/httpd.conf | tr '§' '\n' > $DIR/httpd.conf.tmp
+  mv $DIR/httpd.conf.tmp $DIR/httpd.conf
+else
+  echo -en "LoadModule csacek_module      libexec/mod_csacek.so\n" \
+           "AddModule mod_csacek.c\n" >> $DIR/httpd.conf
+fi
+
+echo -en "<IfModule mod_csacek.c>\n    csacekEngine on\n" \
+         "    csacekDefaultCharset iso-8859-2\n" \
+   "</IfModule>\n" >> $DIR/httpd.conf

@@ -1,0 +1,130 @@
+diff -urpN cinelerra-1.2.1.orig/build/Makefile.cinelerra cinelerra-1.2.1/build/Makefile.cinelerra
+--- cinelerra-1.2.1.orig/build/Makefile.cinelerra	2004-08-21 01:08:43.319790880 -0700
++++ cinelerra-1.2.1/build/Makefile.cinelerra	2004-08-21 01:11:38.160211096 -0700
+@@ -8,11 +8,9 @@ include global_config
+ 
+ DIRS := \
+ 	doc \
+-	libmpeg3 \
+ 	mpeg2enc \
+ 	mplexhi \
+ 	mplexlo \
+-	quicktime \
+ 	guicast \
+ 	cinelerra \
+ 	plugins \
+@@ -28,13 +26,8 @@ DISTOBJS = \
+ 
+ 
+ all: $(OBJDIR)/soundtest
+-ifeq ($(HAVE_FIREWIRE), y)
+-	$(MAKE) -f build/Makefile.libraw
+ 	$(MAKE) -f build/Makefile.libavc
+-endif
+ 	$(MAKE) -f build/Makefile.esound
+-	$(MAKE) -f build/Makefile.freetype
+-	$(MAKE) -f build/Makefile.tiff
+ 	$(MAKE) -f build/Makefile.toolame
+ 	$(MAKE) -f build/Makefile.uuid
+ 	$(MAKE) -f build/Makefile.sndfile
+@@ -76,7 +69,6 @@ wc:
+ install:
+ 	$(MAKE) -C cinelerra install
+ 	$(MAKE) -C plugins install
+-	$(MAKE) -C libmpeg3 install
+ 	$(MAKE) -C mplexhi install
+ 	$(MAKE) -C mplexlo install
+ 	$(MAKE) -C po install
+diff -urpN cinelerra-1.2.1.orig/cinelerra/Makefile cinelerra-1.2.1/cinelerra/Makefile
+--- cinelerra-1.2.1.orig/cinelerra/Makefile	2004-08-21 01:08:44.266646936 -0700
++++ cinelerra-1.2.1/cinelerra/Makefile	2004-08-21 01:14:17.666962384 -0700
+@@ -295,12 +295,9 @@ endif
+ 
+ STATICLIBS = \
+ 	$(AVC_DIR)/$(OBJDIR)/libavc.a \
+-	../quicktime/$(OBJDIR)/libquicktime.a \
+         $(ESOUNDLIBS) \
+ 	$(EXR_DIR)/$(OBJDIR)/libexr.a \
+-	$(TIFF_DIR)/$(OBJDIR)/libtiff.a \
+ 	../guicast/$(OBJDIR)/libguicast.a \
+-	../libmpeg3/$(OBJDIR)/libmpeg3.a \
+ 	$(SNDFILE_DIR)/$(OBJDIR)/libsndfile.a \
+ 	$(UUID_DIR)/$(OBJDIR)/libuuid.a \
+ 	../mpeg2enc/$(OBJDIR)/mpeg2enc.a \
+@@ -323,7 +320,6 @@ endif
+ 
+ LIBS += \
+ 	$(ALSA_LIBS) \
+-	$(LIBRAW_DIR)/$(OBJDIR)/libraw1394.a \
+ 	$(GLLIBS) \
+ 	-lX11 \
+ 	-lXext \
+@@ -333,7 +329,11 @@ LIBS += \
+ 	-lXxf86vm \
+ 	-lpng \
+ 	-lz \
+-	-ldl
++	-ldl \
++	-lmpeg3 \
++	-lquicktime \
++	-ltiff \
++	-lvorbisfile
+ 
+ 
+ ifeq ($(HAVE_XFT), y)
+@@ -342,7 +342,7 @@ endif
+ 
+ CFLAGS += \
+ 	-I../guicast \
+-	-I../quicktime \
++	-I/usr/include/quicktime \
+ 	-I$(DV_DIR) \
+ 	-I$(OGG_DIR)/include \
+ 	-I$(VORBIS_DIR)/include \
+@@ -354,7 +354,7 @@ CFLAGS += \
+ 	-I$(LAME_DIR) \
+ 	-I$(AVC_DIR) \
+ 	-I../audiofile \
+-	-I../libmpeg3 \
++	-I/usr/include/libmpeg3 \
+ 	-I$(SNDFILE_DIR)/src \
+ 	$(ESOUNDCFLAGS) \
+ 	$(ALSA_CFLAGS) \
+diff -urpN cinelerra-1.2.1.orig/mpeg2enc/Makefile cinelerra-1.2.1/mpeg2enc/Makefile
+--- cinelerra-1.2.1.orig/mpeg2enc/Makefile	2004-08-21 01:08:44.194657880 -0700
++++ cinelerra-1.2.1/mpeg2enc/Makefile	2004-08-21 01:15:42.447073848 -0700
+@@ -48,8 +48,8 @@ OBJ = $(OBJDIR)/mpeg2enc.o \
+ 	$(OBJDIR)/writepic.o
+ 
+ LIBS = \
+-	../../quicktime/$(OBJDIR)/libquicktime.a \
+-	../../libmpeg3/$(OBJDIR)/libmpeg3.a \
++	-lquicktime \
++	-lmpeg3 \
+ 	-lpthread \
+ 	-lpng \
+ 	-lz \
+diff -urpN cinelerra-1.2.1.orig/mplexlo/Makefile cinelerra-1.2.1/mplexlo/Makefile
+--- cinelerra-1.2.1.orig/mplexlo/Makefile	2004-08-21 01:08:44.211655296 -0700
++++ cinelerra-1.2.1/mplexlo/Makefile	2004-08-21 01:16:19.087503656 -0700
+@@ -7,7 +7,7 @@ CFLAGS += -I../libmpeg3
+ OUTPUT := $(OBJDIR)/mplexlo
+ 
+ $(OUTPUT): $(OBJS)
+-	$(CC) -o $(OUTPUT) $(OBJS) ../libmpeg3/$(OBJDIR)/libmpeg3.a -lpthread -lm
++	$(CC) -o $(OUTPUT) $(OBJS) -lmpeg3 -lpthread -lm
+ 
+ $(OBJS):
+ 	$(CC) -c $(CFLAGS) $(subst $(OBJDIR)/,, $*.c) -o $*.o
+diff -urpN cinelerra-1.2.1.orig/plugins/titler/Makefile cinelerra-1.2.1/plugins/titler/Makefile
+--- cinelerra-1.2.1.orig/plugins/titler/Makefile	2004-08-21 01:08:45.279492960 -0700
++++ cinelerra-1.2.1/plugins/titler/Makefile	2004-08-21 01:16:52.655400560 -0700
+@@ -15,7 +15,7 @@ CFLAGS += -I$(FREETYPE_DIR)/include -I..
+ $(OUTPUT_PLUGIN): $(OBJS)
+ 	$(LDLINKER) -o $(OUTPUT_PLUGIN) \
+ 		$(OBJS) \
+-		$(FREETYPE_DIR)/$(OBJDIR)/libfreetype.a
++		-lfreetype
+ 	strip $(OUTPUT_PLUGIN)
+ 
+ include ../../plugin_config

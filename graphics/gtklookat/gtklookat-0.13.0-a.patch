@@ -1,0 +1,480 @@
+Only in gtklookat-0.13.0-new: .config.log.swp
+Only in gtklookat-0.13.0-new: .configure.swp
+Only in gtklookat-0.13.0: gtklookat.spec
+Only in gtklookat-0.13.0-new/src: .ViewerGtk.cpp.swp
+diff -U 3 -r gtklookat-0.13.0/src/ViewerGtk.cpp gtklookat-0.13.0-new/src/ViewerGtk.cpp
+--- gtklookat-0.13.0/src/ViewerGtk.cpp	2003-02-16 20:58:23.000000000 -0800
++++ gtklookat-0.13.0-new/src/ViewerGtk.cpp	2004-01-14 19:21:54.000000000 -0800
+@@ -25,13 +25,13 @@
+ 
+ #define VIEW_ASPECT 1.3
+ 
+-using namespace OpenVRML;
+-using namespace OpenVRML::GL;
++using namespace openvrml;
++using namespace openvrml::gl;
+ 
+-ViewerGtk::ViewerGtk(Browser& browser,
++ViewerGtk::ViewerGtk(openvrml::browser& abrowser,
+ 		     const char *,
+ 		     GtkWidget *parent) :
+-  ViewerOpenGL(browser),
++  viewer(abrowser),
+   d_timer(0),
+   d_Stop(false),
+   d_redrawNeeded(false),
+@@ -51,7 +51,7 @@
+   */
+ }
+ 
+-void ViewerGtk::handleInput( ViewerOpenGL::EventInfo *e )
++void ViewerGtk::handleInput( struct viewer::event_info* e )
+ {
+   if (d_glarea)
+     if (gtk_gl_area_make_current(GTK_GL_AREA(d_glarea)))
+@@ -118,8 +118,8 @@
+                              GdkEventButton* event, 
+                              ViewerGtk* viewer)
+ {
+-  ViewerOpenGL::EventInfo e;
+-  e.event = ViewerOpenGL::EVENT_MOUSE_CLICK;
++  struct openvrml::gl::viewer::event_info e;
++  e.event = openvrml::gl::viewer::event_mouse_click;
+   switch (event->button)
+   {
+     case 1: e.what = 0; break;
+@@ -139,8 +139,8 @@
+                                GdkEventButton* event, 
+                                ViewerGtk* viewer)
+ {
+-  ViewerOpenGL::EventInfo e;
+-  e.event = ViewerOpenGL::EVENT_MOUSE_RELEASE;
++  struct openvrml::gl::viewer::event_info e;
++  e.event = openvrml::gl::viewer::event_mouse_release;
+   switch (event->button)
+   {
+     case 1: e.what = 0; break;
+@@ -159,8 +159,8 @@
+                               GdkEventMotion* event, 
+                               ViewerGtk* viewer)
+ {
+-  ViewerOpenGL::EventInfo e;
+-  e.event = ViewerOpenGL::EVENT_MOUSE_DRAG;
++  struct openvrml::gl::viewer::event_info e;
++  e.event = openvrml::gl::viewer::event_mouse_drag;
+   e.what = 0;
+   if (event->state & GDK_BUTTON1_MASK)
+     e.what = 0;
+@@ -169,7 +169,7 @@
+   else if (event->state & GDK_BUTTON3_MASK)
+     e.what = 2;
+   else
+-    e.event = ViewerOpenGL::EVENT_MOUSE_MOVE;
++    e.event = openvrml::gl::viewer::event_mouse_move;
+   e.x = (int)event->x;
+   e.y = (int)event->y;
+ 
+@@ -182,17 +182,17 @@
+                           GdkEventKey* event,
+                           ViewerGtk* viewer)
+ {
+-  ViewerOpenGL::EventInfo e;
+-  e.event = ViewerOpenGL::EVENT_KEY_DOWN;
++  struct openvrml::gl::viewer::event_info e;
++  e.event = openvrml::gl::viewer::event_key_down;
+   switch (event->keyval)
+   {
+-    case GDK_Home:	 e.what = ViewerOpenGL::KEY_HOME; break;
+-    case GDK_Left:	 e.what = ViewerOpenGL::KEY_LEFT; break;
+-    case GDK_Up:	 e.what = ViewerOpenGL::KEY_UP; break;
+-    case GDK_Right:	 e.what = ViewerOpenGL::KEY_RIGHT; break;
+-    case GDK_Down:	 e.what = ViewerOpenGL::KEY_DOWN; break;
+-    case GDK_Page_Up:	 e.what = ViewerOpenGL::KEY_PAGE_UP; break;
+-    case GDK_Page_Down: e.what = ViewerOpenGL::KEY_PAGE_DOWN; break;
++    case GDK_Home:	 e.what = openvrml::gl::viewer::key_home; break;
++    case GDK_Left:	 e.what = openvrml::gl::viewer::key_left; break;
++    case GDK_Up:	 e.what = openvrml::gl::viewer::key_up; break;
++    case GDK_Right:	 e.what = openvrml::gl::viewer::key_right; break;
++    case GDK_Down:	 e.what = openvrml::gl::viewer::key_down; break;
++    case GDK_Page_Up:	 e.what = openvrml::gl::viewer::key_page_up; break;
++    case GDK_Page_Down: e.what = openvrml::gl::viewer::key_page_down; break;
+ 
+     default:
+       if (event->length <= 0) return TRUE; // Unhandled non-printable key
+@@ -218,8 +218,8 @@
+ static gint gtk_destroy(GtkWidget* widget,
+                         ViewerGtk* viewer)
+ {
+-  ViewerOpenGL::EventInfo e;
+-  e.event = ViewerOpenGL::EVENT_KEY_DOWN;
++  struct openvrml::gl::viewer::event_info e;
++  e.event = openvrml::gl::viewer::event_key_down;
+   e.what = 'q';
+   viewer->handleInput( &e );
+ 
+@@ -228,7 +228,7 @@
+   return TRUE;
+ }
+ 
+-void ViewerGtk::wsPostRedraw()
++void ViewerGtk::post_redraw()
+ {
+   if ( d_glarea && ! d_redrawNeeded )
+   {
+@@ -242,26 +242,26 @@
+ 
+ 
+ 
+-void ViewerGtk::wsSetCursor( CursorStyle c )
++void ViewerGtk::set_cursor( cursor_style c )
+ {
+   if (d_glarea)
+   {
+     GdkCursor* cursor;
+     switch(c)
+     {
+-      case CURSOR_INHERIT:
++      case cursor_inherit:
+         cursor = NULL;
+ 	return;
+-      case CURSOR_INFO:
++      case cursor_info:
+ 	cursor = gdk_cursor_new ( GDK_HAND1 );
+ 	break;
+-      case CURSOR_CYCLE:
++      case cursor_cycle:
+ 	cursor = gdk_cursor_new ( GDK_EXCHANGE );
+ 	break;
+-      case CURSOR_UP_DOWN:
++      case cursor_up_down:
+ 	cursor = gdk_cursor_new ( GDK_SB_V_DOUBLE_ARROW );
+ 	break;
+-      case CURSOR_CROSSHAIR:
++      case cursor_crosshair:
+ 	cursor = gdk_cursor_new ( GDK_CROSSHAIR );
+ 	break;
+       default:
+@@ -276,7 +276,7 @@
+   }
+ }
+ 
+-void ViewerGtk::wsSwapBuffers()
++void ViewerGtk::swap_buffers()
+ {
+   if (d_glarea)
+   {
+@@ -309,7 +309,7 @@
+ }
+ 
+ // 
+-void ViewerGtk::wsSetTimer( double t ) 
++void ViewerGtk::set_timer( double t ) 
+ {
+   if (! d_timer && ! d_Stop )
+     {
+diff -U 3 -r gtklookat-0.13.0/src/ViewerGtk.h gtklookat-0.13.0-new/src/ViewerGtk.h
+--- gtklookat-0.13.0/src/ViewerGtk.h	2002-09-26 22:02:13.000000000 -0700
++++ gtklookat-0.13.0-new/src/ViewerGtk.h	2004-01-14 19:07:40.000000000 -0800
+@@ -19,23 +19,24 @@
+ #ifndef VIEWERGTK_H
+ #define VIEWERGTK_H
+ 
+-#include <OpenVRML/GL/ViewerOpenGL.h>
++#include <openvrml/browser.h>
++#include <openvrml/gl/viewer.h>
+ #include <gtk/gtk.h>
+ #include <gtkgl/gtkglarea.h>
+ 
+-namespace OpenVRML {
++namespace openvrml {
+ 
+-class ViewerGtk : public GL::ViewerOpenGL {
++class ViewerGtk : public gl::viewer {
+ 
+ public:
+ 
+   // Create a named OpenGL drawing area widget
+-  ViewerGtk(Browser&, const char*, GtkWidget* parent);
++  ViewerGtk(openvrml::browser&, const char*, GtkWidget* parent);
+   virtual ~ViewerGtk();
+ 
+   // public so the callback functions can access them
+   void timerUpdate();
+-  void handleInput( ViewerOpenGL::EventInfo *e );
++  void handleInput( struct viewer::event_info* e );
+   void handleRedraw();
+   void handleResize(int w, int h);
+   void handleDestroy();
+@@ -45,10 +46,10 @@
+ 
+   // Window system specific methods
+ 
+-  virtual void wsPostRedraw();
+-  virtual void wsSetCursor( CursorStyle c);
+-  virtual void wsSwapBuffers();
+-  virtual void wsSetTimer( double );
++  virtual void post_redraw();
++  virtual void set_cursor( cursor_style c);
++  virtual void swap_buffers();
++  virtual void set_timer( double );
+ 
+ private:
+   void createWidget( GtkWidget *parent );
+diff -U 3 -r gtklookat-0.13.0/src/gtklookat.cpp gtklookat-0.13.0-new/src/gtklookat.cpp
+--- gtklookat-0.13.0/src/gtklookat.cpp	2003-02-16 20:57:30.000000000 -0800
++++ gtklookat-0.13.0-new/src/gtklookat.cpp	2004-01-14 19:06:45.000000000 -0800
+@@ -32,15 +32,15 @@
+ #include <GL/glu.h>
+ 
+ /* Now some good stuff */
+-#include <OpenVRML/browser.h>
++#include <openvrml/browser.h>
+ #include "ViewerGtk.h"
+ 
+ #define GTK_ITEM_FACTORY_CB(f) ((GtkItemFactoryCallback) f)
+ 
+-using namespace OpenVRML;
++using namespace openvrml;
+ 
+-Browser* browser = 0;
+-ViewerGtk* viewer = 0;
++browser* abrowser = 0;
++ViewerGtk* aviewer = 0;
+ GtkWidget* mainWnd;
+ GtkWidget* sceneWnd;
+ GtkWidget* mainVbox;
+@@ -55,17 +55,17 @@
+ {
+   const char *filename=gtk_file_selection_get_filename (fs);
+ 
+-  if (browser && filename)
++  if (abrowser && filename)
+   {
+     const std::string file(filename);
++    const std::vector<std::string> parameter;
++	const std::vector<std::string> uri(1, file);
+ 
+-    MFString uri(1, &file);
+-    MFString parameter;
+-    browser->loadURI(uri, parameter);
++    abrowser->load_url(uri, parameter);
+ 
+-    // This calls the viewer's update method, which gets everything
++    // This calls the aviewer's update method, which gets everything
+     // working right and animating.
+-    viewer->timerUpdate();
++    aviewer->timerUpdate();
+   }
+ 
+   gtk_widget_destroy(GTK_WIDGET(fs));
+@@ -111,14 +111,14 @@
+ static void
+ file_save(gpointer callback_data, guint callback_action, GtkWidget *widget)
+ {
+-  //Doc *theDoc=browser->url();
++  //Doc *theDoc=abrowser->url();
+   const char *filename=NULL;
+   // Wierd.  Using this won't compile...
+   //const char *filename=theDoc->localName();
+   g_print ("file_save doesn't work right now.\n");
+   /*  
+-      if (browser && filename) {
+-      if (browser->save( filename))
++      if (abrowser && filename) {
++      if (abrowser->save( filename))
+       g_print ("Ok, file \"%s\" saved!\n", filename);
+       else 
+       g_print ("Error saving file %s\n", filename);
+@@ -130,8 +130,8 @@
+ {
+   /*
+     const char *filename=gtk_file_selection_get_filename (fs);
+-    if (browser && filename)
+-    if (browser->save( filename))
++    if (abrowser && filename)
++    if (abrowser->save( filename))
+     g_print ("Ok, file \"%s\" saved!\n", filename);
+     else 
+     g_print ("Error saving file %s\n", filename);
+@@ -145,7 +145,7 @@
+   g_print ("file_save_as doesn't work right now.\n");
+ 
+   /*
+-  //Doc *theDoc=browser->url();
++  //Doc *theDoc=abrowser->url();
+   const char *filename="file.wrl";
+   // Wierd.  Using this won't compile...
+   //const char *filename=theDoc->localName();
+@@ -187,17 +187,18 @@
+ static void
+ file_quit(gpointer callback_data, guint callback_action, GtkWidget *widget)
+ {
+-  delete viewer;
+-  delete browser;
++  delete aviewer;
++  delete abrowser;
+   gtk_exit(0);
+ }
+ 
+ static void
+ view_reset(gpointer callback_data, guint callback_action, GtkWidget *widget)
+ {
+-  viewer->resetUserNavigation();
++  aviewer->reset_user_navigation();
+ }
+ 
++/* unused atm
+ static void tree_itemselect (GtkWidget *item, NodeInfo *info)
+ {
+   Node* node = (Node*)gtk_object_get_user_data(GTK_OBJECT(item));
+@@ -207,7 +208,7 @@
+   
+   return;
+ }
+-
++*/
+ 
+ /* for all the GtkItem:: and GtkTreeItem:: signals */
+ static void tree_itemsignal (GtkWidget *item, gchar *signame)
+@@ -269,11 +270,11 @@
+ gint view_structure_done( GtkWidget *win, NodeInfo *info )
+ {
+   g_message("view_structure_done!!");
+-  /* Turn back on the viewer animations */
++  /* Turn back on the aviewer animations */
+   delete info;
+-  if (viewer) {
+-    viewer->SetStop( false );
+-    viewer->timerUpdate();
++  if (aviewer) {
++    aviewer->SetStop( false );
++    aviewer->timerUpdate();
+   }
+   return TRUE;
+ }
+@@ -357,11 +358,11 @@
+   NodeGroup *nodeGroup = 0;
+   NodeInfo *info = new NodeInfo;
+   
+-  // Have to turn off the viewer animations, or it will screw 
++  // Have to turn off the aviewer animations, or it will screw 
+   // up event handling for the tree window
+-  if (viewer) {
+-    viewer->SetStop( true);
+-    Browser* scene = viewer->scene();
++  if (aviewer) {
++    aviewer->SetStop( true);
++    browser* scene = aviewer->scene();
+     if (scene) {
+       Node* node = scene->getRoot();
+       if (node)
+@@ -432,8 +433,8 @@
+   // Show the window
+   gtk_widget_show_all (sceneWnd);
+   
+-  //  viewer->SetStop(false);
+-  //  viewer->timerUpdate();
++  //  aviewer->SetStop(false);
++  //  aviewer->timerUpdate();
+   
+ }
+ *============================================*/
+@@ -456,7 +457,16 @@
+ void viewpoint_dialog_clicked(GtkWidget *view_button, int *row)
+ {
+   if (*row >= 0)
+-    browser->setViewpoint(*row);
++  {
++    int i = 0;
++    for (std::list<viewpoint_node*>::const_iterator iter = 
++         abrowser->viewpoints().begin();
++		 iter != abrowser->viewpoints().end(); iter++, i++ )
++    {
++      if ( i == *row )
++		abrowser->active_viewpoint( *(*iter) );
++    }
++  }
+ }
+ 
+ static void
+@@ -494,12 +504,11 @@
+                      GTK_SIGNAL_FUNC(viewpoint_selection), row);
+   gchar **data = new (gchar *)[2];
+   
+-  for (int i=0; i<browser->nViewpoints(); ++i)
++  for (std::list<viewpoint_node*>::const_iterator iter = abrowser->viewpoints().begin();
++		iter != abrowser->viewpoints().end(); iter++ )
+   {
+-    std::string name, description;
+-    browser->getViewpoint(i, name, description);
+-    data[0] = g_strdup(name.c_str());
+-    data[1] = g_strdup(description.c_str());
++    data[0] = g_strdup((*iter)->id().c_str());
++    data[1] = g_strdup((*iter)->description().c_str());
+     gtk_clist_append(GTK_CLIST(clist), data);
+     g_free(data[0]);
+     g_free(data[1]);
+@@ -525,13 +534,13 @@
+ }
+ 
+ 
+-static void worldChangedCB( Browser::CBReason reason )
++static void worldChangedCB( browser::cb_reason reason )
+ {
+   switch (reason)
+     {
+-    case Browser::DESTROY_WORLD:
+-      delete viewer;
+-      delete browser;
++    case browser::destroy_world_id:
++      delete aviewer;
++      delete abrowser;
+       exit(0);
+       break;
+       
+@@ -606,32 +615,33 @@
+   gtk_box_pack_start (GTK_BOX (mainVbox), frame, TRUE, TRUE, 0);
+ 
+ 
+-  /* Vrml viewer */
+-  browser = new Browser(std::cout, std::cerr);
++  /* Vrml aviewer */
++  abrowser = new browser(std::cout, std::cerr);
+ 
+   if (argc > 1)
+   {
+     const std::string file(argv[1]);
+-    MFString uri(1, &file);
+-    MFString parameter;
+-    browser->loadURI(uri, parameter);
++    const std::vector<std::string> parameter;
++	const std::vector<std::string> uri(1, file);
++
++    abrowser->load_url(uri, parameter);
+   }
+ 
+   /* Add scene callback, call it once since the initial world has 
+   already loaded */
+-  browser->addWorldChangedCallback( worldChangedCB );
+-  worldChangedCB( Browser::REPLACE_WORLD );
+-  viewer = new ViewerGtk(*browser, "GL Widget", frame);
+-  if (! viewer) {
+-    fprintf(stderr,"Can't create OpenGL viewer.\n");
++  abrowser->add_world_changed_callback( worldChangedCB );
++  worldChangedCB( browser::replace_world_id );
++  aviewer = new ViewerGtk(*abrowser, "GL Widget", frame);
++  if (! aviewer) {
++    fprintf(stderr,"Can't create OpenGL aviewer.\n");
+     exit(1);
+   }
+   
+   gtk_widget_show_all (mainWnd);
+   
+-  // This calls the viewer's update method, which gets everything
++  // This calls the aviewer's update method, which gets everything
+   // working right and animating.
+-  viewer->timerUpdate();
++  aviewer->timerUpdate();
+ 
+   /* Loop until we're done */
+ 

@@ -1,0 +1,28 @@
+--- gramofile-1.6/bplaysrc/sndfunc.c.ori	Wed Mar 21 22:29:27 2001
++++ gramofile-1.6/bplaysrc/sndfunc.c	Wed Mar 21 22:40:04 2001
+@@ -22,6 +22,7 @@
+ 
+ /* Globals */
+ int audio, abuf_size, fmt_mask;
++int audio_recorder;
+ 
+ /* Prototypes */
+ void sync_audio(void);
+@@ -36,6 +37,7 @@ extern void Die(char *err);
+ void init_sound(int recorder)
+ {
+     /* Attempt to open the audio device */
++    audio_recorder = recorder;
+     audio = open(AUDIO, (recorder)? O_RDONLY : O_WRONLY);
+     if (audio == -1)
+ 	ErrDie(AUDIO);
+@@ -76,6 +78,9 @@ void snd_parm(int speed, int bits, int s
+ 
+ void sync_audio(void)
+ {
++    /* at least Linux' via82cxxx_audio-driver reports error	*/
++    /* when trying to SNDCTL_DSP_SYNC in O_RDONLY mode		*/
+     if (ioctl (audio, SNDCTL_DSP_SYNC, NULL) < 0)
++      if (!audio_recorder)
+ 	ErrDie(AUDIO);
+ }

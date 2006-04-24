@@ -1,0 +1,41 @@
+install_drm()  {
+
+#  a better install_drm function 2.6.x ppl can't do anything with .o modules
+
+  DRM_DIR="programs/Xserver/hw/xfree86/os-support/linux/drm/kernel"
+  DRM_DEST="$INSTALL_ROOT/lib/modules/$(uname -r)/kernel/drivers/char/drm"
+  if [ "$(uname -r | cut -c-3)" = "2.6" ]; then
+    cp $DRM_DIR/*.ko $DRM_DEST
+  else
+    cp $DRM_DIR/*.o $DRM_DEST
+  fi
+  depmod -a
+  true
+}
+
+mkdir  -p  /usr/X11R6/lib                                      &&
+ln  -sf  /usr/lib/pkgconfig  /usr/X11R6/lib                    &&
+make  install                                                  &&
+make  install.man                                              &&
+      install_drm                                              &&
+mkdir  -p  /usr/X11R6/include/GL
+
+if  [  !  -e                      /etc/skel/.xsession  ];  then
+  cp  $SCRIPT_DIRECTORY/xsession  /etc/skel/.xsession
+fi  &&
+
+if  [  !  -e                    /usr/bin/X11  ];  then
+  ln      -sf   /usr/X11R6/bin  /usr/bin/X11
+fi  &&
+
+if  [  !  -e          /usr/X11  ];  then
+  ln      -sf  X11R6  /usr/X11
+fi  &&
+
+if  [  !  -e                         /usr/include/X11  ];  then
+  ln      -sf  ../X11R6/include/X11  /usr/include/X11
+fi  &&
+
+if  [  !  -e                     /usr/lib/X11  ];  then
+  ln      -sf  ../X11R6/lib/X11  /usr/lib/X11
+fi

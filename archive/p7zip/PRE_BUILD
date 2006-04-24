@@ -1,0 +1,24 @@
+default_pre_build &&
+cd $SOURCE_DIRECTORY &&
+
+sedit "s|/usr/local|$INSTALL_ROOT/usr|g" makefile &&
+
+# make sure make is using our CFLAGS, see also the sedit below
+sedit "s|CFLAGS=|CFLAGS=$CFLAGS |g" makefile.glb &&
+
+case "${HOST%%-*}" in
+i*86 | ppc | alpha)
+  cp makefile.linux_x86_ppc_alpha makefile.machine
+  ;;
+x86_64)
+  cp makefile.linux_amd64 makefile.machine
+  ;;
+#sparc*)
+#  ;;
+*)
+  message "${ERROR_COLOR}Unsupported architecture${DEFAULT_COLOR}" &&
+  false
+  ;;
+esac &&
+# we need double backslash for sed, so we have to give quadruple one here
+sedit "s|ALLFLAGS=.*\\\\|ALLFLAGS=$CFLAGS \\\\|g" makefile.machine

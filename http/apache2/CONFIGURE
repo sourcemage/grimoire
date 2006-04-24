@@ -1,0 +1,137 @@
+# Apache2 CONFIGURE script
+#
+# Created 2003-07-21 by Gareth Clay <g.clay@warwick.ac.uk> with a
+# lot of help from the linux and init.d spells ;)
+#
+# Notes:
+# Modules deliberately missed out:
+# * mod_isapi   (win32 only)
+# * mod_nw_ssl  (netware only)
+
+
+basic_config() {
+  # Perform any configuration in here that doesn't involve modules
+  local SWITCH
+
+  if query "Turn on debugging and compile-time warnings?" n
+  then
+    echo 'OPTS="$OPTS --enable-maintainer-mode"' >> $SPELL_CONFIG
+  else
+    echo 'OPTS="$OPTS --disable-maintainer-mode"' >> $SPELL_CONFIG
+  fi
+}
+
+module_list() {
+  # Return a dialog-friendly list of modules and attributes
+  for NAME in $MODULELIST
+  do
+    source $MODULEDIR/$NAME
+    echo $NAME
+    echo $TYPE
+    echo $STATUS
+    echo $SHORT
+  done
+}
+
+module_config() {
+
+  while true
+  do
+    OUTPUT=$( $DIALOG --title "$TITLE" --help-button --item-help --nocancel \
+    --checklist "Select the modules you would like to be compiled into your Apache2. It's generally a good idea to compile base modules. The rest are completely up to you!" \
+    0 0 0 \
+    $(module_list) )
+
+    RETVAL=$?
+    if [ $RETVAL == 0 ]
+    then
+      # OK or HELP was pressed
+      FIRSTFIELD=$( echo $OUTPUT | cut -d' ' -f1 )
+      REST=$( echo $OUTPUT | cut -d' ' -f2- )
+
+      if [ "$FIRSTFIELD" != "" ] && [ "$FIRSTFIELD" = "HELP" ]
+      then
+        # HELP was pressed
+        display_help
+      else
+        # OK was pressed
+        # OUTPUT now contains the list of modules to build
+        output_module_config
+        break
+      fi
+    else
+      # CANCEL was pressed
+      break
+    fi
+  done
+}
+
+display_help() {
+  # Display the long description of the selected item
+  for NAME in $MODULELIST
+  do
+    source $MODULEDIR/$NAME
+    if [ $SHORT = $REST ]
+    then
+      $DIALOG --title "Help for $NAME" \
+      --msgbox "Description of module $NAME:\n\n$DESCRIPTION" 0 0
+      break
+    fi
+  done
+}
+
+output_module_config() {
+  # Function to output the configuration info to $SPELL_CONFIG
+
+  # First we need to strip the quotes out of $OUTPUT
+  OUTPUT=$( echo $OUTPUT | sed -e 's/\"//g' )
+
+  # Iterate through all the modules. TARGET is the
+  # first unmatched module in the list of modules
+  # to enable. NAME is the name of the target module
+  # (eg. for mod_auth, $NAME would be "auth").
+
+  local TARGET=$( echo $OUTPUT | cut -d' ' -f1 )
+  local NAME
+
+  for MODULE in $MODULELIST
+  do
+    NAME=$( echo $MODULE | cut -d'_' -f2- | sed -e 's/_/-/g' )
+
+    if [ "$TARGET" = "" ] || [ "$TARGET" != "$MODULE" ]
+    then
+      # Disable this module
+      echo "OPTS=\"\$OPTS --disable-$NAME\"" >> $SPELL_CONFIG
+    else
+      # Enable this module
+      echo "OPTS=\"\$OPTS --enable-$NAME\"" >> $SPELL_CONFIG
+      OUTPUT=$( echo $OUTPUT | cut -d' ' -f2- )
+      TARGET=$( echo $OUTPUT | cut -d' ' -f1 )
+    fi
+  done
+}
+
+
+
+# Perform the configuration
+if ! grep -q 'CONFIGURED=y' $SPELL_CONFIG; then
+  local oldIFS=$IFS
+  export IFS="
+"
+
+  TITLE="Apache2 Configuration"
+  MODULEDIR="$SCRIPT_DIRECTORY/modules"
+  MODULELIST=`ls $MODULEDIR`
+  DIALOG="dialog
+--backtitle
+Apache2 Configuration
+--stdout"
+
+  basic_config
+  module_config
+
+  echo 'CONFIGURED=y' >> $SPELL_CONFIG
+
+  IFS=$oldIFS
+
+fi

@@ -1,0 +1,50 @@
+cd ${LINUX_SOURCE_DIRECTORY} &&
+# make the append
+mkdir -p ${INSTALL_ROOT}/boot &&
+if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
+	if grep 'CONFIG_MODULES=y' ./.config ; then
+		case "$VERSION" in
+			2.[0246]*)
+				message "${MESSAGE_COLOR}installing for a 2.x kernel${DEFAULT_COLOR}" &&
+				ARCH="$kernel_arch" make INSTALL_MOD_PATH="${INSTALL_ROOT}" modules_install 
+				;;
+			*)
+				message "${PROBLEM_COLOR}I again don't know what version: $VERSION is${DEFAULT_COLOR}" &&
+				return 1
+				;;
+		esac 
+	fi &&
+	message "${MESSAGE_COLOR}Copying and linking kernel${DEFAULT_COLOR}" &&
+	case  ${kernel_arch}  in
+		ppc)
+			cp ${LINUX_SOURCE_DIRECTORY}/vmlinux \
+			${INSTALL_ROOT}/boot/vmlinux-$VERSION &&
+			ln -sf vmlinux-${VERSION} \
+			${INSTALL_ROOT}/boot/vmlinux
+			;;
+		sparc*)
+			gzip -c9 ${LINUX_SOURCE_DIRECTORY}/vmlinux > \
+			${INSTALL_ROOT}/boot/vmlinuz-$VERSION &&
+			ln -sf vmlinuz-${VERSION} \
+			${INSTALL_ROOT}/boot/vmlinuz
+			;;
+		*)
+			cp ${LINUX_SOURCE_DIRECTORY}/arch/${kernel_arch}/boot/bzImage \
+			${INSTALL_ROOT}/boot/vmlinuz-$VERSION &&
+			ln -sf vmlinuz-${VERSION} \
+			${INSTALL_ROOT}/boot/vmlinuz
+			;;
+	esac &&
+	message "${MESSAGE_COLOR}Copying and linking System.map${DEFAULT_COLOR}" &&
+	cp ${LINUX_SOURCE_DIRECTORY}/System.map ${INSTALL_ROOT}/boot/System.map-${VERSION} &&
+	ln -sf System.map-${VERSION} \
+	${INSTALL_ROOT}/boot/System.map &&
+	message "${MESSAGE_COLOR}Copying and linking .config${DEFAULT_COLOR}" &&
+	cp ${LINUX_SOURCE_DIRECTORY}/.config ${INSTALL_ROOT}/boot/config-${VERSION} &&
+	ln -sf config-${VERSION} \
+	${INSTALL_ROOT}/boot/config &&
+	# for people with boot partitions so grub can still find the kernel
+	# if they reference /boot/vmlinuz in their menu.lst
+	ln -sfn . ${INSTALL_ROOT}/boot/boot
+fi &&
+ln -sfn `basename ${LINUX_SOURCE_DIRECTORY}` ${BUILD_DIRECTORY}/linux 

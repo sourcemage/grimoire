@@ -1,0 +1,317 @@
+build_checklist()  {
+
+  STATUS=$1
+  LABEL=$2
+  shift  2
+
+  for  ITEM  in  $@;  do
+    echo  $ITEM  $LABEL  $STATUS
+  done
+
+}
+
+
+select_card_drivers()  {
+
+  TITLE="Graphics Card Driver Selection Menu"
+  HELP="Key:  [X] = on, [ ] = off"
+
+  CHECKLIST="`build_checklist ON   Graphics   $ON_CARD_DRIVERS`
+             `build_checklist OFF  Graphics  $OFF_CARD_DRIVERS`"
+
+  if  XF86CardDrivers=`dialog  --backtitle  "$BACKTITLE"  \
+                               --title      "$TITLE"      \
+                               --stdout                   \
+                               --separate-output          \
+                               --checklist  "$HELP"       \
+                               18 55 10                   \
+                               $CHECKLIST`
+  then
+     ON_CARD_DRIVERS=$XF86CardDrivers
+    OFF_CARD_DRIVERS=$CARD_DRIVERS
+
+    for  ITEM  in  $ON_CARD_DRIVERS;  do
+      OFF_CARD_DRIVERS=`echo  $OFF_CARD_DRIVERS  |  sed  s/$ITEM//`
+    done
+  fi
+
+}
+
+
+select_dridrivers()  {
+
+  TITLE="DRI Driver Selection Menu"
+  HELP="Not all XFree86 supported graphics cards have DRI.
+Key:  [X] = on, [ ] = off"
+
+    CHECKLIST="`build_checklist  ON   DRI   $ON_DRI`
+               `build_checklist  OFF  DRI  $OFF_DRI`"
+
+  if  DriDrivers=`dialog  --backtitle  "$BACKTITLE"  \
+                          --title      "$TITLE"      \
+                          --stdout                   \
+                          --separate-output          \
+                          --checklist  "$HELP"       \
+                          18 55 10                   \
+                          $CHECKLIST`
+  then
+     ON_DRI=$DriDrivers
+    OFF_DRI=$DRI
+
+    for  ITEM  in  $ON_DRI;  do
+      OFF_DRI=`echo  $OFF_DRI  |  sed  s/$ITEM//`
+    done
+  fi
+
+}
+
+
+select_input_drivers()  {
+
+  TITLE="Input Driver Selection Menu"
+  HELP="Key:  [X] = on, [ ] = off"
+
+  CHECKLIST="`build_checklist  ON   Input   $ON_INPUT_DRIVERS`
+             `build_checklist  OFF  Input  $OFF_INPUT_DRIVERS`"
+
+  if  XInputDrivers=`dialog  --backtitle  "$BACKTITLE"  \
+                             --title      "$TITLE"      \
+                             --stdout                   \
+                             --separate-output          \
+                             --checklist  "$HELP"       \
+                             18 55 10                   \
+                             $CHECKLIST`
+  then
+     ON_INPUT_DRIVERS=$XInputDrivers
+    OFF_INPUT_DRIVERS=$INPUT_DRIVERS
+
+    for  ITEM  in  $ON_INPUT_DRIVERS;  do
+      OFF_INPUT_DRIVERS=`echo  $OFF_INPUT_DRIVERS  |  sed  s/$ITEM//`
+    done
+  fi
+
+}
+
+
+initialize()  {
+
+  BACKTITLE="Source Mage XFree86 host.def Configuration Menu"
+
+   ON_CARD_DRIVERS="vga vesa v4l"
+  OFF_CARD_DRIVERS="mga glint nv tga s3virge sis rendition neomagic i740
+                    tdfx savage cirrus vmware tseng trident chips apm
+                    GlideDriver fbdev i128 ati i810 ark cyrix 
+                    siliconmotion"
+      CARD_DRIVERS="$ON_CARD_DRIVERS  $OFF_CARD_DRIVERS"
+
+
+   ON_DRI=""
+  OFF_DRI="gamma tdfx mga i810 i830 r128 radeon sis r200 mach64
+           s3v trident"
+      DRI="$ON_DRI  $OFF_DRI"
+
+
+   ON_INPUT_DRIVERS="mouse keyboard"
+  OFF_INPUT_DRIVERS="acecad calcomp citron digitaledge dmc dynapro elographics
+                     fpit hyperpen jamstudio magictouch magellan microtouch
+                     mutouch palmax penmount summa tek4957 spaceorb wacom void"
+      INPUT_DRIVERS="$ON_INPUT_DRIVERS  $OFF_INPUT_DRIVERS"
+
+
+  YES_FONT_OPTIONS="MakeLocalFontDir Build75DpiFonts Build100DpiFonts
+                    BuildType1Fonts BuildTrueTypeFonts BuildSpeedoFonts
+                    GzipFontCompression CompressAllFonts"
+   NO_FONT_OPTIONS="BuildCIDFonts BuildCyrillicFonts UseKoi8RForCyrillic
+                    BuildLatin2Fonts BuildArabicFonts BuildThaiFonts
+                    BuildGreekFonts BuildHebrewFonts BuildJapaneseFonts
+                    BuildKoreanFonts BuildBethMarduthoFonts BuildEthiopicFonts
+                    BuildChineseFonts BuildISO8859_2Fonts BuildISO8850_3Fonts
+                    BuildISO8859_4Fonts BuildISO8859_9Fonts BuildISO8859_10Fonts
+                    BuildISO8859_13Fonts BuildISO8859_14Fonts
+                    BuildISO8859_15Fonts BuildISO8859_16Fonts
+                    BuildBuiltinFonts BuildFontServer InstallFSConfig"
+      FONT_OPTIONS="$YES_FONT_OPTIONS  $NO_FONT_OPTIONS"
+
+  YES_MISC_OPTIONS="HasShm BuildXF86DRI BuildXF86DRM BuildGLULibrary 
+                    BuildGlxExt BuildOSMesaLib
+                    InstallXinitConfig InstallXdmConfig"
+   NO_MISC_OPTIONS="BuildServersOnly  XnestServer
+                    LinuxFBDevSupport XVirtualFramebufferServer"
+      MISC_OPTIONS="$YES_MISC_OPTIONS  $NO_MISC_OPTIONS"
+
+}
+
+
+generate_host_def()  {
+
+  echo  "#define DefaultCCOptions      $CFLAGS"
+  echo  "#define DefaultGcc2i386Opt    $CFLAGS"
+  echo  "#define LibraryCDebugFlags    $CFLAGS"
+  echo  "#define DefaultCDebugFlags    $CFLAGS"
+  echo  "#define OptimizedCDebugFlags  $CFLAGS"
+  echo  "#define HasZlib YES"
+  echo  "#define HasFontconfig YES"
+  echo  "#define HasFreetype2 YES"
+  echo  "#define HasExpat YES"
+
+  if  [  -z  "$XF86CardDrivers"  ];  then
+    XF86CardDrivers="$ON_CARD_DRIVERS"
+  fi
+
+  XF86CardDrivers=`echo  $XF86CardDrivers  |  tr  '
+' ' '`
+  echo  "#define XF86CardDrivers $XF86CardDrivers"
+
+
+  if  [  -z  "$DriDrivers"  ];  then
+    echo  "#define DriDrivers /**/"
+  else
+    DriDrivers=`echo  $DriDrivers  |  tr  '
+' ' '`
+    echo  "#define DriDrivers $DriDrivers"
+  fi
+
+
+
+  if  [  -z  "$XInputDrivers"  ];  then
+    echo  "#define XInputDrivers mouse"
+  else
+    XInputDrivers=`echo  $XInputDrivers  |  tr  '
+' ' '`
+    echo  "#define XInputDrivers $XInputDrivers"
+  fi
+
+
+
+  for  ITEM  in   $YES_FONT_OPTIONS;  do
+    echo  "#define $ITEM  YES"
+  done
+
+  for  ITEM  in  $NO_FONT_OPTIONS;  do
+    echo  "#define $ITEM  NO"
+  done
+
+  for  ITEM  in   $YES_MISC_OPTIONS;  do
+    echo  "#define $ITEM  YES"
+  done
+
+  for  ITEM  in  $NO_MISC_OPTIONS;  do
+    echo  "#define $ITEM  NO"
+  done
+
+}
+
+
+save_host_def()  {
+
+
+  TARGET1="$CONFIG_CACHE/host.def"
+
+  dialog  --backtitle  "$BACKTITLE"                        \
+          --msgbox     "Saving Configuration to $TARGET1"  \
+          6 40
+
+  generate_host_def  >  "$TARGET1"
+
+}
+
+
+select_font_options() {
+
+  TITLE="Select Font Options"
+  CHECKLIST="`build_checklist  ON   Option  $YES_FONT_OPTIONS`
+             `build_checklist  OFF  Option   $NO_FONT_OPTIONS`"
+  HELP="Key:  [X] = on, [ ] = off"
+
+  if  ON_FONT_OPTIONS=`dialog  --backtitle  "$BACKTITLE"  \
+                               --title      "$TITLE"      \
+                               --stdout                   \
+                               --separate-output          \
+                               --checklist  "$HELP"       \
+                               18 55 10                   \
+                              $CHECKLIST`
+  then
+    YES_FONT_OPTIONS=$ON_FONT_OPTIONS
+     NO_FONT_OPTIONS=$FONT_OPTIONS
+
+    for  ITEM  in  $YES_FONT_OPTIONS;  do
+      NO_FONT_OPTIONS=`echo  $NO_FONT_OPTIONS  |  sed  s/$ITEM//`
+    done
+  fi
+
+}  
+
+
+select_misc_options() {
+
+  TITLE="Select Misc Options"
+  CHECKLIST="`build_checklist  ON   Option  $YES_MISC_OPTIONS`
+             `build_checklist  OFF  Option   $NO_MISC_OPTIONS`"
+  HELP="Key:  [X] = on, [ ] = off"
+
+  if  ON_MISC_OPTIONS=`dialog  --backtitle  "$BACKTITLE"  \
+                               --title      "$TITLE"      \
+                               --stdout                   \
+                               --separate-output          \
+                               --checklist  "$HELP"       \
+                               18 55 10                   \
+                               $CHECKLIST`
+  then
+    YES_MISC_OPTIONS=$ON_MISC_OPTIONS
+     NO_MISC_OPTIONS=$MISC_OPTIONS
+
+    for  ITEM  in  $YES_MISC_OPTIONS;  do
+      NO_MISC_OPTIONS=`echo  $NO_MISC_OPTIONS  |  sed  s/$ITEM//`
+    done
+  fi
+
+}
+
+
+configure_host_def()  {
+
+  initialize
+
+  while  
+
+    COMMAND=`dialog  --backtitle  "$BACKTITLE"                        \
+                     --stdout                                         \
+                     --title  "Main Menu"                             \
+                     --default-item  $COMMAND                         \
+                     --nocancel                                       \
+                     --menu                                           \
+                     ""                                               \
+                     18 55 10                                         \
+                     "XF86CardDrivers"  "Select Video Card Drivers"   \
+                     "DriDrivers"       "Select Direct DRI Drivers"   \
+                     "XInputDrivers"    "Select Input Drivers"        \
+                     "Fonts"            "Select Font Options"         \
+                     "Misc"             "Set other Options"           \
+                     "Save"             "Save current configuration"  \
+                     "Edit"             "Edit host.def"               \
+                     "Exit"             "Done here.  Start building"`
+  do
+
+    case  $COMMAND  in
+                 Exit)  break                        ;;
+                 Save)  save_host_def                ;;
+                 Edit)  [  -n   "$EDITOR"  ]         &&
+                        $EDITOR  /etc/sorcery/local/host.def  ||
+                        nano     /etc/sorcery/local/host.def  ;;
+      XF86CardDrivers)  select_card_drivers          ;;
+           DriDrivers)  select_dridrivers            ;;
+        XInputDrivers)  select_input_drivers         ;;
+                Fonts)  select_font_options          ;;
+                 Misc)  select_misc_options          ;;
+    esac
+  done
+
+}
+
+if    [  -f  $CONFIG_CACHE/host.def  ]
+then  message  "Reconfiguration is optional."
+fi
+
+if    query  "Configure host.def?"  n
+then  configure_host_def
+fi

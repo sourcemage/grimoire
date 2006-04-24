@@ -1,0 +1,30 @@
+mk_source_dir  $SOURCE_DIRECTORY    &&
+unpack         $SOURCE   ${MD5[0]}  &&
+unpack         $SOURCE2  ${MD5[1]}  &&
+unpack         $SOURCE3  ${MD5[2]}  &&
+unpack         $SOURCE4  ${MD5[3]}  &&
+unpack         $SOURCE5  ${MD5[4]}  &&
+unpack         $SOURCE6  ${MD5[5]}  &&
+unpack         $SOURCE7  ${MD5[6]}  &&
+cd $SOURCE_DIRECTORY                &&
+INDEX=7                             &&
+for p in ${PATCH_SOURCES[*]}
+ do message "${MESSAGE_COLOR}Checking integrity of patch $p...${DEFAULT_COLOR}"           &&
+    SUM=$(bzip2 -cd $SOURCE_CACHE/$p | md5sum | cut -d ' ' -f 1)                          &&
+    if [ "$SUM" != "${MD5[$((INDEX++))]}" ]
+       then message "${PROBLEM_COLOR}Integrity check for patch $p failed${DEFAULT_COLOR}" &&
+            return 1  # in a loop, '&&' thingy doesn't do what it's supposed to
+    fi                                                                                    &&
+    message "${MESSAGE_COLOR}Applying patch $p...${DEFAULT_COLOR}"                        &&
+    if ! bzip2 -cd $SOURCE_CACHE/$p | patch -N -p1 -s; then
+      ### xfree86 patches may not be maintained properly, and some minor errors
+      ### may occur during their application, that do not preclude us from proceeding.
+      true
+    fi
+ done                                                                                    &&
+  rm -fr lib/zlib   # moved in CVS, patch doesn't apply cleanly
+
+patch  -d $SOURCE_DIRECTORY -p0  <  $SCRIPT_DIRECTORY/xfree86-xft-releasefile-crash.patch  &&
+#recommended by xfree86.org
+mk_source_dir  $SOURCE_DIRECTORY.bld 
+

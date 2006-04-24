@@ -1,0 +1,267 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+## @Synopsis Functions for dealing with account and group generation etc.
+## @Copyright Copyright (C) 2004 The Source Mage Team <http://www.sourcemage.org>
+## A library to help deal with managing accounts, particularly creating 
+## new accounts.
+##
+#---------------------------------------------------------------------
+
+ACCOUNT_LIST=$GRIMOIRE/accounts
+GROUP_LIST=$GRIMOIRE/groups
+
+#---------------------------------------------------------------------
+## Tests account and group list if there are no duplicate ID's. In
+## case there are, exits since this is serious problem
+#---------------------------------------------------------------------
+function sanity_checks() {
+  local COUNT1=$( cut -d : -f2 "$ACCOUNT_LIST" | wc -l )
+  local COUNT2=$( cut -d : -f2 "$ACCOUNT_LIST" | sort -u | wc -l )
+  if [ $COUNT1 != $COUNT2 ]; then
+    message "${PROBLEM_COLOR}Fatal error, $ACCOUNT_LIST contains duplicate UID's${DEFAULT_COLOR}"
+    exit 1
+  fi
+
+  COUNT1=$( cut -d : -f2 "$GROUP_LIST" | wc -l )
+  COUNT2=$( cut -d : -f2 "$GROUP_LIST" | sort -u | wc -l )
+  if [ $COUNT1 != $COUNT2 ]; then
+    message "${PROBLEM_COLOR}Fatal error, $GROUP_LIST contains duplicate GID's${DEFAULT_COLOR}"
+    exit 1
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param system account
+## @param [home directory] - default used when not defined or empty
+## @param [shell] - default used when not defined or empty
+## @param [secondary gids] - comma separated list with
+##                           no intervening whitespace
+##
+## Creates account (if account has been defined).
+## @return 0 if success (or account already exists).
+## @return 1 if failed (or account has not been defined).
+##
+#---------------------------------------------------------------------
+function create_account() {
+
+#  sanity_checks
+
+  local HOME_DIR=/var/run/$1
+  if [ -n "$2" ]; then
+    HOME_DIR="$2"
+  fi
+
+  local USER_SHELL=/bin/false
+  if [ -n "$3" ]; then
+    USER_SHELL="$3"
+  fi
+
+  local SECONDARY_GIDS=''
+  if [ -n "$4" ]; then
+    SECONDARY_GIDS="-G $4"
+  fi
+
+  if ! exists_account "$1" ; then
+    debug "libgrimoire" "create_account() - $1 not defined!"
+    return 0  # should return 0 to gracefully continue casting.
+  fi
+
+  local ACCOUNT_UID=`get_uid_for_account $1`
+  local PRIMARY_GID=`get_primary_gid_for_account $1`
+  local PRIMARY_GNAME=`get_group_name $PRIMARY_GID`
+
+  debug "libgrimoire" "create_account() - $1, UID=$ACCOUNT_UID, GID=$PRIMARY_GID:$PRIMARY_GNAME, HOME=$HOME_DIR, SHELL=$USER_SHELL, SECONDARY_GIDS=$4"
+
+  groupadd -g $PRIMARY_GID -f $PRIMARY_GNAME
+
+  # check for adding user problems and try to notify user.
+  useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME $SECONDARY_GIDS -d "$HOME_DIR" -s "$USER_SHELL" $1
+  local USERADD_RETURN=$?
+  debug "libgrimoire.create_account()" "useradd return code was: $USERADD_RETURN"
+
+  if    [  $USERADD_RETURN  ==  0  ] ; then
+    message "${MESSAGE_COLOR}The user id $ACCOUNT_UID created!${DEFAULT_COLOR}"
+  elif  [  $USERADD_RETURN  ==  4  ] ; then
+    message "${MESSAGE_COLOR}The user id $ACCOUNT_UID already exists, so continuing...${DEFAULT_COLOR}"
+    return 0
+  elif  [  $USERADD_RETURN  ==  9  ] ; then
+    message "${MESSAGE_COLOR}The user name $1 already exists, so continuing...${DEFAULT_COLOR}"
+    return 0
+  else
+    debug "libgrimoire.create_account()"  "useradd fails with strange code : $USERADD_RETURN"
+    message "${MESSAGE_COLOR}Something went wrong with adding the user $1 with uid $ACCOUNT_UID"
+    message "and gid $PRIMARY_GNAME so going to stop here...${DEFAULT_COLOR}"
+    return 1
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param system group
+##
+## Creates group (if group has been defined).
+## @return 0 if success (or group already exists).
+## @return 1 if failed (or group has not been defined).
+##
+#---------------------------------------------------------------------
+function create_group() {
+
+#  sanity_checks
+
+  if ! exists_group "$1" ; then
+    debug "libgrimoire" "create_group() - $1 not defined!"
+    return 0  # should return 0 to gracefully continue casting.
+  fi
+
+  local GROUP_GID=`get_gid_for_group $1`
+
+  debug "libgrimoire" "create_group() - $1, GID=$GROUP_UID "
+
+  groupadd -g $GROUP_GID $1  > /dev/null 2>&1
+
+  local GROUPADD_RETURN=$?
+  debug "libgrimoire.create_group()" "groupadd return code was: $GROUPADD_RETURN"
+
+  if    [  $GROUPADD_RETURN  ==  0  ] ; then
+    message "${MESSAGE_COLOR}The group name $1 with id $GROUP_GID has been created!${DEFAULT_COLOR}"
+  elif  [  $GROUPADD_RETURN  ==  4  ] ; then
+    message "${MESSAGE_COLOR}The group id $GROUP_GID already exists, stopping here...${DEFAULT_COLOR}"
+    return 1
+  elif  [  $GROUPADD_RETURN  ==  9  ] ; then
+    message "${MESSAGE_COLOR}The group name $1 already exists, so continuing...${DEFAULT_COLOR}"
+    return 0
+  else
+    debug "libgrimoire.create_group()"  "groupadd fails with strange code : $GROUPADD_RETURN"
+    message "${MESSAGE_COLOR}Something went wrong with adding the group $1 with gid $GROUP_GID"
+    message "so going to stop here...${DEFAULT_COLOR}"
+    return 1
+  fi
+}
+
+
+#---------------------------------------------------------------------
+## @param gid
+##
+## @Stdout group name
+## returns that name assigned to a group id.
+##
+#---------------------------------------------------------------------
+function get_group_name() {
+
+  if  grep  -q  ":$1:"  $GROUP_LIST;  then
+    grep ":$1:" $GROUP_LIST | cut -d : -f1
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+## @param system account
+##
+## @Stdout group ids
+## Return list of group id's assigned to account name.
+## All except primary
+##
+#---------------------------------------------------------------------
+function get_gids_for_account() {
+
+  if  grep  -q  "^$1:"  $ACCOUNT_LIST;  then
+    ENTRY=`grep "^1:" $ACCOUNT_LIST`
+    i=4
+    while  [[  `echo $ENTRY | cut -d : -f$i` ]] ; do
+     NEW=`echo $ENTRY | cut -d : -f$i`
+     GROUPS="$GROUPS $NEW"
+      let i++
+    done
+  fi
+  return $GROUPS
+}
+
+
+#---------------------------------------------------------------------
+## @param system account
+## @return 0 if exists
+## @return 1 if not
+##
+#---------------------------------------------------------------------
+function exists_account() {
+
+  grep  -q  "^$1:"  $ACCOUNT_LIST
+
+}
+
+
+#---------------------------------------------------------------------
+## @param named system account
+## @Stdout UID
+## Outputs the UID for the named system account
+##
+#---------------------------------------------------------------------
+function get_uid_for_account()  {
+
+  if  grep  -q  "$1:"  $ACCOUNT_LIST;  then
+    grep "^$1:" $ACCOUNT_LIST | cut -d : -f2
+  fi
+
+}
+
+#---------------------------------------------------------------------
+## @param named system group
+## @Stdout GID
+## Outputs the GID for the named system group
+##
+#---------------------------------------------------------------------
+function get_gid_for_group()  {
+
+  if  grep  -q  "$1:"  $GROUP_LIST;  then
+    grep "^$1:" $GROUP_LIST | cut -d : -f2
+  fi
+
+}
+
+#---------------------------------------------------------------------
+## @param named system account
+## @Stdout GID
+##
+## Outputs the GID for the named system account
+##
+#---------------------------------------------------------------------
+function get_primary_gid_for_account()  {
+
+  if  grep  -q  "$1:"  $ACCOUNT_LIST;  then
+    grep "^$1:" $ACCOUNT_LIST | cut -d : -f3
+  fi
+
+}
+
+#---------------------------------------------------------------------
+## @param system group
+## @return 0 if exists
+## @return 1 if not
+##
+#---------------------------------------------------------------------
+function exists_group() {
+
+  grep  -q  "^$1:"  $GROUP_LIST
+
+}
+
+#---------------------------------------------------------------------
+## @License
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
+

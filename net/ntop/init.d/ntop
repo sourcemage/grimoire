@@ -1,0 +1,26 @@
+#!/bin/bash
+
+. /etc/sysconfig/ntop
+
+if  [  -d  /etc/sysconfig/network  ] ; then
+  for i in /etc/sysconfig/network/*.dev ; do
+    i=$( basename ${i%.dev} )
+    [ "$i" = "lo" -a "$IGNORE_LO" = "yes" ] && continue
+    IFACES="${IFACES},$i"
+  done
+  IFACES="${IFACES#,}"    # Remove comma from beginning of list
+fi
+
+PROGRAM=/usr/bin/ntop
+NAME="ntop (using following interfaces: ${IFACES}"
+ARGS="-d -u ntop -w $HTTP_PORT -W $HTTPS_PORT \
+          --use-syslog=daemon -i ${IFACES} -M"
+RUNLEVEL=3
+NEEDS="+network +remote_fs"
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo "Starting ntop (tracking interfaces: ${IFACES}..."
+  loadproc $PROGRAM $ARGS
+}

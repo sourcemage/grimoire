@@ -1,0 +1,61 @@
+local  PVM_HOME   \
+       PVM_ARCH   &&
+
+PVM_HOME=$INSTALL_ROOT/usr/share/pvm    &&
+PVM_ARCH=`ls -1 $SOURCE_DIRECTORY/bin`  &&
+
+install  -d       $PVM_HOME/conf                          &&
+install  -m  644  $SOURCE_DIRECTORY/conf/${PVM_ARCH}.def  \
+                  $PVM_HOME/conf                          &&
+install  -d       $PVM_HOME/bin/$PVM_ARCH                 &&
+install  -m  755  $SOURCE_DIRECTORY/bin/$PVM_ARCH/*       \
+                  $PVM_HOME/bin/$PVM_ARCH                 &&
+install  -d       $PVM_HOME/lib/$PVM_ARCH                 &&
+install  -m  755  $SOURCE_DIRECTORY/lib/$PVM_ARCH/*       \
+                  $PVM_HOME/lib/$PVM_ARCH                 &&
+
+for  file  in  lib/*;  do
+  if  test  -f  $file;  then
+    install  -m  755  $file  $PVM_HOME/lib
+  fi
+done  &&
+
+install  -d       $PVM_HOME/include             &&
+install  -m  644  $SOURCE_DIRECTORY/include/*   \
+                  $PVM_HOME/include             &&
+ln       -s       $PVM_HOME/include/*           \
+                  $INSTALL_ROOT/usr             &&
+install  -d       $INSTALL_ROOT/usr/man/man1    &&
+install  -m  644  $SOURCE_DIRECTORY/man/man1/*  \
+                  $INSTALL_ROOT/usr/man/man1    &&
+install  -d       $INSTALL_ROOT/usr/man/man3    &&
+install  -m  644  $SOURCE_DIRECTORY/man/man3/*  \
+                  $INSTALL_ROOT/usr/man/man3    &&
+
+pushd  .                     &&
+cd  $PVM_HOME/lib/$PVM_ARCH  &&
+
+for  file  in  lib*.a;  do
+  ln  -sf  $PVM_HOME/lib/$PVM_ARCH/$file  \
+           $INSTALL_ROOT/usr/lib/$file
+done  &&
+
+cd  $PVM_HOME/lib  &&
+
+for  file  in  {aimk,pvm,pvmd,pvmgetarch,pvmtmparch,xpvm};  do
+  ln  -sf  $PVM_HOME/lib/$file            \
+           $INSTALL_ROOT/usr/bin/$file    &&
+  ln  -sf  $PVM_HOME/lib/$file            \
+           $PVM_HOME/lib/$PVM_ARCH/$file
+done  &&
+
+popd  &&
+
+sedit "s/\`pwd.*$/\"\/usr\/share\/pvm\" ;;/"              $PVM_HOME/lib/pvm   &&
+sedit "s/\`pwd.*$/\"\/usr\/share\/pvm\" ;;/"              $PVM_HOME/lib/pvmd  &&
+sedit "s/\`pwd.*$/\"\/usr\/share\/pvm\" ;;/"              $PVM_HOME/lib/xpvm  &&
+sedit "s/\/\*/\#\*/"                                      $PVM_HOME/lib/pvm   &&
+sedit "s/\/\*/\#\*/"                                      $PVM_HOME/lib/pvmd  &&
+sedit "s/\/\*/\#\*/"                                      $PVM_HOME/lib/xpvm  &&
+sedit "s/exec \$XPVM_ROOT\/src/exec \$XPVM_ROOT\/lib/"    $PVM_HOME/lib/xpvm  &&
+sedit "s/XPVM_ROOT=.*$/XPVM_ROOT=\"\/usr\/share\/pvm\"/"  $PVM_HOME/lib/xpvm 

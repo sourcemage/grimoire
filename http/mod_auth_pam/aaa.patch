@@ -1,0 +1,552 @@
+diff -urN mod_auth_pam-2.0-1.1.1/mod_auth_pam.c mod_auth_pam/mod_auth_pam.c
+--- mod_auth_pam-2.0-1.1.1/mod_auth_pam.c	2003-03-24 09:26:10.000000000 -0500
++++ mod_auth_pam/mod_auth_pam.c	2003-03-25 01:10:57.000000000 -0500
+@@ -36,10 +36,10 @@
+  *  basic authentication against pluggable authentication module lib
+  *
+  * The authoritative homepage for this module is at
+- *	http://pam.sourceforge.net/
++ *    http://pam.sourceforge.net/
+  *
+  * For assistance and support, contact the pam-list
+- *	https://listman.redhat.com/mailman/listinfo/pam-list
++ *    https://listman.redhat.com/mailman/listinfo/pam-list
+  * or the Help forum on SourceForge.
+  *
+  * Written by Ingo Luetkebohle, based upon mod_auth.c, with contributions
+@@ -51,27 +51,36 @@
+  * provided invaluable development help and ideas.
+  *
+  * Changes:
++ *   24-Mar-03: Conditional compilation directives have been added
++ *              to distinguish between 2.0 and 2.1 trees. Apache 2.1
++ *              contains rewritten authentication/authorization
++ *              subsystem which requires different way of registration.
++ *              They did not mark this change in ap_mmn.h, so I'm using
++ *              20020903.1 as the first 2.1-related change MMN.
++ *              AuthPAM_Enabled and AuthPAM_FallThrough is not necessary
++ *              anymore because of AuthBasicProvider/AuthDigestProvider
++ *              directives.
+  *   24-Aug-02: Small bugfixes and build setup improved
+  *   09-Jul-02: Ported to apache 2.02 (Dirk-Willem van Gulik,
+  *              <dirkx@covalent.net>).
+  *   07-Jul-02: License changed to allow redistribution
+- *		Performance improvement for group lookup
+-		(many thanks to Fredrik Ohrn for the patch)
++ *        Performance improvement for group lookup
++ *        (many thanks to Fredrik Ohrn for the patch)
+  *   06-Dec-99: Special casing for Solaris 2.6 added
+  *              Added versioning message to headers
+  *   14-Feb-99: Cleaned up the configuration directives and named them
+- *		in a more straightforward way
++ *        in a more straightforward way
+  *
+- *		incorporated getugroups patch from Klaus Wissmann <kw@aw.net>
+- *		to look up supplementary groups from /etc/group
++ *        incorporated getugroups patch from Klaus Wissmann <kw@aw.net>
++ *        to look up supplementary groups from /etc/group
+  *
+  *   22-Jan-99: incorporated changes from Pavel Kankovsky <kan@dcit.cz>
+- *		Enabler configuration directive now called AuthPAM_Enabled
+- *		Updated for Apache 1.3.x
++ *        Enabler configuration directive now called AuthPAM_Enabled
++ *        Updated for Apache 1.3.x
+  *   25-Sep-98: replaced pwdb groups routine with standard C
+  *   19-Oct-97: made module fall through (if configured to do so),
+- * 		even when a user of the given name is found in the PAM
+- *		databases
++ *         even when a user of the given name is found in the PAM
++ *        databases
+  *   17-Apr-97: fixed segfault that occured when Apache couldn't look
+  *              up the remote host name
+  *              removed annoying compiler warnings
+@@ -87,54 +96,56 @@
+  *
+  * new-style (DSO and apache 2.0)
+  *
+- *	compile with
+- *		apxs -c -lpam mod_auth_pam.c
++ *    compile with
++ *        apxs -c -lpam mod_auth_pam.c
+  *
+- *		apxs -I/usr/local/include -L/usr/local/lib -c -lpam mod_auth_pam.c
++ *        apxs -I/usr/local/include -L/usr/local/lib -c -lpam mod_auth_pam.c
+  *
+- * 	install with
+- *		apxs -i -a mod_auth_pam.so
++ *     install with
++ *        apxs -i -a mod_auth_pam.so
+  *
+- *	configure PAM by adding
+- *		/etc/pam.d/httpd
++ *    configure PAM by adding
++ *        /etc/pam.d/httpd
+  *
+- *	with the appropriate pam modules (for starters, just copy over ftp)
++ *    with the appropriate pam modules (for starters, just copy over ftp)
+  *
+  *
+  * configuration directives:
++ *
++ * AuthPAM_Enabled on|off    DEPRECATED in 2.1+
++ *                If on, mod_auth_pam will try to authenticate
++ *                the user.
++ *                If off, mod_auth_pam will DECLINE immediately
++ *                instead of trying to authenticate the user.
++ *                This will make Apache try other modules.
++ *                Defaults to on
++ *
+  * AuthFailDelay <msecs>
+- *                              number of mili-seconds to wait after a
+- *                              failed authentication attempt. this is
+- *                              a minimum value and may have been
+- *                              increased by other pam apps.
+- *                              defaults to 0
+- *				REQUIRES lib_pam SUPPORT
+- *
+- * AuthPAM_Enabled on|off
+- *                              If on, mod_auth_pam will try to authenticate
+- *				the user.
+- *				If off, mod_auth_pam will DECLINE immediately
+- *				instead of trying to authenticate the user.
+- *				This will make Apache try other modules.
+- *				Defaults to on
+- *
+- * AuthPAM_FallThrough
+- *				If on, makes mod_auth_pam DECLINE if it can't
+- *				the username, giving other modules a chance.
+- *				Please note that, if it DOES find the username,
+- *				and the password doesn't match, it will NOT
+- *				fall through but return "access denied" instead
+- *				Defaults to off
++ *                number of mili-seconds to wait after a
++ *                failed authentication attempt. this is
++ *                a minimum value and may have been
++ *                increased by other pam apps.
++ *                defaults to 0
++ *                REQUIRES lib_pam SUPPORT
++ *
++ * AuthPAM_FallThrough on|off    DEPRECATED in 2.1+
++ *                If on, makes mod_auth_pam DECLINE if it can't
++ *                the username, giving other modules a chance.
++ *                Please note that, if it DOES find the username,
++ *                and the password doesn't match, it will NOT
++ *                fall through but return "access denied" instead
++ *                Defaults to off
+  *
+  * AuthPAM_Authorative on|off   DEPRECATED
+  */
+ 
+ #include <sys/types.h>
+-#include <pwd.h>		/* for getpwnam et.al. */
+-#include <grp.h>		/* for getpwnam et.al. */
++#include <pwd.h>        /* for getpwnam et.al. */
++#include <grp.h>        /* for getpwnam et.al. */
+ #include <unistd.h>
+ 
+ #include "ap_config.h"
++#include "ap_provider.h"
+ #include "httpd.h"
+ #include "http_config.h"
+ #include "http_core.h"
+@@ -142,20 +153,24 @@
+ #include "http_protocol.h"
+ #include "http_request.h"
+ 
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++#include "mod_auth.h"
++#endif
++
+ #include <security/pam_appl.h>
+ 
+ /* change this to 0 on RedHat 4.x */
+ #define PAM_STRE_NEEDS_PAMH 1
+-#define VERSION "2.0-1.1"
++#define VERSION "2.0-1.1.2"
+ 
+ module auth_pam_module;
+ 
+ static const char
+-	*pam_servicename = "httpd",
+-	*valid_user 	 = "valid-user";
++    *pam_servicename = "httpd",
++    *valid_user      = "valid-user";
+ 
+ typedef struct {
+-    char *name, *pw;
++    const char *name, *pw;
+ }      auth_pam_userinfo;
+ 
+ /*
+@@ -184,20 +199,23 @@
+ 
+ typedef struct {
+     int
+-        fail_delay,		/* fail delay in ms -- needs library support */
+-        fall_through,		/* 1 to DECLINE instead of
+-				 * HTTP_UNAUTHORIZEDif we can't find the
+-				 * username (defaults to 0) */
+-        enabled;		/* 1 to use mod_auth_pam, 0 otherwise
+-				 * (defaults to 1) */
++        fail_delay       /* fail delay in ms -- needs library support */
++#if !AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++        , fall_through   /* 1 to DECLINE instead of
++                          * HTTP_UNAUTHORIZEDif we can't find the
++                          * username (defaults to 0) */
++        , enabled        /* 1 to use mod_auth_pam, 0 otherwise
++                          * (defaults to 1) */
++#endif
++      ;
+ }      auth_pam_dir_config;
+ 
+ static
+ int auth_pam_init(
+-		      apr_pool_t * p,
+-		      apr_pool_t * plog,
+-		      apr_pool_t * ptemp,
+-		      server_rec * s
++              apr_pool_t * p,
++              apr_pool_t * plog,
++              apr_pool_t * ptemp,
++              server_rec * s
+ )
+ {
+     ap_log_error(APLOG_MARK, APLOG_INFO, 0, s, "PAM: mod_auth_pam/" VERSION);
+@@ -211,31 +229,35 @@
+     auth_pam_dir_config *new =
+     (auth_pam_dir_config *) apr_palloc(p, sizeof(auth_pam_dir_config));
+ 
+-    new->fail_delay = 0;	/* 0 ms */
+-    new->fall_through = 0;	/* off */
+-    new->enabled = 1;		/* on */
++    new->fail_delay = 0;      /* 0 ms */
++#if !AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++    new->fall_through = 0;    /* off */
++    new->enabled = 1;         /* on */
++#endif
+     return new;
+ }
+ 
+ static command_rec auth_pam_cmds[] = {
+ 
+     AP_INIT_TAKE1("AuthPAM_FailDelay",
+-	ap_set_int_slot, (void *) APR_OFFSETOF(auth_pam_dir_config, fail_delay),
+-	OR_AUTHCFG,
+-	"number of micro seconds to wait after failed authentication "
+-	"attempt. (default is 0.)"),
++    ap_set_int_slot, (void *) APR_OFFSETOF(auth_pam_dir_config, fail_delay),
++    OR_AUTHCFG,
++    "number of micro seconds to wait after failed authentication "
++    "attempt. (default is 0.)"),
+ 
++#if !AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
+     AP_INIT_FLAG("AuthPAM_FallThrough",
+-	 ap_set_flag_slot, (void *) APR_OFFSETOF(auth_pam_dir_config, fall_through),
+-	 OR_AUTHCFG,
+-	"on|off - determines if other authentication methods are attempted "
+-	 "if this one fails; (default is off.)"),
++     ap_set_flag_slot, (void *) APR_OFFSETOF(auth_pam_dir_config, fall_through),
++     OR_AUTHCFG,
++    "on|off - determines if other authentication methods are attempted "
++     "if this one fails; (default is off.)"),
+ 
+     AP_INIT_FLAG("AuthPAM_Enabled",
+-	 ap_set_flag_slot, (void *) APR_OFFSETOF(auth_pam_dir_config, enabled),
+-	 OR_AUTHCFG,
+-	 "on|off - determines if PAM authentication is enabled. "
+-	 "(default is on.)"),
++     ap_set_flag_slot, (void *) APR_OFFSETOF(auth_pam_dir_config, enabled),
++     OR_AUTHCFG,
++     "on|off - determines if PAM authentication is enabled. "
++     "(default is on.)"),
++#endif
+ 
+     {NULL}
+ };
+@@ -250,9 +272,9 @@
+  */
+ static
+ int auth_pam_talker(int num_msg,
+-		        const struct pam_message ** msg,
+-		        struct pam_response ** resp,
+-		        void *appdata_ptr)
++                const struct pam_message ** msg,
++                struct pam_response ** resp,
++                void *appdata_ptr)
+ {
+     unsigned short i = 0;
+     auth_pam_userinfo *userinfo = (auth_pam_userinfo *) appdata_ptr;
+@@ -260,39 +282,39 @@
+ 
+ #if SOLARIS2 == 260
+     if (!userinfo)
+-	userinfo = global_userinfo;
++    userinfo = global_userinfo;
+     /* fprintf(stderr,"%s : %s", userinfo->name, userinfo->pw); */
+ #endif
+ 
+     /* parameter sanity checking */
+     if (!resp || !msg || !userinfo)
+-	return PAM_CONV_ERR;
++    return PAM_CONV_ERR;
+ 
+     /* allocate memory to store response */
+     response = malloc(num_msg * sizeof(struct pam_response));
+     if (!response)
+-	return PAM_CONV_ERR;
++    return PAM_CONV_ERR;
+ 
+     /* copy values */
+     for (i = 0; i < num_msg; i++) {
+-	/* initialize to safe values */
+-	response[i].resp_retcode = 0;
+-	response[i].resp = 0;
+-
+-	/* select response based on requested output style */
+-	switch (msg[i]->msg_style) {
+-	case PAM_PROMPT_ECHO_ON:
+-	    /* on memory allocation failure, auth fails */
+-	    response[i].resp = strdup(userinfo->name);
+-	    break;
+-	case PAM_PROMPT_ECHO_OFF:
+-	    response[i].resp = strdup(userinfo->pw);
+-	    break;
+-	default:
+-	    if (response)
+-		free(response);
+-	    return PAM_CONV_ERR;
+-	}
++    /* initialize to safe values */
++    response[i].resp_retcode = 0;
++    response[i].resp = 0;
++
++    /* select response based on requested output style */
++    switch (msg[i]->msg_style) {
++    case PAM_PROMPT_ECHO_ON:
++        /* on memory allocation failure, auth fails */
++        response[i].resp = strdup(userinfo->name);
++        break;
++    case PAM_PROMPT_ECHO_OFF:
++        response[i].resp = strdup(userinfo->pw);
++        break;
++    default:
++        if (response)
++        free(response);
++        return PAM_CONV_ERR;
++    }
+     }
+     /* everything okay, set PAM response values */
+     *resp = response;
+@@ -314,13 +336,29 @@
+  * Determine user ID, and check if it really is that user
+  */
+ static
+-int pam_auth_basic_user(request_rec * r)
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++    authn_status
++#else
++    int
++#endif
++    pam_auth_basic_user(request_rec * r
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++        , const char *user
++        , const char *password
++#endif
++    )
+ {
+     int res = 0;
+     /* mod_auth_pam specific */
+-    auth_pam_userinfo userinfo = {NULL, NULL};
++    auth_pam_userinfo userinfo = {
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++        user, password
++#else
++        NULL, NULL
++#endif
++    };
+     auth_pam_dir_config *conf = (auth_pam_dir_config *)
+-    ap_get_module_config(r->per_dir_config, &auth_pam_module);
++        ap_get_module_config(r->per_dir_config, &auth_pam_module);
+     /* PAM specific  */
+     struct pam_conv conv_info = {&auth_pam_talker, (void *) &userinfo};
+     pam_handle_t *pamh = NULL;
+@@ -329,27 +367,29 @@
+     global_userinfo = &userinfo;
+ #endif
+ 
++#if !AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
+     /* enabled? */
+     if (!conf->enabled)
+-	return DECLINED;
++        return DECLINED;
+ 
+     /* read sent pw */
+-    if ((res = ap_get_basic_auth_pw(r, (const char **) &(userinfo.pw))))
+-	return res;
++    if ((res = ap_get_basic_auth_pw(r, &(userinfo.pw))))
++        return res;
+ 
+     /* this is only set after get_basic_auth_pw was called */
+     userinfo.name = r->user;
++#endif
+ 
+     /* initialize pam */
+     if ((res = pam_start(pam_servicename,
+-			 userinfo.name,
+-			 &conv_info,
+-			 &pamh)) != PAM_SUCCESS) {
+-
+-	ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
+-		      "PAM: Could not start pam service: %s",
+-		      compat_pam_strerror(pamh, res));
+-	return HTTP_INTERNAL_SERVER_ERROR;
++             userinfo.name,
++             &conv_info,
++             &pamh)) != PAM_SUCCESS) {
++
++    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
++              "PAM: Could not start pam service: %s",
++              compat_pam_strerror(pamh, res));
++    return HTTP_INTERNAL_SERVER_ERROR;
+     }
+ 
+     /* set fail delay */
+@@ -365,47 +405,87 @@
+      */
+ 
+     /* try to authenticate user, log error on failure */
+-    if ((res = pam_authenticate(pamh, PAM_DISALLOW_NULL_AUTHTOK)) !=
+-	PAM_SUCCESS) {
+-	ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
+-		      "PAM: user '%s' - not authenticated: %s", r->user, compat_pam_strerror(pamh, res));
+-
+-	if (conf->fall_through && (res == PAM_USER_UNKNOWN)) {
+-	    /* we don't know about the user, but other auth modules might do */
+-	    pam_end(pamh, PAM_SUCCESS);
+-	    return DECLINED;
+-	}
+-	else {
+-	    pam_end(pamh, PAM_SUCCESS);
+-	    ap_note_basic_auth_failure(r);
+-	    return HTTP_UNAUTHORIZED;
+-	}			/* endif fall_through */
+-    }				/* endif authenticate */
++    if ((res = pam_authenticate(pamh, PAM_DISALLOW_NULL_AUTHTOK)) != PAM_SUCCESS) {
++        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
++            "PAM: user '%s' - not authenticated: %s", 
++            userinfo.name, compat_pam_strerror(pamh, res));
++
++        if (
++#if !AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++            conf->fall_through &&
++#endif
++            (res == PAM_USER_UNKNOWN)) {
++            /* we don't know about the user, but other auth modules might do */
++            pam_end(pamh, PAM_SUCCESS);
++
++            return 
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++                AUTH_USER_NOT_FOUND
++#else
++                DECLINED
++#endif
++                ;
++        }
++        else {
++            pam_end(pamh, PAM_SUCCESS);
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++            return AUTH_DENIED;
++#else
++            ap_note_basic_auth_failure(r);
++            return HTTP_UNAUTHORIZED;
++#endif
++        }            /* endif fall_through */
++    }                /* endif authenticate */
+ 
+     /* check that the account is healthy */
+     if ((res = pam_acct_mgmt(pamh, PAM_DISALLOW_NULL_AUTHTOK)) != PAM_SUCCESS) {
+-	ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
+-		      "PAM: user '%s'  - invalid account: %s", r->user, compat_pam_strerror(pamh, res));
+-	pam_end(pamh, PAM_SUCCESS);
+-	return HTTP_UNAUTHORIZED;
++        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
++            "PAM: user '%s'  - invalid account: %s",
++            userinfo.name, compat_pam_strerror(pamh, res));
++        pam_end(pamh, PAM_SUCCESS);
++        return
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++            AUTH_DENIED
++#else
++            HTTP_UNAUTHORIZED
++#endif
++            ;
+     }
+ 
+     pam_end(pamh, PAM_SUCCESS);
+-    return OK;
++    return
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++        AUTH_GRANTED
++#else
++        OK
++#endif
++        ;
+ }
+ 
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++static const authn_provider authn_pam_module = {
++    &pam_auth_basic_user,
++    NULL,
++};
++#endif
++
+ static void pam_register_hooks(apr_pool_t * p)
+ {
+     ap_hook_post_config(auth_pam_init, NULL, NULL, APR_HOOK_MIDDLE);
++
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++    ap_register_provider(p, AUTHN_PROVIDER_GROUP, "pam", "0", &authn_pam_module);
++#else
+     ap_hook_check_user_id(pam_auth_basic_user, NULL, NULL, APR_HOOK_MIDDLE);
++#endif
+ }
+ 
+ module AP_MODULE_DECLARE_DATA auth_pam_module = {
+     STANDARD20_MODULE_STUFF,
+-    create_auth_pam_dir_config,	/* dir config creater */
+-    NULL,			/* dir merger --- default is to override */
+-    NULL,			/* server config */
+-    NULL,			/* merge server config */
+-    auth_pam_cmds,		/* command table */
+-    pam_register_hooks,		/* register hooks */
++    create_auth_pam_dir_config,    /* dir config creater */
++    NULL,                          /* dir merger --- default is to override */
++    NULL,                          /* server config */
++    NULL,                          /* merge server config */
++    auth_pam_cmds,                 /* command table */
++    pam_register_hooks,            /* register hooks */
+ };
+diff -urN mod_auth_pam-2.0-1.1.1/mod_auth_sys_group.c mod_auth_pam/mod_auth_sys_group.c
+--- mod_auth_pam-2.0-1.1.1/mod_auth_sys_group.c	2003-03-24 09:26:10.000000000 -0500
++++ mod_auth_pam/mod_auth_sys_group.c	2003-03-24 11:18:28.000000000 -0500
+@@ -92,6 +92,7 @@
+ #include <unistd.h>
+ 
+ #include "ap_config.h"
++#include "ap_provider.h"
+ #include "httpd.h"
+ #include "http_config.h"
+ #include "http_core.h"
+@@ -99,7 +100,11 @@
+ #include "http_protocol.h"
+ #include "http_request.h"
+ 
+-#define VERSION "2.0-1.1"
++#if AP_MODULE_MAGIC_AT_LEAST(20020903, 1)
++#include "mod_auth.h"
++#endif
++
++#define VERSION "2.0-1.1.2"
+ 
+ module auth_sys_group_module;
+ 

@@ -1,0 +1,2 @@
+autoconf         &&
+default_build

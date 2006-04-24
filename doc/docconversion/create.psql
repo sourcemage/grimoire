@@ -1,0 +1,28 @@
+CREATE TABLE Package (
+	name 		VARCHAR(20) CONSTRAINT firstkey PRIMARY KEY,
+	contact		VARCHAR(20) NOT NULL,
+	orig_url	VARCHAR(100),
+	pronir_url	VARCHAR(100)
+);
+\copy Package FROM 'Package-loaddata.psql' WITH DELIMITER ','
+CREATE TABLE Routine (
+	name VARCHAR (20) UNIQUE,
+	pkg_name VARCHAR (30) NOT NULL,
+	location VARCHAR (30) NOT NULL,
+	PRIMARY KEY (name, pkg_name),
+	FOREIGN KEY (pkg_name) REFERENCES Package (name)
+);
+\copy Routine FROM 'Routine-loaddata.psql' WITH DELIMITER ','
+CREATE TABLE Filter (
+	cmd_string                VARCHAR (40) NOT NULL,
+	routine_name              VARCHAR (20) NOT NULL,
+	from_feature_type         VARCHAR(20) NOT NULL,
+	from_representation_type  VARCHAR(20) NOT NULL,
+	to_feature_type           VARCHAR(20) NOT NULL,
+	to_representation_type    VARCHAR(20) NOT NULL,
+	CONSTRAINT pk_Filter PRIMARY KEY (cmd_string, routine_name, from_feature_type, from_representation_type, to_feature_type, to_representation_type),
+	CONSTRAINT fk_Filter FOREIGN KEY (routine_name) REFERENCES Routine (name)
+);
+\copy Filter FROM 'Filter-loaddata.psql' WITH DELIMITER ','
+
+GRANT SELECT ON Package, Filter, Routine TO "pronir";

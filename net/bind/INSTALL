@@ -1,0 +1,104 @@
+make_normal      &&
+make    install  &&
+
+# Install man pages.
+
+for  DIRECTORY in doc/man/*;  do
+  for  (( COUNT=1 ; COUNT < 9 ; COUNT++ )); do
+    cp  $DIRECTORY/*.$COUNT  /usr/man/man$COUNT  2> /dev/null
+  done
+done  &&
+
+LD_PRELOAD_BAK="$LD_PRELOAD"  &&
+LD_PRELOAD="`echo  "$LD_PRELOAD" | sed -e 's!/usr/lib/installwatch\.so!!'`"  &&
+# devoke_installwatch && # nothing past here should be in the install log
+# unless it's tracked manually.
+
+[  -d  /etc/bind             ]  ||  mkdir     /etc/bind
+
+# backup old named.root and named.conf files before copying them
+# we want some control over these files in the future for easy updating.
+# user stuff that normally went into named.conf is now in one of:
+# options.conf zones.conf szones.conf localhost.conf
+date="`date +%Y%m%d%S`"  &&
+for file in named.root named.conf; do
+  [  -e  /etc/bind/$file  ]  &&  cp  "/etc/bind/$file" "/etc/bind/$file.$date" && message "BE SURE TO PUT YOUR /etc/bind/$file.$date STUFF INTO THE NEW /etc/bind/$file!!!"
+  cp  "$SCRIPT_DIRECTORY/$file"  "/etc/bind/$file"
+done  &&
+
+# try to get a new root zone from the a root nameserver with dig, unless that fails, then use the spell-provided one.
+( dig . ns > /etc/bind/named.root.new && cp /etc/bind/named.root.new /etc/bind/named.root ) || rm /etc/bind/named.root.new  &&
+
+[  -e  /etc/resolv.conf      ]  ||  cp  "$SCRIPT_DIRECTORY/resolv.conf"  /etc
+[  -e  /etc/bind/rndc.key    ]  ||  rndc-confgen  -a
+
+# generates a delegation-only file on the fly instead of using the builtin version, if wget works (ie a net connection exists)
+echo "Generating a delegation-only domains list from all TLDs from the internic ftp server."
+[  -e  /etc/bind/delegation-only.conf  ] ||
+(
+  for dom in `wget -O - --passive ftp://ftp.internic.net/domain/root.zone.gz 2> /dev/null | gunzip -c | grep NS | awk '{print $1}' | uniq | egrep "^[^\.]*\.$"`; do
+    echo zone '"'$dom'"' '{ type delegation-only; };'
+  done
+) > /etc/bind/delegation-only.conf.new
+if [[ "`cat /etc/bind/delegation-only.conf.new`" ]]; then
+  mv /etc/bind/delegation-only.conf.new /etc/bind/delegation-only.conf
+else
+  rm /etc/bind/delegation-only.conf.new
+fi  &&
+
+# add our files included in named.conf if they don't already exist
+for conf in options.conf zones.conf szones.conf localhost.conf ; do
+  [  -e  /etc/bind/$conf  ]  ||  cp  $SCRIPT_DIRECTORY/$conf  /etc/bind
+done  &&
+
+[  -e  /etc/bind/mkzones.sh  ]  ||  cp  $SCRIPT_DIRECTORY/mkzones.sh  /etc/bind  &&  chmod  755  /etc/bind/mkzones.sh
+
+# where masters go
+[  -d  /etc/bind/m             ]  ||  mkdir     /etc/bind/m
+
+# where secondaries go
+[  -d  /etc/bind/s             ]  ||  mkdir     /etc/bind/s
+
+# where localhost reverse name is stored, properly regenerated from the real hostname.
+[  -e  /etc/bind/m/localhost.rev  ]  ||  sed -e 's/hostname/'`hostname`'/g' $SCRIPT_DIRECTORY/localhost.rev > /etc/bind/m/localhost.rev
+
+# make bind unable to modify own files ... much safer than bind being able to
+# write to its own config files and masters
+chmod  640 /etc/bind/*            &&
+chown  -R  root:bind  /etc/bind   &&
+
+# and for storing masters
+chown  root:bind  /etc/bind/m    &&
+chmod  750        /etc/bind/m    &&
+chmod  640        /etc/bind/m/*  &&
+
+# except for storing secondaries, which the server needs to be able to write to.
+chown  root:bind  /etc/bind/s                   &&
+chmod  770        /etc/bind/s                   &&
+# may be empty
+chmod  660        /etc/bind/s/*  2>  /dev/null  &&
+
+# setup symlink for chrooting
+[  -d  /etc/bind/etc       ]  ||  mkdir /etc/bind/etc
+[  -e  /etc/bind/etc/bind  ]  ||  ln -nfs / /etc/bind/etc/bind  
+
+# allow bind to write to its own directory
+chmod  775  /etc/bind  &&
+
+if [ ! -d /var/chroot/bind  ]; then
+  [  -d /var/chroot  ]  ||  mkdir /var/chroot
+  cp -a /etc/bind /var/chroot/bind
+  [ ! -h /etc/bind ]  &&  rm -rf /etc/bind &&
+  ln -s /var/chroot/bind /etc/bind
+fi  &&
+
+LD_PRELOAD="$LD_PRELOAD_BAK"  &&
+#invoke_installwatch
+
+# removed /etc/bind/dev/random from the list because it tries to md5 it.
+
+track_manual  /etc/bind/dev                                  \
+              /etc/bind/m/localhost/rev                      \
+              /etc/bind/delegation-only.conf                 \
+              /etc/bind/named.root /etc/bind/named.conf      \
+              /etc/bind/localhost.conf /etc/bind/mkzones.sh

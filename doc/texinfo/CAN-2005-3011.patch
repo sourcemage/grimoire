@@ -1,0 +1,169 @@
+--- util/texindex.c	2004-04-11 19:56:47.000000000 +0200
++++ /home/arwed/Downloads/texindex.c	2006-02-06 09:37:06.000000000 +0100
+@@ -1,8 +1,8 @@
+ /* texindex -- sort TeX index dribble output into an actual index.
+-   $Id: texindex.c,v 1.11 2004/04/11 17:56:47 karl Exp $
++   $Id: texindex.c,v 1.15 2005/10/05 23:21:41 karl Exp $
+ 
+    Copyright (C) 1987, 1991, 1992, 1996, 1997, 1998, 1999, 2000, 2001,
+-   2002, 2003, 2004 Free Software Foundation, Inc.
++   2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+ 
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+@@ -16,7 +16,7 @@
+ 
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307. */
++   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301. */
+ 
+ #include "system.h"
+ #include <getopt.h>
+@@ -99,6 +99,9 @@
+ /* Directory to use for temporary files.  On Unix, it ends with a slash.  */
+ char *tempdir;
+ 
++/* Start of filename to use for temporary files.  */
++char *tempbase;
++
+ /* Number of last temporary file.  */
+ int tempcount;
+ 
+@@ -144,7 +147,7 @@
+ void fatal (const char *format, const char *arg);
+ void error (const char *format, const char *arg);
+ void *xmalloc (), *xrealloc ();
+-char *concat (char *s1, char *s2);
++static char *concat3 (const char *, const char *, const char *);
+ void flush_tempfiles (int to_count);
+ 
+ #define MAX_IN_CORE_SORT 500000
+@@ -190,6 +193,11 @@
+ 
+   decode_command (argc, argv);
+ 
++  /* XXX mkstemp not appropriate, as we need to have somewhat predictable
++   * names. But race condition was fixed, see maketempname.
++   */
++  tempbase = mktemp (concat3 ("txiXXXXXX", "", ""));
++
+   /* Process input files completely, one by one.  */
+ 
+   for (i = 0; i < num_infiles; i++)
+@@ -220,7 +228,7 @@
+ 
+       outfile = outfiles[i];
+       if (!outfile)
+-        outfile = concat (infiles[i], "s");
++        outfile = concat3 (infiles[i], "s", "");
+ 
+       need_initials = 0;
+       first_initial = '\0';
+@@ -318,7 +326,7 @@
+   if (tempdir == NULL)
+     tempdir = DEFAULT_TMPDIR;
+   else
+-    tempdir = concat (tempdir, "/");
++    tempdir = concat3 (tempdir, "/", "");
+ 
+   keep_tempfiles = 0;
+ 
+@@ -339,10 +347,13 @@
+             {
+               printf ("texindex (GNU %s) %s\n", PACKAGE, VERSION);
+               puts ("");
+-              puts ("Copyright (C) 2004 Free Software Foundation, Inc.");
+-              printf (_("There is NO warranty.  You may redistribute this software\n\
++      printf (_("\
++Copyright (C) %s Free Software Foundation, Inc.\n\
++There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A\n\
++PARTICULAR PURPOSE.  You may redistribute copies of GNU %s\n\
+ under the terms of the GNU General Public License.\n\
+-For more information about these matters, see the files named COPYING.\n"));
++For more information about these matters, see the file named COPYING.\n"),
++              "2005", PACKAGE);
+               xexit (0);
+             }
+           else if ((strcmp (arg, "--keep") == 0) ||
+@@ -384,26 +395,25 @@
+     usage (1);
+ }
+ 
+-/* Return a name for temporary file COUNT. */
++/* Return a name for temporary file COUNT, or NULL if failure. */
+ 
+ static char *
+ maketempname (int count)
+ {
+-  static char *tempbase = NULL;
+   char tempsuffix[10];
++  char *name;
++  int fd;
+ 
+-  if (!tempbase)
++  sprintf (tempsuffix, ".%d", count);
++  name =  concat3 (tempdir, tempbase, tempsuffix);
++  fd = open (name, O_CREAT|O_EXCL|O_WRONLY, 0600);
++  if (fd == -1)
++    return NULL;
++  else
+     {
+-      int fd;
+-      tempbase = concat (tempdir, "txidxXXXXXX");
+-
+-      fd = mkstemp (tempbase);
+-      if (fd == -1)
+-        pfatal_with_name (tempbase);
++      close(fd);
++      return(name);
+     }
+-
+-  sprintf (tempsuffix, ".%d", count);
+-  return concat (tempbase, tempsuffix);
+ }
+ 
+ 
+@@ -931,6 +941,8 @@
+   for (i = 0; i < ntemps; i++)
+     {
+       char *newtemp = maketempname (++tempcount);
++      if (!newtemp)
++        pfatal_with_name("temp file");
+       sort_in_core (tempfiles[i], MAX_IN_CORE_SORT, newtemp);
+       if (!keep_tempfiles)
+         unlink (tempfiles[i]);
+@@ -1401,6 +1413,8 @@
+       if (i + 1 == ntemps)
+         nf = nfiles - i * MAX_DIRECT_MERGE;
+       tempfiles[i] = maketempname (++tempcount);
++      if (!tempfiles[i])
++	pfatal_with_name("temp file");
+       value |= merge_direct (&infiles[i * MAX_DIRECT_MERGE], nf, tempfiles[i]);
+     }
+ 
+@@ -1612,17 +1626,18 @@
+ }
+ 
+ 
+-/* Return a newly-allocated string concatenating S1 and S2.  */
++/* Return a newly-allocated string concatenating S1, S2, and S3.  */
+ 
+-char *
+-concat (char *s1, char *s2)
++static char *
++concat3 (const char *s1, const char *s2, const char *s3)
+ {
+-  int len1 = strlen (s1), len2 = strlen (s2);
+-  char *result = (char *) xmalloc (len1 + len2 + 1);
++  int len1 = strlen (s1), len2 = strlen (s2), len3 = strlen (s3);
++  char *result = (char *) xmalloc (len1 + len2 + len3 + 1);
+ 
+   strcpy (result, s1);
+   strcpy (result + len1, s2);
+-  *(result + len1 + len2) = 0;
++  strcpy (result + len1 + len2, s3);
++  *(result + len1 + len2 + len3) = 0;
+ 
+   return result;
+ }

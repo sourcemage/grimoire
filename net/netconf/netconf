@@ -1,0 +1,2063 @@
+#!/bin/bash
+#
+# vi: ts=4 sw=4 noet
+#--------------------------- bashdoc ---------------------------------#
+## @Synposis   Source Mage network configuration tool
+## @Copyright  Copyright 2003-2004 Source Mage Team
+## @License    GPL v2
+##
+## <p>
+## netconf is network configuration tool written in bash for the
+## <a href="http://www.sourcemage.org/">Source Mage GNU/Linux</a>
+## distribution. It uses dialog to provide a menu driven interface 
+## to configuring network devices.
+##
+## <p>
+## Network devices in <a href="http://www.sourcemage.org/">Source Mage
+## </a> are configured using files in /etc/sysconfig/network. Each 
+## device has its own file and must end with the extension ".dev". 
+## These files specify options for the device and may even override
+## special functions to perform extra activities when a device is
+## brought up or down. netconf does not currently provide a means
+## for specifying these special functions. However, it will leave
+## them untouched when editing a device file that contains them.
+##
+## <p>
+## In addition to configuring these network device files, netconf
+## can also configure nameservers (/etc/resolv.conf) and the machine's
+## hostname (/etc/hostname and /etc/hosts).
+##
+## <p>
+## This is free software; you can redistribute it and/or
+## modify it under the terms of the GNU General Public
+## License as published by the Free Software Foundation; either
+## version 2 of the License, or (at your option) any later version.
+##
+## <p>
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+## General Public License for more details.
+##
+## <p>
+## You should have received a copy of the GNU General Public
+## License along with this software; if not, write to the Free
+## Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#---------------------------------------------------------------------#
+#
+# ------------------------- ChangeLog ------------------------------- #
+# 2005-06-30  Ladislav Hagara <hgr@vabo.cz>
+#    - SourceMage -> Source Mage
+#    - cfg_hostname renamed to cfg_hostname_enter
+#    - added new cfg_hostname, cfg_hostname_area and cfg_hostname_choose
+#
+# 2005-04-07  Arjan Bouter <abouter@sourcemage.org>
+#    - added cfg_wifi_{defaultkey,enckey,setkeys}
+#    - added cfg_{mac,custom}
+#    - removed cfg_wifi_{enckeys,setkey}
+#
+# 2005-04-04  Arjan Bouter <abouter@sourcemage.org>
+#    - added cfg_wifi_{enablekey,security_menu,enckeys,setkey,secmode}
+#    - removed cfg_wifi_security
+#
+# 2005-04-04  Arjan Bouter <abouter@sourcemage.org>
+#     - added cfg_wifi_mode to select the cards mode
+#
+# 2005-03-31  Arjan Bouter <abouter@sourcemage.org>
+#     - updated wifi the wifi support to be a full submenu
+#     - added cfg_wifi_{nwid,essid,rate,security}
+#     - version 1.6
+#
+# 2004-12-08  Arjan Bouter <abouter@sourcemage.org>
+#     - added WIFI settings
+#     - added cfg_wifi
+#
+# 2004-10-08  Robert Helgesson <net@sourcemage.org>
+#     - added sw=4 noet to vi settings
+#     - fixed handling when the $NETDEVDIR directory is empty (bug #7459)
+#
+# 2004-04-29  charkins <charkins@pobox.com>
+#     - finished adding bashdoc comments and code cleanups
+#     - removed sedit function, now use 'sed -i' to edit in-place
+#
+# 2004-04-24  charkins <charkins@pobox.com>
+#     - started adding bashdoc comments
+#     - replaced basename usage with get_basename() function
+#     - minor code cleanups
+#
+# 2004-04-12  charkins <charkins@pobox.com>
+#     - sort module names in getnetmods() courtesy of rycee (bug #6496)
+#     - version 1.4
+#
+# 2004-03-16  charkins <charkins@pobox.com>
+#     - fix parsing of module names in getnetmods() courtesy
+#	    of rycee (bug #6373)
+#
+# 2004-02-11  charkins <charkins@pobox.com>
+#     - removed special handling of loopback device, lo.dev file will
+#       be removed automatically if it exists (bug #5776)
+# 
+# 2004-01-20  charkins <charkins@pobox.com>
+#     - small fix in cfg_mtu() where dialog was defaulting to GATEWAY
+#       rather than MTU
+#     - modified save_update() to use new cat_or_sedit() function
+#     - added cat_or_sedit() to selectively sedit or cat depending
+#       on if the sed pattern can be greped from the file; fixes
+#       problem of adding new fields to an existing device file
+#     - version 1.1
+#
+# 2003-10-28  charkins <charkins@pobox.com>
+#     - stole sedit() function from sorcery's libmisc
+#     - renamed save_device() to confirm_save() for clarity
+#     - renamed real_save() to save_new() for clarity
+#     - added save_update() to make in-place changes to a device file
+#       using sedit, allowing network functions to be preserved in files
+#     - confirm_save() confirms if the user wishes to save a device
+#       file, if they answer yes, it calls either save_new() or 
+#       save_update() to save the file depending on if the device
+#       file exists
+#     - made use of local in many functions and removed unset's where
+#       no longer needed
+#     - corrected spelling error in 2003-06-19 change entry :-)
+#     - version 1.0
+#
+# 2003-10-26  charkins <charkins@pobox.com>
+#     - shortened a couple strings to prevent them from being cut off
+#     - added cfg_pointopoint()
+#     - added cfg_mtu()
+#     - added toggle_boot()
+#     - updated loadnetdev() and cfg_device() to support POINTOPOINT,
+#       MTU and UP_ON_BOOT options
+#
+# 2003-08-04  charkins <charkins@pobox.com>
+#     - fixed a case bug in cfg_ns(): changed '*') to *)
+# 
+# 2003-07-28  charkins <charkins@pobox.com>
+#     - cfg_hostname() dialog now has a cancel button
+#     - cancelling changes to hostname or trying to set a blank
+#       hostname will now leave /etc/hostname unchanged
+# 
+# 2003-07-17  charkins <charkins@pobox.com>
+#     - minor reorganization of configuration variables
+#
+# 2003-06-20  charkins <charkins@pobox.com>
+#     - added mangle_hosts() function to update the /etc/hosts file
+#       when the hostname is changed, all entries for 127.0.0.1 are
+#       removed and the localhost and hostname entries are then added
+#       back in
+#     - mangle_hosts() will also create the /etc/hosts file if it
+#       does not exist including the comment section describing the
+#       file
+#     - renamed change_hostname() to cfg_hostname() to be more
+#       consistent with other function names
+#     - added option to configure DNS on main menu, the dns menu
+#       is implemented in cfg_dns() which uses cfg_ns() to set an
+#       individual nameserver, supports up to three nameservers
+#       (as per the resolv.conf man page), search/domain/options
+#       cannot be specified through netconf, though only nameserver
+#       lines will be modified in /etc/resolv.conf
+#     - version 0.9
+#
+# 2003-06-19  charkins <charkins@pobox.com>
+#     - change_hostname now creates the hostname file automatically
+#       with the hostname='sourcemage' if it doesn't exist, this
+#       should gaurantee its existence whether the user likes it or
+#       not :-)
+#     - added some command line options for performing some basic
+#       tasks, only one may be specified at a time and it will
+#       exit immediately after the task is finished
+#          --check_hostname: checks if the hostname file exists, 
+#                            and prompts the user for a hostname if
+#                            it doesn't exist
+#          --check_devdir:   checks if the network device directory
+#                            exists and prompts the user to create it
+#                            if it doesn't exist
+#          --check_lo:       checks if the loopback device exists
+#                            and prompts the user to create it if
+#                            it doesn't exist
+#     - version 0.8
+#
+# 2003-06-19  charkins <charkins@pobox.com>
+#     - changing hostname, ip, broadcast, netmask, gateway
+#       or module will default to current value
+#     - added option to change hostname from main menu
+#     - pressing ESC or entering a blank hostname will now
+#       use 'sourcemage' as the hostname
+#     - added --aspect parameter (currently set to 25) to DIALOG
+#       to improve the general appearance of some dialogs
+#     - version 0.7
+#
+# 2003-06-19  charkins <charkins@pobox.com>
+#     - added check_hostname and check_lo to check on startup
+#       for existence of hostname file and loopback network device
+#     - changed the 'su' call to not set any environment variables
+#     - integrated ChangeLog into script for easier management
+#     - version 0.6
+# 
+# 2002-11-05  charkins <charkins@pobox.com>
+#     - corrected integer comparisons to use -eq instead of ==
+#     - added special handling of loopback device in remove_device()
+#       and getnetdevs()
+#     - version 0.5
+# 
+# 2002-11-04  charkins <charkins@pobox.com>
+#     - realized that 'true' returns an exit status (duh), removed
+#       zeroreturn() in favor of 'true'
+#     - added check_devdir() to check on startup for the existence 
+#       and correct permissions of NETDEVDIR, will prompt user to 
+#       create the directory if it does not exist
+# 
+# 2002-11-03  charkins <charkins@pobox.com>
+#     - applied Neal's changes to save_device() to use cat instead
+#       of echoing data into the device file
+# 
+# 2002-10-30  charkins <charkins@pobox.com>
+#     - moved testing of GOTNETDEVS and GOTNETMODS flags into
+#       their respective functions, getnetdevs() and getnetmods()
+#       will return without performing any work if the flag
+#       variable is non-null
+#     - added GOTNETDEVS flag to prevent unnecessary calls
+#       to getnetdevs()
+#     - fixed more bugs related to new filenaming
+#     - other small clean-ups
+#     - version 0.4
+# 
+# 2002-10-28  charkins <charkins@pobox.com>
+#     - fixed bug in getnetdevs() which used old filenaming scheme
+#     - version 0.3
+# 
+# 2002-10-28  charkins <charkins@pobox.com>
+#     - switched to <devicename>.dev filenaming scheme
+#     - version 0.2
+# 
+# 2002-10-28  charkins <charkins@pobox.com>
+#     - initial implementation
+#     - version 0.1
+#
+# ----------------------- Configuration ----------------------------- #
+# NETCONFVERSION: version number of this script
+#      ROOTCHECK: if user is not root, then su and run script
+#      NETDEVDIR: directory to store network device files
+#     HOSTNAMEFN: name of file containing hostname
+#        HOSTSFN: name of file containing hosts
+#       RESOLVFN: name of file containing nameservers
+#
+NETCONFVERSION='1.6'
+ROOTCHECK=1
+NETDEVDIR=/etc/sysconfig/network
+HOSTNAMEFN=/etc/hostname
+HOSTSFN=/etc/hosts
+RESOLVFN=/etc/resolv.conf
+
+# -------------------------- Testing -------------------------------- #
+# To test this script without running as root and without modifying
+# the actual network settings for a system, uncomment the following
+# block of variables. This will disable the root check and look in
+# the current working directory for the various files.
+# 
+#ROOTCHECK=0
+#NETDEVDIR=network
+#HOSTNAMEFN=hostname
+#HOSTSFN=hosts
+#RESOLVFN=resolv.conf
+
+
+# ----------------------- Other Globals ----------------------------- #
+# DIALOG - dialog program used, could be taken from /etc/sorcery/config
+DIALOG="dialog --aspect 25"
+
+# button labels
+BTN_ACCEPT='Accept'
+BTN_SELECT='Select'
+BTN_CANCEL='Cancel'
+BTN_EXIT='Exit'
+BTN_BACK='Back'
+
+# BACKTITLE - shown at the top of the screen
+BACKTITLE="Source Mage Network Configuration Tool - version ${NETCONFVERSION}"
+
+
+
+# ------------------------- Functions ------------------------------- #
+#--- get_basename()
+##
+## Strip directory and optionally a suffix from a filename. This
+## should function identically to the basename command from coreutils.
+##
+## @param      path
+## @param      suffix [optional]
+## @Stdout     basename of path
+#---
+function get_basename() {
+	local s
+
+	# remove trailing slash if it exists
+	s=${1%/}
+
+	# strip directory by removing largest .*/ prefix
+	s=${s##*/}
+
+	# strip suffix if necessary
+	if [ -n "$2" ]; then
+		s=${s%"$2"}
+	fi
+
+	echo $s
+}
+
+#--- getnetmods()
+##
+## If GOTNETMODS is null, it parses output of 'modprobe -l |grep net' 
+## and constructs two arrays of available network modules. Otherwise,
+## it immediately returns.
+##
+## @Global      GOTNETMODS: arrays are constructed if this is null<br>
+## @Global      NETMODS: array of network modules<br>
+## @Global      NETMODSMENU: array of id / network module pairs
+## @External    modprobe, sed
+#---
+function getnetmods() {
+	# only run once
+	if [ -n "$GOTNETMODS" ]; then
+		return
+	fi
+
+	local id
+	local modname
+
+	unset NETMODSMENU NETMODS
+	id=0
+	for modname in $( modprobe -l \
+	                | sed -n '/\/net\// { s!.*/!!; s!\..*!!; p; }' | sort); do
+		NETMODSMENU[$id]="${id} ${modname}"
+		NETMODS[$id]="${modname}"
+		id=$((id+1))
+	done
+	GOTNETMODS=1
+
+	return
+}
+
+#--- getnetdevs()
+#
+## If GOTNETDEVS is null, it checks NETDEVDIR for network device 
+## files and constructs two arrays of configured devices. 
+## Otherwise, it immediately returns. If lo.dev exists, it is
+## silently removed. 
+##
+## @Global      GOTNETDEVS: arrays are constructed if this is null<br>
+## @Global      NETDEVS: array of configured network devices<br>
+## @Global      NETDEVSMENU: array of id / network device pairs<br>
+## @Global      NETDEVDIR: path to network device directory
+## @External    rm
+#---
+function getnetdevs() {
+	# only run if necessary (on start, add or remove)
+	if [ -n "$GOTNETDEVS" ]; then
+		return 0;
+	fi
+
+	# remove the unused lo.dev file if it exists
+	if [ -e ${NETDEVDIR}/lo.dev ]; then
+		rm -f ${NETDEVDIR}/lo.dev >> /dev/null
+	fi
+
+	local id
+	local i
+
+	unset NETDEVSMENU NETDEVS
+	id=0
+	for i in $NETDEVDIR/*.dev; do
+		if [ "$i" = "$NETDEVDIR/*.dev" ] ; then
+			break
+		fi
+		NETDEVSMENU[$id]="${id} `get_basename $i .dev`"
+		NETDEVS[$id]="${i}"
+		id=$((id+1))
+	done
+	GOTNETDEVS=1
+}
+
+#--- cfg_ns()
+##
+## Prompts the user for a name server ip address and stores
+## it in a global variable. If the user cancels the dialog, 
+## no change is made.
+##
+## @param       name server number to configure (1-3)
+## @Global      ns1: first nameserver<br>
+## @Global      ns2: second nameserver<br>
+## @Global      ns3: third nameserver
+## @External    dialog
+##
+#---
+function cfg_ns() {
+	if [ -z "$1" ]; then
+		echo "Error: cfg_ns() called with no parameter"
+		exit 1
+	fi
+
+	local ns
+	case $1 in 
+		'1') ns=$ns1 ;;
+		'2') ns=$ns2 ;;
+		'3') ns=$ns3 ;;
+		  *) ns=""   ;;
+	esac
+
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                  \
+	                 --stdout                                  \
+	                 --title "Configure Nameserver $1"         \
+	                 --ok-label       "$BTN_ACCEPT"            \
+	                 --cancel-label   "$BTN_CANCEL"            \
+	                 --inputbox                                \
+	                 "Enter the IP address of nameserver $1:"  \
+	                  0 0 $ns`
+
+	if [ $? -eq 0 ]; then
+		case $1 in 
+			'1') ns1=$COMMAND ;;
+			'2') ns2=$COMMAND ;;
+			'3') ns3=$COMMAND ;;
+		esac
+	fi
+
+}
+
+
+
+# TODO: some sort of bug with nameserver parsing
+
+#--- cfg_dns()
+##
+## Presents user with menu to configure dns settings. Up to
+## three nameservers may be specified.
+##
+## @Global      ns1: first nameserver<br>
+## @Global      ns2: second nameserver<br>
+## @Global      ns3: third nameserver<br>
+## @Global      RESOLVFN: path to resolv.conf
+## @External    dialog, grep, sed, mv, rm
+#---
+function cfg_dns() {
+
+	local i
+	unset ns1
+	unset ns2
+	unset ns3
+
+	if [ ! -f "$RESOLVFN" ]; then
+		touch $RESOLVFN
+	fi
+
+	# find the current nameservers
+	for i in `grep ^nameserver $RESOLVFN | sed 's/^nameserver //'`; do
+		if [ -z "$ns1" ]; then
+			echo "ns1=$i" >> /tmp/foo
+			ns1="$i"
+		elif [ -z "$ns2" ]; then
+			echo "ns2=$i" >> /tmp/foo
+			ns2="$i"
+		elif [ -z "$ns3" ]; then
+			echo "ns3=$i" >> /tmp/foo
+			ns3="$i"
+		else
+			break;
+		fi
+	done
+
+	while [ true ]; do
+
+		COMMAND=`$DIALOG --backtitle "$BACKTITLE"            \
+		                 --stdout                            \
+		                 --title "Configure DNS"             \
+		                 --ok-label       "$BTN_SELECT"      \
+		                 --cancel-label   "$BTN_CANCEL"      \
+		                 --menu                              \
+		                 "Choose a name server to modify:"   \
+		                 0 0 0                               \
+		                 "1" "$ns1"                          \
+		                 "2" "$ns2"                          \
+		                 "3" "$ns3"                          \
+		                 "Save" "Save changes to $RESOLVFN"`
+
+		if [ $? != 0 ]; then
+			return 0
+		fi
+
+		case $COMMAND in
+			'1') cfg_ns "1" ;;
+			'2') cfg_ns "2" ;;
+			'3') cfg_ns "3" ;;
+
+			'Save')
+				mv $RESOLVFN /tmp/resolv.conf.$$
+				grep -v ^nameserver /tmp/resolv.conf.$$ > $RESOLVFN
+				if [ ${#ns1} -gt 0 ]; then
+					echo "nameserver $ns1" >> $RESOLVFN
+				fi
+				if [ ${#ns2} -gt 0 ]; then
+					echo "nameserver $ns2" >> $RESOLVFN
+				fi
+				if [ ${#ns3} -gt 0 ]; then
+					echo "nameserver $ns3" >> $RESOLVFN
+				fi
+				rm /tmp/resolv.conf.$$
+				return 0
+				;;
+		esac
+
+	done
+
+}
+
+
+
+#--- check_hostname()
+##
+## Calls cfg_hostname if no hostname is currently
+## specified.
+##
+## @Global      HOSTNAMEFN: path to hosts file
+#---
+function check_hostname() {
+
+	# check if HOSTNAMEFN exists
+	if [ ! -f "$HOSTNAMEFN" ]; then
+		cfg_hostname
+	fi
+
+}
+
+#--- cfg_hostname_enter()
+##
+## Prompts the user for the hostname for this machine.
+## It defaults to the current hostname, or 'sourcemage'
+## if no hostname is currently specified. Cancelling the
+## dialog leaves the hostname unchanged, or set to
+## 'sourcemage' if there was previously no hostname.
+##
+## @Global      HOSTNAMEFN: path to hostname file
+## @External    cat, dialog
+#---
+function cfg_hostname_enter() {
+
+	local curhostname
+
+	# read in current hostname
+	if [ -f "$HOSTNAMEFN" ]; then
+		curhostname=`cat $HOSTNAMEFN`
+	else
+		echo "sourcemage" > $HOSTNAMEFN
+		curhostname="sourcemage"
+		mangle_hosts
+	fi
+
+	# prompt user to change hostname
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                \
+	                 --stdout                                \
+	                 --title "Configure Hostname"            \
+	                 --ok-label       "$BTN_ACCEPT"          \
+	                 --cancel-label   "$BTN_CANCEL"          \
+	                 --inputbox                              \
+	                 "What should this computer be called?"  \
+	                  0 0 $curhostname`
+
+	# check if user accepted their changes
+	if [ $? -eq 0 ] && [ ${#COMMAND} -gt 0 ]; then
+		curhostname="$COMMAND"
+		echo "$curhostname" > $HOSTNAMEFN
+		mangle_hosts
+	fi
+
+}
+
+#--- cfg_hostname_choose()
+##
+## Prompts the user to select the hostname from a list of
+## proposed hostnames.
+##
+#---
+function cfg_hostname_choose() {
+
+  local HOSTNAMELIST=`cat /usr/share/netconf/$1 | awk '{print $1; print "\"\""}'`
+
+  eval $DIALOG '  --title "Select hostname from $1 area"  \
+           --ok-label  "Select"            \
+           --stdout                        \
+           --menu                          \
+           ""                              \
+           0 0 0                           \
+           '$HOSTNAMELIST
+
+}
+
+#--- cfg_hostname_area()
+##
+## Prompts the user to select the hostname areas.
+##
+#---
+function cfg_hostname_area() {
+
+  local HOSTNAMEAREALIST=`ls /usr/share/netconf | awk '{print $1; print "\"\""}'`
+
+  HOSTNAMEAREA=`eval $DIALOG '  --title "Select hostname area"  \
+           --ok-label  "Select"            \
+           --stdout                        \
+           --menu                          \
+           ""                              \
+           0 0 0                           \
+           '$HOSTNAMEAREALIST`
+
+  COMMAND=`cfg_hostname_choose $HOSTNAMEAREA`
+
+        # check if user accepted their changes
+        if [ $? -eq 0 ] && [ ${#COMMAND} -gt 0 ]; then
+                curhostname="$COMMAND"
+                echo "$curhostname" > $HOSTNAMEFN
+                mangle_hosts
+        fi
+
+}
+
+#--- cfg_hostname()
+##
+## Prompts the user for the hostname setting.
+## Two options are presented:
+## <ul>
+##       <li>Enter a hostname</li>
+##       <li>Choose from a list of proposed hostnames<li>
+## </ul>
+##
+## @Global      HOSTNAMEFN: path to hostname file
+## @External    cat, dialog
+#---
+function cfg_hostname() {
+
+        COMMAND=`$DIALOG --backtitle "$BACKTITLE"                             \
+                         --stdout                                             \
+                         --title "Configure hostname"                         \
+                         --ok-label       "$BTN_SELECT"                       \
+                         --cancel-label   "$BTN_BACK"                         \
+                         --menu                                               \
+                         "Choose how to configure the hostname."              \
+                         0 0 0                                                \
+                         "Enter"  "Enter a hostname"                          \
+                         "Choose" "Choose from a list of proposed hostnames"`
+
+        if [ $? != 0 ]; then
+                return 0
+        fi
+
+        case $COMMAND in
+                'Enter')  cfg_hostname_enter  ;;
+                'Choose') cfg_hostname_area   ;;
+        esac
+        return 0
+}
+
+
+#--- mangle_hosts()
+##
+## Mangles the /etc/hosts file to include entries
+## for localhost and the specified hostname. First
+## all 127.0.0.1 lines are removed, then two lines
+## are added:
+## <pre>
+##    127.0.0.1       localhost
+##    127.0.0.1       <hostname>
+## </pre>
+##
+## @Global      HOSTSFN: path to hosts file
+## @External    cat, mv, grep
+#---
+function mangle_hosts() {
+
+	if [ ! -f "$HOSTSFN" ]; then
+		cat > $HOSTSFN << EOF
+#
+# hosts         This file describes a number of hostname-to-address
+#               mappings for the TCP/IP subsystem.  It is mostly
+#               used at boot time, when no name servers are running.
+#               On small systems, this file can be used instead of a
+#               "named" name server.  Just add the names, addresses
+#               and any aliases to this file...
+#
+EOF
+	fi
+
+	mv $HOSTSFN /tmp/hosts.$$
+	grep -v ^127.0.0.1 /tmp/hosts.$$    >> $HOSTSFN
+	echo "127.0.0.1       localhost"    >> $HOSTSFN
+    echo "127.0.0.1       $curhostname" >> $HOSTSFN
+	rm -f /tmp/hosts.$$
+}
+
+#--- check_devdir()
+##
+## Checks to see if NETDEVDIR exists, is a directory and
+## is writeable. User will be prompted to create directory
+## if it does not exist.
+##
+## @Global      NETDEVDIR: network device directory
+## @External    mkdir, dialog
+#---
+function check_devdir() {
+
+	# check if NETDEVDIR exists
+	if [ ! -e $NETDEVDIR ]; then
+		COMMAND=`$DIALOG --backtitle "$BACKTITLE"  \
+	                 --stdout                      \
+	                 --title "Create Directory"    \
+	                 --yesno                       \
+	                 "The network configuration directory (${NETDEVDIR}) does not exist, create it now?" \
+	                 0 0`
+
+		if [ $? != 0 ]; then
+			echo "Error: Directory '${NETDEVDIR}' does not exist"
+			exit 1
+		fi
+
+		mkdir -p $NETDEVDIR
+
+		if [ $? != 0 ]; then
+			echo "Error: Could not create directory '${NETDEVDIR}'"
+			exit 1
+		fi
+		
+		return 0
+	fi
+
+	# check if NETDEVDIR is a directory
+	if [ ! -d $NETDEVDIR ]; then
+		echo "Error: '${NETDEVDIR}' exists, but is not a directory"
+		exit 1
+	fi
+
+	# check if NETDEVDIR is writable
+	if [ ! -w $NETDEVDIR ]; then
+		echo "Error: '${NETDEVDIR}' is not writeable"
+		exit 1
+	fi
+
+}
+
+#--- loadnetdev()
+##
+## Unsets network device variables then loads the
+## network device file.
+##
+## @param     absolute path to network device file
+## @Global    MODULE: kernel module or blank for static driver<br>
+## @Global    MODE: 'dynamic' for dhcp, or 'static' for static<br>
+## @Global    IP: ip address<br>
+## @Global    BROADCAST: broadcast address<br>
+## @Global    NETMASK: netmask<br>
+## @Global    GATEWAY: gateway address<br>
+## @Global    POINTTOPOINT: point to point address<br>
+## @Global    MTU: maximum transfer unit<br>
+## @Global    WIFI_NWID: wifi network-id.<br>
+## @Global    WIFI_ESSID: wifi ssid.<br>
+## @Global    WIFI_RATE: wifi max bitrate.<br>
+## @Global    WIFI_MODE: wifi max bitrate.<br>
+## @Global    WIFI_SECMODE: wifi security mode.<br>
+## @Global    WIFI_KEY: enable key usage switch.<br>
+## @Global    WIFI_KEY1: wifi encryption key 1.<br>
+## @Global    WIFI_KEY2: wifi encryption key 2.<br>
+## @Global    WIFI_KEY3: wifi encryption key 3.<br>
+## @Global    WIFI_KEY4: wifi encryption key 4.<br>
+## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
+## @Global    MAC: MAC address.<br>
+## @Global    CUSTOM: any custom options.<br>
+## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot
+#---
+function loadnetdev() {
+	if [ -z "$1" ]; then
+		echo "Error: loadnetdev() called with no parameter"
+		exit 1
+	fi
+
+	local devname
+
+	unset MODULE MODE IP BROADCAST NETMASK GATEWAY POINTOPOINT MTU \
+              WIFI_NWID WIFI_ESSID WIFI_RATE WIFI_MODE WIFI_SECMODE \
+              WIFI_KEY WIFI_KEY1 WIFI_KEY2 WIFI_KEY3 WIFI_KEY4 WIFI_DEFAULTKEY \
+              MAC CUSTOM UP_ON_BOOT
+
+	devname=$(get_basename $1 .dev)
+
+	if [ -e $1 ]; then
+		# file exists, load it
+		source $1
+	else
+		# new device, set defaults
+		MODE='dynamic'
+		POINTOPOINT=''
+		MTU=''
+		UP_ON_BOOT='yes'
+	fi
+
+}
+#--- cfg_module_enter()
+##
+## Prompts user to enter the kernel module name (without the .o)
+##
+## @Global    MODULE: kernel module or blank for static driver
+## @External  dialog
+#---
+function cfg_module_enter() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Configure MODULE"                                \
+	                 --ok-label       "$BTN_ACCEPT"                            \
+	                 --cancel-label   "$BTN_CANCEL"                            \
+	                 --inputbox                                                \
+	                 "Enter the name of the kernel module which your device uses, without the trailing .o" \
+	                 0 0 $MODULE`
+
+	if [ $? -eq 0 ]; then
+		MODULE=$COMMAND
+	fi
+	return 0
+}
+
+#--- cfg_module_choose()
+##
+## Prompts user to select the kernel module from a list
+## of available network drivers.
+##
+## @Global    MODULE: kernel module or blank for static driver
+## @External  dialog
+#---
+function cfg_module_choose() {
+	getnetmods
+
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Configure MODULE"                                \
+	                 --ok-label       "$BTN_ACCEPT"                            \
+	                 --cancel-label   "$BTN_CANCEL"                            \
+	                 --menu                                                    \
+	                 "Select the network module from the following list, or choose 'Enter' if the module is not shown." \
+	                 0 0 0                                                     \
+	                 ${NETMODSMENU[*]}                                         \
+	                 "Enter"  "Enter a module name"`
+
+
+	if [ $? != 0 ]; then
+		return 0
+	fi
+
+	case $COMMAND in
+		'Enter') cfg_module_enter              ;;
+		*)       MODULE=${NETMODS[${COMMAND}]} ;;
+	esac
+	return 0
+}
+
+#--- cfg_module()
+##
+## Prompts user for MODULE setting. Three options are presented:
+## <ul>
+## 	  <li>Enter a module name</li>
+##	  <li>Choose from a list of available network modules</li>
+##	  <li>None (use static driver)</li>
+## </ul>
+##
+## @Global    MODULE: kernel module or blank for static driver
+## @External  dialog
+#---
+function cfg_module() {
+	if [ -z "$MODULE" ]; then
+		dmodule="None (use static driver)"
+	else
+		dmodule=$MODULE
+	fi
+
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Configure MODULE"                                \
+	                 --ok-label       "$BTN_SELECT"                            \
+	                 --cancel-label   "$BTN_BACK"                              \
+	                 --menu                                                    \
+	                 "Choose how to select the kernel module, select 'None' if the driver is compiled into the kernel, or select '$BTN_BACK' to keep the current setting (${dmodule})" \
+	                 0 0 0                                                     \
+	                 "Enter"  "Enter a module name"                            \
+	                 "Choose" "Choose from a list of available network modules"\
+	                 "None"   "Use a static driver"`                           
+
+	if [ $? != 0 ]; then
+		return 0
+	fi
+
+	case $COMMAND in
+		'Enter')  cfg_module_enter  ;;
+		'Choose') cfg_module_choose ;;
+		'None')   MODULE=''         ;;
+	esac
+	return 0
+}
+
+#--- cfg_mode()
+##
+## Prompts user for MODE setting. Two options are presented:
+## <ul>
+##	  <li>dynamic (use dhcp)</li>
+##	  <li>static (specify network settings)</li>
+## </ul>
+##
+## @Global    MODE: 'dynamic' for dhcp, or 'static' for static
+## @External  dialog
+#---
+function cfg_mode() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Configure MODE"                                  \
+	                 --ok-label       "$BTN_SELECT"                            \
+	                 --cancel-label   "$BTN_BACK"                              \
+	                 --menu                                                    \
+	                 "Choose which mode this network device uses.              \
+                      Select 'dynamic' to use dhcp, select 'static'            \
+                      to specify IP, BROADCAST, NETMASK, GATEWAY, or           \
+                      select '${BTN_BACK}' to keep current setting             \
+                     (${MODE})"                                                \
+	                 0 0 0                                                     \
+	                 "dynamic" "use dhcp"                                      \
+	                 "static" "specify network settings"`
+
+	if [ $? != 0 ]; then
+		return 0
+	fi
+
+	case $COMMAND in
+		'dynamic') MODE='dynamic'   ;;
+		'static')  MODE='static'    ;;
+	esac
+
+
+	return 0
+}
+
+#--- cfg_ip()
+##
+## Prompts user to enter the ip address.
+##
+## @Global    IP: ip address
+## @External  dialog
+#---
+function cfg_ip() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Configure IP address"                            \
+	                 --ok-label       "$BTN_ACCEPT"                            \
+	                 --cancel-label   "$BTN_CANCEL"                            \
+	                 --inputbox                                                \
+	                 "Enter the IP address for this network device"            \
+	                 0 0 $IP`
+
+	if [ $? -eq 0 ]; then
+		IP=$COMMAND
+	fi
+	return 0
+}
+
+
+#--- cfg_broadcast()
+##
+## Prompts user to enter the broadcast address.
+##
+## @Global    BROADCAST: broadcast address
+## @External  dialog
+#---
+function cfg_broadcast() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Configure BROADCAST address"                     \
+	                 --ok-label       "$BTN_ACCEPT"                            \
+	                 --cancel-label   "$BTN_CANCEL"                            \
+	                 --inputbox                                                \
+	                 "Enter the broadcast address for this network device"     \
+	                 0 0 $BROADCAST`
+
+	if [ $? -eq 0 ]; then
+		BROADCAST=$COMMAND
+	fi
+	return 0
+}
+
+
+#--- cfg_netmask()
+##
+## Prompts user to enter the netmask.
+##
+## @Global    NETMASK: netmask
+## @External  dialog
+#---
+function cfg_netmask() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Configure NETMASK"                               \
+	                 --ok-label       "$BTN_ACCEPT"                            \
+	                 --cancel-label   "$BTN_CANCEL"                            \
+	                 --inputbox                                                \
+	                 "Enter the netmask for this network device"               \
+	                 0 0 $NETMASK`
+
+	if [ $? -eq 0 ]; then
+		NETMASK=$COMMAND
+	fi
+	return 0
+}
+
+
+#--- cfg_gateway()
+##
+## Prompts user to enter the gateway address.
+##
+## @Global    GATEWAY: gateway address
+## @External  dialog
+#---
+function cfg_gateway() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Configure GATEWAY address"                       \
+	                 --ok-label       "$BTN_ACCEPT"                            \
+	                 --cancel-label   "$BTN_CANCEL"                            \
+	                 --inputbox                                                \
+	                 "Enter the gateway address for this network device"       \
+	                 0 0 $GATEWAY`
+
+	if [ $? -eq 0 ]; then
+		GATEWAY=$COMMAND
+	fi
+	return 0
+}
+
+#--- cfg_pointopoint()
+##
+## Prompts user to enter the point to point address.
+##
+## @Global    POINTTOPOINT: point to point address
+## @External  dialog
+#---
+function cfg_pointopoint() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Configure POINTOPOINT address"                   \
+	                 --ok-label       "$BTN_ACCEPT"                            \
+	                 --cancel-label   "$BTN_CANCEL"                            \
+	                 --inputbox                                                \
+	                 "Enter the point to point address for this network device"\
+	                 0 0 $POINTOPOINT`
+
+	if [ $? -eq 0 ]; then
+		POINTOPOINT=$COMMAND
+	fi
+	return 0
+}
+
+#--- cfg_mtu()
+##
+## Prompts user to enter the maximum transfer unit.
+##
+## @Global    MTU: maximum transfer unit<br>
+## @External  dialog
+#---
+function cfg_mtu() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Configure MTU"                                   \
+	                 --ok-label       "$BTN_ACCEPT"                            \
+	                 --cancel-label   "$BTN_CANCEL"                            \
+	                 --inputbox                                                \
+	                 "Enter the maximum transfer unit for this network device" \
+	                 0 0 $MTU`
+
+	if [ $? -eq 0 ]; then
+		MTU=$COMMAND
+	fi
+	return 0
+}
+
+#--- cfg_wifi_nwid()
+##
+## Sets the wifi Network ID
+##
+## @Global    WIFI_NWID: wifi network-id.<br>
+## @External  dialog
+#---
+function cfg_wifi_nwid() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+	                 --stdout                                   \
+	                 --title "Configure NetworkID"              \
+	                 --ok-label       "$BTN_ACCEPT"             \
+	                 --cancel-label   "$BTN_CANCEL"             \
+	                 --inputbox                                 \
+	                 "Enter network name (ONLY for pre-802.11 hardware!)" \
+	                 0 0 ${WIFI_NWID}`
+
+	if [ $? -eq 0 ]; then
+		WIFI_NWID="${COMMAND}"
+	fi
+}
+
+#--- cfg_wifi_essid()
+##
+## This sets the ssid of the network
+##
+## @Global    WIFI_ESSID: wifi ssid.<br>
+## @External  dialog
+#---
+function cfg_wifi_essid() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+	                 --stdout                                   \
+	                 --title "Configure SSID"                   \
+	                 --ok-label       "$BTN_ACCEPT"             \
+	                 --cancel-label   "$BTN_CANCEL"             \
+	                 --inputbox                                 \
+	                 "Enter the ssid of the network (default: any)" \
+	                 0 0 ${WIFI_ESSID}`
+
+	if [ $? -eq 0 ]; then
+		WIFI_ESSID="${COMMAND}"
+	fi
+}
+
+#--- cfg_wifi_rate()
+##
+## This sets the maximum bitrate
+##
+## @Global    WIFI_RATE: wifi max bitrate.<br>
+## @External  dialog
+#---
+function cfg_wifi_rate() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+	                 --stdout                                   \
+	                 --title "Configure the bitrate"            \
+	                 --ok-label       "$BTN_ACCEPT"             \
+	                 --cancel-label   "$BTN_CANCEL"             \
+	                 --inputbox                                 \
+	                 "Enter maximum bitrate of the network (examples: 5,5 11 or 54)" \
+	                 0 0 ${WIFI_RATE}`
+
+	if [ $? -eq 0 ]; then
+		WIFI_RATE="${COMMAND}"
+	fi
+}
+
+#--- cfg_wifi_mode()
+##
+## This sets the wifi mode
+##
+## @Global    WIFI_MODE: wifi card mode.<br>
+## @External  dialog
+#---
+function cfg_wifi_mode() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+	                 --stdout                                   \
+	                 --title "Configure the mode"               \
+	                 --ok-label       "$BTN_ACCEPT"             \
+	                 --cancel-label   "$BTN_CANCEL"             \
+	                 --menu                                     \
+	                 "Select if you're using ad-hoc or managed mode" \
+	                 0 0 0                                      \
+                         "1"	"Managed (default)"                 \
+			 "2"	"Ad-Hoc"`
+
+	if [ $? -eq 0 ]; then
+		case $COMMAND in
+			'1') WIFI_MODE="Managed" ;;
+			'2') WIFI_MODE="Ad-Hoc" ;;
+		esac
+	fi
+}
+
+#--- cfg_wifi_secmode()
+##
+## The wifi security mode
+##
+## @Global    WIFI_SECMODE: wifi security mode.<br>
+## @External  dialog
+#---
+function cfg_wifi_secmode() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+	                 --stdout                                   \
+	                 --title "Configure the security mode"      \
+	                 --ok-label       "$BTN_ACCEPT"             \
+	                 --cancel-label   "$BTN_BACK"               \
+	                 --menu                                     \
+	                 "Select the security mode"                 \
+	                 0 0 0                                      \
+                         "1"	"Open (default)"                    \
+			 "2"	"Restricted"`
+
+	if [ $? -eq 0 ]; then
+		case $COMMAND in
+			'1') WIFI_SECMODE="open" ;;
+			'2') WIFI_SECMODE="restricted" ;;
+		esac
+	fi
+}
+
+#--- cfg_wifi_enablekey()
+##
+## Enable wifi keys
+##
+## @Global    WIFI_KEY: switch to enable keys.<br>
+## @External  dialog
+#---
+function cfg_wifi_enablekey() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+	                 --stdout                                   \
+	                 --title "Configure use of keys"            \
+	                 --ok-label       "$BTN_ACCEPT"             \
+	                 --cancel-label   "$BTN_BACK"               \
+	                 --menu                                     \
+	                 "Enable or disable keys"                   \
+	                 0 0 0                                      \
+                         "1"	"On"                                \
+			 "2"	"Off"`
+
+	if [ $? -eq 0 ]; then
+		case $COMMAND in
+			'1') WIFI_KEY="on" ;;
+			'2') WIFI_KEY="off" ;;
+		esac
+	fi
+}
+
+#--- cfg_wifi_defaultkey()
+##
+## This sets the maximum bitrate
+##
+## @Global    WIFI_DEFAULTKEY: wifi default key to use.<br>
+## @External  dialog
+#---
+function cfg_wifi_defaultkey() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+	                 --stdout                                   \
+	                 --title "Setting the default key"          \
+	                 --ok-label       "$BTN_ACCEPT"             \
+	                 --cancel-label   "$BTN_CANCEL"             \
+	                 --menu                                     \
+	                 "Select the default key to use"            \
+		                 0 0 0                              \
+		                 "1" "$WIFI_KEY1"                   \
+		                 "2" "$WIFI_KEY2"                   \
+		                 "3" "$WIFI_KEY3"                   \
+		                 "4" "$WIFI_KEY4" `
+
+	if [ $? -eq 0 ]; then
+		WIFI_DEFAULTKEY="${COMMAND}"
+	fi
+}
+
+#--- cfg_wifi_enckey()
+##
+## This sets the encryption key
+##
+## @Global    WIFI_KEY$n: wifi encryption key.<br>
+## @External  dialog
+#---
+function cfg_wifi_enckey() {
+	case $1 in
+	  '1') local currentkey="$WIFI_KEY1" ;;
+	  '2') local currentkey="$WIFI_KEY2" ;;
+	  '3') local currentkey="$WIFI_KEY3" ;;
+	  '4') local currentkey="$WIFI_KEY4" ;;
+	esac
+
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+	                 --stdout                                   \
+	                 --title "Configure the encryption keys"    \
+	                 --ok-label       "$BTN_ACCEPT"             \
+	                 --cancel-label   "$BTN_BACK"               \
+	                 --inputbox                                 \
+	                 "Enter encryption key $1
+(either in s:something or hexadecimal form)"                      \
+	                 0 0 "$currentkey" `
+
+	if [ $? -eq 0 ]; then
+		case $1 in
+			'1') WIFI_KEY1="${COMMAND}" ;;
+			'2') WIFI_KEY2="${COMMAND}" ;;
+			'3') WIFI_KEY3="${COMMAND}" ;;
+			'4') WIFI_KEY4="${COMMAND}" ;;
+		esac
+	fi
+}
+
+#--- cfg_wifi_setkeys()
+##
+## Presents user with menu to enter encryption keys Up to
+## four keys may be specified.
+##
+## @Global      WIFI_KEY1: first key<br>
+## @Global      WIFI_KEY2: second key<br>
+## @Global      WIFI_KEY3: third key<br>
+## @Global      WIFI_KEY4: fourth key<br>
+## @Global      WIFI_DEFAULTKEY: default key<br>
+## @External    dialog
+#---
+function cfg_wifi_setkeys() {
+	while [ true ]; do
+		COMMAND=`$DIALOG --backtitle "$BACKTITLE"            \
+		                 --stdout                            \
+		                 --title "Configure encryption keys" \
+		                 --ok-label       "$BTN_SELECT"      \
+		                 --cancel-label   "$BTN_BACK"        \
+		                 --menu                              \
+		                 "Choose a encryption key to modify:"   \
+		                 0 0 0                            \
+		                 "1" "$WIFI_KEY1"                 \
+		                 "2" "$WIFI_KEY2"                 \
+		                 "3" "$WIFI_KEY3"                 \
+		                 "4" "$WIFI_KEY4"                 \
+		                 "5" "Default key" `
+
+	    if [ $? = 0 ]; then
+		case $COMMAND in
+			'1') cfg_wifi_enckey "1" ;;
+			'2') cfg_wifi_enckey "2" ;;
+			'3') cfg_wifi_enckey "3" ;;
+			'4') cfg_wifi_enckey "4" ;;
+			'5') cfg_wifi_defaultkey ;;
+		esac ;
+	    else
+		return 0 ;
+	    fi
+	done
+}
+
+#--- cfg_wifi_security_menu()
+##
+## The wifi security settings submenu
+##
+## @External  dialog
+#---
+function cfg_wifi_security_menu() {
+    while [ true ]; do
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                      \
+	                 --stdout                                      \
+	                 --title "Configure security options"          \
+	                 --ok-label       "$BTN_SELECT"                \
+	                 --cancel-label   "$BTN_BACK"                  \
+	                 --menu                                        \
+	                 "WIFI Security submenu" \
+	                 0 0 0 \
+			 "1" "Security mode (enc)" \
+			 "2" "Encryption keys (key)" \
+			 "3" "Enable keys (key on/off)" `
+
+
+	if [ $? -eq 0 ]; then
+		case $COMMAND in
+			'1') cfg_wifi_secmode ;;
+			'2') cfg_wifi_setkeys ;;
+			'3') cfg_wifi_enablekey  ;;
+		esac ;
+	else
+		return 0 ;
+	fi
+  done
+}
+
+#--- cfg_wifi()
+##
+## The wifi settings submenu
+##
+## @External  dialog
+#---
+function cfg_wifi() {
+    while [ true ]; do
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                      \
+	                 --stdout                                      \
+	                 --title "Configure WIFI"                      \
+	                 --ok-label       "$BTN_SELECT"                \
+	                 --cancel-label   "$BTN_BACK"                  \
+	                 --menu                                        \
+	                 "The settings for the wifi network"           \
+	                 0 0 0 \
+			 "1" "Network or Domain ID" \
+			 "2" "Network name" \
+			 "3" "Bitrate" \
+			 "4" "Mode" \
+			 "5" "Security menu" `
+
+	if [ $? != 0 ]; then
+		# Exit
+		return 0
+	fi
+
+	if [ $? -eq 0 ]; then
+		case $COMMAND in
+			'1') cfg_wifi_nwid ;;
+			'2') cfg_wifi_essid ;;
+			'3') cfg_wifi_rate ;;
+			'4') cfg_wifi_mode ;;
+			'5') cfg_wifi_security_menu ;;
+		esac
+	fi
+  done
+}
+
+
+#--- cfg_mac()
+##
+## This sets the MAC address for the given device
+##
+## @Global    MAC: new MAC address for the device.<br>
+## @External  dialog
+#---
+function cfg_mac() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+	                 --stdout                                   \
+	                 --title "Configure the MAC address"        \
+	                 --ok-label       "$BTN_ACCEPT"             \
+	                 --cancel-label   "$BTN_CANCEL"             \
+	                 --inputbox                                 \
+	                 "Enter the MAC address you want this device to use
+(usually not required)" \
+	                 0 0 ${MAC}`
+
+	if [ $? -eq 0 ]; then
+		MAC="${COMMAND}"
+	fi
+}
+
+
+#--- cfg_custom()
+##
+## This sets any other custom options
+##
+## @Global    CUSTOM: any custom options.<br>
+## @External  dialog
+#---
+function cfg_custom() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+	                 --stdout                                   \
+	                 --title "Configure custom options"         \
+	                 --ok-label       "$BTN_ACCEPT"             \
+	                 --cancel-label   "$BTN_CANCEL"             \
+	                 --inputbox                                 \
+	                 "Enter the custom options you need for this device.
+Everything you enter here is passed straight to ifconfig.
+(please file a bug to get this option added)" \
+	                 0 0 "${CUSTOM}"`
+
+	if [ $? -eq 0 ]; then
+		CUSTOM="${COMMAND}"
+	fi
+}
+
+
+#--- toggle_boot()
+##
+## Toggles UP_ON_BOOT state
+##
+## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot
+#---
+function toggle_boot() {
+	if [ $UP_ON_BOOT = "no" ]; then
+		UP_ON_BOOT="yes"
+	else
+		UP_ON_BOOT="no"
+	fi
+
+	return 0
+}
+
+#--- remove_device()
+##
+## Prompts user to confirm removing the device file.
+## If user confirms, the device file is removed and
+## the GOTNETDEVS flag is unset to trigger reparsing
+## of the network device directory.
+##
+## @param     absolute path to network device file
+## @Global    GOTNETDEVS: unset if device directory should be reparsed
+## @External  dialog, rm
+#---
+function remove_device() {
+	if [ -z "$1" ]; then
+		echo "Error: remove_device() called with no parameter"
+		exit 1
+	fi
+
+	local devname
+
+	devname=$(get_basename $1 .dev)
+
+	# confirm removal of network device
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                              \
+	                 --stdout                                              \
+	                 --title "Confirm device removal"                      \
+	                 --yesno                                               \
+	                 "Are you sure you want to remove device file: ${devname}?" \
+	                 0 0`
+
+	if [ $? -eq 0 ]; then
+		rm -f $1
+
+		# cause getnetdevs() to run to remove device from main menu
+		unset GOTNETDEVS devname
+		
+		return 1 # return 1 to return back to main menu
+	fi
+
+	return 0
+}
+
+#--- confirm_save()
+##
+## Prompts user to confirm saving the device file.
+## If the user confirms, an appropriate function is called
+## to save the device (save_new or save_update). The GOTNETDEVS
+## flag is unset to trigger reparsing of the network device
+## directory.
+##
+## @param     absolute path to network device file
+## @Global    GOTNETDEVS: unset if device directory should be reparsed
+## @External  dialog
+#---
+function confirm_save() {
+	if [ -z "$1" ]; then
+		echo "Error: confirm_save() called with no parameter"
+		exit 1
+	fi
+
+	local devname
+	devname=$(get_basename $1)
+
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Confirm device saving"                           \
+	                 --yesno                                                   \
+	                 "Are you sure you want to save device file: ${devname}?"  \
+	                 0 0`
+
+	if [ $? -eq 0 ]; then
+		if [ -e $1 ]; then
+			save_update $1
+		else
+			save_new $1
+		fi
+		return 1 # return 1 to return back to main menu
+	fi
+	
+	return 0
+}
+
+
+#--- save_new()
+##
+## Saves a new network device file. This function is called
+## when a network device file does not yet exist and the user
+## wishes to save the device. 
+## 
+## @param     absolute path to network device file
+## @Global    MODULE: kernel module or blank for static driver<br>
+## @Global    MODE: 'dynamic' for dhcp, or 'static' for static<br>
+## @Global    IP: ip address<br>
+## @Global    BROADCAST: broadcast address<br>
+## @Global    NETMASK: netmask<br>
+## @Global    GATEWAY: gateway address<br>
+## @Global    POINTTOPOINT: point to point address<br>
+## @Global    MTU: maximum transfer unit<br>
+## @Global    WIFI_NWID: wifi network-id.<br>
+## @Global    WIFI_ESSID: wifi ssid.<br>
+## @Global    WIFI_RATE: wifi max bitrate.<br>
+## @Global    WIFI_MODE: wifi card mode.<br>
+## @Global    WIFI_SECMODE: wifi security mode.<br>
+## @Global    WIFI_KEY: enable key usage switch.<br>
+## @Global    WIFI_KEY1: wifi encryption key 1.<br>
+## @Global    WIFI_KEY2: wifi encryption key 2.<br>
+## @Global    WIFI_KEY3: wifi encryption key 3.<br>
+## @Global    WIFI_KEY4: wifi encryption key 4.<br>
+## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
+## @Global    MAC: MAC address.<br>
+## @Global    CUSTOM: any custom options.<br>
+## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot
+## @External  cat, date
+#---
+function save_new() {
+	if [ -z "$1" ]; then
+		echo "Error: save_new() called with no parameter"
+		exit 1
+	fi
+
+	local now
+	now=`date`
+	cat > $1 << EOF
+# $devname configuration
+# created by: ${BACKTITLE}
+# created on: $now
+# last modified: $now
+MODULE=${MODULE}
+MODE=${MODE}
+IP=${IP}
+BROADCAST=${BROADCAST}
+NETMASK=${NETMASK}
+GATEWAY=${GATEWAY}
+POINTOPOINT=${POINTOPOINT}
+MTU=${MTU}
+UP_ON_BOOT=${UP_ON_BOOT}
+EOF
+
+	if [ ! -z ${WIFI_NWID} ]; then
+		echo "WIFI_NWID='${WIFI_NWID}'" >> $1
+	fi
+	if [ ! -z ${WIFI_ESSID} ]; then
+		echo "WIFI_ESSID='${WIFI_ESSID}'" >> $1
+	fi
+	if [ ! -z ${WIFI_RATE} ]; then
+		echo "WIFI_RATE=${WIFI_RATE}" >> $1
+	fi
+	if [ ! -z ${WIFI_MODE} ]; then
+		echo "WIFI_MODE=${WIFI_MODE}" >> $1
+	fi
+	if [ ! -z ${WIFI_SECMODE} ]; then
+		echo "WIFI_SECMODE=${WIFI_SECMODE}" >> $1
+	fi
+	if [ ! -z $WIFI_KEY ]; then
+		echo "WIFI_KEY=$WIFI_KEY" >> $1
+	fi
+	if [ ! -z $WIFI_KEY1 ]; then
+		echo "WIFI_KEY1=${WIFI_KEY1}" >> $1
+	fi
+	if [ ! -z $WIFI_KEY2 ]; then
+		echo "WIFI_KEY2=${WIFI_KEY2}" >> $1
+	fi
+	if [ ! -z $WIFI_KEY3 ]; then
+		echo "WIFI_KEY3=${WIFI_KEY3}" >> $1
+	fi
+	if [ ! -z $WIFI_KEY4 ]; then
+		echo "WIFI_KEY4=${WIFI_KEY4}" >> $1
+	fi
+	if [ ! -z $WIFI_DEFAULTKEY ]; then
+		echo "WIFI_DEFAULTKEY=$WIFI_DEFAULTKEY" >> $1
+	fi
+	if [ ! -z ${MAC} ]; then
+		echo "MAC='${MAC}'" >> $1
+	fi
+	if [ ! -z "${CUSTOM}" ]; then
+		echo "CUSTOM='${CUSTOM}'" >> $1
+	fi
+}
+
+#--- save_update()
+##
+## Updates an existing network device file. This function is
+## called when a network device file does exist and the user
+## wishes to save changes to the device. It makes use of
+## the cat_or_sedit function to modify lines in-place in
+## the device file if the setting exists in the file,
+## otherwise the setting is appended to the file. This should
+## preserve any overridden network functions in the device
+## file.
+## 
+## @param     absolute path to network device file
+## @Global    MODULE: kernel module or blank for static driver<br>
+## @Global    MODE: 'dynamic' for dhcp, or 'static' for static<br>
+## @Global    IP: ip address<br>
+## @Global    BROADCAST: broadcast address<br>
+## @Global    NETMASK: netmask<br>
+## @Global    GATEWAY: gateway address<br>
+## @Global    POINTTOPOINT: point to point address<br>
+## @Global    MTU: maximum transfer unit<br>
+## @Global    WIFI_NWID: wifi network-id.<br>
+## @Global    WIFI_ESSID: wifi ssid.<br>
+## @Global    WIFI_RATE: wifi max bitrate.<br>
+## @Global    WIFI_MODE: wifi card mode.<br>
+## @Global    WIFI_SECMODE: wifi security mode.<br>
+## @Global    WIFI_KEY: enable key usage switch.<br>
+## @Global    WIFI_KEY1: wifi encryption key 1.<br>
+## @Global    WIFI_KEY2: wifi encryption key 2.<br>
+## @Global    WIFI_KEY3: wifi encryption key 3.<br>
+## @Global    WIFI_KEY4: wifi encryption key 4.<br>
+## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
+## @Global    MAC: MAC address.<br>
+## @Global    CUSTOM: any custom options.<br>
+## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot
+## @External  date
+#---
+function save_update() {
+	if [ -z "$1" ]; then
+		echo "Error: save_update() called with no parameter"
+		exit 1
+	fi
+
+	if [ ! -e $1 ]; then
+		echo "Error: save_update() device file does not exist: $1"
+		exit 1
+	fi
+
+	cat_or_sedit "^# created by:.*" "# created by: ${BACKTITLE}" $1
+	cat_or_sedit "^# last modified:.*" "# last modified: `date`" $1
+	cat_or_sedit "^MODULE=.*" "MODULE=${MODULE}" $1
+	cat_or_sedit "^MODE=.*" "MODE=${MODE}" $1
+	cat_or_sedit "^IP=.*" "IP=${IP}" $1
+	cat_or_sedit "^BROADCAST=.*" "BROADCAST=${BROADCAST}" $1
+	cat_or_sedit "^NETMASK=.*" "NETMASK=${NETMASK}" $1
+	cat_or_sedit "^GATEWAY=.*" "GATEWAY=${GATEWAY}" $1
+	cat_or_sedit "^POINTOPOINT=.*" "POINTOPOINT=${POINTOPOINT}" $1
+	cat_or_sedit "^MTU=.*" "MTU=${MTU}" $1
+	if [ ! -z ${WIFI_NWID} ]; then
+	  cat_or_sedit "^WIFI_NWID=.*" "WIFI_NWID='${WIFI_NWID}'" $1
+	else
+	  sed -i '/^WIFI_NWID=.*/d' $1
+	fi
+	if [ ! -z ${WIFI_ESSID} ]; then
+	  cat_or_sedit "^WIFI_ESSID=.*" "WIFI_ESSID='${WIFI_ESSID}'" $1
+	else
+	  sed -i '/^WIFI_ESSID=.*/d' $1
+	fi
+	if [ ! -z ${WIFI_RATE} ]; then
+	  cat_or_sedit "^WIFI_RATE=.*" "WIFI_RATE=${WIFI_RATE}" $1
+	else
+	  sed -i '/^WIFI_RATE=.*/d' $1
+	fi
+	if [ ! -z ${WIFI_MODE} ]; then
+	  cat_or_sedit "^WIFI_MODE=.*" "WIFI_MODE=${WIFI_MODE}" $1
+	else
+	  sed -i '/^WIFI_MODE=.*/d' $1
+	fi
+	if [ ! -z ${WIFI_SECMODE} ]; then
+	  cat_or_sedit "^WIFI_SECMODE=.*" "WIFI_SECMODE=${WIFI_SECMODE}" $1
+	else
+	  sed -i '/^WIFI_SECMODE=.*/d' $1
+	fi
+	if [ ! -z ${WIFI_KEY} ]; then
+	  cat_or_sedit "^WIFI_KEY=.*" "WIFI_KEY=${WIFI_KEY}" $1
+	else
+	  sed -i '/^WIFI_KEY=.*/d' $1
+	fi
+	if [ ! -z ${WIFI_KEY1} ]; then
+	  cat_or_sedit "^WIFI_KEY1=.*" "WIFI_KEY1=${WIFI_KEY1}" $1
+	else
+	  sed -i '/^WIFI_KEY1=.*/d' $1
+	fi
+	if [ ! -z ${WIFI_KEY2} ]; then
+	  cat_or_sedit "^WIFI_KEY2=.*" "WIFI_KEY2=${WIFI_KEY2}" $1
+	else
+	  sed -i '/^WIFI_KEY2=.*/d' $1
+	fi
+	if [ ! -z ${WIFI_KEY3} ]; then
+	  cat_or_sedit "^WIFI_KEY3=.*" "WIFI_KEY3=${WIFI_KEY3}" $1
+	else
+	  sed -i '/^WIFI_KEY3=.*/d' $1
+	fi
+	if [ ! -z ${WIFI_KEY4} ]; then
+	  cat_or_sedit "^WIFI_KEY4=.*" "WIFI_KEY4=${WIFI_KEY4}" $1
+	else
+	  sed -i '/^WIFI_KEY4=.*/d' $1
+	fi
+	if [ ! -z ${WIFI_DEFAULTKEY} ]; then
+	  cat_or_sedit "^WIFI_DEFAULTKEY=.*" "WIFI_DEFAULTKEY=${WIFI_DEFAULTKEY}" $1
+	else
+	  sed -i '/^WIFI_DEFAULTKEY=.*/d' $1
+	fi
+	if [ ! -z ${MAC} ]; then
+	  cat_or_sedit "^MAC=.*" "MAC='${MAC}'" $1
+	else
+	  sed -i '/^MAC=.*/d' $1
+	fi
+	if [ ! -z "${CUSTOM}" ]; then
+	  cat_or_sedit "^CUSTOM=.*" "CUSTOM='${CUSTOM}'" $1
+	else
+	  sed -i '/^CUSTOM=.*/d' $1
+	fi
+	cat_or_sedit "^UP_ON_BOOT=.*" "UP_ON_BOOT=${UP_ON_BOOT}" $1
+
+	# removing leftovers from older netconf versions
+	sed -i '/^WIFI=.*/d' $1
+	sed -i '/^WIFI_ADVANCED=.*/d' $1
+
+}
+
+#--- cat_or_sedit()
+##
+## A hack to either sedit an existing line, or add a new
+## line if one doesn't exist.
+##
+## @param     pattern to search for
+## @param     line to replace pattern with, or add as new line
+## @param     absolute path to network device file
+## @External  grep, cat
+#---
+function cat_or_sedit() {
+	if ( cat $3 | grep -q "$1" ); then
+		sed -i "s/${1}/${2}/" ${3}
+	else
+		echo "$2" >> ${3}
+	fi
+}
+
+#--- add_device()
+##
+## Prompts user for name of new device and passes control
+## to cfg_device. GOTNETDEVS is unset to force reparsing
+## of network device directory.
+##
+## @Global      NETDEVDIR: network device directory<br>
+## @Global      GOTNETDEVS: unset if device directory should be reparsed
+## @External    dialog
+#---
+function add_device() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
+	                 --stdout                                                  \
+	                 --title "Add new network device"                          \
+	                 --ok-label       "$BTN_ACCEPT"                            \
+	                 --cancel-label   "$BTN_CANCEL"                            \
+	                 --inputbox                                                \
+	                 "Enter the name for this device (e.g. eth0, plip1)"       \
+	                 0 0`
+
+	if [ $? != 0 ]; then
+		return 0
+	fi
+
+	if [ -z "$COMMAND" ]; then
+		return 0
+	fi
+
+	cfg_device "${NETDEVDIR}/${COMMAND}.dev"
+
+	# cause getnetdevs() to run to pick up new device
+	unset GOTNETDEVS
+
+	return 0
+}
+
+#--- cfg_device()
+##
+## Presents user with menu to configure network options as
+## well as options to remove or save the configuration.
+##
+## @param     absolute path to network device file
+## @Global    MODULE: kernel module or blank for static driver<br>
+## @Global    MODE: 'dynamic' for dhcp, or 'static' for static<br>
+## @Global    IP: ip address<br>
+## @Global    BROADCAST: broadcast address<br>
+## @Global    NETMASK: netmask<br>
+## @Global    GATEWAY: gateway address<br>
+## @Global    POINTTOPOINT: point to point address<br>
+## @Global    MTU: maximum transfer unit<br>
+## @Global    WIFI_NWID: wifi network-id.<br>
+## @Global    WIFI_ESSID: wifi ssid.<br>
+## @Global    WIFI_RATE: wifi max bitrate.<br>
+## @Global    WIFI_MODE: wifi card mode.<br>
+## @Global    WIFI_SECMODE: wifi security mode.<br>
+## @Global    WIFI_ENCKEY: wifi encryption key.<br>
+## @Global    MAC: MAC address.<br>
+## @Global    CUSTOM: any custom options.<br>
+## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot
+## @External  dialog
+#---
+function cfg_device() {
+	if [ -z "$1" ]; then
+		echo "Error: cfg_device() called with no parameter"
+		exit 1
+	fi
+
+	# load the network device file
+	loadnetdev "$1"
+
+	local dmodule dmtu dpointopoint
+
+	true
+	while [ $? -eq 0 ]; do
+
+		if [ -z "$MODULE" ]; then
+			dmodule="Use static driver"
+		else
+			dmodule=$MODULE
+		fi
+
+		if [ -z "$MTU" ]; then
+			dmtu="Use default MTU"
+		else
+			dmtu=$MTU
+		fi
+
+		if [ -z "$POINTOPOINT" ]; then
+			dpointopoint="None"
+		else
+			dpointopoint=$POINTOPOINT
+		fi
+
+		if [ `echo $MODE` = 'dynamic' ]; then
+			COMMAND=`$DIALOG --backtitle "$BACKTITLE"                          \
+			                 --stdout                                          \
+		                     --title "Modify, Remove Network Device"               \
+			                 --ok-label       "$BTN_SELECT"                    \
+			                 --cancel-label   "$BTN_BACK"                      \
+			                 --menu                                            \
+			                 "Choose a setting to modify, or select Remove to remove the device" \
+			                 0 0 0                                             \
+			                 "MODULE" "${dmodule}"                             \
+			                 "MODE" "dynamic (use dhcp)"                       \
+			                 "POINTOPOINT" "${dpointopoint}"                   \
+			                 "MTU"  "${dmtu}"                                  \
+			                 "WIFI"  "Wifi menu"                               \
+			                 "MAC"  "${MAC}"                                   \
+			                 "CUSTOM"  "Custom options"                        \
+			                 "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
+			                 "Remove" "Remove this network device"             \
+			                 "Save" "Save this device file"`
+		else
+			COMMAND=`$DIALOG --backtitle "$BACKTITLE"                          \
+			                 --stdout                                          \
+		                     --title "Modify, Remove Network Device"               \
+			                 --ok-label       "$BTN_SELECT"                    \
+			                 --cancel-label   "$BTN_BACK"                      \
+			                 --menu                                            \
+			                 "Choose a setting to modify, or select Remove to remove the device" \
+			                 0 0 0                                             \
+			                 "MODULE" "${dmodule}"                             \
+			                 "MODE" "static"                                   \
+			                 "IP" "${IP}"                                      \
+			                 "BROADCAST" "${BROADCAST}"                        \
+			                 "NETMASK" "${NETMASK}"                            \
+			                 "GATEWAY" "${GATEWAY}"                            \
+			                 "POINTOPOINT" "${dpointopoint}"                   \
+			                 "MTU"  "${dmtu}"                                  \
+			                 "WIFI"  "Wifi submenu"                            \
+			                 "MAC"  "${MAC}"                                     \
+			                 "CUSTOM"  "Custom options"                        \
+			                 "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
+			                 "Remove" "Remove this network device"             \
+			                 "Save" "Save this device file"`
+		fi
+
+
+		if [ $? != 0 ]; then
+			return 0
+		fi
+
+		case $COMMAND in
+			'MODULE')      cfg_module          ;;
+			'MODE')        cfg_mode            ;;
+			'IP')          cfg_ip              ;;
+			'BROADCAST')   cfg_broadcast       ;;
+			'GATEWAY')     cfg_gateway         ;;
+			'NETMASK')     cfg_netmask         ;;
+			'POINTOPOINT') cfg_pointopoint     ;;
+			'MTU')         cfg_mtu             ;;
+			'WIFI')        cfg_wifi            ;;
+			'MAC')         cfg_mac             ;;
+			'CUSTOM')      cfg_custom          ;;
+			'UP_ON_BOOT')  toggle_boot         ;;
+			'Remove')      remove_device "$1"  ;;
+			'Save')        confirm_save "$1"   ;;
+		esac
+
+	done
+
+	return 0
+}
+
+#--- parse_args()
+## 
+## Parses command line arguments. Accepted arguments are:
+## <ul>
+## <li>--check_hostname: ensures a hostname is defined in 
+##     /etc/hostname, if not the user is forced to enter
+##     one</li>
+## <li>--check_devdir: checks if the network device directory
+##     exists, if it doesn't, the user is prompted to create
+##     it</li>
+## </ul>
+##
+## @param    command line argument
+##
+#---
+function parse_args() {
+
+	if [ $# -lt 1 ]; then
+		return;
+	fi
+
+	if [ $# -gt 1 ]; then
+		echo "Error: too many arguments"
+		exit 1;
+	fi
+
+	case $1 in
+		'--check_hostname')	check_hostname
+		                    exit 0            ;;
+		'--check_devdir')   check_devdir
+		                    exit 0            ;;
+		*) echo "Error: Invalid argument: $1"
+		   exit 1                             ;;
+	esac
+
+}
+
+#--- main()
+##
+## The netconf main menu.
+##
+## @Arguments   command line arguments, will be passed to parse_args
+## @Global      HOSTNAMEFN: path to hosts file<br>
+## @Global      NETDEVS: array of configured network devices<br>
+## @Global      NETDEVSMENU: array of id / network device pairs<br>
+## @Global      GOTNETMODS: unset if kernel modules should be reparsed<br>
+## @Global      GOTNETDEVS: unset if device directory should be reparsed
+## @External    dialog, cat
+#---
+function main() {
+
+	parse_args $*
+	check_hostname
+	check_devdir
+
+	local curhostname
+	unset GOTNETMODS GOTNETDEVS
+
+	true
+	while [ $? -eq 0 ]; do
+
+		getnetdevs
+
+		curhostname=`cat $HOSTNAMEFN`
+
+		COMMAND=`$DIALOG --backtitle "$BACKTITLE"                               \
+		                 --stdout                                               \
+		                 --title "Add, Modify, Remove Netowrk Devices"          \
+		                 --ok-label       "$BTN_SELECT"                         \
+		                 --cancel-label   "$BTN_EXIT"                           \
+		                 --menu                                                 \
+		                 "Choose a device to modify or remove, or select Add to add a new device. Change will allow you to change the hostname of this computer." \
+		                 0 0 0                                                  \
+		                 ${NETDEVSMENU[*]}                                      \
+		                 "Add" "Add new network device"                         \
+		                 "Hostname" "Change hostname (currently: $curhostname)" \
+		                 "DNS" "Configure DNS servers"`
+
+		if [ $? != 0 ]; then
+			# Exit
+			exit 0
+		fi
+
+		case $COMMAND in
+			'Add')      add_device                        ;;
+			'Hostname') cfg_hostname                      ;;
+			'DNS')      cfg_dns                           ;;
+			*)          cfg_device "${NETDEVS[$COMMAND]}" ;;
+		esac
+
+	done
+}
+
+
+# ------------------------- Entry Point ----------------------------- #
+if [ "$ROOTCHECK" -eq 1 ]; then
+	if [ "$UID" != 0 ]; then
+		echo "Enter the root password, please."
+		su  -c "$0 $*"
+		exit
+	fi
+fi
+
+main $*

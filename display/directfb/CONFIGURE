@@ -1,0 +1,45 @@
+add_status()  {
+  while  [  -n  "$1"  ];  do
+    echo  "$1"
+    echo  "$2"
+    echo  "off"
+    shift 2
+  done
+}
+
+
+make_gfxdrivers_checklist()  {
+  add_status  `cat  $SCRIPT_DIRECTORY/gfxdrivers`
+}
+
+
+get_gfx()  {
+
+  BACKTITLE="DirectFB GFXDRIVER Configuration"
+      TITLE="Chipset Manufacturer selection"
+       HELP="Choose the chiipset your card uses, don't bother with any others if you don't have the 
+hardware. If none are selected then all will be installed."
+
+  dialog  --backtitle  "$BACKTITLE"  \
+          --title      "$TITLE"      \
+          --stdout                   \
+          --separate-output          \
+          --checklist  "$HELP"       \
+          0 0 0                      \
+         `make_gfxdrivers_checklist`
+
+}
+
+if ! grep -q "gfxdrivers" $SPELL_CONFIG ;then 
+  if query "select gfxdrivers to compile ?" n 
+  then 
+  gfxdrivers=all
+  OLD_IFS=$IFS
+  export  IFS="	
+"
+  gfxdrivers=`get_gfx | tr '\n' ','`
+  echo "gfxdrivers=$gfxdrivers" >> $SPELL_CONFIG
+  export  IFS=$OLD_IFS
+  else echo gfxdrivers=all  >> $SPELL_CONFIG
+  fi
+fi

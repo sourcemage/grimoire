@@ -1,0 +1,71 @@
+# (c) 2005 Seth Alan Woolley and the Source Mage Team
+# GPL'd of course
+
+diff -Nuar hashsum/Makefile hashsum-good/Makefile
+--- hashsum/Makefile	2004-01-08 23:16:28.000000000 +0000
++++ hashsum-good/Makefile	2005-11-19 07:17:03.000000000 +0000
+@@ -1,5 +1,5 @@
+ CCC		=gcc
+-FLAGS		=-DLINUX32
++FLAGS		=-DLINUX64
+ FLAGS		+=-DHASHCOM_BASIC_API
+ #FLAGS		+=-DHASHCOM_SMALL
+ FLAGS		+=-DHASHCOM_REASONABLE
+diff -Nuar hashsum/hasher/Makefile hashsum-good/hasher/Makefile
+--- hashsum/hasher/Makefile	2004-01-08 23:04:42.000000000 +0000
++++ hashsum-good/hasher/Makefile	2005-11-19 07:17:14.000000000 +0000
+@@ -1,5 +1,5 @@
+ CCC		=gcc
+-FLAGS		=-DLINUX32
++FLAGS		=-DLINUX64
+ FLAGS		+=-DHASHCOM_BASIC_API
+ #FLAGS		+=-DHASHCOM_SMALL
+ FLAGS		+=-DHASHCOM_REASONABLE
+diff -Nuar hashsum/hasher/hashcom.c hashsum-good/hasher/hashcom.c
+--- hashsum/hasher/hashcom.c	2004-01-08 23:18:02.000000000 +0000
++++ hashsum-good/hasher/hashcom.c	2005-11-19 07:14:10.000000000 +0000
+@@ -88,7 +88,7 @@
+ const char* crypto_name(const void* tab[][2], int count, int v) {
+   int i;
+   for (i=0; i<count; i++)
+-    if ( (int)tab[i][0] == v )
++    if ( (point)tab[i][0] == v )
+       return (char*)(tab[i][1]);
+   return "Unknown";
+ }
+@@ -99,7 +99,7 @@
+     str = &str[strspn(str," \t\n\r")];
+     if ( strncasecmp((char*)tab[i][1], str, strlen((char*)tab[i][1])) == 0
+         &&  strlen(str) == strlen((char*)tab[i][1]))
+-      return (int)tab[i][0];
++      return (point)tab[i][0];
+   }
+   return 0;
+ }
+diff -Nuar hashsum/hasher/hasher.h hashsum-good/hasher/hasher.h
+--- hashsum/hasher/hasher.h	2004-01-08 23:06:47.000000000 +0000
++++ hashsum-good/hasher/hasher.h	2005-11-19 07:16:39.000000000 +0000
+@@ -90,7 +90,7 @@
+ 
+ typedef struct {
+ /*! This fools doxygen into marking each of these as being used by hasher */
+-#if (!defined LINUX32) && (!defined WIN32)
++#if (!defined LINUX32) && (!defined LINUX64) && (!defined WIN32)
+   private:
+     md5_context md5;
+     sha1_context sha1;
+diff -Nuar hashsum/hasher/mainDefs.h hashsum-good/hasher/mainDefs.h
+--- hashsum/hasher/mainDefs.h	2001-07-20 20:34:07.000000000 +0000
++++ hashsum-good/hasher/mainDefs.h	2005-11-19 07:13:43.000000000 +0000
+@@ -17,6 +17,11 @@
+ #elif defined LINUX32
+   #include <stdint.h>
+   typedef uint64_t uns64;
++  typedef uint32_t point;
++#elif defined LINUX64
++  #include <stdint.h>
++  typedef uint64_t uns64;
++  typedef uint64_t point;
+ #else
+   #error No undertood architectures defined
+ #endif

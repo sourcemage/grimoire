@@ -1,0 +1,3 @@
+  ./configure            &&
+  make  FLAGS="$CFLAGS"
+ 

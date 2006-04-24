@@ -1,0 +1,73 @@
+#!/bin/bash
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+remote_fs"
+
+. /etc/init.d/smgl_init
+
+start()
+{
+  if [ ! -e /var/run/samba ]; then
+    mkdir /var/run/samba
+  fi &&
+  if ! netstat -l --udp | grep -q netbios-ns ; then
+    echo "Starting NetBIOS nameserver ..."
+    loadproc /usr/sbin/nmbd
+    evaluate_retval
+  fi  &&
+  if ! netstat -l --tcp | grep -q netbios-ssn ; then
+    echo "Starting NetBIOS sessions ..."
+    loadproc /usr/sbin/smbd
+    evaluate_retval
+  fi
+}
+#
+stop()
+{
+  if netstat -l --udp | grep -q netbios-ns ; then
+    if ps -C nmbd | grep -q nmbd ; then
+      echo "Stopping NetBIOS nameserver ..."
+      killproc /usr/sbin/nmbd
+      evaluate_retval
+    fi 
+  fi &&
+  if netstat -l --tcp | grep -q netbios-ssn ; then
+    if ps -C smbd | grep -q smbd; then
+      echo "Stopping NetBIOS sessions ..."
+      killproc /usr/sbin/smbd
+      evaluate_retval
+    fi
+  fi
+}
+#
+status()
+{
+  if netstat -l --udp | grep -q netbios-ns ; then
+    if ! ps -C nmbd | grep -q nmbd; then
+      echo "NetBIOS nameserver : xinetd"
+      evaluate_retval
+    fi
+    if ps -C nmbd | grep -q nmbd; then
+      echo "NetBIOS nameserver : daemon"
+      evaluate_retval
+    fi
+  fi  &&
+  if netstat -l --tcp | grep -q netbios-ssn ; then
+    if ! ps -C smbd | grep -q smbd ; then
+      echo "NetBIOS sessions : xinetd"
+      evaluate_retval
+    fi
+    if ps -C smbd | grep -q smbd ; then
+      echo "NetBIOS sessions : daemon"
+      evaluate_retval
+    fi
+  fi
+}
+
+restart(){
+ 	
+	stop &&
+
+	start
+}

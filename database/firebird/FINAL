@@ -1,0 +1,43 @@
+# we do this here, so that things are not tracked, as these files are 
+# constantly modified in normal use
+local FF FileName DB                          &&
+
+cd $PREFIX                                    &&
+  chown -R root:root $PREFIX                    &&
+  chmod -R uga-w $PREFIX                        &&
+
+  cd bin                                        &&
+
+# Everyone may execute clients
+  chmod 0555 *                                  &&
+
+# Shell scripts changing security attributes are for root only
+  chmod 0500 *.sh                               &&
+
+  cd ..                                         &&
+# Security database
+# Nobody besides firebird permitted to even read this file
+  chown firebird:firebird security.fdb		&&
+  chmod 0600 security.fdb			&&
+# all database should be owned by firebird
+  for DB in `ls examples/*.fdb`
+    do 
+      chmod ug+w $DB                            &&
+      chown firebird:firebird $DB
+    done                                        &&
+
+# create lock files
+  for FF in isc_init1 isc_lock1 isc_event1 isc_guard1
+    do
+      FileName=$FF.`hostname`
+      touch $FileName
+      chown firebird:firebird $FileName
+      chmod u+w $FileName
+    done					&&
+
+# log file
+  mkdir -p $INSTALL_ROOT/var/log/				&&
+  touch  $INSTALL_ROOT/var/log/firebird.log			&&
+  chown firebird:firebird $INSTALL_ROOT/var/log/firebird.log	&&
+  chmod o=,ug=rw $INSTALL_ROOT/var/log/firebird.log		&&
+  ln -sf $INSTALL_ROOT/var/log/firebird.log ./

@@ -1,0 +1,61 @@
+#! /bin/sh
+# $Id: imapd-ssl.rc.in,v 1.14 2002/12/24 02:31:40 mrsam Exp $
+#
+# Copyright 1998 - 2002 Double Precision, Inc.
+# See COPYING for distribution information.
+
+RUNLEVEL=3
+NEEDS="+network +remotefs"
+.  /etc/init.d/smgl_functions
+
+prefix=/usr
+exec_prefix=/usr
+bindir=${exec_prefix}/bin
+libexecdir=/usr/libexec/courier-imap
+
+TLS_CACHEFILE=""
+. /etc/courier-imap/imapd
+. /etc/courier-imap/imapd-ssl
+
+case $1 in
+start)
+	LIBAUTHMODULES=""
+	for f in `builtin echo $AUTHMODULES`; do
+		LIBAUTHMODULES="$LIBAUTHMODULES ${libexecdir}/authlib/$f"
+	done
+
+	if test -x ${libexecdir}/authlib/authdaemond; then
+		/bin/env - ${libexecdir}/authlib/authdaemond start
+	fi
+
+	if test "$TLS_CACHEFILE" != ""; then
+		rm -f $TLS_CACHEFILE
+	fi
+
+	ulimit -v $IMAP_ULIMITD
+	/bin/env - /bin/sh -c " set -a ;
+			prefix=/usr ;
+			exec_prefix=/usr ;
+			bindir=${exec_prefix}/bin ;
+			libexecdir=${libexecdir} ;
+			. /etc/courier-imap/imapd ; \
+			. /etc/courier-imap/imapd-ssl ; \
+			IMAP_TLS=1; export IMAP_TLS; \
+
+			${libexecdir}/couriertcpd -address=$SSLADDRESS \
+			-stderrlogger=${exec_prefix}/sbin/courierlogger \
+			-stderrloggername=imapd-ssl \
+			-maxprocs=$MAXDAEMONS -maxperip=$MAXPERIP \
+			-pid=$SSLPIDFILE $TCPDOPTS \
+			$SSLPORT $COURIERTLS -server -tcpd \
+			${exec_prefix}/sbin/imaplogin $LIBAUTHMODULES \
+			${exec_prefix}/bin/imapd Maildir"
+	;;
+stop)
+	${libexecdir}/couriertcpd -pid=$SSLPIDFILE -stop
+	if test -x ${libexecdir}/authlib/authdaemond; then
+		${libexecdir}/authlib/authdaemond stop
+	fi
+	;;
+esac
+exit 0

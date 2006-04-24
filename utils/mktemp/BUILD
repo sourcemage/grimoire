@@ -1,0 +1,14 @@
+export CPPFLAGS="${CPPFLAGS} -D_GNU_SOURCE"  &&
+
+  OPTS="$OPTS --build=${BUILD}"
+  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+
+  ./configure --prefix=${TRACK_ROOT}/usr  \
+          --sysconfdir=${TRACK_ROOT}/etc  \
+       --localstatedir=${TRACK_ROOT}/var  \
+              --mandir=${TRACK_ROOT}/usr/share/man   \
+             --infodir=${TRACK_ROOT}/usr/share/info  \
+                       $OPTS                 &&
+  sedit "s:^mandir = .*:mandir = \${prefix}/usr/share/man:" Makefile
+  make
+

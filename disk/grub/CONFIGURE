@@ -1,0 +1,188 @@
+TMP_MENU_LST=/tmp/MENU.LST.SKEL
+RUN_GRUB_INSTALL=/tmp/RUN_GRUB_INSTALL
+COPY_MENULST_SKEL=/tmp/COPY_MENU.LST.SKEL
+
+function generate_menu_lst_skel()  {
+  # find current running kernel
+  UNAME_R=`uname -r`
+  
+  cat << EOF > ${TMP_MENU_LST}
+# The grub spell creates a smal skeletin file which you
+# can edit to create a working menu.lst file.  Use this as a guide, but
+# be sure to change any drive/partition specifications [ things that
+# look like (hd0,0) for example ] and root= entries, as this skeletin assume
+# that grub is installed on the first partition of the first disk.
+# It also assumes that grub is installed on the root partition, so the path
+# to the kernel looks like (hd0,0)/boot/vmlinubz
+# If you have a seperate /boot partition, this should rather look like (hd0,0)/vmlinubz
+
+# defaults to the first menu entry
+default 0
+
+# timeout in 10 seconds in no choice is made
+timeout 10
+
+# uncomment the next line if you wish to use LBA (usual for large IDE drives)
+lba32
+
+# Splashimage, provides a nice image for the background
+splashimage ${LIKELY_KERNEL_PARTITION}${BOOT_LOC}/grub/images/smgl-splash.xpm.gz
+
+# defines menu foreground/background, highlight foreground/background
+color  black/light-gray white/red
+
+# Be sure and check the kernel entry below, particulary the kernel entry
+# as well as the root= entry. YOU CERTAINLY WANT TO EDIT THEM !!!
+# You may also wish to add additional arguments,
+# such as ide-scsi= if you're using an IDE CDROM burner, or vga=mode if you
+# plan to use console frame-buffer. Finally you might want to add an initrd,
+# in order to have a beautiful SMGL frame buffer image for instance, please refer to
+# http://wiki.sourcemage.org/index.php?page=HOWTO-Bootsplash in this case.
+
+title  Source Mage GNU/Linux
+kernel (hd0,0)/boot/vmlinubz root=/dev/hda1 devfs=nomount
+#initrd /boot/initrd.splash
+
+title  Source Mage GNU/Linux $UNAME_R
+kernel (hd0,0)/boot/vmlinubz-${UNAME_R} root=/dev/hda1 devfs=nomount
+#initrd /boot/initrd.splash
+
+EOF
+}
+
+config_query  GRUB_EXT2       "Enable ext2 support in stage 2?"            y  &&
+config_query  GRUB_FAT        "Enable FAT16/32 support in stage 2?"        y  &&
+config_query  GRUB_FFS        "Enable FFS support in stage 2?"             y  &&
+config_query  GRUB_MINIX      "Enable MinixFS support in stage 2?"         y  &&
+config_query  GRUB_REISER     "Enable ReiserFS support in stage 2?"        y  &&
+config_query  GRUB_REISER4    "Enable Reiser4 support in stage 2?" 	   n  &&
+config_query  GRUB_JFS        "Enable IBM's JFS support in stage 2?"       y  &&
+config_query  GRUB_XFS        "Enable SGI's XFS support in stage 2?"       y  &&
+config_query  GRUB_VSTA       "Enable VSTAFS support in stage 2?"          y  &&
+config_query  GRUB_GZIP       "Enable gzip decompression in stage 2?"      y  &&
+config_query  GRUB_MD5        "Enable MD5 passwords in stage 2?"           y  &&
+config_query  GRUB_PACKET     "Enable packet retransmission?"              n  &&
+config_query  GRUB_PCI        "Access PCI directly instead of via BIOS?"   n  &&
+config_query  GRUB_3C503      "Enable 3Com 3c503 driver?"                  n  &&
+config_query  GRUB_3C503_SH   "Use 3Com 3c503 shared memory mode?"         n  &&
+config_query  GRUB_3C503_AUI  "Use 3Com 3c503 AUI?"                        n  &&
+config_query  GRUB_3C507      "Enable 3Com 3c507 driver?"                  n  &&
+config_query  GRUB_3C509      "Enable 3Com 3c509 driver?"                  n  &&
+config_query  GRUB_3C529      "Enable 3Com 3c529 driver?"                  n  &&
+config_query  GRUB_3C90x      "Enable 3Com 3c90x driver?"                  n  &&
+config_query  GRUB_CS89x0     "Enable CS89x0 driver?"                      n  &&
+config_query  GRUB_DAVICOM    "Enable Davicom driver?"                     n  &&
+config_query  GRUB_DEPCA      "Enable DEPCA driver?"                       n  &&
+config_query  GRUB_EEPRO10    "Enable Intel EtherExpress Pro/10 driver?"   n  &&
+config_query  GRUB_EEPRO100   "Enable Intel EtherExpress Pro/100 driver?"  n  &&
+config_query  GRUB_EPIC100    "Enable SMC 83c170 EPIC/100 driver?"         n  &&
+config_query  GRUB_SMC9000    "Enable SMC 9000 driver?"                    n  &&
+config_query  GRUB_EXOS205    "Enable EXOS205 driver?"                     n  &&
+config_query  GRUB_NI5010     "Enable Racal-InterLAN NI5010 driver?"       n  &&
+config_query  GRUB_NI5210     "Enable Racal-InterLAN NI5210 driver?"       n  &&
+config_query  GRUB_NI6510     "Enable Racal-InterLAN NI6510 driver?"       n  &&
+config_query  GRUB_LANCE      "Enable Lance PCI PCNet/32 driver?"          n  &&
+config_query  GRUB_NE         "Enable Novell NE1000/2000 ISA driver?"      n  &&
+config_query  GRUB_NE2000     "Enable Novell NE2000 PCI driver?"           n  &&
+config_query  GRUB_NE2100     "Enable Novell NE2100 driver?"               n  &&
+config_query  GRUB_NATSEMI    "Enable NatSemi DP8381x driver?"             n  &&
+config_query  GRUB_WD         "Enable WD8003/8013, SMC8216/8416 driver?"   n  &&
+config_query  GRUB_OTULIP     "Enable old Tulip driver?"                   n  &&
+config_query  GRUB_TULIP      "Enable Tulip driver?"                       n  &&
+config_query  GRUB_RTL8139    "Enable RealTek 8139 driver?"                n  &&
+config_query  GRUB_SIS900     "Enable SIS 900 and SIS 7016 driver?"        n  &&
+config_query  GRUB_SK_G16     "Enable Schneider and Koch G16 driver?"      n  &&
+config_query  GRUB_TIARA      "Enable Tiara driver?"                       n  &&
+config_query  GRUB_VIARHINE   "Enable Via/Rhine-I/II driver?"              n  &&
+config_query  GRUB_W89C840    "Enable Winbond W89c840, Compex RL100-ATX?"  n  &&
+config_query  GRUB_COMP_FIX   "Enable fix for Compex RL2000 PCI card?"     n  &&
+[ "$GRUB_REISER4" = "y" ] || config_query  GRUB_DISKLESS   "Enable diskless operation?"                 n  &&
+#config_query  GRUB_DISKLESS   "Enable diskless operation?"                 n  &&
+config_query  GRUB_HERCULES   "Enable Hercules terminal support?"          n  &&
+config_query  GRUB_SERIAL     "Enable serial terminal support?"            y  &&
+config_query  GRUB_LINUX_MEM  "Pass mem= option automatically?"            n  &&
+
+generate_menu_lst_skel							      &&
+
+#if  [  -h  /etc/grub.conf  ]; then
+    #	rm  -f  /etc/grub.conf
+#fi
+
+if  [  -e  /boot/grub/menu.lst  ];  then
+    message  "You appear to have a /boot/grub/menu.lst file.  If this"
+    message  "is a working file, I can automatically update GRUB for"
+    message  "you (recommended in that case).  If it is not, then I shouldn't"
+    message  "touch anything and you'll want to install GRUB yourself once you"
+    message  "your /boot/grub/menu.lst file is to your liking."
+
+    if  query  "Would you like to edit your /boot/grub/menu.lst file?" 	n; then
+        ${EDITOR:-nano} /boot/grub/menu.lst
+    fi
+    
+else
+    if	query  "Would you like to edit /boot/grub/menu.lst.skel?"	n; then
+        ${EDITOR:-nano} ${TMP_MENU_LST}
+    fi
+    
+    if	query  "Would you like to use /boot/grub/menu.lst.skel as your menu.lst configuration?"	n; then
+        touch ${COPY_MENULST_SKEL}
+    fi
+fi &&
+
+#  if, after all this, the user has created a /boot/grub/menu.lst file in
+#  some fashion, allow them to install GRUB onto the GRUB_TARGET
+if  [  -e  /boot/grub/menu.lst  -o  -e ${COPY_MENULST_SKEL}  ]; then
+    if  query  "Would you like to install GRUB automatically upon current upgrade ?" n; then
+        RUN_GRUB=y
+	
+        config_query  DEFAULT_GRUB_TARGET "Would you like to install GRUB onto the MBR of the drive where /boot is located (else you will have another choice) ?" n
+        
+        if  [  $DEFAULT_GRUB_TARGET  ==  "y"  ]; then
+           	persistent_add GRUB_TARGET
+            GRUB_TARGET=`df /boot | grep dev | cut -d' ' -f1 | cut -b 1-8`
+        else
+            config_query_string GRUB_TARGET \
+            "IMPORTANT: Do NOT specify GRUB format any longer !!! Use instead the usual device file :\
+for example, /dev/hda for the MBR of the first IDE drive, /dev/hdb1 for the first primary\
+partition of the second IDE drive,/dev/sda for the MBR of the first SCSI drive,...etc" \
+            "/dev/hda"
+        fi
+        message  ""
+        message  "GRUB is configured to install on ${MESSAGE_COLOR}${GRUB_TARGET}${DEFAULT_COLOR}"
+        message  ""
+    else
+        RUN_GRUB=n
+    fi
+else
+    RUN_GRUB=n
+fi &&
+
+case  $RUN_GRUB  in
+    n)
+        message  "No changes will be made to your MBR or boot block.  Your old"
+        message  "bootloader will remain unaltered."
+    ;;
+    y)  
+    message  "WARNING:  If something goes wrong while installing GRUB your system"
+    message  "could become UNBOOTABLE!  Be sure to create a rescue diskette before"
+    message  "proceeding any further.  Press 'N' to abort now if you haven't"
+    message  "created a recue diskette yet, then run 'mkrescue' to make one."
+    message  ""
+    message  "IF YOU DO THIS WITHOUT A RESCUE DISKETTE YOU ARE A RECKLESS FOOL!"
+    message  ""
+    message  "Furthermore, GRUB cannot read some filesystems types, so be careful,"
+    message  "be sure you have activated filesystem type support for your system"
+    message  "root partition."
+    message  ""
+    
+    if  query  "Do you have a tested, working rescue diskette and wish to proceed ?"  n; then
+        touch ${RUN_GRUB_INSTALL}
+    else
+        message  "Run 'mkrescue' to create a 1.44 MB rescue diskette."
+        message  "Once you've created the disk, try booting with it once to make"
+        message  "certain it works.  After you have confirmed that it is working"
+        message  "you can either recast grub by typing 'cast -c grub' or install"
+        message  "GRUB into the boot sector of your hard drive manually per the"
+        message  "installation instructions, accessible by typing 'info grub'."
+    fi
+esac

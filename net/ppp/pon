@@ -1,0 +1,42 @@
+#!/bin/sh
+#
+# pon
+#    Script to start a ppp connection.
+#
+# Copyright (c) 2004 Casey Harkins <charkins@pobox.com>
+# Copyright (c) 2002-2004 SourceMage Developers
+#
+# --------------------------- License ------------------------------- #
+# This is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This software is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public
+# License along with this software; if not, write to the Free
+# Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+if [ "$1" == "--help" ]; then
+	echo "usage: pon [peer]"
+	echo ""
+    echo "       peer - specifies the peer to connect to [default: isp]"
+	echo ""
+	exit;
+fi
+
+# check for existing pppd process with same peer
+pppdpid=`ps -o pid= -o cmd= -C pppd | grep "call ${@:-isp}" | sed -e 's/^\s*//' | cut -f1 -d\  `
+
+# if pppd already running for peer, send TERM signal and wait 5 seconds
+if [ ! -z $pppdpid ]; then
+    kill  -15 $pppdpid && sleep 5
+fi
+
+# launch new pppd process
+/usr/sbin/pppd   call  ${@:-isp}

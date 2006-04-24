@@ -1,0 +1,132 @@
+#!/bin/bash
+
+# $1 - needle
+exists_in_text()
+{
+  [ "$1" = "" ] && return 0
+
+  IFS=" 	
+"
+
+  for x in $( cat ) ; do
+    [ "$1" = "$x" ] && return 0
+  done
+
+  return 1
+}
+
+# $1 - device name
+device_is_up()
+{
+  if [ -x /usr/bin/grep ]; then
+    /sbin/ifconfig  | grep -A1 "^${1}\ " | grep 'inet addr' >& /dev/null
+  else
+    /sbin/ifconfig 2>&1 | exists_in_text $1
+  fi
+}
+
+_do_device_up()
+{
+  if [ "$MODE" = dynamic ]; then
+    . /etc/sysconfig/dhcpcd
+    ARGS=""
+    [ "$USE_SYSLOG" = "yes" ] && ARGS="-d"
+
+    echo "Starting dhcpcd on $DEV ..."
+    if [ -e $DHCPCD_PATH$DEV.pid ]; then
+      dhcpcPid=`cat $DHCPCD_PATH$DEV.pid`
+      dhcpcd -k $DEV 1>/dev/null 2>&1 &&
+      renice 10 $dhcpcPid 1>/dev/null 2>&1 || rm -f $DHCPCD_PATH$DEV.pid &&
+      sleep 1
+    fi &&
+    dhcpcd -t $TIMEOUT $ARGS $OPTIONS $DEV
+  elif [ "$MODE" = static ]; then
+    echo "Setting up static networking on $DEV..."
+    ARGS=""
+    if [ "$POINTOPOINT" != "" ] ; then
+      ARGS="$ARGS pointopoint $POINTOPOINT"
+    fi
+    if [ "$MTU" != "" ] ; then
+      ARGS="$ARGS mtu $MTU"
+    fi
+
+    ifconfig $DEV $IP broadcast $BROADCAST netmask $NETMASK $ARGS
+  else
+    echo "There are errors in $netdevdir/$DEV.dev"
+    exit 1
+  fi
+}
+
+_do_route_up()
+{
+  # check if GATEWAY is set; gateway is set by PPP or other software in some
+  # cases
+  if [ "$GATEWAY" ]; then
+    route add default gw $GATEWAY dev $DEV
+  fi 
+}
+
+_on_up()
+{
+  true
+}
+
+# Handles function "overloading"
+run_func() {
+  # If for example do_route_up exists then run it, otherwise run _do_route_up
+  if [ "$( type -t $1 )" = function ] ; then
+    $1
+  else
+    _$1
+  fi
+}
+
+netdevdir=/etc/sysconfig/network
+
+#change this if your .pid file hides somewhere else
+DHCPCD_PATH="/etc/dhcpc/dhcpcd-"
+DEV=$1
+
+if [ -z $DEV ]; then
+  echo "Usage: ifup <device>"
+  exit 2
+fi
+
+if [ ! -f $netdevdir/$DEV.dev ]; then
+  echo "$DEV: no such network device"
+  exit 1
+fi
+
+if device_is_up $DEV ; then
+  echo "$DEV already up"
+  exit 0
+fi
+
+unset MODE MODULE IP BROADCAST NETMASK GATEWAY POINTOPOINT MTU WIFI UP_ON_BOOT
+unset do_device_up do_route_up on_up
+
+. $netdevdir/$DEV.dev
+
+if [ -z "$MODE" ]; then
+  echo "There are errors in $netdevdir/$DEV.dev"
+  exit 1
+fi
+
+if [ "${_OBEY_UP_ON_BOOT}" = 1 -a "$UP_ON_BOOT" = no ] ; then
+  exit 0
+fi
+
+if [ "$MODULE" ] && ! /sbin/lsmod | exists_in_text "$MODULE" ; then
+  echo "Loading module $MODULE for $DEV ..."
+  modprobe  $MODULE
+fi &&
+
+if [ "$WIFI" ]; then
+  echo "Configuring wifi for $DEV ..."
+  sleep 1 # to give the card time to start, needed on some cards.
+  iwconfig $DEV ${WIFI}
+fi &&
+
+run_func do_device_up 
+run_func do_route_up 
+run_func on_up

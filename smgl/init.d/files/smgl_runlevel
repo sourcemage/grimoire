@@ -1,0 +1,221 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+# vim:set ts=2 sw=2 et:
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+##
+##
+##=head1 DESCRIPTION
+##
+## void ---
+## This is a special argument that can be given runlevels, when given it makes
+## the script return without performing any action other than setting config
+## variables.
+## This is used to figure out how much we need to roll back when switching
+## runlevels.
+##
+##=head1 COPYRIGHT
+##
+## Copyright (C) 2003 Robert Helgesson <rycee@home.se>
+## 
+##=head1 FUNCTIONS
+#---------------------------------------------------------------------
+
+
+. /etc/sysconfig/init
+
+PATH="/bin:/sbin"
+RUNLEVELS_DIR="/etc/init.d/runlevels"
+
+# Which levels are currectly active?
+current_runlevels()
+{
+  display-services | {
+    while read LINE ; do
+      [ "$LINE" = "STARTING SERVICES:" ] && break
+
+      # Runlevels start with %
+      [ "${LINE:0:1}" = "%" ] && levels="$LINE $levels"
+    done
+    builtin echo $levels
+  }
+}
+
+# Which levels need to be running for this level to run?
+self_runlevels()
+{
+  (
+    set $rc_self void   # No actual code should be run
+
+    NEEDS="%$self_runlevel"
+    while [ "$NEEDS" ] ; do
+      levels="$NEEDS $levels"
+      n="$RUNLEVELS_DIR/$NEEDS"
+
+      NEEDS=""
+
+      if [ -d "$n" ] ; then
+        . $n/runlevel.config
+      elif [ -f "$n" -a -x "$n" ] ; then
+        . $n
+      fi
+    done
+    builtin echo $levels
+  )
+}
+
+switch()
+{
+  cls=( $( current_runlevels ) )
+  sls=( $( self_runlevels ) )
+
+  ###############################
+  # Find the highest common level
+
+  local common_level=""
+  local i=0
+  while [ "${cls[$i]}" = "${sls[$i]}" -a "${cls[$i]}" ] ; do
+    common_level=${cls[$(( i++ ))]}
+  done
+
+  echo "Switching to highest common runlevel: ${common_level#%}"
+  need -r $common_level
+
+  echo "Switching to requested runlevel: $self_runlevel"
+  need "%$self_runlevel"
+}
+
+# $1 - variable name
+# $2 - file
+get_var_from_file()
+{
+  var="$1="
+  file="$2"
+
+  while read LINE ; do
+    # Strip whitespace from front
+    while [ -z "${LINE%%[ 	]*}" -a ! -z "$LINE" ] ; do
+      LINE=${LINE#[ 	]}
+    done
+
+    # If the variable name matches then print the line and return
+    if [ "${LINE:0:${#var}}" = "$var" ] ; then
+      builtin echo "$LINE"
+      return
+    fi
+  done < $file
+}
+
+# $1 - script to check
+is_essential()
+{
+  local is_ess=$( get_var_from_file ESSENTIAL $1 )
+
+  if [ "$is_ess" ] ; then
+    eval local $is_ess
+    [ "$ESSENTIAL" = "yes" ] && return 0
+  fi
+
+  return 1
+}
+
+# $1 - dir to run
+start_dir()
+{
+  pushd $1 > /dev/null
+  for script in * ; do
+    [ "$script" = "runlevel.config" ] && continue
+    [ ! -x "$script" ] && continue                  # Not executable
+    if [[ "$PARALLEL_INIT" ]]; then
+      ( if ! need $script ; then
+          is_essential $script && exit 1
+        fi 
+      ) & # PARALLEL
+    else
+      if ! need $script ; then
+        is_essential $script && exit 1
+      fi 
+    fi
+  done
+  # PARALLEL need to run it again to make sure all the needs are met for this runlevel before continuing on
+  if [[ "$PARALLEL_INIT" ]] ; then
+    for script in * ; do
+      [ "$script" = "runlevel.config" ] && continue
+      [ ! -x "$script" ] && continue                  # Not executable
+
+      if ! need $script ; then
+        is_essential $script && exit 1
+      fi # not PARALLEL to get the whole runlevel loaded
+    done
+  fi
+  popd > /dev/null
+}
+
+start()
+{
+  
+  if [ "$NEEDS" ] ; then
+    need $NEEDS || exit 7
+  fi
+
+  if [ -d "$self" ] ; then
+    start_dir $self
+  fi
+
+  echo "Entered runlevel $self_runlevel..."
+  # not PARALLEL to get the whole runlevel loaded.
+}
+
+stop()
+{
+  echo "Leaving runlevel $self_runlevel..."
+  exit 0
+}
+
+if [ "$0" = "/etc/init.d/rc" ] ; then   # Run through rc
+  rc_self=$1
+  self=$1
+  action=$2
+else                                    # Run some other way
+  rc_self=
+  self=$0
+  action=$1
+fi
+
+self_runlevel="${self#*%}"
+
+case "$action" in
+  void)   return  ;;
+  switch) switch  ;;
+  start)  start   ;;
+  stop)   stop    ;;
+  *)      echo "Bad runlevel action: $action"
+          exit 1
+          ;;
+esac
+
+unset rc_self self action self_runlevel
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

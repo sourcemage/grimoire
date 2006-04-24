@@ -1,0 +1,30 @@
+install_www_files  ./  ${INSTALL_ROOT}${DRUPAL_INSTALL_PATH}/${SPELL}           &&
+
+if  [  "$DRUPAL_CREATEDB"  ==  "y"  ];  then
+  if  [  "$DRUPAL_MYSQL"  ==  "y"  ];  then
+    message  "${MESSAGE_COLOR}Creating MySQL database...${DEFAULT_COLOR}"
+    mysqladmin  create  drupal                           &&
+    echo  "GRANT ALL PRIVILEGES ON drupal.*              \
+          TO nobody@localhost IDENTIFIED BY 'password';  \
+          flush privileges;                              \
+          \q "  |  mysql  drupal                         &&
+    mysql  drupal  <  database/database.mysql  ||  true
+    #
+    # Return true as this will fail if the database already exists
+    #
+  fi  &&
+
+  if  [  "$DRUPAL_PGSQL"  ==  "y"  ];  then
+    message  "${MESSAGE_COLOR}Creating PostgreSQL database...${DEFAULT_COLOR}"
+    source  /etc/sysconfig/postgresql  &&
+    su  $USER  -c  "createdb  drupal"  &&
+    echo  "GRANT ALL PRIVILEGES ON drupal.*              \
+          TO nobody@localhost IDENTIFIED BY 'password';  \
+          flush privileges;                              \
+          \q "  |  su  $USER  -c  "psql  drupal"         &&
+    su  $USER  -c  "psql  drupal  -f  database/database.pgsql"  ||  true
+    #
+    # Return true as this will fail if the database already exists
+    #
+  fi
+fi

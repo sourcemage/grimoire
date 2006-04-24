@@ -1,0 +1,52 @@
+#!/bin/bash
+
+RUNLEVEL=3
+NEEDS="+network +remote_fs"
+PROGRAM=/usr/sbin/ifplugd
+ARGS="-w"
+
+ifplugdconf=/etc/ifplugd/ifplugd.conf
+if [ -e $ifplugdconf ]; then
+  . $ifplugdconf
+fi
+
+. /etc/init.d/smgl_init
+
+required_executable /usr/sbin/ifplugd
+
+if [ $# -gt 1 ]; then
+  INTERFACES="$(builtin echo $@ | sed s/$1//)"
+fi
+
+if [ "x$INTERFACES" = "xauto" ]; then
+  INTERFACES="`cat /proc/net/dev | awk '{ print $1 }' | egrep '^(eth|wlan)' | cut -d: -f1`"
+fi
+
+start()
+{
+  for IF in $INTERFACES; do
+    echo "Starting ifplugd on interface $IF..."
+    A="`eval builtin echo \$\{ARGS_${IF}\}`"
+    [ -z "$A" ] && A="$ARGS"
+    $PROGRAM  $ARGS  -i  $IF  $A
+    evaluate_retval
+  done
+}
+
+stop()
+{
+  for IF in $INTERFACES; do
+    echo "Stopping ifplugd on interface $IF..."
+    $PROGRAM  $ARGS  -k  -i  -W $IF
+    evaluate_retval
+  done
+}
+
+status()
+{
+  for IF in $INTERFACES; do
+    echo "Status of ifplugd on interface $IF..."
+    $PROGRAM  $ARGS  -c  -i  -W  $IF
+    evaluate_retval
+  done
+}

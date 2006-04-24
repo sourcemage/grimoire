@@ -1,0 +1,102 @@
+--- xloadimage.4.1/root.c~	Mon Nov  8 14:05:20 1993
++++ xloadimage.4.1/root.c	Thu Mar 23 19:23:57 2000
+@@ -68,8 +68,8 @@
+   Pixmap *pm;			
+   Atom	actual_type;		/* NOTUSED */
+   int	format;
+-  int	nitems;
+-  int	bytes_after;
++  unsigned long	nitems;
++  unsigned long	bytes_after;
+ 
+   /* intern the property name */
+   Atom atom = XInternAtom(dpy, RETAIN_PROP_NAME, 0);
+--- xloadimage.4.1/niff.c~	Thu Oct 28 10:16:03 1993
++++ xloadimage.4.1/niff.c	Thu Mar 23 20:02:30 2000
+@@ -8,30 +8,32 @@
+  * this is in the public domain.
+  */
+ 
++#include <unistd.h>
+ #include "image.h"
+ #include "niff.h"
+ 
+ static void babble(name, header, title)
++     char *name;
+      struct niff_header *header;
+      char *title;
+ {
+-  printf("%s is a %dx%d ", name,
++  printf("%s is a %lux%lu %lu planes ", name,
+ 	 memToVal(header->width, 4),
+ 	 memToVal(header->height, 4),
+ 	 memToVal(header->depth, 4));
+   if (memToVal(header->version, 4) != NIFF_VERSION)
+-    printf("version %d ", memToVal(header->version, 4));
++    printf("version %lu ", memToVal(header->version, 4));
+   printf("NIFF ");
+   switch (header->type) {
+   case NIFF_BITMAP:
+     printf("bitmap image");
+     break;
+   case NIFF_RGB:
+-    printf("%d-bit RGB image with %d colors",
++    printf("%lu-bit RGB image with %lu colors",
+ 	   memToVal(header->depth, 4), memToVal(header->cmap_size, 4));
+     break;
+   case NIFF_TRUE:
+-    printf("%d-bit true color image", memToVal(header->depth, 4));
++    printf("%lu-bit true color image", memToVal(header->depth, 4));
+     break;
+   default:
+     printf("image with an unknown type");
+--- xloadimage.4.1/cmuwmraster.c~	Thu Oct 21 15:28:36 1993
++++ xloadimage.4.1/cmuwmraster.c	Thu Mar 23 20:08:27 2000
+@@ -20,7 +20,7 @@
+ char *name;
+ struct cmuwm_header *headerp;
+ {
+-    printf("%s is a %dx%d %d plane CMU WM raster\n",
++    printf("%s is a %lux%lu %lu plane CMU WM raster\n",
+ 	   name,
+ 	   memToVal(headerp->width, sizeof(long)),
+ 	   memToVal(headerp->height, sizeof(long)),
+--- xloadimage.4.1/pcx.c~	Thu Oct 28 10:22:12 1993
++++ xloadimage.4.1/pcx.c	Thu Mar 23 19:55:52 2000
+@@ -259,7 +259,7 @@
+ 	ZFILE *zf;
+ 	Image *image;
+ {
+-	int pl;
++	/* int pl; */
+ 	switch (PCXH->Zbpp) {	/* What kind of plane do we have ?	*/
+ 	    case 1 :			/* Bit planes			*/
+ 		if (PCXH->Znplanes == 1)	/* Only one : Read it	*/
+@@ -298,7 +298,7 @@
+ 	unsigned int verbose;
+ {
+ 	ZFILE *zf;
+-	unsigned int i, ret;
++	unsigned int i /*, ret*/;
+ 	int xmin;
+ 	int xmax;
+ 	int ymin;
+--- xloadimage.4.1/uufilter.c~	Thu Oct 28 10:03:31 1993
++++ xloadimage.4.1/uufilter.c	Thu Mar 23 19:58:31 2000
+@@ -11,6 +11,7 @@
+  */
+ 
+ #include <stdio.h>
++#include <string.h>
+ 
+ main(argc, argv)
+      int argc;
+@@ -64,7 +65,7 @@
+       fprintf(stderr, "Ignoring header line: %s\n", buf);
+   }
+   if (feof(inf)) {
+-    fprintf(stderr, "No 'begin' line, sorry.\n", infilename);
++    fprintf(stderr, "No 'begin' line in %s, sorry.\n", infilename);
+     exit(1);
+   }
+ 

@@ -1,0 +1,68 @@
+#!/bin/bash
+# description: script to apply cpu microcode
+
+# PROGRAM		the executable to run
+# ARGUMENTS		the argument we're going to call PROGRAM with
+
+. /etc/init.d/smgl_init
+
+RUNLEVEL=1
+NEEDS="local_fs"
+PROGRAM=/usr/sbin/microcode_ctl
+
+DEVICE=/dev/cpu/microcode
+ARGUMENTS=-Qui
+
+# perform the update
+start () {
+	
+        if  [[ ! -e /dev/cpu ]] 
+        then
+          DEVICE=/dev/misc/microcode
+          mkdir /dev/cpu 
+          [[ -d /dev/cpu ]] && [[ ! -e /dev/cpu/microcode ]] && ln -s /dev/misc/microcode /dev/cpu/microcode
+	fi
+
+	if [ ! -e $DEVICE ];
+		then 
+		echo "$0: microcode device $DEVICE doesn't exist?"
+		exit 1
+	fi
+
+        # need intel CPU check
+	echo "Applying Intel IA32 Microcode update... "
+
+	$START $PROGRAM $ARGUMENTS
+
+	# trap the most common case, errno 19 = no device
+	if [ $? -eq 19 ];
+	then
+		grep MICROCODE /usr/include/linux/autoconf.h | grep -q ^#define
+		if [ $? -ne 0 ];
+		then
+			echo "$0: This kernel doesn't appear to have microcode device support?"
+		fi
+	fi
+	echo
+}
+
+stop()
+{
+  exit 0
+}
+
+restart()       { exit 3; }
+reload()        { exit 3; }
+force_reload()  { exit 3; }
+
+status() { 
+	# I wonder when the driver will let us do this...
+	# maybe I'll write it ;)
+	echo "$0: reading microcode status is not yet supported"
+        exit 3; 
+}
+
+usage()
+{
+        echo "$0 usage: microcode {start|restart}"
+}

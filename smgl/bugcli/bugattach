@@ -1,0 +1,89 @@
+#!/usr/bin/perl
+
+
+use HTTP::Request::Common qw(POST);
+use LWP::UserAgent;
+
+#options:
+# --login 
+# --password
+# --summary
+# --description
+# --bugid
+# --filename
+
+############################
+# Defines
+############################
+$DEFAULT_SERVER = "localhost";
+$DEFAULT_DIRECTORY = "";
+$SERVER = $ENV{BUGCLI_SERVER};
+$DIRECTORY = $ENV{BUGCLI_DIRECTORY};
+
+################################
+# optional environment variables
+################################
+
+$login = $ENV{USER};
+$password = $ENV{BUGCLI_PASSWORD};
+
+sub help
+{
+  print "usage: bugattach --server \"\" --directory \"\" --login \"\" --pasword \"\"  --summary \"\" --description \"\" --bugid\"\"--filename\n";
+  exit;
+}
+
+while(@ARGV)
+{
+    $argument = pop(@ARGV);
+    $var = pop(@ARGV);
+
+    if($var eq "--help" || $argument eq "--help") {
+        help();
+        exit;
+    }
+    elsif($var eq "--directory")
+    {    $DIRECTORY = $argument;   }
+    elsif($var eq "--server")
+    {    $SERVER = $argument;   }
+    elsif($var eq "--login")
+    {    $login = $argument;    }
+    elsif($var eq "--password")
+    {    $password = $argument;    }
+    elsif($var eq "--summary")
+    {    $summary = $argument;    }
+    elsif($var eq "--description")
+    {    $description = $argument;    }
+    elsif($var eq "--bugid")
+    {    $bugid = $argument;    }
+    elsif($var eq "--filename")
+    {    $filename = $argument;    }
+
+};
+
+$SERVER = $DEFAULT_SERVER if($SERVER eq "");
+$DIRECTORY = $DEFAULT_DIRECTORY if($DIRECTORY eq "");
+
+$ua = LWP::UserAgent->new();
+
+$setup = "http://$SERVER/$DIRECTORY/attachment.cgi";
+$req = POST $setup,Content_Type => 'form-data',
+	Content => [action=>"insert", Bugzilla_login =>$login, Bugzilla_password=>$password, description=>$description, summary=>$summary, bugid=>$bugid , data =>[$filename], contenttypemethod=>autodetect ];
+
+$content = $ua->request($req)->as_string;
+
+if($content =~ "Error")
+{
+    if($content =~ "username or password you entered is not valid") {
+        print STDERR "error: missing or invalid username or password\n";
+    } elsif($content =~ "must enter a description") {
+        print STDERR "error: missing or invalid description\n";
+    } elsif($content =~ "must enter a summary") {
+        print STDERR "error: missing or invalid summary\n";
+    }else{
+        print $content;
+    }
+}elsif($content =~ "Submitted"){
+    $content =~ /Attachment \#([0-9]+)/;
+    print "attach id: $1\n";
+}

@@ -1,0 +1,160 @@
+#!/bin/bash
+
+# Converted to SMGL simpleinit from the OpenVPN SysV init script.
+
+# Originally Contributed to the OpenVPN project by
+# Douglas Keller <doug@voidstar.dyndns.org>
+# 2002.05.15
+
+# The init script does the following:
+# - Runs /etc/openvpn/openvpn-{startup,stop} on start/stop.
+#
+# - Starts an openvpn process for each .conf file it finds in
+#   /etc/openvpn.
+#
+# - If /etc/openvpn/xxx.sh exists for a xxx.conf file then it executes
+#   it before starting openvpn (useful for doing openvpn --mktun...).
+#
+# - Define an extra command reopen().
+#
+# Changes for SMGL:
+# - Adapted for simpleinit/smgl init functions.
+# - Renamed some variables for consistency.
+# - Removed $lock; if start() is called while openvpn is running, just issue a
+#   warning and exit (consistent the default behaviour under SMGL).
+# - Give per-config file status output.
+# - Use the default status() function instead of dumping to syslog.
+
+NAME=OpenVPN
+PROGRAM=/usr/sbin/openvpn
+CONFDIR=/etc/openvpn
+PIDDIR=/var/run/openvpn
+RUNLEVEL=3
+NEEDS="+network +remote_fs"
+
+. /etc/init.d/smgl_init
+
+# Remove stale pid files.
+cleanpids()
+{
+  for f in `find $PIDDIR -name "*.pid" 2>/dev/null`; do
+    p="`cat $f`"
+    if [ "x`ps -p $p -o comm= 2>/dev/null`" != "xopenvpn" ]; then
+      rm -f "$f"
+    fi
+  done
+}
+
+# Track pids by known tunnels instead of all running procs.
+getpids()
+{
+  # status() should perhaps handle this differently, but for now always clean.
+  cleanpids
+
+  pidflist="`find $PIDDIR -name "*.pid" 2>/dev/null`"
+  pidlist="$(for f in $pidflist; do if [ -s $f ]; then cat $f; fi; done)"
+}
+
+start()
+{
+  getpids
+  if [ -n "$pidlist" ]; then
+    $SET_WCOL
+    print_status warning running
+    exit
+  fi
+
+  echo "Starting $NAME..."
+
+  # Try to make sure the TUN/TAP module is loaded.
+  /sbin/modprobe tun >/dev/null 2>&1
+
+  if [ -x $CONFDIR/openvpn-startup ]; then
+    $CONFDIR/openvpn-startup
+  fi
+  evaluate_retval || exit 1 # Don't bring up tunnels if the startup failed.
+
+  if [ ! -d $PIDDIR ]; then
+    mkdir -p $PIDDIR
+  fi
+
+  CS="`find $CONFDIR -name "*.conf" 2>/dev/null`"
+  if [ -z "$CS" ]; then
+    echo "Note: No OpenVPN configuration files were found in $CONFDIR"
+  else
+    for C in $CS; do
+      BN=${C%%.conf}
+      echo "Starting $NAME tunnel '${BN##*/}'..."
+      if [ -x "$BN.sh" ]; then
+        . $BN.sh
+      fi && $PROGRAM --daemon --writepid $PIDDIR/${BN##*/}.pid --config $C --cd $CONFDIR
+      evaluate_retval
+    done
+  fi
+}
+
+# Most of stop() is copied from smgl_functions to get things in the right
+# order.
+stop()
+{
+  getpids
+
+  for PIDF in $pidflist; do
+    if [ -s $PIDF ]; then
+      BN=${PIDF%%.pid}
+      echo "Stopping $NAME tunnel '${BN##*/}'..."
+      pid=`cat $PIDF`
+      kill -TERM $pid 2>/dev/null
+      for ((i=0; $i<5000; i=$i+1)) ; do : ; done
+  
+      for ((i=0; $i<$KILLDELAY; i=$i+1)) ; do
+        kill -0 $pid 2>/dev/null || break
+        sleep 1
+      done
+
+      kill -KILL $pid 2>/dev/null
+  
+      for ((i=0; $i<$KILLDELAY; i=$i+1)) ; do
+        kill -0 $pid 2>/dev/null || break
+        sleep 1
+      done
+
+      kill -0 $pid 2>/dev/null && failure=1
+      (exit $failure)
+      evaluate_retval
+    fi
+    rm -f $PIDF
+  done
+
+  echo "Stopping $NAME..." 
+  if [ -x $CONFDIR/openvpn-shutdown ]; then
+    $CONFDIR/openvpn-shutdown
+  fi
+  evaluate_retval
+}
+
+reopen()
+{
+  echo "Reopening $NAME tunnels..."
+  reloadproc $PROGRAM USR1
+}
+
+status()
+{
+  # This is not wrong, we track by tunnel, not by any matching process.
+  statusproc $NAME
+}
+
+# This script has an extra option.
+usage()
+{
+  echo "Usage: $0 {start|stop|restart|reload|reopen|force-reload|status}"
+}
+
+case $1 in
+  reopen)
+    $1
+    unset PROGRAM # So that exiting won't trigger auto_init.
+    exit $?
+  ;;
+esac

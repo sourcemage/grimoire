@@ -1,0 +1,43 @@
+config_query  RAPTOR_PARSELIST  "Enable all parsers?"  y
+
+if  [  "$RAPTOR_PARSELIST"  ==  "y"  ];  then
+  persistent_add  RAPTOR_LIST  &&
+  RAPTOR_LIST="all"
+else
+  config_query_option  RAPTOR_LIST  "Enable RDF XML?"      y  "rdfxml"        ""
+  config_query_option  RAPTOR_LIST  "Enable N-Triples?"    y  "ntriples"      ""
+  config_query_option  RAPTOR_LIST  "Enable Turtle?"       y  "turtle"        ""
+  message  "${MESSAGE_COLOR}RSS Tag Soup requires libxml2${DEFAULT_COLOR}"    &&
+  config_query_option  RAPTOR_LIST  "Enable RSS TagSoup?"  y  "rss-tag-soup"  ""
+  RAPTOR_LIST="${RAPTOR_LIST/# /}"
+fi  &&
+
+config_query_list  RAPTOR_XMLVERSION                             \
+                   "Which version of XML checking do you want?"  \
+                   "1.0"  "1.1"
+
+#
+# RSS Tag Soup requires libxml2
+#
+if  echo  $RAPTOR_LIST  |  grep  -q  "rss-tag-soup"  ||
+    [  "$RAPTOR_PARSELIST"  ==  "y"  ];  then
+  persistent_add  RAPTOR_WWWLIB  &&
+  RAPTOR_WWWLIB="xml"
+else
+  config_query_list  RAPTOR_WWWLIB                            \
+                     "Which WWW library do you want to use?"  \
+                     xml  curl  libwww  none
+fi  &&
+
+#
+# RSS Tag Soup requires libxml2
+#
+if  echo  $RAPTOR_LIST  |  grep  -q  "rss-tag-soup"  ||
+    [  "$RAPTOR_PARSELIST"  ==  "y"  ];  then
+  persistent_add  RAPTOR_PARSER  &&
+  RAPTOR_PARSER="libxml"
+else
+  config_query_list  RAPTOR_PARSER                           \
+                     "Which XML parser do you want to use?"  \
+                     libxml  expat
+fi

@@ -1,0 +1,1 @@
+ROX-Filer/AppRun --compile

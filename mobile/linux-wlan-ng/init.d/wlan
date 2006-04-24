@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# description: Activates/Configures/Disables wlan devices
+
+source /etc/init.d/smgl_functions
+
+required_executable /sbin/ifconfig
+required_executable /sbin/modprobe
+
+PROGRAM=/bin/false
+#ARGS="/etc/...."
+RUNLEVEL=3
+#NEEDS="+network"
+PROVIDES=network
+
+. /etc/wlan/shared
+
+
+action=$1
+
+case "$action" in
+
+start)
+	# This will implicitly fire off wland via hotplug.
+	echo -n "Starting WLAN Devices: "
+	if ! $MODPROBE p80211; then
+		evaluate_retval
+#		echo "Failed to load p80211.o."
+		exit 1
+	fi
+
+	# NOTE: We don't explicitly insmod the card driver here.  The
+	#  best thing to do is to specify an alias in /etc/modules.conf.
+
+	for DEVICE in $WLAN_DEVICES; do
+	    $MODPROBE $DEVICE
+	    # if we don't have hotplug.. do things the old-fashioned way.
+	    if [ $HAS_HOTPLUG = 'n' ] ; then
+		wlan_bring_it_up $DEVICE
+	    fi
+	done
+
+	# And hotplug will take care of the rest, namely device 
+	# initialization and whatnot.
+
+	evaluate_retval
+	;;
+
+stop)
+	echo -n "Shutting Down WLAN Devices: "
+	# Do a reset on each device to make sure none of them are still
+	#  trying to generate interrupts.
+	for DEVICE in $WLAN_DEVICES; do
+		wlan_disable $DEVICE
+		ifconfig $DEVICE down
+		$MODPROBE -r $DEVICE
+	done
+	
+	# remove p80211, which will implictly kill wland.
+	$MODPROBE -r p80211
+	evaluate_retval
+	;;
+
+status)
+	status wland
+	;;
+
+restart|reload|force-reload)
+	$0 stop
+	$0 start
+	evaluate_retval
+	;;
+
+    *)
+	echo "Usage: $0 {start|stop|status|restart|reload|force-reload}"
+	;;
+
+esac
+

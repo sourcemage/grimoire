@@ -1,0 +1,28 @@
+#!/bin/sh
+
+if  [  "$UID"  ==  0  ];  then
+
+  if  [  -z  "$1"  ];  then
+    read  -p  "Username: "  NEWSER
+  else
+    NEWSER=$1
+  fi
+
+  [ -d /home ] || mkdir /home
+  groupadd     $NEWSER
+  useradd  -m  $NEWSER  -g  $NEWSER -s /bin/bash
+
+  [ -d /var/spool/mail ] || mkdir -p /var/spool/mail
+  touch                 /var/spool/mail/$NEWSER
+  chown   $NEWSER:mail  /var/spool/mail/$NEWSER
+  chmod   0660          /var/spool/mail/$NEWSER
+  passwd  $NEWSER
+
+echo "default shell for $NEWSER has been set to /bin/bash. Edit /etc/passwd to change this"
+
+else
+
+  su  -  -c  "PATH=$PATH  $0  $1"
+
+fi
+

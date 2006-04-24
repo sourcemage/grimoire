@@ -1,0 +1,37 @@
+#!/bin/bash
+
+PROGRAM=/usr/sbin/maradns
+RUNLEVEL=3
+NEEDS="+remote_fs +network"
+
+. /etc/init.d/smgl_init
+. /etc/sysconfig/maradns
+
+start()
+{
+  echo "Starting maradns..."
+
+  [ -z "$LOGFILE" ] && LOGFILE=/dev/null
+
+  getpids $PROGRAM
+
+  if [ -z "$pidlist" ] ; then
+    if [ "$READABLE_TIMESTAMPS" = "yes" ] ; then
+      nohup $PROGRAM | awk '{ sub(/^Timestamp: ([0-9]+)/,
+      strftime("%c", $2)) } { print; fflush() }' >> $LOGFILE &
+    else nohup $PROGRAM >> $LOGFILE &
+    fi
+
+    sleep 1
+
+    # Check if the process is still running to determine
+    # whether MaraDNS started successfully...
+    getpids $PROGRAM
+    [ -n "$pidlist" ] && true || false
+    evaluate_retval
+  else
+    $SET_WCOL
+    print_status warning running
+  fi
+
+}

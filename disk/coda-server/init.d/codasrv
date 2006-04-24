@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# SMGL init script for the codafs server
+#
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+remote_fs +network"
+SCMFILE=/vice/db/scm
+
+. /etc/init.d/smgl_init
+
+VICE=/vice
+VICESRV=${VICE}/srv
+PIDDIR=${VICE}/srv
+
+start()
+{
+    required_executable /usr/sbin/volutil
+    required_executable /usr/sbin/codasrv
+    required_executable /usr/sbin/startserver
+    
+    if [ ! -f ${VICESRV}/CRASH ]; then
+	echo "Starting Coda server"
+	loadproc /usr/sbin/volutil
+	loadproc /usr/sbin/codasrv
+	loadproc /usr/sbin/startserver
+    else
+	echo "`date`: found CRASH, srv not started." >> ${VICE}/srv/SrvErr
+	echo "found CRASH file, srv not started."
+    fi
+
+}
+
+
+stop()
+{
+    volutil shutdown
+    echo "Sleeping 30 secs to let srv shutdown..."
+    
+    # Normally, the upper step is sufficient
+    # But in the initial script there was an "hard-stop" action
+    # which did the following :
+    #
+    # echo   "Stopping Coda server"
+    # killproc /usr/sbin/codasrv
+    #
+    # It might be necessary to do this...
+    # I need some testing !
+}

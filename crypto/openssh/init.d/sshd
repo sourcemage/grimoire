@@ -1,0 +1,35 @@
+#!/bin/sh
+
+PROGRAM=/usr/sbin/sshd
+RUNLEVEL=3
+NEEDS="+network +remote_fs"
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo -n "Starting sshd..."
+  $PROGRAM
+  ITER=0
+  while [ ! -e /var/run/sshd.pid ] && [ "$ITER" -lt 10 ] ; do sleep 1; echo -n . ;ITER=$((++ITER)); done
+  echo
+  if [ -e /var/run/sshd.pid ]; then
+    ps -p `cat /var/run/sshd.pid` > /dev/null  && evaluate_retval
+  else
+    print_status failure
+    exit 1
+  fi
+}
+
+reload() {
+  # reloadproc causes loss of connection when remotely connected
+  echo "Reloading sshd..."
+  if [ -e /var/run/sshd.pid ]; then
+    kill `cat /var/run/sshd.pid`
+    sleep 1
+  fi
+  $0 start
+}
+
+restart() {
+run_func reload
+}

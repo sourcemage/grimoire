@@ -1,0 +1,69 @@
+make_normal                              &&
+local TMPSTAGING=/tmp/sorcery/ncurses.$$ &&
+mkdir -p $TMPSTAGING/lib                 &&
+MVERSION=${VERSION/.*/}                  &&
+
+{
+  make  install DESTDIR="$TMPSTAGING"    &&
+  # setting these off to the side -- they are protected as well
+  mv $INSTALL_ROOT/lib/libcurses* $TMPSTAGING/lib
+  true # but we don't care if there is nothing there (e.g. chroot install)
+}                                        &&
+if [ ! -L $TMPSTAGING/lib/libncurses.so.$VERSION  -a -f $TMPSTAGING/lib/libncurses.so.$VERSION  ]; then
+  # hardcode this link for bash of an upgrade from not this spell
+  ln -fs libncurses.so.$VERSION   $TMPSTAGING/lib/libncursesw.so.$MVERSION
+fi &&
+if [ ! -L $TMPSTAGING/lib/libncursesw.so.$VERSION -a -f $TMPSTAGING/lib/libncursesw.so.$VERSION ]; then
+  # hardcode this link for bash an upgrade from not this spell
+  ln -fs libncursesw.so.$VERSION  $TMPSTAGING/lib/libncurses.so.$MVERSION
+fi                                       &&
+ldconfig $TMPSTAGING/lib                 && # append this directory
+make  install DESTDIR="$INSTALL_ROOT"    &&
+if [ ! -L $INSTALL_ROOT/lib/libncurses.so.$VERSION  -a -f $INSTALL_ROOT/lib/libncurses.so.$VERSION  ]; then
+  # hardcode this link for bash an upgrade from not this spell
+  ln -fs libncurses.so.$VERSION   $INSTALL_ROOT/lib/libncursesw.so.$MVERSION
+fi                                       &&
+if [ ! -L $INSTALL_ROOT/lib/libncursesw.so.$VERSION -a -f $INSTALL_ROOT/lib/libncursesw.so.$VERSION ]; then
+  # hardcode this link for bash an upgrade from not this spell
+  ln -fs libncursesw.so.$VERSION  $INSTALL_ROOT/lib/libncurses.so.$MVERSION
+fi                                       &&
+
+if  [  "$UTF8"  ==  "y"  ]
+then
+  for  i  in  libformw  libmenuw  libncursesw  libpanelw  libcursesw
+  do
+    ln  -sf  $i.a                   \
+             $INSTALL_ROOT/lib/${i/w/}.a              &&
+    ln  -sf  $i.so                  \
+             $INSTALL_ROOT/lib/${i/w/}.so             &&
+    ln  -sf  $i.so.${MVERSION}      \
+             $INSTALL_ROOT/lib/${i/w/}.so.${MVERSION} &&
+    ln  -sf  $i.so.${VERSION}       \
+             $INSTALL_ROOT/lib/${i/w/}.so.${VERSION}  &&
+    ln  -sf  ${i}_g.a               \
+             $INSTALL_ROOT/lib/${i/w/}_g.a
+  done  &&
+
+  # links from plain curses ${i//[wn]/} and non-utf-8 ncurses ${i/w/} to utf-8 ncurses $i
+  for  i  in  libncursesw.a libncursesw.so libncursesw.so.${MVERSION} libncursesw.so.${VERSION} libncursesw_g.a
+  do
+    ln  -sf  $i                     \
+             $INSTALL_ROOT/lib/${i//[wn]/}            &&
+    ln  -sf  $i                     \
+             $INSTALL_ROOT/lib/${i/w/}
+  done
+
+else
+
+  # links from plain curses ${i//[wn]/} and utf-8 ncurses $i to non-utf-8 ncurses ${i/w/}
+  for  i  in  libncursesw.a libncursesw.so libncursesw.so.${MVERSION} libncursesw.so.${VERSION} libncursesw_g.a
+  do
+    ln  -sf  ${i/w/}                \
+             $INSTALL_ROOT/lib/${i//[wn]/}            &&
+    ln  -sf  ${i/w/}                \
+             $INSTALL_ROOT/lib/$i
+  done
+
+fi &&
+ldconfig                                 &&
+rm -rf "/tmp/sorcery/ncurses.$$"            # hardcode for safety

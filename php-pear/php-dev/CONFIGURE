@@ -1,0 +1,35 @@
+function configure_set_bool() {
+  if [ -z "$1" ] || [ -z "$2" ]; then
+    return
+  fi
+
+  local OPTION=$1
+  local PROMPT="$2"
+  local HINT=${3:-y}
+
+  if ! grep -q "$OPTION=" $SPELL_CONFIG; then
+    local VALUE="$OPTION=n"
+    query "$PROMPT" $HINT && VALUE="$OPTION=y"
+    echo "$VALUE" >> $SPELL_CONFIG
+  fi
+}
+
+if  !  grep  -q  CONFIGURED  $SPELL_CONFIG;  then
+
+  configure_set_bool php_SAFEMODE "Enable PHP safe mode?" n
+
+  if    query  "Do you want imap support?"  n
+  then  echo   'OPTS="$OPTS --with-imap"'  >>  $SPELL_CONFIG
+        if  spell_ok  openssl
+        then  echo  'OPTS="$OPTS  --with-imap-ssl"'  >>  $SPELL_CONFIG
+        fi
+        depends  imap
+  fi
+
+  if    query  "Do you require mail support?"  n
+  then  depends  MAIL-TRANSPORT-AGENT
+  fi
+  
+  echo  'CONFIGURED=y'  >>  $SPELL_CONFIG
+
+fi

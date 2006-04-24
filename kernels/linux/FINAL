@@ -1,0 +1,42 @@
+# Add a lilo/grub/whatever entry for this kernel
+NO_CONFIG="false"
+if [ $UPDATE_BL == "y" ]
+then
+	message "${PROBLEM_COLOR}This template file will be used to update${DEFAULT_COLOR}"
+	message "${PROBLEM_COLOR}your bootloader config please make sure it${DEFAULT_COLOR}"
+	message "${PROBLEM_COLOR}updates properly, You Have Been Warned!!${DEFAULT_COLOR}"
+	case "`uname -m`" in
+		powerpc)
+			if [ -f /etc/yaboot.conf ] && [ ! -z $(installed_version yaboot) ] ; then
+				install_config_file "$SPELL_DIRECTORY/templates/yaboot.conf.tmplt" "/etc/yaboot.conf.tmplt"
+			else
+				NO_CONFIG="true"
+			fi
+			;;
+		sparc*)
+			if [ -f /etc/silo.conf ] && [ ! -z $(installed_version silo) ] ; then
+				install_config_file "$SPELL_DIRECTORY/templates/silo.conf.tmplt" "/etc/silo.conf.tmplt"
+			else
+				NO_CONFIG="true"
+			fi
+			;;
+		*)
+			if [ -f /etc/lilo.conf ] && [ ! -z $(installed_version lilo) ] ; then
+				install_config_file "$SPELL_DIRECTORY/templates/lilo.conf.tmplt" "/etc/lilo.conf.tmplt"
+			elif [ -f /boot/grub/menu.lst ] && [ ! -z $(installed_version grub) ] ; then
+				install_config_file "$SPELL_DIRECTORY/templates/menu.lst.tmplt" "/boot/grub/menu.lst.tmplt"
+			else
+				NO_CONFIG="true"
+			fi
+			;;
+	esac
+	if [ "$NO_CONFIG" == "false" ] ; then
+		export VERSION &&
+		export SPELL_DIRECTORY &&
+		$SPELL_DIRECTORY/UPDATE_BOOTLOADER 
+	else
+		message "${PROBLEM_COLOR}AH! No bootloader config file for your system${DEFAULT_COLOR}"
+		message "${PROBLEM_COLOR}Abandoning update bootloader script${DEFAULT_COLOR}"
+	fi
+fi
+cp  ${SPELL_CONFIG}.p ${LINUX_SOURCE_DIRECTORY}/.spell-config.p

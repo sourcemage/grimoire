@@ -1,0 +1,33 @@
+config_isdn() {
+  if  [ -e $CONFIG_CACHE/.config-$SPELL ] ; then
+    cp $CONFIG_CACHE/.config-$SPELL .config
+
+    if query "Configure $SPELL? " n ; then
+      make config
+    else
+      make subconfig
+    fi
+  else
+    make config
+  fi
+}
+
+default_pre_build &&
+cd $SOURCE_DIRECTORY &&
+
+if [ "$GETCVS" == "n" ] ; then
+  cd capi20 &&
+  autoreconf --force --install &&
+  cd ../capiinfo &&
+  autoreconf --force --install &&
+  cd ../capiinit &&
+  autoreconf --force --install &&
+  cd ../ipppd &&
+  patch  -p0  <  $SCRIPT_DIRECTORY/options.c.patch
+  cd ..
+else
+  sedit 's/CapiMsgOSResourceError/CapiMsgOSResourceErr/' capi20/capi20.c
+fi &&
+
+config_isdn &&
+cp .config $CONFIG_CACHE/.config-$SPELL

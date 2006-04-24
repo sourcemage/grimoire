@@ -1,0 +1,26 @@
+make  upgrade  &&
+
+ln  -sf  ../sbin/sendmail   ${INSTALL_ROOT}/usr/lib/sendmail  &&
+ln  -sf  postfix/aliases    ${INSTALL_ROOT}/etc/aliases       &&
+
+if  [  "$BENCH"  ==  "y"  ];  then
+  chmod  544  src/smtpstone/qmqp-source  \
+              src/smtpstone/smtp-sink    \
+              src/smtpstone/smtp-source  &&
+
+  cp src/smtpstone/qmqp-source ${INSTALL_ROOT}/usr/sbin  &&
+  cp src/smtpstone/smtp-sink   ${INSTALL_ROOT}/usr/sbin  &&
+  cp src/smtpstone/smtp-source ${INSTALL_ROOT}/usr/sbin
+fi  &&
+
+mkdir  -p               ${INSTALL_ROOT}/usr/doc/$SPELL               &&
+cp  -rf  README_FILES   ${INSTALL_ROOT}/usr/doc/$SPELL/              &&
+cp  -f   INSTALL        ${INSTALL_ROOT}/usr/doc/$SPELL/README_FILES  &&
+cp  -f   RELEASE_NOTES  ${INSTALL_ROOT}/usr/doc/$SPELL/README_FILES  &&
+cp  -rf  html           ${INSTALL_ROOT}/usr/doc/$SPELL/              &&
+
+sedit  "s:#mail_spool_directory = /var/spool/mail:mail_spool_directory = ${INSTALL_ROOT}/var/spool/mail:"  \
+${INSTALL_ROOT}/etc/postfix/main.cf  &&
+
+sedit  "s|#alias_maps = hash:/etc/aliases$|alias_maps = hash:${INSTALL_ROOT}/etc/aliases|"  \
+${INSTALL_ROOT}/etc/postfix/main.cf

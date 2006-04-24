@@ -1,0 +1,52 @@
+#!/bin/sh
+# developer tool for automating update of patches
+# updates the patches
+# $NAME is your name for history file
+# $EMAIL is your email address for the history file
+# $1 is patch dir to update
+# $2 is old latest patch
+# $3 is new latest patch
+# $4 is deleted patch (not required)
+#
+# e.g. from linux-new dir
+# # NAME="David Brown" EMAIL="dmlb2000@excite.com" info/updatepatch mm_patches 2.6.11-mm3 2.6.11-mm4 2.6.10-rc2-mm1
+# would create the patch 2.6.11-mm4 from the 2.6.11-mm3 patch file the update 
+# was done by David Brown whos' email address is dmlb2000@excite.com and the 
+# 2.6.10-rc2-mm1 patch would be removed
+if [ -z $1 ] || [ -z $2 ] || [ -z $3 ] || [ -z "$NAME" ] || [ -z "$EMAIL" ]
+then
+cat << EOF
+Usage: # NAME=<your name> EMAIL=<email address> info/updatepatch <patch directory> <old patch> <new patch> [<removed patch>]
+
+\$NAME is your name for history file
+\$EMAIL is your email address for the history file
+\$1 is patch dir to update
+\$2 is old latest patch
+\$3 is new latest patch
+\$4 is deleted patch (not required)
+
+EOF
+exit 1
+fi
+p4 edit latest.defaults
+p4 edit HISTORY
+sed -i "s/=$2 *$/=$3/g" latest.defaults 
+p4 integ info/patches/$1/$2 info/patches/$1/$3
+p4 edit info/patches/$1/$3
+if [ "$4" != "" ]
+then
+	p4 delete info/patches/$1/$4
+fi
+$EDITOR info/patches/$1/$3
+(
+echo "`date +%Y-%m-%d` $NAME <$EMAIL>"
+echo "	* latest.defaults: updated latest to $3"
+echo "	* info/patches/$1/$3: added"
+if [ "$4" != "" ]
+then
+	echo "	* info/patches/$1/$4 deleted"
+fi
+echo ""
+) > HISTORY.new
+cat HISTORY >> HISTORY.new
+mv -v HISTORY.new HISTORY

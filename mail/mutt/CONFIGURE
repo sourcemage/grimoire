@@ -1,0 +1,91 @@
+# temporary, to migrate old preferences
+persistent_add PATCHES &&
+if [ "${PATCH_SMTP}" == "y" ]; then
+  PATCHES="${PATCHES} libesmtp"
+  persistent_remove PATCH_SMTP
+fi &&
+if [ "${PATCH_SIGNATURE}" == "y" ]; then
+  PATCHES="${PATCHES} signatures_menu"
+  persistent_remove PATCH_SIGNATURE
+fi &&
+if [ "${PATCH_TRASH}" == "y" ]; then
+  PATCHES="${PATCHES} trash_folder"
+  persistent_remove PATCH_TRASH
+fi &&
+if [ "${MAILDIR_CACHE}" == "y" ]; then
+  PATCHES="${PATCHES} maildir_cache"
+  persistent_remove MAILDIR_CACHE
+fi &&
+if [ "${PATCHBAR}" == "y" ]; then
+  PATCHES="${PATCHES} sidebar"
+  persistent_remove PATCHBAR
+fi &&
+
+# $PATCHES stores the user preferences.  $REAL_PATCHES is the subset of
+# $PATCHES that is valid for this build.
+persistent_add REAL_PATCHES &&
+REAL_PATCHES="" &&
+
+# Because the exact order matters.
+for PATCH in `grep -v '^#' "${PATCH_DIRECTORY}/PATCH_ORDER"`
+do
+  if [ -x "${PATCH_DIRECTORY}/${PATCH}/PATCH_DETAILS" ]; then
+    PATCH_BRANCHES=""
+    PATCH_NEEDS=""
+    . "${PATCH_DIRECTORY}/${PATCH}/PATCH_DETAILS" &&
+    if ! list_find "${PATCH_BRANCHES}" "${BRANCH}"; then
+      continue
+    fi &&
+    for NEED in ${PATCH_NEEDS}
+    do
+      if ! list_find "${PATCHES}" "${NEED}"; then
+        continue 2
+      fi
+    done &&
+    config_query_option PATCHES "Apply the ${PATCH} patch?"            \
+                        "n"                                            \
+                        "${PATCH}"                                     \
+                        "-${PATCH}"                                    &&
+    if list_find "${PATCHES}" "${PATCH}"; then
+      REAL_PATCHES="${REAL_PATCHES} ${PATCH}"
+    fi
+  fi
+done &&
+
+if spell_ok "linuxdoc-tools"; then
+  UPDATE_DOC_DEFAULT="y"
+else
+  UPDATE_DOC_DEFAULT="n"
+fi &&
+if [ "${BRANCH}" == "cvs" ]; then
+  config_query UPDATE_DOC                                              \
+    "Build documentation? (requires linuxdoc-tools)"                   \
+    "${UPDATE_DOC_DEFAULT}"
+elif [ ! -z "${REAL_PATCHES}" ]; then
+  config_query UPDATE_DOC                                              \
+    "Rebuild documentation affected by patches? (requires linuxdoc-tools)" \
+    "${UPDATE_DOC_DEFAULT}"
+fi &&
+
+config_query_option MUTT_OPTS "Enable POP support?"                  \
+                              "y"                                    \
+                              "--enable-pop"                         \
+                              "--disable-pop"                        &&
+
+config_query_option MUTT_OPTS "Enable IMAP support?"                 \
+                              "y"                                    \
+                              "--enable-imap"                        \
+                              "--disable-imap"                       &&
+
+for PATCH in ${REAL_PATCHES}; do
+  if [ -x "${PATCH_DIRECTORY}/${PATCH}/PATCH_CONFIGURE" ]; then
+    . "${PATCH_DIRECTORY}/${PATCH}/PATCH_CONFIGURE"
+  fi
+done
+
+if [ "${BRANCH}" != "stable" ]; then 
+  config_query_option MUTT_OPTS "Enable the header cache?"           \
+                                "n"                                  \
+                                "--enable-hcache"                    \
+                                "--disable-hcache"
+fi

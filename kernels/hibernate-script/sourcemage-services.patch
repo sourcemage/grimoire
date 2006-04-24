@@ -1,0 +1,34 @@
+diff -Naur hibernate-script-1.10.orig/scriptlets.d/services hibernate-script-1.10/scriptlets.d/services
+--- hibernate-script-1.10.orig/scriptlets.d/services	2005-07-20 21:13:14.545868536 -0700
++++ hibernate-script-1.10/scriptlets.d/services	2005-07-20 21:13:28.677720168 -0700
+@@ -78,6 +78,9 @@
+ 	slackware)
+ 	    INITDIR=/etc/rc.d
+ 	    ;;
++	sourcemage)
++	    INITDIR=/etc/init.d/runlevels
++	    ;;
+     	*)
+ 	    # Auto-detect
+ 	    if [ -d "/etc/init.d/" ] ; then
+@@ -99,6 +102,20 @@
+ 	    vecho 2 "Executing invoke-rc.d $@"
+ 	    invoke-rc.d "$@"
+ 	}
++    # Source Mage GNU/Linux uses simpleinit-msb
++    elif [ -x /sbin/simpleinit ] ; then
++	SERVICES_RUNLEVEL=`telinit runlevel`
++	SERVICES_RUNLEVEL=${SERVICES_RUNLEVEL#* }
++	InvokeRCD () {
++	    local service action cmd
++	    service="$1"
++	    action="$2"
++	    [ -f "$INITDIR/*/$service" ] || return 100
++	    cmd="telinit run $service $action"
++	    vecho 2 "Executing $cmd"
++	    $cmd
++	}
++
+     else
+ 	# Otherwise, emulate it.
+ 	SERVICES_RUNLEVEL=`runlevel`

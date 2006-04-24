@@ -1,0 +1,53 @@
+#
+# See INSTALL and Apache security manuals for more details
+# ATTN: needs to be updated with mod_svn_authz information.
+#
+
+LoadModule  dav_svn_module  libexec/mod_dav_svn.so
+
+<Location /svn>
+	#
+	# This will give anyone unrestricted access to the repositories
+	# located at /absolute/path/to/repositories/parent/directory
+	#
+	DAV svn
+	SVNParentPath /absolute/path/to/repositories/parent/directory
+
+	#
+	# If you want limited access, read or write, you add these lines:
+	#
+	AuthType Basic
+	AuthName "Subversion repository"
+	AuthUserFile /path/to/passwd
+
+	#
+	# ...and...
+	#
+	# a) For a read/write restricted repository:
+	#
+
+	Require valid-user
+
+	#
+	# b) For a write restricted repository:
+	#    NOTE: prop{get|set} operations are not protected by this
+	#
+
+	<LimitExcept GET PROPFIND OPTIONS REPORT>
+		Require valid-user
+	</LimitExcept>
+
+	#
+	# c) For seperate restricted read and write access:
+	#    NOTE: prop{get|set} operations are not protected by this
+	#
+
+	AuthGroupFile /path/to/group
+	<LimitExcept GET PROPFIND OPTIONS REPORT>
+		Require group svn_committers
+	</LimitExcept>
+	<Limit GET PROPFIND OPTIONS REPORT>
+		Require group svn_committers
+		Require group svn_readers
+	</Limit>
+</Location>

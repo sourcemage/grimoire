@@ -1,0 +1,80 @@
+diff -Nur drip-0.9.0/encoder/encoder.cpp drip-0.9.0-fix/encoder/encoder.cpp
+--- drip-0.9.0/encoder/encoder.cpp	2004-04-20 22:47:32.000000000 +0200
++++ drip-0.9.0-fix/encoder/encoder.cpp	2004-12-17 06:41:33.103817270 +0100
+@@ -762,7 +762,7 @@
+     framebuffer = (guchar*)malloc(Config.in_width*Config.in_height*3);
+     /* Allocate video buffers */
+     extrabuffer = (guchar*)malloc(Config.in_width*BYTES_PER_COLOUR_OUTPOUT+4);
+-    rowptr = new (guchar*)[Config.in_height];
++    rowptr = new guchar*[Config.in_height];
+     for (gint i=0; i<Config.in_height; i++) {
+         if(i==Config.in_height-1) {
+             rowptr[i]=extrabuffer;
+diff -Nur drip-0.9.0/encoder/external.cpp drip-0.9.0-fix/encoder/external.cpp
+--- drip-0.9.0/encoder/external.cpp	2004-04-20 22:47:32.000000000 +0200
++++ drip-0.9.0-fix/encoder/external.cpp	2004-12-17 06:41:33.105817015 +0100
+@@ -222,7 +222,7 @@
+                     list[codec_nr]->cdescription = g_string_new(list[codec_nr]->ctype->str);
+                     list[codec_nr]->cdescription = g_string_append(list[codec_nr]->cdescription,": ");
+                     list[codec_nr]->cdescription = g_string_append(list[codec_nr]->cdescription,it->GetName());
+-                    list[codec_nr]->cav = (enum codecT)0;
++                    list[codec_nr]->cav = (codecT)0;
+                     list[codec_nr]->ci = (gpointer)it;
+                     codec_nr++;
+                     #ifndef STANDALONE
+@@ -248,7 +248,7 @@
+                     list[codec_nr]->ccodec = *ia;
+                     list[codec_nr]->cmodule = g_string_new(it->privatename.c_str());
+                     list[codec_nr]->cdescription = g_string_new(it->GetName());
+-                    list[codec_nr]->cav = (enum codecT)1;
++                    list[codec_nr]->cav = (codecT)1;
+                     list[codec_nr]->ci = (gpointer)it;
+                     codec_nr++;
+                     #ifndef STANDALONE
+diff -Nur drip-0.9.0/encoder/fast_memcpy.cpp drip-0.9.0-fix/encoder/fast_memcpy.cpp
+--- drip-0.9.0/encoder/fast_memcpy.cpp	2004-04-20 22:47:32.000000000 +0200
++++ drip-0.9.0-fix/encoder/fast_memcpy.cpp	2004-12-17 06:43:19.088308969 +0100
+@@ -138,8 +138,8 @@
+ 		"movntps %%xmm2, 32(%1)\n"
+ 		"movntps %%xmm3, 48(%1)\n"
+ 		: : "r" (from), "r" (to) : "memory");
+-		((const unsigned char *)from)+=64;
+-		((unsigned char *)to)+=64;
++    from = ((const unsigned char *)from) + 64;
++    to = ((unsigned char *)to) + 64;
+ 	}
+ 	else
+ 	/*
+@@ -160,8 +160,8 @@
+ 		"movntps %%xmm2, 32(%1)\n"
+ 		"movntps %%xmm3, 48(%1)\n"
+ 		: : "r" (from), "r" (to) : "memory");
+-		((const unsigned char *)from)+=64;
+-		((unsigned char *)to)+=64;
++    from = ((const unsigned char *)from) + 64;
++    to = ((unsigned char *)to) + 64;
+ 	}
+ #else
+ 	// Align destination at BLOCK_SIZE boundary
+@@ -188,8 +188,8 @@
+ 		MOVNTQ" %%mm6, 48(%1)\n"
+ 		MOVNTQ" %%mm7, 56(%1)\n"
+ 		: : "r" (from), "r" (to) : "memory");
+-		((const unsigned char *)from)+=64;
+-		((unsigned char *)to)+=64;
++		from = ((const unsigned char *)from) + 64;
++		to = ((unsigned char *)to) + 64;
+ 	}
+ 
+ //	printf(" %d %d\n", (int)from&1023, (int)to&1023);
+@@ -277,8 +277,8 @@
+ 		MOVNTQ" %%mm6, 48(%1)\n"
+ 		MOVNTQ" %%mm7, 56(%1)\n"
+ 		: : "r" (from), "r" (to) : "memory");
+-		((const unsigned char *)from)+=64;
+-		((unsigned char *)to)+=64;
++		from = ((const unsigned char *)from) + 64;
++		to = ((unsigned char *)to) + 64;
+ 	}
+ 
+ #endif /* Have SSE */

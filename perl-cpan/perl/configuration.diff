@@ -1,0 +1,126 @@
+diff -urN perl-5.8.7/Configure perl/Configure
+--- perl-5.8.7/Configure	2005-04-20 12:34:37.000000000 -0400
++++ perl/Configure	2005-06-29 03:57:43.000000000 -0400
+@@ -1234,9 +1234,9 @@
+ groupstype=''
+ libnames=''
+ : change the next line if compiling for Xenix/286 on Xenix/386
+-xlibpth='/usr/lib/386 /lib/386'
++xlibpth='/usr/lib/386 /lib/386 /lib64 /usr/lib64'
+ : Possible local library directories to search.
+-loclibpth="/usr/local/lib /opt/local/lib /usr/gnu/lib"
++loclibpth="/usr/local/lib usr/local/lib64 /opt/local/lib /usr/gnu/lib"
+ loclibpth="$loclibpth /opt/gnu/lib /usr/GNU/lib /opt/GNU/lib"
+ 
+ : general looking path for locating libraries
+diff -urN perl-5.8.7/installperl perl/installperl
+--- perl-5.8.7/installperl	2005-04-03 10:58:58.000000000 -0400
++++ perl/installperl	2005-06-29 03:57:17.000000000 -0400
+@@ -854,7 +854,7 @@
+ 	my $xname = "$installlib/$name";
+ 	$xname =~ s/^\Q$destdir\E// if $destdir;
+ 	$packlist->{$xname} = { type => 'file' };
+-	if ($force || compare($_, "$installlib/$name") || $nonono) {
++	if (1) {
+ 	    unlink("$installlib/$name");
+ 	    mkpath("$installlib/$dir", $verbose, 0777);
+ 	    # HP-UX (at least) needs to maintain execute permissions
+@@ -913,7 +913,7 @@
+     }
+     -f $from || $perlpodbadsymlink || warn "$0: $from not found";
+     $packlist->{$xto} = { type => 'file' };
+-    if ($force || compare($from, $to) || $nonono) {
++    if (1) {
+ 	safe_unlink($to);   # In case we don't have write permissions.
+ 	if ($nonono) {
+ 	    $from = $depth . "/" . $from if $depth;
+diff -urN perl-5.8.7/perl.c perl/perl.c
+--- perl-5.8.7/perl.c	2005-04-22 10:14:27.000000000 -0400
++++ perl/perl.c	2005-06-29 03:58:24.000000000 -0400
+@@ -4391,45 +4391,12 @@
+     }
+ 
+ /* Use the ~-expanded versions of APPLLIB (undocumented),
+-    ARCHLIB PRIVLIB SITEARCH SITELIB VENDORARCH and VENDORLIB
++     SITEARCH SITELIB VENDORARCH VENDORLIB ARCHLIB and PRIVLIB
+ */
+ #ifdef APPLLIB_EXP
+     incpush(APPLLIB_EXP, TRUE, TRUE, TRUE);
+ #endif
+ 
+-#ifdef ARCHLIB_EXP
+-    incpush(ARCHLIB_EXP, FALSE, FALSE, TRUE);
+-#endif
+-#ifdef MACOS_TRADITIONAL
+-    {
+-	Stat_t tmpstatbuf;
+-    	SV * privdir = NEWSV(55, 0);
+-	char * macperl = PerlEnv_getenv("MACPERL");
+-	
+-	if (!macperl)
+-	    macperl = "";
+-	
+-	Perl_sv_setpvf(aTHX_ privdir, "%slib:", macperl);
+-	if (PerlLIO_stat(SvPVX(privdir), &tmpstatbuf) >= 0 && S_ISDIR(tmpstatbuf.st_mode))
+-	    incpush(SvPVX(privdir), TRUE, FALSE, TRUE);
+-	Perl_sv_setpvf(aTHX_ privdir, "%ssite_perl:", macperl);
+-	if (PerlLIO_stat(SvPVX(privdir), &tmpstatbuf) >= 0 && S_ISDIR(tmpstatbuf.st_mode))
+-	    incpush(SvPVX(privdir), TRUE, FALSE, TRUE);
+-	
+-   	SvREFCNT_dec(privdir);
+-    }
+-    if (!PL_tainting)
+-	incpush(":", FALSE, FALSE, TRUE);
+-#else
+-#ifndef PRIVLIB_EXP
+-#  define PRIVLIB_EXP "/usr/local/lib/perl5:/usr/local/lib/perl"
+-#endif
+-#if defined(WIN32)
+-    incpush(PRIVLIB_EXP, TRUE, FALSE, TRUE);
+-#else
+-    incpush(PRIVLIB_EXP, FALSE, FALSE, TRUE);
+-#endif
+-
+ #ifdef SITEARCH_EXP
+     /* sitearch is always relative to sitelib on Windows for
+      * DLL-based path intuition to work correctly */
+@@ -4471,6 +4438,39 @@
+     incpush(PERL_VENDORLIB_STEM, FALSE, TRUE, TRUE);
+ #endif
+ 
++#ifdef ARCHLIB_EXP
++    incpush(ARCHLIB_EXP, FALSE, FALSE, TRUE);
++#endif
++#ifdef MACOS_TRADITIONAL
++    {
++	Stat_t tmpstatbuf;
++    	SV * privdir = NEWSV(55, 0);
++	char * macperl = PerlEnv_getenv("MACPERL");
++	
++	if (!macperl)
++	    macperl = "";
++	
++	Perl_sv_setpvf(aTHX_ privdir, "%slib:", macperl);
++	if (PerlLIO_stat(SvPVX(privdir), &tmpstatbuf) >= 0 && S_ISDIR(tmpstatbuf.st_mode))
++	    incpush(SvPVX(privdir), TRUE, FALSE, TRUE);
++	Perl_sv_setpvf(aTHX_ privdir, "%ssite_perl:", macperl);
++	if (PerlLIO_stat(SvPVX(privdir), &tmpstatbuf) >= 0 && S_ISDIR(tmpstatbuf.st_mode))
++	    incpush(SvPVX(privdir), TRUE, FALSE, TRUE);
++	
++   	SvREFCNT_dec(privdir);
++    }
++    if (!PL_tainting)
++	incpush(":", FALSE, FALSE, TRUE);
++#else
++#ifndef PRIVLIB_EXP
++#  define PRIVLIB_EXP "/usr/local/lib/perl5:/usr/local/lib/perl"
++#endif
++#if defined(WIN32)
++    incpush(PRIVLIB_EXP, TRUE, FALSE, TRUE);
++#else
++    incpush(PRIVLIB_EXP, FALSE, FALSE, TRUE);
++#endif
++
+ #ifdef PERL_OTHERLIBDIRS
+     incpush(PERL_OTHERLIBDIRS, TRUE, TRUE, TRUE);
+ #endif

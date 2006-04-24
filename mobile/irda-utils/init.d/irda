@@ -1,0 +1,53 @@
+#!/bin/bash
+
+PROGRAM=/usr/sbin/irattach
+RUNLEVEL=3
+
+# Source function library.
+. /etc/init.d/smgl_init
+
+# Source IrDA networking configuration.
+. /etc/sysconfig/irda
+
+# Check that irda is up.
+[ ${IRDA} = "no" ] && exit 0
+
+[ -f /usr/sbin/irattach ] || exit 0
+
+ARGS=
+if [ $DONGLE ]; then
+	ARGS="$ARGS -d $DONGLE"
+fi
+if [ "$DISCOVERY" = "yes" ];then
+	ARGS="$ARGS -s"
+fi
+
+# See how we were called.
+start()
+{
+  # Attach irda device 
+  echo "Starting IrDA: "
+  /usr/sbin/irattach ${DEVICE} ${ARGS}
+  evaluate_retval
+  #	touch /var/lock/subsys/irda
+  # SMGL uses a tmpfs /var/lock, this is safer
+  if [ ! -d /var/lock/subsys ]; then
+    mkdir /var/lock/subsys
+    touch /var/lock/subsys/irda
+  elif [ ! -f /var/lock/subsys/irda ]; then
+    touch /var/lock/subsys/irda
+  fi
+}
+
+stop()
+{
+  echo "Shutting down IrDA: "
+  killproc irattach
+  rm -f /var/lock/subsys/irda
+}
+
+status()
+{
+  status irattach
+}
+

@@ -1,0 +1,104 @@
+--- XFree86-4.3/xc/lib/Xi/XGetVers.c.xi-lock	2002-10-16 02:37:29.000000000 +0200
++++ XFree86-4.3/xc/lib/Xi/XGetVers.c	2003-07-08 13:58:15.000000000 +0200
+@@ -45,7 +45,7 @@
+ SOFTWARE.
+ 
+ ********************************************************/
+-/* $XFree86: xc/lib/Xi/XGetVers.c,v 3.4 2002/10/16 00:37:29 dawes Exp $ */
++/* $XFree86: xc/lib/Xi/XGetVers.c,v 3.5 2003/07/07 15:34:22 eich Exp $ */
+ 
+ /***********************************************************************
+  *
+@@ -71,12 +71,33 @@
+     char		*name;
+ #endif
+     {       
++    XExtensionVersion		*ext;
++
++    LockDisplay (dpy);
++    ext = _XiGetExtensionVersion (dpy, name);
++    if (ext != NoSuchExtension) { /* This is unlocked in _XiCheckExtInit() */
++	UnlockDisplay (dpy);
++	SyncHandle();
++    }
++    return (ext);
++    }
++
++XExtensionVersion
++#if NeedFunctionPrototypes
++*_XiGetExtensionVersion (
++    register Display 	*dpy,
++    _Xconst char	*name)
++#else
++*_XiGetExtensionVersion (dpy, name)
++    register Display 	*dpy;
++    char		*name;
++#endif
++    {       
+     xGetExtensionVersionReq 	*req;
+     xGetExtensionVersionReply 	rep;
+     XExtensionVersion		*ext;
+     XExtDisplayInfo *info = XInput_find_display (dpy);
+ 
+-    LockDisplay (dpy);
+     if (_XiCheckExtInit(dpy, Dont_Check) == -1)
+ 	return ((XExtensionVersion *) NoSuchExtension);
+ 
+@@ -89,8 +110,6 @@
+ 
+     if (! _XReply (dpy, (xReply *) &rep, 0, xTrue)) 
+ 	{
+-	UnlockDisplay(dpy);
+-	SyncHandle();
+ 	return (XExtensionVersion *) NULL;
+ 	}
+     ext = (XExtensionVersion *) Xmalloc (sizeof (XExtensionVersion));
+@@ -103,8 +122,6 @@
+ 	    ext->minor_version = rep.minor_version;
+ 	    }
+ 	}
+-    UnlockDisplay(dpy);
+-    SyncHandle();
+     return (ext);
+     }
+ 
+--- XFree86-4.3/xc/lib/Xi/XIint.h.xi-lock	2001-08-01 02:44:39.000000000 +0200
++++ XFree86-4.3/xc/lib/Xi/XIint.h	2003-07-08 13:58:15.000000000 +0200
+@@ -1,4 +1,4 @@
+-/* $XFree86: xc/lib/Xi/XIint.h,v 3.1 2001/08/01 00:44:39 tsi Exp $ */
++/* $XFree86: xc/lib/Xi/XIint.h,v 3.2 2003/07/07 15:34:22 eich Exp $ */
+ 
+ /*
+  *	XIint.h - Header definition and support file for the internal
+@@ -21,4 +21,11 @@
+ #endif
+ );
+ 
++extern XExtensionVersion * _XiGetExtensionVersion(
++#if NeedFunctionPrototypes
++	Display*,
++	_Xconst char*
++#endif
++);
++
+ #endif
+--- XFree86-4.3/xc/lib/Xi/XExtInt.c.xi-lock	2002-10-16 02:37:28.000000000 +0200
++++ XFree86-4.3/xc/lib/Xi/XExtInt.c	2003-07-08 13:58:15.000000000 +0200
+@@ -45,7 +45,7 @@
+ SOFTWARE.
+ 
+ ********************************************************/
+-/* $XFree86: xc/lib/Xi/XExtInt.c,v 3.7 2002/10/16 00:37:28 dawes Exp $ */
++/* $XFree86: xc/lib/Xi/XExtInt.c,v 3.8 2003/07/07 15:34:22 eich Exp $ */
+ 
+ /***********************************************************************
+  *
+@@ -196,7 +196,7 @@
+ 	    return (-1);
+ 	    }
+ 	((XInputData *) info->data)->vers =
+-	    XGetExtensionVersion (dpy, "XInputExtension");
++	    _XiGetExtensionVersion (dpy, "XInputExtension");
+ 	}
+ 
+     if (versions[version_index].major_version > Dont_Check)

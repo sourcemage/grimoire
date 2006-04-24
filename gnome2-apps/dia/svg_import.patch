@@ -1,0 +1,52 @@
+Index: plug-ins/python/diasvg_import.py
+===================================================================
+--- plug-ins/python/diasvg_import.py	(revision 7)
++++ plug-ins/python/diasvg_import.py	(working copy)
+@@ -54,6 +54,10 @@
+ 		return (int(m.group(1)) / 255.0, int(m.group(2)) / 255.0, int(m.group(2)) / 255.0)
+ 	# any more ugly color definitions not compatible with pango_color_parse() ?
+ 	return string.strip(s)
++
++def eval_secure(s):
++	return string.translate(s, string.maketrans("\"()", "___"))
++
+ class Object :
+ 	def __init__(self) :
+ 		self.props = {"x" : 0, "y" : 0, "stroke" : "none"}
+@@ -65,7 +69,8 @@
+ 			sp2 = string.split(string.strip(s1), ":")
+ 			if len(sp2) == 2 :
+ 				try :
+-					eval("self." + string.replace(sp2[0], "-", "_") + "(\"" + string.strip(sp2[1]) + "\")")
++					eval("self." + eval_secure(string.replace(sp2[0], "-", "_")) +
++						"(\"" + eval_secure(string.strip(sp2[1])) + "\")")
+ 				except AttributeError :
+ 					self.props[sp2[0]] = string.strip(sp2[1])
+ 	def x(self, s) :
+@@ -282,7 +287,7 @@
+ 	def CopyProps(self, dest) :
+ 		# to be used to inherit group props to childs _before_ they get their own
+ 		for p in self.props.keys() :
+-			sf = "dest." + string.replace(p, "-", "_") + "(\"" + str(self.props[p]) + "\")"
++			sf = "dest." + eval_secure(string.replace(p, "-", "_")) + "(\"" + eval_secure(str(self.props[p])) + "\")"
+ 			try : # accessor first
+ 				eval(sf)
+ 			except :
+@@ -561,7 +566,7 @@
+ 				o = Group()
+ 				stack.append(o)
+ 			else :
+-				s = string.capitalize(name) + "()"
++				s = eval_secure(string.capitalize(name)) + "()"
+ 				try :
+ 					o = eval(s)
+ 				except :
+@@ -575,7 +580,7 @@
+ 				ma = string.replace(a, "-", "_")
+ 				# e.g. xlink:href -> xlink__href
+ 				ma = string.replace(ma, ":", "__")
+-				s = "o." +  ma + "(\"" + attrs[a] + "\")"
++				s = "o." +  eval_secure(ma) + "(\"" + eval_secure(attrs[a]) + "\")"
+ 				try :
+ 					eval(s)
+ 				except AttributeError, msg :

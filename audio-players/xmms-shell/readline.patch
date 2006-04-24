@@ -1,0 +1,39 @@
+--- configure.in	2004-11-17 21:24:32.465253120 +0100
++++ configure.in.new	2004-11-17 20:58:37.304841320 +0100
+@@ -28,10 +28,13 @@
+ AC_ARG_WITH(readline,
+             [  --with-readline         support fancy command line editing])
+ 
+-if test x$with_readline = xyes
+- then
+-  AC_CHECK_LIB(readline, readline)
+- fi
++if test x$with_readline = xyes ; then
++  AC_CHECK_LIB(readline,readline,,,-lncurses)
++  if test "$ac_cv_lib_readline_readline" == yes ; then
++    LIBS_READLINE="-lreadline -lncurses"
++    AC_SUBST(LIBS_READLINE)
++  fi
++fi
+ 
+ AC_PROG_CXX
+ 
+--- src/Makefile.am	2002-10-21 22:42:55.000000000 +0200
++++ src/Makefile.am.new	2004-11-17 19:56:27.753317112 +0100
+@@ -1,5 +1,6 @@
+ bin_PROGRAMS = xmms-shell
+ 
++xmms_shell_LDADD = @LIBS_READLINE@
+ xmms_shell_SOURCES = \
+ 	command.cc \
+ 	eval.cc \
+--- src/getline.cc	2002-10-23 01:48:03.000000000 +0200
++++ src/getline.cc.new	2004-11-17 20:57:12.600718304 +0100
+@@ -6,6 +6,7 @@
+ #ifdef HAVE_LIBREADLINE
+ 
+ #include <stdlib.h>
++#include <iostream>
+ #include <ctype.h>
+ #include <readline/readline.h>
+ #include <readline/history.h>

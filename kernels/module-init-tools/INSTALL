@@ -1,0 +1,22 @@
+mkdir -p $INSTALL_ROOT/lib/modules &&
+make_normal  &&
+
+if [ $OLD_TOO == y ] ; then
+  cd $SOURCE_DIRECTORY2                        &&
+  make install  DESTDIR=$INSTALL_ROOT          &&
+  mkdir  -p  ${INSTALL_ROOT}/etc/modules.d     &&
+  touch      ${INSTALL_ROOT}/etc/modules       &&
+  touch      ${INSTALL_ROOT}/etc/modules.conf  &&
+  cd $SOURCE_DIRECTORY                         &&
+  rm_source_dir $SOURCE_DIRECTORY2             &&
+  if ! [[ $INSTALL_ROOT ]] ; then
+    make moveold
+  fi
+fi  &&
+
+make  install  DESTDIR=$INSTALL_ROOT &&
+
+if [ $OLD_TOO == y ] && ! [[ $INSTALL_ROOT ]] ; then
+  ./generate-modprobe.conf ${INSTALL_ROOT}/etc/modprobe.conf
+fi  &&
+cp  modprobe.devfs  ${INSTALL_ROOT}/etc

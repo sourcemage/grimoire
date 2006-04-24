@@ -1,0 +1,71 @@
+diff -urpN cheops-ng-0.1.12.old/Makefile.in cheops-ng-0.1.12/Makefile.in
+--- cheops-ng-0.1.12.old/Makefile.in	2004-09-18 17:49:38.785059384 -0700
++++ cheops-ng-0.1.12/Makefile.in	2004-09-18 17:53:08.400193040 -0700
+@@ -4,7 +4,7 @@
+ # Debugging
+ DEBUG_FLAGS=# -DDEBUG_DISCOVER -DDEBUG_EVENT -DDEBUG_IO -DDEBUG_SCHEDULER
+ 
+-CFLAGS = @CFLAGS@ -Iadns-1.0/src
++CFLAGS = @CFLAGS@
+ LIBS = @LIBS@
+ 
+ CC=@CC@
+@@ -49,8 +49,8 @@ AGENTOBJS = cheops-agent.o agent-discove
+             agent-event.o agent-io.o agent-ip_utils.o agent-osscan.o \
+             agent-map.o probe.o agent-probe.o agent-auth.o agent-nmapxml.o 
+ 	
+-AGENTLIBS = ./adns-1.0/src/libadns.a
+-AGENTLIBFLAGS = -lm $(LIBS) -L./adns-1.0/src/ -lcrypt
++AGENTLIBS = 
++AGENTLIBFLAGS = -lm $(LIBS) -lcrypt
+ 
+ # Objects for Cheops Agent Shell
+ SHOBJS = event.o io.o cheops-sh.o cheops-sh-guts.o ip_utils.o
+@@ -73,7 +73,7 @@ TEST_OBJS = $(NORMOBJS) agent-io.o logge
+ TESTS = test-sched test-socket test-probe
+ COMLIBS = #@COMLIBS@
+ CC_LIBS = 
+-CFLAGS += -Wall -g -Iadns-1.0/src $(DEBUG_FLAGS) $(GTKCFLAGS)  $(XMLCFLAGS)
++CFLAGS += -Wall -g $(DEBUG_FLAGS) $(GTKCFLAGS)  $(XMLCFLAGS)
+ 
+ ifdef DEBUG
+ CFLAGS += -DDEBUG_DISCOVER -DDEBUG_MAP -DDEBUG_NMAPXML -DDEBUG_OS_SCAN -DDEBUG_AGENT_PROBE -DDEBUG_CHEOPS_GUI -DDEBUG_EVENT -DDEBUG_CANVAS -DDEBUG_CONFIG -DDEBUG_GUI_HANDLERS -DDEBUG_IO -DDEBUG_PROBE
+@@ -83,11 +83,11 @@ PROGS = cheops-agent cheops-ng
+ # Additional programs
+ #PROGS = test-sched test-io cheops-sh
+ 
+-all: version.h installdir.h  ./adns-1.0/src/libadns.a $(PROGS) 
++all: version.h installdir.h  $(PROGS) 
+ 
+ static: version.h $(COMOBJS) $(GUIOBJS) $(GTKOBJS) $(COMLIBS) $(AGENTOBJS) $(AGENTLIBS) $(COMOBJS) $(NORMOBJS) $(COMLIBS)
+ 	rm cheops-ng cheops-agent -f
+-	$(CC) -o cheops-ng $(COMOBJS) $(GUIOBJS) $(GTKOBJS) $(COMLIBS) $(GTKLIBS) $(CC_LIBS) ./adns-1.0/src/libadns.a $(STATIC_FLAGS) -static 
++	$(CC) -o cheops-ng $(COMOBJS) $(GUIOBJS) $(GTKOBJS) $(COMLIBS) $(GTKLIBS) $(CC_LIBS) $(STATIC_FLAGS) -static 
+ 	$(CC) -o cheops-agent $(COMOBJS) $(AGENTOBJS) $(COMLIBS) $(AGENTLIBS) $(NORMOBJS) $(CC_LIBS) $(AGENTLIBFLAGS) $(GLIB) $(STATIC_FLAGS) -static
+ 
+ strip: cheops-ng cheops-agent
+@@ -109,14 +109,8 @@ version.h: version
+ 	echo "#define CHEOPS_VERSION \"`cat version`\"" >> version.h
+ 	echo "#endif" >> version.h
+ 
+-./adns-1.0/src/Makefile: ./adns-1.0/src/Makefile.in
+-	cd adns-1.0; ./configure
+-
+-./adns-1.0/src/libadns.a: ./adns-1.0/src/Makefile
+-	$(MAKE) -C ./adns-1.0/src/
+-
+ cheops-ng: version.h $(COMOBJS) $(GUIOBJS) $(GTKOBJS) $(COMLIBS)
+-	$(CC) -o cheops-ng $(COMOBJS) $(GUIOBJS) $(GTKOBJS) $(COMLIBS) $(GTKLIBS) $(CC_LIBS) ./adns-1.0/src/libadns.a $(STATIC_FLAGS)
++	$(CC) -o cheops-ng $(COMOBJS) $(GUIOBJS) $(GTKOBJS) $(COMLIBS) $(GTKLIBS) $(CC_LIBS) $(STATIC_FLAGS)
+ 
+ cheops-agent: version.h $(AGENTOBJS) $(AGENTLIBS) $(COMOBJS) $(NORMOBJS) $(COMLIBS)
+ 	$(CC) -o cheops-agent $(COMOBJS) $(AGENTOBJS) $(COMLIBS) $(AGENTLIBS) $(NORMOBJS) $(CC_LIBS) $(AGENTLIBFLAGS) $(GLIB) $(STATIC_FLAGS)
+@@ -140,7 +134,7 @@ gui-event.o: event.c
+ 	$(CC) $(CFLAGS) -c event.c -o gui-event.o $(GTKCFLAGS) -DCOMPILING_GUI
+ 
+ gpl.c: COPYING
+-	( echo "char *gpl_text = \"" ; cat COPYING | sed s/\\\"/\\\\\"/g; echo "\";" ) >gpl.c
++	( echo -n "char *gpl_text = \"" ; cat COPYING | sed s/\\\"/\\\\\"/g | tr -d '\n'; echo "\";" ) >gpl.c
+ 
+ agent-io.o: io.c
+ 	$(CC) $(CFLAGS) -c io.c -o agent-io.o $(CC_LIBS)

@@ -1,0 +1,97 @@
+diff -ur drip-0.9.0rc3.old/encoder/demuxer.cpp drip-0.9.0rc3/encoder/demuxer.cpp
+--- drip-0.9.0rc3.old/encoder/demuxer.cpp	2003-12-03 09:00:15.000000000 +0100
++++ drip-0.9.0rc3/encoder/demuxer.cpp	2004-02-14 14:45:56.000000000 +0100
+@@ -996,7 +996,7 @@
+                     tmp1 = buf + 9 + buf[8];
+                     if (buf[7] & 0x80) {
+                         PTSframe = (gdouble)PTS;
+-                        mpeg2_pts(mpeg2dec,(glong)PTSframe);
++                        mpeg2_tag_picture (mpeg2dec, (glong) PTSframe, 0);
+                     }
+                 } else {  /* mpeg1 */
+                     for (tmp1 = buf + 6; *tmp1 == 0xff; tmp1++) {
+@@ -1010,7 +1010,7 @@
+                     tmp1 += mpeg1_skip_table [*tmp1 >> 4];
+                     //TODO: calc pts for mpeg1
+                     PTSframe = (gdouble)PTS;
+-                    mpeg2_pts(mpeg2dec,(glong)PTSframe);
++                    mpeg2_tag_picture (mpeg2dec, (glong) PTSframe, 0);
+                 }
+                 if (tmp1 < tmp2) {
+                     gint num_frames;
+diff -ur drip-0.9.0rc3.old/encoder/encoder.hh drip-0.9.0rc3/encoder/encoder.hh
+--- drip-0.9.0rc3.old/encoder/encoder.hh	2003-11-25 00:01:26.000000000 +0100
++++ drip-0.9.0rc3/encoder/encoder.hh	2004-02-14 14:35:34.000000000 +0100
+@@ -27,7 +27,7 @@
+ #else
+    #include <avm_default.h>
+    #include <avm_fourcc.h>
+-   #include <creators.h>
++   #include <avm_creators.h>
+ #endif
+ 
+ gpointer encode(gpointer data);
+diff -ur drip-0.9.0rc3.old/encoder/main.hh drip-0.9.0rc3/encoder/main.hh
+--- drip-0.9.0rc3.old/encoder/main.hh	2003-02-22 11:15:21.000000000 +0100
++++ drip-0.9.0rc3/encoder/main.hh	2004-02-14 14:36:12.000000000 +0100
+@@ -24,7 +24,7 @@
+ // avifile
+ #include <avm_default.h>
+ #include <avm_fourcc.h>
+-#include <creators.h>
++#include <avm_creators.h>
+ #include <sys/time.h>
+ #include <sys/stat.h>
+ #include <glib.h>
+diff -ur drip-0.9.0rc3.old/encoder/mpeg2_internal.h drip-0.9.0rc3/encoder/mpeg2_internal.h
+--- drip-0.9.0rc3.old/encoder/mpeg2_internal.h	2003-03-24 01:41:41.000000000 +0100
++++ drip-0.9.0rc3/encoder/mpeg2_internal.h	2004-02-14 14:33:54.000000000 +0100
+@@ -54,7 +54,7 @@
+     int f_code[2];
+ } motion_t;
+ 
+-struct decoder_s {
++struct mpeg2_decoder_s {
+     /* first, state that carries information from one macroblock to the */
+     /* next inside a slice, and is never used outside of mpeg2_slice() */
+ 
+@@ -138,11 +138,11 @@
+ };
+ 
+ typedef struct {
+-    fbuf_t fbuf;
++    mpeg2_fbuf_t fbuf;
+ } fbuf_alloc_t;
+ 
+ struct mpeg2dec_s {
+-    decoder_t decoder;
++    mpeg2_decoder_t decoder;
+ 
+     mpeg2_info_t info;
+ 
+@@ -172,11 +172,11 @@
+     uint8_t first_decode_slice;
+     uint8_t nb_decode_slices;
+ 
+-    sequence_t new_sequence;
+-    sequence_t sequence;
+-    picture_t pictures[4];
+-    picture_t * picture;
+-    /*const*/ fbuf_t * fbuf[3];	/* 0: current fbuf, 1-2: prediction fbufs */
++    mpeg2_sequence_t new_sequence;
++    mpeg2_sequence_t sequence;
++    mpeg2_picture_t pictures[4];
++    mpeg2_picture_t * picture;
++    /*const*/ mpeg2_fbuf_t * fbuf[3];	/* 0: current fbuf, 1-2: prediction fbufs */
+ 
+     fbuf_alloc_t fbuf_alloc[3];
+     int custom_fbuf;
+@@ -208,8 +208,6 @@
+ #define ALLOC_YUV 2
+ #define ALLOC_CONVERT_ID 3
+ #define ALLOC_CONVERTED 4
+-void * mpeg2_malloc (int size, int reason);
+-void mpeg2_free (void * buf);
+ 
+ /* cpu_accel.c */
+ uint32_t mpeg2_detect_accel (void);

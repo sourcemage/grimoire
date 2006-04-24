@@ -1,0 +1,56 @@
+./viewcvs-install  &&
+
+for  CONF  in  `ls -1 /usr/share/$SPELL/*.conf.default`;  do
+if ! [ -e ${CONF%.default} ]; then
+  cp     -v  $CONF  ${CONF%.default}  &&
+  chmod  +r         ${CONF%.default}
+  fi
+done  &&
+
+# default answer has to be 'no' here because 'y' would
+# require further manual input
+message  "${PROBLEM_COLOR}The following procedure may destroy your existing ViewCVS database${DEFAULT_COLOR}"
+if query "configure MySQL for query facility?${DEFAULT_COLOR}" "n"; then
+  message  "${SPELL_COLOR}${SPELL}:  ${QUERY_COLOR}MySQL database name?${DEFAULT_COLOR}\n"
+  read MY_DB
+  message  "${SPELL_COLOR}${SPELL}:  ${QUERY_COLOR}MySQL master user?${DEFAULT_COLOR}\n"
+  read MY_USER
+  message  "${SPELL_COLOR}${SPELL}:  ${QUERY_COLOR}MySQL user $MY_USER password?${DEFAULT_COLOR}\n"
+  read MY_USER_PASS
+  message  "${SPELL_COLOR}${SPELL}:  ${QUERY_COLOR}MySQL read-only user?${DEFAULT_COLOR}\n"
+  read MY_USER_RO
+  message  "${SPELL_COLOR}${SPELL}:  ${QUERY_COLOR}MySQL user $MY_USER_RO password?${DEFAULT_COLOR}\n"
+  read MY_USER_RO_PASS
+
+  SQL=/tmp/$SPELL.$$.sql
+  CONF=/tmp/$SPELL.$$.conf
+  if touch $SQL $SED $CONF && chmod 600 /tmp/$SPELL.$$.*; then
+    cat > $SQL << __EOF__
+GRANT USAGE  ON *.* TO ${MY_USER}@localhost IDENTIFIED BY '$MY_USER_PASS';
+GRANT USAGE  ON *.* TO ${MY_USER_RO}@localhost IDENTIFIED BY '$MY_USER_RO_PASS';
+GRANT ALL    ON ${MY_DB}.* TO ${MY_USER}@localhost WITH GRANT OPTION;
+GRANT SELECT ON ${MY_DB}.* TO ${MY_USER_RO}@localhost;
+__EOF__
+
+    cat $SQL
+    if query "would you like to go ahead with the SQL above?" "y"; then
+        mysql -p < $SQL                                               &&
+        echo -e "${MESSAGE_COLOR}Please enter same database name below, ${PROBLEM_COLOR}$MY_DB${DEFAULT_COLOR}" &&
+        /usr/share/$SPELL/make-database                                     &&
+        cat /usr/share/$SPELL/$SPELL.conf > $CONF                           &&
+        cat $CONF                                                         | \
+        sed "s/\\W*\(host\)\\W*=.*/\1 = localhost/"                   | \
+        sed "s/\\W*\(database_name\)\\W*=.*/\1 = $MY_DB/"             | \
+        sed "s/\\W*\(user\)\\W*=.*/\1 = $MY_USER/"                    | \
+        sed "s/\\W*\(passwd\)\\W*=.*/\1 = $MY_USER_PASS/"             | \
+        sed "s/\\W*\(readonly_user\)\\W*=.*/\1 = $MY_USER_RO/"        | \
+        sed "s/\\W*\(readonly_passwd\)\\W*=.*/\1 = $MY_USER_RO_PASS/" > \
+        /usr/share/$SPELL/$SPELL.conf
+    fi
+  fi
+
+  rm -f /tmp/$SPELL.$$.*
+
+  message  "${MESSAGE_COLOR}By default, ViewCVS configuration files are readable by 'world'.${DEFAULT_COLOR}"
+  message  "${MESSAGE_COLOR}So will be your just entered MySQL master and read-only users' passwords.${DEFAULT_COLOR}"
+fi

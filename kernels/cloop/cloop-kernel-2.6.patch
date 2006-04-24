@@ -1,0 +1,124 @@
+diff -ru cloop-2.01.orig/Makefile cloop-2.01/Makefile
+--- cloop-2.01.orig/Makefile	2004-05-14 15:17:51.000000000 -0400
++++ cloop-2.01/Makefile	2004-11-24 11:14:24.980695520 -0500
+@@ -1,20 +1,20 @@
+ #!/usr/bin/make
+ 
+-KERNEL_DIR=/usr/src/linux
++KERNEL_DIR?=/usr/src/linux
+ 
+-ifdef APPSONLY
+-CFLAGS:=-Wall -Wstrict-prototypes -Wno-trigraphs -O2 -s -I. -fno-strict-aliasing -fno-common -fomit-frame-pointer 
+-else
+-include $(KERNEL_DIR)/.config
+-include $(KERNEL_DIR)/conf.vars
+-endif
++# cloop overrides user CFLAGS
++CFLAGS:=-Wall -Wstrict-prototypes -Wno-trigraphs -O2 -s -I. -fno-strict-aliasing -fno-common -fomit-frame-pointer
++-include $(KERNEL_DIR)/.config
++-include $(KERNEL_DIR)/conf.vars
+ 
+ CKERNOPS:=-D__KERNEL__ -DMODULE -fno-builtin -nostdlib -DKBUILD_MODNAME="cloop" -DKBUILD_BASENAME="cloop"
+ 
+ ifdef CONFIG_MODVERSIONS
++ifneq ($(shell grep . $(KERNEL_DIR)/include/linux/modversions.h 2>/dev/null),)
+ MODVERSIONS:= -DMODVERSIONS -include $(KERNEL_DIR)/include/linux/modversions.h
+ CKERNOPS += $(MODVERSIONS)
+ endif
++endif
+ 
+ # Check for SMP in config and #define __SMP__ if necessary.
+ # This is ESSENTIAL when compiling a SMP version of cloop.o
+@@ -26,19 +26,38 @@
+ 
+ KERNOBJ:=compressed_loop.o
+ 
++all: $(MODULE) utils
++
+ # Name of module
+ ifeq ($(PATCHLEVEL),6)
+ MODULE:=cloop.ko
+ else
+ MODULE:=cloop.o
++
++#it still may be a 2.6 header tree
++ifneq ($(shell grep 'UTS.*2.6' $(KERNEL_DIR)/include/linux/version.h),)
++MODULE:=cloop.ko
+ endif
+ 
+-ALL_TARGETS = create_compressed_fs extract_compressed_fs
+-ifndef APPSONLY
+-ALL_TARGETS += $(MODULE)
+ endif
+ 
+-all: $(ALL_TARGETS)
++# needed on some 2.6 systems with broken or with 2.4 headers
++ifeq ($(MODULE),cloop.ko)
++CKERNOPS+= -D__OPTIMIZE__
++endif
++
++# check for amd64
++ifeq ($(shell uname -m),x86_64)
++CKERNOPS+=-mno-red-zone -mcmodel=kernel
++endif
++
++# Add compressloop when it has been fixed
++utils: create_compressed_fs extract_compressed_fs
++#
++#cloop.ko: cloop.o
++#	cp cloop.o cloop.ko
++
++all: utils $(MODULE)
+ 
+ $(MODULE): compressed_loop.o
+ 	@echo "Building for Kernel Patchlevel $(PATCHLEVEL)"
+@@ -49,6 +68,7 @@
+ 	ln -f $< $@
+ 
+ advancecomp-1.9_create_compressed_fs/advfs:
++	test -e advancecomp-1.9_create_compressed_fs/config.status || ( cd advancecomp-1.9_create_compressed_fs && ./configure CXXFLAGS="-D__OPTIMIZE__" )
+ 	( $(MAKE) -C advancecomp-1.9_create_compressed_fs advfs )
+ 
+ 
+@@ -57,7 +77,7 @@
+ 
+ clean:
+ 	rm -f $(KERNOBJ) create_compressed_fs extract_compressed_fs zoom *.o *.ko
+-	$(MAKE) -C advancecomp-1.9_create_compressed_fs clean
++	$(MAKE) -C advancecomp-1.9_create_compressed_fs distclean
+ 
+ dist: clean
+ 	cd .. ; \
+@@ -69,3 +89,4 @@
+ 	$(CC) -I$(KERNEL_DIR)/include -I$(KERNEL_DIR)/include/asm/mach-default $(CFLAGS) $(CKERNOPS) $< -c -o $@
+ 
+ compressed_loop.o create_compressed_fs.o: compressed_loop.h
++
+diff -ru cloop-2.01.orig/compressed_loop.c cloop-2.01/compressed_loop.c
+--- cloop-2.01.orig/compressed_loop.c	2004-07-27 18:44:11.000000000 -0400
++++ cloop-2.01/compressed_loop.c	2004-11-24 10:59:04.224671712 -0500
+@@ -202,7 +202,11 @@
+                           unsigned long offset, unsigned long size)
+ {
+  char *kaddr;
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,7)
++ struct clo_read_data *p = (struct clo_read_data*)desc->arg.buf;
++#else
+  struct clo_read_data *p = (struct clo_read_data*)desc->buf;
++#endif
+  unsigned long count = desc->count;
+  if (size > count) size = count;
+  kaddr = kmap(page);
+@@ -228,7 +232,11 @@
+    read_descriptor_t desc;
+    desc.written = 0;
+    desc.count   = size;
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,7)
++   desc.arg.buf = (char*)&cd;
++#else
+    desc.buf     = (char*)&cd;
++#endif
+    desc.error   = 0;
+ #ifdef REDHAT_KERNEL /* Greenshoe Linux */
+    do_generic_file_read(f, &pos, &desc, clo_read_actor, 0);
+

@@ -1,0 +1,25 @@
+#!/bin/bash
+
+CDROM_INFO_FILE=/proc/sys/dev/cdrom/info
+CDR_MATCH_STRING="Can write CD-R:"
+CDROM_DEVICES_MATCH_STRING="drive name:"
+
+CDROM_DEVICES_STRING=$(grep "${CDROM_DEVICES_MATCH_STRING}" ${CDROM_INFO_FILE} | tr -d ' ' | tr -s '\t')
+CDR_STRING=$(grep "${CDR_MATCH_STRING}" ${CDROM_INFO_FILE} | tr -d ' ' | tr -s '\t')
+
+if  [ -n "${CDR_STRING}" ]; then
+    NUM_CDROM_DEVICES=$(echo "${CDR_STRING}" | wc -w )
+    
+    for i in $(seq 2 $NUM_CDROM_DEVICES); do
+	if [ $(echo "${CDR_STRING}" | cut -f$i) = 1 ]; then
+	    CD_RECORDER=$(echo "${CDROM_DEVICES_STRING}" | cut -f$i)
+	    echo "$CD_RECORDER"
+	fi
+    done
+    #
+else
+    echo "Unable to detect CD-R recorder"
+    exit 1
+fi
+
+exit 0

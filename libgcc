@@ -1,0 +1,106 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+##
+## @Synopsis Set of functions for dealing with the problem of having to
+## @Synopsis use different version of the gcc compilers.
+##
+## The basic usage is as follows:
+## <pre>
+## - If a spell works with the latest version of gcc, do nothing.
+## - To change the compiler version for a spell, add a GCC_VERSION field
+##   to the spells DETAILS specifying major.minor version of gcc it needs,
+##   e.g. GCC_VERSION=3.4
+## - add a 'depends  gccXX' to the spell where XX == majorminor,
+##   e.g. 'depends  gcc34'
+## - add 'invoke_gcc' to the top of BUILD if the spell has a
+##   custom BUILD file
+## </pre>
+##
+## @Implementation These functions were added to allow the use of
+## @Implementation several versions of gcc in parallel.
+##
+##
+##  @Copyright Copyright 2005 by the Source Mage Team
+##
+##
+#---------------------------------------------------------------------
+
+
+#---------------------------------------------------------------------
+## @param gcc version
+## @return 0 if that gcc version is being used
+## @return 1 otherwise
+#---------------------------------------------------------------------
+function use_gcc()  {
+
+  gcc  -dumpversion  |  grep  -q  $(esc_str $1)  >  /dev/null
+
+}
+
+#---------------------------------------------------------------------
+## @param new path to add
+## @param old path
+## @Stdout new path
+## Echos the old path with new path prepended, separated with a ':'
+#---------------------------------------------------------------------
+function gcc_prepend_path()  {
+
+  if    test  -z  $2
+  then  echo $1
+  else  echo $1:$2
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+## @param path
+##
+## Alters the environment so that the gcc in the specified directory
+## will be used for compiling
+##
+#---------------------------------------------------------------------
+function gcc_add_paths()  {
+
+  export  PATH=$(  gcc_prepend_path  $1/bin  $PATH  )
+  export  LD_LIBRARY_PATH=$(  gcc_prepend_path  $1/lib  $LD_LIBRARY_PATH  )
+  export  LD_RUN_PATH=$(  gcc_prepend_path  $1/lib  $LD_RUN_PATH  )
+  export  INFOPATH=$(  gcc_prepend_path  $1/info  $INFOPATH  )
+  export  CPPFLAGS="-I $1/include  $CPPFLAGS"
+
+}
+
+
+#---------------------------------------------------------------------
+##
+## Determines if the spell specifies a gcc version to use. If so, it
+## alters the environment so that that gcc version is used for compilation.
+##
+#---------------------------------------------------------------------
+function invoke_gcc()  {
+
+  if [[ "$GCC_VERSION" ]] && ! use_gcc $GCC_VERSION; then
+    gcc_add_paths  /opt/gcc${GCC_VERSION//.}
+    echo  "Overriding gcc version: `gcc -dumpversion`"
+  fi
+
+}
+
+
+#---------------------------------------------------------------------
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

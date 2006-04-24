@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# $1 - needle
+exists_in_text()
+{
+  [ "$1" = "" ] && return 0
+
+  IFS=" 	
+"
+
+  for x in $( cat ) ; do
+    [ "$1" = "$x" ] && return 0
+  done
+
+  return 1
+}
+
+_do_device_down()
+{
+  if [ "$MODE" = dynamic ]; then
+    echo "Stopping dhcpcd on $DEV ..."
+    dhcpcd -k $DEV &&
+    sleep 2
+  else
+    echo "Shutting down network interface $DEV ..."
+    ifconfig $DEV down
+  fi
+}
+
+_do_route_down()
+{
+  true
+}
+
+_on_down()
+{
+  true
+}
+
+# Handles function "overloading"
+run_func() {
+  # If for example do_route_up exists then run it, otherwise run _do_route_up
+  if [ "$( type -t $1 )" = function ] ; then
+    $1
+  else
+    _$1
+  fi
+}
+
+netdevdir=/etc/sysconfig/network
+
+#change this if your .pid file hides somewhere else
+DHCPCD_PATH="/etc/dhcpc/dhcpcd-"
+DEV=$1
+
+if [ -z $DEV ]; then
+  echo "Usage: ifdown <device>"
+  exit 2
+fi
+
+if [ ! -f $netdevdir/$DEV.dev ]; then
+  echo "$DEV: no such network device"
+  exit 1
+fi
+
+if ! /sbin/ifconfig 2>&1 | exists_in_text $DEV ; then
+  echo "$DEV already down"
+  exit 0
+fi
+
+unset MODE MODULE IP BROADCAST NETMASK GATEWAY POINTTOPOINT MTU WIFI
+unset do_device_down do_route_down on_down
+
+. $netdevdir/$DEV.dev
+
+if [ -z "$MODE" ]; then
+  echo "There are errors in $netdevdir/$DEV.dev"
+  exit 1
+fi
+
+run_func do_device_down &&
+run_func do_route_down &&
+
+# only do this if network device is a module
+# sort needed to ensure unique lsmod module name (often 2x entries in table)
+if [ "$MODULE" ] && /sbin/lsmod | exists_in_text "$MODULE" ; then
+  echo "Unloading module $MODULE for $DEV ..."
+  modprobe -r $MODULE
+fi &&
+
+run_func on_down

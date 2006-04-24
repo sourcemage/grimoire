@@ -1,0 +1,24 @@
+# $Id: POST_INSTALL,v 1.2 2002/06/03 03:42:23 sergeyli Exp $
+query "create MySQL user?" "n" || return
+
+echo -e -n "${SPELL_COLOR}${SPELL}:  ${QUERY_COLOR}MySQL database name?${DEFAULT_COLOR} "
+read MY_DB
+echo -e -n "${SPELL_COLOR}${SPELL}:  ${QUERY_COLOR}MySQL user login?${DEFAULT_COLOR} "
+read MY_USER
+echo -e -n "${SPELL_COLOR}${SPELL}:  ${QUERY_COLOR}MySQL user $MY_USER password?${DEFAULT_COLOR} "
+read MY_USER_PASS
+	
+SQL=/tmp/$SPELL.$$.sql
+if touch $SQL && chmod 600 /tmp/$SPELL.$$.*; then
+	cat > $SQL << __EOF__
+GRANT USAGE  ON *.* TO ${MY_USER}@localhost IDENTIFIED BY '$MY_USER_PASS';
+GRANT ALL    ON ${MY_DB}.* TO ${MY_USER}@localhost WITH GRANT OPTION;
+__EOF__
+
+	cat $SQL
+	if query "execute SQL above (requires MySQL privileges)?" "y"; then
+		mysql -p < $SQL
+	fi
+fi
+
+rm -f /tmp/$SPELL.$$.*

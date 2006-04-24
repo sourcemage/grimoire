@@ -1,0 +1,42 @@
+default_install  &&
+
+# Create the dirs
+echo "Making directory /etc/snort..."  &&
+mkdir  -p  /etc/snort/rules            &&
+
+echo "Making directory /var/log/snort..."  &&
+mkdir  -p  /var/log/snort                  &&
+
+chmod  o-rwx  /var/log/snort  /etc/snort  &&
+
+cd  etc  &&
+  
+# copy config files
+for  FILE  in  *conf* unicode.map  ;  do
+  if  [  !  -f  /etc/$FILE  ]  ;  then
+    echo "Installing etc/$FILE to /etc/snort..."  &&
+    install  -m 640  $FILE  /etc/snort
+  fi
+done  &&
+
+cd  $SOURCE_DIRECTORY/rules  &&
+
+for  FILE  in  *.rules  ;  do
+  if  [  !  -f  /etc/snort/$FILE  ]  ;  then
+    echo "Installing rules/$FILE to /etc/snort/rules..."  &&
+    install  -m 640  $FILE   /etc/snort/rules
+  fi
+done  &&
+
+# Modify the conf file
+sedit  "s:../rules:/etc/snort/rules:"  /etc/snort/snort.conf  &&
+
+# Copy schemas
+mkdir -p /usr/share/snort       &&
+cd $SOURCE_DIRECTORY/schemas    &&
+cp -v create_* /usr/share/snort &&
+
+# change owner and group
+chown  -R  snort.snort  /etc/snort  /var/log/snort  &&
+# to be sure ..
+chmod  640  /etc/snort/snort.conf

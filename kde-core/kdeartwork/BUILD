@@ -1,0 +1,4 @@
+OPTS="$KDEARTWORK_DPMS  \
+      $OPTS"            &&
+
+source  $SECTION_DIRECTORY/KDE_BUILD

@@ -1,0 +1,187 @@
+if [ "$OPENOFFICE_VERSION" == "cvs" ]; then
+depends CVS
+fi
+if [ "$OPENOFFICE_VERSION" != "stable" ]; then
+depends  g++
+depends archive-zip
+else
+depends  gcc33
+fi
+depends  X11-SERVER  "--with-x"                    &&
+depends  zip                                       &&
+depends  unzip                                     &&
+depends  which                                     &&
+depends  mktemp                                    &&
+depends  ant         "--with-ant-home=${ANT_HOME}" &&
+depends  libart_lgpl "--enable-libart"             &&
+depends  bison                                     &&
+
+# optional now?
+depends  zlib        "--with-system-zlib"          &&
+depends  LINUX-PAM-HEADERS &&
+
+# is this the key to using bash?
+depends  tcsh                                      &&
+#optional_depends  "tcsh"                           \
+#                  "--with-use-shell=/usr/bin/tcsh" \
+#		  "--with-use-shell=/bin/bash"     \
+#                  "Use tcsh shell for compiling (safer)" &&
+
+if [ $OPENOFFICE_VERSION != "stable" ]; then
+depends  "JAVA" "--enable-java --with-jdk-home=${JAVA_HOME}"  ''  'z-rejected'
+else
+optional_depends  'JAVA-1.4'                      \
+	"--enable-java --with-jdk-home=${JAVA_HOME}"  \
+	'--disable-java'                              \
+	'To enable java support'                      \
+    'z-rejected'
+fi
+#
+# We now have stlport 5 in the grimoire
+# This will no longer work
+#
+#optional_depends  stlport                            \
+#                  "--with-stlport4-home=/usr"        \
+#                  ""                                 \
+#                  "to use system installed STLport"  &&
+
+optional_depends  startup-notification        \
+                  "--enable-libsn"            \
+                  ""                          \
+                  "for startup notification"  &&
+
+#
+# Yes, this is the correct --enable/disable order. :)
+#
+# From `./configure  --help`:
+#  --disable-mozilla       OO.o usually includes a strangely hacked up mozilla
+#                          binary for your platform, to build without this
+#                          version, use this option.
+#
+if [ "$OPENOFFICE_VERSION" == "stable" ]; then
+# broken for the 2.0 branch
+optional_depends  GRAPHICAL-WEB-BROWSER       \
+                  "--disable-mozilla"         \
+                  ""                          \
+                  "for a normal web browser"
+fi &&
+
+#
+# Passing --without-system-<lib> still /enables/ the system lib
+# use as OO's configure is stupid and just greps for "system-lib"
+#
+optional_depends  curl                     \
+                  "--with-system-curl"     \
+                  ""                       \
+                  "for up-to-date curl"    &&
+
+optional_depends  freetype2                                  \
+                  "--with-system-freetype  --without-fonts"  \
+                  ""                                         \
+                  "for up-to-date freetype2"                 &&
+
+#
+# configure is looking for the nas headers in
+# /usr/include/audio
+# but nas installs the headers to
+# /usr/X11R6/include/audio
+#
+optional_depends  nas                                    \
+                  "--with-system-nas"                    \
+                  ""                                     \
+                  "for up-to-date Network Audio System"  &&
+
+if [ "$OPENOFFICE_VERSION" != "stable" ]; then
+
+#
+# For both gtk and kde-base, this spell requires
+# 8gb+ space to compile.
+#
+# Say "NO"
+# "Yes is broken"
+#
+#
+#optional_depends  gtk+2                       \
+#                  "--enable-gtk"              \
+#                  "--disable-gtk"             \
+#                  "Determines whether to use Gtk+ vclplug on platforms where Gtk+ is available." &&
+#
+#optional_depends  gnome-vfs2                  \
+#                  "--enable-gnome-vfs"        \
+#                  "--disable-gnome-vfs"       \
+#                  "Determines whether to use the Gnome Virtual Filing System on platforms where that VFS is available" &&
+#
+# I'm not sure which kde level it really needs
+# kdebase
+# kdelibs
+# qt-x11
+#
+#optional_depends  kdebase                     \
+#                  "--enable-kde"              \
+#                  "--disable-kde"             \
+#                  "Determines whether to use Qt/KDE vclplug on platforms where Qt and KDE are available." &&
+
+optional_depends  openldap                    \
+                  "--enable-openldap"         \
+                  ""                          \
+                  "Enables the use of the OpenLDAP LDAP SDK instead of the Netscape/Mozilla one" &&
+
+optional_depends  cups                        \
+                  "--enable-cups"             \
+                  ""                          \
+                  "enable cups support in the psprint project" &&
+
+optional_depends  jpeg                         \
+                  "--with-system-jpg"          \
+                  ""                           \
+                  "Use jpeg already on system" &&
+
+optional_depends  expat                         \
+                  "--with-system-expat"         \
+                  ""                            \
+                  "Use expat already on system" &&
+
+#
+# Appears to be broken
+#
+#optional_depends  libxml2                        \
+#                  "--with-system-libxml"         \
+#                  ""                             \
+#                  "Use libxml already on system" &&
+
+optional_depends  python                         \
+                  "--with-system-python"         \
+                  ""                             \
+                  "Use python already on system" &&
+
+optional_depends  sablot                         \
+                  "--with-system-sablot"         \
+                  ""                             \
+                  "Use sablot already on system" &&
+
+optional_depends  unixodbc                                 \
+                  "--with-system-odbc-headers"             \
+                  ""                                       \
+                  "Use the odbc headers already on system" &&
+
+optional_depends  boost                         \
+                  "--with-system-boost"         \
+                  ""                            \
+                  "Use boost already on system" &&
+
+optional_depends  neon                     \
+                  "--with-system-neon"     \
+                  ""                       \
+                  "for up-to-date neon"
+
+#
+# What is epm?
+# Where does one get it?#
+#
+if [ "$OPENOFFICE_EPM" == "external" ]; then
+depends epm "--enable-epm"
+fi
+if [ "$OPENOFFICE_EPM" != "none" ]; then
+depends rpm
+fi
+fi

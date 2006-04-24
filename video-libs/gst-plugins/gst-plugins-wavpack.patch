@@ -1,0 +1,63 @@
+Index: ext/wavpack/gstwavpackdec.c
+===================================================================
+RCS file: /cvs/gstreamer/gst-plugins/ext/wavpack/Attic/gstwavpackdec.c,v
+retrieving revision 1.1.2.3
+diff -u -r1.1.2.3 gstwavpackdec.c
+--- ext/wavpack/gstwavpackdec.c	9 Jun 2005 17:21:00 -0000	1.1.2.3
++++ ext/wavpack/gstwavpackdec.c	11 Nov 2005 17:12:01 -0000
+@@ -117,10 +117,6 @@
+ 
+   gst_pad_set_explicit_caps (wavpackdec->srcpad, srccaps);
+ 
+-  // blocks are usually 0.5 seconds long, assume that's always the case for now
+-  wavpackdec->decodebuf =
+-      (int32_t *) g_malloc ((wavpackdec->samplerate / 2) *
+-      wavpackdec->channels * sizeof (int32_t));
+   return GST_PAD_LINK_OK;
+ }
+ 
+@@ -236,6 +232,7 @@
+       gst_wavpack_dec_loop);
+ 
+   wavpackdec->decodebuf = NULL;
++  wavpackdec->decodebuf_size = 0;
+   wavpackdec->stream = (WavpackStream *) g_malloc0 (sizeof (WavpackStream));
+   wavpackdec->context = (WavpackContext *) g_malloc0 (sizeof (WavpackContext));
+ }
+@@ -246,6 +243,7 @@
+ {
+   WavpackContext *context = wavpackdec->context;
+   WavpackStream *stream = wavpackdec->stream;
++  guint buffer_size;
+ 
+   memset (context, 0, sizeof (context));
+ 
+@@ -267,6 +265,14 @@
+     context->wvc_flag = FALSE;
+   }
+ 
++  buffer_size =
++    stream->wphdr.block_samples * wavpackdec->channels * sizeof (int32_t);
++  if (wavpackdec->decodebuf_size < buffer_size) {
++    wavpackdec->decodebuf =
++      (int32_t *) g_realloc (wavpackdec->decodebuf, buffer_size);
++    wavpackdec->decodebuf_size = buffer_size;
++  }
++
+   unpack_init (context);
+ }
+ 
+Index: ext/wavpack/gstwavpackdec.h
+===================================================================
+RCS file: /cvs/gstreamer/gst-plugins/ext/wavpack/Attic/gstwavpackdec.h,v
+retrieving revision 1.1.2.1
+diff -u -r1.1.2.1 gstwavpackdec.h
+--- ext/wavpack/gstwavpackdec.h	9 Jun 2005 17:21:00 -0000	1.1.2.1
++++ ext/wavpack/gstwavpackdec.h	11 Nov 2005 17:12:01 -0000
+@@ -53,6 +53,7 @@
+   WavpackContext *context;
+ 
+   int32_t *decodebuf;
++  guint decodebuf_size;
+ 
+   WavpackStream *stream;

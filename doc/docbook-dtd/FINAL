@@ -1,0 +1,152 @@
+# This is an adaptation of a script i found on xmlsoft.org
+#                                Jon Svendsen
+# 2003-09-13: added backwards compatibility options, fixes the eons long
+#             scrollkeeper delays (Arwed v. Merkatz)
+
+register_docbook() {(
+  VER=$1
+  docbookdir=${INSTALL_ROOT}/usr/share/xml/docbook/xml-dtd-$VER
+  xmlcatalog --noout --add "public" \
+      "-//OASIS//ELEMENTS DocBook XML Information Pool V$VER//EN" \
+      "file://$docbookdir/dbpoolx.mod" $CATALOG
+  xmlcatalog --noout --add "public" \
+      "-//OASIS//DTD DocBook XML V$VER//EN" \
+      "file://$docbookdir/docbookx.dtd" $CATALOG
+  xmlcatalog --noout --add "public" \
+      "-//OASIS//ENTITIES DocBook XML Character Entities V$VER//EN" \
+      "file://$docbookdir/dbcentx.mod" $CATALOG
+  xmlcatalog --noout --add "public" \
+      "-//OASIS//ENTITIES DocBook XML Notations V$VER//EN" \
+      "file://$docbookdir/dbnotnx.mod" $CATALOG
+  xmlcatalog --noout --add "public" \
+      "-//OASIS//ENTITIES DocBook XML Additional General Entities V$VER//EN" \
+      "file://$docbookdir/dbgenent.mod" $CATALOG
+  xmlcatalog --noout --add "public" \
+      "-//OASIS//ELEMENTS DocBook XML Document Hierarchy V$VER//EN" \
+      "file://$docbookdir/dbhierx.mod" $CATALOG
+  xmlcatalog --noout --add "public" \
+      "-//OASIS//DTD XML Exchange Table Model 19990315//EN" \
+      "file://$docbookdir/soextblx.dtd" $CATALOG
+  xmlcatalog --noout --add "public" \
+      "-//OASIS//DTD DocBook XML CALS Table Model V$VER//EN" \
+      "file://$docbookdir/calstblx.dtd" $CATALOG
+  xmlcatalog --noout --add "rewriteSystem" \
+      "http://www.oasis-open.org/docbook/xml/$VER" \
+      "file://$docbookdir" $CATALOG
+  xmlcatalog --noout --add "rewriteURI" \
+      "http://www.oasis-open.org/docbook/xml/$VER" \
+      "file://$docbookdir" $CATALOG
+
+)}
+
+ROOTCATALOG=${INSTALL_ROOT}/etc/xml/catalog
+CATALOG=${INSTALL_ROOT}/etc/xml/docbook
+
+mkdir  -p   /etc/xml
+chmod  755  /etc/xml
+
+#
+# create the catalogs root and docbook specific
+#
+if [ ! -r $ROOTCATALOG ] ; then
+   echo creating XML Catalog root $ROOTCATALOG
+   /usr/bin/xmlcatalog --noout --create $ROOTCATALOG
+   chmod 644 $ROOTCATALOG
+fi
+if [ ! -r $ROOTCATALOG ] ; then
+   echo Failed creating XML Catalog root $ROOTCATALOG
+   return 1
+fi
+if [ ! -r $CATALOG ] ; then
+   echo creating DocBook XML Catalog $CATALOG
+   /usr/bin/xmlcatalog --noout --create $CATALOG
+   chmod 644 $CATALOG
+fi
+if [ ! -r $CATALOG ] ; then
+   echo Failed creating DocBook XML Catalog $CATALOG
+   return 1
+fi
+
+register_docbook 4.1.2
+register_docbook 4.2
+register_docbook 4.3
+register_docbook $VERSION
+
+xmlcatalog --noout --add "delegatePublic" \
+    "-//OASIS//ENTITIES DocBook XML" \
+    "file://$CATALOG" $ROOTCATALOG
+xmlcatalog --noout --add "delegatePublic" \
+    "-//OASIS//DTD DocBook XML" \
+    "file://$CATALOG" $ROOTCATALOG
+xmlcatalog --noout --add "delegateSystem" \
+    "http://www.oasis-open.org/docbook/" \
+    "file://$CATALOG" $ROOTCATALOG
+xmlcatalog --noout --add "delegateURI" \
+    "http://www.oasis-open.org/docbook/" \
+    "file://$CATALOG" $ROOTCATALOG
+
+
+# we use the entities of the latest docbook version, entities themselves
+# aren't versioned
+isodir=/usr/share/xml/docbook/xml-dtd-$VERSION/ent
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Publishing//EN" \
+    "file://$isodir/iso-pub.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Greek Letters//EN" \
+    "file://$isodir/iso-grk1.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Box and Line Drawing//EN" \
+    "file://$isodir/iso-box.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Greek Symbols//EN" \
+    "file://$isodir/iso-grk3.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Added Math Symbols: Negated Relations//EN" \
+    "file://$isodir/iso-amsn.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Numeric and Special Graphic//EN" \
+    "file://$isodir/iso-num.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Alternative Greek Symbols//EN" \
+    "file://$isodir/iso-grk4.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Diacritical Marks//EN" \
+    "file://$isodir/iso-dia.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Monotoniko Greek//EN" \
+    "file://$isodir/iso-grk2.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Added Math Symbols: Arrow Relations//EN" \
+    "file://$isodir/iso-amsa.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Added Math Symbols: Ordinary//EN" \
+    "file://$isodir/iso-amso.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Russian Cyrillic//EN" \
+    "file://$isodir/iso-cyr1.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES General Technical//EN" \
+    "file://$isodir/iso-tech.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Added Math Symbols: Delimiters//EN" \
+    "file://$isodir/iso-amsc.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Added Latin 1//EN" \
+    "file://$isodir/iso-lat1.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Added Math Symbols: Binary Operators//EN" \
+    "file://$isodir/iso-amsb.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Added Latin 2//EN" \
+    "file://$isodir/iso-lat2.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Added Math Symbols: Relations//EN" \
+    "file://$isodir/iso-amsr.ent" $CATALOG
+xmlcatalog --noout --add "public" \
+    "ISO 8879:1986//ENTITIES Non-Russian Cyrillic//EN" \
+    "file://$isodir/iso-cyr2.ent" $CATALOG
+
+xmlcatalog --noout --add "delegatePublic" \
+    "ISO 8879:1986" \
+    "file://$CATALOG" $ROOTCATALOG

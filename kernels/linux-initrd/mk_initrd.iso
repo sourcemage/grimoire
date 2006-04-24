@@ -1,0 +1,197 @@
+#!/bin/sh
+# $1 is the kernel version
+# this is a really simple way to create an initrd
+# if you want to have modules instead of compiling
+# support directly into the kernel
+# this doesn't deal with RAID LVM 
+# This uses busybox
+
+# make basic dir structure
+cd ${BUILD_DIRECTORY}/initrd
+mkdir bin dev etc etc.ro lib proc sbin var sys usr mnt initrd cdrom
+cd var
+mkdir lock log
+cd ../lib
+mkdir -p modules/
+cd ../usr
+mkdir bin
+
+# copy config files
+cd ${INSTALL_ROOT}/etc
+cp -a hotplug* init.d udev fstab group passwd ${BUILD_DIRECTORY}/initrd/etc.ro/
+cp -a hotplug* init.d udev fstab group passwd ${BUILD_DIRECTORY}/initrd/etc/
+
+# copy busybox
+cd ${INSTALL_ROOT}/sbin
+for file in busybox hotplug losetup
+do
+	cp -a $file ${BUILD_DIRECTORY}/initrd/sbin/
+done
+cd ${INSTALL_ROOT}/bin
+for file in bash.static od
+do
+	cp -a $file ${BUILD_DIRECTORY}/initrd/bin/
+done
+for file in ${INSTALL_ROOT}/lib/libc[-.]* ${INSTALL_ROOT}/lib/ld-*
+do
+	cp -a $file ${BUILD_DIRECTORY}/initrd/lib
+done
+
+# link everything
+cd ${BUILD_DIRECTORY}/initrd/sbin/
+for i in insmod modprobe pivot_root reboot halt init mesg lsmod rmmod swapon \
+         swapoff makedevs
+do
+	ln -s busybox $i
+done
+
+cd ../bin
+for i in ash ls echo mount ln mkdir mknod chown chmod umount tar basename \
+         chgrp cat chroot cp cut dd df dirname du env expr false head id \
+	 install md5sum mv printf pwd realpath rm rmdir sleep sort sync tail \
+	 tee touch tr true uname uniq who whoami yes which readlink sed dmesg \
+	 more awk test wc
+do
+	ln -s ../sbin/busybox $i
+done
+for i in bash sh
+do
+	ln -s bash.static $i
+done
+cd ../usr/bin
+for i in grep bunzip2 gzip gunzip unzip patch find xargs
+do
+	ln -s ../../sbin/busybox $i
+done
+
+# Copy kernel modules
+cp -a ${INSTALL_ROOT}/lib/modules/$1 ${BUILD_DIRECTORY}/initrd/lib/modules/
+cp -a ${INSTALL_ROOT}/lib/firmware ${BUILD_DIRECTORY}/initrd/lib/firmware
+
+# cp console null hd's
+cp -a ${INSTALL_ROOT}/dev/console ${BUILD_DIRECTORY}/initrd/dev/
+cp -a ${INSTALL_ROOT}/dev/null ${BUILD_DIRECTORY}/initrd/dev/
+
+# create linuxrc
+(
+cat << EOF
+#!/bin/bash
+
+export PATH="/bin:/usr/bin:/sbin:/usr/sbin"
+
+# =================================================== #
+# Setting up a suitable environment but no /dev/      #
+# =================================================== #
+udev_root=/dev
+# mount sysfs
+echo "Mounting sysfs at /sys"
+mount -nt sysfs none /sys
+# mount proc
+echo "Mounting /proc"
+mount -nt proc none /proc
+echo "Mounting tmpfs at /etc/"
+mount -nt tmpfs none /etc
+echo "Copying etc.ro to etc"
+cp -a /etc.ro/* /etc
+touch /etc/mtab
+echo "Mounting ramfs at \$udev_root"
+mount -nt ramfs none \$udev_root
+mknod \$udev_root/null c 1 3
+# create some needed stuff
+ln -s /proc/self/fd \$udev_root/fd
+ln -s /dev/fd/0 \$udev_root/stdin
+ln -s /dev/fd/1 \$udev_root/stdout
+ln -s /dev/fd/2 \$udev_root/stderr
+mkdir \$udev_root/shm
+mkdir \$udev_root/pts
+# =================================================== #
+# Okay this is where you can add code to load modules #
+# =================================================== #
+# /sbin/modprobe ipv6
+
+# =================================================== #
+# Don't edit past here unless you really know what    #
+# you are doing                                       #
+# =================================================== #
+echo "Executing Hotplug"
+for RC in /etc/hotplug/*.rc
+do
+	\$RC start
+done
+modprobe ide-cd
+modprobe sr_mod
+modprobe isofs
+modprobe loop
+modprobe cryptoloop
+echo "Getting cdrom dev"
+real_root="\`cat /proc/cmdline | awk '{ for ( i = 1; i <= NF; i++ )  
+						if ( \$i ~ /cdrom=.*/ )
+							print \$i
+					}' | awk -F= '{ print \$2 }'\`"
+for cd_dev in /proc/ide/hd* ; do
+	if test "\`cat \${cd_dev}/media\`" == "cdrom" ; then
+		if test -z \$found ; then
+			real_root="\${cd_dev/\/proc\/ide\//}"
+			real_root="/dev/\${real_root}"
+			echo "checking cdrom \${real_root}"
+			number="0"
+			real_dev="\`echo \$real_root | sed 's/[0-9]//g'\`"
+			letter="\`echo \$real_dev | sed 's/\/dev\/hd//g'\`"
+			if test \$letter = a || test \$letter = b ; then
+				major="3"
+			elif test \$letter = c || test \$letter = d ; then
+				major="22"
+			elif test \$letter = e || test \$letter = f ; then
+				major="33"
+			elif test \$letter = g || test \$letter = h ; then
+				major="34"
+			else
+				echo "Bad real root dev \$real_root"
+				exit 1
+			fi
+			if test \$letter = a || test \$letter = c ||
+			   test \$letter = e || test \$letter = g ; then
+			   	minor="0"
+			else
+				minor="64"
+			fi
+			minor="\`expr \$minor + \$number\`"
+			mknod  \$real_root b \$major \$minor
+			mount -t iso9660 \$real_root /cdrom
+			if test -f /cdrom/isoroot ; then
+				echo "found \$real_root"
+				found="true"
+			else
+				umount /cdrom
+			fi
+		fi
+	fi
+done
+mknod /dev/loop0 b 7 0
+losetup /dev/loop0 /cdrom/isoroot
+mount -rn /dev/loop0 /mnt
+echo "0x100" > /proc/sys/kernel/real-root-dev
+umount -n /proc
+umount -n /sys
+umount -n /dev
+umount -n /etc
+cd /mnt
+pivot_root . initrd
+mount -nt tmpfs none /etc
+mount -nt tmpfs none /root
+mount -nt tmpfs none /home
+mount -nt tmpfs none /tmp
+cp -a /etc.ro/* /etc
+cp -a /etc/skel /home/smgl
+umount -n /initrd
+echo "args to init \$@"
+exec chroot . /sbin/init \$@ < /dev/console > /dev/console 2>&1
+
+EOF
+) > ${BUILD_DIRECTORY}/initrd/linuxrc
+
+chmod +x ${BUILD_DIRECTORY}/initrd/linuxrc
+if [ ! -d ${INSTALL_ROOT} ] ; then
+  mkdir ${INSTALL_ROOT}/initrd
+fi
+

@@ -1,0 +1,534 @@
+#!/bin/sh
+# the next line restarts using wish \
+exec wish "$0" "$@"
+
+
+
+
+###
+set g(sclang_path) /path/to/SuperCollider3/build/
+set g(sclang_path_help) /path/to/SuperCollider3/build/Help/
+set g(app) "/usr/bin/sclang";
+set g(server_app) "/usr/bin/scsynth";
+set g(jack_inputs) 2;
+set g(jack_outputs) 2;
+set g(bgcolor) #ffffff
+set g(txtcolor) #000000
+set g(selectcolor) #ff0000
+set g(winnum) 0
+set g(fontsize) 12
+set g(fontsizesm) 12
+
+proc read_prefs { } {
+    global g
+    if { [file exists "~/.scfrontrc"] } {
+	    set fd [open "~/.scfrontrc" r] 	
+	    set g(sclang_path) [gets $fd]
+	    set g(sclang_path_help) [gets $fd]
+	    set g(app) [gets $fd]
+	    set g(server_app) [gets $fd]
+	    set g(jack_inputs) [gets $fd]
+	    set g(jack_outputs) [gets $fd]
+	    set g(bgcolor)  [gets $fd]
+	    set g(txtcolor) [gets $fd]
+	    set g(selectcolor) [gets $fd]
+	    close $fd
+	}
+}
+
+proc write_prefs { } {
+    global g
+    set fd [open "~/.scfrontrc" w] 
+    puts $fd "$g(sclang_path)"; 
+    puts $fd "$g(sclang_path_help)"; 
+    puts $fd "$g(app)";
+    puts $fd "$g(server_app)";
+    puts $fd "$g(jack_inputs)"
+    puts $fd "$g(jack_outputs)"
+    puts $fd "$g(bgcolor)";
+    puts $fd "$g(txtcolor)";
+    puts $fd "$g(selectcolor)";
+    close $fd
+}
+
+#### Main prefs
+# file descriptor for sclang pipe
+
+set g(fd) 0;
+set g(server_fd) 0;
+font create mainfont -family Courier -size 12
+font create mainfontsm -family Helvetica -size 10
+set g(font) mainfont
+set g(fontsm) mainfontsm
+
+
+proc new_window { filename } {
+    global g
+	#set top [toplevel .[eval $g(winnum) ]] 
+	set top [toplevel .$g(winnum)]
+	incr g(winnum) 
+
+	wm title $top "Super Collider"
+	set main [ frame $top.m  ]
+
+	frame $main.menu
+
+
+	menubutton $main.menu.file -text "File" -underline 0 -menu $main.menu.file.menu -borderwidth 0 
+	set tmp [menu $main.menu.file.menu]
+		$tmp add command -label "New" -underline 0 -accelerator Ctrl+n -command {new_window "new"} 
+		$tmp add command -label "Open..." -underline 0 -accelerator Ctrl+o -command "open_file" 
+		$tmp add command -label "Save" -underline 0 -accelerator Ctrl+s -command "save_file $main"
+		$tmp add command -label "Save as..." -underline 0 -command "save_file_as $top"
+		$tmp add command -label "Close" -accelerator Ctrl+w -command "destroy $top"
+		$tmp add separator
+		$tmp add command -label Quit -underline 0 -accelerator Ctrl+q -command "exit" 
+
+	menubutton $main.menu.view -text "View" -underline 0 -menu $main.menu.view.menu -borderwidth 0 
+	set tmp [menu $main.menu.view.menu]
+	        #$tmp add check -label "Goto Line" -command "goto_line " -underline 0
+		$tmp add check -label "Word Wrap" -command "toggle_word_wrap $main" \
+		    -underline 0 -variable g(wordwrap) -onvalue 1 -offvalue 0
+		$tmp add separator
+		$tmp add command -label "Refresh Highlighting" -command "syntax_highlight 1 end" \
+		    -underline 0
+		$tmp add separator
+		$tmp add command -label "Font Larger" -command "view_font_size  1" \
+		    -underline 5 -accelerator Ctrl+Plus
+		$tmp add command -label "Font Smaller" -command "view_font_size -1" \
+		    -underline 5 -accelerator Ctrl+Minus
+
+
+	menubutton $main.menu.help -text "Help" -underline 0 -menu $main.menu.help.menu -borderwidth 0 
+	set tmp [menu $main.menu.help.menu]
+		$tmp add command -label "About Scfront" -command { about }
+		$tmp add command -label "SC Help" -command { puts "open help here" }
+
+	label $main.menu.index -text "0.0" -font $g(fontsm)
+
+	scrollbar $main.scroll -command "$main.status yview" -borderwidth 0 -relief sunken \
+	    -elementborderwidth 1 
+	
+	text $main.status -background $g(bgcolor) -foreground $g(txtcolor) -height 40 \
+			-selectborderwidth 0 -selectbackground $g(selectcolor) -exportselection 1 \
+			-yscrollcommand "$main.scroll set" -wrap none -font $g(font) \
+	                -tabs  { 0.7c  left} -border 0 
+
+	
+
+	pack $main.menu.help $main.menu.index -padx 2 -side right -anchor e
+	pack $main.menu.file $main.menu.view -padx 2 -side left
+
+	pack $main.menu -anchor w -fill x
+	pack $main.scroll -fill y -side right -padx 0
+	pack $main.status -side right -fill both -expand 1 -padx 0
+	pack $main -fill both -expand 1
+
+
+	if { $filename == "new" } {
+		label $main.filename
+		wm title $top "Super Collider New File"
+	} else {
+		if { [file exists $filename] } {
+			set fd [open $filename r+] 	
+			$main.status insert insert [read $fd]
+			label $main.filename -text $filename
+			wm title $top "$filename"
+		}
+	} 
+     
+	bind $top <Control-l>  "sendit $main.status" 
+	bind $top <Control-space>  "sendit $main.status"
+	bind $main.status <Control-f>  "helpsearch  $main.status; break;" 
+	#bind $main.status <Control-d>  "helpsearch  $main.status; break;"
+	bind $top <Control-period>  "send_stopsound" 
+	bind $top <Control-s>  "save_file $main" 
+	bind $top <Control-q> { exit }
+	bind $main.status <Double-1> "dclick $main.status;break;"
+
+	bind $main.status <KeyRelease> "update_status $main"
+	#bind $main.status <F1> "update_status $main"
+
+	bind $top <Control-n> {new_window "new"}
+	bind $top <Control-o> {open_file}
+	bind $top <Control-w> "destroy $top"
+
+}
+
+
+proc update_status { main } {
+    $main.menu.index configure -text [$main.status index insert]
+}
+
+
+proc toggle_word_wrap { main } {
+	global g
+
+	switch -- $g(wordwrap) {
+		1 { $main.status configure -wrap word }
+		default { $main.status configure -wrap none }
+	}
+
+}
+
+proc getinput {} {
+    global g
+    gets $g(fd) line
+    $g(status) insert insert "$line\n"
+    $g(status) see end
+
+}
+
+proc sclanginit {} {
+    global g
+    set cwd [pwd]
+    cd $g(sclang_path)
+    if { $g(fd) != 0 } {
+	    catch {exec killall $g(app) }
+	    catch {close $g(fd)}
+	}
+    set g(fd) [open "|$g(app)" r+]
+    cd $cwd
+    fconfigure $g(fd) -buffering line
+    fileevent $g(fd) readable getinput
+
+}
+proc getserverinput {} {
+    global g
+    gets $g(server_fd) line
+    $g(status) insert insert "$line\n"
+    $g(status) see end
+
+}
+proc scserverinit {} {
+    global g env
+    
+    set env(SC_JACK_INPUT) $g(jack_inputs)
+    set env(SC_JACK_OUTPUTS) $g(jack_outputs)
+    set env(SC_JACK_DEFAULT_INPUTS) "alsa_pcm:capture_1,alsa_pcm:capture_2"
+    set env(SC_JACK_DEFAULT_OUTPUTS) "alsa_pcm:playback_1,alsa_pcm:playback_2"
+    set cwd [pwd]
+    cd $g(sclang_path)
+    exec rm -rf synthdefs
+    exec mkdir synthdefs
+    
+    if { $g(server_fd) != 0 } {
+	    catch {exec killall $g(server_app) }
+	    catch {close $g(server_fd)}
+	}
+    set g(server_fd) [open "|$g(server_app) -i 2 -o 2 -u 57110" r+]
+    #exec nice -n -10 $g(server_fd)
+    cd $cwd
+    fconfigure $g(server_fd) -buffering line
+    fileevent $g(server_fd) readable getserverinput
+
+}
+
+proc open_file { } {
+	set tmp [tk_getOpenFile]
+	if { $tmp != "" } {
+		new_window $tmp 
+	    }
+}
+proc save_file_as { t } {
+    set filename [tk_getSaveFile]
+    if {$filename != "" } {
+	    $t.m.filename configure -text $filename
+	    wm title $t "$filename"
+	    save_file $t.m
+	}
+}
+
+proc save_file { t } {
+	set filename [$t.filename cget -text]
+	if { $filename != "" } {
+	} else {
+		set filename [tk_getSaveFile]
+		if { $filename == "" } {return;}
+	}
+	set fd [open $filename w]
+	puts $fd [$t.status get 1.0 end]
+	close $fd
+}
+
+proc quit {} {
+    global g
+    catch {exec killall $g(app) }
+    catch {close $g(fd)}
+    exit
+}
+
+proc send_stopsound { } {
+	global g
+	puts -nonewline $g(fd) "Server.local.freeAll;"
+	puts $g(fd) \x0c
+	flush $g(fd)
+					#puts -nonewline $tmp  #puts   \x0c
+}
+
+proc sendit { text } {
+	global g
+
+	if { ![catch {$text index sel.first} ] } {
+		set tmp [$text get sel.first sel.last]
+	    } else {
+		#set pos [$text index insert ]
+		#puts $pos
+		#puts  [$text dlineinfo insert]
+		
+                set idx [$text index insert ]
+		set tmp [$text get  [$text index "$idx linestart"]  [$text index "$idx lineend"] ]
+	    }
+	if {$g(fd) != 0 } {
+		puts -nonewline $g(fd) $tmp 
+		puts $g(fd) \x0c
+		flush $g(fd)
+        } else {
+		tk_dialog .dialog2 "error" {Problem: Sclang isn't started } warning 0 OK 
+
+        }
+}
+
+proc helpsearch {  text } {
+    global g
+
+    
+    if { ![catch {$text index sel.first} ] } {
+		# check to see if a text portion has been selected
+	    set tmp [$text get sel.first sel.last]
+	    puts $tmp
+	    helpsearch2 $g(sclang_path_help) $tmp
+	} else {
+		# open help.help.rtf file
+	    puts "open help.help.rtf file"
+	}
+	
+}
+proc helpsearch2 { directory name } {
+    global g
+
+
+    foreach i [glob -nocomplain -path "$directory/" "*$name*"] {
+	puts $i
+	new_window $i
+	return
+    }	
+
+    foreach i [glob -nocomplain -path "$directory/" "*"] {
+	#puts $i
+	if { [file isdirectory $i] } { 
+		#puts "gota dir"
+		helpsearch2 $i $name
+	    }
+    }
+}
+
+
+proc dclick { text } {
+	global g
+	#if cursor is between two chars, go left until space or linebegin and go right until space or lineend
+	##else, its we're looking for {} pairs. go left until you find a '{' and count pairs of {}   }
+	# do same thing for right side
+	set mark1 ""; set mark2 "";
+	set idx [$text index insert ]
+
+	set tmp [$text get [$text index $idx]]
+
+	if { [regexp {[a-zA-Z0-9_-]} $tmp ] } { 
+             #sel word
+		set sp {[^a-zA-Z0-9_-]}
+		set mark1 [$text search -regexp  -backwards $sp insert "$idx linestart"]
+		set mark2 [$text search -regexp -forwards $sp insert "$idx lineend "]
+		
+	    } else {
+		#do a regexp {[({[]} to the left and a  regexp {[)}]]} to the right one char at a time
+		set i 0; 
+		while { $ < 3 } {
+		    set left [$text get [$text index "$idx - $i chars"]]
+		    set right [$text get [$text index "$idx + $i chars"]]
+		    if { [ regexp {[\(\{\[]} $left ] } {  
+			    
+			    #puts "got left $left";
+			    if { $left == "\(" } { set close "\)" }
+			    if { $left == "\{" } { set close "\}" }
+			    if { $left == "\[" } { set close "\]" } 
+			    set newidx [$text index "$idx - $i chars"]
+			    set mark1 $newidx
+			    set j 0; set count -1;
+			    while { $j < 62000 } {
+				set c [$text get [$text index "$newidx + $j chars"]]
+  			        if { $c == $left } { incr count }
+				if { $c == $close } { 
+					if { $count == 0 } { 
+						set mark2 [$text index "$newidx + $j chars"];
+						break;
+					    } else {
+						incr count -1
+					    }
+				    }
+				    incr j
+			    }
+			    break;
+			}
+			
+		    if { [ regexp {[\)\}\]]} $right ] } {  
+			    
+			    #puts "got right $right";
+			    if { $right == "\)" } { set close "\(" }
+			    if { $right == "\}" } { set close "\{" }
+			    if { $right == "\]" } { set close "\[" } 
+   
+			    set newidx [$text index "$idx + $i chars"]
+			    set mark2 $newidx
+			    set j 0; set count -1; ##have to do this for right search	
+			    while { $j < 62000 } {
+				set c [$text get [$text index "$newidx - $j chars"]]
+  			        if { $c == $right } { incr count }
+				if { $c == $close } { 
+					if { $count == 0 } { 
+						set mark1 [$text index "$newidx - $j chars"];
+						break;
+					    } else {
+						incr count -1
+					    }
+				    }
+				    incr j 
+			    }
+			    break;
+			}
+		 incr i
+		}
+		#puts "$char $direction"
+	    }
+	    if {$mark1 == "" } { set mark1 [$text index "$idx linestart -1 chars"] }
+		if {$mark2 == "" } { set mark2 [$text index "$idx lineend"] }
+		    $text tag remove sel 0.0 end
+		    $text tag add sel "$mark1 + 1 chars" $mark2
+		    $text mark set insert "$mark1 + 1 chars"
+}
+
+proc about { } {
+    global g
+    catch {destroy .a}
+    toplevel .a
+    wm title .a "About Scfront"
+    frame .a.p
+    label .a.p.l -text "Ceci n'est pa un text editor"
+
+    pack .a.p
+    pack .a.p.l -anchor nw -padx 4 -pady 1
+}
+
+proc preferences { } {
+    global g
+    catch {destroy .t}
+    toplevel .t
+    wm title .t "Scfront Preferences"
+    frame .t.pref
+    entry .t.pref.scdir -textvariable g(sclang_path) -width 60
+    label .t.pref.scdirlabel -text "Path to SuperCollider Directory"
+    entry .t.pref.schelpdir -textvariable g(sclang_path_help) -width 60
+    label .t.pref.schelpdirlabel -text "Path to SuperCollider Help files"
+    entry .t.pref.scapp -textvariable g(app) -width 60
+    label .t.pref.scapplabel -text "sclang (with or without full path)"
+    entry .t.pref.scserverapp -textvariable g(server_app) -width 60
+    label .t.pref.scserverapplabel -text "scsynth (with or without full path)"
+
+    entry .t.pref.jack_ins -textvariable g(jack_inputs) -width 30
+    label .t.pref.jack_inslabel -text "jack inputs"
+    entry .t.pref.jack_outs -textvariable g(jack_outputs) -width 30
+    label .t.pref.jack_outslabel -text "jack outputs"
+
+    button .t.pref.bgcolor -bg $g(bgcolor) -fg $g(txtcolor) -text "bg  color" -command {
+	set g(bgcolor) [tk_chooseColor -initialcolor $g(bgcolor) -title "Choose color"]
+	.t.pref.bgcolor configure -bg $g(bgcolor) -fg $g(txtcolor)
+	.t.pref.txtcolor configure -bg $g(bgcolor) -fg $g(txtcolor)
+    }
+    button .t.pref.txtcolor -bg $g(bgcolor) -fg $g(txtcolor) -text "txt color" -command {
+	set g(txtcolor) [tk_chooseColor -initialcolor $g(txtcolor) -title "Choose color"]
+	.t.pref.bgcolor configure -bg $g(bgcolor) -fg $g(txtcolor)
+	.t.pref.txtcolor configure -bg $g(bgcolor) -fg $g(txtcolor)
+    }
+    button .t.pref.selectcolor -bg $g(selectcolor) -fg $g(txtcolor) -text "select color" -command {
+	set g(selectcolor) [tk_chooseColor -initialcolor $g(selectcolor) -title "Choose color"]
+	.t.pref.selectcolor configure -bg $g(selectcolor) -fg $g(txtcolor)
+    }
+
+    button .t.pref.save -text "save" -command { 
+	write_prefs
+	destroy .t
+    }
+    button .t.pref.cancel -text "cancel" -command { destroy .t }
+
+
+
+    pack .t.pref 
+    pack .t.pref.scdirlabel .t.pref.scdir -anchor nw -padx 4 -pady 1
+    pack .t.pref.schelpdirlabel .t.pref.schelpdir -anchor nw -padx 4 -pady 1
+    pack .t.pref.scapplabel .t.pref.scapp -anchor nw -padx 4 -pady 1
+    pack .t.pref.scserverapplabel .t.pref.scserverapp -anchor nw -padx 4 -pady 1
+    pack .t.pref.jack_inslabel  .t.pref.jack_ins -anchor nw -padx 4 -pady 1
+    pack .t.pref.jack_outslabel .t.pref.jack_outs -anchor nw -padx 4 -pady 1
+
+    pack .t.pref.bgcolor -side left -anchor nw -padx 4 -pady 1
+    pack .t.pref.txtcolor -side left -anchor nw -padx 4 -pady 1
+    pack .t.pref.selectcolor  -anchor nw -padx 4 -pady 1
+
+    pack .t.pref.save -side left -anchor nw -padx 4 -pady 1
+    pack .t.pref.cancel -side left -anchor nw -padx 4 -pady 1
+
+}
+
+
+
+read_prefs
+set main [frame .m]
+wm title . "Super Collider"
+
+frame $main.menu
+menubutton $main.menu.file -text "File" -menu $main.menu.file.menu -borderwidth 0 -underline 0 
+set tmp [menu $main.menu.file.menu]
+	$tmp add command -label "New" -command {new_window "new"} -underline 0 -accelerator Ctrl+n
+	$tmp add command -label "Open..." -command open_file -underline 0 -accelerator Ctrl+o
+	$tmp add separator
+	$tmp add command -label "Preferences" -command { preferences }
+	$tmp add separator
+	$tmp add command -label Quit -command "exit" -underline 0 -accelerator Ctrl+q
+
+
+set g(status) [text $main.status -background $g(bgcolor) -foreground $g(txtcolor) -height 10 -width 60\
+		-selectborderwidth 0 -selectbackground $g(selectcolor) -exportselection 1 \
+		-yscrollcommand "$main.scroll set" -wrap none]
+
+frame $main.buts
+button $main.buts.sclangstart -text "Start sclang" -command "sclanginit" -default active
+button $main.buts.scsynthstart -text "Boot Server" -command "scserverinit" -default active
+
+
+scrollbar $main.scroll -command "$main.status yview"
+
+pack $main.buts.sclangstart -side left
+pack $main.buts.scsynthstart
+pack $main.menu -anchor  sw
+pack $main.menu.file 
+
+pack $main.buts -anchor w
+pack $main.scroll -fill y -side right
+pack $main.status -side right -fill both -expand 1
+pack $main -fill both -expand 1
+
+bind . <Control-q> { exit }
+bind . <Control-n> {new_window "new"}
+bind . <Control-o> {open_file}
+
+
+
+
+#set sp {[ \t(){}]}
+#set sp {[ \t]}
+#set sp {[^a-z|^A-Z|^\-|^_|^0-9]}
+#set sp {[^a-zA-Z]*[^A-Za-z]}
+
+#set sp {[]{},;[().>+~!&*/%<=^|?:-]}
+#set sp {(^[A-Z]*)(^([[0-9][a-z]])*)}
+#set exp1 {^\"\[^\" \t\n\]+}

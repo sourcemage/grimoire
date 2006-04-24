@@ -1,0 +1,46 @@
+#!/bin/sh
+
+#Copyright (c) 2001 Matthias S. Benkmann
+#licensed under the GNU General Public License (GPL) Version 2
+#
+# Modified for Source Mage GNU/Linux by erics/rycee, 2004-06-30.
+#  - removed -u option and checks for root UID as all smgl scripts.
+#
+
+if [ $# -eq 0 ]; then
+  echo 1>&2 Usage: telinit args
+  echo 1>&2 'telinit calls "bootprog telinit args" where bootprog is the program'
+  echo 1>&2 'specified in /etc/inittab' .
+  echo 1>&2 'e.g.: "telinit <number>" might tell bootprog to switch to runlevel <number>'
+  exit 1
+fi
+
+test -p /dev/initctl && touch /dev/initctl 2>/dev/null
+perm=$?  #0 if writing to /dev/initctl is permitted
+
+INIT_ROOT=""
+PRE_PATH=""
+
+if [ $UID != 0 ]; then
+	echo "Enter the root password, please."
+	exec su - -c "DISPLAY=$DISPLAY PATH=$PATH $0 $*"
+fi
+
+if [ z"$1" == z"--" ]; then shift 1; fi
+
+get_inittab_entry()
+{
+#  sed -n s/$'^[ \r\t]*'${1}$'[ \r\t]*=*[ \r\t]*''\('$'[^ \r\t]*''\).*$/\1/p' <$INIT_ROOT/etc/inittab
+
+  #echo before cat to get initial newline because the regex needs it
+  expr "`echo ; cat $INIT_ROOT/etc/inittab`" : $'.*\n[ \r\t]*'${1}$'[ \r\t]*=*[ \r\t]*''\('$'[^ \r\t\n]*''\).*' 
+}
+
+
+export INIT_D=$INIT_ROOT`get_inittab_entry fileprefix`
+bootprog=`get_inittab_entry bootprog`
+export PATH=$PRE_PATH`get_inittab_entry PATH`
+export INIT_PATH=`get_inittab_entry INIT_PATH`
+
+
+$INIT_D$bootprog telinit "$@"

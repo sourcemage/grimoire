@@ -1,0 +1,37 @@
+if  spell_ok  apache          ||
+    spell_ok  apache-mod_ssl
+then
+  I_DIR=/usr/share/apache/htdocs/$SPELL
+elif  spell_ok  apache2
+then
+  I_DIR=/usr/share/apache2/htdocs/$SPELL
+fi  &&
+
+#
+#  Remove CVS directories
+#
+install  -d  -m  755  $I_DIR                                              &&
+rm  -rf  `find  ./  -name  CVS`                                           &&
+sedit  "s:/cygwin/home/pablo/htdocs/phpshop/:$I_DIR/:"  htdocs/index.php  &&
+cp  -r  htdocs/*  $I_DIR/                                                 &&
+cp  etc/config-dist.php  etc/config.php                                   &&
+cp  -r  db        $I_DIR                                                  &&
+cp  -r  etc       $I_DIR                                                  &&
+cp  -r  modules   $I_DIR                                                  &&
+install  -d  -m  755  /usr/share/doc/$SPELL                               &&
+cp  -r  docs/*  /usr/share/doc/$SPELL                                     &&
+
+if  [  "$PHPSHOP_CREATEDB"  ==  "y"  ]
+then
+  mysqladmin  create  phpshop                                          &&
+  #mysql -e "GRANT select, insert, update, create, alter, delete, drop  \
+  #ON phpshop TO root@localhost"  phpshop                               &&
+  #mysqladmin reload                                                    &&
+  mysql  phpshop  <  db/phpshop.sql                                    ||
+  # 
+  # Return true as this will fail if the database already exists
+  #
+  true
+else
+  message  "${MESSAGE_COLOR}You'll need to run http://[your site]/catalog/install to setup the database${DEFAULT_COLOR}"
+fi

@@ -1,0 +1,28 @@
+make_single      &&
+make install DESTDIR=$INSTALL_ROOT &&
+
+#
+# Install headers so libintl.h doesn't get overwritten
+#
+rm  -f  ${INSTALL_ROOT}/usr/local/include/libintl.h  &&
+
+if  [  -f  ${INSTALL_ROOT}/usr/local/include/gettext-po.h  ];  then
+  mv  ${INSTALL_ROOT}/usr/local/include/gettext-po.h   \
+      ${INSTALL_ROOT}/usr/include/
+fi &&
+
+if  echo  $OPTS  |  grep  -q  --  "enable-libasprintf";  then
+  if  [  -f  ${INSTALL_ROOT}/usr/local/include/autosprintf.h  ];  then
+    mv  ${INSTALL_ROOT}/usr/local/include/autosprintf.h  \
+        ${INSTALL_ROOT}/usr/include/
+  fi
+else
+  rm  -f  ${INSTALL_ROOT}/usr/local/include/autosprintf.h
+fi  &&
+
+if  [  "$GETTEXT_TETEX"  ==  "y"  ];  then
+  cd  gettext-tools/doc  &&
+  make  install-pdf DESTDIR=$INSTALL_ROOT     &&
+  make  install-ps  DESTDIR=$INSTALL_ROOT     &&
+  make  install-dvi DESTDIR=$INSTALL_ROOT
+fi

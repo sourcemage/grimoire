@@ -1,0 +1,39 @@
+#
+# Remove persistent variables for SOURCE and VERSION  (Bug #8081)
+#
+persistent_remove  FIREFOX_VERSION  FIREFOX_SOURCE  &&
+
+#
+# This should fix Bug #8081
+#
+if  grep  -q  --  "PR"  $INSTALL_ROOT/etc/sorcery/local/depends/firefox;  then
+  rm  -f  $INSTALL_ROOT/etc/sorcery/local/depends/firefox
+fi  &&
+
+config_query       FIREFOX_CVS                                             \
+                   "Checkout the CVS version?"                          n  &&
+#
+# SVG needs the modified libart_lgpl code in Firefox CVS
+#
+if  [  "$FIREFOX_CVS"  =  "y"  ];  then
+  config_query       FIREFOX_SVG                                           \
+                     "Would you like native Scalable Vector Graphics?"  n
+else
+  persistent_add  FIREFOX_SVG                                              &&
+  FIREFOX_SVG="n"
+fi                                                                         &&
+config_query_list  FIREFOX_GTK                                             \
+                   "Which version of gtk+ do you want?"  "2.x"  "1.x"      &&
+
+# touch the SOURCE tarball if you update via cvs and already have a cvs tarball
+# otherwise you have to download 40 MB of crap
+if  [  "$FIREFOX_CVS"  =  "y"  ]                   &&
+    [  -f  $SOURCE_CACHE/Firebird_cvs.tar.bz2  ];  then
+  mv  -v  $SOURCE_CACHE/Firebird_cvs.tar.bz2  \
+          $SOURCE_CACHE/firefox_cvs.tar.bz2
+fi  &&
+
+if  [ "$FIREFOX_CVS"  =  "y"  ]                   &&
+    [  -f  $SOURCE_CACHE/firefox_cvs.tar.bz2  ];  then
+  touch  $SOURCE_CACHE/$SOURCE
+fi

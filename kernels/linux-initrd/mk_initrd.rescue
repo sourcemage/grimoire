@@ -1,0 +1,63 @@
+#!/bin/sh
+# $1 is the kernel version
+# this is a really simple way to create an initrd
+# if you want to have modules instead of compiling
+# support directly into the kernel
+# this doesn't deal with RAID LVM 
+# This uses busybox
+
+# make basic dir structure
+cd ${BUILD_DIRECTORY}/initrd
+mkdir bin dev etc etc.ro lib proc sbin var sys usr mnt initrd
+cd var
+mkdir lock log
+cd ../lib
+mkdir -p modules/
+cd ../usr
+mkdir bin
+
+# copy config files
+cd ${INSTALL_ROOT}/etc
+cp -a init.d udev fstab group passwd ${BUILD_DIRECTORY}/initrd/etc.ro/
+cp -a init.d udev fstab group passwd ${BUILD_DIRECTORY}/initrd/etc/
+
+# copy busybox
+cd ${INSTALL_ROOT}/sbin
+cp -a busybox ${BUILD_DIRECTORY}/initrd/sbin/
+
+# link everything
+cd ${BUILD_DIRECTORY}/initrd/sbin/
+for i in insmod modprobe pivot_root reboot halt init mesg lsmod rmmod swapon \
+         swapoff makedevs
+do
+	ln -s busybox $i
+done
+
+cd ../bin
+for i in ash sh ls echo mount ln mkdir mknod chown chmod umount tar basename \
+         chgrp cat chroot cp cut dd df dirname du env expr false head id \
+	 install md5sum mv printf pwd realpath rm rmdir sleep sort sync tail \
+	 tee touch tr true uname uniq who whoami yes which readlink sed dmesg \
+	 more awk test
+do
+	ln -s ../sbin/busybox $i
+done
+cd ../usr/bin
+for i in grep bunzip2 gzip gunzip unzip patch find xargs
+do
+	ln -s ../../sbin/busybox $i
+done
+
+# Copy kernel modules
+cp -a ${INSTALL_ROOT}/lib/modules/$1 ${BUILD_DIRECTORY}/initrd/lib/modules/
+
+# cp console null hd's
+cp -a ${INSTALL_ROOT}/dev/console ${BUILD_DIRECTORY}/initrd/dev/
+cp -a ${INSTALL_ROOT}/dev/null ${BUILD_DIRECTORY}/initrd/dev/
+
+# link linuxrc to /bin/ash
+ln -s ${BUILD_DIRECTORY}/initrd/linuxrc bin/ash
+
+if [ ! -d ${INSTALL_ROOT} ] ; then
+  mkdir ${INSTALL_ROOT}/initrd
+fi

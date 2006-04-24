@@ -1,0 +1,47 @@
+#!/bin/bash
+
+RUNLEVEL=3
+PROGRAM=/sbin/shorewall
+NEEDS="+network +remote_fs"
+
+. /etc/init.d/smgl_init
+. /etc/sysconfig/shorewall
+
+start()
+{
+  # Shorewall needs /var/log/messages to exist
+  if  [  !  -f  /var/log/messages  ]
+  then
+    touch  /var/log/messages
+  fi  &&
+  # Create shorewall log file if it doesn't exist
+  if  [  !  -f  $SHOREWALL_LOG  ]
+  then
+    touch  $SHOREWALL_LOG
+  fi  &&
+  # Shorewall needs subsys
+  if  [  !  -d  /var/lock/subsys/  ]
+  then
+    mkdir  -p  /var/lock/subsys/
+  fi  &&
+  echo  Starting Shorewall...                                         &&
+  ( unset -f echo;  date "$DATE_FORMAT"  >>  $SHOREWALL_LOG 2>&1 ; )  &&
+  ( unset -f echo;  ${PROGRAM} start     >>  $SHOREWALL_LOG 2>&1 ; )
+}
+
+stop()
+{
+  echo  Stopping Shorewall...                                         &&
+  ( unset -f echo;  date "$DATE_FORMAT"  >>  $SHOREWALL_LOG 2>&1 ; )  &&
+  ( unset -f echo;  ${PROGRAM} stop      >>  $SHOREWALL_LOG 2>&1 ; )
+}
+
+status()
+{
+  ( unset -f echo; ${PROGRAM} status ; )
+}
+
+reload()
+{
+  ( unset -f echo; ${PROGRAM} refresh ; )
+}

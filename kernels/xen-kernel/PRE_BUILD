@@ -1,0 +1,23 @@
+function  make_menuconfig()  {
+  if  [  -r  $CONFIG_CACHE/kconfig-${XEN_KVER}-$1  ];  then
+    cp  $CONFIG_CACHE/kconfig-${XEN_KVER}-$1  linux-${XEN_KVER}-$1/.config
+  fi  &&
+  make  -C  linux-${XEN_KVER}-$1/  menuconfig  ARCH=xen  &&
+  cp  linux-${XEN_KVER}-$1/.config  $CONFIG_CACHE/kconfig-${XEN_KVER}-$1 
+}
+
+
+default_pre_build                             &&
+cd  $SOURCE_DIRECTORY                         &&
+patch  -p0  <  $SCRIPT_DIRECTORY/patch.make   &&
+patch  -p0  <  $SCRIPT_DIRECTORY/patch.make0  &&
+patch  -p0  <  $SCRIPT_DIRECTORY/patch.makeU  &&
+ 
+if  [  -r  $SOURCE_CACHE/linux-${XEN_KVER}.tar.bz2  ];  then
+  cp  $SOURCE_CACHE/linux-${XEN_KVER}.tar.bz2  .
+fi  &&
+
+make  patchkrn  &&
+  
+if  [  $XEN0  =  "y"  ];  then  make_menuconfig  xen0;  fi  &&
+if  [  $XENU  =  "y"  ];  then  make_menuconfig  xenU;  fi

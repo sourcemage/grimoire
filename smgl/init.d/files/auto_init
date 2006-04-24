@@ -1,0 +1,125 @@
+#!/bin/bash
+#---------------------------------------------------------------------
+# vim:set ts=2 sw=2 et:
+#---------------------------------------------------------------------
+##
+##=head1 SYNOPSIS
+##
+##
+##
+##=head1 DESCRIPTION
+##
+##
+##
+##=head1 COPYRIGHT
+##
+## Copyright (C) 2003 Robert Helgesson <rycee@home.se>
+## 
+##=head1 FUNCTIONS
+#---------------------------------------------------------------------
+
+
+_start() {
+
+  echo "Starting $NAME..."
+  loadproc $PROGRAM $ARGS
+
+}
+
+_stop() {
+  
+  echo "Stopping $NAME..."
+  killproc $PROGRAM
+
+}
+
+_restart() {
+
+  echo "Restarting $NAME..."
+  bash $0 stop
+  sleep 2
+  bash $0 start
+
+}
+
+_reload() {
+
+  echo "Reloading $NAME..."
+  reloadproc $PROGRAM
+
+}
+
+_force_reload() {
+  run_func restart
+}
+
+_status() {
+
+  statusproc $PROGRAM
+
+}
+
+_usage() {
+
+  echo "Usage: $0 {$(builtin echo $FUNCS | sed -e 's/ /|/g')}"
+
+}
+
+
+# Handles function "overloading"
+run_func() {
+  # If for example start exists then run it, otherwise run _start
+  if type -t $1 > /dev/null; then
+    $1
+  elif type -t _$1 > /dev/null; then
+    _$1
+  else
+    echo "Error: no $1 function found!"
+    exit 2
+  fi
+}
+
+
+# First check to see if the program actually can be run
+required_executable $PROGRAM
+
+[ -z "$NAME" ] && NAME=$( basename $PROGRAM )
+
+if /bin/expr " $FUNCS " : ".*[[:space:]]$1[[:space:]]" >/dev/null; then
+  case $1 in
+    start)        run_func $1           ;;
+    stop)         run_func $1           ;;
+    restart)      run_func $1           ;;
+    reload)       run_func $1           ;;
+    force-reload) run_func force_reload ;;
+    status)       run_func $1           ;;
+    *)            run_func $1           ;;
+  esac
+else
+  run_func usage
+  exit 2
+fi 
+
+exit $?
+
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------

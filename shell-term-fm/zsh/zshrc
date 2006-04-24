@@ -1,0 +1,61 @@
+# /etc/zshrc is sourced in interactive shells.
+# It contain the basic configuration for keys
+# umask PROMPT and other basic variables
+
+if [[ $(id -gn) = $USERNAME && $EUID -gt 14 ]]; then
+        umask 002
+else
+        umask 022
+fi
+
+## Set prompt ##
+PROMPT="%n@%m %3~ %(!.#.$) "
+
+## Set right prompt ##
+## example  ##
+# RPROMPT='[%l %w %T]'
+
+## Set environment variables ##
+if [ -d $HOME/bin ]; then
+   path=($path $HOME/bin)
+fi
+if [ -d /usr/X11R6/bin ]; then
+    path=($path /usr/X11R6/bin)
+fi
+if [ -n ${HOME}/.zsh_history ]; then
+	touch ${HOME}/.zsh_history
+fi
+export HISTFILE=${HOME}/.zsh_history
+export HISTSIZE=1000
+export SAVEHIST=1000
+export USER=$USERNAME
+export HOSTNAME=$HOST
+
+## Set key bindings ##
+## for emacs like key bindings ##
+bindkey -e
+## for vi like key bindings ##
+# bindkey -v
+
+## recommended option ##
+setopt auto_cd extendedglob histignoredups histignorespace ignoreeof
+
+## Zsh has more option.
+#setopt menucomplete cdablevars interactivecomments
+
+## options fot csh user ##
+#setopt ignorebracess
+
+## default compctl's configuration ##
+compctl -b bindkey
+compctl -g '*.bz2' + -g '(|.)*(-/)' bzcat
+compctl -g '*.bz2' + -g '(|.)*(-/)' bunzip2
+compctl -g '*.gz *.z *.Z' + -g '(|.)*(-/)' gunzip
+compctl -g '*.gz *.z *.Z' + -g '(|.)*(-/)' zcat
+compctl -f -x \
+       'C[-1,*z*] p[2]' -g "*.tar.(Z|z|gz) *.taz *.tgz (|.)*(-/)" - \
+       'C[-1,*j*] p[2]' -g "*.tar.bz2 (|.)*(-/)" - \
+       'C[-1,*f*] p[2]' -g "*.tar (|.)*(-/)"           -- tar
+
+## Autoloading functions defined in $prefix/share/$version/functions 
+autoload -U compinit; compinit

@@ -1,0 +1,83 @@
+. /etc/sysconfig/devices
+
+#---------------------------------------------------------------------
+## @param group name allowed to burn
+##
+## Check permission for cdrom recorders
+##
+#---------------------------------------------------------------------
+check_cdr_perms()  {
+    
+    local CDR_DEVICES=$("${SCRIPT_DIRECTORY}/dvdr_detect")
+    
+    if [ $? == 0 ]; then
+	case ${DEVICES} in
+	    static) for DEV in $CDR_DEVICES; do
+			message "Changing permissions for cdrom recorder device /dev/${DEV}"
+			if [ $1 == "burning" ]; then
+			    chmod 0660 "/dev/${DEV}"
+			    chown root:burning "/dev/${DEV}"
+			else
+			    chmod 0600 "/dev/${DEV}"
+			    chown root:root "/dev/${DEV}"
+			fi
+		    done
+		    ;;
+	    devfs)  message ""
+		    message "Devfsd permissions changes for cdrom recorders not yet implemented. Please"
+		    message "do it manually if necessary. Edit your /etc/devfsd.conf and add something like :"
+		    message ""
+		    message "REGISTER  ^scsi/host.*/bus.*/target.*/lun.*/generic  PERMISSIONS root.burning 660"
+		    message ""
+		    message "if you use an SCSI cd recorder or SCSI emulation,"
+		    message ""
+		    message "REGISTER  ^cdroms/cdrom*  PERMISSIONS root.burning 660"
+		    message ""
+		    message "if you use an IDE cd recorder"
+		    message ""
+		    ;;
+	    udev)   
+            local UDEV_RULES_DIR="${INSTALL_ROOT}/etc/udev/rules.d"
+            local TMP_RULES_FILE="/tmp/10-dvdrtools.rules"    
+		    local UDEV_GROUP_STRING
+		    local UDEV_MODE_STRING
+		    		    
+		    for DEV in ${CDR_DEVICES}; do
+			
+                if [ $1 == "burning" ]; then
+                    UDEV_GROUP_STRING="GROUP=\"burning\""
+                    UDEV_MODE_STRING="MODE=\"0660\""
+                else
+                    UDEV_GROUP_STRING="GROUP=\"root\""
+                    UDEV_MODE_STRING="MODE=\"0600\""
+                fi
+			
+			    echo "BUS=\"ide\", KERNEL=\"${DEV}\",NAME=\"%k\", ${UDEV_GROUP_STRING}, ${UDEV_MODE_STRING}" >> ${TMP_RULES_FILE}
+			    message "Added permissions for cdrom recorder device /dev/${DEV}"
+		    done
+            
+            install_config_file $TMP_RULES_FILE $UDEV_RULES_DIR/$(basename $TMP_RULES_FILE)
+            rm -f $TMP_RULES_FILE
+		    udevstart
+		    ;;
+	esac
+    else
+	message "No CD recorder device found, please adjust its permissions manually"
+    fi   
+}
+
+
+make    install                                                 &&
+ln  -sf  /usr/bin/dvdrecord  /usr/bin/cdrecord                  &&
+
+case ${PERM} in
+  burning_group_users) 	
+                    create_group burning
+					chown  root:burning ${INSTALL_ROOT}/usr/bin/dvdrecord
+					chmod  0750 ${INSTALL_ROOT}/usr/bin/dvdrecord
+					check_cdr_perms burning
+					message "\nDon't forget to add the users allowed to burn in the burning group\n";;
+  root_only) 		chown  root:root ${INSTALL_ROOT}/usr/bin/dvdrecord
+					chmod  0700 ${INSTALL_ROOT}/usr/bin/dvdrecord
+					check_cdr_perms root;;
+esac

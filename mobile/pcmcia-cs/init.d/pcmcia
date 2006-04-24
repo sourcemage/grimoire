@@ -1,0 +1,68 @@
+#!/bin/bash
+
+. /etc/sysconfig/pcmcia
+
+PROGRAM=/sbin/cardmgr
+RUNLEVEL=2
+
+. /etc/init.d/smgl_init
+
+start()
+{
+  [ "$PCMCIA" = "yes" ] || exit 0
+  if [ "$PCIC" = "" ]; then
+    echo "PCIC module not defined in /etc/sysconfig/pcmcia!"
+    /bin/false
+    evaluate_retval
+    exit 6
+  fi
+
+  if ! grep -q pcmcia /proc/devices ; then
+    echo -n "Loading pcmcia modules:"
+    echo -n "pcmcia_core . "
+    /sbin/modprobe pcmcia_core $CORE_OPTS > /dev/null 2>&1 &&
+    (
+      echo -n "$PCIC . "
+      if ! /sbin/modprobe $PCIC $PCIC_OPTS >/dev/null 2>&1; then
+        /sbin/modprobe yenta_socket >/dev/null 2>&1 &&
+        echo -n "using yenta_socket instead of $PCIC . "
+      fi &&
+      echo -n "ds ."
+      /sbin/modprobe ds > /dev/null 2>&1
+    )
+    RET_CODE=$?
+    echo
+    [ $RET_CODE -ne 0 ] && /bin/false
+  fi
+  evaluate_retval
+
+  if grep -q pcmcia /proc/devices; then
+    echo "Loading cardmgr..."
+    loadproc $PROGRAM $CARDMGR_OPTS
+  fi
+}
+
+stop()
+{
+  echo "Stopping cardmgr"
+  killproc $PROGRAM
+  if grep -q "ds " /proc/modules; then
+    echo "Unloading modules: "
+    /sbin/rmmod ds 2> /dev/null &&
+    (
+      echo "ds "
+      if /sbin/rmmod $PCIC 2> /dev/null; then
+        echo "$PCIC "
+      else
+        /sbin/rmmod yenta_socket 2> /dev/null && echo "yenta_socket "
+      fi
+    ) &&
+    /sbin/rmmod pcmcia_core 2> /dev/null && echo "pcmcia_core"
+  fi
+  evaluate_retval
+}
+
+reload()
+{
+  run_func restart
+}

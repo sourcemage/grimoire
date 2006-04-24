@@ -1,0 +1,24 @@
+default_pre_build                                                      &&
+patch  $SOURCE_DIRECTORY/media/Makefile.in                             \
+       $SCRIPT_DIRECTORY/config.patch                                  &&
+cd ${SOURCE_DIRECTORY}                                                 &&
+patch  -p1  <  $SCRIPT_DIRECTORY/shutdown.patch                        &&
+if ! ( echo $OPTS | grep -q "enable-emacs" ); then
+  rm  media/sessions/emacs                                             &&
+  sedit "s/emacs//" media/sessions/Makefile.am                         &&
+  sedit "s/emacs//" media/sessions/Makefile.in
+fi                                                                     &&
+# some voodoo to get the other installed shells to show up as
+# available sessions
+for QINGY_SHELL in $(grep -v -e "/bin/bash" -e "/bin/sh" ${INSTALL_ROOT}/etc/shells ); do
+  QINGY_BASENAME=$(basename $QINGY_SHELL)
+  builtin echo "$QINGY_SHELL" >> media/sessions/$QINGY_BASENAME        &&
+  sedit "s/session_SCRIPTS\ =\ /session_SCRIPTS\ =\ $QINGY_BASENAME/" media/sessions/Makefile.am &&
+  sedit "s/session_SCRIPTS\ =\ /session_SCRIPTS\ =\ $QINGY_BASENAME/" media/sessions/Makefile.in
+done                                                                   &&
+if [ "$QINGY_XINIT" = "y" ]; then
+  sedit "s/-nolisten\ tcp//" media/Makefile.am                         &&
+  sedit "s/-nolisten\ tcp//" media/Makefile.in
+fi                                                                     &&
+sedit "s#/etc/X11/Sessions#/etc/qingy/xsessions#g" configure           &&
+cp ${SCRIPT_DIRECTORY}/pam.qingy ${SOURCE_DIRECTORY}/media/pam/default/qingy 

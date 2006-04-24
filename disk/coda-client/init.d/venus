@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# SMGL init script for venus
+#
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+remote_fs +network"
+MOUNTPOINT=/coda
+
+. /etc/init.d/smgl_init
+
+
+[ -f ${exec_prefix}/sbin/venus ] || exit 0
+
+start()
+{
+    required_executable /usr/sbin/codaconfedit
+    required_executable /usr/sbin/coda-client-logrotate
+    required_executable /usr/sbin/venus
+    
+    # overridden from the venus.conf
+    [ -f ${exec_prefix}/sbin/codaconfedit ] && . `${exec_prefix}/sbin/codaconfedit venus.conf`
+
+    echo   "Starting Venus"
+    loadproc /usr/sbin/coda-client-logrotate
+    loadproc /usr/sbin/updatesrv
+    loadproc /usr/sbin/venus
+}
+
+stop()
+{
+    echo   "Stopping Venus"
+    killproc /usr/bin/venus
+    umount $MOUNTPOINT
+}

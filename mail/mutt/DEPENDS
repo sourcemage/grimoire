@@ -1,0 +1,93 @@
+persistent_add TMP_MUTT_OPTS &&
+TMP_MUTT_OPTS="" &&
+
+optional_depends   "MAIL-TRANSPORT-AGENT"                       \
+                   ""                                           \
+                   ""                                           \
+                   "to send mail"                               &&
+                    
+if [ "${BRANCH}" == "cvs" ]; then 
+	depends "CVS"
+fi &&
+
+config_query_list TERMINAL_LIBRARY                              \
+                  "Build against which terminal library?"       \
+                  ncurses slang                                 &&
+TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --with-${TERMINAL_LIBRARY}"     &&
+depends "${TERMINAL_LIBRARY}"                                   &&
+
+optional_depends   "gnupg"                                      \
+                   ""                                           \
+                   "--disable-pgp"                              \
+                   "to support PGP signing and encrypting messages" &&
+
+if [ "${BRANCH}" != "stable" ]; then
+  # Do NOT add --with-ssl here, that only works if POP/IMAP are used.  This is
+  # mostly just here to prompt for openssl if they don't have it and want
+  # S/MIME.
+  optional_depends "openssl"                                    \
+                   ""                                           \
+                   ""                                           \
+                   "to support S/MIME signing and encrypting messages" &&
+
+  optional_depends "gpgme"                                      \
+                   "--enable-gpgme"                             \
+                   ""                                           \
+                   "alternate backend for PGP and S/MIME"       &&
+
+  if list_find "${MUTT_OPTS}" "--enable-hcache"; then
+    config_query_list HCACHE_BACKEND                            \
+                      "Use which header cache backend?"         \
+                      gdbm db                                   &&
+    if [ "${HCACHE_BACKEND}" == "db" ]; then
+      TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --without-gdbm --with-bdb"
+    fi &&
+    depends "${HCACHE_BACKEND}"
+  fi &&
+
+  optional_depends "libidn"                                     \
+                   "--with-idn"                                 \
+                   ""                                           \
+                   "to use GNU libidn for domain names"
+fi &&
+
+if list_find "${MUTT_OPTS}" "--enable-pop" || list_find "${MUTT_OPTS}" "--enable-imap"; then
+  # If they have POP/IMAP then prompt again for openssl to get --with-ssl.
+  optional_depends "openssl"                                    \
+                   "--with-ssl"                                 \
+                   ""                                           \
+                   "to enable SSL support for POP/IMAP"         &&
+
+  if [ "${BRANCH}" != "stable" ]; then
+    optional_depends "gnutls"                                   \
+                     "--with-gnutls"                            \
+                     ""                                         \
+                     "to enable SSL support for POP/IMAP via gnutls" &&
+
+    optional_depends "cyrus-sasl"                               \
+                     "--with-sasl2"                             \
+                     ""                                         \
+                     "to enable SASL2 authentication for POP/IMAP"
+  fi
+fi &&
+
+if list_find "${MUTT_OPTS}" "--enable-imap"; then
+  optional_depends "krb5"                                       \
+                   "--with-gss"                                 \
+                   ""                                           \
+                   "to enable GSSAPI authentication for IMAP"
+fi &&
+
+if [ ! -z "${REAL_PATCHES}" ] || [ "${BRANCH}" == "cvs" ]; then
+  depends "automake"
+fi &&
+
+for PATCH in ${REAL_PATCHES}; do
+  if [ -x "${PATCH_DIRECTORY}/${PATCH}/PATCH_DEPENDS" ]; then
+    . "${PATCH_DIRECTORY}/${PATCH}/PATCH_DEPENDS"
+  fi
+done
+
+if [ "${UPDATE_DOC}" == "y" ]; then
+  depends linuxdoc-tools
+fi

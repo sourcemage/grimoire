@@ -1,0 +1,240 @@
+#!/bin/sh
+#
+# Simple configuration script to configure which drivers should
+# be used.
+
+function abort()
+{
+  rm -f .confignew
+  exit 1
+}
+
+function boolean ()
+{
+  optionprompt="$1"
+  optionname="$2"
+  default=$(eval echo "\${$optionname}")
+
+  if [ "$default" = "" ] 
+  then default=n 
+       default_y=y
+       default_n=N
+  else default=y
+       default_y=Y 
+       default_n=n
+  fi
+
+  echo -n "$optionprompt ($default_n/$default_y)? "
+  read answer
+
+  if [ "$answer" = "" ] 
+  then answer=$default 
+  fi
+
+  if [ "$answer" = "y" -o "$answer" = "yes" -o "$answer" = "Y" -o "$answer" = "Yes" ] 
+  then echo "$optionname=y" >>.confignew 
+  else echo "#$optionname is not set" >>.confignew 
+  fi
+
+  export $optionname=$answer
+}
+
+function string ()
+{
+  optionprompt="$1"
+  optionname="$2"
+  default=$(eval echo "\${$optionname}")
+
+  echo -n "$optionprompt [$default]: "
+  read answer
+
+  if [ "$answer" = "" ] 
+  then answer="$default"
+  fi
+
+  echo "$optionname=$answer" >>.confignew 
+
+  export $optionname="$answer"
+}
+
+
+trap abort SIGINT SIGHUP SIGTERM
+
+if [ -f .config ]
+then . .config
+fi
+
+echo "CONFIG_DMX4LINUX=y" >.confignew
+
+echo "------------[ hardware  ]------------"
+
+boolean "dummy driver" CONFIG_DMX4LINUX_DUMMY
+boolean "parport drivers" CONFIG_DMX4LINUX_PARPORT
+if [ "$CONFIG_DMX4LINUX_PARPORT" = "y" ]
+then
+  boolean "  lpr2dmx driver" CONFIG_DMX4LINUX_PARPORT_LPR2DMX
+  if [ "$CONFIG_DMX4LINUX_PARPORT_LPR2DMX" = "y" ]
+  then
+    boolean "    Support for lpr2dmx3 buffered-transfer mode" CONFIG_DMX4LINUX_PARPORT_LPR2DMX3
+  fi
+  boolean "  dmxpcp interface driver" CONFIG_DMX4LINUX_PARPORT_DMXPCP
+  boolean "  dmx30 interface driver" CONFIG_DMX4LINUX_PARPORT_DMX30
+  boolean "  dmx43 interface driver" CONFIG_DMX4LINUX_PARPORT_DMX43
+fi
+
+
+boolean "ISA based drivers" CONFIG_DMX4LINUX_ISA
+if [ "$CONFIG_DMX4LINUX_ISA" = "y" ]
+then
+  boolean "  EnLight interface driver" CONFIG_DMX4LINUX_ISA_ENLIGHT
+  boolean "  Soundlight SLH1512 interface driver" CONFIG_DMX4LINUX_ISA_SLH
+  if [ "$CONFIG_DMX4LINUX_ISA" = "y" ]
+  then
+    echo "CONFIG_DMX4LINUX_ISA_SLH1512=y" >>.confignew
+  fi
+fi
+
+
+boolean "USB based drivers" CONFIG_DMX4LINUX_USB
+if [ "$CONFIG_DMX4LINUX_USB" = "y" ]
+then
+  boolean "  USB2DMX interface driver" CONFIG_DMX4LINUX_USB_USB2DMX
+fi
+
+
+boolean "PCMCIA based drivers" CONFIG_DMX4LINUX_PCMCIA
+if [ "$CONFIG_DMX4LINUX_PCMCIA" = "y" ]
+then
+  boolean "  Digimedia interface driver" CONFIG_DMX4LINUX_PCMCIA_DGM
+fi
+
+
+boolean "I2C based drivers" CONFIG_DMX4LINUX_I2C
+if [ "$CONFIG_DMX4LINUX_I2C" = "y" ]
+then
+  boolean "  QLightControler interface driver" CONFIG_DMX4LINUX_I2C_QLC
+fi
+
+
+echo "------------[ utilities ]------------"
+
+#boolean "Create Qt-ConfigDialog" CONFIG_QT_CONFDLG
+boolean "Create X based applications" CONFIG_HAVE_X
+boolean "Create Curses based applications" CONFIG_HAVE_CURSES
+boolean "Create XMMS plugin" CONFIG_HAVE_XMMS
+
+if [ "$CONFIG_HAVE_XMMS" = "y" ]
+then
+  if which xmms-config 2>&1 | grep "no xmms-config" >/dev/null
+  then
+    echo
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "!!  unable to find xmms-config command.      !!"
+    echo "!!  Did you install the development package? !!"
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo
+  fi
+fi
+
+echo "------------[ paths ]------------"
+
+if [ -z "$CONFIG_PCMCIAPATH" ]
+then CONFIG_PCMCIAPATH=/etc/pcmcia
+fi
+if [ "$CONFIG_DMX4LINUX_PCMCIA" = "y" ]
+then
+  string "PCMCIA configuration path" CONFIG_PCMCIAPATH
+  string "path to PCMCIA tools package" PCMCIAINCLUDEPATH
+fi
+
+# check for the location of the kernel includes
+LPATH=/lib/modules/$(uname -r)/build/include
+
+if [ -z "$LINUXINCLUDEPATH" ]
+then
+  LINUXINCLUDEPATH="$LPATH"
+  if [ ! -d "$LINUXINCLUDEPATH" ]
+  then
+    LINUXINCLUDEPATH=/usr/src/linux/include
+  fi
+elif [ "$LINUXINCLUDEPATH" != "$LPATH" ]
+then LINUXINCLUDEPATH="$LPATH"
+fi
+
+string  "Linux kernel include path" LINUXINCLUDEPATH
+
+if [ -z "$CFLAGS" ]
+then CFLAGS="-O2 -Wall"
+fi
+string "Compilation flags" CFLAGS $CFLAGS
+
+if [ -z "$LDFLAGS" ]
+then LDFLAGS=-L/usr/X11R6/lib
+fi
+string "Linker flags" LDFLAGS $LDFLAGS
+
+if [ -z "$HEADERINSTALLPATH" ]
+then HEADERINSTALLPATH=/usr/include
+fi
+string "Header install path" HEADERINSTALLPATH
+
+if [ -z "$MODULEINSTALLPATH" ]
+then MODULEINSTALLPATH=/lib/modules/`uname -r`/misc
+fi
+string "Modules install path" MODULEINSTALLPATH
+
+if [ -z "$BININSTALLPATH" ]
+then BININSTALLPATH=/usr/bin
+fi
+string "Binaries install path" BININSTALLPATH
+
+if [ -z "$LIBINSTALLPATH" ]
+then LIBINSTALLPATH=/usr/lib
+fi
+string "Libraries install path" LIBINSTALLPATH
+
+if [ -z "$MANINSTALLPATH" ]
+then MANINSTALLPATH=/usr/man
+fi
+string "Manual pages install path" MANINSTALLPATH
+
+if [ -z "$LDCONFIG" ]
+then
+  if (which ldconfig 2>/dev/null >/dev/null) ; then
+    LDCONFIG=ldconfig
+  else
+    for i in "/usr/local/sbin/" "/usr/sbin/" "/sbin/" ; do
+      if [ -x $i/ldconfig ] ; then
+        LDCONFIG=$i/ldconfig
+      fi
+    done
+  fi
+fi
+
+while [ -z "$LDCONFIG" ]
+do
+  string "Where the hell is your ldconfig" LDCONFIG
+done
+
+
+# finished
+cp -f .confignew config.mk
+mv -f .confignew .config
+
+# some more stuff
+DMXROOT=`pwd`
+echo "DMXROOT=$DMXROOT" >> config.mk
+
+echo "VERSIONMAJOR=2" >> config.mk
+echo "VERSIONMINOR=3" >> config.mk
+echo "VERSION=2.3" >> config.mk
+
+echo "DMXOUTMINOR=223" >> config.mk
+echo "DMXINMINOR=224" >> config.mk
+
+echo "LINKER=ld -r" >> config.mk
+echo "AS31=${DMXROOT}/tools/as31-unix/as31" >> config.mk
+
+echo "CFLAGS+=-I${DMXROOT}/include" >> config.mk
+echo "LDFLAGS+=-L${DMXROOT}/libs" >> config.mk
+echo "LDCONFIG=$LDCONFIG" >>config.mk

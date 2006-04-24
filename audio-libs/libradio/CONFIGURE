@@ -1,0 +1,24 @@
+    DEFAULT_FREQUENCY=91.1
+
+    while [ "${RADIO_DEVICE}" == "" ]; do
+      message "${MESSAGE_COLOR}The following questions will setup the device to use ${SPELL_COLOR}radio${DEFAULT_COLOR}${MESSAGE_COLOR} on:${DEFAULT_COLOR}"
+
+      for RADIO_DEVICE in `ls ${INSTALL_ROOT}/dev/v4l/radio* 2>${INSTALL_ROOT}/dev/null` `ls ${INSTALL_ROOT}/dev/radio* 2>${INSTALL_ROOT}/dev/null` ; do
+          if query "Use ${RADIO_DEVICE} for the radio device? " y; then
+            echo  "RADIO_DEVICE=${RADIO_DEVICE}" >> ${SPELL_CONFIG}
+            break
+          else
+            unset RADIO_DEVICE
+          fi
+      done
+    done
+    echo "RADIO_DEVICE=$RADIO_DEVICE" > $SPELL_CONFIG
+
+    message "${MESSAGE_COLOR}Enter default frequency [$DEFAULT_FREQUENCY]: ${DEFAULT_COLOR}"
+    until echo $FREQUENCY | grep -E -x "([0-9]+\.?[0-9]*|\.[0-9]+)" >${INSTALL_ROOT}/dev/null ; do
+	FREQUENCY=$DEFAULT_FREQUENCY
+	read -t $PROMPT_DELAY FREQUENCY
+	FREQUENCY=${FREQUENCY:=$DEFAULT_FREQUENCY}
+	echo $FREQUENCY | grep -E -x -v "([0-9]+\.?[0-9]*|\.[0-9]+)" && message "Wrong answer, try again ${DEFAULT_COLOR}"
+    done
+    echo "FREQUENCY=$FREQUENCY" >> $SPELL_CONFIG

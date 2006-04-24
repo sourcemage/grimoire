@@ -1,0 +1,26 @@
+if  !  grep  -q  "^DRIVER="  $SPELL_CONFIG  ;  then
+  if  query  "Do you want to configure drivers?" n
+  then
+    drivers=$(  sed  's/$/\0 driver off/'  $SCRIPT_DIRECTORY/drivers  )
+
+    DRIVER=$(  dialog  --backtitle  "libGPhoto2 driver selection"   \
+                  --stdout                                          \
+                  --title  "Select driver please"                   \
+                  --checklist                                       \
+                  ""                                                \
+                  0  0  10                                          \
+                  all driver on  $drivers  )
+
+    if  [  -z  "$DRIVER"  ]  ;  then
+      message  "No driver selected, defaulting to all."
+#      DRIVER='"all"'
+    fi
+
+    DRIVER=${DRIVER//\"/}     # Remove all " characters.
+    DRIVER=${DRIVER// /,}     # Replace spaces with commas.
+    DRIVER=${DRIVER%,}        # Strip any stray comma at the end.
+    echo  "DRIVER=\"$DRIVER\""  >>  $SPELL_CONFIG
+
+    unset drivers
+  fi
+fi

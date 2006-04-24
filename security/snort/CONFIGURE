@@ -1,0 +1,57 @@
+#message "${MESSAGE_COLOR}If you don't know what you are doing just press ENTER.${DEFAULT_COLOR}"  &&
+#message "${MESSAGE_COLOR}(You will end up with basic snort installation)${DEFAULT_COLOR}"  &&
+
+config_query  CF_SNMP      "Do you want enable SNMP alerting code?"  n
+config_query  CF_SMB      "Do you want enable SMB alerting code? [UNSAFE]"  n
+config_query  CF_PERFMON  "Do you wish to enable the Snort perfmonitor preprocessor?"  n
+
+# Flexible responce
+message  "${MESSAGE_COLOR}Warning: you must have libnet version 1.0.2a (!EXACTLY!) to have next option working."
+if  spell_ok  libnet;  then
+  message  "You have libnet v`installed_version libnet` installed${DEFAULT_COLOR}"
+else
+  message  "You do not have libnet installed, but v`gaze version libnet|grep libnet|awk '{print $4}'` would be used${DEFAULT_COLOR}"
+fi  &&
+config_query  CF_FLEXR  "Do you want enable Flexible response code?"  n
+
+# *** Output support
+message "${MESSAGE_COLOR}Next option is to give snort the ability to log data in RDBMS.${DEFAULT_COLOR}"  &&
+message "${MESSAGE_COLOR}(By default snort is logging to flat files).${DEFAULT_COLOR}"  &&
+config_query  CF_DB  "Do you want enable RDBMS support?"  n
+ 
+# Choose the right DB
+if  [  "$CF_DB"  ==  "y"  ]; then
+  message "${MESSAGE_COLOR}In the next conf. choose the backend db for $SPELL.${DEFAULT_COLOR}"
+  message "${MESSAGE_COLOR}(U can choose all of them :).${DEFAULT_COLOR}"
+ 
+  # MySQL
+  if  spell_ok  mysql;  then
+    config_query  CF_MYSQL  "Do you want use $SPELL with MySQL?"  y
+  else
+    config_query  CF_MYSQL  "Do you want use $SPELL with MySQL?"  n
+  fi  &&
+
+  # PostgreSQL
+  if  spell_ok  postgresql;  then
+    config_query  CF_PSQL   "Do you want use $SPELL with PostgreSQL?"  y
+  else
+    config_query  CF_PSQL   "Do you want use $SPELL with PostgreSQL?"  n
+  fi  &&
+
+  # Oracle
+  message "${MESSAGE_COLOR}Warning: Install Oracle support only if you know what you want :).${DEFAULT_COLOR}"  &&
+  config_query  CF_ORA    "Do you want use $SPELL with Oracle?"  n
+
+  # UnixODBC
+  if  spell_ok  unixodbc;  then
+    config_query  CF_ODBC   "Do you want use $SPELL with ODBC support?"  y
+  else
+    config_query  CF_ODBC   "Do you want use $SPELL with ODBC support?"  n
+  fi
+else
+  persistent_add  CF_MYSQL  CF_PSQL  CF_ORA  CF_ODBC  &&
+  CF_MYSQL="n"  &&
+   CF_PSQL="n"  &&
+   CF_ODBC="n"  &&
+    CF_ORA="n"
+fi

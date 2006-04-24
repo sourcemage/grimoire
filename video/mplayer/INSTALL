@@ -1,0 +1,31 @@
+make    install             &&
+(
+
+  if (ldd ${INSTALL_ROOT}/usr/bin/mplayer | grep freetype) > /dev/null; then
+    if ! (ldd ${INSTALL_ROOT}/usr/bin/mplayer | grep fontconfig) > /dev/null; then
+      if  [  -f  /usr/X11R6/lib/X11/fonts/TTF/luxisr.ttf ]; then
+        cp  /usr/X11R6/lib/X11/fonts/TTF/luxisr.ttf  \
+            ${INSTALL_ROOT}/usr/share/mplayer/subfont.ttf
+      else
+        message "Couldn't find a font to install as default subtitle font."
+        message "Make sure you copy a font to ~/.mplayer/subfont.ttf"
+      fi
+    else
+      echo  "fontconfig=1"  >>  etc/example.conf
+    fi
+  fi
+
+  if  [  !  -f  ${INSTALL_ROOT}/etc/mplayer/mplayer.conf  ];  then
+    sedit  "s/include =/# include =/"         etc/example.conf
+    sedit  "s/# vo=/vo=/"                     etc/example.conf
+    sedit  "s/# ao=/ao=/"                     etc/example.conf
+    if  [ "$GUI" = "y" ]; then
+      sedit  "s/# skin = default/skin = Blue/"  etc/example.conf
+    fi
+    cp  etc/example.conf      ${INSTALL_ROOT}/etc/mplayer/mplayer.conf
+  fi
+
+  if  [  !  -f  ${INSTALL_ROOT}/etc/mplayer/input.conf  ];  then
+    cp  etc/input.conf        ${INSTALL_ROOT}/etc/mplayer/input.conf
+  fi
+)

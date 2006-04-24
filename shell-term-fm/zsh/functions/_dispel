@@ -1,0 +1,53 @@
+#compdef dispel
+
+_dispel () {
+
+   # Do simple completions or get the first state.
+   #_arguments -C -s \
+   _arguments -C \
+    '(--exile)-e[Removes spells]:*:spells:->spells' \
+    '(-e)--exile:spells:*:spells:->spells' \
+    '(--downgrade)-d[Downgrade spell]:*:downgrade:->downgrade' \
+    '(-d)--downgrade:*:downgrade:->downgrade' \
+    '*:spells:->spells' && ret=0
+
+  while [[ -n "$state" ]]; do
+
+    # Copy the state and reset `state', to simplify the test below.
+    lstate="$state"
+    state=''
+
+
+    # Dispatch...
+    case "$lstate" in
+      spells)
+	    _installed_spells
+	    ;;
+      downgrade)
+      
+            # 1st arguemnt
+	    if (( CURRENT == 3 )); then
+		_installed_spells       
+
+            # Complete version number of the target. 
+	    elif (( CURRENT == 4 )); then
+		_comp_spell_version "${words[3]}" && ret=0
+
+	    fi
+	    ;;
+    esac
+  done
+}
+	    
+_comp_spell_version() {
+
+    local SPELL=$1
+    typeset -g `cat /etc/sorcery/roots|grep INSTALL_CACHE`
+    compadd -P '' $(
+	/bin/ls ${INSTALL_CACHE}/${SPELL}*.tar.bz2 \
+	    |sed -e 's+.*/++' \
+	    -e "s/${SPELL}-\(.\+\)-\(i[3-6]86-\|power\)pc-linux-gnu\.tar\.bz2/\1/" )
+
+}
+
+_dispel "$@"

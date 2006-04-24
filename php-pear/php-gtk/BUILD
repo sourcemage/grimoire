@@ -1,0 +1,2 @@
+./buildconf &&
+default_build

@@ -1,0 +1,37 @@
+#!/bin/bash
+
+PROGRAM=/usr/sbin/radvd
+RUNLEVEL=3
+NEEDS="+network +remote_fs"
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo -n "Starting radvd..."
+
+  if [ -f /proc/sys/net/ipv6/conf/all/forwarding ] ; then
+    echo "1" > /proc/sys/net/ipv6/conf/all/forwarding
+  fi
+
+  $PROGRAM
+
+  ITER=0
+  while [ ! -e /var/run/radvd.pid ] && [ "$ITER" -lt 10 ] ; do sleep 1; echo -n . ;ITER=$((++ITER)); done
+  echo
+  if [ -e /var/run/radvd.pid ]; then
+    ps -p `cat /var/run/radvd.pid` > /dev/null  && evaluate_retval
+  else
+    print_status failure
+    exit 1
+  fi
+}
+
+reload() {
+  # reloadproc causes loss of connection when remotely connected
+  echo "Reloading sshd..."
+  if [ -e /var/run/radvd.pid ]; then
+    kill -TERM `cat /var/run/radvd.pid`
+    sleep 1
+  fi
+  $0 start
+}

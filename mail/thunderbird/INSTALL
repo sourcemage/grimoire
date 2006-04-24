@@ -1,0 +1,32 @@
+THUNDERBIRD_HOME=${INSTALL_ROOT}/usr/lib/thunderbird &&
+mkdir -p $THUNDERBIRD_HOME &&
+ln -s $THUNDERBIRD_HOME $THUNDERBIRD_HOME-$VERSION &&
+
+make install &&
+
+if [ "$BUILD_ENIGMAIL" == "y" ]; then
+   make -C extensions/ipc install &&
+   make -C extensions/enigmail install
+fi &&
+
+cd ${INSTALL_ROOT}/usr/lib/thunderbird &&
+export LD_LIBRARY_PATH="$THUNDERBIRD_HOME" &&
+export MOZILLA_FIVE_HOME="$THUNDERBIRD_HOME" &&
+./regxpcom &&
+./regchrome &&
+touch `find . -name *.rdf` &&
+
+#
+# Create symlink from NSS Root CA store, if it exists.  NSS requires this
+# to be in the same directory as the current application binary.  See:
+# http://www.mozilla.org/projects/security/pki/nss/loadable_certs.html
+# https://bugzilla.mozilla.org/show_bug.cgi?id=128290
+# Only create if $THUNDERBIRD_HOME/libnssckbi.so does not exist or is already a
+# symlink.
+#
+if  test  -f   $INSTALL_ROOT/usr/lib/libnssckbi.so;  then
+  if  !  test  -f   $THUNDERBIRD_HOME/libnssckbi.so  ||
+         test  -h   $THUNDERBIRD_HOME/libnssckbi.so; then
+    ln  -sf  $INSTALL_ROOT/usr/lib/libnssckbi.so  $THUNDERBIRD_HOME/libnssckbi.so
+  fi                                                                  
+fi

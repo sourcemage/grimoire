@@ -1,0 +1,30 @@
+if  spell_ok  apache          ||
+    spell_ok  apache-mod_ssl
+then
+  I_DIR=/usr/share/apache/htdocs/$SPELL
+elif  spell_ok  apache2
+then
+  I_DIR=/usr/share/apache2/htdocs/$SPELL
+fi  &&
+
+mkdir  -p  /usr/share/doc/$SPELL    &&
+mv  GNU.General.Public.License      \
+    INSTALL                         \
+    phorSaleDocumentation.html      \
+    README                          \
+    /usr/share/doc/$SPELL           &&
+install  -d  -m  755   $I_DIR       &&
+cp  -Rv  *  $I_DIR                  &&
+
+if  [  "$PHORSALE_CREATEDB"  ==  "y"  ]
+then
+  mysqladmin  create  phorSale      &&
+  mysql  phorSale  <  phorSale.sql  ||
+  #
+  # Return true as this will fail if the database already exists
+  #
+  true
+else
+  message  "${MESSAGE_COLOR}You'll need to run http://[your site]/phorSale/admin/ to setup the database${DEFAULT_COLOR}"
+fi
+

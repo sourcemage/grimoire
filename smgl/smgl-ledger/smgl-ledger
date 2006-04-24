@@ -1,0 +1,120 @@
+#!/bin/bash
+# Source Mage Ledger Client (smgl-ledger)
+
+CLIENT_VERSION=0.06
+#LEDGER_SERVER="http://83.240.17.229/~babca/"
+LEDGER_SERVER="http://83.240.18.143/~babca/"
+
+LANG=C
+
+# problems with cron [Bug 7654]
+PATH=/usr/sbin:$PATH
+
+# STATS_BOX, STATS_UID, STATS_USERNAME and STATS_PASSWORD are stored in SMGLSTATS file
+
+SMGLSTATS=~/.sourcemage/smgl-ledger/$HOSTNAME
+
+if [ -f ~/.smglstats ]
+then
+  echo "The smglstats format has changed"
+  echo "Your ~/.smglstats file will be moved to ~/.sourcemage/smgl-ledger/$HOSTNAME"
+
+  mv  -f  ~/.smglstats ~/.smglstats.bak  &&
+  mkdir  -p  ~/.sourcemage/smgl-ledger   &&
+  mv  ~/.smglstats.bak  $SMGLSTATS
+fi
+
+if ! [ -x $SMGLSTATS ]
+then
+  echo "The config file \"$SMGLSTATS\" is missing. Just creating ..."
+
+  mkdir  -p  ~/.sourcemage/smgl-ledger
+
+  echo "Generating unique stats box id ..."
+  STATS_BOX=$(cat /dev/urandom | grep -o -a -e [0-9a-f] | tr -d "\n" | dd bs=1 count=32 2>/dev/null)
+  echo "STATS_BOX=$STATS_BOX" > $SMGLSTATS
+
+  echo "Please enter your Source Mage Ledger Stats"
+  echo -n "ID (a four-figure number): "
+  read STATS_UID
+  echo "STATS_UID=$STATS_UID" >> $SMGLSTATS
+  
+  echo -n "Username: "
+  read STATS_USERNAME
+  echo "STATS_USERNAME=$STATS_USERNAME" >> $SMGLSTATS
+
+  echo -n "Password (if you want to upload your stats automatically): "
+  # password is not echoed
+  read -s STATS_PASSWORD
+  echo "STATS_PASSWORD=$STATS_PASSWORD" >> $SMGLSTATS
+  chmod 700 $SMGLSTATS
+fi
+
+. $SMGLSTATS
+
+STATS_FILE=~/.sourcemage/smgl-ledger/smglstats_$STATS_BOX
+
+echo Gathering stats ...
+echo
+
+echo "CLIENT_VERSION=$CLIENT_VERSION" > $STATS_FILE
+echo "STATS_BOX=$STATS_BOX" >> $STATS_FILE
+echo "STATS_UID=$STATS_UID" >> $STATS_FILE
+echo "STATS_USERNAME=$STATS_USERNAME" >> $STATS_FILE
+echo "HOSTNAME=$(hostname)" >> $STATS_FILE
+
+echo >>  $STATS_FILE
+
+echo SORCERY_BEGIN: >>  $STATS_FILE
+
+. /etc/sorcery/config
+. /etc/sorcery/local/config
+
+echo "SORCERY_BRANCH=$SORCERY_BRANCH"  >> $STATS_FILE
+echo "SORCERY_VERSION=$(sorcery --version)" >> $STATS_FILE
+echo "ARCHITECTURE=$ARCHITECTURE"  >> $STATS_FILE
+echo SORCERY_END: >> $STATS_FILE
+
+echo >>  $STATS_FILE
+
+echo GRIMOIRES_BEGIN: >>  $STATS_FILE
+rev /etc/sorcery/local/grimoire | cut -f1 -d/ | rev >> $STATS_FILE
+echo GRIMOIRES_END: >> $STATS_FILE
+
+echo >>  $STATS_FILE
+
+echo SPELLS_BEGIN: >>  $STATS_FILE
+gaze installed >>  $STATS_FILE
+echo SPELLS_END: >> $STATS_FILE
+
+if [ "$1" = "curl" ]
+then
+  if gaze installed curl | grep installed > /dev/null
+  then 
+    echo Spell curl is not installed.
+    echo Please \"cast curl\" before you run \"smgl-ledger curl\".
+    echo
+    exit 1
+  else
+    echo Trying to upload the file \"$STATS_FILE\" automatically.
+    echo Wait please ...
+    echo
+
+    curl -s -u $STATS_USERNAME:$STATS_PASSWORD -F File=@$STATS_FILE \
+               $LEDGER_SERVER/users/send.php           \
+               $LEDGER_SERVER/users/server.php         \
+               $LEDGER_SERVER/users/g_users.php        \
+               $LEDGER_SERVER/users/actual-day.php > /dev/null
+
+    echo The file has been uploaded.
+    echo
+  fi
+else
+  echo Check the file \"$STATS_FILE\",
+  echo and upload it to Source Mage Ledger Server at
+  echo $LEDGER_SERVER
+  echo
+  echo If you want to upload it automatically and you have installed curl spell
+  echo just run \"smgl-ledger curl\"
+  echo
+fi

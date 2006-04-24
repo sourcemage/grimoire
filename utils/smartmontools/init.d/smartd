@@ -1,0 +1,45 @@
+#!/bin/sh
+
+PROGRAM=/usr/sbin/smartd
+PROGRAM_FLAGS="-p /var/run/smartd.pid"
+RUNLEVEL=3
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo -n "Starting smartd..."
+  $PROGRAM $PROGRAM_FLAGS
+  ITER=0
+  while [ ! -e /var/run/smartd.pid ] && [ "$ITER" -lt 10 ] ; do sleep 1; echo -n . ;ITER=$((++ITER)); done
+  echo
+  if [ -e /var/run/smartd.pid ]; then
+    ps -p `cat /var/run/smartd.pid` > /dev/null  && evaluate_retval
+  else
+    print_status failure
+    exit 1
+  fi
+}
+
+reload() {
+  # reloadproc causes loss of connection when remotely connected
+  echo "Reloading smartd..."
+  if [ -e /var/run/smartd.pid ]; then
+    kill `cat /var/run/smartd.pid`
+    sleep 1
+  fi
+  $0 start
+}
+
+restart() {
+  run_func reload
+}
+
+stop() {
+  # reloadproc causes loss of connection when remotely connected
+  echo "Stoping smartd..."
+  if [ -e /var/run/smartd.pid ]; then
+    kill `cat /var/run/smartd.pid`
+    sleep 1
+  fi
+}
+

@@ -1,0 +1,20 @@
+rm -f ${INSTALL_ROOT}/usr/share/info/dir                                &&
+if ! [ -h /usr/info ]; then rm -f ${INSTALL_ROOT}/usr/info/dir ; fi     &&
+echo "regenerating the Info Database ..."         &&
+grep -r "\.info" $INSTALL_LOGS | cut -d: -f2 > $SOURCE_DIRECTORY/infolog &&
+ls ${INSTALL_ROOT}/usr/share/info/* >> $SOURCE_DIRECTORY/infolog        &&
+if ! [ -h /usr/info ]; then ls ${INSTALL_ROOT}/usr/info/* >> $SOURCE_DIRECTORY/infolog; fi     &&
+cp $SOURCE_DIRECTORY/infolog $SOURCE_DIRECTORY/infolog.bak               &&
+cat $SOURCE_DIRECTORY/infolog.bak | sort | uniq > $SOURCE_DIRECTORY/infolog &&
+echo "$(cat $SOURCE_DIRECTORY/infolog| wc -l ) info files listed"        &&
+cat $SOURCE_DIRECTORY/infolog |
+while read INFO
+   do if [ -f $INFO ] ; then 
+         #if $(file $INFO | grep -q compressed); then gunzip $INFO; fi 
+         install-info --info-dir=/usr/share/info  $INFO >& /dev/null
+         #gzip $INFO
+     fi
+   done
+echo "Finished"
+
+### I would have liked to compress (gzip) all the info files too, but that would break the logs :(

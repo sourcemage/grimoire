@@ -1,0 +1,109 @@
+# ------------------------------------------------------------------------
+Patch: arc521-linux.diff
+For: arc 5.21e
+From: Klaus Reimer <k@ailis.de>
+Desc: Modifies the arc sources so they can be compiled on a modern linux
+      system.
+      
+This patch modifies the sources of arc 5.21e so they can be compiled on
+a modern linux system. But it doesn't fix the security problems so you
+still have to live with the linker warnings.
+# ------------------------------------------------------------------------  
+
+diff -u arc.orig/arc.c arc/arc.c
+--- arc.orig/arc.c	Thu Apr 25 11:00:47 2002
++++ arc/arc.c	Thu Apr 25 11:12:56 2002
+@@ -101,6 +101,7 @@
+ static char   **lst;		/* files list */
+ static int	lnum;		/* length of files list */
+ 
++int
+ main(num, arg)			/* system entry point */
+ 	int		num;	/* number of arguments */
+ 	char	       *arg[];	/* pointers to arguments */
+diff -u arc.orig/arcdos.c arc/arcdos.c
+--- arc.orig/arcdos.c	Thu Apr 25 11:00:47 2002
++++ arc/arcdos.c	Thu Apr 25 11:02:08 2002
+@@ -32,12 +32,9 @@
+ #include <sys/stat.h>
+ #if	BSD
+ #include <sys/time.h>
++#include <time.h>
+ #else	
+ #include <time.h>		/* Sys V. Bleah. */
+-struct	timeval {
+-	long	tv_sec;
+-	long	tv_usec;
+-};
+ #endif	/* BSD vs SYSV */
+ #endif
+ 
+diff -u arc.orig/arcpack.c arc/arcpack.c
+--- arc.orig/arcpack.c	Thu Apr 25 11:00:47 2002
++++ arc/arcpack.c	Thu Apr 25 11:02:08 2002
+@@ -62,7 +62,7 @@
+ 	long		pred_sq(), head_sq(), huf_buf();	/* stuff for squeezing */
+ 	long		pred_cm();	/* dynamic crunching cleanup */
+ 	long		tloc, ftell();	/* start of output */
+-	u_int		inbytes, pakbytes;
++	u_int		inbytes = 0, pakbytes = 0;
+ 
+ 	/* first pass - see which method is best */
+ 
+diff -u arc.orig/arcrun.c arc/arcrun.c
+--- arc.orig/arcrun.c	Thu Apr 25 11:00:47 2002
++++ arc/arcrun.c	Thu Apr 25 11:02:08 2002
+@@ -19,6 +19,7 @@
+  * Language: Computer Innovations Optimizing C86
+  */
+ #include <stdio.h>
++#include <unistd.h>
+ #include "arc.h"
+ 
+ VOID	rempath(), openarc(), closearc(), arcdie();
+diff -u arc.orig/arcsvc.c arc/arcsvc.c
+--- arc.orig/arcsvc.c	Thu Apr 25 11:00:47 2002
++++ arc/arcsvc.c	Thu Apr 25 11:02:08 2002
+@@ -25,6 +25,8 @@
+ VOID	arcdie(), setstamp();
+ int	unlink();
+ 
++extern int move();
++
+ VOID
+ openarc(chg)			/* open archive */
+ 	int             chg;	/* true to open for changes */
+diff -u arc.orig/arcunp.c arc/arcunp.c
+--- arc.orig/arcunp.c	Thu Apr 25 11:00:47 2002
++++ arc/arcunp.c	Thu Apr 25 11:02:08 2002
+@@ -25,6 +25,8 @@
+ VOID	setcode(), init_usq(), init_ucr(), decomp();
+ VOID	arcdie(), codebuf();
+ 
++extern int crcbuf();
++
+ #include "proto.h"
+ 
+ /* stuff for repeat unpacking */
+diff -u arc.orig/marc.c arc/marc.c
+--- arc.orig/marc.c	Thu Apr 25 11:00:47 2002
++++ arc/marc.c	Thu Apr 25 11:13:07 2002
+@@ -23,6 +23,7 @@
+ 	 Computer Innovations Optimizing C86
+ */
+ #include <stdio.h>
++#include <string.h>
+ #include "arc.h"
+ 
+ #if	UNIX
+diff -u arc.orig/tmclock.c arc/tmclock.c
+--- arc.orig/tmclock.c	Thu Apr 25 11:00:47 2002
++++ arc/tmclock.c	Thu Apr 25 11:02:08 2002
+@@ -16,6 +16,7 @@
+ #define	CENTURY	19
+ #if	BSD
+ #include <sys/time.h>
++#include <time.h>
+ #else
+ #include <time.h>
+ extern long	timezone;	/* should be in <time.h>, but isn't on Sun */
