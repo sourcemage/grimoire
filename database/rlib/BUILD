@@ -1,3 +1,4 @@
+OPTS="$OPTS $RL_UTF8"                           &&
 if  spell_ok  python;  then
   OPTS="--with-pythonver=`installed_version python|cut -c-3` $OPTS"
 fi						&&
