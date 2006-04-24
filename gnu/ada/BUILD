@@ -1,3 +1,4 @@
+source $DEPENDS_CONFIG/gcc.p  &&
 local OLD_CFLAGS="$CFLAGS"  &&
 if [[ $SOURCE3 ]]; then
   # setup bootstrap ada compiler
