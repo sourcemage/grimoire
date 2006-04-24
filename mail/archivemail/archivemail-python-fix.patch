@@ -1,0 +1,126 @@
+--- archivemail	2002-10-31 00:54:55.000000000 +0100
++++ /usr/bin/archivemail	2005-08-04 18:14:04.000000000 +0200
+@@ -138,6 +138,7 @@
+ class Options:
+     """Class to store runtime options, including defaults"""
+     archive_suffix       = "_archive"
++    archive_name         = None
+     days_old_max         = 180
+     date_old_max         = None
+     delete_old_mail      = 0
+@@ -172,6 +173,7 @@
+             opts, args = getopt.getopt(args, '?D:S:Vd:hno:qs:uv', 
+                              ["date=", "days=", "delete", "dry-run", "help",
+                              "include-flagged", "no-compress", "output-dir=",
++                             "archive-name=",
+                              "preserve-unread", "quiet", "size=", "suffix=",
+                              "verbose", "version", "warn-duplicate"])
+         except getopt.error, msg:
+@@ -215,6 +217,8 @@
+                 self.preserve_unread = 1
+             if o in ('-v', '--verbose'):
+                 self.verbose = 1
++            if o == '--archive-name':
++                self.archive_name = a;
+             if o in ('-V', '--version'):
+                 print __version__ + "\n\n" + __copyright__
+                 sys.exit(0)
+@@ -305,7 +309,7 @@
+         msg -- rfc822 message object to be written
+ 
+         """
+-        assert(msg)
++        assert(msg != None)
+         assert(self.mbox_file)
+ 
+         vprint("saving message to file '%s'" % self.mbox_file_name)
+@@ -556,7 +560,7 @@
+ 
+     def warn_if_dupe(self, msg):
+         """Print a warning message if the message has already appeared"""
+-        assert(msg)
++        assert(msg != None)
+         message_id = msg.get('Message-ID')
+         assert(message_id)
+         if self.seen_ids.has_key(message_id):
+@@ -656,7 +660,7 @@
+     message -- the rfc822 message object
+ 
+     """
+-    assert(message)
++    assert(message != None)
+     address = guess_return_path(message)
+     time_message = guess_delivery_time(message)
+     gm_date = time.gmtime(time_message)
+@@ -668,7 +672,7 @@
+ 
+ def guess_return_path(message):
+     """Return a guess at the Return Path address of an rfc822 message"""
+-    assert(message)
++    assert(message != None)
+ 
+     for header in ('Return-path', 'From'):
+         address_header = message.get('header')
+@@ -685,7 +689,7 @@
+ 
+ def guess_delivery_time(message):
+     """Return a guess at the delivery date of an rfc822 message""" 
+-    assert(message)
++    assert(message != None)
+     # try to guess the delivery date from various headers
+     # get more desparate as we go through the array
+     for header in ('Delivery-date', 'Date', 'Resent-Date'):
+@@ -757,7 +761,7 @@
+ 
+     # files in the maildir 'cur' directory are no longer new,
+     # they are the same as messages with 'Status: O' headers in mbox
+-    (None, last_dir) = os.path.split(os.path.dirname(message.fp.name))
++    (ignore, last_dir) = os.path.split(os.path.dirname(message.fp.name))
+     if last_dir == "cur":
+         status = status + "O" 
+ 
+@@ -846,7 +850,7 @@
+ 
+ def is_smaller(message, size):
+     """Return true if the message is smaller than size bytes, false otherwise"""
+-    assert(message)
++    assert(message != None)
+     assert(size > 0)
+     file_name = None
+     message_size = None
+@@ -996,10 +1000,13 @@
+     parsed_suffix = time.strftime(options.archive_suffix, 
+         time.localtime(time.time()))
+ 
+-    if mailbox_name[:7].lower() == 'imap://':
+-        final_archive_name = mailbox_name.split('/')[-1] + parsed_suffix
++    if options.archive_name:
++        final_archive_name = options.archive_name
+     else:
+-        final_archive_name = mailbox_name + parsed_suffix
++       if mailbox_name[:7].lower() == 'imap://':
++           final_archive_name = mailbox_name.split('/')[-1] + parsed_suffix
++       else:
++           final_archive_name = mailbox_name + parsed_suffix
+     if options.output_dir:
+         final_archive_name = os.path.join(options.output_dir, 
+                 os.path.basename(final_archive_name))
+@@ -1081,7 +1088,7 @@
+     msg = original.next()
+     if not msg and (original.starting_size > 0):
+         user_error("'%s' is not a valid mbox-format mailbox" % mailbox_name)
+-    while (msg):
++    while (msg != None):
+         stats.another_message()
+         vprint("processing message '%s'" % msg.get('Message-ID'))
+         if options.warn_duplicates:
+@@ -1160,7 +1167,7 @@
+     cache = IdentityCache(mailbox_name)
+ 
+     msg = original.next()
+-    while (msg):
++    while (msg != None):
+         stats.another_message()
+         vprint("processing message '%s'" % msg.get('Message-ID'))
+         if options.warn_duplicates:
+
