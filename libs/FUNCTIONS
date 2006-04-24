@@ -3,5 +3,30 @@
 #
 function default_configure_apr ()
 {
-  config_query APR_LATEST 'Would you like to use the latest source code (may not build)?' n
+  config_query APR_LATEST 'Would you like to use the latest source code (may not build)?' n &&
+
+  config_query_option APR_ATOMICS 'Enable non-portable atomics (i486+)?' y \
+    '--enable-nonportable-atomics' \
+    '--disable-nonportable-atomics'
+}
+
+#
+## Build for APR spells
+#
+function build_apr()
+{
+  OPTS="$OPTS $APR_ATOMICS" &&
+
+  ./configure                                   \
+    --host=$HOST                                \
+    --build=$BUILD                              \
+    --prefix=$INSTALL_ROOT/usr                  \
+    --includedir=$INSTALL_ROOT/usr/include/apr  \
+    --sysconfdir=$INSTALL_ROOT/etc              \
+    --localstatedir=$INSTALL_ROOT/var           \
+    --enable-layout=GNU                         \
+    --enable-threads                            \
+    $OPTS                                       &&
+
+  make
 }
