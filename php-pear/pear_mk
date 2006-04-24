@@ -9,12 +9,14 @@ function say() {
   echo "$MY_NAME: $*"
 }
 
-# walks through the array and returns true if the package is found
-function is_standard_package() {
-  for p in ${PEAR_STANDARD[*]}; do
-    [[ "$1" == "$p" ]] && return
-  done
-  false
+# filter out a PEAR package by name if necessary
+# $1 - PEAR package name (not spell name)
+# $2 - reported PEAR package version
+function is_allowed_pear_package() {
+  # used to also filter out standard packages here
+
+  # allow any package with sensible name and version
+  [[ -n "$1" ]] && [[ -n "$2" ]] && [[ "$2" != '-n/a-' ]]
 }
 
 # convert input to lower case
@@ -38,8 +40,13 @@ function get_spell_from_details() {
 }
 
 # convert PEAR package information into partial DETAILS file
+# $1 - PEAR package name (not spell name)
+# $2 - reported PEAR package version
 function info_to_details() {
-  pear remote-info "$1" | gawk -f "$MY_DIRECTORY/pear_info_to_details"
+  # sometimes output of `pear remote-info' doesn't have version reported in `pear remote-list'
+  pear remote-info "$1" \
+    | gawk -f "$MY_DIRECTORY/pear_info_to_details" \
+    | sed "s|VERSION=\$|\0$2|g"
 }
 
 # create DEPENDS file based on the package information
@@ -48,6 +55,8 @@ function info_to_depends() {
 }
 
 # replaces spell's file with the new ones, mostly the same except for DETAILS and DEPENDS
+# $1 - PEAR package name (not spell name)
+# $2 - reported PEAR package version
 function create_spell_for_package() {
   local SPELL=$(echo "PEAR-$1" | tolower) &&
   local DIR="$MY_DIRECTORY/$SPELL" &&
@@ -55,29 +64,34 @@ function create_spell_for_package() {
 
   say "Creating/updating spell '$SPELL' in directory '$DIR'..." &&
   mkdir -p "$DIR" &&
-  info_to_details "$1" > "$DIR/DETAILS" &&
+  # create DETAILS script
+  info_to_details "$1" "$2" > "$DIR/DETAILS" &&
+  # create DEPENDS script
   if ! [[ -x "$DEP" ]]; then
     info_to_depends "$1" > "$DEP"
   fi &&
+  # add calls to common code
   echo 'source  $SECTION_DIRECTORY/PEAR_PRE_BUILD' > "$DIR/PRE_BUILD" &&
   echo 'source  $SECTION_DIRECTORY/PEAR_INSTALL' > "$DIR/INSTALL" &&
+  # mark as executable
   chmod +x "$DIR/DETAILS" "$DEP" "$DIR/PRE_BUILD" "$DIR/INSTALL"
 }
 
-## usage: update_spell_for_package <1:PEAR package> <2:new version>
+## usage: update_spell_for_package
+# $1 - PEAR package name (not spell name)
+# $2 - reported PEAR package version
 function update_spell_for_package() {
   local SPELL=$(echo "PEAR-$1" | tolower) &&
   local DIR="$MY_DIRECTORY/$SPELL" &&
   local DET="$DIR/DETAILS" &&
+  local VER='none' &&
 
-  if ! [[ -x "$DET" ]]; then
-    create_spell_for_package "$1"
-  else
-    local VER=$(get_version_from_details "$DET") &&
-    if [[ "$2" != "$VER" ]]; then
-      say "New version '$2' available for '$SPELL'..." &&
-      create_spell_for_package "$1"
-    fi
+  if [[ -x "$DET" ]]; then
+    VER=$(get_version_from_details "$DET")
+  fi &&
+  if [[ "$2" != "$VER" ]]; then
+    say "New/upgraded package '$1' version '$2' will be packaged as '$SPELL'..." &&
+    create_spell_for_package "$1" "$2"
   fi
 }
 
@@ -91,19 +105,23 @@ function update_packages() {
     if [[ $((++INDEX)) -lt 4 ]]; then
       continue
     fi &&
-    # determine package name and version, and update
+    # determine package name and version
     local PKG="${LINE%% *}" &&
     local VER="${LINE##* }" &&
-#   if is_standard_package "$PKG"; then
-#     say "Skipping standard package '$PKG'..." &&
-#     continue
-#   fi &&
+    # filter package by any other criteria
+    if ! is_allowed_pear_package "$PKG" "$VER"; then
+      say "Skipping package '${PKG:-nameless}', version '${VER:-unknown}'..." &&
+      continue
+    fi &&
+    # create or update package
     update_spell_for_package "$PKG" "$VER"
   done
 }
 
 ## usage update_checksum <1:DETAILS path>
 function update_details_checksum() {
+  declare -r HASH_ALG=sha512 &&
+
   local SPELL=$(get_spell_from_details "$1") &&
   local PKG=$(get_pear_package_from_details "$1") &&
   local VER=$(get_version_from_details "$1") &&
@@ -115,11 +133,11 @@ function update_details_checksum() {
     summon "$SPELL"
   fi &&
   [[ -r "$FILE" ]] &&
-  local SUM=$(sha1sum "$FILE" | cut -d ' ' -f 1) &&
+  local SUM=$(openssl dgst "-$HASH_ALG" "$FILE" | cut -d ' ' -f 2) &&
 
   local T="$1-$$-$RANDOM" &&
   cp "$1" "$T" &&
-  sed -e "s|\\(SOURCE_HASH\\)=.*|\\1='sha1:$SUM'|" "$T" > "$1" &&
+  sed -e "s|\\(SOURCE_HASH\\)=.*|\\1='$HASH_ALG:$SUM'|" "$T" > "$1" &&
   rm "$T" &&
   say "Updated checksum in '$1'..."
 }
