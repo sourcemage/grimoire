@@ -1,6 +1,6 @@
 export CPPFLAGS=-I/usr/include/freetype2  &&
 
-if  [  "$CVS"  ==  "y"  ];  then
+if  [  "$FLUXBOX_SVN"  ==  "y"  ];  then
   ./autogen.sh
 fi  &&
 
