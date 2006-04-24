@@ -1,0 +1,36 @@
+#
+# generate the localedef file from installed specs
+#
+local  LOCALE_INPUTFILE  LOCALE_CHARMAP  LOCALE_LOCALE  &&
+if  [  -z  "$LOCALE_LOCALES"  ];  then
+  local  LOCALE_DESCRIPTION                                                         &&
+  cat  $SCRIPT_DIRECTORY/locales                 |
+  while  read  LOCALE_LOCALE  LOCALE_DESCRIPTION;  do
+    LOCALE_INPUTFILE=`echo  $LOCALE_LOCALE  |  cut  -d /  -f1`                             &&
+      LOCALE_CHARMAP=`echo  $LOCALE_LOCALE  |  cut  -d /  -f2`                             &&
+    mkdir  -p  ${INSTALL_ROOT}/usr/lib/locale/$LOCALE_INPUTFILE                     &&
+    echo  "localedef  -f  $LOCALE_CHARMAP  -i  $LOCALE_INPUTFILE  $LOCALE_INPUTFILE"  \
+          " $LOCALE_DESCRIPTION"                                                    &&
+    localedef  --prefix=${INSTALL_ROOT} -i  $LOCALE_INPUTFILE  -f  $LOCALE_CHARMAP   \
+               $LOCALE_INPUTFILE                                                    &&
+    if  [  "$LOCALE_UTF" =  "y"      ]   &&
+    !   [  "$LOCALE_CHARMAP" =  "UTF-8"  ];  then
+       echo  "localedef  -f  UTF-8  -i  $LOCALE_INPUTFILE  $GLIBCINPUTFILE.UTF-8  $LOCALE_DESCRIPTION"  \
+             " (UNICODE Charset)"                                                    &&
+       localedef  --prefix=${INSTALL_ROOT}  -i  $LOCALE_INPUTFILE  -f  UTF-8  $LOCALE_INPUTFILE.UTF-8
+    fi
+  done  ||  true
+else
+  for  LOCALE  in  $LOCALE_LOCALES;  do
+    INPUTFILE=`echo  $LOCALE  |  cut  -d /  -f1`                                   &&
+      CHARMAP=`echo  $LOCALE  |  cut  -d /  -f2`                                   &&
+    mkdir  -p  ${INSTALL_ROOT}/usr/lib/locale/$INPUTFILE                           &&
+    echo  "localedef  -f  $CHARMAP  -i  $INPUTFILE $INPUTFILE"                     &&
+    localedef  --prefix=${INSTALL_ROOT}  -i  $INPUTFILE  -f  $CHARMAP  $INPUTFILE  &&
+    if  [  "$LOCALE_UTF"      =  "y"     ]   &&
+    !   [  "$CHARMAP"  =  "UTF-8" ];  then
+      echo  "localedef  -f  UTF-8  -i  $INPUTFILE  $INPUTFILE.UTF-8"               &&
+      localedef  --prefix=${INSTALL_ROOT}  -i  $INPUTFILE  -f  UTF-8  $INPUTFILE.UTF-8
+    fi
+  done  ||  true
+fi
