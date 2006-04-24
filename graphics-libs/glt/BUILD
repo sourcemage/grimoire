@@ -13,6 +13,6 @@
   D_DIR="/usr/share/doc/${SPELL}/${VERSION}"  &&
   install  -d  -m  755  ${D_DIR}              &&
   cd  ${D_DIR}                                &&
-  unpack  ${SOURCE5}  ${MD5[4]}
+  unpack_file  5
 
 )  >  $C_FIFO  2>&1
