@@ -11,7 +11,7 @@ fi                                                                    &&
 $OPTS                                                                 &&
 make                                                              
 
-if [ "$DOCU" == "y" ]; 
+if [ "$GNUSTEP_BUILD_DOC" == "y" ]; 
 then
     cd Documentation                                                  &&
     make_single                                                       &&
