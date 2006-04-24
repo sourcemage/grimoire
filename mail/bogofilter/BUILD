@@ -1,7 +1,10 @@
-./configure  --build=$BUILD              \
-    --prefix=${INSTALL_ROOT}/usr         \
-    --sysconfdir=${INSTALL_ROOT}/etc     \
-    --localstatedir=${INSTALL_ROOT}/var  \
-    $OPTS                                &&
-    make 
-
+if [[ "${BOGOFILTER_DB}" == sqlite ]]
+then
+BOGOFILTER_DB=sqlite3
+fi                                               &&
+OPTS="--with-database=${BOGOFILTER_DB} ${OPTS}"  &&
+default_build                                    &&
+if [[ "${BOGOFILTER_DB}" == sqlite3 ]]
+then
+BOGOFILTER_DB=sqlite
+fi
