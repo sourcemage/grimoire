@@ -1,0 +1,39 @@
+default_pre_build       &&
+cd ${SOURCE_DIRECTORY}  &&
+
+#sedit vrml.conf to correct the following
+if test "$(get_spell_provider $SPELL GECKO)" = mozilla; then
+   sedit 's:BROWSER => "/usr/bin/firefox":BROWSER => "/usr/bin/mozilla":' vrml.conf
+elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
+   sedit 's:BROWSER => "/usr/bin/firefox":BROWSER => "/usr/bin/seamonkey":' vrml.conf
+fi  &&
+
+if ! spell_ok xterm; then
+   sedit 's:ASCIITERM => "/usr/bin/xterm":ASCIITERM => "/usr/X11R6/bin/xterm":' vrml.conf
+fi  &&
+
+sedit 's:/bin/gunzip:/usr/bin/gunzip:' vrml.conf  &&
+
+if [ "$FREEWRL_JAVA" == "y" ]; then
+   sedit "s:JAVA => \"/usr/bin/java\":JAVA => \"${JAVA_HOME}/bin/java\":" vrml.conf       &&
+   sedit "s:JAVA_INST => '/usr/java/j2sdk1.4.0':JAVA_INST => '${JAVA_HOME}':" vrml.conf
+else
+   sedit 's:JAVA => "/usr/bin/java":#JAVA => "/usr/bin/java":' vrml.conf                          &&
+   sedit "s:JAVA_INST => '/usr/java/j2sdk1.4.0':#JAVA_INST => '/usr/java/j2sdk1.4.0':" vrml.conf
+fi  &&
+
+sedit "s:FREEWRL_LIBS => '-L/usr/lib -L/usr/X11R6/lib -lGL -lGLU -lXext -lX11 -lfreetype -lpng -lz -ljpeg':FREEWRL_LIBS => '-L/usr/lib -L/usr/X11R6/lib -lGL -lGLU -lXext -lX11 -lfreetype -lpng -lz -ljpeg -lXxf86vm': " vrml.conf  &&
+sedit "s:FREEWRL_INC => '-I/usr/X11R6/include/ -I/usr/include/freetype2 -I/usr/include/freetype2/freetype':FREEWRL_INC => '-I/usr/X11R6/include/ -I/usr/include/freetype2 -I/usr/include/freetype2/freetype -DXF86V4':" vrml.conf  &&
+
+if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
+   sedit "s:NETSCAPE_INST => '/usr/lib/mozilla/plugins':NETSCAPE_INST => '/usr/lib/firefox/plugins':" vrml.conf
+   sedit "s:NETSCAPE_CLASSES => '/usr/lib/mozilla/plugins':NETSCAPE_CLASSES => '/usr/lib/firefox/plugins':" vrml.conf
+   sedit "s:NETSCAPE_PLUGINS => '/usr/lib/mozilla/plugins':NETSCAPE_PLUGINS => '/usr/lib/firefox/plugins':" vrml.conf
+elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
+   sedit "s:NETSCAPE_INST => '/usr/lib/mozilla/plugins':NETSCAPE_INST => '/usr/lib/seamonkey/plugins':" vrml.conf
+   sedit "s:NETSCAPE_CLASSES => '/usr/lib/mozilla/plugins':NETSCAPE_CLASSES => '/usr/lib/seamonkey/plugins':" vrml.conf
+   sedit "s:NETSCAPE_PLUGINS => '/usr/lib/mozilla/plugins':NETSCAPE_PLUGINS => '/usr/lib/seamonkey/plugins':" vrml.conf
+fi  &&
+
+sedit "s:RPM_PREFIX => '/usr/src/redhat':#RPM_PREFIX => '/usr/src/redhat':" vrml.conf                    &&
+sedit "s:RPM_OSNAME_FILE => '/etc/redhat-release':#RPM_OSNAME_FILE => '/etc/redhat-release':" vrml.conf
