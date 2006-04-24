@@ -1,4 +1,4 @@
-  OPTS="$OPTS --build=${BUILD}"
+  OPTS="$OPTS --build=${BUILD} ${NANO_OPTS}"
   [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
   ./configure --prefix=${TRACK_ROOT}/usr  \
