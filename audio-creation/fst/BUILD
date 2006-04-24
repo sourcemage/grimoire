@@ -1,13 +1,20 @@
 cp $SCRIPT_DIRECTORY/mkinstalldirs $BUILD_DIRECTORY/$SPELL-$VERSION/. &&
 mkdir vst &&
-echo "You need to download the VST SDK at 
-ftp://ext2asio:sdk1ext@ftp.pinnaclesys.com/SDK"
-echo "Once done, copy the 
-files AEffect.h, and aeffectx.h to the 
-/usr/src/fst-${VERSION}/vst directory"
-echo "then press a key..."
 
-read blabla &&
+#read blabla &&
+
+# Special messages with regards to fst.
+#
+message "\n${MESSAGE_COLOR}" \
+        "You need to download the VST SDK at " \
+        "http://www.steinberg.net/steinberg/ygrabit/index.html " \
+        "unpack the VST SDK.  Once done, copy the " \
+        "files AEffect.h and aeffectx.h to the" \
+        "/usr/src/fst-1.6/vst directory."  \
+        "Press any key when complete.${DEFAULT_COLOR}\n"   &&
+
+
+read blabla
 
 #cd vst &&
 #../fixheaders &&
