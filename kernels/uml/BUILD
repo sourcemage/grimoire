@@ -1,11 +1,5 @@
 CFG_BACKUP="$CONFIG_CACHE/user-mode-linux.config"
 
-cd  linux-$VERSION                                      &&
-
-echo  "Applying User Mode Linux patch..."               &&
-unpack  $SOURCE2   ${MD5[1]}                            &&
-bzcat  $SOURCE_CACHE/$SOURCE2  |  patch  -p1            &&
-
 if  [  -f  $CFG_BACKUP  ]  ;  then
   cp  $CFG_BACKUP  .config
 fi                                                      &&
