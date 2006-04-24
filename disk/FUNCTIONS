@@ -1,0 +1,99 @@
+. /etc/sysconfig/devices
+
+#---------------------------------------------------------------------
+##
+## Detects cd recorders and list them on standard output
+##
+#---------------------------------------------------------------------
+function cdr_detect()
+{
+  CDROM_INFO_FILE=/proc/sys/dev/cdrom/info
+  CDR_MATCH_STRING="Can write CD-R:"
+  CDROM_DEVICES_MATCH_STRING="drive name:"
+
+  CDROM_DEVICES_STRING=$(grep "${CDROM_DEVICES_MATCH_STRING}" ${CDROM_INFO_FILE} | tr -d ' ' | tr -s '\t')
+  CDR_STRING=$(grep "${CDR_MATCH_STRING}" ${CDROM_INFO_FILE} | tr -d ' ' | tr -s '\t')
+
+  if  [ -n "${CDR_STRING}" ]; then
+    NUM_CDROM_DEVICES=$(echo "${CDR_STRING}" | wc -w )
+
+    for i in $(seq 2 $NUM_CDROM_DEVICES); do
+      if [ $(echo "${CDR_STRING}" | cut -f$i) = 1 ]; then
+        CD_RECORDER=$(echo "${CDROM_DEVICES_STRING}" | cut -f$i)
+        echo "$CD_RECORDER"
+      fi
+    done
+  else
+    echo "Unable to detect CD-R recorder"
+    return 1
+  fi
+  return 0
+}
+
+#---------------------------------------------------------------------
+## @param group name allowed to burn
+##
+## Check permission for cdrom recorders
+##
+#---------------------------------------------------------------------
+function check_cdr_perms()
+{
+  local CDR_DEVICES=$("cdr_detect")
+
+  if [ $? == 0 ]; then
+    case ${DEVICES} in
+      static) for DEV in $CDR_DEVICES; do
+                message "Changing permissions for cdrom recorder device /dev/${DEV}"
+                if [ $1 == "burning" ]; then
+                  chmod 0660 "/dev/${DEV}"
+                  chown root:burning "/dev/${DEV}"
+                else
+                  chmod 0600 "/dev/${DEV}"
+                  chown root:root "/dev/${DEV}"
+                fi
+              done
+              ;;
+      devfs)  message ""
+              message "Devfsd permissions changes for cdrom recorders not yet implemented. Please"
+              message "do it manually if necessary. Edit your /etc/devfsd.conf and add something like :"
+              message ""
+              message "REGISTER  ^scsi/host.*/bus.*/target.*/lun.*/generic  PERMISSIONS root.burning 660"
+              message ""
+              message "if you use an SCSI cd recorder or SCSI emulation,"
+              message ""
+              message "REGISTER  ^cdroms/cdrom*  PERMISSIONS root.burning 660"
+              message ""
+              message "if you use an IDE cd recorder"
+              message ""
+              ;;
+      udev)   ;; # Udev default rules handle this now
+      esac
+  else
+    message "No CD recorder device found, please adjust its permissions manually"
+  fi
+}
+
+#---------------------------------------------------------------------
+## @param permissions type, must be {burning_group_users_with_suid_bit,burning_group_users,root_only}
+## @param program name
+## Check permission for cdrom recorders
+##
+#---------------------------------------------------------------------
+function apply_cdr_perms()
+{
+  case $1 in
+    burning_group_users_with_suid_bit)  create_group burning
+                                        chown  root:burning $2
+                                        chmod  4710 $2
+                                        check_cdr_perms burning
+                                        message "\nDon't forget to add the users allowed to burn in the burning group\n";;
+    burning_group_users)                create_group burning
+                                        chown  root:burning $2
+                                        chmod  0750 $2
+                                        check_cdr_perms burning
+                                        message "\nDon't forget to add the users allowed to burn in the burning group\n";;
+    root_only)                          chown  root:root $2
+                                        chmod  0700 $2
+                                        check_cdr_perms root;;
+  esac
+}
