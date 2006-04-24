@@ -13,11 +13,4 @@ sed -i 's:/usr/src/linux/include::'  scsilib/DEFAULTS/Defaults.linux    &&
 sed -i 's/xdao=xdao/xdao=no/'  configure                                &&
 sed -i 's:#include <linux/sysctl.h>::'  dao/dao.cc                      &&
 
-##### Corrected some definitions - needed for gcc4.0 ###
-##### Check if still necessary in next cdrdao versions #
-sed -i '/Toc.h/a\
-class Toc;' trackdb/FormatConverter.h
-sed -i '/Cue2Toc.h/a\
-class Toc;' trackdb/CueParser.cc
-
 default_build
