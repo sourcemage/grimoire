@@ -35,7 +35,7 @@ s|^PASS_MIN_LEN|#\0|g
 s|^PORTTIME_CHECKS_ENAB|#\0|g
 s|^QUOTAS_ENAB|#\0|g
 s|^SU_WHEEL_ONLY|#\0|g
-' ./etc/login.defs.linux
+' etc/login.defs
 else
   sedit '
 s|^#MD5_CRYPT_ENAB.*|MD5_CRYPT_ENAB yes|
