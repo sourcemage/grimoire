@@ -1,5 +1,3 @@
-(
-
   ./configure  --build=$BUILD              \
                --prefix=/usr               \
                --sysconfdir=/etc           \
@@ -10,8 +8,4 @@
 			   --with-jpeg-lib             \
 			   --with-freetype2-lib        \
                $OPTS                       &&
-  make                                     &&
-  prepare_install                          &&
-  cp  -f  cvsgraph  /usr/bin/
-
-) > $C_FIFO 2>&1
+  make 
