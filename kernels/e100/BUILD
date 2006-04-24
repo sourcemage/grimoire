@@ -1,7 +1,3 @@
-(
-
-  cd src                          &&
-  make                            &&
-  prepare_install                 &&
-  make install
-) > $C_FIFO 2>&1
+export CFLAGS="${CFLAGS//-[fD]PIC/}" &&
+cd src &&
+make
