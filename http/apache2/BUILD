@@ -9,6 +9,6 @@ rm  -fr  srclib/apr*/  &&
       --localstatedir=$INSTALL_ROOT/var            \
              --mandir=$INSTALL_ROOT/usr/share/man  \
       --enable-layout=GNU                          \
-     --enable-modules=most,max                     \
+     --enable-modules=most                         \
                       $OPTS                        &&
 make
