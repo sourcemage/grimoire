@@ -1,0 +1,38 @@
+#!/bin/bash
+
+PROGRAM=/usr/bin/git-daemon
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/sysconfig/git-daemon
+. /etc/init.d/smgl_init
+
+create_args()
+{
+	ARGS="$EXTRA_ARGS"
+	[[ $TIMEOUT ]] && ARGS="$ARGS --timeout=$TIMEOUT"
+	[[ $INIT_TIMEOUT ]] && ARGS="$ARGS --init-timeout=$INIT_TIMEOUT"
+	[[ $PORT ]] && ARGS="$ARGS --port=$PORT"
+	[[ $STRICT_PATHS ]] && ARGS="$ARGS --strict-paths"
+	[[ $BASE_PATH ]] && ARGS="$ARGS --base-path=$BASE_PATH"
+	if [ -z $EXPORTED_DIRECTORIES ] ; then
+		ARGS="$ARGS --export-all"
+	else
+		ARGS="$ARGS $EXPORTED_DIRECTORIES"
+	fi 
+	if [ -z $LOG_FILE ] ; then
+		LOG_FILE="/var/log/git-daemon.log"
+	fi
+}
+
+start()
+{
+	echo "Starting Git Daemon:" 
+	create_args 
+        ( 
+		unset -f echo &&
+		su -c "$PROGRAM $ARGS >> ${LOG_FILE} 2>&1" $USER 
+	) &
+	evaluate_retval
+}
+
