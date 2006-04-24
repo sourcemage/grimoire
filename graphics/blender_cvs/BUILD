@@ -1,4 +1,3 @@
-(
   # Setup our environment
   sedit  "s:use_openal = \'false\':use_openal = \'true\':"  SConstruct          &&
   sedit  "s:build_blender_player = \'false\':build_blender_player = \'true\':"  \
@@ -16,8 +15,4 @@
   then  sedit  "s:build_blender_plugin = \'false\':build_blender_plugin = \'true\':"  SConstruct
   fi  &&
 
-  scons                  &&
-  prepare_install        &&
-  cp  blender  /usr/bin
-
-) > $C_FIFO 2>&1
+  scons
