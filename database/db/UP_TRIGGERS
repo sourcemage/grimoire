@@ -1,0 +1,23 @@
+# up_trigger everything on minor version updates as most stuff links to libdb-$MAJOR.$MINOR.so
+
+local OLD_SPELL_VERSION=""
+if spell_ok  $SPELL; then
+  OLD_SPELL_VERSION="$(installed_version $SPELL)"
+  if test "${VERSION:0:3}" != "${OLD_SPELL_VERSION:0:3}"; then
+    message "This is a possibly incompatible update of libdb..."
+    message "Figuring out what spells need to be recast, this may take a while."
+    for each in $(gaze depends $SPELL | cut -f1 -d: | sort | uniq); do
+      if gaze install $each | xargs readelf -d 2> /dev/null |
+         grep -q "NEEDED.*libdb\(\|_cxx\)-${OLD_SPELL_VERSION:0:3}"; then
+           up_trigger $each cast_self
+      fi
+    done
+    # note: the above doesn't catch apr-util(0) which doesn't link to db but still
+    #       includes references to db-4.3, so up_trigger them explicitly
+    for each in apr-util apr-util0; do
+      if spell_ok $each; then
+        up_trigger $each cast_self
+      fi
+    done
+  fi
+fi
