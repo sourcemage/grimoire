@@ -1,0 +1,52 @@
+--- configure.in.orig	2005-05-04 05:35:43.000000000 +1200
++++ configure.in	2005-06-18 14:12:39.000000000 +1200
+@@ -186,6 +186,17 @@
+   fi
+ fi
+ 
++if test -z "$APUCONFIG"; then
++  AC_MSG_CHECKING(for apu-config in /usr/bin)
++  if test -x /usr/bin/apu-config; then
++    APUCONFIG=/usr/bin/apu-config
++    AC_MSG_RESULT([found, we'll use this.])
++  else
++    AC_MSG_RESULT(no)
++    APUCONFIG=""
++  fi
++fi
++
+ # last resort
+ if test -z "$APXS"; then
+   AC_PATH_PROG(APXS, apxs2)
+@@ -203,6 +214,10 @@
+   AC_PATH_PROG(APRCONFIG, apr-config)
+ fi
+ 
++if test -z "$APUCONFIG"; then
++  AC_PATH_PROG(APUCONFIG, apu-config)
++fi
++
+ # determine LIBEXEC
+ AC_MSG_CHECKING(for Apache libexec directory)
+ APXS_LIBEXECDIR=`${APXS} -q LIBEXECDIR`
+@@ -256,6 +271,11 @@
+ 	])
+ fi
+ 
++# add apr-util include dir
++if test "$APACHE_VER" = "2.0" -a -x "$APUCONFIG"; then
++	CFLAGS="$CFLAGS `$APUCONFIG --includes`"
++fi
++
+ if test "$APACHE_VER" = "retry"; then
+ 	AC_MSG_ERROR([Confused on apache version. Please report this and send config.log])
+ fi
+@@ -372,6 +392,8 @@
+ echo "   * apxs = $APXS"
+ test "$APACHE_VER" = "2.0" -a -x "$APRCONFIG" && \
+ echo "   * apr-config = $APRCONFIG"
++test "$APACHE_VER" = "2.0" -a -x "$APUCONFIG" && \
++echo "   * apu-config = $APUCONFIG"
+ echo "   * Verbose logging (debug) = $enable_debug"
+ echo "   * mono prefix = $MONO_PREFIX"
+ echo "   * Default MonoApplicationsConfigDir = $DFLT_MONO_CONFIG_DIR"
