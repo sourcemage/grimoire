@@ -1,5 +1,3 @@
-(
-
   cd binutils-$VERSION &&
 
   rm -rf buildit &&
@@ -25,18 +23,5 @@
 
     make  tooldir=$TOOLDIR              &&
     cd ..                               
-  done                                  &&
+  done  
 
-  prepare_install                       &&
-
-  for TARGET in $TARGETS; do
-
-    message "${MESSAGE_COLOR}Installing for target : $TARGET${DEFAULT_COLOR}"
-
-    cd $TARGET                          &&
-    make  tooldir=$TOOLDIR install      &&
-    cd ..                               
-
-  done
-
-) > $C_FIFO 2>&1
