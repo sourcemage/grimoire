@@ -1,3 +1,5 @@
+# use mode settings from dar spell
+source /usr/include/dar/mode            &&
 if [ $ENABLEMODE = "32" ]; then
    OPTS="$OPTS --enable-mode=32"
 else
