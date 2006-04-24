@@ -5,11 +5,6 @@ OPTS="$OPTS --enable-all-optimizations    \
             --enable-cdrom=yes            \
             --enable-icache               \
             --enable-repeat-speedups      \
-            --enable-config-interface     \
-            $RFB $SB16 $SMP $TERM $APIC"
-
-if  [  "$IPS"  =  "y"  ]  ;  then
-  sedit  's/\(#define BX_SHOW_IPS\)  *0/\1 1/'  config.h.in
-fi  &&
+            $RFB $SB16 $TERM $APIC $SMP $IPS"  &&
 
 default_build
