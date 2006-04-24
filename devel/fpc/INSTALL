@@ -1,10 +1,31 @@
-make  install  PP=compiler/ppc386  INSTALL_PREFIX=$INSTALL_ROOT/usr &&
-local FPCDEST FPCDIR                                                &&
-  FPCDEST=${INSTALL_ROOT}/usr/                                      &&
-  FPCDIR=$FPCDEST/lib/fpc/$VERSION                                  &&
-  ln -sf $FPCDIR/ppc386 $FPCDEST/bin                                &&
-# create a config file if none exists
-  if ! [ -f ${INSTALL_ROOT}/etc/fpc.cfg ];then
-    $FPCDIR/samplecfg $FPCDIR ${INSTALL_ROOT}/etc          
-  fi
+local FPCDEST FPCDIR FPC_COMP FPC_MAKE                     &&
+FPCDEST=${INSTALL_ROOT}/usr                                &&
+FPCDIR=$FPCDEST/lib/fpc/$VERSION                           &&
+FPC_COMP=$SOURCE_DIRECTORY/compiler/ppc386                 &&
+FPC_MAKE=$SOURCE_DIRECTORY/utils/fpcm/fpcmake              &&
 
+# optionally install source files, for use with Lazarus
+if [ $FPC_SRC == "y" ];then
+  message copying source files                             &&
+  cd $SOURCE_DIRECTORY                                     &&
+  mkdir -p $FPCDIR                                         &&
+  chown pascal:pascal $FPCDIR                              &&
+  cp -r fcl packages rtl $FPCDIR                           &&
+# do this manually, else there are two copies of the units
+  cd compiler                                              &&
+  make install PP=$FPC_COMP  INSTALL_PREFIX=$FPCDEST       &&
+  ln -sf $FPCDIR/ppc386 $FPCDEST/bin                       &&
+  cd ../utils                                              &&
+  make install PP=$FPC_COMP  INSTALL_PREFIX=$FPCDEST FPCMAKE=$FPC_MAKE  &&
+# link to the already installed units
+  cd $FPCDIR                                               &&
+  rm -r units                                              &&
+  ln -s $FPCDIR/rtl/units
+else
+  make  install  PP=$FPC_COMP  INSTALL_PREFIX=$FPCDEST
+fi                                                         &&
+
+# create a config file if none exists
+if ! [ -f ${INSTALL_ROOT}/etc/fpc.cfg ];then
+  $FPCDIR/samplecfg $FPCDIR ${INSTALL_ROOT}/etc          
+fi
