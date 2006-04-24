@@ -53,7 +53,7 @@ case "${mode}" in
 		mk_source_dir $LINUX_SOURCE_DIRECTORY &&
 		cd $LINUX_SOURCE_DIRECTORY &&
 		unpack_file '' || return 1
-		mv ./*/* ./ &&
+		mv ./*/* ./*/.[a-z]* ./ &&
 		. ${SPELL_DIRECTORY}/latest.defaults &&
 		local count=3
 		local source="SOURCE${count}"
@@ -72,7 +72,13 @@ case "${mode}" in
 				linux_new_uncompress ./${source} &&
 				message "${MESSAGE_COLOR}Patching ${!patch}${DEFAULT_COLOR}" &&
 				patch -p${pval} <${!patch}
-			fi &&
+				rc=$? 
+				if [[ $rc != 0 ]] 
+				then
+					message "${PROBLEM_COLOR}Bah, patch ${!patch} failed${DEFAULT_COLOR}" &&
+					return 1
+				fi 
+			fi
 			(( count++ ))
 			source="SOURCE${count}"
 			source_check="PATCH[${count}]"
