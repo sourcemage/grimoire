@@ -1,3 +1,4 @@
+source $DEPENDS_CONFIG/gcc.p  &&
 # something's broken in its gcc version detection
 sedit  "s/\$(gcc_version)/$VERSION/"  $SOURCE_DIRECTORY/libf2c/Makefile.in  &&
 cd $SOURCE_DIRECTORY.bld                                  &&
