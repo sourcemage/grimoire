@@ -1,0 +1,59 @@
+Not sure why I have to patch this myself, but at least this works for me. -- Seth
+
+diff -Nuar iputils/arping.c iputils-good/arping.c
+--- iputils/arping.c	2001-10-05 15:42:47.000000000 -0700
++++ iputils-good/arping.c	2005-11-27 23:58:16.638290000 -0800
+@@ -19,6 +19,8 @@
+ #include <sys/ioctl.h>
+ #include <linux/if.h>
+ #include <linux/if_arp.h>
++#include <linux/if_ether.h>
++#include <linux/if_packet.h>
+ #include <sys/uio.h>
+ 
+ #include <netdb.h>
+diff -Nuar iputils/Makefile iputils-good/Makefile
+--- iputils/Makefile	2005-11-28 00:01:25.859844784 -0800
++++ iputils-good/Makefile	2005-11-27 23:47:41.821964000 -0800
+@@ -10,11 +10,11 @@
+ 
+ ifeq ($(LIBC_INCLUDE)/socketbits.h,$(wildcard $(LIBC_INCLUDE)/socketbits.h))
+   ifeq ($(LIBC_INCLUDE)/net/if_packet.h,$(wildcard $(LIBC_INCLUDE)/net/if_packet.h))
+-    GLIBCFIX=-Iinclude-glibc -include include-glibc/glibc-bugs.h
++#    GLIBCFIX=-Iinclude-glibc -include include-glibc/glibc-bugs.h
+   endif
+ endif
+ ifeq ($(LIBC_INCLUDE)/bits/socket.h,$(wildcard $(LIBC_INCLUDE)/bits/socket.h))
+-  GLIBCFIX=-Iinclude-glibc -include include-glibc/glibc-bugs.h
++#  GLIBCFIX=-Iinclude-glibc -include include-glibc/glibc-bugs.h
+ endif
+ 
+ 
+diff -Nuar iputils/ping6.c iputils-good/ping6.c
+--- iputils/ping6.c	2005-11-28 00:01:25.861844314 -0800
++++ iputils-good/ping6.c	2005-11-27 23:59:12.866096000 -0800
+@@ -71,6 +71,9 @@
+ #include <linux/in6.h>
+ #include <linux/ipv6.h>
+ #include <linux/icmpv6.h>
++#include <endian.h>
++#include <asm/byteorder.h>
++#include <linux/byteorder/swab.h>
+ 
+ #define BIT_CLEAR(nr, addr) do { ((__u32 *)(addr))[(nr) >> 5] &= ~(1U << ((nr) & 31)); } while(0)
+ #define BIT_SET(nr, addr) do { ((__u32 *)(addr))[(nr) >> 5] |= (1U << ((nr) & 31)); } while(0)
+diff -Nuar iputils/ping.c iputils-good/ping.c
+--- iputils/ping.c	2002-09-20 08:08:11.000000000 -0700
++++ iputils-good/ping.c	2005-11-27 23:56:00.613161000 -0800
+@@ -61,7 +61,10 @@
+ #include "ping_common.h"
+ 
+ #include <netinet/ip.h>
+-#include <netinet/ip_icmp.h>
++#include <linux/icmp.h>
++#include <endian.h>
++#include <asm/byteorder.h>
++#include <linux/byteorder/swab.h>
+ 
+ 
+ #define	MAXIPLEN	60
