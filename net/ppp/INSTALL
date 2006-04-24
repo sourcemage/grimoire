@@ -1,33 +1,48 @@
 default_install  &&
-(
 
-  mkdir  -p  ${INSTALL_ROOT}/etc/ppp/peers
-  mkdir  -p  ${INSTALL_ROOT}/etc/ppp/chat
+install  -d  -m 0755  -o root  -g ppp  $INSTALL_ROOT/etc/ppp        &&
+install  -d  -m 0755  -o root  -g ppp  $INSTALL_ROOT/etc/ppp/peers  &&
+install  -d  -m 0755  -o root  -g ppp  $INSTALL_ROOT/etc/ppp/chat   &&
 
-  touch ${INSTALL_ROOT}/etc/ppp/resolv.conf
+cp  $SCRIPT_DIRECTORY/pon      $INSTALL_ROOT/usr/bin          &&
+cp  $SCRIPT_DIRECTORY/poff     $INSTALL_ROOT/usr/bin          &&
+cp  $SCRIPT_DIRECTORY/ip-up    $INSTALL_ROOT/etc/ppp/ip-up    &&
+cp  $SCRIPT_DIRECTORY/ip-down  $INSTALL_ROOT/etc/ppp/ip-down  &&
 
-  cp  $SCRIPT_DIRECTORY/pon   ${INSTALL_ROOT}/usr/bin
-  cp  $SCRIPT_DIRECTORY/poff  ${INSTALL_ROOT}/usr/bin
+#
+# If we install a new config file then make sure the permissions are correct
+#
+if  install_config_file  $SCRIPT_DIRECTORY/resolv.conf      \
+                            $INSTALL_ROOT/etc/ppp/resolv.conf;  then
+  chown  root:ppp  $INSTALL_ROOT/etc/ppp/resolv.conf
+fi  &&
 
-  if  !  [  -f                     ${INSTALL_ROOT}/etc/ppp/options  ];  then
-    cp  $SCRIPT_DIRECTORY/options  ${INSTALL_ROOT}/etc/ppp/options
-  fi
+if  install_config_file  $SCRIPT_DIRECTORY/options      \
+                            $INSTALL_ROOT/etc/ppp/options;  then
+  chown  root:ppp  $INSTALL_ROOT/etc/ppp/options
+fi  &&
 
-  if  [  !  -e                       ${INSTALL_ROOT}/etc/ppp/peers/isp  ];  then
-    cp  $SCRIPT_DIRECTORY/peers      ${INSTALL_ROOT}/etc/ppp/peers/isp
-  fi
+if  install_config_file  $SCRIPT_DIRECTORY/peers          \
+                            $INSTALL_ROOT/etc/ppp/peers/isp;  then
+  chown  root:ppp  $INSTALL_ROOT/etc/ppp/peers/isp
+fi  &&
 
-  if  [  !  -e                 ${INSTALL_ROOT}/etc/ppp/chat/isp  ];  then
-    cp  $SCRIPT_DIRECTORY/isp  ${INSTALL_ROOT}/etc/ppp/chat/isp
-  fi
+if  install_config_file  $SCRIPT_DIRECTORY/isp           \
+                            $INSTALL_ROOT/etc/ppp/chat/isp;  then
+  chown  root:ppp  $INSTALL_ROOT/etc/ppp/chat/isp
+fi  &&
 
+if  install_config_file  $SCRIPT_DIRECTORY/pap-secrets  \
+                     $INSTALL_ROOT/etc/ppp/pap-secrets;  then
+  chown  root:ppp  $INSTALL_ROOT/etc/ppp/pap-secrets  &&
+  chmod  0600      $INSTALL_ROOT/etc/ppp/pap-secrets
+fi  &&
 
-  cat  $SCRIPT_DIRECTORY/message
+if  install_config_file  $SCRIPT_DIRECTORY/chap-secrets  \
+                     $INSTALL_ROOT/etc/ppp/chap-secrets;  then
+  chown  root:ppp  $INSTALL_ROOT/etc/ppp/chap-secrets  &&
+  chmod  0600      $INSTALL_ROOT/etc/ppp/chap-secrets
+fi  &&
 
-  chown  root:ppp     ${INSTALL_ROOT}/usr/sbin/pppd
-  chmod  4750         ${INSTALL_ROOT}/usr/sbin/pppd
-  chown  -R root:ppp  ${INSTALL_ROOT}/etc/ppp
-  touch ${INSTALL_ROOT}/etc/ppp/pap-secrets ${INSTALL_ROOT}/etc/ppp/chap-secrets &&
-  chmod  600          ${INSTALL_ROOT}/etc/ppp/*-secrets
-
-)
+chown  root:ppp     ${INSTALL_ROOT}/usr/sbin/pppd  &&
+chmod  4750         ${INSTALL_ROOT}/usr/sbin/pppd
