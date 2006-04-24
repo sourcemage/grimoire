@@ -1,3 +1,4 @@
+source $DEPENDS_CONFIG/gcc.p                              &&
 cd $SOURCE_DIRECTORY.bld                                  &&
 $SOURCE_DIRECTORY/configure                                \
              --host=$HOST                                  \
