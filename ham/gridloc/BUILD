@@ -1,9 +1,2 @@
-patch ./Makefile $SCRIPT_DIRECTORY/patch 
-(
-
-  make                               &&
-  prepare_install                    &&
-  make    install
-
-) > $C_FIFO 2>&1
-
+patch -p0 < $SCRIPT_DIRECTORY/patch 
+  make
