@@ -1,0 +1,62 @@
+I_R=${INSTALL_ROOT}
+USRBIN=${I_R}/usr/bin
+
+export $(grep ^NX_DIR ${USRBIN}/nxloadconfig)
+export $(grep ^NX_HOME_DIR ${USRBIN}/nxloadconfig)
+export $(grep ^NX_SESS_DIR ${USRBIN}/nxloadconfig)
+export $(grep ^NX_ETC_DIR ${USRBIN}/nxloadconfig)
+export $(grep ^NX_LOGFILE ${USRBIN}/nxloadconfig)
+export $(grep ^SSH_AUTHORIZED_KEYS ${USRBIN}/nxloadconfig)
+
+touch ${I_R}${NX_ETC_DIR}/passwords \
+      ${I_R}${NX_ETC_DIR}/passwords.orig \
+      ${I_R}${NX_LOGFILE}
+chmod 600 ${I_R}${NX_ETC_DIR}/pass* \
+          ${I_R}${NX_LOGFILE}
+
+if [ ! -e ${I_R}${NX_ETC_DIR}/users.id_dsa ]
+then
+	/usr/bin/ssh-keygen -f ${I_R}${NX_ETC_DIR}/users.id_dsa -t dsa -N "" > /dev/null 2>&1
+fi
+
+if [ -e ${I_R}${NX_HOME_DIR}/.ssh/client.id_dsa.key ] && [ -e ${I_R}${NX_HOME_DIR}/.ssh/server.id_dsa.pub.key ]
+then
+        mv -f ${I_R}${NX_HOME_DIR}/.ssh/client.id_dsa.key ${I_R}${NX_ETC_DIR}/client.id_dsa.key
+        mv -f ${I_R}${NX_HOME_DIR}/.ssh/server.id_dsa.pub.key ${I_R}${NX_ETC_DIR}/server.id_dsa.pub.key
+fi
+
+if ! { getent passwd | egrep -q "^nx:"; }
+then
+        /usr/sbin/useradd -m -d ${NX_HOME_DIR} -s ${NX_DIR}/bin/nxserver nx
+        mkdir -p ${I_R}${NX_HOME_DIR}/.ssh
+        chmod 700 ${I_R}${NX_HOME_DIR}/.ssh
+fi
+
+if [ ! -e ${I_R}${NX_ETC_DIR}/client.id_dsa.key ] || [ ! -e ${I_R}${NX_ETC_DIR}/server.id_dsa.pub.key ]
+then
+	rm -f ${I_R}${NX_ETC_DIR}/client.id_dsa.key
+	rm -f ${I_R}${NX_ETC_DIR}/server.id_dsa.pub.key
+	/usr/bin/ssh-keygen -q -t dsa -N '' -f ${I_R}${NX_ETC_DIR}/local.id_dsa
+	mv ${I_R}${NX_ETC_DIR}/local.id_dsa ${I_R}${NX_ETC_DIR}/client.id_dsa.key
+	mv ${I_R}${NX_ETC_DIR}/local.id_dsa.pub ${I_R}${NX_ETC_DIR}/server.id_dsa.pub.key
+fi
+
+cp -f ${I_R}${NX_ETC_DIR}/client.id_dsa.key ${I_R}${NX_HOME_DIR}/.ssh/client.id_dsa.key
+cp -f ${I_R}${NX_ETC_DIR}/server.id_dsa.pub.key ${I_R}${NX_HOME_DIR}/.ssh/server.id_dsa.pub.key
+
+chmod 600 ${I_R}${NX_ETC_DIR}/client.id_dsa.key \
+          ${I_R}${NX_ETC_DIR}/server.id_dsa.pub.key \
+          ${I_R}${NX_HOME_DIR}/.ssh/client.id_dsa.key \
+          ${I_R}${NX_HOME_DIR}/.ssh/server.id_dsa.pub.key
+
+cat ${I_R}${NX_HOME_DIR}/.ssh/server.id_dsa.pub.key > ${I_R}${NX_HOME_DIR}/.ssh/authorized_keys2
+chmod 640 ${I_R}${NX_HOME_DIR}/.ssh/authorized_keys2
+
+echo -n "127.0.0.1 " > ${I_R}${NX_HOME_DIR}/.ssh/known_hosts
+cat /etc/ssh/ssh_host_rsa_key.pub >> ${I_R}${NX_HOME_DIR}/.ssh/known_hosts
+
+chown -R nx:root ${I_R}/var/lib/nxserver
+chown -R nx:root ${I_R}${NX_SESS_DIR}
+chown -R nx:root ${I_R}${NX_ETC_DIR}
+chown -R nx:root ${I_R}${NX_HOME_DIR}
+chown nx:root ${I_R}${NX_LOGFILE}
