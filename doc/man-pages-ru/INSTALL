@@ -1,1 +1,41 @@
-make install INSTALLPATH=${INSTALL_ROOT}/usr/share/man LANG_SUBDIR=ru COMPRESS=none
+MANDIR=${INSTALL_ROOT}/usr/share/man  &&
+LANG_SUBDIR=ru                        &&
+
+#install pages
+	[ -d ${MANDIR} ] || mkdir ${MANDIR} &&
+	[ -d ${MANDIR}/${LANG_SUBDIR} ] || mkdir ${MANDIR}/${LANG_SUBDIR}  &&
+	for section in 1 2 3 4 5 6 7 8; do
+	  [ -d man$section ] || continue              &&
+	  [ -d ${MANDIR}/${LANG_SUBDIR}/man$section ] || \
+		mkdir ${MANDIR}/${LANG_SUBDIR}/man$section  &&
+	  cd man$section                              &&
+	  if [ x"`echo *.$section`" != x\*.$section ]; then
+	    for manpage in *.$section; do
+	      rm -f ${MANDIR}/${LANG_SUBDIR}/man$section/$manpage  &&
+	      for ext in gz Z bz2; do
+	        rm -f ${MANDIR}/${LANG_SUBDIR}/man$section/$manpage.$ext
+	      done                                   &&
+	      install -m 644 $manpage ${MANDIR}/${LANG_SUBDIR}/man$section  &&
+        if [ ${COMPRESS} != none ]; then
+          ${COMPRESS} ${MANDIR}/${LANG_SUBDIR}/man$section/$manpage
+        fi
+	    done
+	  fi                                         &&
+	  cd ../
+	done                                         &&
+
+#install aliases
+	for section in 1 2 3 4 5 6 7 8; do
+	  [ -d man$section ] || continue             &&
+	  [ -f man$section/ALIASES ] || continue     &&
+	  cd man$section                             &&
+	  dest_dir=${MANDIR}/${LANG_SUBDIR}/man$section  &&
+	  sed -e "/^#/d" -e "s,^\(\+\)	\(.\+\)$$,\
+	    rm -f $dest_dir/\2.$section $dest_dir/\2.$section.gz \
+		$dest_dir/\2.$section.Z $dest_dir/\2.$section.bz2  &&
+		echo .so man$section/\1.$section \> $dest_dir/\2.$section," \
+			< ALIASES > tmp-run &&
+	  . tmp-run  &&
+	  rm -f tmp-run  &&
+	  cd ..
+	done
