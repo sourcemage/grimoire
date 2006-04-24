@@ -1,14 +1,5 @@
 message  "${MESSAGE_COLOR}If this fails, disable kernel module versioning{$DEFAULT_COLOR}"  &&
 
-# Some other fixes I needed to do
-sedit  's:<config.h>:\"config.h\":'  threeDKit/3dinit.c     &&
-sedit  's:<config.h>:\"config.h\":'  threeDKit/3dkit.c      &&
-sedit  's:<config.h>:\"config.h\":'  threeDKit/triangl.c    &&
-sedit  's:<config.h>:\"config.h\":'  threeDKit/wrapsurf.c   &&
-
-# Disable kernel module support while building stages
-sedit  's:installmodule ::'  Makefile                                  &&
-
 # First build static
 make_single                                                            &&
 make  static                                                           &&

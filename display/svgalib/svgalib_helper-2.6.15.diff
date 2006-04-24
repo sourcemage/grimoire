@@ -1,0 +1,36 @@
+--- /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/kernel26compat.h	2005-11-05 00:33:00.000000000 +0200
++++ /svgalib/kernel/svgalib_helper/kernel26compat.h	2006-01-06 15:11:15.000000000 +0200
+@@ -84,6 +84,7 @@
+ #  define SLH_SYSFS_REGISTER                                            \
+      svgalib_helper_class = class_create(THIS_MODULE, "svgalib_helper");
+ 
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+ #  define SLH_SYSFS_ADD_CONTROL                                         \
+      class_device_create(svgalib_helper_class,                      	\
+                              MKDEV(SVGALIB_HELPER_MAJOR, 0),            \
+@@ -93,6 +94,17 @@
+      class_device_create(svgalib_helper_class,                      	\
+                              MKDEV(SVGALIB_HELPER_MAJOR, _minor),       \
+                              &sh_pci_devs[_minor]->dev->dev, _name);
++#else /* 2.6.15 changed class_device_create */
++#  define SLH_SYSFS_ADD_CONTROL                                         \
++     class_device_create(svgalib_helper_class, NULL,                	\
++                             MKDEV(SVGALIB_HELPER_MAJOR, 0),            \
++                             NULL, "svga");
++
++#  define SLH_SYSFS_ADD_DEVICE(_name, _minor)                           \
++     class_device_create(svgalib_helper_class, NULL,                	\
++                             MKDEV(SVGALIB_HELPER_MAJOR, _minor),       \
++                             &sh_pci_devs[_minor]->dev->dev, _name);
++#endif /* 2.6.15 */
+ 
+ #  define SLH_SYSFS_REMOVE_DEVICE(i)                                    \
+      class_destroy(svgalib_helper_class);
+@@ -140,3 +152,7 @@
+ #if !defined(MODULE_VERSION) 
+ # define MODULE_VERSION(x)
+ #endif
++
++#ifndef PCI_VENDOR_ID_RENDITION 
++#define PCI_VENDOR_ID_RENDITION               0x1163
++#endif
