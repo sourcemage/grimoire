@@ -1,0 +1,46 @@
+# ------------------------------------------------------------------------------
+## Replace sorcerys default_build with a custom one
+# ------------------------------------------------------------------------------
+function default_build ()
+{
+    if [ -f /etc/profile.d/GNUstep.sh ]
+    then
+	. /etc/profile.d/GNUstep.sh
+    else
+	message "${ERROR_COLOR}Unable to find /etc/profile.d/GNUstep.sh"
+	message "Rebuild gnustep-make${DEFAULT_COLOR}"
+	exit 1
+    fi                                                                   &&
+
+    if [ -f ./configure ]
+    then
+	./configure                                                      \
+	$OPTS                                                            
+    fi                                                                   &&
+
+    make                                                                 &&
+
+    if [ "$GNUSTEP_BUILD_DOC" == "y" ]
+    then
+	cd Documentation                                                 &&
+	make                                                             &&
+	cd ../                                        
+    fi
+}
+
+
+# ------------------------------------------------------------------------------
+## Replace sorcerys default_install with a custom one
+# ------------------------------------------------------------------------------
+function default_install ()
+{
+    make GNUSTEP_INSTALLATION_DIR=$GNUSTEP_SYSTEM_ROOT install           &&
+
+    if [ "$GNUSTEP_BUILD_DOC" == "y" ]
+    then
+	cd Documentation                                                  &&
+	make                                                              &&
+	make GNUSTEP_INSTALLATION_DIR=$GNUSTEP_SYSTEM_ROOT install        &&
+	cd ../
+    fi
+}
