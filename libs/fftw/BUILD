@@ -1,7 +1,9 @@
+OPTS="$OPTS $FFTW_THREADS"                 &&
+
 cd $SOURCE_DIRECTORY/fftw-single-$VERSION  &&
 ./configure  --prefix=${INSTALL_ROOT}/usr  \
              --enable-shared               \
-			 --enable-float                \
+             --enable-single               \
              --enable-i386-hacks           \
              --enable-type-prefix          \
       $OPTS                                &&
