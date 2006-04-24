@@ -1,4 +1,3 @@
-invoke_gcc   &&
 make_single  &&
 
 if [ "$GLIBC_NOLIB64" = "y" ]; then
