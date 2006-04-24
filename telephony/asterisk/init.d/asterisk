@@ -1,0 +1,52 @@
+#!/bin/bash
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+
+. /etc/init.d/smgl_init
+
+required_executable  /usr/sbin/asterisk 
+
+start() 
+{
+	echo "Starting Asterisk"
+	/usr/sbin/asterisk
+	evaluate_retval
+	x=$?
+	[ ${x} -eq 0 ] && touch /var/lock/subsys/asterisk
+}
+
+stop() 
+{
+	echo "Shutting down Asterisk"
+	killproc asterisk
+	x=$?
+	[ ${x} -eq 0 ] && rm -f /var/lock/subsys/asterisk
+}
+
+restart() 
+{
+	run_func stop
+	run_func start
+}
+
+reload() 
+{
+	echo "reloading Asterisk"
+	/usr/sbin/asterisk -rx 'reload' > /dev/null 2> /dev/null
+	evaluate_retval
+}
+
+status()
+{
+	if [[ -f /var/lock/subsys/asterisk ]]; then
+		statusproc  asterisk
+	else
+		echo "Asterisk is not loaded"
+	fi
+}
+
+usage()
+{
+        echo "$0 {start|stop|restart|status|reload}"
+}
