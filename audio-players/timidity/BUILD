@@ -7,4 +7,5 @@ local AUDIO="$(echo "$OPTS" | tr ' ' '\n' | grep audio)"
 OPTS="$(echo "$OPTS" | tr ' ' '\n' | grep -v audio | tr '\n' ' ')"
 AUDIO="$(echo "$AUDIO" | sed -e 's/--audio-//' | tr '\n' ',' | sed -e 's/,$//')"
 OPTS="$OPTS --enable-audio=$AUDIO"
+patch -p1 < $SCRIPT_DIRECTORY/gcc4.x.patch	&&
 default_build
