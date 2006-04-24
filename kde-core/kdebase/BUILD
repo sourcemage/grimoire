@@ -1,4 +1,4 @@
-OPTS="$OPTS  $KDEBASE_DPMS  $KDEBASE_XDMCP"  &&
+OPTS="$OPTS  $KDEBASE_XCONSOLE  $KDEBASE_DPMS  $KDEBASE_XDMCP"  &&
 
 #
 # Kerberos has linking errors :(
