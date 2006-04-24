@@ -3,11 +3,22 @@ default_pre_build &&
   # and to skip menue if config is allready there
 cd $SOURCE_DIRECTORY &&
 patch -p0 < $SCRIPT_DIRECTORY/setup.diff &&
-if [[ $RECONFIGURE ]] ;  then
-  echo "executing setup.sh" &&
+if [[ -z "$LIRCOPTS" ]] ;  then
+  message "Executing setup..." &&
   ./setup.sh &&
-  # Strip off crap from there configure wrapper
-  local tmp=$(wc -l configure.sh | awk '{ print $1 }')
-  LIRCOPTS="$(tail -n $(( $tmp - 4 )) configure.sh | head -n $(( $tmp - 5 )))  "
+
+  # Extract ./configure options from the generated script
+  # We need to make these OPTS a one-liner, otherwise bad things happen
+  LIRCOPTS="$(gawk '
+BEGIN {
+  opts = ""
+}
+/^--/ {
+  opts = opts " " $1
+}
+END {
+  print opts
+}
+' configure.sh)" &&
   persistent_add LIRCOPTS
 fi
