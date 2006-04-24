@@ -58,7 +58,6 @@ esac  &&
                    --with-versioning               \
                    --with-mod_charset              \
                    --with-pear                     \
-                 --enable-pdo                      \
             --with-layout=GNU                      \
                           $OPTS                    &&
 invoke_gcc &&
