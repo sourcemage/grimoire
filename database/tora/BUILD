@@ -1,5 +1,2 @@
-#  default_build
-  ./configure 	--prefix=${INSTALL_ROOT}/usr \
-		--without-oracle \
-                $OPTS                &&
-  make                  
+OPTS="${OPTS}  --without-oracle"  &&
+default_build
