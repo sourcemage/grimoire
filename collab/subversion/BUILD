@@ -16,7 +16,7 @@ fi &&
 
 if ! [[ -x configure ]]; then ./autogen.sh; fi &&
 
-OPTS="$OPTS --disable-debug --disable-static --disable-mod-activation --enable-dso --enable-shared" &&
+OPTS="$OPTS --disable-debug --disable-static --disable-mod-activation --enable-dso --enable-shared --disable-neon-version-check" &&
 make_single &&
 default_build &&
 
