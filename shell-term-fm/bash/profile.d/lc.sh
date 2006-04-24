@@ -1,11 +1,25 @@
 #!/bin/bash
-# Added by /usr/sbin/smgl.install
-# First check if this variable is already set
-# then if not set, check it (maybe), then set it
+# Enhancing support for locale support
+# First source the locale config then
+# if a var is set set it...
 
-if  [ -z "$LANG" ] ; then
-        LANG="en_US"
+. /etc/sysconfig/locale
+
+function export_if_set() {
+
+#if the variable whose name is in $1 is not empty
+
+if [[ -n ${!1} ]] 
+then
+  export $1
 fi
+}
 
-export LANG
+LOCALE_VARS="LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE \
+LC_MONETARY LC_MESSAGES LC_PAPER LC_NAME \
+LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT LC_ALL"
 
+for i in $LOCALE_VARS
+do
+  export_if_set "$i"
+done
