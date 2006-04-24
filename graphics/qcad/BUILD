@@ -9,7 +9,6 @@ do
   cd  ..
 done                                                       &&
 
-echo "before qcadcmd..."                                   &&
 cd qcadcmd                                                 &&
 make prepare                                               &&
 cd ..                                                      &&
