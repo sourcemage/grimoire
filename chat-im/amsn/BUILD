@@ -1,1 +1,2 @@
-true
+./configure --prefix=/usr
+make
