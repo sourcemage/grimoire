@@ -4,4 +4,6 @@
              --localstatedir=/var  \
              --enable-shared       \
              ${OPTS}               &&
-make
+make_single  &&
+make   &&
+make_normal
