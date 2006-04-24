@@ -90,8 +90,16 @@ patch  -d  $FIREFOX_HOME           -p1  -N      \
 #
 cp  ${SCRIPT_DIRECTORY}/${SPELL}.sh  $INSTALL_ROOT/etc/profile.d  &&
 
+if test  "$FIREFOX_NULLPLUGIN" == "n";  then
+  rm  $FIREFOX_HOME/plugins/libnullplugin.so
+fi  &&
 #
 # Install firefox script so it loads properly
 #
 install  -m  755  -o  root  -g  root  $SCRIPT_DIRECTORY/firefox  \
-         $INSTALL_ROOT/usr/bin
+         $INSTALL_ROOT/usr/bin  &&
+
+# make the pkgconfig files reference the nspr from the standalone nspr spell
+#sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-nss.pc  &&
+sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-js.pc  &&
+sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-xpcom.pc

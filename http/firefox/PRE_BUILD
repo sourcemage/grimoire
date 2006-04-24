@@ -26,12 +26,7 @@ if  [  "$FIREFOX_CVS"  =  "y"  ];  then
   cvs  -z9  -q  -d:pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot        \
        checkout -PA  -d  mozilla mozilla/client.mk                          &&
   cd  $SOURCE_DIRECTORY                                                     &&
-  if  [  "$FIREFOX_SVG"  =  "y"  ];  then
-    make  -j1  -f  client.mk  checkout  MOZ_CO_FLAGS=-PA                    \
-      MOZ_CO_PROJECT=browser  MOZ_CO_MODULE=mozilla/other-licenses/libart_lgpl
-  else
-    make  -j1  -f  client.mk  checkout  MOZ_CO_FLAGS=-PA  MOZ_CO_PROJECT=browser
-  fi                                                                        &&
+  make  -j1  -f  client.mk  checkout  MOZ_CO_FLAGS=-PA  MOZ_CO_PROJECT=browser
   cd  $BUILD_DIRECTORY                                                      &&
   message  "${MESSAGE_COLOR}Generating tarball for reuse"                   &&
   tar  jcf  $FIREFOX_TARBALL  mozilla/                                      &&
@@ -41,11 +36,14 @@ fi                                                                          &&
 
 cd  $SOURCE_DIRECTORY                                                       &&
 
-# Patches for freetype 2.1.8 and gcc 3.4
-patch  -p1  <  $SCRIPT_DIRECTORY/freetype.patch  &&
-if use_gcc ^4; then
-  patch  -p1  <  $SCRIPT_DIRECTORY/gcc4.patch
-fi &&
-
-# Typeaheadfind patch
-patch -p0 < $SCRIPT_DIRECTORY/typeaheadfind.diff
+# 1.5 patches
+# 1) visibility
+patch -p0 < $SCRIPT_DIRECTORY/firefox-1.1-visibility.patch       &&
+# 2) removing pangoxft
+patch -p1 < $SCRIPT_DIRECTORY/firefox-nopangoxft.patch           &&
+# 3) no crash uri loader with gnome-vfs
+patch -p0 < $SCRIPT_DIRECTORY/firefox-1.1-uriloader.patch        &&
+# 4) typeahead
+patch -p1 < $SCRIPT_DIRECTORY/embed-typeaheadfind-1.patch        &&
+# 5) sec fix
+patch -p0 < $SCRIPT_DIRECTORY/mozilla-firefox-1.5-mork.patch

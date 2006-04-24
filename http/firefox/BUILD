@@ -15,17 +15,10 @@ if  [  -f  /root/.mozconfig  ];  then
   rm  -f  /root/.mozconfig
 fi  &&
 
-if  [  "$FIREFOX_SVG"  =  "y"  ];  then
-  OPTS="$OPTS  --enable-svg  --enable-svg-renderer-libart"  &&
-  export  MOZ_INTERNAL_LIBART_LGPL=1
-fi  &&
-
 if [ "$FIREFOX_CVS" == "y" ]; then
   OPTS="$OPTS --enable-application=browser"
 fi &&
 cp browser/config/mozconfig .mozconfig &&
-# append typeaheadfind extension name to enable it
-sedit 's/enable-extensions=.*/\0,typeaheadfind/g' .mozconfig &&
 
 ./configure                                       \
   --prefix=${INSTALL_ROOT}/usr                    \
@@ -44,6 +37,8 @@ sedit 's/enable-extensions=.*/\0,typeaheadfind/g' .mozconfig &&
   --disable-mailnews                              \
   --disable-composer                              \
   --enable-single-profile                         \
+  --enable-extensions=default,typeaheadfind       \
+  --enable-canvas                                 \
   $OPTS                                           &&
 
 make_single                                       &&
