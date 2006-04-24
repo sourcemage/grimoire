@@ -2,17 +2,40 @@ depends  zlib         &&
 depends  gdbm         &&
 depends  db           &&
 depends  xemacs-base  &&
-depends  efs
+depends  efs          &&
 
-if  [  "${XEMACS_GTK}" == "y"  ] ; then
-    depends gtk+
-else
-    optional_depends  "lesstif"                                          \
-                      ""                                                 \
-                      "--enable-dialogs=athena  --enable-widgets=athena" \
-                      "for OSF/Motif standard GUI"
+# tty options
+if [[ "XEMACS_TTY" == "y" ]]
+then optional_depends  "ncurses"                         \
+                       "--with-ncurses"                  \
+                       "--without-ncurses"               \
+                       "for ncurses-based TTY support"   &&
+     optional_depends  "gpm"                             \
+                       "--with-gpm"                      \
+                       "--without-gpm"                   \
+                       "for GPM mouse support for ttys"
 fi &&
 
+# graphics toolkit options
+if  [[ "${XEMACS_GTK}" == "y" ]] ; then
+    depends gtk+ &&
+    if [[ "$XEMACS_GNOME" == "y" ]] ; then
+        depends gnome-libs &&
+        depends libgnomeui
+    fi
+else [[ "${XEMACS_MOTIF}" == "y" ]] && depends MOTIF
+fi
+
+# sound options: these are not marked as optional_depends because they each have
+# their entry in an --enable-sound=TYPES flag. see CONFIGURE
+if [[ "$XEMACS_ESD" == "y" ]]
+then depends esound
+fi &&
+if [[ "$XEMACS_NAS" == "y" ]]
+then depends nas
+fi &&
+
+# graphics libs options
 optional_depends  "libpng"                             \
                   "--with-png"                         \
                   "--without-png"                      \
@@ -33,16 +56,7 @@ optional_depends  "compface"                                          \
                   "--without-xface"                                   \
                   "for X-Face mail headers (Of doubtful usefulness)"  &&
 
-optional_depends  "ncurses"                         \
-                  "--with-ncurses  --with-tty=yes"  \
-                  "--without-ncurses"               \
-                  "for ncurses-based TTY support"   &&
-
-optional_depends  "gpm"                             \
-                  "--with-gpm"                      \
-                  "--without-gpm"                   \
-                  "for GPM mouse support for ttys"  &&
-
+# other options
 optional_depends  "openldap"                   \
                   "--with-ldap"                \
                   "--without-ldap"             \
