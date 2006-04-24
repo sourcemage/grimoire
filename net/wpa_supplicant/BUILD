@@ -1,7 +1,5 @@
-sedit 's:/usr/local/sbin:/usr/sbin:g' Makefile &&
-cp defconfig .config &&
-if [[ $RECONFIGURE ]] && [[ $CONFIG_EDIT == "y" ]]
-then
-	$EDITOR .config
-fi &&
-make
+sed -i "s|/local||" Makefile                     &&
+#keep only enabled options
+grep "\"y\"" $SPELL_CONFIG.p >>.config           &&
+  make
+
