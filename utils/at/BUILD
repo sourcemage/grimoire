@@ -3,9 +3,9 @@ create_account  at                                   &&
 
 if [ ! -d /var/spool/atjobs ]; then
   mkdir  -p  /var/spool/atjobs
-fi
+fi                                                   &&
 
-SENDMAIL='#define  SENDMAIL  "/usr/sbin/sendmail"'
+SENDMAIL='#define  SENDMAIL  "/usr/sbin/sendmail"'   &&
 
 ./configure  --build=$BUILD                          \
              --prefix=${INSTALL_ROOT}/usr            \
@@ -16,6 +16,7 @@ SENDMAIL='#define  SENDMAIL  "/usr/sbin/sendmail"'
              --mandir=${INSTALL_ROOT}/usr/share/man  \
              --with-daemon_username=at               \
              --with-daemon_groupname=at              \
-             $OPTS                 &&
-echo  "$SENDMAIL"  >>  config.h    &&
+             $OPTS                                   &&
+
+echo  "$SENDMAIL"  >>  config.h                      &&
 make
