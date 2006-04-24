@@ -1,4 +1,3 @@
-(
   OPT_SEDITS="s/-Wall/-Wall $CFLAGS/"
 
   sedit  "$OPT_SEDITS"     cobpp/Makefile.in
@@ -9,8 +8,4 @@
                --prefix=/usr       \
                --enable-debug-all  \
                $OPTS               &&
-  make                             &&
-  prepare_install                  &&
-  make    install
-
-) > $C_FIFO 2>&1
+  make 
