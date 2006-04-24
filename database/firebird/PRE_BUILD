@@ -1,20 +1,25 @@
-#------------------------------------------------------------------------
-#  stop server if it is running
+  create_account firebird                &&
+  default_pre_build                      &&
+  cd $SOURCE_DIRECTORY                   &&
 
-#if  [[ `pgrep "(fbserver|fbguard|fb_lock_mgr)"` ]]
-#then
-#  cat << EOF
-#  	Please stop the Firebird server first,
-#	using 'telinit disable firebird'
-#EOF
-#  return 1
-#elif [[ `pgrep "(fb_inet_server|fb_lock_mgr)"` ]]
-#then
-#  echo "Please quit all Firebird applications and then proceed."
-#  return 1
-#else
-#  echo Assuming that Firebird server is not running
-  create_account firebird &&
-  default_pre_build	
-#fi
+# at present the build only works for everything in one directory
+# tree /usr/firebird
+
+# remove supplied ICU & editline packages
+  rm -rf extern                            &&
+# fix for gcc4 and smgl issues
+  local PATCH                              &&
+  case "$FB_VER" in
+	cvs|devel)
+          PATCH=fb2.patch.bz2
+            ;;
+	*)
+         PATCH=fb15.patch.bz2
+            ;;
+  esac                                      &&
+#apply patches
+  bzcat $SPELL_DIRECTORY/$PATCH | patch -p1 &&
+
+# run autogen
+  NOCONFIGURE=1 . ./autogen.sh
 

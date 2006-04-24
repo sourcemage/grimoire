@@ -1,5 +1,25 @@
 cat <<EOF
  Classic Server install needs services and xinet.d
  Super Server install needs init.d
+
+ Before updating firebird, it is recommended that you save the security database
+
+ After installing firebird, you should change the default password for the SYSDBA user
+ by means of the script /usr/firebird/bin/changeDBAPassword.sh
 EOF
-config_query_list WHICH "which version to build?" stable devel cvs
+config_query_list FB_VER "which version to build?" stable devel cvs
+
+# warn of major changes
+if spell_ok firebird;then
+  FB_PREV=`installed_version firebird | cut -d. -f-2`
+  if [ $FB_PREV = 1.5 ] && [ $FB_VER != stable ];then
+    cat <<EOF
+        there are major changes regarding the security database in this new version
+        please make a copy of the existing security database /usr/firebird/security.fdb
+        before proceeding.
+        after installing firebird2, read the instructions in
+        /usr/firebird/upgrade/security_database.txt
+EOF
+  fi
+fi
+
