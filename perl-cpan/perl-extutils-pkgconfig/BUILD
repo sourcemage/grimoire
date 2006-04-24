@@ -1,2 +1,1 @@
-perl Makefile.PL &&
-make
+default_build_perl
