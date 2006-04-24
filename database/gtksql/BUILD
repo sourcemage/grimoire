@@ -1,0 +1,2 @@
+#zzzcrash &&
+default_build
