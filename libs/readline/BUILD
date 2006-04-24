@@ -1,5 +1,4 @@
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
-patch -p1 < $SCRIPT_DIRECTORY/readline-5.0-display_wrap-1.patch &&
 
 
 ./configure  --build=$BUILD                            \
