@@ -1,0 +1,35 @@
+--- configure.ac.orig	2005-12-28 14:16:13.000000000 +0100
++++ configure.ac	2005-12-28 14:22:09.000000000 +0100
+@@ -251,7 +251,31 @@
+ dnl Check for libsmjs (spidermonkey)
+ dnl ---------------------------------------------
+ 
+-AC_PATH_SPIDERMONKEY
++have_sm=yes
++JS_CFLAGS=""
++AC_MSG_CHECKING(spidermonkey engine )
++ AC_ARG_WITH(jsapi-include,
++    [    --with-jsapi-include=PATH       path to jsapi.h],[],[])
++  if test "${with_jsapi_include}" != "no" -a -n "${with_jsapi_include}"
++  then
++    JS_CFLAGS="-I${with_jsapi_include} -DXP_UNIX"
++  fi
++ echo "using : $JS_CFLAGS : as extra flags"
++
++ old_flags=$CPPFLAGS
++
++CPPFLAGS="$CPPFLAGS $JS_CFLAGS"
++AC_CHECK_HEADER(jsapi.h,,have_sm=no)
++JS_LIBS="-lmozjs"
++have_sm="yes"
++AC_CHECK_LIB(mozjs,JS_Init,,have_sm=no,)
++if test "x$have_sm" = "xno"; then
++	AC_MSG_ERROR([*** SPIDERMONKEY javascript engine not found !***])
++fi
++CPPFLAGS=$old_flags
++
++AC_SUBST(JS_CFLAGS)
++AC_SUBST(JS_LIBS)
+ 
+ dnl ---------------------------------------------
+ dnl Miscellaneous build flags
