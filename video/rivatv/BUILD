@@ -1,4 +1,3 @@
-[ -e /dev/.devfsd ] && sedit "s/install: devices/install:/" Makefile.in
-
-patch configure $SCRIPT_DIRECTORY/configure-fix.patch  &&
-default_build
+invoke_gcc  &&
+./configure --with-kernel=/lib/modules/$(installed_version linux)/build  &&
+make
