@@ -9,6 +9,5 @@
 	       --with-simdir=/usr/lib/silc-client \
 	       --with-docdir=/usr/doc/silc-client/doc \
 	       --with-helpdir=/usr/share/silc/help \
-               --without-irssi                    \
 	       $OPTS		      &&	
   make 
