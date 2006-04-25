@@ -1,0 +1,1 @@
+makeinfo planner-el.texi
