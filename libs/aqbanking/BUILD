@@ -1,28 +1,37 @@
-local BACKENDS="aqhbci aqdtaus aqofxconnect"  &&
-local FRONTENDS="cbanking"                    &&
+#  [aqbanking_frontends="cbanking g2banking qbanking kbanking"]
+#  [aqbanking_backends="aqhbci aqdtaus aqgeldkarte aqofxconnect"]
+
+local BACKENDS FRONTENDS                      &&
+
+BACKENDS="aqhbci"                             &&
+FRONTENDS="cbanking"                          &&
 
 if [ "${AQBANKING_GTK}" == "y" ]; then
-   local FRONTENDS="${FRONTENDS} g2banking"
-fi  &&
+   FRONTENDS="${FRONTENDS} g2banking"
+fi                                            &&
 
-#if [ "${AQBANKING_QT}" == "y" ]; then
-#   local FRONTENDS="${FRONTENDS} qbanking"   &&
-#   local BACKENDS="${BACKENDS} aqgeldkarte"
-#else
-#   OPTS="${OPTS} --disable-qt3"
-#fi  &&
+if spell_ok libofx; then
+   BACKEND="${BACKENDS} aqofxconnect"
+fi                                            &&
 
-#if [ "${AQBANKING_KDE}" == "y" ]; then
-#   local FRONTENDS="${FRONTENDS} kbanking"
-#else
-#   OPTS="${OPTS} --disable-kde3"
-#fi  &&
+if [ "${AQBANKING_QT}" == "y" ]; then
+   FRONTENDS="${FRONTENDS} qbanking"          &&
+   if spell_ok libchipcard2; then
+      BACKENDS="${BACKENDS} aqgeldkarte"
+   fi
+else
+   OPTS="${OPTS} --disable-qt3"
+fi                                            &&
 
-#if [ "${AQBANKING_QTTHREADS}" == "y" ]; then
-#   OPTS="${OPTS} --enable-qt3-treads"
-#fi  &&
+if [ "${AQBANKING_KDE}" == "y" ]; then
+   FRONTENDS="${FRONTENDS} kbanking"
+else
+   OPTS="${OPTS} --disable-kde3"
+fi                                            &&
 
-OPTS="${OPTS} --disable-qt3 --disable-kde3"  &&
+if [ "${AQBANKING_QTTHREADS}" == "y" ]; then
+   OPTS="${OPTS} --enable-qt3-treads"
+fi                                            &&
 
 ./configure --build=${BUILD}                           \
             --host=${HOST}                             \
@@ -36,4 +45,3 @@ OPTS="${OPTS} --disable-qt3 --disable-kde3"  &&
             $OPTS                                      &&
 
 make
-
