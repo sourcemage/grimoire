@@ -19,42 +19,76 @@ exists_in_text()
 device_is_up()
 {
   if [ -x /usr/bin/grep ]; then
-    /sbin/ifconfig  | grep -A1 "^${1}\ " | grep 'inet addr' >& /dev/null
+    /sbin/ifconfig -a | grep -A1 "^${1}\ " | grep 'inet addr' >& /dev/null
   else
-    /sbin/ifconfig 2>&1 | exists_in_text $1
+    /sbin/ifconfig -a 2>&1 | exists_in_text $1
   fi
 }
 
 _do_device_up()
 {
-  if [ "$MODE" = dynamic ]; then
-    . /etc/sysconfig/dhcpcd
-    ARGS=""
-    [ "$USE_SYSLOG" = "yes" ] && ARGS="-d"
+    case "$MODE" in
+    dynamic )
+      sed -i 's/MODE=.*/MODE=dynamic_set_hostname/' $netdevdir/$DEV.dev &&
+      echo "Fixed error in $DEV.dev"
+      . /etc/sysconfig/dhcpcd
+      ARGS="-h $HOSTNAME"
+      [ "$USE_SYSLOG" = "yes" ] && ARGS="$ARGS -d"
 
-    echo "Starting dhcpcd on $DEV ..."
-    if [ -e $DHCPCD_PATH$DEV.pid ]; then
-      dhcpcPid=`cat $DHCPCD_PATH$DEV.pid`
-      dhcpcd -k $DEV 1>/dev/null 2>&1 &&
-      renice 10 $dhcpcPid 1>/dev/null 2>&1 || rm -f $DHCPCD_PATH$DEV.pid &&
-      sleep 1
-    fi &&
-    dhcpcd -t $TIMEOUT $ARGS $OPTIONS $DEV
-  elif [ "$MODE" = static ]; then
-    echo "Setting up static networking on $DEV..."
-    ARGS=""
-    if [ "$POINTOPOINT" != "" ] ; then
-      ARGS="$ARGS pointopoint $POINTOPOINT"
-    fi
-    if [ "$MTU" != "" ] ; then
-      ARGS="$ARGS mtu $MTU"
-    fi
+      echo "Starting dhcpcd on $DEV ..."
+      if [ -e $DHCPCD_PATH$DEV.pid ]; then
+        dhcpcPid=`cat $DHCPCD_PATH$DEV.pid`
+        dhcpcd -k $DEV 1>/dev/null 2>&1 &&
+        renice 10 $dhcpcPid 1>/dev/null 2>&1 || rm -f $DHCPCD_PATH$DEV.pid &&
+        sleep 1
+      fi &&
+      dhcpcd -t $TIMEOUT $ARGS $OPTIONS $DEV
+    ;;
+    dynamic_set_hostname )
+      . /etc/sysconfig/dhcpcd
+      ARGS="-h $HOSTNAME"
+      [ "$USE_SYSLOG" = "yes" ] && ARGS="$ARGS -d"
 
-    ifconfig $DEV $IP broadcast $BROADCAST netmask $NETMASK $ARGS
-  else
-    echo "There are errors in $netdevdir/$DEV.dev"
-    exit 1
-  fi
+      echo "Starting dhcpcd on $DEV ..."
+      if [ -e $DHCPCD_PATH$DEV.pid ]; then
+        dhcpcPid=`cat $DHCPCD_PATH$DEV.pid`
+        dhcpcd -k $DEV 1>/dev/null 2>&1 &&
+        renice 10 $dhcpcPid 1>/dev/null 2>&1 || rm -f $DHCPCD_PATH$DEV.pid &&
+        sleep 1
+      fi &&
+      dhcpcd -t $TIMEOUT $ARGS $OPTIONS $DEV
+    ;;
+    dynamic_get_hostname )
+      . /etc/sysconfig/dhcpcd
+      ARGS="-H"
+      [ "$USE_SYSLOG" = "yes" ] && ARGS="$ARGS -d"
+
+      echo "Starting dhcpcd on $DEV ..."
+      if [ -e $DHCPCD_PATH$DEV.pid ]; then
+        dhcpcPid=`cat $DHCPCD_PATH$DEV.pid`
+        dhcpcd -k $DEV 1>/dev/null 2>&1 &&
+        renice 10 $dhcpcPid 1>/dev/null 2>&1 || rm -f $DHCPCD_PATH$DEV.pid &&
+        sleep 1
+      fi &&
+      dhcpcd -t $TIMEOUT $ARGS $OPTIONS $DEV
+    ;;
+    static )
+      echo "Setting up static networking on $DEV..."
+      ARGS=""
+      if [ "$POINTOPOINT" != "" ] ; then
+        ARGS="$ARGS pointopoint $POINTOPOINT"
+      fi
+      if [ "$MTU" != "" ] ; then
+        ARGS="$ARGS mtu $MTU"
+      fi
+
+      ifconfig $DEV $IP broadcast $BROADCAST netmask $NETMASK $ARGS
+    ;;
+    * )
+      echo "There are errors in $netdevdir/$DEV.dev"
+      exit 1
+    ;;
+  esac
 }
 
 _do_route_up()
@@ -102,10 +136,20 @@ if device_is_up $DEV ; then
   exit 0
 fi
 
-unset MODE MODULE IP BROADCAST NETMASK GATEWAY POINTOPOINT MTU WIFI UP_ON_BOOT
+unset MODE MODULE IP BROADCAST NETMASK GATEWAY POINTOPOINT MTU WIFI UP_ON_BOOT MAC NEEDS
 unset do_device_up do_route_up on_up
 
 . $netdevdir/$DEV.dev
+
+for needed_device in ${NEEDS}; do
+  echo -n "Checking if $needed_device is up... "
+  if ( ifconfig | grep -q $needed_device ); then
+     echo "yes it is" ;
+  else
+     echo "NO, it's not! Aborting!"
+     exit 1 ;
+  fi
+done
 
 if [ -z "$MODE" ]; then
   echo "There are errors in $netdevdir/$DEV.dev"
@@ -126,6 +170,16 @@ if [ "$WIFI" ]; then
   sleep 1 # to give the card time to start, needed on some cards.
   iwconfig $DEV ${WIFI}
 fi &&
+
+if [ "$MAC" ]; then
+  echo "Setting custom MAC address for $DEV ..."
+  if ( ifconfig $DEV | grep -q Ethernet ); then
+     ifconfig $DEV hw ether $MAC
+     echo "Custom MAC set for device $DEV";
+  else
+     echo "Can't set custom MAC for non-ethernet device $DEV";
+  fi
+fi
 
 run_func do_device_up 
 run_func do_route_up 
