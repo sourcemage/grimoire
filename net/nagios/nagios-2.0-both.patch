@@ -1,0 +1,565 @@
+diff -u -a -b -B -r nagios-2.0/base/config.c nagios-2.0-both/base/config.c
+--- nagios-2.0/base/config.c	2005-12-26 17:18:14.000000000 -0600
++++ nagios-2.0-both/base/config.c	2006-02-27 09:39:45.000000000 -0600
+@@ -1845,6 +1845,13 @@
+ 
+ 		found=FALSE;
+ 
++		if (temp_host->community==NULL) {
++			snprintf(temp_buffer,sizeof(temp_buffer),"Warning: Host '%s' has no community defined!",temp_host->name);
++			temp_buffer[sizeof(temp_buffer)-1]='\x0';
++			write_to_logs_and_console(temp_buffer,NSLOG_VERIFICATION_WARNING,TRUE);
++			warnings++;
++		}
++
+ #ifdef REMOVED_061303
+ 		/* make sure each host is a member of at least one hostgroup */
+ 		for(temp_hostgroup=hostgroup_list;temp_hostgroup!=NULL;temp_hostgroup=temp_hostgroup->next){
+diff -u -a -b -B -r nagios-2.0/base/utils.c nagios-2.0-both/base/utils.c
+--- nagios-2.0/base/utils.c	2006-01-04 10:39:57.000000000 -0600
++++ nagios-2.0-both/base/utils.c	2006-02-27 09:39:45.000000000 -0600
+@@ -733,6 +733,13 @@
+ 		free(macro_x[MACRO_HOSTADDRESS]);
+ 	macro_x[MACRO_HOSTADDRESS]=strdup(hst->address);
+ 
++        /* begin modification to define sec. ipaddress */
++        /* get the host secondary address */
++        if(macro_x[MACRO_SECONDARYHOSTADDRESS]!=NULL)
++                free(macro_x[MACRO_SECONDARYHOSTADDRESS]);
++        macro_x[MACRO_SECONDARYHOSTADDRESS]=strdup(hst->secondary_address);
++        /* end of modification */
++
+ 	/* get the host state */
+ 	if(macro_x[MACRO_HOSTSTATE]!=NULL)
+ 		free(macro_x[MACRO_HOSTSTATE]);
+@@ -931,6 +938,14 @@
+ 	if(temp_hostgroup!=NULL)
+ 		macro_x[MACRO_HOSTGROUPALIAS]=strdup(temp_hostgroup->alias);
+ 
++	/* patch define SNMP Community */
++	if(macro_x[MACRO_SNMPCOMMUNITY]!=NULL)
++		free(macro_x[MACRO_SNMPCOMMUNITY]);
++	macro_x[MACRO_SNMPCOMMUNITY]=NULL;
++	if (strdup(hst->community)!=NULL)
++		macro_x[MACRO_SNMPCOMMUNITY]=strdup(hst->community);
++	/* end */
++	
+ 	if((temp_hostextinfo=find_hostextinfo(hst->name))){
+ 
+ 		/* get the action url */
+@@ -1221,6 +1236,11 @@
+ 	else if(!strcmp(macro,"HOSTADDRESS"))
+ 		macro_ondemand=strdup(hst->address);
+ 
++        /* begin modification to define sec. ipaddress */
++        else if(!strcmp(macro,"SECONDARYHOSTADDRESS"))
++                                macro_ondemand=strdup(hst->secondary_address);
++        /* end of modification */
++
+ 	/* get the host state */
+ 	else if(!strcmp(macro,"HOSTSTATE")){
+ 		macro_ondemand=(char *)malloc(MAX_STATE_LENGTH);
+@@ -1266,7 +1286,10 @@
+ 			strip(macro_ondemand);
+ 		        }
+ 	        }
+-
++	/* patch define SNMP Community */
++	else if(!strcmp(macro,"SNMPCOMMUNITY"))
++			macro_ondemand=strdup(hst->community);
++	/* END */
+ 	/* get the performance data */
+ 	else if(!strcmp(macro,"HOSTPERFDATA")){
+ 		if(hst->perf_data==NULL)
+@@ -2293,6 +2316,9 @@
+ 	add_macrox_name(MACRO_HOSTNAME,"HOSTNAME");
+ 	add_macrox_name(MACRO_HOSTALIAS,"HOSTALIAS");
+ 	add_macrox_name(MACRO_HOSTADDRESS,"HOSTADDRESS");
++        /* begin modification to define sec. ipaddress */
++        add_macrox_name(MACRO_SECONDARYHOSTADDRESS,"SECONDARYHOSTADDRESS");
++        /* end of modifications */
+ 	add_macrox_name(MACRO_SERVICEDESC,"SERVICEDESC");
+ 	add_macrox_name(MACRO_SERVICESTATE,"SERVICESTATE");
+ 	add_macrox_name(MACRO_SERVICESTATEID,"SERVICESTATEID");
+@@ -2389,6 +2415,9 @@
+ 	add_macrox_name(MACRO_PROCESSSTARTTIME,"PROCESSSTARTTIME");
+ 	add_macrox_name(MACRO_HOSTCHECKTYPE,"HOSTCHECKTYPE");
+ 	add_macrox_name(MACRO_SERVICECHECKTYPE,"SERVICECHECKTYPE");
++	/* patch define SNMP Community */
++	add_macrox_name(MACRO_SNMPCOMMUNITY,"SNMPCOMMUNITY");
++	/* END */
+ 
+ #ifdef DEBUG0
+ 	printf("init_macrox_names() end\n");
+diff -u -a -b -B -r nagios-2.0/cgi/config.c nagios-2.0-both/cgi/config.c
+--- nagios-2.0/cgi/config.c	2005-11-16 02:49:35.000000000 -0600
++++ nagios-2.0-both/cgi/config.c	2006-02-27 09:39:45.000000000 -0600
+@@ -447,10 +447,16 @@
+ 	printf("<TH CLASS='data'>Host Name</TH>");
+ 	printf("<TH CLASS='data'>Alias/Description</TH>");
+ 	printf("<TH CLASS='data'>Address</TH>");
++	/* begin modification to define sec. ipaddress */
++	printf("<TH CLASS='data'>secondary Address</TH>");
++	/* end of modification */
+ 	printf("<TH CLASS='data'>Parent Hosts</TH>");
+ 	printf("<TH CLASS='data'>Max. Check Attempts</TH>");
+ 	printf("<TH CLASS='data'>Check Interval</TH>\n");
+ 	printf("<TH CLASS='data'>Host Check Command</TH>");
++	/* patch define SNMP Community */
++	printf("<TH CLASS='data'>SNMP Community</TH>");
++	/* END */
+ 	printf("<TH CLASS='data'>Obsess Over</TH>\n");
+ 	printf("<TH CLASS='data'>Enable Active Checks</TH>\n");
+ 	printf("<TH CLASS='data'>Enable Passive Checks</TH>\n");
+@@ -488,7 +494,10 @@
+ 
+ 		printf("<TD CLASS='%s'><a name='%s'>%s</a></TD>\n",bg_class,url_encode(temp_host->name),temp_host->name);
+ 		printf("<TD CLASS='%s'>%s</TD>\n",bg_class,temp_host->alias);
++		/* begin modification to define sec. ipaddress */
+ 		printf("<TD CLASS='%s'>%s</TD>\n",bg_class,temp_host->address);
++		printf("<TD CLASS='%s'>%s</TD>\n",bg_class,temp_host->secondary_address);
++		/* end of modification */
+ 
+ 		printf("<TD CLASS='%s'>",bg_class);
+ 		for(temp_hostsmember=temp_host->parent_hosts;temp_hostsmember!=NULL;temp_hostsmember=temp_hostsmember->next){
+@@ -514,6 +523,10 @@
+ 		printf("<a href='%s?type=commands#%s'>%s</a></TD>\n",CONFIG_CGI,url_encode(temp_host->host_check_command),temp_host->host_check_command);
+ 		printf("</TD>\n");
+ 
++		/* patch define SNMP Community */
++		printf("<TD CLASS='%s'>%s&nbsp;</TD>\n",bg_class,temp_host->community);
++		/* END */
++
+ 		printf("<TD CLASS='%s'>%s</TD>\n",bg_class,(temp_host->obsess_over_host==TRUE)?"Yes":"No");
+ 
+ 		printf("<TD CLASS='%s'>%s</TD>\n",bg_class,(temp_host->checks_enabled==TRUE)?"Yes":"No");
+diff -u -a -b -B -r nagios-2.0/cgi/extinfo.c nagios-2.0-both/cgi/extinfo.c
+--- nagios-2.0/cgi/extinfo.c	2006-01-20 11:34:53.000000000 -0600
++++ nagios-2.0-both/cgi/extinfo.c	2006-02-27 09:39:27.000000000 -0600
+@@ -319,7 +319,10 @@
+ 				if(found==FALSE)
+ 					printf("No hostgroups");
+ 				printf("</DIV><BR>\n");
+-				printf("<DIV CLASS='data'>%s</DIV>\n",temp_host->address);
++				/* begin modification to define sec. ipaddress */
++				printf("<DIV CLASS='data'><b>primary:</b>%s</DIV>\n",temp_host->address);
++				printf("<DIV CLASS='data'><b>secondary:</b>%s</DIV>\n",temp_host->secondary_address);
++				/* end of modification */
+ 			        }
+ 			if(display_type==DISPLAY_SERVICE_INFO){
+ 				printf("<DIV CLASS='data'>Service</DIV><DIV CLASS='dataTitle'>%s</DIV><DIV CLASS='data'>On Host</DIV>\n",service_desc);
+diff -u -a -b -B -r nagios-2.0/common/objects.c nagios-2.0-both/common/objects.c
+--- nagios-2.0/common/objects.c	2005-12-27 12:55:10.000000000 -0600
++++ nagios-2.0-both/common/objects.c	2006-02-27 10:04:45.000000000 -0600
+@@ -924,11 +924,15 @@
+ 	return new_timerange;
+         }
+ 
+-
++/* begin modification to define sec. ipaddress */
++/* added char *secondary_address
++/* begin modification to define snmp community */
++/* added char *community */
+ /* add a new host definition */
+-host *add_host(char *name, char *alias, char *address, char *check_period, int check_interval, int max_attempts, int notify_up, int notify_down, int notify_unreachable, int notify_flapping, int notification_interval, char *notification_period, int notifications_enabled, char *check_command, int checks_enabled, int accept_passive_checks, char *event_handler, int event_handler_enabled, int flap_detection_enabled, double low_flap_threshold, double high_flap_threshold, int stalk_up, int stalk_down, int stalk_unreachable, int process_perfdata, int failure_prediction_enabled, char *failure_prediction_options, int check_freshness, int freshness_threshold, int retain_status_information, int retain_nonstatus_information, int obsess_over_host){
++host *add_host(char *name, char *alias, char *address, char *secondary_address, char *check_period, int check_interval, int max_attempts, int notify_up, int notify_down, int notify_unreachable, int notify_flapping, int notification_interval, char *notification_period, int notifications_enabled, char *check_command, int checks_enabled, int accept_passive_checks, char *event_handler, int event_handler_enabled, int flap_detection_enabled, double low_flap_threshold, double high_flap_threshold, int stalk_up, int stalk_down, int stalk_unreachable, int process_perfdata, int failure_prediction_enabled, char *failure_prediction_options, int check_freshness, int freshness_threshold, int retain_status_information, int retain_nonstatus_information, int obsess_over_host, char *community){
+ 	host *temp_host;
+ 	host *new_host;
++/* end of modification */
+ #ifdef NSCORE
+ 	char temp_buffer[MAX_INPUT_BUFFER];
+ 	int x;
+@@ -951,9 +955,15 @@
+ 	strip(name);
+ 	strip(alias);
+ 	strip(address);
++	/* begin modification to define sec. ipaddress */
++	strip(secondary_address);
++	/* end of modification */
+ 	strip(check_command);
+ 	strip(event_handler);
+ 	strip(notification_period);
++	/* patch define SNMP Community */
++	strip(community);
++	/* END */
+ 
+ 	if(!strcmp(name,"") || !strcmp(alias,"") || !strcmp(address,"")){
+ #ifdef NSCORE
+@@ -1209,6 +1219,27 @@
+ 		free(new_host);
+ 		return NULL;
+ 	        }
++	
++	/* begin modification to define sec. ipaddress */
++	if (secondary_address==NULL) {
++		new_host->secondary_address=NULL;
++	} else {
++		new_host->secondary_address=strdup(secondary_address);
++		if (new_host->secondary_address==NULL) {
++#ifdef NSCORE
++			snprintf(temp_buffer,sizeof(temp_buffer)-1,"Error: Could not allocate memory for host '%s' secondary_address\n",name);
++			temp_buffer[sizeof(temp_buffer)-1]='\x0';
++			write_to_logs_and_console(temp_buffer,NSLOG_CONFIG_ERROR,TRUE);
++#endif
++			free(new_host->alias);
++			free(new_host->address);
++			free(new_host->name);
++			free(new_host);
++			return NULL;
++		}
++	}
++	/* end of modification */
++	
+ 	if(check_period!=NULL && strcmp(check_period,"")){
+ 		new_host->check_period=strdup(check_period);
+ 		if(new_host->check_period==NULL){
+@@ -1218,6 +1249,9 @@
+ 			write_to_logs_and_console(temp_buffer,NSLOG_CONFIG_ERROR,TRUE);
+ #endif
+ 			free(new_host->address);
++			/* begin modification to define sec. ipaddress */
++			free(new_host->secondary_address);
++			/* end of modifications */
+ 			free(new_host->alias);
+ 			free(new_host->name);
+ 			free(new_host);
+@@ -1236,6 +1270,9 @@
+ #endif
+ 			free(new_host->check_period);
+ 			free(new_host->address);
++                        /* begin modification to define sec. ipaddress */
++                        free(new_host->secondary_address);
++                        /* end of modifications */
+ 			free(new_host->alias);
+ 			free(new_host->name);
+ 			free(new_host);
+@@ -1256,6 +1293,9 @@
+ 				free(new_host->notification_period);
+ 			free(new_host->check_period);
+ 			free(new_host->address);
++                        /* begin modification to define sec. ipaddress */
++                        free(new_host->secondary_address);
++                        /* end of modifications */
+ 			free(new_host->alias);
+ 			free(new_host->name);
+ 			free(new_host);
+@@ -1278,6 +1318,9 @@
+ 				free(new_host->notification_period);
+ 			free(new_host->check_period);
+ 			free(new_host->address);
++                        /* begin modification to define sec. ipaddress */
++                        free(new_host->secondary_address);
++                        /* end of modifications */
+ 			free(new_host->alias);
+ 			free(new_host->name);
+ 			free(new_host);
+@@ -1302,6 +1345,9 @@
+ 				free(new_host->notification_period);
+ 			free(new_host->check_period);
+ 			free(new_host->address);
++                        /* begin modification to define sec. ipaddress */
++                        free(new_host->secondary_address);
++                        /* end of modifications */
+ 			free(new_host->alias);
+ 			free(new_host->name);
+ 			free(new_host);
+@@ -1311,6 +1357,35 @@
+ 	else
+ 		new_host->failure_prediction_options=NULL;
+ 
++	/* patch define SNMP Community */
++	if (community==NULL) {	
++		new_host->community=NULL;
++	} else {
++		new_host->community=strdup(community);
++		if(new_host->community==NULL){
++#ifdef NSCORE
++			snprintf(temp_buffer,sizeof(temp_buffer)-1,"Error: Could not allocate memory for host '%s' community\n",name);
++			temp_buffer[sizeof(temp_buffer)-1]='\x0';
++			write_to_logs_and_console(temp_buffer,NSLOG_CONFIG_ERROR,TRUE);
++#endif
++		if(new_host->event_handler!=NULL)
++			free(new_host->event_handler);
++		if(new_host->host_check_command!=NULL)
++			free(new_host->host_check_command);
++		if(new_host->notification_period!=NULL)
++			free(new_host->notification_period);
++		if (new_host->failure_prediction_options!=NULL)
++			free(new_host->failure_prediction_options);
++		free(new_host->check_period);
++		free(new_host->address);
++		free(new_host->alias);
++		free(new_host->name);
++		free(new_host);
++		return NULL;
++		}
++	}
++	/* END */
++
+ 	
+ 	new_host->parent_hosts=NULL;
+ 	new_host->max_attempts=max_attempts;
+@@ -1400,6 +1475,9 @@
+ 		if(new_host->notification_period!=NULL)
+ 			free(new_host->notification_period);
+ 		free(new_host->address);
++                /* begin modification to define sec. ipaddress */
++                free(new_host->secondary_address);
++                /* end of modifications */
+ 		free(new_host->alias);
+ 		free(new_host->name);
+ 		free(new_host);
+@@ -1424,6 +1502,9 @@
+ 		if(new_host->notification_period!=NULL)
+ 			free(new_host->notification_period);
+ 		free(new_host->address);
++                /* begin modification to define sec. ipaddress */
++                free(new_host->secondary_address);
++                /* end of modifications */
+ 		free(new_host->alias);
+ 		free(new_host->name);
+ 		free(new_host->plugin_output);
+@@ -1458,6 +1539,9 @@
+ 		if(new_host->notification_period!=NULL)
+ 			free(new_host->notification_period);
+ 		free(new_host->address);
++                /* begin modification to define sec. ipaddress */
++                free(new_host->secondary_address);
++                /* end of modifications */
+ 		free(new_host->alias);
+ 		free(new_host->name);
+ 		free(new_host);
+@@ -1484,6 +1568,12 @@
+ 	printf("\tHost Name:                %s\n",new_host->name);
+ 	printf("\tHost Alias:               %s\n",new_host->alias);
+         printf("\tHost Address:             %s\n",new_host->address);
++        /* begin modification to define sec. ipaddress */
++	printf("\tSecondary Address:	    %s\n",new_host->secondary_address);
++        /* end of modifications */
++	/* patch define SNMP Community */
++        printf("\tSNMP Community:             %s\n",new_host->community);
++	/* END */
+ 	printf("\tHost Check Command:       %s\n",new_host->host_check_command);
+ 	printf("\tMax. Check Attempts:      %d\n",new_host->max_attempts);
+ 	printf("\tHost Event Handler:       %s\n",(new_host->event_handler==NULL)?"N/A":new_host->event_handler);
+diff -u -a -b -B -r nagios-2.0/include/nagios.h.in nagios-2.0-both/include/nagios.h.in
+--- nagios-2.0/include/nagios.h.in	2006-01-04 10:39:57.000000000 -0600
++++ nagios-2.0-both/include/nagios.h.in	2006-02-27 12:20:47.000000000 -0600
+@@ -49,7 +49,7 @@
+ 
+ #define MACRO_ENV_VAR_PREFIX			"NAGIOS_"
+ 
+-#define MACRO_X_COUNT				99	/* size of macro_x[] array */
++#define MACRO_X_COUNT				101	/* size of macro_x[] array */
+ 
+ #define MACRO_HOSTNAME				0
+ #define MACRO_HOSTALIAS				1
+@@ -150,6 +150,11 @@
+ #define MACRO_PROCESSSTARTTIME			96
+ #define MACRO_HOSTCHECKTYPE			97
+ #define MACRO_SERVICECHECKTYPE			98
++#define MACRO_SECONDARYHOSTADDRESS		99
++/* patch define SNMP Community */
++#define MACRO_SNMPCOMMUNITY                     100
++/* END */
++
+ 
+ 
+ 
+Only in nagios-2.0-both/include: nagios.h.in~
+diff -u -a -b -B -r nagios-2.0/include/objects.h nagios-2.0-both/include/objects.h
+--- nagios-2.0/include/objects.h	2005-12-27 12:55:10.000000000 -0600
++++ nagios-2.0-both/include/objects.h	2006-02-27 10:03:10.000000000 -0600
+@@ -129,6 +129,9 @@
+ 	char    *name;
+ 	char	*alias;
+ 	char    *address;
++	/* begin modification to define sec. ipaddress */
++	char	*secondary_address;
++	/* end of modification */
+         hostsmember *parent_hosts;
+ 	char    *host_check_command;
+ 	int     check_interval;
+@@ -159,6 +162,9 @@
+ 	int     failure_prediction_enabled;
+ 	char    *failure_prediction_options;
+ 	int     obsess_over_host;
++	/* patch define SNMP Community */
++	char	*community;
++	/* END */
+ #ifdef NSCORE
+ 	int     problem_has_been_acknowledged;
+ 	int     acknowledgement_type;
+@@ -532,7 +538,12 @@
+ contact *add_contact(char *,char *,char *,char *,char **,char *,char *,int,int,int,int,int,int,int,int,int);	/* adds a contact definition */
+ commandsmember *add_service_notification_command_to_contact(contact *,char *);				/* adds a service notification command to a contact definition */
+ commandsmember *add_host_notification_command_to_contact(contact *,char *);				/* adds a host notification command to a contact definition */
+-host *add_host(char *,char *,char *,char *,int,int,int,int,int,int,int,char *,int,char *,int,int,char *,int,int,double,double,int,int,int,int,int,char *,int,int,int,int,int);	/* adds a host definition */
++/* begin modification to define sec. ipaddress */
++/* added char * for method declaration */
++/* begin modification to define snmp community */
++/* added char * for method declaration */
++host *add_host(char *,char *,char *,char *,char *,int,int,int,int,int,int,int,char *,int,char *,int,int,char *,int,int,double,double,int,int,int,int,int,char *,int,int,int,int,int,char *);	/* adds a host definition */
++/* end of modification */
+ hostsmember *add_parent_host_to_host(host *,char *);							/* adds a parent host to a host definition */
+ contactgroupsmember *add_contactgroup_to_host(host *,char *);					        /* adds a contactgroup to a host definition */
+ timeperiod *add_timeperiod(char *,char *);								/* adds a timeperiod definition */
+diff -u -a -b -B -r nagios-2.0/xdata/xodtemplate.c nagios-2.0-both/xdata/xodtemplate.c
+--- nagios-2.0/xdata/xodtemplate.c	2006-01-12 10:13:08.000000000 -0600
++++ nagios-2.0-both/xdata/xodtemplate.c	2006-02-27 10:00:58.000000000 -0600
+@@ -1207,6 +1207,9 @@
+ 		new_host->host_name=NULL;
+ 		new_host->alias=NULL;
+ 		new_host->address=NULL;
++                /* begin modification to define sec. ipaddress */
++                new_host->secondary_address=NULL;
++                /* end of modification */
+ 		new_host->parents=NULL;
+ 		new_host->hostgroups=NULL;
+ 		new_host->check_command=NULL;
+@@ -1263,6 +1266,9 @@
+ 		new_host->register_object=TRUE;
+ 		new_host->_config_file=config_file;
+ 		new_host->_start_line=start_line;
++		/* patch define SNMP Community */
++		new_host->community=NULL;
++		/* END */
+ 
+ 		/* add new host to head of list in memory */
+ 		new_host->next=xodtemplate_host_list;
+@@ -2658,6 +2664,17 @@
+ 				return ERROR;
+ 			        }
+ 		        }
++                /* begin modification to define sec. ipaddress */
++                else if(!strcmp(variable,"secondary_address")){
++                        temp_host->secondary_address=strdup(value);
++                        if(temp_host->secondary_address==NULL){
++#ifdef DEBUG1
++                                printf("Error: Could not allocate memory for host secondary address.\n");
++#endif
++                                return ERROR;
++                                }
++                        }
++                /* end of modification */
+ 		else if(!strcmp(variable,"parents")){
+ 			temp_host->parents=strdup(value);
+ 			if(temp_host->parents==NULL){
+@@ -2851,7 +2868,17 @@
+ 		        }
+ 		else if(!strcmp(variable,"register"))
+ 			temp_host->register_object=(atoi(value)>0)?TRUE:FALSE;
+-		else{
++		/* patch define SNMP Community */
++		else if(!strcmp(variable,"community")){
++			temp_host->community=strdup(value);
++			if(temp_host->community==NULL){
++#ifdef DEBUG1
++				printf("Error: Could not allocate memory for community name.\n");
++#endif
++				return ERROR;
++		        }
++	        } else{
++		/* END */
+ #ifdef NSCORE
+ 			snprintf(temp_buffer,sizeof(temp_buffer)-1,"Error: Invalid host object directive '%s'.\n",variable);
+ 			temp_buffer[sizeof(temp_buffer)-1]='\x0';
+@@ -5969,6 +5996,10 @@
+ 		this_host->alias=strdup(template_host->alias);
+ 	if(this_host->address==NULL && template_host->address!=NULL)
+ 		this_host->address=strdup(template_host->address);
++        /* begin modification to define sec. ipaddress */
++        if(this_host->secondary_address==NULL && template_host->secondary_address!=NULL)
++                this_host->secondary_address=strdup(template_host->secondary_address);
++        /* end of modification */
+ 	if(this_host->parents==NULL && template_host->parents!=NULL)
+ 		this_host->parents=strdup(template_host->parents);
+ 	if(this_host->hostgroups==NULL && template_host->hostgroups!=NULL)
+@@ -6066,6 +6097,10 @@
+ 		this_host->retain_nonstatus_information=template_host->retain_nonstatus_information;
+ 		this_host->have_retain_nonstatus_information=TRUE;
+ 	        }
++	/* patch define SNMP Community */
++	if(this_host->community==NULL && template_host->community!=NULL)
++		this_host->community=strdup(template_host->community);
++	/* END */
+ 
+ #ifdef DEBUG0
+ 	printf("xodtemplate_resolve_host() end\n");
+@@ -8038,8 +8073,12 @@
+ 	if(this_host->address==NULL && this_host->host_name!=NULL)
+ 		this_host->address=strdup(this_host->host_name);
+ 
++        /* begin modification to define sec. ipaddress */         
++	/* added (this_host->secondary_address==NULL)?this_host->address:this_host->secondary_address, */
++	/* added this_host->community */
+ 	/* add the host definition */
+-	new_host=add_host(this_host->host_name,this_host->alias,(this_host->address==NULL)?this_host->host_name:this_host->address,this_host->check_period,this_host->check_interval,this_host->max_check_attempts,this_host->notify_on_recovery,this_host->notify_on_down,this_host->notify_on_unreachable,this_host->notify_on_flapping,this_host->notification_interval,this_host->notification_period,this_host->notifications_enabled,this_host->check_command,this_host->active_checks_enabled,this_host->passive_checks_enabled,this_host->event_handler,this_host->event_handler_enabled,this_host->flap_detection_enabled,this_host->low_flap_threshold,this_host->high_flap_threshold,this_host->stalk_on_up,this_host->stalk_on_down,this_host->stalk_on_unreachable,this_host->process_perf_data,this_host->failure_prediction_enabled,this_host->failure_prediction_options,this_host->check_freshness,this_host->freshness_threshold,this_host->retain_status_information,this_host->retain_nonstatus_information,this_host->obsess_over_host);
++	new_host=add_host(this_host->host_name,this_host->alias,(this_host->address==NULL)?this_host->host_name:this_host->address,(this_host->secondary_address==NULL)?this_host->address:this_host->secondary_address,this_host->check_period,this_host->check_interval,this_host->max_check_attempts,this_host->notify_on_recovery,this_host->notify_on_down,this_host->notify_on_unreachable,this_host->notify_on_flapping,this_host->notification_interval,this_host->notification_period,this_host->notifications_enabled,this_host->check_command,this_host->active_checks_enabled,this_host->passive_checks_enabled,this_host->event_handler,this_host->event_handler_enabled,this_host->flap_detection_enabled,this_host->low_flap_threshold,this_host->high_flap_threshold,this_host->stalk_on_up,this_host->stalk_on_down,this_host->stalk_on_unreachable,this_host->process_perf_data,this_host->failure_prediction_enabled,this_host->failure_prediction_options,this_host->check_freshness,this_host->freshness_threshold,this_host->retain_status_information,this_host->retain_nonstatus_information,this_host->obsess_over_host,this_host->community);
++	/* end of modification */
+ 
+ #ifdef TEST_DEBUG
+ 	printf("HOST: %s, MAXATTEMPTS: %d, NOTINVERVAL: %d \n",this_host->host_name,this_host->max_check_attempts,this_host->notification_interval);
+@@ -9447,6 +9486,10 @@
+ 			fprintf(fp,"\talias\t%s\n",temp_host->alias);
+ 		if(temp_host->address)
+ 			fprintf(fp,"\taddress\t%s\n",temp_host->address);
++                /* begin modification to define sec. ipaddress */
++                if(temp_host->secondary_address)
++                         fprintf(fp,"\tsecondary_address\t%s\n",temp_host->secondary_address);
++                 /* end of modification */
+ 		if(temp_host->parents)
+ 			fprintf(fp,"\tparents\t%s\n",temp_host->parents);
+ 		if(temp_host->check_period)
+@@ -9466,6 +9509,10 @@
+ 		fprintf(fp,"\tactive_checks_enabled\t%d\n",temp_host->active_checks_enabled);
+ 		fprintf(fp,"\tpassive_checks_enabled\t%d\n",temp_host->passive_checks_enabled);
+ 		fprintf(fp,"\tobsess_over_host\t%d\n",temp_host->obsess_over_host);
++		/* patch define SNMP Community */
++		if (temp_host->community) 
++			fprintf(fp,"\tcommunity\t%s\n",temp_host->community);
++		/* END */
+ 		fprintf(fp,"\tevent_handler_enabled\t%d\n",temp_host->event_handler_enabled);
+ 		fprintf(fp,"\tlow_flap_threshold\t%f\n",temp_host->low_flap_threshold);
+ 		fprintf(fp,"\thigh_flap_threshold\t%f\n",temp_host->high_flap_threshold);
+@@ -9958,6 +10005,9 @@
+ 		free(this_host->host_name);
+ 		free(this_host->alias);
+ 		free(this_host->address);
++                /* begin modification to define sec. ipaddress */
++                free(this_host->secondary_address);
++                /* end of modification */
+ 		free(this_host->parents);
+ 		free(this_host->hostgroups);
+ 		free(this_host->check_command);
+@@ -9966,6 +10016,9 @@
+ 		free(this_host->contact_groups);
+ 		free(this_host->notification_period);
+ 		free(this_host->failure_prediction_options);
++		/* patch define SNMP Community */
++		free(this_host->community);
++		/* END */
+ 		free(this_host);
+ 	        }
+ 	xodtemplate_host_list=NULL;
+diff -u -a -b -B -r nagios-2.0/xdata/xodtemplate.h nagios-2.0-both/xdata/xodtemplate.h
+--- nagios-2.0/xdata/xodtemplate.h	2005-11-16 02:49:35.000000000 -0600
++++ nagios-2.0-both/xdata/xodtemplate.h	2006-02-27 09:39:51.000000000 -0600
+@@ -151,6 +151,9 @@
+ 	char      *host_name;
+ 	char      *alias;
+ 	char      *address;
++	/* begin modification to define sec. ipaddress */
++	char	  *secondary_address;
++	/* end of modification */
+ 	char      *parents;
+ 	char      *hostgroups;
+ 	char      *check_command;
+@@ -160,6 +163,7 @@
+ 	int       active_checks_enabled;
+ 	int       passive_checks_enabled;
+ 	int       obsess_over_host;
++	char	  *community;
+ 	char      *event_handler;
+ 	int       event_handler_enabled;
+ 	int       check_freshness;

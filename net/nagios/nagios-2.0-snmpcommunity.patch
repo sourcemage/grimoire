@@ -1,0 +1,287 @@
+diff -u -a -b -B -r nagios-2.0/base/config.c nagios-2.0-snmpcommunity/base/config.c
+--- nagios-2.0/base/config.c	2005-12-26 17:18:14.000000000 -0600
++++ nagios-2.0-snmpcommunity/base/config.c	2006-02-27 09:29:22.000000000 -0600
+@@ -1845,6 +1845,13 @@
+ 
+ 		found=FALSE;
+ 
++		if (temp_host->community==NULL) {
++			snprintf(temp_buffer,sizeof(temp_buffer),"Warning: Host '%s' has no community defined!",temp_host->name);
++			temp_buffer[sizeof(temp_buffer)-1]='\x0';
++			write_to_logs_and_console(temp_buffer,NSLOG_VERIFICATION_WARNING,TRUE);
++			warnings++;
++		}
++
+ #ifdef REMOVED_061303
+ 		/* make sure each host is a member of at least one hostgroup */
+ 		for(temp_hostgroup=hostgroup_list;temp_hostgroup!=NULL;temp_hostgroup=temp_hostgroup->next){
+diff -u -a -b -B -r nagios-2.0/base/utils.c nagios-2.0-snmpcommunity/base/utils.c
+--- nagios-2.0/base/utils.c	2006-01-04 10:39:57.000000000 -0600
++++ nagios-2.0-snmpcommunity/base/utils.c	2006-02-27 09:29:22.000000000 -0600
+@@ -931,6 +931,14 @@
+ 	if(temp_hostgroup!=NULL)
+ 		macro_x[MACRO_HOSTGROUPALIAS]=strdup(temp_hostgroup->alias);
+ 
++	/* patch define SNMP Community */
++	if(macro_x[MACRO_SNMPCOMMUNITY]!=NULL)
++		free(macro_x[MACRO_SNMPCOMMUNITY]);
++	macro_x[MACRO_SNMPCOMMUNITY]=NULL;
++	if (strdup(hst->community)!=NULL)
++		macro_x[MACRO_SNMPCOMMUNITY]=strdup(hst->community);
++	/* end */
++	
+ 	if((temp_hostextinfo=find_hostextinfo(hst->name))){
+ 
+ 		/* get the action url */
+@@ -1266,7 +1274,10 @@
+ 			strip(macro_ondemand);
+ 		        }
+ 	        }
+-
++	/* patch define SNMP Community */
++	else if(!strcmp(macro,"SNMPCOMMUNITY"))
++			macro_ondemand=strdup(hst->community);
++	/* END */
+ 	/* get the performance data */
+ 	else if(!strcmp(macro,"HOSTPERFDATA")){
+ 		if(hst->perf_data==NULL)
+@@ -2389,6 +2400,9 @@
+ 	add_macrox_name(MACRO_PROCESSSTARTTIME,"PROCESSSTARTTIME");
+ 	add_macrox_name(MACRO_HOSTCHECKTYPE,"HOSTCHECKTYPE");
+ 	add_macrox_name(MACRO_SERVICECHECKTYPE,"SERVICECHECKTYPE");
++	/* patch define SNMP Community */
++	add_macrox_name(MACRO_SNMPCOMMUNITY,"SNMPCOMMUNITY");
++	/* END */
+ 
+ #ifdef DEBUG0
+ 	printf("init_macrox_names() end\n");
+diff -u -a -b -B -r nagios-2.0/cgi/config.c nagios-2.0-snmpcommunity/cgi/config.c
+--- nagios-2.0/cgi/config.c	2005-11-16 02:49:35.000000000 -0600
++++ nagios-2.0-snmpcommunity/cgi/config.c	2006-02-27 09:29:22.000000000 -0600
+@@ -451,6 +451,9 @@
+ 	printf("<TH CLASS='data'>Max. Check Attempts</TH>");
+ 	printf("<TH CLASS='data'>Check Interval</TH>\n");
+ 	printf("<TH CLASS='data'>Host Check Command</TH>");
++	/* patch define SNMP Community */
++	printf("<TH CLASS='data'>SNMP Community</TH>");
++	/* END */
+ 	printf("<TH CLASS='data'>Obsess Over</TH>\n");
+ 	printf("<TH CLASS='data'>Enable Active Checks</TH>\n");
+ 	printf("<TH CLASS='data'>Enable Passive Checks</TH>\n");
+@@ -514,6 +517,10 @@
+ 		printf("<a href='%s?type=commands#%s'>%s</a></TD>\n",CONFIG_CGI,url_encode(temp_host->host_check_command),temp_host->host_check_command);
+ 		printf("</TD>\n");
+ 
++		/* patch define SNMP Community */
++		printf("<TD CLASS='%s'>%s&nbsp;</TD>\n",bg_class,temp_host->community);
++		/* END */
++
+ 		printf("<TD CLASS='%s'>%s</TD>\n",bg_class,(temp_host->obsess_over_host==TRUE)?"Yes":"No");
+ 
+ 		printf("<TD CLASS='%s'>%s</TD>\n",bg_class,(temp_host->checks_enabled==TRUE)?"Yes":"No");
+diff -u -a -b -B -r nagios-2.0/common/objects.c nagios-2.0-snmpcommunity/common/objects.c
+--- nagios-2.0/common/objects.c	2005-12-27 12:55:10.000000000 -0600
++++ nagios-2.0-snmpcommunity/common/objects.c	2006-02-27 09:29:22.000000000 -0600
+@@ -926,9 +926,11 @@
+ 
+ 
+ /* add a new host definition */
+-host *add_host(char *name, char *alias, char *address, char *check_period, int check_interval, int max_attempts, int notify_up, int notify_down, int notify_unreachable, int notify_flapping, int notification_interval, char *notification_period, int notifications_enabled, char *check_command, int checks_enabled, int accept_passive_checks, char *event_handler, int event_handler_enabled, int flap_detection_enabled, double low_flap_threshold, double high_flap_threshold, int stalk_up, int stalk_down, int stalk_unreachable, int process_perfdata, int failure_prediction_enabled, char *failure_prediction_options, int check_freshness, int freshness_threshold, int retain_status_information, int retain_nonstatus_information, int obsess_over_host){
++/* patch define SNMP Community */
++host *add_host(char *name, char *alias, char *address, char *check_period, int check_interval, int max_attempts, int notify_up, int notify_down, int notify_unreachable, int notify_flapping, int notification_interval, char *notification_period, int notifications_enabled, char *check_command, int checks_enabled, int accept_passive_checks, char *event_handler, int event_handler_enabled, int flap_detection_enabled, double low_flap_threshold, double high_flap_threshold, int stalk_up, int stalk_down, int stalk_unreachable, int process_perfdata, int failure_prediction_enabled, char *failure_prediction_options, int check_freshness, int freshness_threshold, int retain_status_information, int retain_nonstatus_information, int obsess_over_host,char *community){
+ 	host *temp_host;
+ 	host *new_host;
++/* END */
+ #ifdef NSCORE
+ 	char temp_buffer[MAX_INPUT_BUFFER];
+ 	int x;
+@@ -954,6 +956,9 @@
+ 	strip(check_command);
+ 	strip(event_handler);
+ 	strip(notification_period);
++	/* patch define SNMP Community */
++	strip(community);
++	/* END */
+ 
+ 	if(!strcmp(name,"") || !strcmp(alias,"") || !strcmp(address,"")){
+ #ifdef NSCORE
+@@ -1311,6 +1316,35 @@
+ 	else
+ 		new_host->failure_prediction_options=NULL;
+ 
++	/* patch define SNMP Community */
++	if (community==NULL) {	
++		new_host->community=NULL;
++	} else {
++		new_host->community=strdup(community);
++		if(new_host->community==NULL){
++#ifdef NSCORE
++			snprintf(temp_buffer,sizeof(temp_buffer)-1,"Error: Could not allocate memory for host '%s' community\n",name);
++			temp_buffer[sizeof(temp_buffer)-1]='\x0';
++			write_to_logs_and_console(temp_buffer,NSLOG_CONFIG_ERROR,TRUE);
++#endif
++		if(new_host->event_handler!=NULL)
++			free(new_host->event_handler);
++		if(new_host->host_check_command!=NULL)
++			free(new_host->host_check_command);
++		if(new_host->notification_period!=NULL)
++			free(new_host->notification_period);
++		if (new_host->failure_prediction_options!=NULL)
++			free(new_host->failure_prediction_options);
++		free(new_host->check_period);
++		free(new_host->address);
++		free(new_host->alias);
++		free(new_host->name);
++		free(new_host);
++		return NULL;
++		}
++	}
++	/* END */
++
+ 	
+ 	new_host->parent_hosts=NULL;
+ 	new_host->max_attempts=max_attempts;
+@@ -1484,6 +1518,9 @@
+ 	printf("\tHost Name:                %s\n",new_host->name);
+ 	printf("\tHost Alias:               %s\n",new_host->alias);
+         printf("\tHost Address:             %s\n",new_host->address);
++	/* patch define SNMP Community */
++        printf("\tSNMP Community:             %s\n",new_host->community);
++	/* END */
+ 	printf("\tHost Check Command:       %s\n",new_host->host_check_command);
+ 	printf("\tMax. Check Attempts:      %d\n",new_host->max_attempts);
+ 	printf("\tHost Event Handler:       %s\n",(new_host->event_handler==NULL)?"N/A":new_host->event_handler);
+diff -u -a -b -B -r nagios-2.0/include/nagios.h.in nagios-2.0-snmpcommunity/include/nagios.h.in
+--- nagios-2.0/include/nagios.h.in	2006-01-04 10:39:57.000000000 -0600
++++ nagios-2.0-snmpcommunity/include/nagios.h.in	2006-02-27 09:29:22.000000000 -0600
+@@ -49,7 +49,7 @@
+ 
+ #define MACRO_ENV_VAR_PREFIX			"NAGIOS_"
+ 
+-#define MACRO_X_COUNT				99	/* size of macro_x[] array */
++#define MACRO_X_COUNT				100	/* size of macro_x[] array */
+ 
+ #define MACRO_HOSTNAME				0
+ #define MACRO_HOSTALIAS				1
+@@ -150,6 +150,10 @@
+ #define MACRO_PROCESSSTARTTIME			96
+ #define MACRO_HOSTCHECKTYPE			97
+ #define MACRO_SERVICECHECKTYPE			98
++/* patch define SNMP Community */
++#define MACRO_SNMPCOMMUNITY                     99
++/* END */
++
+ 
+ 
+ 
+diff -u -a -b -B -r nagios-2.0/include/objects.h nagios-2.0-snmpcommunity/include/objects.h
+--- nagios-2.0/include/objects.h	2005-12-27 12:55:10.000000000 -0600
++++ nagios-2.0-snmpcommunity/include/objects.h	2006-02-27 09:29:22.000000000 -0600
+@@ -159,6 +159,9 @@
+ 	int     failure_prediction_enabled;
+ 	char    *failure_prediction_options;
+ 	int     obsess_over_host;
++	/* patch define SNMP Community */
++	char	*community;
++	/* END */
+ #ifdef NSCORE
+ 	int     problem_has_been_acknowledged;
+ 	int     acknowledgement_type;
+@@ -532,7 +535,9 @@
+ contact *add_contact(char *,char *,char *,char *,char **,char *,char *,int,int,int,int,int,int,int,int,int);	/* adds a contact definition */
+ commandsmember *add_service_notification_command_to_contact(contact *,char *);				/* adds a service notification command to a contact definition */
+ commandsmember *add_host_notification_command_to_contact(contact *,char *);				/* adds a host notification command to a contact definition */
+-host *add_host(char *,char *,char *,char *,int,int,int,int,int,int,int,char *,int,char *,int,int,char *,int,int,double,double,int,int,int,int,int,char *,int,int,int,int,int);	/* adds a host definition */
++/* patch define SNMP Community */
++host *add_host(char *,char *,char *,char *,int,int,int,int,int,int,int,char *,int,char *,int,int,char *,int,int,double,double,int,int,int,int,int,char *,int,int,int,int,int,char *);	/* adds a host definition */
++/* END */
+ hostsmember *add_parent_host_to_host(host *,char *);							/* adds a parent host to a host definition */
+ contactgroupsmember *add_contactgroup_to_host(host *,char *);					        /* adds a contactgroup to a host definition */
+ timeperiod *add_timeperiod(char *,char *);								/* adds a timeperiod definition */
+diff -u -a -b -B -r nagios-2.0/xdata/xodtemplate.c nagios-2.0-snmpcommunity/xdata/xodtemplate.c
+--- nagios-2.0/xdata/xodtemplate.c	2006-01-12 10:13:08.000000000 -0600
++++ nagios-2.0-snmpcommunity/xdata/xodtemplate.c	2006-02-27 09:29:22.000000000 -0600
+@@ -1263,6 +1263,9 @@
+ 		new_host->register_object=TRUE;
+ 		new_host->_config_file=config_file;
+ 		new_host->_start_line=start_line;
++		/* patch define SNMP Community */
++		new_host->community=NULL;
++		/* END */
+ 
+ 		/* add new host to head of list in memory */
+ 		new_host->next=xodtemplate_host_list;
+@@ -2851,7 +2854,17 @@
+ 		        }
+ 		else if(!strcmp(variable,"register"))
+ 			temp_host->register_object=(atoi(value)>0)?TRUE:FALSE;
+-		else{
++		/* patch define SNMP Community */
++		else if(!strcmp(variable,"community")){
++			temp_host->community=strdup(value);
++			if(temp_host->community==NULL){
++#ifdef DEBUG1
++				printf("Error: Could not allocate memory for community name.\n");
++#endif
++				return ERROR;
++		        }
++	        } else{
++		/* END */
+ #ifdef NSCORE
+ 			snprintf(temp_buffer,sizeof(temp_buffer)-1,"Error: Invalid host object directive '%s'.\n",variable);
+ 			temp_buffer[sizeof(temp_buffer)-1]='\x0';
+@@ -6066,6 +6079,10 @@
+ 		this_host->retain_nonstatus_information=template_host->retain_nonstatus_information;
+ 		this_host->have_retain_nonstatus_information=TRUE;
+ 	        }
++	/* patch define SNMP Community */
++	if(this_host->community==NULL && template_host->community!=NULL)
++		this_host->community=strdup(template_host->community);
++	/* END */
+ 
+ #ifdef DEBUG0
+ 	printf("xodtemplate_resolve_host() end\n");
+@@ -8039,7 +8056,9 @@
+ 		this_host->address=strdup(this_host->host_name);
+ 
+ 	/* add the host definition */
+-	new_host=add_host(this_host->host_name,this_host->alias,(this_host->address==NULL)?this_host->host_name:this_host->address,this_host->check_period,this_host->check_interval,this_host->max_check_attempts,this_host->notify_on_recovery,this_host->notify_on_down,this_host->notify_on_unreachable,this_host->notify_on_flapping,this_host->notification_interval,this_host->notification_period,this_host->notifications_enabled,this_host->check_command,this_host->active_checks_enabled,this_host->passive_checks_enabled,this_host->event_handler,this_host->event_handler_enabled,this_host->flap_detection_enabled,this_host->low_flap_threshold,this_host->high_flap_threshold,this_host->stalk_on_up,this_host->stalk_on_down,this_host->stalk_on_unreachable,this_host->process_perf_data,this_host->failure_prediction_enabled,this_host->failure_prediction_options,this_host->check_freshness,this_host->freshness_threshold,this_host->retain_status_information,this_host->retain_nonstatus_information,this_host->obsess_over_host);
++	/* patch define SNMP Community */
++	new_host=add_host(this_host->host_name,this_host->alias,(this_host->address==NULL)?this_host->host_name:this_host->address,this_host->check_period,this_host->check_interval,this_host->max_check_attempts,this_host->notify_on_recovery,this_host->notify_on_down,this_host->notify_on_unreachable,this_host->notify_on_flapping,this_host->notification_interval,this_host->notification_period,this_host->notifications_enabled,this_host->check_command,this_host->active_checks_enabled,this_host->passive_checks_enabled,this_host->event_handler,this_host->event_handler_enabled,this_host->flap_detection_enabled,this_host->low_flap_threshold,this_host->high_flap_threshold,this_host->stalk_on_up,this_host->stalk_on_down,this_host->stalk_on_unreachable,this_host->process_perf_data,this_host->failure_prediction_enabled,this_host->failure_prediction_options,this_host->check_freshness,this_host->freshness_threshold,this_host->retain_status_information,this_host->retain_nonstatus_information,this_host->obsess_over_host,this_host->community);
++	/* END */
+ 
+ #ifdef TEST_DEBUG
+ 	printf("HOST: %s, MAXATTEMPTS: %d, NOTINVERVAL: %d \n",this_host->host_name,this_host->max_check_attempts,this_host->notification_interval);
+@@ -9466,6 +9485,10 @@
+ 		fprintf(fp,"\tactive_checks_enabled\t%d\n",temp_host->active_checks_enabled);
+ 		fprintf(fp,"\tpassive_checks_enabled\t%d\n",temp_host->passive_checks_enabled);
+ 		fprintf(fp,"\tobsess_over_host\t%d\n",temp_host->obsess_over_host);
++		/* patch define SNMP Community */
++		if (temp_host->community) 
++			fprintf(fp,"\tcommunity\t%s\n",temp_host->community);
++		/* END */
+ 		fprintf(fp,"\tevent_handler_enabled\t%d\n",temp_host->event_handler_enabled);
+ 		fprintf(fp,"\tlow_flap_threshold\t%f\n",temp_host->low_flap_threshold);
+ 		fprintf(fp,"\thigh_flap_threshold\t%f\n",temp_host->high_flap_threshold);
+@@ -9966,6 +9989,9 @@
+ 		free(this_host->contact_groups);
+ 		free(this_host->notification_period);
+ 		free(this_host->failure_prediction_options);
++		/* patch define SNMP Community */
++		free(this_host->community);
++		/* END */
+ 		free(this_host);
+ 	        }
+ 	xodtemplate_host_list=NULL;
+Only in nagios-2.0-snmpcommunity/xdata: xodtemplate.c~
+diff -u -a -b -B -r nagios-2.0/xdata/xodtemplate.h nagios-2.0-snmpcommunity/xdata/xodtemplate.h
+--- nagios-2.0/xdata/xodtemplate.h	2005-11-16 02:49:35.000000000 -0600
++++ nagios-2.0-snmpcommunity/xdata/xodtemplate.h	2006-02-27 09:29:22.000000000 -0600
+@@ -160,6 +160,7 @@
+ 	int       active_checks_enabled;
+ 	int       passive_checks_enabled;
+ 	int       obsess_over_host;
++	char	  *community;
+ 	char      *event_handler;
+ 	int       event_handler_enabled;
+ 	int       check_freshness;

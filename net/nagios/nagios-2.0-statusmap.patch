@@ -1,0 +1,50 @@
+diff -u -a -b -B -r nagios-2.0/cgi/statusmap.c nagios-2.0-statusmap/cgi/statusmap.c
+--- nagios-2.0/cgi/statusmap.c	2005-11-16 02:49:35.000000000 -0600
++++ nagios-2.0-statusmap/cgi/statusmap.c	2006-02-27 12:41:31.000000000 -0600
+@@ -1708,13 +1708,13 @@
+ 
+ 			temp_hoststatus=find_hoststatus(temp_hostextinfo->host_name);
+ 			if(temp_hoststatus!=NULL){
+-				if(temp_hoststatus->status==HOST_DOWN)
++				if(temp_hoststatus->status==HOST_DOWN || get_servicestatus_count(temp_hostextinfo->host_name,SERVICE_CRITICAL))
+ 					status_color=color_red;
+-				else if(temp_hoststatus->status==HOST_UNREACHABLE)
+-					status_color=color_red;
+-				else if(temp_hoststatus->status==HOST_UP)
++				else if(temp_hoststatus->status==HOST_UNREACHABLE || get_servicestatus_count(temp_hostextinfo->host_name,SERVICE_WARNING))
++					status_color=color_yellow;
++				else if(temp_hoststatus->status==HOST_UP  ||get_servicestatus_count(temp_hostextinfo->host_name,SERVICE_OK))
+ 					status_color=color_green;
+-				else if(temp_hoststatus->status==HOST_PENDING)
++				else if(temp_hoststatus->status==HOST_PENDING  ||get_servicestatus_count(temp_hostextinfo->host_name,SERVICE_PENDING))
+ 					status_color=color_grey;
+ 			        }
+ 			else
+@@ -1931,6 +1931,14 @@
+ 			strncpy(temp_buffer,"Unreachable",sizeof(temp_buffer));
+ 			status_color=color_red;
+                         }
++		else if(temp_hoststatus->status==HOST_UP && get_servicestatus_count(name,SERVICE_CRITICAL)){
++			strncpy(temp_buffer,"Up",sizeof(temp_buffer));
++			status_color=color_red;
++                        }
++		else if(temp_hoststatus->status==HOST_UP && get_servicestatus_count(name,SERVICE_WARNING)){
++			strncpy(temp_buffer,"Up",sizeof(temp_buffer));
++			status_color=color_yellow;
++                        }
+ 		else if(temp_hoststatus->status==HOST_UP){
+ 			strncpy(temp_buffer,"Up",sizeof(temp_buffer));
+ 			status_color=color_green;
+@@ -2879,8 +2887,10 @@
+ 			temp_hoststatus=find_hoststatus(temp_host->name);
+ 			if(temp_hoststatus==NULL)
+ 				bgcolor=color_lightgrey;
+-			else if(temp_hoststatus->status==HOST_DOWN || temp_hoststatus->status==HOST_UNREACHABLE)
++			else if(temp_hoststatus->status==HOST_DOWN || temp_hoststatus->status==HOST_UNREACHABLE || get_servicestatus_count(temp_host->name,SERVICE_CRITICAL))
+ 				bgcolor=color_lightred;
++			else if (get_servicestatus_count(temp_host->name,SERVICE_WARNING) )
++				 bgcolor=color_yellow;
+ 			else
+ 				bgcolor=color_lightgreen;
+ 
+Only in nagios-2.0-statusmap/cgi: statusmap.c~
