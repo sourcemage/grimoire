@@ -1,0 +1,41 @@
+#!/bin/sh
+
+RUNLEVEL=2
+
+. /etc/init.d/smgl_init
+
+case "$1" in
+'start')
+	/etc/usermin/start #>/dev/null 2>&1 </dev/null
+	evaluate_retval
+	;;
+'stop')
+	/etc/usermin/stop
+	evaluate_retval
+	;;
+'status')
+	pidfile=`grep "^pidfile=" /etc/usermin/miniserv.conf | sed -e 's/pidfile=//g'`
+	if [ -s $pidfile ]; then
+		pid=`cat $pidfile`
+		kill -0 $pid >/dev/null 2>&1
+		if [ "$?" = "0" ]; then
+			echo "usermin (pid $pid) is running"
+			evaluate_retval
+		else
+			echo "usermin is stopped"
+			evaluate_retval
+		fi
+	else
+		echo "usermin is stopped"
+		evaluate_retval
+	fi
+	;;
+'restart')
+	/etc/usermin/stop && /etc/usermin/start
+	evaluate_retval
+	;;
+*)
+	echo "Usage: $0 { start | stop | restart | status}"
+	exit 1
+	;;
+esac
