@@ -1,16 +1,11 @@
-if ! grep -q 'CONFIGURED=\"y\"' ${DEPENDS_CONFIG}/mgetty; then
-  ############################################################
-  ##  Start mgetty on boot?
-  if query "Start mgetty on system boot? " y; then
-    echo 'START_ON_BOOT="y"' >> ${SPELL_CONFIG}
-
-    ############################################################
+  config_query START_ON_BOOT "Start mgetty on system boot? " y
+  if [ $START_ON_BOOT == "y" ] ;then
     ##  Set the TTY device to be used for mgetty.
     if ! [ -e /dev/ttyS0 ]; then
-      message "${PROBLEM_COLOR}You have selected to start mgetty on system boot, but you do not have any serial ports setup on this system.  Please enable at least one serial port in BIOS and your kernel and then recast this spell.${DEFAULT_COLOR}"
+      message "${PROBLEM_COLOR}No serail port available. Fix your BIOS or kernel.${DEFAULT_COLOR}"
       return 1
     fi
-
+   local COUNTER TTY_DEVICE
     COUNTER=0
 
     while [ "${TTY_DEVICE}" == "" ]; do
@@ -38,83 +33,28 @@ if ! grep -q 'CONFIGURED=\"y\"' ${DEPENDS_CONFIG}/mgetty; then
     done
 
     ############################################################
-    ##  Set the number of rings to answer on.
-    message "${MESSAGE_COLOR}Type in the number of rings to answer on (the default is 2):${DEFAULT_COLOR}"
-    read -t ${PROMPT_DELAY} -e
-    NUM_RINGS=${REPLY:=2}
-    echo "NUM_RINGS=${NUM_RINGS}" >> ${SPELL_CONFIG}
+    config_query NUM_RINGS "number of rings to answer on" 2
 
     ############################################################
     # Setup final init string
+    persistent_add INITTAB_STRING
     INITTAB_STRING="${TTY_DEVICE:5}:linux:${INSTALL_ROOT}/usr/sbin/mgetty -n ${NUM_RINGS} ${TTY_DEVICE}"
-    echo "INITTAB_STRING=\"${INITTAB_STRING}\"" >> ${SPELL_CONFIG}
 
-  else
-    echo 'START_ON_BOOT="n"' >> ${SPELL_CONFIG}
-  fi
+  fi  #boot
 
 
   ############################################################
   ##  Select the options to enable.
-  if query "Apply login prompt and login timeout patch? " n; then
-    LOGIN_PATCH="y"
-  else
-    LOGIN_PATCH="n"
-  fi
-  echo "LOGIN_PATCH=${LOGIN_PATCH}" >> ${SPELL_CONFIG}
-
-  if query "Apply patch to execute the new_fax script for every new faxed received? " y; then
-    echo 'NEWFAX_PATCH="y"' >> ${SPELL_CONFIG}
-    NEWFAX_PATCH="y"
-  else
-    echo 'NEWFAX_PATCH="n"' >> ${SPELL_CONFIG}
-  fi
+  config_query LOGIN_PATCH " Apply login prompt and login timeout patch? " y
+  config_query NEWFAX_PATCH "run new_fax script for every new faxed received?" n
 
 
   ############################################################
   ##  Select the optional programs to install.
-  if query "Install the included callback utility? " y; then
-     echo 'INCLUDE_CALLBACK="y"' >> ${SPELL_CONFIG}
-  else
-     echo 'INCLUDE_CALLBACK="n"' >> ${SPELL_CONFIG}
-  fi
-
-  if query "Install some dialog-based utilities to view the fax queue and to listen to voice messages? " y; then
-     echo 'INCLUDE_DIALOG="y"' >> ${SPELL_CONFIG}
-  else
-     echo 'INCLUDE_DIALOG="n"' >> ${SPELL_CONFIG}
-  fi
-
-  if query "Install faxview for a tcl/tk-based fax viewer? " y; then
-     echo 'INCLUDE_TCLTK="y"' >> ${SPELL_CONFIG}
-  else
-     echo 'INCLUDE_TCLTK="n"' >> ${SPELL_CONFIG}
-  fi
-
-  if query "Install viewfax for a X-based fax viewer? " y; then
-     echo 'INCLUDE_VIEWFAX="y"' >> ${SPELL_CONFIG}
-  else
-     echo 'INCLUDE_VIEWFAX="n"' >> ${SPELL_CONFIG}
-  fi
-
-  if query "Install the included samples? " y; then
-     echo 'INCLUDE_SAMPLES="y"' >> ${SPELL_CONFIG}
-  else
-     echo 'INCLUDE_SAMPLES="n"' >> ${SPELL_CONFIG}
-  fi
-
-  if query "Install the misc. tools (cutbl, kvg, ltest and mid)? " y; then
-     echo 'INCLUDE_TOOLS="y"' >> ${SPELL_CONFIG}
-  else
-     echo 'INCLUDE_TOOLS="n"' >> ${SPELL_CONFIG}
-  fi
-
-  if query "Install vgetty to add voice mail capabilities? " y; then
-     echo 'INCLUDE_VGETTY="y"' >> ${SPELL_CONFIG}
-  else
-     echo 'INCLUDE_VGETTY="n"' >> ${SPELL_CONFIG}
-  fi
-
-
-  echo 'CONFIGURED="y"' >> ${SPELL_CONFIG}
-fi
+  config_query INCLUDE_CALLBACK "Install the included callback utility? " n
+  config_query INCLUDE_SAMPLES "Install the included samples? " n
+  config_query INCLUDE_TOOLS "Install the misc. tools (cutbl, kvg, ltest and mid)? " y
+  config_query INCLUDE_VGETTY "Install vgetty to add voice mail capabilities? " y
+  config_query INCLUDE_VIEWFAX "X-based fax viewer?" n
+  config_query INCLUDE_TCLTK "tcl/tk-based fax viewer?" n
+  config_query INCLUDE_DIALOG "view the fax queue and to listen to voice messages" n

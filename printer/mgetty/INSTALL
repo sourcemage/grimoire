@@ -1,0 +1,55 @@
+  make    install                                               &&
+
+  if [ $INCLUDE_CALLBACK="y" ]; then
+     cd   callback/                                             &&
+     make install                                               &&
+     cd   ../
+  fi                                                            &&
+
+  if [ $INCLUDE_DIALOG="y" ]; then
+     cd   frontends/dialog/                                     &&
+     make install                                               &&
+     cd   ../../
+  fi                                                            &&
+
+  if [ $INCLUDE_TCLTK="y" ]; then
+     cd   frontends/tcl/faxview-0.2/                            &&
+     sedit "s:/usr/local/bin/wish:/usr/bin/wish:g" faxview.tcl  &&
+     install -m 755 faxview.tcl /usr/bin/faxview                &&
+     install -m 444 faxview.man /usr/share/man/man1/faxview.1   &&
+     cd   ../../../
+  fi                                                            &&
+
+  if [ $INCLUDE_VIEWFAX="y" ]; then
+     cd   frontends/X11/viewfax/                            &&
+     make install                                               &&
+     make install.man                                           &&
+     cd   ../../../
+  fi                                                            &&
+
+  if [ $INCLUDE_SAMPLES="y" ]; then
+     if ! [ -d /usr/share/mgetty ]; then
+        mkdir -p /usr/share/mgetty/                             &&
+        cp -r samples/ /usr/share/mgetty/
+     fi
+  fi                                                            &&
+
+  if [ $INCLUDE_TOOLS="y" ]; then
+     cd   tools/                                                &&
+     make install                                               &&
+     cd   ../
+  fi                                                            &&
+
+  if [ $INCLUDE_VGETTY="y" ]; then
+     make vgetty-install
+  fi                                                            &&
+
+  ###########################
+  ##  Final configuration  ##
+  ###########################
+
+  if [ -e /var/spool/fax ]; then
+     chown -R phone.phone /var/spool/fax/                       &&
+     chmod -R 770         /var/spool/fax/
+  fi
+
