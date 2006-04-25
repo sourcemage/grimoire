@@ -1,11 +1,3 @@
-(
-
-  patch  -p1  <  $SCRIPT_DIRECTORY/gcc3.patch             &&
-  ./configure  --prefix=/usr                              \
-               --with-ttf-includes=/usr/include/freetype  \
-               --with-ttf-libraries=/usr/lib              \
-               $OPTS                                      &&
-  make                                                    &&
-  make  install
-
-) > $C_FIFO 2>&1
+OPTS="$OPTS --with-ttf-includes=${TRACK_ROOT}/usr/include/freetype  \
+            --with-ttf-libraries=${TRACK_ROOT}/usr/lib"	 &&
+default_build
