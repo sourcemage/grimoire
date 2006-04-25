@@ -51,6 +51,16 @@ start()
     raidstart  --all
   fi
 
+  #
+  # Enable logical volumes for LVM and create device nodes
+  #
+  if optional_executable /sbin/vgscan && optional_executable /sbin/vgchange ; then
+    echo -n "Scanning for and initializing all available LVM volume groups..."
+    /sbin/vgscan       --ignorelockingfailure  --mknodes  &&
+    /sbin/vgchange -ay --ignorelockingfailure
+    evaluate_retval
+  fi
+
   echo "Mounting root file system read only..."
   mount   -n  -o  remount,ro  /
   evaluate_retval || exit 1
