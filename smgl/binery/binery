@@ -1,0 +1,1578 @@
+#!/bin/bash
+#
+# binery
+#    A tool for creating and managing a binary grimoire based off of
+#    a SourceMage GNU/Linux installation.
+#
+# Copyright (c) 2003 Casey Harkins <charkins@pobox.com>
+#
+#               binery: http://www.pobox.com/~charkins/binery
+# SourceMage GNU/Linux: http://www.sourcemage.org
+#
+# vi: ts=4
+# --------------------------- License ------------------------------- #
+# This is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This software is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public
+# License along with this software; if not, write to the Free
+# Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+# ------------------------- ChangeLog ------------------------------- #
+#
+# 2004-03-12  charkins <charkins@pobox.com>
+#	- initial version 0.1
+#
+# --------------------------- TODO  --------------------------------- #
+# remove
+# clean
+# check
+# destroy: confirmation
+# add: confirmation
+# recursive_dependencies: simpler method for determining if Q is empty
+# recheck depends on update
+#
+# -------------------------- Globals -------------------------------- #
+#
+BINERY_VERSION='0.1'
+BINERY_CONFIG='binery.conf'
+
+# ----------------------- Configuration ----------------------------- #
+# The following configuration options are set to sane defaults. If the
+# file $BINERY_CONFIG (defined above) exists and is executable, it will
+# be executed allowing these settings to be overridden.
+#
+# BINERY_DEBUG: if set, debugging messages will be displayed
+unset BINERY_DEBUG
+
+# BINERY_VERBOSE: if set, verbose messages will be displayed
+unset BINERY_VERBOSE
+
+#
+# BINERY_SPOOL: directory where binary packages, grimoires and sorcery
+#               are stored
+BINERY_SPOOL="/var/spool/binery"
+
+# BINERY_LIB: directory where the codex/ subdirectory is found, the
+#             codex directory stores grimoires managed by binery
+BINERY_LIB="/var/lib/binery"
+
+# BINERY_BASE_URL: base url used in setting SOURCE_URL in spell
+#                  DETAILS and the FROM_URL in the GRIMOIRE file
+#
+#                  setting this to an empty string is acceptable, as
+#                  client machines could use BASE_URL within sorcery
+#                  to achieve the same effect
+#
+BINERY_BASE_URL="file:///var/spool/binery"
+
+# BINERY_TMP: prefix for binery temporary files
+#
+BINERY_TMP=/tmp/binery-$$
+
+# BINERY_INCLUDE: default binery include patterns
+#
+BINERY_INCLUDE=''
+
+# BINERY_EXCLUDE: default binery exclude patterns
+#
+BINERY_EXCLUDE='^/var/log/sorcery'
+
+# --------------------- Sorcery Configuration ----------------------- #
+# EXT_SORCERY_STATE: sorcery state directory
+#
+EXT_SORCERY_STATE="/var/state/sorcery"
+
+# EXT_SORCERY_PACKAGES: sorcery package state information
+#
+EXT_SORCERY_PACKAGES="${EXT_SORCERY_STATE}/packages"
+
+# EXT_SORCERY_DEPENDS: sorcery depends state information
+#
+EXT_SORCERY_DEPENDS="${EXT_SORCERY_STATE}/depends"
+
+# EXT_SORCERY_SCRIPTS: sorcery package to add to spool
+#
+EXT_SORCERY_SCRIPTS=/var/spool/sorcery/sorcery-stable.tar.bz2
+
+
+# ----------------------- Reference Spell --------------------------- #
+# BINERY_REF_UPDATED: date reference spell was updated, allows updates
+#                     to reference spell to be made to existing
+#                     binery grimoires
+#
+BINERY_REF_UPDATED="20031124"
+
+# create_ref_spell()
+#
+# $1: grimoire name
+#
+# Creates a spell called 'ref' in a section 'binery'. This spell
+# contains the default spell scripts which the actual spells will
+# link to. Attempting to cast this spell will always fail.
+#
+create_ref_spell() {
+	verbosing "Creating reference spell in grimoire '$1'"
+
+	# declare local vars
+	local sd
+	local i
+
+	# create spell directory
+	sd="${BINERY_LIB}/codex/${1}/binery/ref"
+	if ! ( mkdir -p $sd ); then
+		erroring "Could not create reference spell directory $sd"
+		return 1
+	fi
+
+	# create DETAILS
+	cat > ${sd}/DETAILS << FOO
+
+           SPELL=ref
+         ENTERED=20030809
+         UPDATED=$BINERY_REF_UPDATED
+           SHORT='Reference spell for binery grimoires'
+cat << EOF
+This spell contains the default PRE_BUILD, BUILD and POST_INSTALL
+scripts used throughout binery grimoires. This spell will not
+successfully cast itself (PREPARE returns false).
+EOF
+FOO
+
+	# create PRE_BUILD
+	cat > ${sd}/PRE_BUILD << FOO
+if [ ! -z "\$SOURCE" ]; then
+	cd / &&
+	if [ \`bzcat \${SOURCE_CACHE}/\${SOURCE} | md5sum | cut -f1 -d\\ \` = "\${MD5[0]}" ]; then
+		tar -xvpsjPf \${SOURCE_CACHE}/\${SOURCE}
+	else
+		echo "\${RED}\${SPELL} FAILED MD5!\${DEFAULT_COLOR}" &&
+		return 1
+	fi
+fi
+FOO
+
+	# create BUILD
+	cat > ${sd}/BUILD << FOO
+(
+  if [ ! -z "\$SOURCE" ]; then
+    for i in \`tar -tjf \${SOURCE_CACHE}/\${SOURCE}\`; do
+        track_manual \$i
+    done
+  fi
+) > \$C_FIFO 2>&1
+
+FOO
+
+	# create POST_INSTALL
+	cat > ${sd}/POST_INSTALL << FOO
+true
+FOO
+
+	# create PREPARE
+	cat > ${sd}/PREPARE << FOO
+false
+FOO
+
+	chmod a+x ${sd}/DETAILS	
+	chmod a+x ${sd}/PRE_BUILD
+	chmod a+x ${sd}/BUILD
+	chmod a+x ${sd}/POST_INSTALL
+	chmod a+x ${sd}/PREPARE
+}
+
+
+# --------------------- Utility Functions --------------------------- #
+# verbosing
+#
+# $*: message
+#
+# Echos parameters if $BINERY_VERBOSE is not null
+#
+verbosing() {
+
+	if [ -n "$BINERY_VERBOSE" ]; then
+		echo "$*"
+	fi
+
+}
+
+# debugging
+#
+# $*: message
+#
+# Echos parameters if $BINERY_DEBUG is not null
+#
+debugging() {
+
+	if [ -n "$BINERY_DEBUG" ]; then
+		echo "[debug] $*"
+	fi
+
+}
+	
+# erroring
+#
+# $*: message
+#
+# Outputs error messages to stderr.
+#
+erroring() {
+	echo "[error] $*"
+}
+	
+# load_binery_config()
+#
+# Load the binery configuration file.
+#
+load_binery_config() {
+	debugging "Loading binery configuration from: $BINERY_CONFIG"
+	if 	[ -e $BINERY_CONFIG ] &&
+		[ -r $BINERY_CONFIG ] &&
+		[ -x $BINERY_CONFIG ]; then
+			. $BINERY_CONFIG
+	fi
+}
+
+
+# grimoire_has()
+#
+# $1: grimoire name
+# $2: spell name
+#
+# Check if a grimoire or one of its required
+# grimoires has a particular spell.
+#
+# Warning: No cycle detection is done, so cyclic
+#          grimoire dependencies can cause an
+#          infinite loop!
+#
+grimoire_has() {
+	# declare local vars
+	local i
+
+	debugging "Checking if grimoire '$1' has spell '$2'"
+
+	# check if grimoire has spell
+	# if [ -d ${BINERY_LIB}/codex/${1}/${2} ]; then
+	if ( find ${BINERY_LIB}/codex/${1} -type d | 
+	     grep \/${2}\$ > /dev/null ); then
+		debugging "Grimoire '$1' has spell '$2'"
+		return 0
+	fi
+
+	if [ ! -e ${BINERY_LIB}/codex/${1}/REQUIRES ]; then
+		return 1
+	fi
+
+	# check each required grimoire recursively
+	for i in `cat ${BINERY_LIB}/codex/${1}/REQUIRES`; do
+		if ( grimoire_has $i $2 ); then
+			debugging "Grimoire '$i' provides spell '$2' for grimoire '$1'"
+			return 0
+		fi
+	done
+	return 1
+}
+
+# all_grimoires()
+#
+# Output a list of all grimoires.
+#
+all_grimoires() {
+	# declare local vars
+	local i
+
+	for i in `ls ${BINERY_LIB}/codex`; do
+		echo -n "$i "
+	done
+	echo ""
+}
+
+# all_spells()
+#
+# $1: grimoire name
+#
+# Output a list of all spells in a grimoire.
+#
+all_spells() {
+	# declare local vars
+	local i
+
+	for i in `find ${BINERY_LIB}/codex/${1} -type d -mindepth 2 -maxdepth 2`; do
+		echo -n "`basename $i` "
+	done
+	echo ""
+}
+
+# -------------------------- Dependencies --------------------------- #
+# recursive_dependencies()
+#
+# $*: spell names
+#
+# Calculate recursive dependencies for each spell argument.
+#
+recursive_dependencies () {
+	# declare local vars
+	local Q
+	local D
+	local C
+	local i
+
+	# temporary files
+	Q=${BINERY_TMP}.queue
+	D=${BINERY_TMP}.depends
+	C=${BINERY_TMP}.checked
+
+	rm -f $Q ${Q}.tmp $D $C
+	touch $Q $D $C
+
+	# add each argument to queue and dependency list
+	for i in $@; do
+		echo "$i" | tee -a $D >> $Q
+	done
+
+	# if queue is empty, we're done
+	# TODO: use simpler method for determining if $Q is empty
+	while [ `cat $Q | wc -l` -gt "0" ]; do
+		# pull the top item off of the queue
+		spell=`head -n 1 $Q`
+		mv $Q ${Q}.tmp
+		grep -xv ^${spell}\$ ${Q}.tmp > $Q
+		rm -f ${Q}.tmp
+
+		# if it hasn't been processed, process it
+		if ! ( grep -qx ^${spell}\$ $C ); then
+			# add it to the checked lists
+			echo $spell >> $C
+
+			# queue and log its dependencies
+			dependencies $spell | tee -a $D >> $Q
+		fi
+	done
+
+	# sort and eliminate duplicates
+	cat $D | sort | uniq 
+
+	# clean up
+	rm -f $Q ${Q}.tmp $D $C
+}
+
+
+# dependencies()
+#
+# $1: spell name
+#
+# Finds first generation dependencies of a spell. This is
+# accomplished by processing the EXT_SORCERY_DEPENDS file.
+#
+dependencies () {
+	grep -e "^${1}:[^:]*:on" ${EXT_SORCERY_DEPENDS} | cut -f2 -d:
+}
+
+
+# -------------------------- Mode: create --------------------------- #
+# create()
+#
+# $1: grimoire name
+#
+# or
+#
+#    $1: grimoire name
+#    $2: 'requires'
+# $3..n: required grimoire names
+#
+# Creates a new binery grimoire. 
+#
+# Optional required grimoires may be specified. These required 
+# grimoires are used in filling spell dependency requirements. 
+# If a dependency is found in a required grimoire, it does not 
+# need to be added to the target grimoire.
+#
+create() {
+	# declare local vars
+	local name
+	local gd
+	local requires
+
+	# verify grimoire name was specified
+	if [ -z $1 ]; then
+		erroring "Grimoire name is required!"
+		usage_create
+		exit 1
+	fi
+	name=$1
+
+	# set absolute path to new grimoire directory
+	gd="${BINERY_LIB}/codex/${name}"
+
+	verbosing "Creating grimoire '$1' in directory '$gd'"
+
+	# check for requires parameter
+	shift
+	if [ -n "$1" ]; then
+		if [ $1 != "requires" ]; then
+			erroring "Invalid parameter: $1"
+			usage_create
+			exit 1
+		else
+			shift
+			requires="$@"
+		fi
+	fi
+
+	# check if grimoire directory already exists
+	if [ -e $gd ]; then
+		erroring "$gd already exists, cannot create new grimoire!"
+		exit 1
+	fi
+
+	# create the grimoire directory
+	debugging "Creating grimoire directory $gd"
+	if ! ( mkdir -p $gd ); then
+		erroring  "Could not create grimoire directory ${gd}!"
+		exit 1
+	fi
+
+	# create the GRIMOIRE file
+	debugging "Creating GRIMOIRE file in root of grimoire"
+	echo "FROM_URL=${BINERY_BASE_URL}/${name}.tar.bz2" > ${gd}/GRIMOIRE
+	chmod a+x $gd/GRIMOIRE
+
+	# if required grimoires were specified, create REQUIRES
+	if [ -n "$requires" ]; then
+		debugging "Creating REQUIRES file in root of grimoire"
+		for i in $requires; do
+			echo "$i" >> ${gd}/REQUIRES
+		done
+	fi
+
+	# create reference spell
+	create_ref_spell $name
+
+	verbosing "Grimoire '$name' created."
+}
+
+# usage_create()
+#
+# Show create usage information.
+#
+usage_create() {
+	cat << EOF
+
+Usage: binery create <grimoire name> [requires <grimoire1> <grimoire2> ...]
+
+The 'create' mode creates a new binery grimoire directory. binery grimoires
+may contain an optional REQUIRES file in the root of the grimoire which names
+other grimoires which it depends on. This information is used in ensuring
+that all dependencies will be satisfied when a spell is added to a grimoire.
+
+The <grimoire name> is a required parameter. If the 'requires' keyword
+follows the <grimoire name>, then all remaining parameters are assumed to 
+be names of other binery grimoires this grimoire depends on.
+
+EOF
+
+}
+
+
+# -------------------------- Mode: destroy -------------------------- #
+# destroy()
+#
+# $1: grimoire name
+#
+# Removes a binery grimoire
+#
+destroy() {
+	# declare local vars
+	local name
+	local gd
+
+	# verify grimoire name was specified
+	if [ -z $1 ]; then
+		erroring "Grimoire name is required!"
+		usage_destroy
+		exit 1
+	fi
+	name=$1
+
+	# set absolute path to grimoire directory
+	gd="${BINERY_LIB}/codex/${name}"
+
+	# ensure grimoire directory exists
+	if [ ! -e $gd ]; then
+		erroring "Cannot find grimoire '${name}' in ${gd}!"
+		exit 1
+	fi
+
+	# TODO: confirm destroy grimoire?
+	verbosing "Destroying grimoire '$name' in directory ${gd}"
+
+	# remove the grimoire directory
+	if ! ( rm -rf $gd ); then
+		erroring  "Could not remove grimoire directory ${gd}!"
+		exit 1
+	fi
+
+	verbosing "Grimoire '$name' destroyed."
+}
+
+# usage_destroy()
+#
+# Show destroy usage information.
+#
+usage_destroy() {
+	cat << EOF
+
+Usage: binery destroy <grimoire name>
+
+The 'destroy' mode removes a binery grimoire directory. No spool files
+are removed (see 'binery help clean'). 
+
+BE CAREFUL, NO CONFIRMATION IS ASKED BEFORE REMOVING!
+
+EOF
+
+}
+
+# ------------------------- Mode: add ------------------------------- #
+# add()
+#
+# $*: spell names
+#
+# or
+#
+# $1..n-2: spell names
+#    $n-1: 'to'
+#      $n: grimoire name
+# 
+# Adds spell(s) to a binery grimoire.
+#
+add() {
+	# declare local vars
+	local spells
+	local depends
+	local gd
+	local tgrim
+	local ngrims
+	local i
+
+	# check for spell name parameters
+	spells=""
+	while [ ${#1} -gt 0 ] && [ $1 != "to" ]; do
+		spells="$spells $1"
+		shift
+	done
+
+	# ensure at least one spell was listed
+	if [ -z "$spells" ]; then
+		erroring "At least one spell name is required!"
+		usage_add
+		exit 1
+	fi
+
+	debugging "Determining target grimoire"
+
+	# check for 'to' parameter
+	tgrim=""
+	if [ ! -z "$1" ] && [ $1 = "to" ]; then
+		shift
+		if [ -z "$1" ]; then
+			erroring "No grimoire specified with 'to' parameter."
+			usage_add
+			exit 1
+		fi
+		tgrim="$1"
+	fi
+
+	# if grimoire not specified, check if only one exists
+	if [ -z $tgrim ]; then
+		ngrims=`ls ${BINERY_LIB}/codex/ | wc -l`
+		if [ $ngrims -eq 1 ]; then
+			tgrim=`ls ${BINERY_LIB}/codex/`
+		fi
+	fi
+
+	# ensure a target grimoire was determined
+	if [ -z $tgrim ]; then
+		erroring "No target grimoire could be determined."
+		usage_add
+		exit 1;
+	fi
+
+	# set absolute path to new grimoire directory
+	gd="${BINERY_LIB}/codex/${tgrim}"
+
+	# ensure grimoire directory exists
+	if [ ! -d $gd ]; then
+		erroring "Could not find grimoire directory: $gd"
+		exit 1
+	fi
+
+	verbosing "Adding spell(s) '$spells' to grimoire '$tgrim'"
+
+	# generate list of recursive dependencies on $spells
+	debugging "Calculating dependencies for spell(s)"
+	depends=`recursive_dependencies $spells`
+
+	# for each dependency ensure it is provided by $tgrim
+	for i in $depends; do
+		if ! ( grimoire_has $tgrim $i ); then
+			spells="$spells $i"	
+		fi	
+	done
+
+	# remove duplicates from spell list
+	if [ -e ${BINERY_TMP}.spells ]; then
+		rm ${BINERY_TMP}.spells
+	fi
+	for i in $spells; do
+		echo $i >> ${BINERY_TMP}.spells
+	done
+	spells=`cat ${BINERY_TMP}.spells | sort | uniq`
+	rm ${BINERY_TMP}.spells
+
+	# confirm adding the spells to the grimoire
+	echo "The following spells will be added to the '$tgrim' grimoire:"
+	for i in $spells; do
+		echo "   $i"
+	done
+
+	# TODO: confirm adding spells to grimoire
+
+	# ensure no failed spells log exists
+	if [ -e ${BINERY_TMP}.failed_spells ]; then
+		rm -f ${BINERY_TMP}.failed_spells
+	fi
+
+	# add spells to grimoire
+	for i in $spells; do
+		add_spell_to_grimoire $i $tgrim
+	done
+
+	# display list of failed spells
+	if [ -e ${BINERY_TMP}.failed_spells ]; then
+		cat ${BINERY_TMP}.failed_spells
+		rm -f ${BINERY_TMP}.failed_spells
+	fi
+
+	verbosing "Done adding spells."
+
+}
+
+# add_spell_to_grimoire()
+#
+# $1: spell name
+# $2: grimoire name
+#
+# Adds a single spell to a binery grimoire. It is assumed that the
+# spell is currently installed and that the spell does not already
+# exist in the target grimoire.
+#
+add_spell_to_grimoire() {
+	# declare local vars
+	local failed_spells
+	local spell_where
+	local spell_version
+	local spell_ok
+	local sd
+	local first_line
+	local i
+
+	failed_spells="${BINERY_TMP}.failed_spells"
+
+	# get section name for spell, default to unknown
+	spell_where=`gaze where $1 | cut -f3 -d\ `
+	if [ -z $spell_where ]; then
+		verbosing "Could not determine section for spell '$2', using section 'unknown'"
+		spell_where="unknown"
+	fi
+
+	sd="${BINERY_LIB}/codex/${2}/${spell_where}/${1}"
+
+	# verify spell parameter was specified
+	if [ -z $1 ]; then
+		return 1
+	fi
+
+	# verify grimoire parameter was specified
+	if [ -z $2 ]; then
+		echo "	$1: missing grimoire parameter" >> $failed_spells
+		return 1
+	fi
+
+	# check if spell already exists in grimoire
+	if [ -d $sd ]; then
+		echo "	$1: spell already exists in grimoire '$2'" >> $failed_spells
+		return 1
+	fi
+
+	#verbosing "Adding '$1' to grimoire '$2'"
+
+	# get installed spell version number
+	spell_version=`grep ^${1}: $EXT_SORCERY_PACKAGES | cut -f4 -d:`
+	if [ -z $spell_version ]; then
+		echo "	$1: spell is not installed" >> $failed_spells
+		return 1
+	fi
+	debugging "Version number for spell '$1': $spell_version"
+
+	# get install date of spell (used as ENTERED)
+	spell_ok=`grep ^${1}: $EXT_SORCERY_PACKAGES | cut -f2 -d:`
+	if [ -z $spell_ok ]; then
+		echo "	$1: could not determine install date" >> $failed_spells
+		return 1
+	fi
+	debugging "Install date for spell '$1': $spell_ok"
+
+	# create spell directory
+	debugging "Creating spell directory: $sd"
+	if ! ( mkdir -p $sd ); then
+		echo "	$1: could not create spell directory $sd" >> $failed_spells
+		return 1
+	fi
+
+	# get short description
+	spell_short=`gaze short $1 | tail -n 1`
+	debugging "Short description for spell '$1': $spell_short"
+
+	# create DETAILS
+	debugging "Creating DETAILS for spell '$1'"
+	cat > ${sd}/DETAILS << EOF
+           SPELL=$1
+         VERSION=$spell_version
+         ENTERED=$spell_ok
+         UPDATED=never
+          SOURCE=\$SPELL-\$UPDATED.bin.tar.bz2
+   SOURCE_URL[0]=${BINERY_BASE_URL}/${2}/\${SOURCE}
+          MD5[0]=none
+           SHORT="$spell_short"
+EOF
+
+	# append long description
+	echo 'cat << EOF' >> ${sd}/DETAILS
+	gaze what $1 | tail -n $(( `gaze what $1 | wc -l` - 1 )) >> ${sd}/DETAILS
+	echo 'EOF' >> ${sd}/DETAILS
+
+	first_line="true"
+	# add all dependencies as required
+	debugging "Creating DEPENDS for spell '$1'"
+	for i in `grep "^${1}:[^:]*:on:" $EXT_SORCERY_DEPENDS | cut -f2 -d:`; do
+		if [ -z "$first_line" ]; then
+			echo "    &&" >> ${sd}/DEPENDS
+		else
+			unset first_line
+		fi
+		
+		echo -n "depends $i" >> ${sd}/DEPENDS
+	done
+	if [ -z "$first_line" ]; then
+		echo "" >> ${sd}/DEPENDS
+	fi
+
+	# ensure DETAILS and DEPENDS are executable
+	chmod a+x ${sd}/DETAILS
+	if [ -e ${sd}/DEPENDS ]; then
+		chmod a+x ${sd}/DEPENDS
+	fi
+
+	# copy/link build scripts
+	local bscr
+	for bscr in PRE_BUILD BUILD POST_INSTALL; do
+		rm -f ${sd}/${bscr}
+		if [ -e ${BINERY_LIB}/spells/${1}/${bscr} ]; then
+			debugging "Copying pre-defined ${bscr} for spell '$1'"
+			cp ${BINERY_LIB}/spells/${1}/${bscr} ${sd}/${bscr}
+			chmod a+x ${sd}/${bscr}
+		else
+			debugging "Linking to reference ${bscr} for spell '$1'"
+			ln -s ../../binery/ref/${bscr} ${sd}/${bscr}
+		fi
+	done
+
+	verbosing "Added spell '$1' to grimoire '$2'."
+}
+
+# usage_add()
+#
+# Show add usage information.
+#
+usage_add() {
+	cat << EOF
+
+Usage: binery add <spell1> [spell2...spellN] [ to <grimoire> ]
+
+This mode will add one or more spells to a binery grimoire. If
+only a single grimoire exists, the 'to <grimoire>' portion of
+the command in unnecessary. Otherwise, the grimoire to add the
+spells to is required.
+
+Any number of spells may be listed on the command line, however,
+binery will automatically add any dependencies that don't currently
+exist in <grimoire> or any of its "required" grimoires.
+
+EOF
+
+}
+
+# ------------------------- Mode: remove ---------------------------- #
+# remove()
+#
+# $*: spell names
+#
+# or
+#
+# $1..n-2: spell names
+#    $n-1: 'from'
+#      $n: grimoire name
+# 
+#  Remove spell(s) from a binery grimoire.
+#
+remove() {
+	# declare local vars
+	local spells
+	local gd
+	local tgrim
+	local ngrims
+	local i
+
+	# check for spell name parameters
+	spells=""
+	while [ ${#1} -gt 0 ] && [ $1 != "from" ]; do
+		spells="$spells $1"
+		shift
+	done
+
+	# ensure at least one spell was listed
+	if [ -z "$spells" ]; then
+		erroring "At least one spell name is required!"
+		usage_remove
+		exit 1
+	fi
+
+	debugging "Determining target grimoire"
+
+	# check for 'from' parameter
+	tgrim=""
+	if [ ! -z "$1" ] && [ $1 = "from" ]; then
+		shift
+		if [ -z "$1" ]; then
+			erroring "No grimoire specified with 'from' parameter."
+			usage_remove
+			exit 1
+		fi
+		tgrim="$1"
+	fi
+
+	# if grimoire not specified, check if only one exists
+	if [ -z $tgrim ]; then
+		ngrims=`ls ${BINERY_LIB}/codex/ | wc -l`
+		if [ $ngrims -eq 1 ]; then
+			tgrim=`ls ${BINERY_LIB}/codex/`
+		fi
+	fi
+
+	# ensure a target grimoire was determined
+	if [ -z $tgrim ]; then
+		erroring "No target grimoire could be determined."
+		usage_remove
+		exit 1;
+	fi
+
+	# set absolute path to new grimoire directory
+	gd="${BINERY_LIB}/codex/${tgrim}"
+
+	# ensure grimoire directory exists
+	if [ ! -d $gd ]; then
+		erroring "Could not find grimoire directory: $gd"
+		exit 1
+	fi
+
+	verbosing "Removing spell(s) '$spells' from grimoire '$tgrim'"
+
+	# confirm removing the spells from the grimoire
+	echo "The following spells will be removed from the '$tgrim' grimoire:"
+	for i in $spells; do
+		echo "   $i"
+	done
+
+	# TODO: confirm removing spells from grimoire
+
+	# ensure no failed spells log exists
+	if [ -e ${BINERY_TMP}.failed_spells ]; then
+		rm -f ${BINERY_TMP}.failed_spells
+	fi
+
+	# remove spells from grimoire
+	for i in $spells; do
+		remove_spell_from_grimoire $i $tgrim
+	done
+
+	# display list of failed spells
+	if [ -e ${BINERY_TMP}.failed_spells ]; then
+		cat ${BINERY_TMP}.failed_spells
+		rm -f ${BINERY_TMP}.failed_spells
+	fi
+
+	verbosing "Done removing spells."
+
+}
+
+# remove_spell_from_grimoire()
+#
+# $1: spell name
+# $2: grimoire name
+#
+# Removes a single spell from a binery grimoire. 
+#
+remove_spell_from_grimoire() {
+	# declare local vars
+	local failed_spells
+	local spell_where
+	local sd
+
+	failed_spells="${BINERY_TMP}.failed_spells"
+
+	# verify spell parameter was specified
+	if [ -z $1 ]; then
+		return 1
+	fi
+
+	# verify grimoire parameter was specified
+	if [ -z $2 ]; then
+		echo "	$1: missing grimoire parameter" >> $failed_spells
+		return 1
+	fi
+
+	# find spell directory
+	sd=`find ${BINERY_LIB}/codex/${2}/ | grep "/${1}\$"`
+	debugging "Spell directory: $sd"
+
+	# ensure spell exists in grimoire
+	if [ ! -d "$sd" ]; then
+		echo "	$1: spell not found in grimoire '$2'" >> $failed_spells
+		return 1
+	fi
+
+	verbosing "Removing spell '$1' from grimoire '$2'"
+	rm -rf $sd
+
+}
+
+# usage_remove()
+#
+# Show remove usage information.
+#
+usage_remove() {
+	cat << EOF
+
+Usage: binery remove <spell1> [spell2...spellN] [ from <grimoire> ]
+
+This mode will remove one or more spells from a binery grimoire. If
+only a single grimoire exists, the 'from <grimoire>' portion of
+the command in unnecessary. Otherwise, the grimoire to remove the
+spells from is required.
+
+No checking is done to prevent removing dependencies of other spells.
+EOF
+
+}
+
+
+
+# ------------------------- Mode: update ---------------------------- #
+# update()
+#
+# all:
+#   $1: 'all'
+#
+# grimoires:
+#       $1: 'grimoire' or 'grimoires'
+#   $2..$n: grimoire name(s)
+#
+# Updates spells in binery grimoires.
+#
+update() {
+
+	if [ -z "$1" ]; then
+		erroring "Update target required!"
+		usage_update
+		exit 1
+	fi
+
+	case $1 in 
+		    'spell')  shift; update_spells $* ;;
+		   'spells')  shift; update_spells $* ;;
+		 'grimoire')  shift; update_grimoires $* ;;
+		'grimoires')  shift; update_grimoires $* ;;
+		      'all')  update_all   ;;
+		          *)  usage_update ;;
+	esac
+}
+
+# update_all() 
+#
+# Calls update_grimoires with all grimoire names.
+#
+update_all() {
+	if [ ! -d ${BINERY_LIB}/codex ]; then
+		erroring "binery codex directory (${BINERY_LIB}/codex) does not exist!"
+		usage_update
+		exit 1
+	fi
+
+	debugging "Updating all grimoires"
+
+	update_grimoires `all_grimoires`
+}
+
+
+# update_grimoires()
+#
+# $*: grimoire name(s) to update
+#
+# For each spell in each grimoire argument, call update_spell.
+#
+update_grimoires() {
+	# declare local vars
+	local ug_grim
+	local ug_spell
+
+	for ug_grim in $*; do
+		# update spells in grimoire
+		debugging "Updating grimoire '$ug_grim'"
+		for ug_spell in `all_spells $ug_grim`; do
+			update_spell $ug_grim $ug_spell
+		done
+
+		# archive grimoire in spool
+		verbosing "Archiving grimoire '$ug_grim'"
+		pushd ${BINERY_LIB}/codex/ >& /dev/null
+		tar -cPpsjf ${BINERY_SPOOL}/${ug_grim}/${ug_grim}.tar.bz2 ${ug_grim}/
+		popd >& /dev/null
+
+		# copy sorcery package to spool
+		if [ ! -z "$EXT_SORCERY_SCRIPTS" ]; then
+			verbosing "Copying sorcery package to spool"
+			cp $EXT_SORCERY_SCRIPTS ${BINERY_SPOOL}/${ug_grim}
+		fi
+
+		# touch .last_update
+		touch ${BINERY_SPOOL}/${ug_grim}/.last_update
+	done
+}
+
+# update_spells()
+#
+# $*: spell names
+#
+# or
+#
+# $1..n-2: spell names
+#    $n-1: 'in'
+#      $n: grimoire name
+#
+# For each spell argument, call update_spells for the given grimoire,
+# or all grimoires if not specified.
+#
+update_spells() {
+	# declare local vars
+	local spells
+	local depends
+	local gd
+	local tgrim
+	local ngrims
+	local i
+
+	# check for spell name parameters
+	spells=""
+	while [ ${#1} -gt 0 ] && [ $1 != "in" ]; do
+		spells="$spells $1"
+		shift
+	done
+
+	# ensure at least one spell was listed
+	if [ -z "$spells" ]; then
+		erroring "At least one spell name is required!"
+		usage_update
+		exit 1
+	fi
+
+	debugging "Determining target grimoire"
+
+	# check for 'in' parameter
+	tgrim=""
+	if [ ! -z "$1" ] && [ $1 = "in" ]; then
+		shift
+		if [ -z "$1" ]; then
+			erroring "No grimoire specified with 'in' parameter."
+			usage_update
+			exit 1
+		fi
+		tgrim="$1"
+	fi
+
+	# if grimoire not specified, check if only one exists
+	if [ -z $tgrim ]; then
+		ngrims=`ls ${BINERY_LIB}/codex/ | wc -l`
+		if [ $ngrims -eq 1 ]; then
+			tgrim=`ls ${BINERY_LIB}/codex/`
+		fi
+	fi
+
+	# ensure a target grimoire was determined
+	if [ -z $tgrim ]; then
+		# update all grimoires
+		erroring "Updating individual spells in all grimoires not yet implemented."
+		erroring "Please specify grimoire with to parameter."
+		exit 1;
+	fi
+
+	# set absolute path to new grimoire directory
+	gd="${BINERY_LIB}/codex/${tgrim}"
+
+	# ensure grimoire directory exists
+	if [ ! -d $gd ]; then
+		erroring "Could not find grimoire directory: $gd"
+		exit 1
+	fi
+
+
+	# declare local vars
+	local ug_spell
+
+	for ug_spell in $spells; do
+		debugging "Updating spell $ug_spell in grimoire $tgrim"
+		update_spell $tgrim $ug_spell
+	done
+
+	# archive grimoire in spool
+	verbosing "Archiving grimoire '$tgrim'"
+	pushd ${BINERY_LIB}/codex/ >& /dev/null
+	tar -cPpsjf ${BINERY_SPOOL}/${tgrim}/${tgrim}.tar.bz2 ${tgrim}/
+	popd >& /dev/null
+
+	# copy sorcery package to spool
+	if [ ! -z "$EXT_SORCERY_SCRIPTS" ]; then
+		verbosing "Copying sorcery package to spool"
+		cp $EXT_SORCERY_SCRIPTS ${BINERY_SPOOL}/${tgrim}
+	fi
+
+	# touch .last_update
+	touch ${BINERY_SPOOL}/${tgrim}/.last_update
+}
+
+
+# update_spell()
+#
+# $1: grimoire name
+# $2: spell name
+#
+# Check if the install date of spell is newer than the UPDATED
+# field in the spell DETAILS. If so, package the spell into
+# the spool directory and update the MD5 and UPDATED fields in 
+# the spell DETAILS.
+#
+update_spell() {
+
+	# declare local vars
+	local spell_where
+	local spell_directory
+	local spell_version
+	local spell_ok
+	local spell_md5
+	local i
+
+	# check for grimoire argument
+	if [ -z $1 ]; then
+		debugging "Missing grimoire name in update_spell()"
+		return
+	fi
+
+	# check for spell argument
+	if [ -z $2 ]; then
+		debugging "Missing spell name in update_spell()"
+		return
+	fi
+
+	if [ $2 = "ref" ]; then
+		update_ref_spell $1
+		return
+	fi
+
+	# find spell directory
+	spell_directory=`find ${BINERY_LIB}/codex/${1}/ | grep "/${2}\$"`
+	debugging "Spell directory: $spell_directory"
+
+	# ensure spell exists in grimoire
+	if [ ! -d "$spell_directory" ]; then
+		debugging "Spell '$2' is not in grimoire '$1'"
+		return
+	fi
+
+	# get installed spell version number
+	spell_version=`grep ^${2}: $EXT_SORCERY_PACKAGES | cut -f4 -d:`
+	if [ -z $spell_version ]; then
+		verbosing "$2: not installed...skipping it."
+		return
+	fi
+
+	# get install date of spell (used as ENTERED)
+	spell_ok=`grep ^${2}: $EXT_SORCERY_PACKAGES | cut -f2 -d:`
+	if [ -z $spell_ok ]; then
+		verbosing "$2: not installed...skipping it."
+		return
+	fi
+
+	# load the spell DETAILS
+	if [ ! -e ${spell_directory}/DETAILS ]; then
+		verbosing "$2: spell DETAILS missing...skipping it."
+		return
+	else
+		. ${spell_directory}/DETAILS > ${BINERY_TMP}.$2.desc
+	fi
+
+	# check if spell has been updated
+	if [ $spell_ok = $UPDATED ]; then
+		if [ -e ${BINERY_SPOOL}/${1}/${2}-${spell_ok}.bin.tar.bz2 ]; then
+			debugging "Spell '$2' is up to date in grimoire '$1' ($spell_ok)"
+			rm ${BINERY_TMP}.${2}.desc
+			return
+		else
+			debugging "Spell '$2' DETAILS up to date, but missing binary package"
+		fi
+	fi
+
+	verbosing "Updating spell '$2' in grimoire '$1'"
+
+	# update DEPENDS
+	debugging "Updating spell dependencies"
+	rm -f ${spell_directory}/DEPENDS
+	local first_line
+	first_line="true"
+	for i in `grep "^${2}:[^:]*:on:" $EXT_SORCERY_DEPENDS | cut -f2 -d:`; do
+		if [ -z "$first_line" ]; then
+			echo "    &&" >> ${spell_directory}/DEPENDS
+		else
+			unset first_line
+		fi
+		
+		echo -n "depends $i" >> ${spell_directory}/DEPENDS
+	done
+	if [ -z "$first_line" ]; then
+		echo "" >> ${spell_directory}/DEPENDS
+	fi
+
+	# ensure DEPENDS is executable
+	if [ -e ${spell_directory}/DEPENDS ]; then
+		chmod a+x ${spell_directory}/DEPENDS
+	fi
+
+
+ 	# copy/link build scripts
+	local bscr
+	for bscr in PRE_BUILD BUILD POST_INSTALL; do
+		rm -f ${spell_directory}/${bscr}
+		if [ -e ${BINERY_LIB}/spells/${2}/${bscr} ]; then
+			debugging "Copying pre-defined ${bscr} for spell '$2'"
+			cp ${BINERY_LIB}/spells/${2}/${bscr} ${spell_directory}/${bscr}
+			chmod a+x ${spell_directory}/${bscr}
+		else
+			debugging "Linking to reference ${bscr} for spell '$2'"
+			ln -s ../../binery/ref/${bscr} ${spell_directory}/${bscr}
+		fi
+	done
+
+	# create filelist
+	if ( ! gaze install $2 > ${BINERY_TMP}.$2.install ); then
+		debugging "Could not get list of installed files for spell $2"
+		return
+	fi
+
+	# apply binery includes
+	for i in $BINERY_INCLUDE; do
+		debugging "Applying binery include: $i"
+		find $i >> ${BINERY_TMP}.$2.install
+	done
+
+	# check for spell specific includes
+	if [ -e ${BINERY_LIB}/spells/${2}/INCLUDE ]; then
+		for i in `cat ${BINERY_LIB}/spells/${2}/INCLUDE`; do
+			debugging "Applying spell include: $i"
+			find $i >> ${BINERY_TMP}.$2.install
+		done
+	fi
+
+	# apply binery excludes
+	for i in $BINERY_EXCLUDE; do
+		debugging "Applying binery exclude: $i"
+		mv ${BINERY_TMP}.$2.install ${BINERY_TMP}.$2.insttmp
+		cat ${BINERY_TMP}.$2.insttmp | grep -v $i > ${BINERY_TMP}.$2.install
+	done
+
+	# check for spell specific excludes
+	if [ -e ${BINERY_LIB}/spells/${2}/EXCLUDE ]; then
+		for i in `cat ${BINERY_LIB}/spells/${2}/EXCLUDE`; do
+			debugging "Applying spell exclude: $i"
+			mv ${BINERY_TMP}.$2.install ${BINERY_TMP}.$2.insttmp
+			cat ${BINERY_TMP}.$2.insttmp | grep -v $i > ${BINERY_TMP}.$2.install
+		done
+	fi
+
+	# sort and remove duplicates
+	cat ${BINERY_TMP}.$2.install | sort | uniq > ${BINERY_TMP}.$2.insttmp
+	rm -f ${BINERY_TMP}.$2.install
+
+	# remove non-empty directories from list
+	while read i; do
+		if [ -e "$i" ]; then
+			if [ ! -d "$i" ] || [ -L "$i" ]; then
+				echo "$i" >> ${BINERY_TMP}.$2.install
+			elif [ -d "$i" ] && [ `ls -a "$i" | wc -l` -eq "2" ]; then
+				echo "$i" >> ${BINERY_TMP}.$2.install
+			fi
+		fi
+	done < ${BINERY_TMP}.$2.insttmp
+	rm -f ${BINERY_TMP}.$2.insttmp
+
+	# ensure spool directory exists
+	if [ ! -d ${BINERY_SPOOL}/${1} ]; then
+		mkdir -p ${BINERY_SPOOL}/${1}
+	fi
+
+	# check if spell has files
+	if [ -f ${BINERY_TMP}.$2.install ]; then
+
+		# create binary package
+		local tflgs
+		tflgs="--ignore-failed-read -cPpsjf"
+		tar ${tflgs} ${BINERY_SPOOL}/${1}/${2}-${spell_ok}.bin.tar.bz2 -T ${BINERY_TMP}.${2}.install
+
+		# get md5
+		spell_md5=`bzcat ${BINERY_SPOOL}/${1}/${2}-${spell_ok}.bin.tar.bz2 | md5sum | cut -f1 -d\ `
+
+		# create new DETAILS
+		cat > ${spell_directory}/DETAILS << EOF
+           SPELL=$SPELL
+         VERSION=$spell_version
+         ENTERED=$ENTERED
+         UPDATED=$spell_ok
+          SOURCE=\$SPELL-\$UPDATED.bin.tar.bz2
+   SOURCE_URL[0]=${BINERY_BASE_URL}/${1}/\${SOURCE}
+          MD5[0]=$spell_md5
+           SHORT="$spell_short"
+EOF
+
+		# append long description
+		echo 'cat << EOF' >> ${spell_directory}/DETAILS
+		cat ${BINERY_TMP}.${2}.desc >> ${spell_directory}/DETAILS
+		echo 'EOF' >> ${spell_directory}/DETAILS
+
+		# remove temporary install list
+		rm ${BINERY_TMP}.${2}.install
+
+	else
+		# no binary package necessary, don't define SOURCE
+		cat > ${spell_directory}/DETAILS << EOF
+           SPELL=$SPELL
+         VERSION=$spell_version
+         ENTERED=$ENTERED
+         UPDATED=$spell_ok
+           SHORT="$spell_short"
+EOF
+
+		# append long description
+		echo 'cat << EOF' >> ${spell_directory}/DETAILS
+		cat ${BINERY_TMP}.${2}.desc >> ${spell_directory}/DETAILS
+		echo 'EOF' >> ${spell_directory}/DETAILS
+	fi
+
+	# remove temporary files
+	rm ${BINERY_TMP}.${2}.desc
+
+}
+
+# update_ref_spell()
+#
+# $1: grimoire name
+#
+# Check if the reference spell needs updating, if so update it.
+#
+update_ref_spell() {
+
+	# declare local vars
+	local spell_directory
+	local spell_ok
+
+	# check for grimoire argument
+	if [ -z $1 ]; then
+		debugging "Missing grimoire name in update_ref_spell()"
+		return
+	fi
+
+	# get spell directory
+	spell_directory="${BINERY_LIB}/codex/${1}/binery/ref"
+
+	# get install date of spell
+	spell_ok=$BINERY_REF_UPDATED
+
+	# load the spell DETAILS
+	if [ ! -e ${spell_directory}/DETAILS ]; then
+		debugging "Reference spell is missing DETAILS in grimoire '$1'"
+	else
+		. ${spell_directory}/DETAILS > /dev/null
+		if [ $spell_ok = $UPDATED ]; then
+			debugging "Reference spell is up to date ($spell_ok)"
+			return
+		fi
+	fi
+
+	# remove the old reference spell
+	debugging "Removing the old reference spell from grimoire '$1'"
+	rm -rf $spell_directory;
+
+	# re-create reference spell
+	debugging "Recreating the reference spell"
+	create_ref_spell $1
+}
+
+# usage_update()
+#
+# Show update usage information.
+#
+usage_update() {
+	cat << EOF
+
+Usage: binery update all
+   or: binery update grimoire[s] <grim1> [<grim2>...<grimN>]
+
+This mode will update one or more binery grimoires. If the 'all'
+parameter is used, all binery grimoires will be updated. If the
+'grimoire' or 'grimoires' parameter is used, then the listed
+grimoires will be updated. The 'grimoire' and 'grimoires'
+parameters are identical, either can be used to update a single
+or multiple grimoires.
+
+All spells in each grimoire being updated will be checked against
+the currently installed version. If the installed version is newer, 
+then a new binary package will be created and the spell DETAILS will
+be updated.
+
+EOF
+
+}
+
+
+# ------------------------- Mode: help ------------------------------ #
+# In this section are some general usage functions. Each 'mode' of
+# binery should be contained in its own section with its own
+# usage function 'usage_$mode()'.
+# 
+# usage()
+#
+# Show usage information for a specific mode if specified and valid,
+# otherwise show general usage information.
+#
+usage() {
+
+	case $1 in
+		 'create') usage_create  ;;
+		'destroy') usage_destroy ;;
+
+		    'add') usage_add     ;;
+		 'remove') usage_remove  ;;
+
+		 'update') usage_update  ;;
+		  'clean') usage_clean   ;;
+
+		  'debug') usage_debug   ;;
+		        *) usage_general ;;
+	esac
+
+}
+
+# usage_debug()
+#
+# Show values of some configuration settings.
+#
+usage_debug() {
+
+
+	cat << EOF
+
+BINERY_VERSION='$BINERY_VERSION'
+BINERY_CONFIG='$BINERY_CONFIG'
+BINERY_SPOOL='$BINERY_SPOOL'
+BINERY_LIB='$BINERY_LIB'
+BINERY_BASE_URL='$BINERY_BASE_URL'
+BINERY_TMP='$BINERY_TMP'
+BINERY_INCLUDE='$BINERY_INCLUDE'
+BINERY_EXCLUDE='$BINERY_EXCLUDE'
+
+EXT_SORCERY_STATE='$EXT_SORCERY_STATE'
+EXT_SORCERY_PACKAGES='$EXT_SORCERY_PACKAGES'
+EXT_SORCERY_DEPENDS='$EXT_SORCERY_DEPENDS'
+
+BINERY_REF_UPDATED='$BINERY_REF_UPDATED'
+
+EOF
+
+	debugging "BINERY_DEBUG enabled"
+	verbosing "BINERY_VERBOSE enabled"
+}
+
+# usage_general()
+#
+# Show general usage information.
+#
+usage_general() {
+	cat << EOF
+
+Usage: binery [mode] [options]
+
+Available modes:
+    create - create a new binery grimoire
+   destroy - remove a binary grimoire
+
+       add - add spell(s) to a binery grimoire
+    remove - remove spell(s) to a binery grimoire
+
+    update - update all binary grimoires
+     clean - clean unused files from spool
+
+      help - show help for a specific mode
+
+To show help for a specific mode: binery help [mode]
+
+EOF
+
+}
+
+# ------------------------- Entry Point ----------------------------- #
+
+load_binery_config
+
+# parse mode from command line
+case $1 in
+	 'create') shift; create  $* ;;
+	'destroy') shift; destroy $* ;;
+
+	    'add') shift;    add  $* ;;
+	 'remove') shift; remove  $* ;;
+
+	 'update') shift; update  $* ;;
+	  'clean') shift;  clean  $* ;;
+
+	   'help') shift;  usage  $* ;;
+	        *) shift;  usage     ;;
+esac
+
+exit;
+
