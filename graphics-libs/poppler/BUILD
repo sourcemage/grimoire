@@ -5,5 +5,5 @@ fi                                 &&
 if [ "$PSOPI" == "y" ]; then
    OPTS="$OPTS --enable-opi"
 fi                                 &&
-OPTS="--disable-utils $OPTS"  &&
+OPTS="--disable-utils --enable-xpdf-headers $OPTS"  &&
 default_build
