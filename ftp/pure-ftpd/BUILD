@@ -1,3 +1,4 @@
+OPTS="$CAPABILITIES $OPTS" &&
 ./configure  --sysconfdir=${INSTALL_ROOT}/etc  \
              --prefix=${INSTALL_ROOT}/usr      \
              --with-largefile                  \
