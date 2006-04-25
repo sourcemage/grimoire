@@ -1,0 +1,52 @@
+#!/bin/bash
+
+PROGRAM=/usr/bin/wine
+RUNLEVEL=3
+
+. /etc/init.d/smgl_init
+
+start()
+{
+  echo  "Starting WINE..."  &&
+  if  [  -e  /proc/sys/fs/binfmt_misc/CLR  ];  then
+    echo  ".Net and Windows executables have the same magic number"  &&
+    echo  "so they cannot both be set for binfmt_misc."              &&
+    echo  "WINE not loaded."                                         &&
+    return  1
+  fi  &&
+
+  # From /usr/src/linux/Documentation/binfmt_misc.txt
+  # Insert BINFMT_MISC module into the kernel if it's not loaded
+  if  [  !  -e  /proc/sys/fs/binfmt_misc/register  ];  then
+    /sbin/modprobe  binfmt_misc
+    mount  -t  binfmt_misc  none  /proc/sys/fs/binfmt_misc
+  fi  &&
+
+  # Register support for .Net CLR binaries
+  if  [  -e  /proc/sys/fs/binfmt_misc/register  ];  then
+    builtin echo ':DOSWin:M::MZ::/usr/bin/wine:'            \
+	                  >  /proc/sys/fs/binfmt_misc/register
+  else
+    echo "No binfmt_misc support"  &&
+	return 1
+  fi
+}
+
+stop()
+{
+  echo  "Stopping WINE..."  &&
+  if  [  -e  /proc/sys/fs/binfmt_misc/DOSWin  ];  then
+    # Send both 0 and -1 in case removing doesn't disable...
+	# Disable wine
+    builtin echo  '0'   >  /proc/sys/fs/binfmt_misc/DOSWin  &&
+	# Remove wine
+    builtin echo  '-1'  >  /proc/sys/fs/binfmt_misc/DOSWin
+  fi
+}
+
+restart()
+{
+  echo  "Restarting WINE..."  &&
+  stop                        &&
+  start
+}
