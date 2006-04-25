@@ -2,21 +2,16 @@ if [ "$KEYFLAGS" == "y" ]; then
    OPTS="$OPTS --enable-flags"
 fi                                                               &&
 
-if [ "$CPUFREQ" == "y" ]; then
-   OPTS="$OPTS --enable-cpufreq"
-else
+if [ "$CPUFREQ" == "n" ]; then
    OPTS="$OPTS --disable-cpufreq"
 fi                                                               &&
 
-if [ "$FREQSEL" == "y" ]; then
-   OPTS="$OPTS --enable-frequency-selector"                      &&
-   if [ "$FREQSELSUID" == "y" ]; then
-      OPTS="$OPTS --enable-suid"
-   else
-      OPTS="$OPTS --disable-suid"
-   fi
+if [ "$FREQSEL" == "n" ]; then
+   OPTS="$OPTS --enable-frequency-selector=no --enable-suid=no"
 else
-   OPTS="$OPTS --disable-frequency-selector --disable-suid"
+   if [ "$FREQSELSUID" == "n" ]; then
+      OPTS="$OPTS --enable-suid=no"
+   fi
 fi                                                               &&
 
 if [ "$IPV6" == "y" ]; then
