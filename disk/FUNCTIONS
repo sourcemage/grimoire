@@ -2,20 +2,77 @@
 
 #---------------------------------------------------------------------
 ##
+## @param module filename
+## Add a file in /etc/modules.d to get some modules autoloaded
+##
+#---------------------------------------------------------------------
+function add_module_autoload()
+{
+  local MODULE_FILENAME=${1##*/}
+  
+  if  [  ! -f  $INSTALL_ROOT/etc/modules.d/$MODULE_FILENAME  ];  then
+    mkdir  -p  $INSTALL_ROOT/etc/modules.d  &&
+    cp     $1  $INSTALL_ROOT/etc/modules.d
+  fi  &&
+
+  local MOD="$INSTALL_ROOT/etc/modules.conf"
+  local INC="include  /etc/modules.d/$MODULE_FILENAME"
+
+  grep    -q  "$INC"      $MOD  ||
+  echo        "$INC"  >>  $MOD
+
+  # Avoid that -b option of depmod takes the kernel version as the path for /lib/modules
+  if [ -z $INSTALL_ROOT ]; then
+    depmod  -a  -C $MOD $(get_kernel_version)
+  else
+    depmod  -a  -C $MOD -b $INSTALL_ROOT $(get_kernel_version)
+  fi
+}
+
+#---------------------------------------------------------------------
+##
+## @param module filename
+## Add a file in /etc/modules.d to get some modules autoloaded
+##
+#---------------------------------------------------------------------
+function remove_module_autoload()
+{
+  local MODULE_FILENAME=${1##*/}
+
+  local MOD="$INSTALL_ROOT/etc/modules.conf"
+  local TMP="$INSTALL_ROOT/tmp/modules.conf"
+  local INC="include  /etc/modules.d/$MODULE_FILENAME"
+
+  cp           $MOD   $TMP  &&
+  grep    -v  "$INC"  $TMP  >  $MOD  &&
+  rm                  $TMP  &&
+  rm                  $INSTALL_ROOT/etc/modules.d/$MODULE_FILENAME
+  
+  # Avoid that -b option of depmod takes the kernel version as the path for /lib/modules
+  if [ -z $INSTALL_ROOT ]; then
+    depmod  -a  -C $MOD $(get_kernel_version)
+  else
+    depmod  -a  -C $MOD -b $INSTALL_ROOT $(get_kernel_version)
+  fi
+}
+
+#---------------------------------------------------------------------
+##
 ## Detects cd recorders and list them on standard output
 ##
 #---------------------------------------------------------------------
 function cdr_detect()
 {
-  CDROM_INFO_FILE=/proc/sys/dev/cdrom/info
-  CDR_MATCH_STRING="Can write CD-R:"
-  CDROM_DEVICES_MATCH_STRING="drive name:"
+  local CDROM_INFO_FILE=/proc/sys/dev/cdrom/info
+  local CDR_MATCH_STRING="Can write CD-R:"
+  local CDROM_DEVICES_MATCH_STRING="drive name:"
 
-  CDROM_DEVICES_STRING=$(grep "${CDROM_DEVICES_MATCH_STRING}" ${CDROM_INFO_FILE} | tr -d ' ' | tr -s '\t')
-  CDR_STRING=$(grep "${CDR_MATCH_STRING}" ${CDROM_INFO_FILE} | tr -d ' ' | tr -s '\t')
-
+  local CDROM_DEVICES_STRING=$(grep "${CDROM_DEVICES_MATCH_STRING}" ${CDROM_INFO_FILE} | tr -d ' ' | tr -s '\t')
+  local CDR_STRING=$(grep "${CDR_MATCH_STRING}" ${CDROM_INFO_FILE} | tr -d ' ' | tr -s '\t')
+  local CD_RECORDER
+  
   if  [ -n "${CDR_STRING}" ]; then
-    NUM_CDROM_DEVICES=$(echo "${CDR_STRING}" | wc -w )
+    local NUM_CDROM_DEVICES=$(echo "${CDR_STRING}" | wc -w )
 
     for i in $(seq 2 $NUM_CDROM_DEVICES); do
       if [ $(echo "${CDR_STRING}" | cut -f$i) = 1 ]; then
