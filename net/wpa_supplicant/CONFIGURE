@@ -1,22 +1,63 @@
-config_query CONFIG_WIRELESS_EXTENSION "wireless extensions?" y
-config_query CONFIG_DRIVER_WEXT "generic wireless extensions support?" y
+# This setting is automatically used if any driver which needs it is 
+# chosen
+#config_query CONFIG_WIRELESS_EXTENSION "wireless extensions?" y
 
-echo now choose hardare drivers
-config_query CONFIG_DRIVER_HOSTAP "Host AP support?" n
-config_query CONFIG_DRIVER_MADWIFI "madwifi support?" n
-config_query CONFIG_DRIVER_HERMES "Agere support?" n
-config_query CONFIG_DRIVER_PRISM54 "Prism54 support?" n
-config_query CONFIG_DRIVER_NDISWRAPPER "ndiswrapper support?" n
-config_query CONFIG_DRIVER_ATMEL "Atmel support?" n
-config_query CONFIG_DRIVER_BROADCOM "Broadcom support?" n
-config_query CONFIG_DRIVER_IPW "Intel ipw2100/ipw2200 support?" n
+message  "${MESSAGE_COLOR}Driver interfaces${DEFAULT_COLOR}"  &&
+config_query CONFIG_DRIVER_HOSTAP "Host AP support?"       y  &&
+# For this to compile, source & include files must be copied from 
+# Agere's driver source package. Maybe implement that later...?
+#config_query CONFIG_DRIVER_HERMES "Agere support?" y
+# Breaks compile for some reason
+#config_query CONFIG_DRIVER_MADWIFI "MadWifi support?" y
+config_query CONFIG_DRIVER_ATMEL "Atmel support?"                       y  &&
+config_query CONFIG_DRIVER_WEXT "Generic wireless extensions support?"  y  &&
+config_query CONFIG_DRIVER_PRISM54 "Prism54 support?"                   y  &&
+config_query CONFIG_DRIVER_NDISWRAPPER "NdisWrapper support?"           y  &&
+# Also breaks compile
+#config_query CONFIG_DRIVER_BROADCOM "Broadcom support?" y
+config_query CONFIG_DRIVER_IPW "Intel ipw2100/ipw2200 support?" y  &&
 
-echo now choose control interfaces
-config_query CONFIG_CTRL_IFACE "internal supplicant?" y
-config_query CONFIG_XSUPPLICANT_IFACE "external supplicant?" n
+message "${MESSAGE_COLOR}Control interfaces${DEFAULT_COLOR}"  &&
+# Devel version doesn't understand this
+if [ "$WPA_DEVEL" != "y" ];then
+  config_query CONFIG_CTRL_IFACE "Internal supplicant?" y
+fi  &&
 
-config_query WAP_EAP "WAP-Enterprise support" n
-if [ "$WAP_EAP" == "y" ];then
-  config_query CONFIG_EAP_TTLS "EAP-TTLS support?" n
-  config_query CONFIG_EAP_PEAP "EAP-PEAP support?" n
+config_query CONFIG_XSUPPLICANT_IFACE "External supplicant?" n  &&
+
+if spell_ok  qt-x11; then
+  config_query WPA_GUI "Graphical user interface?"  y
+else
+  config_query WPA_GUI "Graphical user interface?"  n
+fi  &&
+
+message "${MESSAGE_COLOR}WPA with EAP${DEFAULT_COLOR}"                     &&
+config_query WPA_EAP "WPA-Enterprise support (RADIUS authentication)?"  n  &&
+
+if [ "$WPA_EAP" == "y" ];then
+  message "${MESSAGE_COLOR}EAP authentication methods${DEFAULT_COLOR}"  &&
+  config_query CONFIG_IEEE8021X_EAPOL "IEEE8021X_EAPOL support?"     n  &&
+  config_query CONFIG_EAP_MD5 "EAP_MD5 support?"                     n  &&
+  config_query CONFIG_EAP_MSCHAPV2 "EAP_MSCHAPV2 support?"           n  &&
+  if  spell_ok  openssl;  then
+    config_query CONFIG_EAP_TLS "EAP_TLS support?"    y  &&
+    config_query CONFIG_EAP_PEAP "EAP-PEAP support?"  y  &&
+    config_query CONFIG_EAP_TTLS "EAP-TTLS support?"  y
+  else
+    config_query CONFIG_EAP_TLS "EAP_TLS support?"    n  &&
+    config_query CONFIG_EAP_PEAP "EAP-PEAP support?"  n  &&
+    config_query CONFIG_EAP_TTLS "EAP-TTLS support?"  n
+  fi  &&
+  config_query CONFIG_EAP_GTC "EAP_GTC support?"   n  &&
+  config_query CONFIG_EAP_OTP "EAP_OTP support?"   n  &&
+  config_query CONFIG_EAP_SIM "EAP_SIM support?"   n  &&
+  config_query CONFIG_EAP_AKA "EAP_AKA support?"   n  &&
+  config_query CONFIG_EAP_PSK "EAP_PSK support?"   n  &&
+  config_query CONFIG_EAP_PAX "EAP_PAX support?"   n  &&
+  config_query CONFIG_EAP_LEAP "EAP_LEAP support?" n  &&
+  if  spell_ok  pcsc-lite;  then
+    config_query CONFIG_PCSC "GSM/UMTS support?" y
+  else
+    config_query CONFIG_PCSC "GSM/UMTS support?" n
+  fi
 fi
