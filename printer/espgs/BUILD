@@ -1,5 +1,4 @@
-OPTS="--enable-dynamic  \
-      $OPTS"            &&
+OPTS="--enable-dynamic ${OPTS}"  &&
 
 make_single    &&
 default_build  &&

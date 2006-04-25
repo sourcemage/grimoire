@@ -1,11 +1,16 @@
-default_pre_build                        &&
+default_pre_build                                                     &&
+cd "${SOURCE_DIRECTORY}"                                              &&
 
-cd "$SOURCE_DIRECTORY" &&
 # this operation is harmless because because rpl_malloc is not defined anywhere
 # in the source; moreover, the symbol HAVE_MALLOC is not used in the source as
 # of ESPGS 8.15.1 and maybe earlier.
-sedit 's|#define malloc rpl_malloc|//\0|g' configure &&
+sedit 's|#define malloc rpl_malloc|//\0|g' configure                  &&
 
-if  [[  -n  "$SOURCE4"  ]];  then
+if  [ "${ESPG_OMNI}" == "y" ];  then
   unpack_file 4
-fi                                       
+fi                                                   
+
+if [ "${ESPGS_LIBGS}" == "y" ]; then
+   sedit "s/bbox.dev$/x11.dev/" Makefile.in                           &&
+   patch -p1  < ${SCRIPT_DIRECTORY}/ghostscript-8.15-sharedlib.patch
+fi
