@@ -1,7 +1,9 @@
-  OLD_CFLAGS="-Wall -O6 -fomit-frame-pointer -funroll-loops"
-  sedit  "s/$OLD_CFLAGS/$CFLAGS/"  iv/platforms.ini
+OLD_CFLAGS="-Wall -O6 -fomit-frame-pointer -funroll-loops"  &&
+sed -i "s/$OLD_CFLAGS/$CFLAGS/"  iv/platforms.ini  &&
 
-  ./configure Linux --prefix=${INSTALL_ROOT}/usr &&
-  sedit "s/MAKE = gmake/MAKE = make/" Makefile &&
-  sedit "s/lgif/lungif/" iv/Makefile &&
-  make all
+./configure Linux --prefix=${INSTALL_ROOT}/usr  &&
+
+if  spell_ok libungif; then  
+	sed -i "s/lgif/lungif/" iv/Makefile
+fi  &&
+make all
