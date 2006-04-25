@@ -1,81 +1,90 @@
-# Setting all options default to 'y' so the default can be used
-# on any system.
-# Should use the optional_depends check in DEPENDS for gettext
-config_query  GETTEXT    "Does your system support GNU gettext?"      y
-config_query  UNIX       "UNIX protocol family?"                      y
-config_query  INET       "INET (TCP/IP) protocol familiy?"            y
-config_query  INET6      "INET6 (IPv6) protocol family?"              y
-config_query  NOVELL     "Novell IPX/SPX protocol family?"            y
-config_query  APPLETALK  "Appletalk DDP protocol family?"             y
-config_query  AFAX25     "AX25 (packet radio) protocol family?"       y
-config_query  AFNETROM   "NET/ROM (packet radio) protocol family?"    y
-config_query  AFROSE     "Rose (packet radio) protocol family?"       y
-config_query  AFX25      "X.25 (CCITT) protocol family?"              y
-config_query  AFECONET   "Econet protocol family?"                    y
-# Disable DECNET as it's broken...
-#config_query  DECNET     "DECnet protocol family?"                    n
-persistent_add DECNET
-DECNET=n
-config_query  AFASH      "Ash protocol family?"                       y
-config_query  ETHERNET   "Ethernet (generic) hardware support?"       y
-config_query  ARCNET     "ARCnet hardware support?"                   y
-config_query  SLIP       "SLIP (serial line) hardware support?"       y
-config_query  PPP        "PPP (serial line) hardware support?"        y
-config_query  IPIP       "IPIP Tunnel hardware support?"              y
-config_query  STRIP      "STRIP (Metricom radio) hardware support?"   y
-config_query  TOKEN      "Token ring (generic) hardware support?"     y
-config_query  HWAX25     "AX25 (packet radio) hardware support?"      y
-config_query  HWROSE     "Rose (packet radio) hardware support?"      y
-config_query  HWNETROM   "NET/ROM (packet radio) hardware support?"   y
-config_query  HWX25      "X.25 (generic) hardware support?"           y
-config_query  FRAME      "DLCI/FRAD (frame relay) hardware support?"  y
-config_query  SIT        "SIT (IPv6-in-IPv4) hardware support?"       y
-config_query  FDDI       "FDDI (generic) hardware support?"           y
-config_query  HIPPI      "HIPPI (generic) hardware support?"          y
-config_query  HWASH      "Ash hardware support?"                      y
-config_query  CISCO      "(Cisco)-HDLC/LAPB hardware support?"        y
-config_query  IRDA       "IrDA hardware support?"                     y
-config_query  HWECONET   "Econet hardware support?"                   y
-config_query  IPMASQ     "IP Masquerading support?"                   y
-config_query  IPTOOLS    "Build iptunnel and ipmaddr?"                y
-# Turn off MII by default as it fails to build on some machines
-config_query  MII        "Build mii-tool?"                            n
+#!/bin/bash
+# net-tools CONFIGURE script
+#
+# Created 2006-03-22 by Matthew Clark <matthewclark@inlesserterms.net>
+#
 
-persistent_add  CONFIG_OPTS
+make_option_list() {
+  # Return a dialog-friendly list of modules and attributes
+  OPTS=()
+  local i=0
+  local FILE QUESTION STATUS
 
-CONFIG_OPTS="$GETTEXT\n\
-$UNIX\n\
-$INET\n\
-$INET6\n\
-$NOVELL\n\
-$APPLETALK\n\
-$AFAX25\n\
-$AFNETROM\n\
-$AFROSE\n\
-$AFX25\n\
-$AFECONET\n\
-$DECNET\n\
-$AFASH\n\
-$ETHERNET\n\
-$ARCNET\n\
-$SLIP\n\
-$PPP\n\
-$IPIP\n\
-$STRIP\n\
-$TOKEN\n\
-$HWAX25\n\
-$HWROSE\n\
-$HWNETROM\n\
-$HWX25\n\
-$FRAME\n\
-$SIT\n\
-$FDDI\n\
-$HIPPI\n\
-$HWASH\n\
-$CISCO\n\
-$IRDA\n\
-$HWECONET\n\
-$IPMASQ\n\
-$IPTOOLS\n\
-$MII\n"
+  for FILE in $OPTIONDIR/* ;do
+    source $FILE
+    OPTS[i++]=${FILE##*/} # strip everything before (including) the last /
+    OPTS[i++]=$QUESTION
+    if [[ $STATUS == "y" ]] ;then
+      OPTS[i++]=on
+    else
+      OPTS[i++]=off
+    fi
+  done
+}
 
+output_option_config() {
+  # Function to save the config info.
+
+  # Iterate through all the options.
+  # This relies on the fact that the options are in the same
+  # order here as they are in $* ($OUTPUT). They are.
+
+  local OPTION NAME
+
+  for OPTION in $OPTIONDIR/*
+  do
+    NAME=${OPTION##*/}
+    if [ "$NAME" == "$1" ] ;then
+      # it's in the list of enabled options
+      config_set_option $NAME y
+      shift #move on to the next option
+    else
+      config_set_option $NAME n
+    fi
+  done
+}
+
+option_config_menu() {
+  local OPTS TITLE OUTPUT
+
+  make_option_list
+  TITLE="net-conf option selection"
+
+  OUTPUT=$( $DIALOGPROG --title "$TITLE" --backtitle "$TITLE" \
+            --nocancel --stdout --single-quoted --checklist   \
+            "Select which features you'd like supported.
+            If you don't know what these are, then just press OK
+            to build all features."                              \
+            0 0 0 "${OPTS[@]}" ) &&
+
+  # OUTPUT now contains the list of modules to build
+  # Yes, we don't quote $OUTPUT. We want each module as a seperate arg
+  output_option_config $OUTPUT
+
+  # When either of those fail we return failure
+  # and fall back to option_config_list
+}
+
+option_config_list() {
+  local FILE QUESTION STATUS NAME
+
+  for FILE in $OPTIONDIR/* ;do
+    source $FILE
+    NAME=${FILE##*/}
+    config_query $NAME "$QUESTION" $STATUS
+  done
+}
+
+
+# Perform the configuration
+OPTIONDIR="$SCRIPT_DIRECTORY/options"
+
+# I cheat. I'm not really re-using this answer,
+# but it makes for a neat way to skip the prompt on later non-reconf casts.
+
+config_query NETTOOLS_CONFIG_GUI \
+  "Would you like to use a dialog menu to select options? (recommended)" n &&
+option_config_menu ||
+option_config_list
+
+config_set_option NETTOOLS_CONFIG_GUI n
