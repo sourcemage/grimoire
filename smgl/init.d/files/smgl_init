@@ -65,10 +65,10 @@ print_error()
 handle_needs()
 {
   # Well, if the script doesn't need anything don't bother going further
-  [ -z "$NEEDS" ] && return
+  [ -z "${!1}" ] && return
 
   _SUB_NEEDED=1
-  for service in $NEEDS ; do
+  for service in ${!1} ; do
     if [ ${service:0:1} == "+" ] ; then
       facility=${service:1}
       service=$( eval builtin echo "\$$facility" )
@@ -76,10 +76,11 @@ handle_needs()
 
     if [ -z "$service" ] ; then
       print_error "Provider for facility $facility not configured."
-      exit 7
+      [ "$1" == "NEEDS" ] && exit 7
+    elif ! need $service ; then
+      print_error "Error running requested service $service."
+      [ "$1" == "NEEDS" ] && exit 7
     fi
-
-    need $service || exit 7
   done
   unset _SUB_NEEDED
 }
@@ -177,7 +178,8 @@ if [ "$1" = "start" ] ; then
       print_error "Unable to load file containing facility definitions."
       exit 1
     }
-    handle_needs
+    handle_needs "NEEDS"
+    handle_needs "WANTS"
     handle_provides
   ) || exit $?
 fi

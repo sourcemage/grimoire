@@ -11,10 +11,14 @@ RECOMMENDED=yes
 
 start()
 {
-  required_executable /bin/loadkeys
+  if [ -n "$KEYMAP$INCLUDEMAPS" ]; then
+    required_executable /bin/loadkeys
+  fi
 
-  /bin/loadkeys $KEYMAP
-  evaluate_retval
+  if [ -n "$KEYMAP" ]; then
+    /bin/loadkeys $KEYMAP
+    evaluate_retval
+  fi
 
   if [[ "$DEVICES" == "devfs" ]]
   then
@@ -41,14 +45,21 @@ start()
 
   if [[ "$CONSOLE_TOOLS" == "console-tools" ]]
   then
-    if [ "$ENABLE_EURO" = "yes" ]
-    then
-      /bin/loadkeys euro.inc
+    for a in $INCLUDEMAPS; do
+      ! [[ "$a" =~ "\.gz$" ]] &&
+        ! [[ "$a" =~ "\.inc$" ]] &&
+        a="$a.inc"
+      /bin/loadkeys $a
       evaluate_retval
-    fi
-
+    done
     if [[ "$TTY_NUMS" ]] && [[ "$CONSOLECHARS_ARGS" ]]
     then
+      if [[ "$TTY_NUMS" =~ "\*" ]]; then
+        unset TTY_NUMS
+        for a in `grep ^tty.*: /etc/inittab`; do
+          TTY_NUMS="$TTY_NUMS `expr "$a" : 'tty\([0-9]*\):.*'`"
+        done
+      fi
       for n in $TTY_NUMS
       do
         echo "Setting console settings for $DEV_TTY$n..."
@@ -67,9 +78,22 @@ start()
 
   if [[ "$CONSOLE_TOOLS" == "kbd" ]]
   then
+    for a in $INCLUDEMAPS; do
+      /bin/loadkeys $a
+      if [[ $? != 0 ]]; then
+        ! [[ "$a" =~ "\.inc$" ]] && a="$a.inc" && /bin/loadkeys $a
+      fi
+      evaluate_retval
+    done
     if [[ "$TTY_NUMS" ]] && [[ "$SETFONT_ARGS" ]]
     then
-      for n in $TTY_NUMS 
+      if [[ "$TTY_NUMS" =~ "\*" ]]; then
+        unset TTY_NUMS
+        for a in `grep ^tty.*: /etc/inittab`; do
+          TTY_NUMS="$TTY_NUMS `expr "$a" : 'tty\([0-9]*\):.*'`"
+        done
+      fi
+      for n in $TTY_NUMS
       do
         echo "Setting console settings for $DEV_TTY$n..."
         if [[ "$UNICODE_START" ]]
