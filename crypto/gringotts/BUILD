@@ -1,4 +1,3 @@
-sedit 's:-DGTK_DISABLE_DEPRECATED::'  src/Makefile.in  &&
 if [ "$ROOT_FILTER" == "y" ]; then
   OPTS="$OPTS --enable-root-filter"
 fi  &&
