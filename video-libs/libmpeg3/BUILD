@@ -1,12 +1,11 @@
 invoke_gcc
 
 # fails to compile with -DPIC -fPIC except on systems that need -fPIC
-if [[ "$HOST" == x86_64-* ]]; then
+if [[ "$SMGL_COMPAT_ARCHS[1]" != "x86_64" ]]
+then
   CFLAGS=${CFLAGS/-mmmx/}
-else
-  CFLAGS=${CFLAGS/-DPIC/}  &&
-  CFLAGS=${CFLAGS/-fPIC/}
 fi &&
+disable_pic  &&
 
 if ! echo $CFLAGS | grep -q -- "-O."; then
   CFLAGS="$CFLAGS -O2"
