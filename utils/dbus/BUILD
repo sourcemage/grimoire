@@ -1,5 +1,3 @@
-invoke_gcc  &&
-
 if [ "$DBUS_SELINUX" == "y" ]; then
    OPTS="--enable-selinux  $OPTS"
 fi  &&
