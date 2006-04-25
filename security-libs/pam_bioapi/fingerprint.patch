@@ -1,0 +1,28 @@
+--- libpam_bioapi/pam_bioapi.c	2005-10-24 17:31:26.000000000 +0200
++++ libpam_bioapi/pam_bioapi.c.patched	2005-10-24 17:33:25.000000000 +0200
+@@ -54,6 +54,7 @@
+ 	BioAPI_HANDLE bspHandle;
+ 	BioAPI_INPUT_BIR BIR;
+ 	BioAPI_BOOL result = BioAPI_FALSE;
++        BioAPI_BOOL bPrecedence = BioAPI_TRUE;
+ 	BioAPI_FAR FARAchieved;
+ 	BioAPI_UUID tempUuid;
+ 	const BioAPI_UUID *uuid;
+@@ -143,7 +144,7 @@
+ 
+ 	tries = 3;
+ 	do {
+-		bRet = BioAPI_Verify(bspHandle, &maxFAR, NULL, NULL, &BIR, NULL, &result, &FARAchieved, NULL, NULL, -1, NULL);
++		bRet = BioAPI_Verify(bspHandle, &maxFAR, NULL, &bPrecedence, &BIR, NULL, &result, &FARAchieved, NULL, NULL, -1, NULL);
+ 		switch(bRet) {
+ 			case BioAPI_OK:
+ 				if (result == BioAPI_TRUE) {
+@@ -370,7 +371,7 @@
+ 	}
+ 	
+ 	bytesRead = fread(&(tempBir->Header), bytes, 1, inputFile);
+-	bytes = (tempBir->Header.Length) - sizeof(BioAPI_DATA);
++	bytes = (tempBir->Header.Length) - sizeof(BioAPI_BIR_HEADER);
+ 	tempBir->BiometricData = (BioAPI_BIR_BIOMETRIC_DATA_PTR)malloc(bytes);
+ 	if (tempBir->BiometricData == 0) {
+ 		syslog(LOG_ALERT, "Unable to allocate memory.");
