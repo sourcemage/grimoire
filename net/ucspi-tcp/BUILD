@@ -1,3 +1,4 @@
-  echo gcc -O2 -include /usr/include/errno.h > conf-cc &&
-  sedit "s/\/usr\/local/\/usr/" conf-home              &&
-  make
+echo "gcc $CFLAGS -include /usr/include/errno.h"  >conf-cc    &&
+echo "gcc -s ${LDFLAGS}"                          >conf-ld    &&
+echo "/usr"                                       >conf-home  &&
+make
