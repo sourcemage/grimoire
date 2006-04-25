@@ -1,0 +1,34 @@
+default_pre_build  &&
+
+#
+# Set GLIBC_HEADERS_DIR for use later
+#
+persistent_add  GLIBC_HEADERS_DIR                                        &&
+GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/linux-libc-headers-$HEADERS_VERSION  &&
+
+cd      $SOURCE_DIRECTORY                           &&
+#
+# Unpack glibc-kernel-headers
+#
+unpack_file 2                         &&
+cd  $GLIBC_HEADERS_DIR                              &&
+patch  -p1  <  $SCRIPT_DIRECTORY/config.h.patch     &&
+cd  $GLIBC_HEADERS_DIR/include                      &&
+chmod  -R  +r  *                                    &&
+find  .  -type  d  -exec  chmod  +x  '{}'  ';'
+#
+# Now fixup the normal glibc
+#
+cd  $SOURCE_DIRECTORY                               &&
+patch  -p1  <  $SCRIPT_DIRECTORY/glibcshared.patch  &&
+patch  -p0  <  $SCRIPT_DIRECTORY/Makefile.patch     &&
+
+# disabled libgd detection/building memusagestat for now until a better
+# fix has been found, bug #8277
+
+sedit  's/LIBGD=yes/LIBGD=no/'  $SOURCE_DIRECTORY/configure  &&
+
+#
+# Create the build directory
+#
+mk_source_dir  $SOURCE_DIRECTORY.bld

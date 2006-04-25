@@ -1,0 +1,95 @@
+cd $SOURCE_DIRECTORY.bld  &&
+if  [  "$CROSS_INSTALL"  =  "on"  ];  then
+  echo "prefix = ${GLIBC_ROOT}/usr" > configparms                               &&
+  echo "slibdir = ${GLIBC_ROOT}/lib" >> configparms                             &&
+  echo "rootsbindir = ${GLIBC_ROOT}/sbin" >> configparms                        &&
+  echo "sysconfdir = ${GLIBC_ROOT}/etc" >> configparms                          &&
+  echo "infodir = ${GLIBC_ROOT}/usr/share/info" >> configparms                  &&
+  sedit "s/\$(slibdir)/\/lib/g" $SOURCE_DIRECTORY/Makerules                       &&
+  sedit "s/\$(libdir)/\/usr\/lib/g" $SOURCE_DIRECTORY/Makerules                   &&
+
+  sedit  "s/\$(slibdir)/\/lib/g"      $SOURCE_DIRECTORY/nptl/Makefile  &&
+  sedit  "s/\$(libdir)/\/usr\/lib/g"  $SOURCE_DIRECTORY/nptl/Makefile
+fi  &&
+
+#
+# glibc only installs these if the file differs
+#
+for  i  in  ${GLIBC_ROOT}/usr/include/bits/syscall.h  \
+            ${GLIBC_ROOT}/usr/include/gnu/stubs.h;    do
+  if  [  -f  $i  ];  then
+    rm  -vf  $i
+  fi
+done  &&
+#
+# End syscall.h and stubs.h fix
+#
+
+#
+# install
+#
+make  install install_root="${GLIBC_ROOT}" &&
+(  ldconfig  ||  true  )  &&
+
+#
+# generate the localedef file from installed specs
+#
+local  GLIBC_INPUTFILE  GLIBC_CHARMAP  GLIBC_LOCALE  &&
+if  [  -z  "$GLIBC_LOCALES"  ];  then
+  local  GLIBC_DESCRIPTION                                                         &&
+  cat  $SCRIPT_DIRECTORY/locales                 |
+  while  read  GLIBC_LOCALE  GLIBC_DESCRIPTION;  do
+    GLIBC_INPUTFILE=`echo  $GLIBC_LOCALE  |  cut  -d /  -f1`                             &&
+      GLIBC_CHARMAP=`echo  $GLIBC_LOCALE  |  cut  -d /  -f2`                             &&
+    mkdir  -p  ${GLIBC_ROOT}/usr/lib/locale/$GLIBC_INPUTFILE                     &&
+    echo  "localedef  -f  $GLIBC_CHARMAP  -i  $GLIBC_INPUTFILE  $GLIBC_INPUTFILE"  \
+          " $GLIBC_DESCRIPTION"                                                    &&
+    localedef  --prefix=${GLIBC_ROOT} -i  $GLIBC_INPUTFILE  -f  $GLIBC_CHARMAP   \
+               $GLIBC_INPUTFILE                                                    &&
+    if  [  "$GLIBC_UTF" =  "y"      ]   &&
+    !   [  "$GLIBC_CHARMAP" =  "UTF-8"  ];  then
+       echo  "localedef  -f  UTF-8  -i  $GLIBC_INPUTFILE  $GLIBCINPUTFILE.UTF-8  $GLIBC_DESCRIPTION"  \
+             " (UNICODE Charset)"                                                    &&
+       localedef  --prefix=${GLIBC_ROOT}  -i  $GLIBC_INPUTFILE  -f  UTF-8  $GLIBC_INPUTFILE.UTF-8
+    fi
+  done  ||  true
+else
+  for  LOCALE  in  $GLIBC_LOCALES;  do
+    INPUTFILE=`echo  $LOCALE  |  cut  -d /  -f1`                                   &&
+      CHARMAP=`echo  $LOCALE  |  cut  -d /  -f2`                                   &&
+    mkdir  -p  ${GLIBC_ROOT}/usr/lib/locale/$INPUTFILE                           &&
+    echo  "localedef  -f  $CHARMAP  -i  $INPUTFILE $INPUTFILE"                     &&
+    localedef  --prefix=${GLIBC_ROOT}  -i  $INPUTFILE  -f  $CHARMAP  $INPUTFILE  &&
+    if  [  "$GLIBC_UTF"      =  "y"     ]   &&
+    !   [  "$CHARMAP"  =  "UTF-8" ];  then
+      echo  "localedef  -f  UTF-8  -i  $INPUTFILE  $INPUTFILE.UTF-8"               &&
+      localedef  --prefix=${GLIBC_ROOT}  -i  $INPUTFILE  -f  UTF-8  $INPUTFILE.UTF-8
+    fi
+  done  ||  true
+fi  &&
+
+#
+# Now install sanitised glibc-kernel-headers
+#
+install  -d  ${GLIBC_ROOT}/usr/include  &&
+cd  $GLIBC_HEADERS_DIR/include            &&
+
+echo  "installing glibc linux headers"               &&
+install  -d  ${GLIBC_ROOT}/usr/include/linux       &&
+cp  -fa  linux/*  ${GLIBC_ROOT}/usr/include/linux  &&
+
+echo  "installing asm-$GLIBC_ARCH headers to /usr/include/asm"  &&
+# workaround the 0.9.3 iso installing broken glibc-kernel-headers
+rm -rf ${GLIBC_ROOT}/usr/include/asm/mach-*  &&
+#
+#  asm is a symlink to asm-$GLIBC-ARCH
+#
+install  -d  ${GLIBC_ROOT}/usr/include/asm     &&
+cp  -fa  asm/*  ${GLIBC_ROOT}/usr/include/asm  &&
+
+#
+# In case this is a "new" system, setup GLIBC_ROOT/etc/ld.so.conf
+#
+if  !  grep  -q  "/usr/lib"  $GLIBC_ROOT/etc/ld.so.conf;  then
+  echo  "/usr/lib"  >>  $GLIBC_ROOT/etc/ld.so.conf
+fi
