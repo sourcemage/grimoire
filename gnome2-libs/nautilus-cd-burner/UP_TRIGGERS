@@ -1,0 +1,14 @@
+local OLD_SPELL_VERSION=""
+if spell_ok  $SPELL; then
+  OLD_SPELL_VERSION="$(installed_version $SPELL)"
+  if test "${VERSION:0:4}" != "${OLD_SPELL_VERSION:0:4}"; then
+    message "This is a possibly incompatible update of libnautilus-burn..."
+    message "Figuring out what spells need to be recast."
+    for each in $(gaze depends $SPELL 1| cut -f1 -d: | sort | uniq); do
+      if gaze install $each | xargs readelf -d 2> /dev/null |
+         grep -q "NEEDED.*libnautilus-burn.so.2"; then
+           up_trigger $each cast_self
+      fi
+    done
+  fi
+fi
