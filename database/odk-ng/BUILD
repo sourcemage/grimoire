@@ -1,4 +1,4 @@
-cd odkda                   &&
+cd odkda2                   &&
 chmod u+x ./compile.sh     &&
 ./compile.sh               &&
 if spell_ok g++; then
