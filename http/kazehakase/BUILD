@@ -17,3 +17,4 @@ if ! echo "$CFLAGS" | grep -q -- '-O3'; then
   CXXFLAGS="$CXXFLAGS -O2"
 fi  &&
 default_build
+
