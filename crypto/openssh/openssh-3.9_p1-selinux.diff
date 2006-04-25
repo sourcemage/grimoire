@@ -1,0 +1,110 @@
+diff -urN openssh-3.7.1p1.orig/Makefile.in openssh-3.7.1p1/Makefile.in
+--- openssh-3.7.1p1.orig/Makefile.in	2003-09-13 20:40:36.000000000 -0500
++++ openssh-3.7.1p1/Makefile.in	2003-09-19 19:08:04.000000000 -0500
+@@ -40,7 +40,7 @@
+ 
+ CC=@CC@
+ LD=@LD@
+-CFLAGS=@CFLAGS@
++CFLAGS=@CFLAGS@ -DWITH_SELINUX
+ CPPFLAGS=-I. -I$(srcdir) @CPPFLAGS@ $(PATHS) @DEFS@
+ LIBS=@LIBS@
+ LIBPAM=@LIBPAM@
+@@ -53,7 +53,7 @@
+ SED=@SED@
+ ENT=@ENT@
+ XAUTH_PATH=@XAUTH_PATH@
+-LDFLAGS=-L. -Lopenbsd-compat/ @LDFLAGS@
++LDFLAGS=-L. -Lopenbsd-compat/ @LDFLAGS@ -lselinux
+ EXEEXT=@EXEEXT@
+ 
+ INSTALL_SSH_PRNG_CMDS=@INSTALL_SSH_PRNG_CMDS@
+diff -urN openssh-3.7.1p1.orig/session.c openssh-3.7.1p1/session.c
+--- openssh-3.7.1p1.orig/session.c	2003-09-15 20:52:19.000000000 -0500
++++ openssh-3.7.1p1/session.c	2003-09-19 19:08:36.000000000 -0500
+@@ -66,6 +66,11 @@
+ #include "ssh-gss.h"
+ #endif
+ 
++#ifdef WITH_SELINUX
++#include <selinux/get_context_list.h>
++#include <selinux/selinux.h>
++#endif
++
+ /* func */
+ 
+ Session *session_new(void);
+@@ -1304,6 +1309,19 @@
+ #endif
+ 	if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
+ 		fatal("Failed to set uids to %u.", (u_int) pw->pw_uid);
++#ifdef WITH_SELINUX
++	if (is_selinux_enabled())
++	  {
++	    security_context_t scontext;
++	    if (get_default_context(pw->pw_name,NULL,&scontext))
++	      fatal("Failed to get default security context for %s.", pw->pw_name);
++	    if (setexeccon(scontext)) {
++	      freecon(scontext);
++	      fatal("Failed to set exec security context %s for %s.", scontext, pw->pw_name);
++	    }
++	    freecon(scontext);
++	  }
++#endif
+ }
+ 
+ static void
+diff -urN openssh-3.7.1p1.orig/sshpty.c openssh-3.7.1p1/sshpty.c
+--- openssh-3.7.1p1.orig/sshpty.c	2003-08-24 20:16:21.000000000 -0500
++++ openssh-3.7.1p1/sshpty.c	2003-09-19 19:08:04.000000000 -0500
+@@ -30,6 +30,12 @@
+ #define O_NOCTTY 0
+ #endif
+
++#ifdef WITH_SELINUX
++#include <selinux/flask.h>
++#include <selinux/get_context_list.h>
++#include <selinux/selinux.h>
++#endif
++
+ /*
+  * Allocates and opens a pty.  Returns 0 if no pty could be allocated, or
+  * nonzero if a pty was successfully allocated.  On success, open file
+@@ -196,6 +202,37 @@
+ 	 * Warn but continue if filesystem is read-only and the uids match/
+ 	 * tty is owned by root.
+ 	 */
++#ifdef WITH_SELINUX
++	if (is_selinux_enabled()) {
++	  security_context_t 	  new_tty_context=NULL,
++	    user_context=NULL, old_tty_context=NULL; 
++
++	  if (get_default_context(pw->pw_name,NULL,&user_context))
++	      fatal("Failed to get default security context for %s.", pw->pw_name);
++
++	  if (getfilecon(tty, &old_tty_context)<0) {
++	    error("getfilecon(%.100s) failed: %.100s", tty,
++		  strerror(errno));
++	  }
++	  else 
++	    {
++	      if ( security_compute_relabel(user_context,old_tty_context,SECCLASS_CHR_FILE,&new_tty_context)!=0) {
++		error("security_compute_relabel(%.100s) failed: %.100s", tty,
++		      strerror(errno));
++	      } 
++	      else 
++		{
++		  if (setfilecon (tty, new_tty_context) != 0) {
++		    error("setfilecon(%.100s, %s) failed: %.100s",
++			  tty, new_tty_context, strerror(errno));
++		  }
++		  freecon(new_tty_context);
++		}
++	      freecon(old_tty_context);
++	    }
++	  freecon(user_context);
++	}
++#endif
+ 	if (stat(tty, &st))
+ 		fatal("stat(%.100s) failed: %.100s", tty,
+ 		    strerror(errno));
