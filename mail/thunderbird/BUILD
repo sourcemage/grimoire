@@ -23,8 +23,6 @@ if  echo $LDFLAGS | grep  -q  '\-s'; then
   OPTS="$OPTS  --enable-strip"
 fi  &&
 
-mozilla_remove_nspr_nss &&
-
 # Note: --enable-extensions and --enable-necko-protocols are inherited from
 # mozconfig.  Don't set them in ./configure unless you *really* know what
 # you're doing.
@@ -49,7 +47,6 @@ mozilla_remove_nspr_nss &&
             --enable-application=mail \
             --enable-extensions=wallet,spellcheck,xmlextras,webservices \
             --enable-crypto \
-            --enable-xft \
             --enable-xinerama \
             --enable-optimize \
             --enable-reorder \
@@ -58,7 +55,6 @@ mozilla_remove_nspr_nss &&
             --enable-single-profile \
             --enable-necko-protocols=http,file,jar,viewsource,res,data \
             --enable-image-decoders=default,-xbm \
-            --disable-freetype2 \
             --disable-accessibility \
             --disable-debug \
             --disable-ldap  \
