@@ -5,8 +5,6 @@ if  gaze installed xfree86|grep -c -q 4.4;  then
 fi &&
 
 export FPICFLAGS="-fPIC" &&
-# Sergey change : export F77=$(which gfortran) &&
-export F77=g77 &&
 OPTS="--enable-linux-fs  \
       --enable-R-shlib   \
       $R_UTF8            \
