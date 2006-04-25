@@ -1,28 +1,28 @@
+#
+# install kernel headers first so that gcc doesn't fail to find them if
+# glibc decides to compile stuff during 'make install', which it does in 2.4
+#
+install  -d  ${INSTALL_ROOT}/usr/include  &&
+cd  $GLIBC_HEADERS_DIR/include            &&
+
+if [  !  "$GLIBC_NPTL"  =  "y"  ];  then
+  echo  "installing asm-generic headers"                &&
+  install  -d  ${INSTALL_ROOT}/usr/include/asm-generic  &&
+  cp  -fa  asm-generic/*  ${INSTALL_ROOT}/usr/include/asm-generic
+fi  &&
+
+echo  "installing glibc linux headers"               &&
+install  -d  ${INSTALL_ROOT}/usr/include/linux       &&
+cp  -fa  linux/*  ${INSTALL_ROOT}/usr/include/linux  &&
+
+echo  "installing asm-$GLIBC_ARCH headers to /usr/include/asm"  &&
+#
+#  asm is a symlink to asm-$GLIBC-ARCH
+#
+install  -d  ${INSTALL_ROOT}/usr/include/asm     &&
+cp  -fa  asm/*  ${INSTALL_ROOT}/usr/include/asm  &&
+
 cd $SOURCE_DIRECTORY.bld  &&
-
-#
-# the following conditional is commented out because the
-# make install install_root="${INSTALL_ROOT}"
-# does what it does already.
-#
-
-#if  [  "$CROSS_INSTALL"  =  "on"  ];  then
-#  echo "prefix = ${INSTALL_ROOT}/usr" > configparms                               &&
-#  echo "slibdir = ${INSTALL_ROOT}/lib" >> configparms                             &&
-#  echo "rootsbindir = ${INSTALL_ROOT}/sbin" >> configparms                        &&
-#  echo "sysconfdir = ${INSTALL_ROOT}/etc" >> configparms                          &&
-#  echo "infodir = ${INSTALL_ROOT}/usr/share/info" >> configparms                  &&
-#  sedit "s/\$(slibdir)/\/lib/g" $SOURCE_DIRECTORY/Makerules                       &&
-#  sedit "s/\$(libdir)/\/usr\/lib/g" $SOURCE_DIRECTORY/Makerules                   &&
-#
-#  if  [  "$GLIBC_NPTL"  =  "y"  ];  then
-#    sedit  "s/\$(slibdir)/\/lib/g"      $SOURCE_DIRECTORY/nptl/Makefile  &&
-#    sedit  "s/\$(libdir)/\/usr\/lib/g"  $SOURCE_DIRECTORY/nptl/Makefile
-#  else
-#    sedit  "s/\$(slibdir)/\/lib/g"      $SOURCE_DIRECTORY/linuxthreads/Makefile  &&
-#    sedit  "s/\$(libdir)/\/usr\/lib/g"  $SOURCE_DIRECTORY/linuxthreads/Makefile
-#  fi
-#fi  &&
 
 #
 # glibc only installs these if the file differs
@@ -47,68 +47,6 @@ if [[ "$HOST" == x86_64-* ]]; then
   true  # see bug 8626 for info about this conditional
 fi &&
 (  ldconfig  ||  true  )  &&
-
-#
-# generate the localedef file from installed specs
-#
-local  GLIBC_INPUTFILE  GLIBC_CHARMAP  GLIBC_LOCALE  &&
-if  [  -z  "$GLIBC_LOCALES"  ];  then
-  local  GLIBC_DESCRIPTION                                                         &&
-  cat  $SCRIPT_DIRECTORY/locales                 |
-  while  read  GLIBC_LOCALE  GLIBC_DESCRIPTION;  do
-    GLIBC_INPUTFILE=`echo  $GLIBC_LOCALE  |  cut  -d /  -f1`                             &&
-      GLIBC_CHARMAP=`echo  $GLIBC_LOCALE  |  cut  -d /  -f2`                             &&
-    mkdir  -p  ${INSTALL_ROOT}/usr/lib/locale/$GLIBC_INPUTFILE                     &&
-    echo  "localedef  -f  $GLIBC_CHARMAP  -i  $GLIBC_INPUTFILE  $GLIBC_INPUTFILE"  \
-          " $GLIBC_DESCRIPTION"                                                    &&
-    localedef  --prefix=${INSTALL_ROOT} -i  $GLIBC_INPUTFILE  -f  $GLIBC_CHARMAP   \
-               $GLIBC_INPUTFILE                                                    &&
-    if  [  "$GLIBC_UTF" =  "y"      ]   &&
-    !   [  "$GLIBC_CHARMAP" =  "UTF-8"  ];  then
-       echo  "localedef  -f  UTF-8  -i  $GLIBC_INPUTFILE  $GLIBCINPUTFILE.UTF-8  $GLIBC_DESCRIPTION"  \
-             " (UNICODE Charset)"                                                    &&
-       localedef  --prefix=${INSTALL_ROOT}  -i  $GLIBC_INPUTFILE  -f  UTF-8  $GLIBC_INPUTFILE.UTF-8
-    fi
-  done  ||  true
-else
-  for  LOCALE  in  $GLIBC_LOCALES;  do
-    INPUTFILE=`echo  $LOCALE  |  cut  -d /  -f1`                                   &&
-      CHARMAP=`echo  $LOCALE  |  cut  -d /  -f2`                                   &&
-    mkdir  -p  ${INSTALL_ROOT}/usr/lib/locale/$INPUTFILE                           &&
-    echo  "localedef  -f  $CHARMAP  -i  $INPUTFILE $INPUTFILE"                     &&
-    localedef  --prefix=${INSTALL_ROOT}  -i  $INPUTFILE  -f  $CHARMAP  $INPUTFILE  &&
-    if  [  "$GLIBC_UTF"      =  "y"     ]   &&
-    !   [  "$CHARMAP"  =  "UTF-8" ];  then
-      echo  "localedef  -f  UTF-8  -i  $INPUTFILE  $INPUTFILE.UTF-8"               &&
-      localedef  --prefix=${INSTALL_ROOT}  -i  $INPUTFILE  -f  UTF-8  $INPUTFILE.UTF-8
-    fi
-  done  ||  true
-fi  &&
-
-#
-# Now install sanitised glibc-kernel-headers
-#
-install  -d  ${INSTALL_ROOT}/usr/include  &&
-cd  $GLIBC_HEADERS_DIR/include            &&
-
-if [  !  "$GLIBC_NPTL"  =  "y"  ];  then
-  echo  "installing asm-generic headers"                &&
-  install  -d  ${INSTALL_ROOT}/usr/include/asm-generic  &&
-  cp  -fa  asm-generic/*  ${INSTALL_ROOT}/usr/include/asm-generic
-fi  &&
-
-echo  "installing glibc linux headers"               &&
-install  -d  ${INSTALL_ROOT}/usr/include/linux       &&
-cp  -fa  linux/*  ${INSTALL_ROOT}/usr/include/linux  &&
-
-echo  "installing asm-$GLIBC_ARCH headers to /usr/include/asm"  &&
-# workaround the 0.9.3 iso installing broken glibc-kernel-headers
-rm -rf ${INSTALL_ROOT}/usr/include/asm/mach-*  &&
-#
-#  asm is a symlink to asm-$GLIBC-ARCH
-#
-install  -d  ${INSTALL_ROOT}/usr/include/asm     &&
-cp  -fa  asm/*  ${INSTALL_ROOT}/usr/include/asm  &&
 
 #
 # In case this is a "new" system, setup INSTALL_ROOT/etc/ld.so.conf
