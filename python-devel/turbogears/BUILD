@@ -1,2 +1,2 @@
 rm -fr thirdparty &&
-python setup.py build
+default_build
