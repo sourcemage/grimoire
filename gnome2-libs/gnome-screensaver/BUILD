@@ -1,8 +1,6 @@
-if [ "$LOCKING" == "y" ]; then
-   OPTS="$OPTS --enable-locking"
-else
-   OPTS="$OPTS --disable-locking"
-fi                                        &&
+OPTS="${OPTS} ${GSCREENSAVER_LOCKING} ${GSCREESAVER_DPMS}"    &&
+OPTS="${OPTS} ${GSCREENSAVER_XIDLE} ${GSCREESAVER_VMODE}"     &&
+OPTS="${OPTS} ${GSCREENSAVER_GAMMA} ${GSCREESAVER_XINERAMA}"  &&
 
 make_single                               &&
 default_build                             &&
