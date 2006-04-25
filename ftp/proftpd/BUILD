@@ -1,4 +1,13 @@
-cd  modules
+if [[ $PROFTPD_DEVEL == "n" ]]; then
+  if [[ -z $PROFTPD_CAPS ]]; then
+      CFLAGS=${CFLAGS/-fPIC}                                          &&
+      CFLAGS=${CFLAGS/-DPIC}                                          &&
+      CXXFLAGS=${CXXFLAGS/-fPIC}                                      &&
+      CXXFLAGS=${CXXFLAGS/-DPIC}                
+  fi
+fi                                                                    &&
+
+cd  modules                                                           &&
 
 if  grep  -q  'mod_radius'  ${DEPENDS_CONFIG}/proftpd;  then
   if  !  [  -e  mod_radius.c  ];  then
@@ -68,7 +77,7 @@ cd  ${SOURCE_DIRECTORY}
 
 sedit  "s/	standalone/	inetd/"  sample-configurations/basic.conf  &&
 
-OPTS=${OPTS//^/:}                                                     &&
+OPTS="$PROFTPD_CAPS ${OPTS//^/:}"                                     &&
 
 ./configure  --prefix=${INSTALL_ROOT}/usr                             \
              --sysconfdir=${INSTALL_ROOT}/etc                         \
