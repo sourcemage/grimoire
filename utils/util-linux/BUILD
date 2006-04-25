@@ -27,8 +27,7 @@ if [ "$SELINUX" == "y" ]; then
   message "${MESSAGE_COLOR} SELINUX is  enabled ${DEFAULT_COLOR}"
 fi &&
 
-CFLAGS=${CFLAGS/-DPIC -fPIC/}  &&
-
+disable_pic  &&
 
 ./configure --prefix=${TRACK_ROOT}/usr  \
         --sysconfdir=${TRACK_ROOT}/etc  \
