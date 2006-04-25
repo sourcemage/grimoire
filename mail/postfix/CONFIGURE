@@ -1,38 +1,26 @@
-# check if postfix was installed before
-message "${MESSAGE_COLOR}Probing for previously casted $SPELL...${DEFAULT_COLOR}"  &&
+config_query  POSTFIX_BENCH   "Install smtpstone benckmarking tools?"  n
 
-if  [ ! -f  /etc/postfix/main.cf  ];  then
-  message "${MESSAGE_COLOR}Previous install not detected.${DEFAULT_COLOR}"
-else
-  message "${MESSAGE_COLOR}Previous install detected.${DEFAULT_COLOR}"
-fi  &&
-
-config_query  BENCH   "install smtpstone benckmarking tools?"  n
-
-message "${MESSAGE_COLOR}smtp configuration files loss may expose your system to SPAM relaying. You should backup and restore configuration files and reply y to the next two questions...${DEFAULT_COLOR}"
-
-config_query  BACKUP   "backup config on dispel?"  y
-config_query  RESTORE  "restore config on rebuild/update?"  y
-
-message "${MESSAGE_COLOR}You should run newaliases after each aliases file update, and on first $spell cast...${DEFAULT_COLOR}"
-config_query  ALIAS    "run newaliases after cast?"  y
+message  "${MESSAGE_COLOR}You should run newaliases after each aliases file"  \
+         " update, and on first ${SPELL_COLOR}$SPELL${DEFAULT_COLOR}"         \
+         "${MESSAGE_COLOR} cast...${DEFAULT_COLOR}"                           &&
+config_query  POSTFIX_ALIAS    "Run newaliase after cast?"  y
 
 if  spell_ok  mysql;  then
-  config_query  MYSQL  "Add MySQL support?"  y
+  config_query  POSTFIX_MYSQL  "Add MySQL support?"  y
 else
-  config_query  MYSQL  "Add MySQL support?"  n
+  config_query  POSTFIX_MYSQL  "Add MySQL support?"  n
 fi  &&
 
 if  spell_ok  linux-pam;  then
-  config_query  PAM  "Add PAM support?"  y
+  config_query  POSTFIX_PAM  "Add PAM support?"  y
 else
-  config_query  PAM  "Add PAM support?"  n
+  config_query  POSTFIX_PAM  "Add PAM support?"  n
 fi  &&
 
 if  spell_ok  openssl;  then
-  config_query  SSL  "Add SSL support?"  y
+  config_query  POSTFIX_SSL  "Add SSL support?"  y
 else
-  config_query  SSL  "Add SSL support?"  n
+  config_query  POSTFIX_SSL  "Add SSL support?"  n
 fi  &&
 
 # SSL and TLS libs both come from openssl :)
@@ -43,9 +31,9 @@ else
 fi  &&
 
 if  spell_ok  openldap;  then
-  config_query  LDAP  "Add LDAP support?"  y
+  config_query  POSTFIX_LDAP  "Add LDAP support?"  y
 else
-  config_query  LDAP  "Add LDAP support?"  n
+  config_query  POSTFIX_LDAP  "Add LDAP support?"  n
 fi  &&
 
 if  spell_ok  postgresql;  then
@@ -55,9 +43,13 @@ else
 fi  &&
 
 if  spell_ok  cyrus-sasl;  then
-  config_query  SASL  "Add SASL support?"  y
+  config_query  POSTFIX_SASL  "Add SASL support?"  y
 else
-  config_query  SASL  "Add SASL support?"  n
+  config_query  POSTFIX_SASL  "Add SASL support?"  n
 fi  &&
 
-config_query  VDA      "Apply Virtual Delivery Agent (VDA) patch (EXPERIMENTAL?)"  n
+config_query  POSTFIX_VDA  \
+              "Apply Virtual Delivery Agent (VDA) patch (EXPERIMENTAL)?"  n  &&
+
+POSTFIX_PREVIOUS_VERSION=$(installed_version  postfix)  &&
+persistent_add  POSTFIX_PREVIOUS_VERSION
