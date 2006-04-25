@@ -1,0 +1,360 @@
+diff -u -a -b -B -r nagios-2.0/base/utils.c nagios-2.0-ipaddress/base/utils.c
+--- nagios-2.0/base/utils.c	2006-01-04 10:39:57.000000000 -0600
++++ nagios-2.0-ipaddress/base/utils.c	2006-02-27 09:28:57.000000000 -0600
+@@ -733,6 +733,13 @@
+ 		free(macro_x[MACRO_HOSTADDRESS]);
+ 	macro_x[MACRO_HOSTADDRESS]=strdup(hst->address);
+ 
++        /* begin modification to define sec. ipaddress */
++        /* get the host secondary address */
++        if(macro_x[MACRO_SECONDARYHOSTADDRESS]!=NULL)
++                free(macro_x[MACRO_SECONDARYHOSTADDRESS]);
++        macro_x[MACRO_SECONDARYHOSTADDRESS]=strdup(hst->secondary_address);
++        /* end of modification */
++
+ 	/* get the host state */
+ 	if(macro_x[MACRO_HOSTSTATE]!=NULL)
+ 		free(macro_x[MACRO_HOSTSTATE]);
+@@ -1221,6 +1228,11 @@
+ 	else if(!strcmp(macro,"HOSTADDRESS"))
+ 		macro_ondemand=strdup(hst->address);
+ 
++        /* begin modification to define sec. ipaddress */
++        else if(!strcmp(macro,"SECONDARYHOSTADDRESS"))
++                                macro_ondemand=strdup(hst->secondary_address);
++        /* end of modification */
++
+ 	/* get the host state */
+ 	else if(!strcmp(macro,"HOSTSTATE")){
+ 		macro_ondemand=(char *)malloc(MAX_STATE_LENGTH);
+@@ -2293,6 +2305,9 @@
+ 	add_macrox_name(MACRO_HOSTNAME,"HOSTNAME");
+ 	add_macrox_name(MACRO_HOSTALIAS,"HOSTALIAS");
+ 	add_macrox_name(MACRO_HOSTADDRESS,"HOSTADDRESS");
++        /* begin modification to define sec. ipaddress */
++        add_macrox_name(MACRO_SECONDARYHOSTADDRESS,"SECONDARYHOSTADDRESS");
++        /* end of modifications */
+ 	add_macrox_name(MACRO_SERVICEDESC,"SERVICEDESC");
+ 	add_macrox_name(MACRO_SERVICESTATE,"SERVICESTATE");
+ 	add_macrox_name(MACRO_SERVICESTATEID,"SERVICESTATEID");
+diff -u -a -b -B -r nagios-2.0/cgi/config.c nagios-2.0-ipaddress/cgi/config.c
+--- nagios-2.0/cgi/config.c	2005-11-16 02:49:35.000000000 -0600
++++ nagios-2.0-ipaddress/cgi/config.c	2006-02-27 09:28:57.000000000 -0600
+@@ -447,6 +447,9 @@
+ 	printf("<TH CLASS='data'>Host Name</TH>");
+ 	printf("<TH CLASS='data'>Alias/Description</TH>");
+ 	printf("<TH CLASS='data'>Address</TH>");
++	/* begin modification to define sec. ipaddress */
++	printf("<TH CLASS='data'>secondary Address</TH>");
++	/* end of modification */
+ 	printf("<TH CLASS='data'>Parent Hosts</TH>");
+ 	printf("<TH CLASS='data'>Max. Check Attempts</TH>");
+ 	printf("<TH CLASS='data'>Check Interval</TH>\n");
+@@ -488,7 +491,10 @@
+ 
+ 		printf("<TD CLASS='%s'><a name='%s'>%s</a></TD>\n",bg_class,url_encode(temp_host->name),temp_host->name);
+ 		printf("<TD CLASS='%s'>%s</TD>\n",bg_class,temp_host->alias);
++		/* begin modification to define sec. ipaddress */
+ 		printf("<TD CLASS='%s'>%s</TD>\n",bg_class,temp_host->address);
++		printf("<TD CLASS='%s'>%s</TD>\n",bg_class,temp_host->secondary_address);
++		/* end of modification */
+ 
+ 		printf("<TD CLASS='%s'>",bg_class);
+ 		for(temp_hostsmember=temp_host->parent_hosts;temp_hostsmember!=NULL;temp_hostsmember=temp_hostsmember->next){
+diff -u -a -b -B -r nagios-2.0/cgi/extinfo.c nagios-2.0-ipaddress/cgi/extinfo.c
+--- nagios-2.0/cgi/extinfo.c	2006-01-20 11:34:53.000000000 -0600
++++ nagios-2.0-ipaddress/cgi/extinfo.c	2006-02-27 09:28:57.000000000 -0600
+@@ -319,7 +319,10 @@
+ 				if(found==FALSE)
+ 					printf("No hostgroups");
+ 				printf("</DIV><BR>\n");
+-				printf("<DIV CLASS='data'>%s</DIV>\n",temp_host->address);
++				/* begin modification to define sec. ipaddress */
++				printf("<DIV CLASS='data'><b>primary:</b>%s</DIV>\n",temp_host->address);
++				printf("<DIV CLASS='data'><b>secondary:</b>%s</DIV>\n",temp_host->secondary_address);
++				/* end of modification */
+ 			        }
+ 			if(display_type==DISPLAY_SERVICE_INFO){
+ 				printf("<DIV CLASS='data'>Service</DIV><DIV CLASS='dataTitle'>%s</DIV><DIV CLASS='data'>On Host</DIV>\n",service_desc);
+diff -u -a -b -B -r nagios-2.0/common/objects.c nagios-2.0-ipaddress/common/objects.c
+--- nagios-2.0/common/objects.c	2005-12-27 12:55:10.000000000 -0600
++++ nagios-2.0-ipaddress/common/objects.c	2006-02-27 09:28:57.000000000 -0600
+@@ -924,11 +924,13 @@
+ 	return new_timerange;
+         }
+ 
+-
++/* begin modification to define sec. ipaddress */
++/* added char *secondary_address
+ /* add a new host definition */
+-host *add_host(char *name, char *alias, char *address, char *check_period, int check_interval, int max_attempts, int notify_up, int notify_down, int notify_unreachable, int notify_flapping, int notification_interval, char *notification_period, int notifications_enabled, char *check_command, int checks_enabled, int accept_passive_checks, char *event_handler, int event_handler_enabled, int flap_detection_enabled, double low_flap_threshold, double high_flap_threshold, int stalk_up, int stalk_down, int stalk_unreachable, int process_perfdata, int failure_prediction_enabled, char *failure_prediction_options, int check_freshness, int freshness_threshold, int retain_status_information, int retain_nonstatus_information, int obsess_over_host){
++host *add_host(char *name, char *alias, char *address, char *secondary_address, char *check_period, int check_interval, int max_attempts, int notify_up, int notify_down, int notify_unreachable, int notify_flapping, int notification_interval, char *notification_period, int notifications_enabled, char *check_command, int checks_enabled, int accept_passive_checks, char *event_handler, int event_handler_enabled, int flap_detection_enabled, double low_flap_threshold, double high_flap_threshold, int stalk_up, int stalk_down, int stalk_unreachable, int process_perfdata, int failure_prediction_enabled, char *failure_prediction_options, int check_freshness, int freshness_threshold, int retain_status_information, int retain_nonstatus_information, int obsess_over_host){
+ 	host *temp_host;
+ 	host *new_host;
++/* end of modification */
+ #ifdef NSCORE
+ 	char temp_buffer[MAX_INPUT_BUFFER];
+ 	int x;
+@@ -951,6 +953,9 @@
+ 	strip(name);
+ 	strip(alias);
+ 	strip(address);
++	/* begin modification to define sec. ipaddress */
++	strip(secondary_address);
++	/* end of modification */
+ 	strip(check_command);
+ 	strip(event_handler);
+ 	strip(notification_period);
+@@ -1209,6 +1214,27 @@
+ 		free(new_host);
+ 		return NULL;
+ 	        }
++	
++	/* begin modification to define sec. ipaddress */
++	if (secondary_address==NULL) {
++		new_host->secondary_address=NULL;
++	} else {
++		new_host->secondary_address=strdup(secondary_address);
++		if (new_host->secondary_address==NULL) {
++#ifdef NSCORE
++			snprintf(temp_buffer,sizeof(temp_buffer)-1,"Error: Could not allocate memory for host '%s' secondary_address\n",name);
++			temp_buffer[sizeof(temp_buffer)-1]='\x0';
++			write_to_logs_and_console(temp_buffer,NSLOG_CONFIG_ERROR,TRUE);
++#endif
++			free(new_host->alias);
++			free(new_host->address);
++			free(new_host->name);
++			free(new_host);
++			return NULL;
++		}
++	}
++	/* end of modification */
++	
+ 	if(check_period!=NULL && strcmp(check_period,"")){
+ 		new_host->check_period=strdup(check_period);
+ 		if(new_host->check_period==NULL){
+@@ -1218,6 +1244,9 @@
+ 			write_to_logs_and_console(temp_buffer,NSLOG_CONFIG_ERROR,TRUE);
+ #endif
+ 			free(new_host->address);
++			/* begin modification to define sec. ipaddress */
++			free(new_host->secondary_address);
++			/* end of modifications */
+ 			free(new_host->alias);
+ 			free(new_host->name);
+ 			free(new_host);
+@@ -1236,6 +1265,9 @@
+ #endif
+ 			free(new_host->check_period);
+ 			free(new_host->address);
++                        /* begin modification to define sec. ipaddress */
++                        free(new_host->secondary_address);
++                        /* end of modifications */
+ 			free(new_host->alias);
+ 			free(new_host->name);
+ 			free(new_host);
+@@ -1256,6 +1288,9 @@
+ 				free(new_host->notification_period);
+ 			free(new_host->check_period);
+ 			free(new_host->address);
++                        /* begin modification to define sec. ipaddress */
++                        free(new_host->secondary_address);
++                        /* end of modifications */
+ 			free(new_host->alias);
+ 			free(new_host->name);
+ 			free(new_host);
+@@ -1278,6 +1313,9 @@
+ 				free(new_host->notification_period);
+ 			free(new_host->check_period);
+ 			free(new_host->address);
++                        /* begin modification to define sec. ipaddress */
++                        free(new_host->secondary_address);
++                        /* end of modifications */
+ 			free(new_host->alias);
+ 			free(new_host->name);
+ 			free(new_host);
+@@ -1302,6 +1340,9 @@
+ 				free(new_host->notification_period);
+ 			free(new_host->check_period);
+ 			free(new_host->address);
++                        /* begin modification to define sec. ipaddress */
++                        free(new_host->secondary_address);
++                        /* end of modifications */
+ 			free(new_host->alias);
+ 			free(new_host->name);
+ 			free(new_host);
+@@ -1400,6 +1441,9 @@
+ 		if(new_host->notification_period!=NULL)
+ 			free(new_host->notification_period);
+ 		free(new_host->address);
++                /* begin modification to define sec. ipaddress */
++                free(new_host->secondary_address);
++                /* end of modifications */
+ 		free(new_host->alias);
+ 		free(new_host->name);
+ 		free(new_host);
+@@ -1424,6 +1468,9 @@
+ 		if(new_host->notification_period!=NULL)
+ 			free(new_host->notification_period);
+ 		free(new_host->address);
++                /* begin modification to define sec. ipaddress */
++                free(new_host->secondary_address);
++                /* end of modifications */
+ 		free(new_host->alias);
+ 		free(new_host->name);
+ 		free(new_host->plugin_output);
+@@ -1458,6 +1505,9 @@
+ 		if(new_host->notification_period!=NULL)
+ 			free(new_host->notification_period);
+ 		free(new_host->address);
++                /* begin modification to define sec. ipaddress */
++                free(new_host->secondary_address);
++                /* end of modifications */
+ 		free(new_host->alias);
+ 		free(new_host->name);
+ 		free(new_host);
+@@ -1484,6 +1534,9 @@
+ 	printf("\tHost Name:                %s\n",new_host->name);
+ 	printf("\tHost Alias:               %s\n",new_host->alias);
+         printf("\tHost Address:             %s\n",new_host->address);
++        /* begin modification to define sec. ipaddress */
++	printf("\tSecondary Address:	    %s\n",new_host->secondary_address);
++        /* end of modifications */
+ 	printf("\tHost Check Command:       %s\n",new_host->host_check_command);
+ 	printf("\tMax. Check Attempts:      %d\n",new_host->max_attempts);
+ 	printf("\tHost Event Handler:       %s\n",(new_host->event_handler==NULL)?"N/A":new_host->event_handler);
+diff -u -a -b -B -r nagios-2.0/include/nagios.h.in nagios-2.0-ipaddress/include/nagios.h.in
+--- nagios-2.0/include/nagios.h.in	2006-01-04 10:39:57.000000000 -0600
++++ nagios-2.0-ipaddress/include/nagios.h.in	2006-02-27 09:28:57.000000000 -0600
+@@ -49,7 +49,7 @@
+ 
+ #define MACRO_ENV_VAR_PREFIX			"NAGIOS_"
+ 
+-#define MACRO_X_COUNT				99	/* size of macro_x[] array */
++#define MACRO_X_COUNT				100	/* size of macro_x[] array */
+ 
+ #define MACRO_HOSTNAME				0
+ #define MACRO_HOSTALIAS				1
+@@ -150,6 +150,7 @@
+ #define MACRO_PROCESSSTARTTIME			96
+ #define MACRO_HOSTCHECKTYPE			97
+ #define MACRO_SERVICECHECKTYPE			98
++#define MACRO_SECONDARYHOSTADDRESS		99
+ 
+ 
+ 
+diff -u -a -b -B -r nagios-2.0/include/objects.h nagios-2.0-ipaddress/include/objects.h
+--- nagios-2.0/include/objects.h	2005-12-27 12:55:10.000000000 -0600
++++ nagios-2.0-ipaddress/include/objects.h	2006-02-27 09:28:57.000000000 -0600
+@@ -129,6 +129,9 @@
+ 	char    *name;
+ 	char	*alias;
+ 	char    *address;
++	/* begin modification to define sec. ipaddress */
++	char	*secondary_address;
++	/* end of modification */
+         hostsmember *parent_hosts;
+ 	char    *host_check_command;
+ 	int     check_interval;
+@@ -532,7 +535,10 @@
+ contact *add_contact(char *,char *,char *,char *,char **,char *,char *,int,int,int,int,int,int,int,int,int);	/* adds a contact definition */
+ commandsmember *add_service_notification_command_to_contact(contact *,char *);				/* adds a service notification command to a contact definition */
+ commandsmember *add_host_notification_command_to_contact(contact *,char *);				/* adds a host notification command to a contact definition */
+-host *add_host(char *,char *,char *,char *,int,int,int,int,int,int,int,char *,int,char *,int,int,char *,int,int,double,double,int,int,int,int,int,char *,int,int,int,int,int);	/* adds a host definition */
++/* begin modification to define sec. ipaddress */
++/* added char * for method declaration */
++host *add_host(char *,char *,char *,char *,char *,int,int,int,int,int,int,int,char *,int,char *,int,int,char *,int,int,double,double,int,int,int,int,int,char *,int,int,int,int,int);	/* adds a host definition */
++/* end of modification */
+ hostsmember *add_parent_host_to_host(host *,char *);							/* adds a parent host to a host definition */
+ contactgroupsmember *add_contactgroup_to_host(host *,char *);					        /* adds a contactgroup to a host definition */
+ timeperiod *add_timeperiod(char *,char *);								/* adds a timeperiod definition */
+diff -u -a -b -B -r nagios-2.0/xdata/xodtemplate.c nagios-2.0-ipaddress/xdata/xodtemplate.c
+--- nagios-2.0/xdata/xodtemplate.c	2006-01-12 10:13:08.000000000 -0600
++++ nagios-2.0-ipaddress/xdata/xodtemplate.c	2006-02-27 09:28:57.000000000 -0600
+@@ -1207,6 +1207,9 @@
+ 		new_host->host_name=NULL;
+ 		new_host->alias=NULL;
+ 		new_host->address=NULL;
++                /* begin modification to define sec. ipaddress */
++                new_host->secondary_address=NULL;
++                /* end of modification */
+ 		new_host->parents=NULL;
+ 		new_host->hostgroups=NULL;
+ 		new_host->check_command=NULL;
+@@ -2658,6 +2661,17 @@
+ 				return ERROR;
+ 			        }
+ 		        }
++                /* begin modification to define sec. ipaddress */
++                else if(!strcmp(variable,"secondary_address")){
++                        temp_host->secondary_address=strdup(value);
++                        if(temp_host->secondary_address==NULL){
++#ifdef DEBUG1
++                                printf("Error: Could not allocate memory for host secondary address.\n");
++#endif
++                                return ERROR;
++                                }
++                        }
++                /* end of modification */
+ 		else if(!strcmp(variable,"parents")){
+ 			temp_host->parents=strdup(value);
+ 			if(temp_host->parents==NULL){
+@@ -5969,6 +5983,10 @@
+ 		this_host->alias=strdup(template_host->alias);
+ 	if(this_host->address==NULL && template_host->address!=NULL)
+ 		this_host->address=strdup(template_host->address);
++        /* begin modification to define sec. ipaddress */
++        if(this_host->secondary_address==NULL && template_host->secondary_address!=NULL)
++                this_host->secondary_address=strdup(template_host->secondary_address);
++        /* end of modification */
+ 	if(this_host->parents==NULL && template_host->parents!=NULL)
+ 		this_host->parents=strdup(template_host->parents);
+ 	if(this_host->hostgroups==NULL && template_host->hostgroups!=NULL)
+@@ -8038,8 +8056,11 @@
+ 	if(this_host->address==NULL && this_host->host_name!=NULL)
+ 		this_host->address=strdup(this_host->host_name);
+ 
++        /* begin modification to define sec. ipaddress */         
++	/* added (this_host->secondary_address==NULL)?this_host->address:this_host->secondary_address, */
+ 	/* add the host definition */
+-	new_host=add_host(this_host->host_name,this_host->alias,(this_host->address==NULL)?this_host->host_name:this_host->address,this_host->check_period,this_host->check_interval,this_host->max_check_attempts,this_host->notify_on_recovery,this_host->notify_on_down,this_host->notify_on_unreachable,this_host->notify_on_flapping,this_host->notification_interval,this_host->notification_period,this_host->notifications_enabled,this_host->check_command,this_host->active_checks_enabled,this_host->passive_checks_enabled,this_host->event_handler,this_host->event_handler_enabled,this_host->flap_detection_enabled,this_host->low_flap_threshold,this_host->high_flap_threshold,this_host->stalk_on_up,this_host->stalk_on_down,this_host->stalk_on_unreachable,this_host->process_perf_data,this_host->failure_prediction_enabled,this_host->failure_prediction_options,this_host->check_freshness,this_host->freshness_threshold,this_host->retain_status_information,this_host->retain_nonstatus_information,this_host->obsess_over_host);
++	new_host=add_host(this_host->host_name,this_host->alias,(this_host->address==NULL)?this_host->host_name:this_host->address,(this_host->secondary_address==NULL)?this_host->address:this_host->secondary_address,this_host->check_period,this_host->check_interval,this_host->max_check_attempts,this_host->notify_on_recovery,this_host->notify_on_down,this_host->notify_on_unreachable,this_host->notify_on_flapping,this_host->notification_interval,this_host->notification_period,this_host->notifications_enabled,this_host->check_command,this_host->active_checks_enabled,this_host->passive_checks_enabled,this_host->event_handler,this_host->event_handler_enabled,this_host->flap_detection_enabled,this_host->low_flap_threshold,this_host->high_flap_threshold,this_host->stalk_on_up,this_host->stalk_on_down,this_host->stalk_on_unreachable,this_host->process_perf_data,this_host->failure_prediction_enabled,this_host->failure_prediction_options,this_host->check_freshness,this_host->freshness_threshold,this_host->retain_status_information,this_host->retain_nonstatus_information,this_host->obsess_over_host);
++	/* end of modification */
+ 
+ #ifdef TEST_DEBUG
+ 	printf("HOST: %s, MAXATTEMPTS: %d, NOTINVERVAL: %d \n",this_host->host_name,this_host->max_check_attempts,this_host->notification_interval);
+@@ -9447,6 +9468,10 @@
+ 			fprintf(fp,"\talias\t%s\n",temp_host->alias);
+ 		if(temp_host->address)
+ 			fprintf(fp,"\taddress\t%s\n",temp_host->address);
++                /* begin modification to define sec. ipaddress */
++                if(temp_host->secondary_address)
++                         fprintf(fp,"\tsecondary_address\t%s\n",temp_host->secondary_address);
++                 /* end of modification */
+ 		if(temp_host->parents)
+ 			fprintf(fp,"\tparents\t%s\n",temp_host->parents);
+ 		if(temp_host->check_period)
+@@ -9958,6 +9983,9 @@
+ 		free(this_host->host_name);
+ 		free(this_host->alias);
+ 		free(this_host->address);
++                /* begin modification to define sec. ipaddress */
++                free(this_host->secondary_address);
++                /* end of modification */
+ 		free(this_host->parents);
+ 		free(this_host->hostgroups);
+ 		free(this_host->check_command);
+Only in nagios-2.0-ipaddress/xdata: xodtemplate.c~
+diff -u -a -b -B -r nagios-2.0/xdata/xodtemplate.h nagios-2.0-ipaddress/xdata/xodtemplate.h
+--- nagios-2.0/xdata/xodtemplate.h	2005-11-16 02:49:35.000000000 -0600
++++ nagios-2.0-ipaddress/xdata/xodtemplate.h	2006-02-27 09:28:57.000000000 -0600
+@@ -151,6 +151,9 @@
+ 	char      *host_name;
+ 	char      *alias;
+ 	char      *address;
++	/* begin modification to define sec. ipaddress */
++	char	  *secondary_address;
++	/* end of modification */
+ 	char      *parents;
+ 	char      *hostgroups;
+ 	char      *check_command;
