@@ -18,6 +18,8 @@ fi  &&
 # needs to be exported so vlc configure sees it, no idea why
 export CPPFLAGS="$CPPFLAGS -I/usr/include/dirac"  &&
 
+sedit  's/libavcodec, libavformat/\0, libpostproc/'  configure
+
 make_single    &&
 default_build  &&
 make_normal    &&
