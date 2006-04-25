@@ -1,0 +1,49 @@
+#!/bin/bash
+
+VERSION=$1
+IMAGE=$2
+SYSMAP=$3
+BOOT_DIR=${INSTALL_ROOT}$4
+BUILD_DIRECTORY=$(dirname `pwd`)
+
+kernel_arch=$(echo $IMAGE | cut -d/ -f2)
+
+mkdir -p ${BOOT_DIR} &&
+if grep 'CONFIG_MODULES=y' ./.config ; then
+	case "$VERSION" in
+		2.[0246]*)
+			echo "installing for a 2.x kernel" &&
+			ARCH="$kernel_arch" make INSTALL_MOD_PATH="${INSTALL_ROOT}" modules_install
+			;;
+		*)
+			echo "I again don't know what version: $VERSION is" &&
+			return 1
+			;;
+	esac
+fi &&
+echo "Copying and linking kernel" &&
+case  ${kernel_arch}  in
+	ppc)
+		cp vmlinux ${BOOT_DIR}/vmlinux-$VERSION &&
+		ln -sf vmlinux-${VERSION} ${BOOT_DIR}/vmlinux
+		;;
+	sparc*)
+		gzip -c9 vmlinux > ${BOOT_DIR}/vmlinuz-$VERSION &&
+		ln -sf vmlinuz-${VERSION} ${BOOT_DIR}/vmlinuz
+		;;
+	*)
+		cp $IMAGE ${BOOT_DIR}/vmlinuz-$VERSION &&
+		ln -sf vmlinuz-${VERSION} ${BOOT_DIR}/vmlinuz
+		;;
+esac &&
+echo "Copying and linking System.map" &&
+cp $SYSMAP ${BOOT_DIR}/System.map-${VERSION} &&
+ln -sf System.map-${VERSION} ${BOOT_DIR}/System.map &&
+echo "Copying and linking .config" &&
+cp .config ${BOOT_DIR}/config-${VERSION} &&
+ln -sf config-${VERSION} ${BOOT_DIR}/config &&
+# for people with boot partitions so grub can still find the kernel
+# if they reference /boot/vmlinuz in their menu.lst
+ln -sfn . ${BOOT_DIR}/boot
+ln -sfn $(pwd) ${BUILD_DIRECTORY}/linux
+
