@@ -2,10 +2,7 @@
 CFLAGS=${CFLAGS/-O3/-O2}      &&
 CXXFLAGS=${CXXFLAGS/-O3/-O2}  &&
 # doesn't compile with -DPIC -fPIC, bug #8426
-CFLAGS=${CFLAGS/-DPIC/}       &&
-CFLAGS=${CFLAGS/-fPIC/}       &&
-CXXFLAGS=${CXXFLAGS/-DPIC/}   &&
-CXXFLAGS=${CXXFLAGS/-fPIC/}   &&
+disable_pic  &&
 if   test "$(get_spell_provider $SPELL GECKO)" = "firefox"; then
   OPTS="--with-jsapi-include=/usr/include/firefox/js/"  &&
   LDFLAGS="-L/usr/lib/firefox -Wl,-rpath -Wl,/usr/lib/firefox"
