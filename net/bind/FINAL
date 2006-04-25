@@ -3,3 +3,17 @@ default_post_install &&
 # make random device for chrooting:
 [ -d /etc/bind/dev        ] || mkdir /etc/bind/dev
 [ -e /etc/bind/dev/random ] || mknod /etc/bind/dev/random c 1 8
+
+# let's restore /etc/bind, if the user wants
+backup_file=`ls -t -1 -r /etc/bind-backup* | tail --lines=1`  &&
+
+if  [  "$backup_file"  !=  ""  ];  then
+  if  [  "$RESTORE"  ==  "n"  ];  then
+    message "${MESSAGE_COLOR}Restore skipped. (you can still use $backup_file lather yourself)${DEFAULT_COLOR}"
+  else
+    message "${MESSAGE_COLOR}Restoring config files... ${DEFAULT_COLOR}"
+    tar -C / -xjvPf $backup_file
+  fi
+else
+  message "${MESSAGE_COLOR}No backup for config files found. ${DEFAULT_COLOR}"
+fi  &&
