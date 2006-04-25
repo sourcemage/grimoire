@@ -1,3 +1,3 @@
-  ./configure            &&
-  make  FLAGS="$CFLAGS"
+./configure            &&
+make  FLAGS="$CFLAGS"
  

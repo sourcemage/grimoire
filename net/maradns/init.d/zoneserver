@@ -1,28 +1,24 @@
 #!/bin/bash
 
-PROGRAM=/usr/sbin/zoneserver
+PROGRAM="/usr/sbin/zoneserver"
 RUNLEVEL=3
 NEEDS="+remote_fs +network"
 
 . /etc/init.d/smgl_init
+required_executable /usr/sbin/maradns
+required_executable /usr/sbin/duende
 
-start()
+function start()
 {
-  echo "Starting zoneserver..."
-
-  getpids $PROGRAM
-
-  if [ -z "$pidlist" ] ; then
-    nohup $PROGRAM > /dev/null &
-
-    sleep 1
-
-    getpids $PROGRAM
-    [ -n "$pidlist" ] && true || false
-    evaluate_retval
-  else
-    $SET_WCOL
-    print_status warning running
-  fi
-
+ echo "Starting zoneserver..."
+ /usr/sbin/duende zoneserver
+ evaluate_retval
 }
+
+function stop()
+{
+  echo "Stoping zoneserver..."
+  pkill zoneserver
+  evaluate_retval
+}
+
