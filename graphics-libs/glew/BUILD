@@ -1,3 +1,1 @@
-make_single  &&
-make         &&
-make_normal
+GLEW_DEST=${INSTALL_ROOT}/usr make
