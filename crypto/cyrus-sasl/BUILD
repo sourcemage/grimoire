@@ -2,7 +2,7 @@ if [[ "$CS_MECH" =~ 'saslauthd' ]]; then
   OPTS="$OPTS --with-saslauthd=/var/run/saslauthd"
 fi &&
 
-if [[ "$CS_DB" == none ]]; then
+if [[ -z "$CS_DB" ]] || [[ "$CS_DB" == none ]]; then
   OPTS="$OPTS --with-dblib=none"
 fi &&
 

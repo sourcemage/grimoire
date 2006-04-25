@@ -6,48 +6,36 @@ config_query CS_PLAINTEXT "Enable plaintext mechanisms?" n &&
 config_query CS_SHARED "Enable shared secret mechanisms?" n &&
 config_query CS_KERBEROS "Enable kerberos mechanisms?" n &&
 
-# Some lonely options, doesn't fit with anything else
-config_query_option CS_ANON "Enable ANONYMOUS authentication? (you really don't want this)" n "--enable-anon" "--disable-anon" &&
-config_query_option CS_NTLM "Enable NTLM authentication? (unsupported)" n "--enable-ntlm" "--disable-ntlm" &&
-config_query_option CS_APOP "Enable APOP authentication?" n "--enable-checkapop" "--disable-checkapop" &&
-
 if [ "$CS_PLAINTEXT" == "n" ] && [ "$CS_SHARED" == "n" ] && [ "$CS_KERBEROS" == "n" ]; then
   message "You didn't select any authentication mechanism!" &&
   return 1
 fi &&
 
-if [ "$CS_PLAINTEXT" == "y" ] && [ "$CS_SHARED" == "y" ] && [ "$CS_KERBEROS" == "y" ]; then
-  CS_MECH="saslauthd auxprop kerberos" &&
-  message "You /had/ to select all of them, didn't you?" &&
-  message "Ok. The user is always right *sigh*" &&
-  message "But remember, YOU'RE ON YOUR OWN HERE!"
-elif [ "$CS_PLAINTEXT" == "y" ] && [ "$CS_SHARED" == "n" ] && [ "$CS_KERBEROS" == "n" ]; then
-  message "Plaintext can use either the saslauthd authentication daemon *or*" &&
-  message "a libsasl auxprop backend (SQL, LDAP, DB)" &&
+# Some lonely options, doesn't fit with anything else
+config_query_option CS_ANON "Enable ANONYMOUS authentication? (you really don't want this)" n "--enable-anon" "--disable-anon" &&
+config_query_option CS_NTLM "Enable NTLM authentication? (unsupported)" n "--enable-ntlm" "--disable-ntlm" &&
+config_query_option CS_APOP "Enable APOP authentication?" n "--enable-checkapop" "--disable-checkapop" &&
+
+if [ "$CS_PLAINTEXT" == 'y' ] || [ "$CS_SHARED" == 'y' ]; then
+  message "SASL can use either the saslauthd authentication daemon *or*" &&
+  message "a libsasl auxprop backend (SQL, DB)" &&
   config_query_list CS_MECH "Pick one:" saslauthd auxprop
-elif [ "$CS_PLAINTEXT" == "n" ] && [ "$CS_SHARED" == "y" ] && [ "$CS_KERBEROS" == "n" ]; then
-  CS_MECH="auxprop"
-elif [ "$CS_PLAINTEXT" == "y" ] && [ "$CS_SHARED" == "n" ] && [ "$CS_KERBEROS" == "y" ]; then
-  CS_MECH="saslauthd"
-elif [ "$CS_PLAINTEXT" == "y" ] && [ "$CS_SHARED" == "y" ] && [ "$CS_KERBEROS" == "n" ]; then
-  CS_MECH="auxprop"
+fi &&
+if [ "$CS_KERBEROS" == 'y' ]; then
+  CS_MECH="$CS_MECH kerberos"
 fi &&
 persistent_add CS_MECH &&
 
 if [ "$CS_PLAINTEXT" == "y" ]; then
-  message "Plaintext by itself is not secure for obvious reasons," &&
-  message " but it can be usefull in combination with something like TLS" &&
   config_query_option CS_PLAIN "Enable PLAIN authentication?" y "--enable-plain" "--disable-plain" &&
   config_query_option CS_LOGIN "Enable LOGIN authentication? (unsupported)" n "--enable-login" "--disable-login"
-elif [ "$CS_SHARED" == "y" ]; then
+fi &&
+if [ "$CS_SHARED" == "y" ]; then
   config_query_option CS_CRAM "Enable CRAM-MD5 authentication?" n "--enable-cram" "--disable-cram" &&
   config_query_option CS_DIGEST "Enable DIGEST-MD5 authentication?" n "--enable-digest" "--disable-digest" &&
   config_query_option CS_OTP "Enable One-Time-Password authentication?" y "--enable-otp" "--disable-otp" &&
-  config_query_option CS_SRP "Enable SRP authentication?" y "--enable-srp" "--disable-srp"
-elif [ "$CS_KERBEROS" == "y" ]; then
-  true
-  # deferred until DEPENDS to let sorcery manage options
-fi  &&
+  config_query_option CS_SRP "Enable SRP authentication?" n "--enable-srp" "--disable-srp"
+fi &&
 
 if [[ "$CS_MECH" =~ 'saslauthd' ]]; then
   message "saslauthd can use either shadow, PAM, LDAP or KERBEROS as a backend." &&
@@ -55,5 +43,4 @@ if [[ "$CS_MECH" =~ 'saslauthd' ]]; then
 fi &&
 if [[ "$CS_MECH" =~ 'auxprop' ]]; then
   config_query_list CS_DB 'auxprop authentication backend to use?' berkeley gdbm none
-  # others deferred until DEPENDS to let sorcery manage options
 fi
