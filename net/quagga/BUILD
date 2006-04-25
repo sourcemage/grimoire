@@ -1,3 +1,3 @@
-create_account quagga &&
 autoconf &&
+create_account quagga &&
 default_build
