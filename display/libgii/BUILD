@@ -3,8 +3,6 @@
 #
 if  [  "$LIBGII_EVDEV"  ==  "n"  ];  then
   OPTS="$OPTS  --disable-linux-evdev"
-fi  &&
-
-CFLAGS=${CFLAGS/-DPIC -fPIC/}  &&
-
+fi           &&
+disable_pic  &&
 default_build
