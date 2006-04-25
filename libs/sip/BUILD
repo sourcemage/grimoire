@@ -1,5 +1,5 @@
   sed -i "s/-O2//" specs/linux-g++ &&
 
-  python ./configure.py -l qt-mt  -p linux-g++ INCDIR_QT=/usr/include/qt \
+  python ./configure.py  \
          CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS} -fno-exceptions"           &&
   make
