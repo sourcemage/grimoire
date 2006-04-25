@@ -1,1 +1,2 @@
-make
+make all &&
+make pywrap
