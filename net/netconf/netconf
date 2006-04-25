@@ -46,6 +46,11 @@
 #---------------------------------------------------------------------#
 #
 # ------------------------- ChangeLog ------------------------------- #
+# 2006-03-05  Arjan Bouter <abouter@sourcemage.org>
+#    - Replaced MODE=dynamic with dynamic_set_hostname (default) or
+#      dynamic_get_hostname
+#    - Added NEEDS to allow interfaces to depend on eachother
+#
 # 2005-06-30  Ladislav Hagara <hgr@vabo.cz>
 #    - SourceMage -> Source Mage
 #    - cfg_hostname renamed to cfg_hostname_enter
@@ -242,7 +247,7 @@
 #        HOSTSFN: name of file containing hosts
 #       RESOLVFN: name of file containing nameservers
 #
-NETCONFVERSION='1.6'
+NETCONFVERSION='1.7'
 ROOTCHECK=1
 NETDEVDIR=/etc/sysconfig/network
 HOSTNAMEFN=/etc/hostname
@@ -264,6 +269,7 @@ RESOLVFN=/etc/resolv.conf
 
 # ----------------------- Other Globals ----------------------------- #
 # DIALOG - dialog program used, could be taken from /etc/sorcery/config
+export DIALOGRC=/etc/sorcery/dialogrc
 DIALOG="dialog --aspect 25"
 
 # button labels
@@ -749,7 +755,7 @@ function check_devdir() {
 ##
 ## @param     absolute path to network device file
 ## @Global    MODULE: kernel module or blank for static driver<br>
-## @Global    MODE: 'dynamic' for dhcp, or 'static' for static<br>
+## @Global    MODE: 'dynamic_set_hostname' or 'dynamic_get_hostname' for dhcp, or 'static' for static<br>
 ## @Global    IP: ip address<br>
 ## @Global    BROADCAST: broadcast address<br>
 ## @Global    NETMASK: netmask<br>
@@ -769,7 +775,8 @@ function check_devdir() {
 ## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
-## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot
+## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot<br>
+## @Global    NEEDS: specifies on which device this device depends
 #---
 function loadnetdev() {
 	if [ -z "$1" ]; then
@@ -782,7 +789,7 @@ function loadnetdev() {
 	unset MODULE MODE IP BROADCAST NETMASK GATEWAY POINTOPOINT MTU \
               WIFI_NWID WIFI_ESSID WIFI_RATE WIFI_MODE WIFI_SECMODE \
               WIFI_KEY WIFI_KEY1 WIFI_KEY2 WIFI_KEY3 WIFI_KEY4 WIFI_DEFAULTKEY \
-              MAC CUSTOM UP_ON_BOOT
+              MAC CUSTOM UP_ON_BOOT NEEDS
 
 	devname=$(get_basename $1 .dev)
 
@@ -791,7 +798,7 @@ function loadnetdev() {
 		source $1
 	else
 		# new device, set defaults
-		MODE='dynamic'
+		MODE='dynamic_set_hostname'
 		POINTOPOINT=''
 		MTU=''
 		UP_ON_BOOT='yes'
@@ -917,23 +924,22 @@ function cfg_mode() {
 	                 --cancel-label   "$BTN_BACK"                              \
 	                 --menu                                                    \
 	                 "Choose which mode this network device uses.              \
-                      Select 'dynamic' to use dhcp, select 'static'            \
+                      Select 'dynamic_set_hostname' to use dhcp with your own  \
+					  hostname, 'dynamic_get_hostname' to set the hostname     \
+					  provided by the DHCP server or select 'static'           \
                       to specify IP, BROADCAST, NETMASK, GATEWAY, or           \
                       select '${BTN_BACK}' to keep current setting             \
                      (${MODE})"                                                \
 	                 0 0 0                                                     \
-	                 "dynamic" "use dhcp"                                      \
+	                 "dynamic_set_hostname" "use dhcp"                         \
+	                 "dynamic_get_hostname" "use dhcp"                         \
 	                 "static" "specify network settings"`
-
+	
 	if [ $? != 0 ]; then
 		return 0
 	fi
 
-	case $COMMAND in
-		'dynamic') MODE='dynamic'   ;;
-		'static')  MODE='static'    ;;
-	esac
-
+    MODE="$COMMAND"
 
 	return 0
 }
@@ -1417,12 +1423,37 @@ function cfg_mac() {
 	                 --cancel-label   "$BTN_CANCEL"             \
 	                 --inputbox                                 \
 	                 "Enter the MAC address you want this device to use
-(usually not required)" \
+(usually not required, sometimes not even supported)" \
 	                 0 0 ${MAC}`
 
 	if [ $? -eq 0 ]; then
 		MAC="${COMMAND}"
 	fi
+}
+
+
+#--- cfg_needs_dev()
+##
+## This sets the name of the device this device depends on.
+## Usefull for things like VPN connections
+##
+## @Global    NEEDS: specifies on which device this device depends
+## @External  dialog
+#---
+function cfg_needs_dev() {
+    COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
+                     --stdout                                   \
+                     --title "Configure device dependencies"    \
+                     --ok-label       "$BTN_ACCEPT"             \
+                     --cancel-label   "$BTN_CANCEL"             \
+                     --inputbox                                 \
+                     "Enter the name of the device this device depends on
+(usually not required, usefull in case you're setting up things like VPN connections" \
+                     0 0 ${NEEDS}`
+
+    if [ $? -eq 0 ]; then
+        NEEDS="${COMMAND}"
+    fi
 }
 
 
@@ -1442,7 +1473,7 @@ function cfg_custom() {
 	                 --inputbox                                 \
 	                 "Enter the custom options you need for this device.
 Everything you enter here is passed straight to ifconfig.
-(please file a bug to get this option added)" \
+(please file a bug to get missing options added)" \
 	                 0 0 "${CUSTOM}"`
 
 	if [ $? -eq 0 ]; then
@@ -1557,7 +1588,7 @@ function confirm_save() {
 ## 
 ## @param     absolute path to network device file
 ## @Global    MODULE: kernel module or blank for static driver<br>
-## @Global    MODE: 'dynamic' for dhcp, or 'static' for static<br>
+## @Global    MODE: 'dynamic_set_hostname' or 'dynamic_get_hostname' for dhcp, or 'static' for static<br>
 ## @Global    IP: ip address<br>
 ## @Global    BROADCAST: broadcast address<br>
 ## @Global    NETMASK: netmask<br>
@@ -1577,7 +1608,8 @@ function confirm_save() {
 ## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
-## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot
+## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
+## @Global    NEEDS: specifies on which device this device depends.
 ## @External  cat, date
 #---
 function save_new() {
@@ -1643,6 +1675,9 @@ EOF
 	if [ ! -z "${CUSTOM}" ]; then
 		echo "CUSTOM='${CUSTOM}'" >> $1
 	fi
+    if [ ! -z "$NEEDS" ]; then
+		echo "NEEDS='${NEEDS}'" >> $1
+	fi
 }
 
 #--- save_update()
@@ -1658,7 +1693,7 @@ EOF
 ## 
 ## @param     absolute path to network device file
 ## @Global    MODULE: kernel module or blank for static driver<br>
-## @Global    MODE: 'dynamic' for dhcp, or 'static' for static<br>
+## @Global    MODE: 'dynamic_set_hostname' or 'dynamic_get_hostname' for dhcp, or 'static' for static<br>
 ## @Global    IP: ip address<br>
 ## @Global    BROADCAST: broadcast address<br>
 ## @Global    NETMASK: netmask<br>
@@ -1678,7 +1713,8 @@ EOF
 ## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
-## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot
+## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
+## @Global    NEEDS: specifies on which device this device depends.
 ## @External  date
 #---
 function save_update() {
@@ -1767,7 +1803,14 @@ function save_update() {
 	else
 	  sed -i '/^CUSTOM=.*/d' $1
 	fi
+	
 	cat_or_sedit "^UP_ON_BOOT=.*" "UP_ON_BOOT=${UP_ON_BOOT}" $1
+
+	if [ ! -z "${NEEDS}" ]; then
+	  cat_or_sedit "^NEEDS=.*" "NEEDS='${NEEDS}'" $1
+	else
+	  sed -i '/^NEEDS=.*/d' $1
+	fi
 
 	# removing leftovers from older netconf versions
 	sed -i '/^WIFI=.*/d' $1
@@ -1836,7 +1879,7 @@ function add_device() {
 ##
 ## @param     absolute path to network device file
 ## @Global    MODULE: kernel module or blank for static driver<br>
-## @Global    MODE: 'dynamic' for dhcp, or 'static' for static<br>
+## @Global    MODE: 'dynamic_set_hostname' or 'dynamic_get_hostname' for dhcp, or 'static' for static<br>
 ## @Global    IP: ip address<br>
 ## @Global    BROADCAST: broadcast address<br>
 ## @Global    NETMASK: netmask<br>
@@ -1851,7 +1894,8 @@ function add_device() {
 ## @Global    WIFI_ENCKEY: wifi encryption key.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
-## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot
+## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
+## @Global    NEEDS: specifies on which device this device depends.
 ## @External  dialog
 #---
 function cfg_device() {
@@ -1886,10 +1930,12 @@ function cfg_device() {
 			dpointopoint=$POINTOPOINT
 		fi
 
-		if [ `echo $MODE` = 'dynamic' ]; then
+		case "$MODE" in
+ 			dynamic )
+			MODE=dynamic_set_hostname
 			COMMAND=`$DIALOG --backtitle "$BACKTITLE"                          \
 			                 --stdout                                          \
-		                     --title "Modify, Remove Network Device"               \
+		                     --title "Modify, Remove Network Device"           \
 			                 --ok-label       "$BTN_SELECT"                    \
 			                 --cancel-label   "$BTN_BACK"                      \
 			                 --menu                                            \
@@ -1903,9 +1949,32 @@ function cfg_device() {
 			                 "MAC"  "${MAC}"                                   \
 			                 "CUSTOM"  "Custom options"                        \
 			                 "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
+			                 "NEEDS" "${NEEDS}"                                \
 			                 "Remove" "Remove this network device"             \
 			                 "Save" "Save this device file"`
-		else
+		;;
+ 			'dynamic_set_hostname' | 'dynamic_get_hostname' )
+			COMMAND=`$DIALOG --backtitle "$BACKTITLE"                          \
+			                 --stdout                                          \
+		                     --title "Modify, Remove Network Device"           \
+			                 --ok-label       "$BTN_SELECT"                    \
+			                 --cancel-label   "$BTN_BACK"                      \
+			                 --menu                                            \
+			                 "Choose a setting to modify, or select Remove to remove the device" \
+			                 0 0 0                                             \
+			                 "MODULE" "${dmodule}"                             \
+			                 "MODE" "dynamic (use dhcp)"                       \
+			                 "POINTOPOINT" "${dpointopoint}"                   \
+			                 "MTU"  "${dmtu}"                                  \
+			                 "WIFI"  "Wifi menu"                               \
+			                 "MAC"  "${MAC}"                                   \
+			                 "CUSTOM"  "Custom options"                        \
+			                 "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
+			                 "NEEDS" "${NEEDS}"                                \
+			                 "Remove" "Remove this network device"             \
+			                 "Save" "Save this device file"`
+		;;
+		static )
 			COMMAND=`$DIALOG --backtitle "$BACKTITLE"                          \
 			                 --stdout                                          \
 		                     --title "Modify, Remove Network Device"               \
@@ -1926,9 +1995,11 @@ function cfg_device() {
 			                 "MAC"  "${MAC}"                                     \
 			                 "CUSTOM"  "Custom options"                        \
 			                 "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
+			                 "NEEDS" "${NEEDS}"                                \
 			                 "Remove" "Remove this network device"             \
 			                 "Save" "Save this device file"`
-		fi
+		;;
+	esac
 
 
 		if [ $? != 0 ]; then
@@ -1948,6 +2019,7 @@ function cfg_device() {
 			'MAC')         cfg_mac             ;;
 			'CUSTOM')      cfg_custom          ;;
 			'UP_ON_BOOT')  toggle_boot         ;;
+			'NEEDS')       cfg_needs_dev       ;;
 			'Remove')      remove_device "$1"  ;;
 			'Save')        confirm_save "$1"   ;;
 		esac
