@@ -3,50 +3,64 @@
 RUNLEVEL=3
 NEEDS="+network +remote_fs"
 PROGRAM=/usr/sbin/ifplugd
-ARGS="-w"
 
 ifplugdconf=/etc/ifplugd/ifplugd.conf
-if [ -e $ifplugdconf ]; then
-  . $ifplugdconf
-fi
+dropfile=/var/tmp/ifplugd
 
+! [ -e $ifplugdconf ] && echo "No config file: $ifplugdconf" && exit 1
+. $ifplugdconf
 . /etc/init.d/smgl_init
 
 required_executable /usr/sbin/ifplugd
 
-if [ $# -gt 1 ]; then
-  INTERFACES="$(builtin echo $@ | sed s/$1//)"
-fi
-
-if [ "x$INTERFACES" = "xauto" ]; then
-  INTERFACES="`cat /proc/net/dev | awk '{ print $1 }' | egrep '^(eth|wlan)' | cut -d: -f1`"
-fi
+[ $# -gt 1 ] && INTERFACES="${@/$1/}"
+[ "x$INTERFACES" = "xauto" ] && INTERFACES="`cat /proc/net/dev | awk '{ print $1 }' | egrep '^(eth|wlan)' | cut -d: -f1`"
 
 start()
 {
+  local MSG STATE
   for IF in $INTERFACES; do
-    echo "Starting ifplugd on interface $IF..."
+    echo "Starting daemon on interface $IF..."
     A="`eval builtin echo \$\{ARGS_${IF}\}`"
     [ -z "$A" ] && A="$ARGS"
-    $PROGRAM  $ARGS  -i  $IF  $A
+    MSG="`$PROGRAM -i $IF $A 2>&1`"
+    STATE=$?
+    if [ -z "$MSG" ]; then
+      [[ "$STATE" == "1" ]] && echo "Link beat detected." && 
+        echo "Connected." && unset STATE
+      [[ "$STATE" == "2" ]] && echo "Link beat not detected." && 
+        echo "Connected." && unset STATE
+      [[ "$STATE" == "3" ]] && echo "Not connected." && unset STATE
+    fi
+    (exit $STATE)
     evaluate_retval
   done
+  /bin/echo "INTERFACES=\"$INTERFACES\"" > $dropfile
 }
 
 stop()
 {
+  [ -e $dropfile ] && . $dropfile && rm $dropfile
   for IF in $INTERFACES; do
-    echo "Stopping ifplugd on interface $IF..."
-    $PROGRAM  $ARGS  -k  -i  -W $IF
+    echo "Stopping daemon on interface $IF..."
+    $PROGRAM -k -i $IF -W
     evaluate_retval
   done
 }
 
 status()
 {
+  [ -e $dropfile ] && . $dropfile
   for IF in $INTERFACES; do
-    echo "Status of ifplugd on interface $IF..."
-    $PROGRAM  $ARGS  -c  -i  -W  $IF
+    echo "Status on interface $IF:"
+    $PROGRAM -c -i $IF
     evaluate_retval
   done
+}
+
+force-reload()
+{
+  stop
+  sleep 3
+  start
 }
