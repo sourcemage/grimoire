@@ -1,0 +1,40 @@
+mk_source_dir $SOURCE_DIRECTORY &&
+unpack_file  &&
+cd $SOURCE_DIRECTORY
+
+# patch configure file kdb2html doesn't exist
+# also kfile is changed to kfilereplacepart
+patch -p0 <${SCRIPT_DIRECTORY}/configure.diff
+
+
+# replace all endl cerr with std::endl std::cerr
+CPPFILES="`ls -1 dbdesign/*.cpp`"
+HFILES="`ls -1 dbdesign/*.h`"
+for FILE in $CPPFILES
+do
+	mv $FILE ${FILE}.bak
+	sed {s/'cerr'/'std::cerr'/} ${FILE}.bak > ${FILE}.cerr
+	sed {s/'endl'/'std::endl'/} ${FILE}.cerr > ${FILE}.endl
+	sed {s/'vector<'/'std::vector<'/} ${FILE}.endl > ${FILE}
+done
+
+# for dbdesign/cview.cpp <hash_map> >> <hash_map.h>
+mv dbdesign/cview.cpp dbdesign/cview.cpp.hash
+sed {s/'include <hash_map>'/'include <hash_map.h>'/} dbdesign/cview.cpp.hash > dbdesign/cview.cpp
+
+for FILE in $HFILES
+do
+	mv $FILE ${FILE}.bak
+	sed {s/'list<'/'std::list<'/} ${FILE}.bak > ${FILE}.list
+	sed {s/'vector<'/'std::vector<'/} ${FILE}.list > ${FILE}
+done
+
+cd dbdesign &&
+patch -p0 <${SCRIPT_DIRECTORY}/dbdesign.Makefile.in.diff
+cp ${SCRIPT_DIRECTORY}/metaseqedit.h.diff ./
+
+cd ../
+
+./configure
+
+
