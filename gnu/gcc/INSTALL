@@ -1,5 +1,8 @@
 # this seems to be needed, otherwise it wants to recompile it and fails
 touch gcc/genmodes &&
+
+# in some weird cases, this actually fails with multiple jobs
+make_single &&
 make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"  \
      install-no-fixedincludes  &&
 
@@ -7,7 +10,7 @@ if [[ "$HOST" == x86_64-* ]]; then
   [ -d /lib64 -a ! -f /lib/ld-linux-x86-64.so.2 -a -f /lib64/ld-linux-x86-64.so.2 ] &&
     ln -s /lib64/ld-linux-x86-64.so.2 /lib/ld-linux-x86-64.so.2
   true  # see bug 8626 for info about this conditional
-fi
+fi &&
 
 # make some extra symlinks
 ln -sf gcc ${INSTALL_ROOT}/usr/bin/cc     &&
@@ -17,4 +20,6 @@ ln -sf ${TRACK_ROOT}/usr/bin/cpp ${INSTALL_ROOT}/lib            &&
 local SPECSDIR=${INSTALL_ROOT}/usr/lib/gcc/$HOST/$VERSION         &&
 mkdir -p $SPECSDIR/specs-local                                    &&
 cp  gcc/specs  $SPECSDIR/specs-local/specs-gcc                    &&
+# make sure installwatch tracks it, the cat alone doesn't do that
+touch  $SPECSDIR/specs                                            &&
 cat  $SPECSDIR/specs-local/* > $SPECSDIR/specs
