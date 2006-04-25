@@ -1,0 +1,44 @@
+#!/bin/bash
+
+NAME=xendomains
+PROGRAM=/usr/sbin/xm
+AUTODIR=/etc/xen/auto
+RUNLEVEL=3
+NEEDS="xend"
+
+. /etc/init.d/smgl_init
+
+if [ ! -e /proc/xen/privcmd ]; then
+  exit 0
+fi
+
+getpids()
+{
+  return 0
+}
+
+start()
+{
+  echo "Starting $NAME..."
+
+  DOMS="`find $AUTODIR -type f -o -type l -name "*" 2>/dev/null`"
+  if [ -z "$DOMS" ]; then
+    echo "Note: No xen domain configuration files were found in $AUTODIR"
+  else
+    for DOM in $DOMS; do
+      echo "Starting xen domain '${DOM}'..."
+      loadproc $PROGRAM create "${DOM}"
+    done
+  fi
+}
+
+# xm halt doesn't work
+stop()
+{
+  echo "Cannot stop $NAME"
+}
+
+status()
+{
+  loadproc xm list
+}
