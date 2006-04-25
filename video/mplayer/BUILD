@@ -12,15 +12,8 @@ fi  &&
 if [ "$MPLAYER_GUI" = "gtk+" -a "$MPLAYER_CVS" = "n" ]; then
   OPTS="${OPTS/--enable-old-gtk/}"
 fi  &&
-if [ "$MPLAYER_JOYSTICK" = "y" ]; then
-  OPTS="$OPTS --enable-joystick"
-fi  &&
-if [ "$MPLAYER_OSD_MENU" = "y" ]; then
-  OPTS="$OPTS --enable-menu"
-fi  &&
-if [ "$MPLAYER_MENCODER" = "n" ]; then
-  OPTS="$OPTS --disable-mencoder"
-fi  &&
+
+OPTS="$MPLAYER_OPTS $OPTS"  &&
 
 CFLAGS= ./configure  --prefix=${INSTALL_ROOT}/usr    \
              --confdir=${TRACK_ROOT}/etc/mplayer     \
