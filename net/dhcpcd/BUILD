@@ -1,4 +1,4 @@
-./configure  --build=$BUILD                         \
+./configure  --build=$BUILD                           \
              --prefix=${TRACK_ROOT}                 \
              --sysconfdir=${TRACK_ROOT}/etc         \
              --mandir=${TRACK_ROOT}/usr/share/man   \
