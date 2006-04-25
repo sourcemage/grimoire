@@ -1,10 +1,16 @@
 default_pre_build                                                    &&
 cd  ${SOURCE_DIRECTORY}                                              &&
 
-S_KERNELRELEASE=get_kernel_version                                   &&
-export S_KERNELRELEASE                                               &&
+# Edit to build against sorcery kernel, not running kernel
+local KER=$(get_kernel_version)                                      &&
+sedit "s:\$(shell uname -r):$KER:g"                    Makefile.cfg  &&
+sedit "s:\$(shell uname -r):$KER:g"  kernel/svgalib_helper/Makefile  &&
+sedit "s:\$(shell uname -r):$KER:g"                                  \
+                                 kernel/svgalib_helper/Makefile.alt  &&
 
-if [[ $(get_kernel_version) == 2.6.15* ]];  then
+# Apply patch for kernel versions 2.6.15* and newer
+KER=${KER:0:6}                                                       &&
+if (( ${KER//\./} > 2614 )); then
    patch -p2 < ${SCRIPT_DIRECTORY}/svgalib_helper-2.6.15.diff
 fi                                                                   &&
 
@@ -15,7 +21,7 @@ sedit  's:<config.h>:\"config.h\":'            threeDKit/triangl.c   &&
 sedit  's:<config.h>:\"config.h\":'            threeDKit/wrapsurf.c  &&
 
 # Put the man pages in their proper location.
-sedit  's:$(prefix)/man:$(prefix)/share/man:'  Makefile.cfg          &&
+sedit  's:$(prefix)/man:$(prefix)/share/man:'  Makefile.cfg           &&
 
 # Disable kernel module support while building stages
 sedit  's:installmodule ::'                    Makefile

@@ -28,8 +28,7 @@ make  CFLAGS="${CFLAGS} -I../gl -I../include" demoprogs                \
       LDFLAGS='-L../sharedlib'                                         &&
 
 cd  kernel/svgalib_helper                                              &&
-if  [  `uname  -r  |  cut  -d.  -f1,2`  ==  "2.6"  ]
-then
+if  [[  "$(get_kernel_version)"  =~  "^2.6"  ]]; then
   message  "${MESSAGE_COLOR}Building for 2.6...${DEFAULT_COLOR}"       &&
   make
 else
