@@ -1,0 +1,357 @@
+Common subdirectories: gui-0.95/.deps and gui/.deps
+diff -u --exclude=Makefile gui-0.95/group-pane.cc gui/group-pane.cc
+--- gui-0.95/group-pane.cc	2006-04-30 14:31:16.000000000 -0500
++++ gui/group-pane.cc	2006-04-30 14:34:58.000000000 -0500
+@@ -127,20 +127,30 @@
+     TimeElapsed te;
+     GtkTreeIter iter;
+     GtkTreeIter root (root_iter);
+-    unsigned long groups_added (0);
++    GtkTreeModel * model (GTK_TREE_MODEL(store));
+ 
+-    for (std::vector<Quark>::const_iterator it(sorted_groups.begin()), end(sorted_groups.end()); it!=end; ++it)
+-    {
++    // find the groups that match our criteria
++    typedef std::vector<Quark> quark_v;
++    quark_v matching_groups;
++    if (!match)
++      matching_groups = sorted_groups;
++    else foreach_const (quark_v, sorted_groups, it) {
+       const Quark& groupname (*it);
+       if (!match || match->test (groupname.to_string()))
+-      {
+-        pan_tree_store_append (store, &iter, &root);
+-        populate_row (store, &iter, data, *added_groups.insert(groupname).first);
+-        ++groups_added;
++        matching_groups.push_back (groupname);
++    }
++
++    // insert the matching groups
++    const unsigned long n_rows = matching_groups.size ();
++    if (n_rows) {
++      pan_tree_store_append_n (store, &iter, &root, n_rows);
++      foreach_const (quark_v, matching_groups, it) {
++        populate_row (store, &iter, data, *added_groups.insert(*it).first);
++        gtk_tree_model_iter_next (model, &iter);
+       }
+     }
+ 
+-    return groups_added;
++    return n_rows;
+   }
+ }
+ 
+diff -u --exclude=Makefile gui-0.95/header-pane.cc gui/header-pane.cc
+--- gui-0.95/header-pane.cc	2006-04-30 14:31:16.000000000 -0500
++++ gui/header-pane.cc	2006-04-30 11:30:07.000000000 -0500
+@@ -424,15 +424,30 @@
+                          const Quark                & parent_mid,
+                          const Data::ArticleTree    * atree)
+   {
++    // see if this parent has any children...
+     typedef Data::ArticleTree::articles_t articles_t; 
+     articles_t children;
+     atree->get_children (parent_mid, children);
++    if (children.empty())
++      return;
+ 
++    // add all these children...
++    GtkTreeModel * model (GTK_TREE_MODEL(store));
++    GtkTreeIter child, iter;
++    pan_tree_store_append_n (store, &iter, parent_iter, children.size());
++    child = iter; // keep a handle to this first new row...
+     foreach_const (articles_t, children, it)
+     {
+-      GtkTreeIter child_iter;
+-      add_article_to_model (data, store, parent_iter, *it, &child_iter);
+-      add_children_to_model (data, store, &child_iter, (*it)->message_id, atree);
++      const Article * article (*it);
++      char * date_str (get_evolution_style_date_string (article->time_posted));
++      get_rec (GTK_TREE_MODEL(store), &iter).set_article (article);
++      pan_tree_store_set (store, &iter,
++                          COL_STATE, get_article_state(data, article),
++                          COL_DATE_STR, date_str,
++                          -1);
++      g_free (date_str);
++      add_children_to_model (data, store, &iter, article->message_id, atree);
++      gtk_tree_model_iter_next (model, &iter);
+     }
+   }
+ 
+@@ -1632,11 +1647,11 @@
+       // siblings
+       GtkTreeIter up = *iter;
+       do {
++        tmp = up;
+         if (gtk_tree_model_iter_next (model, &up)) {
+           *iter = up;
+           return true;
+         }
+-        tmp = up;
+       } while (gtk_tree_model_iter_parent (model, &up, &tmp));
+ 
+       return false;
+diff -u --exclude=Makefile gui-0.95/pan-tree.cc gui/pan-tree.cc
+--- gui-0.95/pan-tree.cc	2006-04-30 14:31:16.000000000 -0500
++++ gui/pan-tree.cc	2006-04-30 14:54:36.000000000 -0500
+@@ -411,13 +411,13 @@
+ 
+   typedef std::vector<GValue> values_t;
+ 
+-  void pan_tree_node_unset_values (PanTreeStore * tree, PanTreeStore::Node * node)
++  void pan_tree_node_unset_values (PanTreeStore::Node * node, int n_columns)
+   {
+     if (node->columns)
+     {
+       GValue * it = node->columns;
+-      for (int i=0, n=tree->n_columns; i<n; ++i)
+-        g_value_unset (it++);
++      for (int i=0; i<n_columns; ++i, ++it)
++        g_value_unset (it);
+       g_free (node->columns);
+       node->columns = 0;
+     }
+@@ -427,13 +427,27 @@
+   pan_tree_finalize (GObject *object)
+   {
+     PanTreeStore * tree = (PanTreeStore*)object;
++    const int n_columns = tree->n_columns;
+     for (std::deque<PanTreeStore::Node>::iterator it(tree->nodes->begin()), end(tree->nodes->end()); it!=end; ++it)
+-      pan_tree_node_unset_values (tree, &*it);
+-    
+-    delete tree->sort_info;
++      pan_tree_node_unset_values (&*it, n_columns);
++   
++    // tear it all down... 
+     delete tree->column_types;
+-    delete tree->nodes;
+     delete tree->reuse_me;
++    delete tree->nodes;
++    delete tree->sort_info;
++
++    // ...and salt the earth
++    tree->column_types = (std::vector<GType>*) 0xDEADBEEF;
++    tree->reuse_me = (std::deque<PanTreeStore::Node*>*) 0xDEADBEEF;
++    tree->nodes = (std::deque<PanTreeStore::Node>*) 0xDEADBEEF;
++    tree->root = (PanTreeStore::Node*) 0xDEADBEEF;
++    tree->n_columns = 0xDEADBEEF;
++    tree->stamp = 0xDEADBEEF;
++    tree->order = (GtkSortType) 0xDEADBEEF;
++    tree->sort_column_id = 0xDEADBEEF;
++    tree->sort_info = (std::map<int,PanTreeStore::SortInfo>*) 0xDEADBEEF;
++
+     (*parent_class->finalize) (object);
+   }
+ 
+@@ -513,6 +527,21 @@
+ 
+     return node;
+   }
++
++  void
++  pan_tree_alloc_nodes (PanTreeStore * tree, int n_rows, std::vector<PanTreeStore::Node*>& setme)
++  {
++    const int n_cols = tree->n_columns;
++    const int pos = tree->nodes->size ();
++    tree->nodes->resize (pos + n_rows);
++    setme.resize (n_rows);
++    for (int r=0; r<n_rows; ++r) {
++      PanTreeStore::Node *node = setme[r] = &(*tree->nodes)[pos+r];
++      node->columns = g_new0 (GValue, n_cols);
++      for (int c=0; c<n_cols; ++c)
++        g_value_init (&node->columns[c], (*tree->column_types)[c]);
++    }
++  }
+ }
+ 
+ /***
+@@ -569,7 +598,6 @@
+ ****
+ ***/
+ 
+-#if 0
+ namespace
+ {
+   bool the_kids_are_alright (const PanTreeStore::Node * parent)
+@@ -585,13 +613,71 @@
+     return true;
+   }
+ }
+-#endif
+ 
+ void
+-pan_tree_store_insert (PanTreeStore     * tree,
+-                       GtkTreeIter * iter,
+-                       GtkTreeIter * parent,
+-                       gint          position)
++pan_tree_store_insert_n (PanTreeStore  * tree,
++                         GtkTreeIter   * iter,
++                         GtkTreeIter   * parent_it,
++                         int             position,
++                         int             n_rows)
++{
++  g_return_if_fail (IS_PAN_TREE_STORE(tree));
++  g_return_if_fail (position >= 0);
++  g_return_if_fail (n_rows > 0);
++
++  // insert the rows
++  PanTreeStore::Node * parent_node = parent_it ? static_cast<PanTreeStore::Node*>(parent_it->user_data) : tree->root;
++  g_assert (the_kids_are_alright (parent_node));
++  std::vector<PanTreeStore::Node*> new_children;
++  pan_tree_alloc_nodes (tree, n_rows, new_children);
++  const int old_size = parent_node->n_children;
++  position = std::min (position, old_size);
++  parent_node->children.insert (parent_node->children.begin()+position, new_children.begin(), new_children.end());
++  parent_node->n_children += n_rows;
++  PanTreeStore::Node** it = &parent_node->children[position];
++  for (int i=position, new_size=old_size+n_rows; i<new_size; ++i) {
++    PanTreeStore::Node * node (*it++);
++    node->child_index = i;
++    node->parent = parent_node;
++  }
++
++  // set the return iter
++  set_iter (iter, tree->stamp, parent_node->children[position]);
++
++  // emit some signals
++  GtkTreeModel * model = GTK_TREE_MODEL(tree);
++  GtkTreeIter walk = *iter;;
++  GtkTreePath * path = get_path (model, &walk);
++  it = &parent_node->children[position];
++  for (int i=0; i<n_rows; ++i) {
++    PanTreeStore::Node * node (*it++);
++    set_iter (&walk, tree->stamp, node);
++    gtk_tree_model_row_inserted (model, path, &walk);
++    gtk_tree_path_next (path);
++  }
++  if (!old_size && parent_node!=tree->root) {
++    gtk_tree_path_up (path);
++    gtk_tree_model_row_has_child_toggled (model, path, parent_it);
++  }
++  gtk_tree_path_free (path);
++  g_assert (the_kids_are_alright (parent_node));
++}
++
++void
++pan_tree_store_append_n (PanTreeStore  * tree,
++                         GtkTreeIter   * iter,
++                         GtkTreeIter   * parent_it,
++                         int             n_rows)
++{
++  const int position = gtk_tree_model_iter_n_children (GTK_TREE_MODEL(tree), parent_it);
++  pan_tree_store_insert_n (tree, iter, parent_it, position, n_rows);
++}
++
++void
++pan_tree_store_insert (PanTreeStore * tree,
++                       GtkTreeIter  * iter,
++                       GtkTreeIter  * parent,
++                       gint           position)
+ {
+   g_return_if_fail (IS_PAN_TREE_STORE(tree));
+   g_return_if_fail (position >= 0);
+@@ -600,7 +686,7 @@
+   PanTreeStore::Node * node = parent ? static_cast<PanTreeStore::Node*>(parent->user_data) : tree->root;
+   PanTreeStore::Node * child = pan_tree_alloc_node (tree);
+   const int old_size = node->n_children;
+-  //g_assert (the_kids_are_alright (node));
++  g_assert (the_kids_are_alright (node));
+   if (position < old_size) {
+     node->children.insert (node->children.begin()+position, child);
+     ++node->n_children;
+@@ -608,14 +694,12 @@
+     PanTreeStore::Node** it = &node->children[position];
+     for (int i=position; i<old_size+1; )
+       (*it++)->child_index = i++;
+-    //g_assert (the_kids_are_alright (node));
+   }
+   else {
+     child->child_index = old_size;
+     child->parent = node;
+     node->children.push_back (child);
+     ++node->n_children;
+-    //g_assert (the_kids_are_alright (node));
+   }
+ 
+   // set the return iter
+@@ -626,13 +710,13 @@
+   GtkTreePath * path = get_path (model, iter);
+   //std::cerr << LINE_ID << " emitting row inserted on " << gtk_tree_path_to_string(path) << std::endl;
+   gtk_tree_model_row_inserted (model, path, iter);
+-  if (node != tree->root) {
++  if (!old_size && (node != tree->root)) {
+     gtk_tree_path_up (path);
+     //std::cerr << LINE_ID << " emitting row has child toggled on " << gtk_tree_path_to_string(path) << std::endl;
+     gtk_tree_model_row_has_child_toggled (model, path, parent);
+   }
+   gtk_tree_path_free (path);
+-  //g_assert (the_kids_are_alright (node));
++  g_assert (the_kids_are_alright (node));
+ }
+ 
+ void
+@@ -816,7 +900,7 @@
+     UnsetNodeWalker(PanTreeStore* t): tree(t) {}
+     virtual ~UnsetNodeWalker() {}
+     virtual void operator()(PanTreeStore::Node* node) {
+-      pan_tree_node_unset_values (tree, node);
++      pan_tree_node_unset_values (node, tree->n_columns);
+       node->parent = 0;
+       node->child_index = -1;
+       //tree->reuse_me->push_back (node);
+@@ -837,7 +921,7 @@
+   // check the pre-removal state
+   PanTreeStore::Node * node = static_cast<PanTreeStore::Node*>(iter->user_data);
+   PanTreeStore::Node * parent = node->parent;
+-  //g_assert (the_kids_are_alright (parent));
++  g_assert (the_kids_are_alright (parent));
+ 
+   // unthread the node
+   const int pos = node->child_index;
+@@ -848,7 +932,6 @@
+     for (int i=pos; i<parent->n_children; ++i, ++it)
+       (*it)->child_index = i;
+   }
+-  //g_assert (the_kids_are_alright (parent));
+ 
+   // revalidate the iterator
+   const bool iter_is_valid_now (pos < parent->n_children);
+@@ -874,6 +957,6 @@
+   UnsetNodeWalker walker (tree);
+   node_walk (walker, node);
+ 
+-  //g_assert (the_kids_are_alright (parent));
++  g_assert (the_kids_are_alright (parent));
+   return iter_is_valid_now;
+ }
+diff -u --exclude=Makefile gui-0.95/pan-tree.h gui/pan-tree.h
+--- gui-0.95/pan-tree.h	2006-04-30 14:31:16.000000000 -0500
++++ gui/pan-tree.h	2006-04-30 19:11:42.000000000 -0500
+@@ -73,6 +73,13 @@
+       int child_index; // this node is its parent's Nth child (zero-based)
+       GValue * columns; // this row's data values.  This is a pointer to tree->column_types.size() GValues.
+       Node(): parent(0), n_children(0), child_index(-1), columns(0) {}
++      ~Node() {
++        parent = (Node*) 0xDEADBEEF;
++        children.clear ();
++        n_children = 0xDEADBEEF;
++        child_index = 0xDEADBEEF;
++        columns = (GValue*) 0xDEADBEEF; // its values need to have been unset, and the array freed, before we reach the dtor
++      }
+     };
+     int stamp; // used to verify that gtkiters came from this tree
+     int n_columns; // number of columns in the tree
+@@ -91,7 +98,12 @@
+ GType     pan_tree_store_get_type         (void);
+ PanTreeStore*  pan_tree_store_new              (int n_cols, ...);
+ 
+-// pan_tree_store_append() is the fastest of the various insertion methods
++// {insert|append}_n is faster than adding one by one.
++// appending is faster than prepending.
++
++void      pan_tree_store_insert_n         (PanTreeStore*, GtkTreeIter *iter, GtkTreeIter *parent, int pos, int n);
++void      pan_tree_store_append_n         (PanTreeStore*, GtkTreeIter *iter, GtkTreeIter *parent, int n);
++void      pan_tree_store_append           (PanTreeStore*, GtkTreeIter *iter, GtkTreeIter *parent);
+ void      pan_tree_store_append           (PanTreeStore*, GtkTreeIter *iter, GtkTreeIter *parent);
+ void      pan_tree_store_insert           (PanTreeStore*, GtkTreeIter *iter, GtkTreeIter *parent, gint position);
+ void      pan_tree_store_insert_before    (PanTreeStore*, GtkTreeIter *iter, GtkTreeIter *parent, GtkTreeIter *sibling);
