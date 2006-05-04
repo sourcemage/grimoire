@@ -1,5 +1,9 @@
-local BACKENDS="aqhbci aqdtaus aqofxconnect"  &&
+local BACKENDS="aqhbci aqdtaus"  &&
 local FRONTENDS="cbanking"                    &&
+
+if  list_find  "$OPTS"  "--enable-libofx";  then
+  BACKENDS="$BACKENDS aqofxconnect"
+fi  &&
 
 if [ "${AQBANKING_GTK}" == "y" ]; then
    local FRONTENDS="${FRONTENDS} g2banking"
@@ -36,4 +40,3 @@ OPTS="${OPTS} --disable-qt3 --disable-kde3"  &&
             $OPTS                                      &&
 
 make
-
