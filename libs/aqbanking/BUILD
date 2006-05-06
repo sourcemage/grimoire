@@ -1,17 +1,14 @@
-#  [aqbanking_frontends="cbanking g2banking qbanking kbanking"]
-#  [aqbanking_backends="aqhbci aqdtaus aqgeldkarte aqofxconnect"]
-
 local BACKENDS FRONTENDS                      &&
 
-BACKENDS="aqhbci"                             &&
-FRONTENDS="cbanking"                          &&
+local BACKENDS="aqhbci aqdtaus"               &&
+local FRONTENDS="cbanking"                    &&
+
+if  list_find  "$OPTS"  "--enable-libofx";  then
+  BACKENDS="$BACKENDS aqofxconnect"
+fi                                            &&
 
 if [ "${AQBANKING_GTK}" == "y" ]; then
    FRONTENDS="${FRONTENDS} g2banking"
-fi                                            &&
-
-if spell_ok libofx; then
-   BACKEND="${BACKENDS} aqofxconnect"
 fi                                            &&
 
 if [ "${AQBANKING_QT}" == "y" ]; then
