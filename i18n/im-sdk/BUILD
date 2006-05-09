@@ -1,54 +1,36 @@
-(
-  BUILDDIRS="lib/EIMIL lib/iiimp lib/iiimcf \
-    iiimsf leif iiimxcf/xiiimp.so iiimxcf/htt_xbe iiimgcf"
+# excluded leif, doesn't build
+BUILDDIRS="lib/EIMIL lib/iiimp lib/iiimcf \
+  iiimsf iiimxcf/xiiimp.so iiimxcf/htt_xbe iiimgcf"
 
-  (
-    # this makes it compile with libiconv installed
-    cp lib/CSConv/iconv/iconv.h include/   &&
+# this makes it compile with libiconv installed
+cp lib/CSConv/iconv/iconv.h include/   &&
 
-    cd lib/CSConv                          &&
-    ./configure \
-      --prefix=$INSTALL_ROOT/usr/lib/im \
-      --without-libiconv-prefix \
-      $OPTS  &&
-    make
-  )                                        &&
+pushd lib/CSConv                       &&
+./configure \
+  --prefix=$INSTALL_ROOT/usr/lib/im \
+  --without-libiconv-prefix \
+  $OPTS                                &&
+make                                   &&
+popd                                   &&
 
-  for dir in $BUILDDIRS; do
-  (
-    cd $dir                                &&
-    ./configure \
-      --prefix=$INSTALL_ROOT/usr \
-      --sysconfdir=$INSTALL_ROOT/etc \
-      --localstatedir=$INSTALL_ROOT/var \
-      --libdir=$INSTALL_ROOT/usr/lib \
-      --without-libiconv-prefix \
-      $OPTS                                &&
-    make
-  ) || return 1
-  done                         &&
-
-  prepare_install              &&
-
-  (
-    cd lib/CSConv              &&
-    make install
-  )                            &&
-
-  for dir in $BUILDDIRS; do
-  (
-    cd $dir                    &&
-    make install
-  ) || return 1
-  done                         &&
-  
-  # move config file to a sane place
-  cd $INSTALL_ROOT/usr/lib/im                       &&
-  if [ ! -f $INSTALL_ROOT/etc/im/htt.conf ] ; then
-    mkdir -p $INSTALL_ROOT/etc/im                   &&
-    mv htt.conf $INSTALL_ROOT/etc/im/
-  else
-    rm -f htt.conf
-  fi                                                &&
-  ln -sf /etc/im/htt.conf htt.conf
-) >$C_FIFO 2>&1
+for dir in $BUILDDIRS; do
+ {
+  pushd $dir                             &&
+  if [[ ! -e configure ]]; then
+    ./autogen.sh
+  fi                                     &&
+  ./configure \
+    --prefix=$INSTALL_ROOT/usr \
+    --sysconfdir=$INSTALL_ROOT/etc \
+    --localstatedir=$INSTALL_ROOT/var \
+    --libdir=$INSTALL_ROOT/usr/lib \
+    --without-libiconv-prefix \
+    $OPTS                                &&
+  if [[ $dir == iiimgcf ]]; then
+    # fix broken po files
+    sed -i '/Last-Translator/{ s/^.*$/&\n"Language-Team: unknown;\\n"/ }' po/*.po
+  fi                                     &&
+  make                                   &&
+  popd 
+ } || return 1
+done

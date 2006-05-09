@@ -1,0 +1,25 @@
+# excluded leif, doesn't build
+BUILDDIRS="lib/EIMIL lib/iiimp lib/iiimcf \
+iiimsf iiimxcf/xiiimp.so iiimxcf/htt_xbe iiimgcf"
+
+pushd lib/CSConv           &&
+make install               &&
+popd                       &&
+
+for dir in $BUILDDIRS; do
+ {
+  pushd $dir               &&
+  make install             &&
+  popd                     &&
+ } || return 1
+done                       &&
+
+# move config file to a sane place
+cd $INSTALL_ROOT/usr/lib/im                       &&
+if [[ ! -f $INSTALL_ROOT/etc/im/htt.conf ]]; then
+  mkdir -p $INSTALL_ROOT/etc/im                   &&
+  mv htt.conf $INSTALL_ROOT/etc/im/
+else
+  rm -f htt.conf
+fi                                                &&
+ln -sf /etc/im/htt.conf htt.conf
