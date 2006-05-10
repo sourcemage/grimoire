@@ -6,22 +6,8 @@ else  SCHEME="auto"
 fi                                                                      &&
 
 OPTS="$OPTS --enable-authentication-scheme=$SCHEME"                     &&
-
-if [ "$XDMCP" == "y" ]; then
-   OPTS="$OPTS --with-xdmcp=yes"
-else
-   OPTS="$OPTS --with-xdmcp=no"
-fi                                                                      &&
-
-if [ "$SELINUX" == "y" ]; then
-   OPTS="$OPTS --with-selinux"
-fi                                                                      &&
-
-if [ "$IPV6" == "y" ]; then
-   OPTS="$OPTS --enable-ipv6=yes"
-else
-   OPTS="$OPTS --enable-ipv6=no"
-fi                                                                      &&
+OPTS="${OPTS} ${GDM_XDMCP} ${GDM_SECURE} ${GDM_XEVIE}"                  &&
+OPTS="${OPTS} ${GDM_SELINUX} ${GDM_IPV6}"                               &&
 
 if [ "$DBUSLAUNCH" == "y" ]; then
    patch -p0 < $SCRIPT_DIRECTORY/Xsession-dbus.patch
