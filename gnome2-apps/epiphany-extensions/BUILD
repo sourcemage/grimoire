@@ -88,9 +88,6 @@ fi                                              &&
 if [ "${EPIPHANY_TABGROUP}" == "y" ]; then
    OPTS="${OPTS}tab-groups,"
 fi                                              &&
-if [ "${EPIPHANY_TABSMENU}" == "y" ]; then
-   OPTS="${OPTS}tabsmenu,"
-fi                                              &&
 if [ "${EPIPHANY_TABSTATE}" == "y" ]; then
    OPTS="${OPTS}tab-states"
 fi                     
