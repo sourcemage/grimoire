@@ -1,7 +1,2 @@
-(
-#unset CFLAGS LDFLAGS
-
-OPTS="$OPTS --enable-threads"
-
+OPTS="--enable-threads ${OPTS}"  &&
 default_build
-) > $C_FIFO 2>&1
