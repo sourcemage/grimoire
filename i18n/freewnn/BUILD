@@ -1,6 +1,8 @@
-(
-  groupadd wnn       2>/dev/null
-  useradd wnn -g wnn 2>/dev/null
-
-  default_build
-) >$C_FIFO 2>&1
+if [[ $UNSAFE == "y" ]]; then
+  OPTS="$OPTS --enable-unsafe-path"
+else
+  OPTS="$OPTS --disable-unsafe-path"
+fi &&
+create_group wnn                                 &&
+create_account wnn /dev/null /bin/false wnn      &&
+default_build
