@@ -1,5 +1,4 @@
-OPTS="$XORG_SERVER_OPTS $OPTS"  &&
-OPTS="$OPTS --with-mesa-source=${BUILD_DIRECTORY}/Mesa-${VERSION2}"  &&
-
-
+OPTS="${XORG_SERVER_OPTS}                                     \
+      --with-mesa-source=${BUILD_DIRECTORY}/Mesa-${VERSION2}  \
+      ${OPTS}"                                                &&
 default_build
