@@ -3,4 +3,6 @@
                --localstatedir=$INSTALL_ROOT/var  \
                --disable-debug       \
 	       $OPTS                     &&
-  make
+make_single    &&
+make           &&
+make_normal
