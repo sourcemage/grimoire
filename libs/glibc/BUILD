@@ -48,12 +48,7 @@ unset  LD_LIBRARY_PATH  &&
 #
 persistent_add  GLIBC_ARCH  &&
 if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
-  # handle 32-bit mode on 64-bit (*86_64) processors correctly #11904  
-  if grep -q -- "-m64" <<< "$CFLAGS";  then
-    GLIBC_ARCH=x86_64    
-  else
-    GLIBC_ARCH=i386 
-  fi  
+  GLIBC_ARCH=x86_64    
 elif [[ ${SMGL_COMPAT_ARCHS[1]} == ppc ]]; then
   GLIBC_ARCH=ppc
 elif [[ ${SMGL_COMPAT_ARCHS[1]} == ia32 ]]; then
