@@ -48,7 +48,12 @@ unset  LD_LIBRARY_PATH  &&
 #
 persistent_add  GLIBC_ARCH  &&
 if    [[  $(uname  -m)  =  *86_64    ]];  then
-  GLIBC_ARCH=x86_64
+  # handle 32-bit mode on 64-bit (*86_64) processors correctly #11904  
+  if grep -q -- "-m64" <<< "$CFLAGS";  then
+    GLIBC_ARCH=x86_64    
+  else
+    GLIBC_ARCH=i386 
+  fi  
 elif  [[  $(uname  -m)  =  ppc       ]];  then
   GLIBC_ARCH=ppc
 elif  [[  $(uname  -m)  =  *86       ]];  then
