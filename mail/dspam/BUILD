@@ -1,4 +1,4 @@
-OPTS="$OPTS $DSPAM_DAEMON" &&
+OPTS="$OPTS $DSPAM_DAEMON $DSPAM_PREFS" &&
 
 STORAGE_DRIVERS='hash_drv' &&
 if [[ "$DSPAM_SQLITE" == y ]]; then STORAGE_DRIVERS="$STORAGE_DRIVERS,sqlite3_drv"; fi &&
@@ -14,9 +14,16 @@ fi &&
 OPTS="$OPTS --with-storage-driver=$STORAGE_DRIVERS" &&
 
 if [[ "$DSPAM_VIRTUAL_USERS" == 'y' ]]; then OPTS="$OPTS --enable-virtual-users" ; fi &&
-OPTS="$OPTS $DSPAM_LARGE_SCALE $DSPAM_DOMAIN_SCALE" &&
+
+case "$DSPAM_SCALE" in
+  "none") ;;
+  "Large Scale") OPTS="$OPTS --enable-large-scale" ;;
+  "Domain Scale") OPTS="$OPTS --enable-domain-scale" ;;
+esac  &&
 
 # no need for $INSTALL_ROOT here
 OPTS="$OPTS --with-logdir=/var/log" &&
 
+aclocal &&
+./autogen.sh &&
 default_build
