@@ -1,3 +1,9 @@
+if [[ "$DSPAM_LOG_PATCH" == y ]]; then
+	cd src/tools                                    &&
+	patch < $SPELL_DIRECTORY/dspam_logrotate.patch  &&
+	cd $SOURCE_DIRECTORY
+fi  &&
+
 OPTS="$OPTS $DSPAM_DAEMON $DSPAM_PREFS" &&
 
 STORAGE_DRIVERS='hash_drv' &&
