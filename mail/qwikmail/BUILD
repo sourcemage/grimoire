@@ -1,7 +1,2 @@
-(
-
-  make             &&
-  prepare_install  &&
-  make  install
-
-) > ${C_FIFO}  2>&1
+patch < $SPELL_DIRECTORY/qwik-smtpd-0.3.patch &&
+default_build
