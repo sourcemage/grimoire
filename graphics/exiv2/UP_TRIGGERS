@@ -1,0 +1,16 @@
+# up_trigger everything on major version updates 
+
+local OLD_SPELL_VERSION=""
+if spell_ok  $SPELL; then
+  OLD_SPELL_VERSION="$(installed_version $SPELL)"
+  if test "${VERSION}" != "${OLD_SPELL_VERSION}"; then
+    message "This is a possibly incompatible update of exiv2..."
+    message "Figuring out what spells need to be recast, this may take a while."
+    for each in $(fast_up_depends $SPELL 1); do
+      if gaze install $each | xargs readelf -d 2> /dev/null |
+         grep -q "NEEDED.*libexiv2-${OLD_SPELL_VERSION}.so"; then
+           up_trigger $each cast_self
+      fi
+    done
+  fi
+fi
