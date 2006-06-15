@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# description: Start/Stop firebird2 database server
+#
+# This file belongs in /etc/init.d where it will be run
+# on system startup and shutdown to start the background
+# Firebird2  database Super server daemon 
+
+
+FB=/usr/firebird/bin/fbmgr.bin
+# as of rc2, preferred method of stoppng is to kill the pid
+RUND=/var/run/firebird
+PID=$RUND/`basename $0`.pid
+
+source /etc/init.d/smgl_functions
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+network  +remote_fs"
+
+case $1 in
+	start)
+		echo "Starting Firebird Super Server"
+		mkdir -p $RUND
+		chown firebird:firebird $RUND
+                su -l "firebird" -s /bin/sh -m \
+                       -c "$FB -start -forever -pidfile $PID"
+		evaluate_retval
+		;;
+	stop)
+                echo "Stopping Firebird server"
+		kill `cat $PID`
+		evaluate_retval
+                ;;
+
+        restart)
+                echo "Restarting Firebird server"
+	        $0 stop
+        	$0 start
+		evaluate_retval
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart}"
+                exit 1
+		;;
+esac

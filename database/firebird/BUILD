@@ -1,4 +1,5 @@
-  PREFIX=${INSTALL_ROOT}/usr/firebird           &&
+  persistent_add FB_PREFIX                      &&
+  FB_PREFIX=${INSTALL_ROOT}/usr/firebird        &&
   OPTS="${OPTS} ${FB_SS}"                       &&
   if spell_ok icu; then
     ICU_FLAGS=`icu-config --ldflags-libsonly`   &&
@@ -10,7 +11,7 @@
   LDFLAGS="$LDFLAGS -lpthread"                  &&
 
   ./configure 				\
-	--prefix=$PREFIX 		\
+	--prefix=$FB_PREFIX 		\
 	$OPTS					&&
   make                                          &&
 # prepare an install image
