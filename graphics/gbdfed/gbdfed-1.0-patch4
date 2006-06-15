@@ -1,0 +1,63 @@
+Index: README
+===================================================================
+--- README	(revision 49)
++++ README	(working copy)
+@@ -217,7 +217,10 @@
+   Sergio Martins <smartins@students.dei.uc.pt> for finding a typo and several
+   dialog related bugs.
+ 
++  Viktor Urban <viktor@icc-atcsolutions.com> for locating a problem when
++  saving and moving to the next or previous glyph.
++
+ AUTHOR
+ ------
+   Mark Leisher <mleisher@crl.nmsu.edu>
+-  26 April 2006
++  17 May 2006
+Index: glyphedit.c
+===================================================================
+--- glyphedit.c	(revision 49)
++++ glyphedit.c	(working copy)
+@@ -1108,10 +1108,12 @@
+       gw->last_x = gw->last_y = 0;
+ 
+     /*
+-     * Switch back to draw mode with a new glyph.
++     * If the widget is in Move or Copy mode, change back to Select mode.
+      */
+-    gw->pending_op = gw->op;
+-    gw->op = GLYPHEDIT_DRAW;
++    if (gw->op == GLYPHEDIT_MOVE || gw->op == GLYPHEDIT_COPY) {
++        gw->pending_op = gw->op;
++        gw->op = GLYPHEDIT_SELECT;
++    }
+ 
+     gw->cidx = 1;
+     gw->lcolor = 0;
+Index: guigedit.c
+===================================================================
+--- guigedit.c	(revision 49)
++++ guigedit.c	(working copy)
+@@ -348,14 +348,19 @@
+     gchar *prgname = g_get_prgname();
+     gboolean unencoded;
+     bdf_glyph_t *glyph;
++    GlypheditOperation op;
+ 
+     if (GTK_WIDGET_IS_SENSITIVE(ge->update) == TRUE) {
+-        if (glyphedit_get_selecting(GLYPHEDIT(ge->gedit)) == TRUE)
++        if (glyphedit_get_selecting(GLYPHEDIT(ge->gedit)) == TRUE) {
+           /*
+            * A selection operation is in progress. Need to switch back to
+-           * the Draw operation to finalize the selection.
++           * the Draw operation to finalize the selection and then switch
++           * back.
+            */
+-          glyphedit_change_operation(GLYPHEDIT(ge->gedit), GLYPHEDIT_DRAW);
++            op = glyphedit_get_operation(GLYPHEDIT(ge->gedit));
++            glyphedit_change_operation(GLYPHEDIT(ge->gedit), GLYPHEDIT_DRAW);
++            glyphedit_change_operation(GLYPHEDIT(ge->gedit), op);
++        }
+ 
+         glyph = glyphedit_get_glyph(GLYPHEDIT(ge->gedit), &unencoded);
+ 
