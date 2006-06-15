@@ -1,12 +1,5 @@
-
-  case  $ONLY  in
-      y|Y)  OPTS="$OPTS --disable-multinet" ;;
-  esac  &&
-  ./configure --prefix=${INSTALL_ROOT}/usr  \
-              --sysconfdir=${INSTALL_ROOT}/etc  \
-              --localstatedir=${INSTALL_ROOT}/var  \
-              --mandir=${INSTALL_ROOT}/usr/share/man   \
-              --infodir=${INSTALL_ROOT}/usr/share/info  \
-              $OPTS  &&
-  make depend        &&
-  make opt           
+OPTS="--disable-multinet ${OPTS}" &&
+for NN in $ML_NET; do
+  OPTS="${OPTS} --enable-${NN}"
+done                              &&
+default_build
