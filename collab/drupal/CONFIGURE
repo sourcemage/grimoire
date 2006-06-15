@@ -8,14 +8,26 @@ config_query_list  DRUPAL_DATABASE_ENGINE                                       
                    mysql                                                                                         \
                    postgresql                                                                                    &&
 
+persistent_add  DRUPAL_INSTALLED                                                                                 &&
+if  spell_ok  ${SPELL}
+then
+  DRUPAL_INSTALLED="y"
+else
+  DRUPAL_INSTALLED="n"
+fi                                                                                                               &&
+
 if  [  "${DRUPAL_INSTALLED}"  ==  "n"  ]
 then
-  persistent_add  DRUPAL_CREATEDB  DRUPAL_CONFIGURE                                                              &&
+  persistent_add  DRUPAL_CREATEDB  DRUPAL_CONFIGURE  MYSQL_PASSWORD                                              &&
 
   message  "${MESSAGE_COLOR}The MySQL daemon needs to be running to create the database${DEFAULT_COLOR}"         &&
   if  query  "Create the Drupal database?"  n
   then
-    DRUPAL_CREATEDB="y"
+    DRUPAL_CREATEDB="y"                                                                                          &&
+    if  query  "Do you need a password to create a database w/MySQL?"  y
+    then
+      query_string  MYSQL_PASSWORD  "What is the MySQL password for root (needed to create the database)? If there is no password, just press enter. "  ""
+    fi
   else
     DRUPAL_CREATEDB="n"
   fi                                                                                                             &&
