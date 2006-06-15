@@ -16,6 +16,9 @@ fi &&
 
 if ! [[ -x configure ]]; then ./autogen.sh; fi &&
 
+# AP{R,U} 0.9.12 patch, harmless for AP{R,U} 1
+patch -p0 < $SCRIPT_DIRECTORY/apr-0.9.12.diff &&
+
 OPTS="$OPTS --disable-debug --disable-static --disable-mod-activation --enable-dso --enable-shared --disable-neon-version-check" &&
 make_single &&
 default_build &&
