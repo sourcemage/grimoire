@@ -2,4 +2,6 @@
 
   ./configure --prefix=${INSTALL_ROOT}/usr  \
               $OPTS                         &&
-  make
+  make_single &&
+  make  &&
+  make_normal
