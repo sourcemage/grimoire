@@ -1,10 +1,24 @@
-optional_depends  "linux-pam"  "--enable-auth-pam"        "--disable-auth-pam"  "for security"             &&
-optional_depends  "openldap"   "--with-modules=mod_ldap"  ""                    "for LDAP authentication"  &&
+if [[ "x`echo $PROFTPD_MODS | grep tls`" != "x" ]]; then 
+  depends openssl 
+fi                                                                &&
 
-if  query  "Would you like to compile the modules for SQL authentication? " n;  then
-  if  query  "Use MySQL for SQL authentication (answer 'n' for PostgreSQL)? " y;  then
-    depends  "mysql"  "--with-modules=mod_sql^mod_sql_mysql --with-includes=/usr/include/mysql --with-libraries=/usr/lib"
-  else
-    depends  "postgresql"  "--with-modules=mod_sql^mod_sql_postgres"
-  fi
-fi
+if [[ "x`echo $PROFTPD_MODS | grep wrap`" != "x" ]]; then 
+  depends tcp_wrappers 
+fi                                                                &&
+
+if [[ "x`echo $PROFTPD_MODS | grep mysql`" != "x" ]]; then 
+  depends mysql 
+fi                                                                &&
+
+if [[ "x`echo $PROFTPD_MODS | grep postgresql`" != "x" ]]; then 
+  depends postgresql 
+fi                                                                &&
+
+if [[ "x`echo $PROFTPD_MODS | grep ldap`" != "x" ]]; then 
+  depends openldap 
+fi                                                                &&
+
+optional_depends  "linux-pam"  "--enable-auth-pam" \
+"--disable-auth-pam"  "for security" 
+
+

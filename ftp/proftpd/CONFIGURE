@@ -7,37 +7,34 @@ if [[ $PROFTPD_DEVEL == "n" ]]; then
   fi
 fi                                                                    &&
 
-#rest of the file still needs to be rewritten properly
-if  !  grep  -q  'CONFIGURED=\"y\"'  ${DEPENDS_CONFIG}/proftpd;  then
-  if  query  "enable IPv6 support? " n;  then
-    echo  'OPTS="${OPTS} --enable-ipv6"'  >>  ${SPELL_CONFIG}
-  fi
+config_query_option PROFTPD_IP6 "enable IPv6 support?"                \
+y "--enable-ipv6" ""                                                  &&
 
-  if  query  "Choose optional user contributed modules to install? " n;  then
-    if  query  "Include support for RADIUS (RFC2865) authentication and accounting? " n;  then
-      echo  'OPTS="${OPTS} --with-modules=mod_radius"'  >>  ${SPELL_CONFIG}
+config_query PROFTPD_MOD                                              \
+"Choose optional user contributed modules to install?" n              &&
+
+#radius module failed (probably missing dep), all the others not in
+#the query are yet to be tried.
+if [[ $PROFTPD_MOD == "y" ]]; then
+  config_query_multi PROFTPD_MODS "Choose among this list:"           \
+  mod_ratio mod_readme mod_rewrite mod_tls mod_wrap                   \
+  mod_sql mod_ldap                                                    &&
+
+  PROFTPD_MODS="--with-modules=`echo $PROFTPD_MODS | sed 's/\ /:/g'`" &&
+
+  if [[ "x`echo $PROFTPD_MODS | grep sql`" != "x" ]]; then 
+    config_query_list PROFTPD_SQL                                     \
+    "You chose mod_sql, now which DBMS do you want:" mod_sql_mysql    \
+     mod_sql_postgres                                                 &&
+
+    if [[ "x${PROFTPD_SQL}" == "xmod_sql_mysql" ]]; then
+      SQL_INC="/usr/include/mysql"
+    else
+	  SQL_INC="/usr/include/postgresql"
     fi
-
-    if  query  "Include support for user upload/download ratios? " n;  then
-      echo  'OPTS="${OPTS} --with-modules=mod_ratio"'  >>  ${SPELL_CONFIG}
-    fi
-
-    if  query  "Include support for displaying \"readme\" files (controlled by the \"DisplayReadme\" directive)? " n;  then
-      echo  'OPTS="${OPTS} --with-modules=mod_readme"'  >>  ${SPELL_CONFIG}
-    fi
-
-    if  query  "Include support for powerful regular expression-based command parameter rewrite engine? " n;  then
-      echo  'OPTS="${OPTS} --with-modules=mod_rewrite"'  >>  ${SPELL_CONFIG}
-    fi
-
-    if  query  "Include support for SSL/TLS authentication/encryption? " n;  then
-      echo  'OPTS="${OPTS} --with-modules=mod_tls"'  >>  ${SPELL_CONFIG}
-    fi
-
-    if  query  "Include support for TCP Wrappers? " n;  then
-      echo  'OPTS="${OPTS} --with-modules=mod_wrap"'  >>  ${SPELL_CONFIG}
-    fi
-  fi
-
-  echo  'CONFIGURED="y"'  >>  ${SPELL_CONFIG}
+    
+    PROFTPD_MODS="${PROFTPD_MODS}:${PROFTPD_SQL}                     \
+    --with-includes=${SQL_INC}"                                      
+  fi                                                                   
 fi
+
