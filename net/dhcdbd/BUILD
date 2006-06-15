@@ -1,0 +1,1 @@
+make  DESTDIR=$INSTALL_ROOT/
