@@ -1,42 +1,47 @@
-        if [ "$LICQ_CVS" == "y" ]; then
-	  cd $SOURCE_DIRECTORY/licq-data-cvs   &&
-	  mkdir -p /usr/share/licq/qt-gui      &&
-	  for i in $(find $SOURCE_DIRECTORY/licq-data-cvs -path "*CVS" -type d);\
-                  do rm -rf $i; done  &&
-	  cp -R $SOURCE_DIRECTORY/licq-data-cvs/qt-gui/* \
+if [ "$LICQ_SVN" == "y" ]; then
+	mkdir -p /usr/share/licq/qt-gui      &&
+	cp -R $SOURCE_DIRECTORY/licq-data-svn/qt-gui/* \
 			/usr/share/licq/qt-gui                &&
-	  cp -R $SOURCE_DIRECTORY/licq-data-cvs/sounds \
-	        /usr/share/licq                               &&
-	  cp -R $SOURCE_DIRECTORY/licq-data-cvs/translations    /usr/share/licq
-        fi          &&
+	cp -R $SOURCE_DIRECTORY/licq-data-svn/sounds \
+			/usr/share/licq                               &&
+	cp -R $SOURCE_DIRECTORY/licq-data-svn/translations    /usr/share/licq
+fi          &&
 
 
-  cd  $SOURCE_DIRECTORY                                           &&
-  make install                                                 &&
+cd  $SOURCE_DIRECTORY &&
+default_install       &&
+
+if [ "$CDK" == "y" ]; then
+	cd  $SOURCE_DIRECTORY/plugins/console &&
+	default_install
+fi &&
+
+if  [ $QTGUI == "y" ];  then
+	cd  $SOURCE_DIRECTORY/plugins/qt-gui  &&
+	default_install
+fi &&
+
+if [ "$EMAIL" == "y" ]; then
+	cd $SOURCE_DIRECTORY/plugins/email    &&
+	default_install
+fi &&
+
+if [ "$MSN" == "y" ] && ! list_find "$OPTS" "--disable-openssl"; then
+	cd $SOURCE_DIRECTORY/plugins/msn      &&
+	default_install
+fi  &&
   
-  if [ "$CDK" == "y" ]; then
-  cd  $SOURCE_DIRECTORY/plugins/console                           &&
-  make install
-  fi &&
+if [ "$AREP" == "y" ]; then
+	cd $SOURCE_DIRECTORY/plugins/auto-reply &&
+	default_install
+fi &&
 
-  if  [ $QTGUI == "y" ];  then
-    cd  $SOURCE_DIRECTORY/plugins/qt-gui                          &&
-    make install
-  fi                                                              &&
-
-	  cd $SOURCE_DIRECTORY/plugins/email                          &&
-	  make install                                                &&
-
-          cd $SOURCE_DIRECTORY/plugins/msn                         &&
-          make install                                             &&
-	  
-	  cd $SOURCE_DIRECTORY/plugins/auto-reply                     &&
-	  make install                                                &&
-	  
-	  cd $SOURCE_DIRECTORY/plugins/rms                            &&
-	  make install                                                &&
-	  
-  if [ "$XOSD" == "y" ]; then
-	  cd $SOURCE_DIRECTORY/plugins/osd-1.2.7.5 &&
-	  make install
-  fi
+if [ "$RMS" == "y" ]; then  
+	cd $SOURCE_DIRECTORY/plugins/rms        &&
+	default_install
+fi &&
+  
+if [ "$XOSD" == "y" ]; then
+	cd $SOURCE_DIRECTORY/plugins/osd-${SOURCE7_VERSION} &&
+	make install
+fi
