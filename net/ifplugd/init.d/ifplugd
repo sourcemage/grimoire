@@ -4,43 +4,43 @@ RUNLEVEL=3
 NEEDS="+network +remote_fs"
 PROGRAM=/usr/sbin/ifplugd
 
-ifplugdconf=/etc/ifplugd/ifplugd.conf
-dropfile=/var/tmp/ifplugd
+CONFFILE=/etc/ifplugd/ifplugd.conf
+DROPFILE=/var/tmp/ifplugd.drop
 
-! [ -e $ifplugdconf ] && echo "No config file: $ifplugdconf" && exit 1
-. $ifplugdconf
+[[ ! -f $CONFFILE ]] && echo "No config file: $CONFFILE" && exit 1
+. $CONFFILE
 . /etc/init.d/smgl_init
 
 required_executable /usr/sbin/ifplugd
 
-[ $# -gt 1 ] && INTERFACES="${@/$1/}"
-[ "x$INTERFACES" = "xauto" ] && INTERFACES="`cat /proc/net/dev | awk '{ print $1 }' | egrep '^(eth|wlan)' | cut -d: -f1`"
+(($#>1)) && INTERFACES="${@/$1}"
+[[ $INTERFACES == auto ]] && INTERFACES="$(cat /proc/net/dev | awk '{ print $1 }' | egrep '^(eth|wlan)' | cut -d: -f1)"
 
 start()
 {
-  local MSG STATE
+  local STATE
   for IF in $INTERFACES; do
     echo "Starting daemon on interface $IF..."
-    A="`eval builtin echo \$\{ARGS_${IF}\}`"
-    [ -z "$A" ] && A="$ARGS"
-    MSG="`$PROGRAM -i $IF $A 2>&1`"
+    A="$(eval builtin echo \$\{ARGS_${IF}\})"
+    [[ -z $A ]] && A="$ARGS"
+    $PROGRAM -i $IF $A
     STATE=$?
-    if [ -z "$MSG" ]; then
-      [[ "$STATE" == "1" ]] && echo "Link beat detected." && 
-        echo "Connected." && unset STATE
-      [[ "$STATE" == "2" ]] && echo "Link beat not detected." && 
-        echo "Connected." && unset STATE
-      [[ "$STATE" == "3" ]] && echo "Not connected." && unset STATE
+    if ((STATE==2)); then
+      echo "Link up."
+      unset STATE
+    elif ((STATE==3)); then
+      echo "Link down."
+      STATE=
     fi
     (exit $STATE)
     evaluate_retval
   done
-  /bin/echo "INTERFACES=\"$INTERFACES\"" > $dropfile
+  /bin/echo "INTERFACES=\"$INTERFACES\"" > $DROPFILE
 }
 
 stop()
 {
-  [ -e $dropfile ] && . $dropfile && rm $dropfile
+  [[ -f $DROPFILE ]] && . $DROPFILE && rm $DROPFILE
   for IF in $INTERFACES; do
     echo "Stopping daemon on interface $IF..."
     $PROGRAM -k -i $IF -W
@@ -50,7 +50,7 @@ stop()
 
 status()
 {
-  [ -e $dropfile ] && . $dropfile
+  [[ -f $DROPFILE ]] && . $DROPFILE
   for IF in $INTERFACES; do
     echo "Status on interface $IF:"
     $PROGRAM -c -i $IF
