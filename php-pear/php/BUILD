@@ -54,10 +54,10 @@ esac  &&
                  --enable-dbase                    \
                  --enable-sockets                  \
                    --with-iconv                    \
-                   --with-xmlrpc                   \
                    --with-versioning               \
                    --with-mod_charset              \
                    --with-pear                     \
+                 --enable-pdo                      \
             --with-layout=GNU                      \
                           $OPTS                    &&
 invoke_gcc &&
