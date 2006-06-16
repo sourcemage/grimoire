@@ -50,18 +50,14 @@ if  [  "$SSL_TLS"  ==  "y"  ];  then
 fi  &&
 
 if  [  "$VDA"  ==  "y"  ];  then
-    message "${MESSAGE_COLOR}Trying to patch Postfix with VDA support${DEFAULT_COLOR}"  &&
-    patch -Np1 < $SOURCE5_DIRECTORY/$NAME5   || PATCH_FAILED=true  &&
-    if [ "$PATCH_FAILED" == "true" ]; then
-      message "${MESSAGE_COLOR}Patch failed... please do a cast -r -c postfix"  &&
-      message "and answer no to the VDA patch question.${DEFAULT_COLOR}"  &&
-      return 1
-    fi
+    message "${MESSAGE_COLOR}Applying VDA Patch${DEFAULT_COLOR}"  &&
+    patch -p1 < $NAME3
 fi   &&
 
 # fix to get man pages to install in /usr/man
+#sedit  "s:/usr/local:${INSTALL_ROOT}/usr:"  src/global/mail_params.h  &&
+CCARGS="$CCARGS -DDEF_MANPAGE_DIR=\\\"/usr/share/man\\\""  &&
 
-sedit  "s:/usr/local:${INSTALL_ROOT}/usr:"  src/global/mail_params.h  &&
 
 # NPTL glibc fix
 if  glibc_is_nptl; then

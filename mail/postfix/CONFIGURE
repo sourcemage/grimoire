@@ -1,26 +1,38 @@
-# check if postfix was installed before
-message "${MESSAGE_COLOR}Probing for previously casted $SPELL...${DEFAULT_COLOR}"  &&
-
-if  [ ! -f  /etc/postfix/main.cf  ];  then
-  message "${MESSAGE_COLOR}Previous install not detected.${DEFAULT_COLOR}"
+persistent_add POSTFIX_PRE_EXISTING
+if  [[ -f  /etc/postfix/main.cf  ]];  then
+	message "${MESSAGE_COLOR}Pre-existing main.cf found. Doing upgrade install.${DEFAULT_COLOR}"
+	POSTFIX_PRE_EXISTING="yes"
 else
-  message "${MESSAGE_COLOR}Previous install detected.${DEFAULT_COLOR}"
+	message "${MESSAGE_COLOR}No pre-existing main.cf found. Doing normal install.${DEFAULT_COLOR}"
+	POSTFIX_PRE_EXISTING="no"
 fi  &&
 
 config_query  BENCH   "install smtpstone benckmarking tools?"  n
 
-message "${MESSAGE_COLOR}smtp configuration files loss may expose your system to SPAM relaying. You should backup and restore configuration files and reply y to the next two questions...${DEFAULT_COLOR}"
+#message "${MESSAGE_COLOR}smtp configuration files loss may expose your system to SPAM relaying. You should backup and restore configuration files and reply y to the next two questions...${DEFAULT_COLOR}"
+#
+#config_query  BACKUP   "backup config on dispel?"  y
+#config_query  RESTORE  "restore config on rebuild/update?"  y
 
-config_query  BACKUP   "backup config on dispel?"  y
-config_query  RESTORE  "restore config on rebuild/update?"  y
-
-message "${MESSAGE_COLOR}You should run newaliases after each aliases file update, and on first $spell cast...${DEFAULT_COLOR}"
-config_query  ALIAS    "run newaliases after cast?"  y
+#message "${MESSAGE_COLOR}You should run newaliases after each aliases file update, and on first $spell cast...${DEFAULT_COLOR}"
+#config_query  ALIAS    "run newaliases after cast?"  y
 
 if  spell_ok  mysql;  then
   config_query  MYSQL  "Add MySQL support?"  y
 else
   config_query  MYSQL  "Add MySQL support?"  n
+fi  &&
+
+if  spell_ok  postgresql;  then
+  config_query  POSTGRES  "Add Postgresql support?"  y
+else
+  config_query  POSTGRES  "Add Postgresql support?"  n
+fi  &&
+
+if  spell_ok  openldap;  then
+  config_query  LDAP  "Add LDAP support?"  y
+else
+  config_query  LDAP  "Add LDAP support?"  n
 fi  &&
 
 if  spell_ok  linux-pam;  then
@@ -31,27 +43,10 @@ fi  &&
 
 if  spell_ok  openssl;  then
   config_query  SSL  "Add SSL support?"  y
-else
-  config_query  SSL  "Add SSL support?"  n
-fi  &&
-
-# SSL and TLS libs both come from openssl :)
-if  spell_ok  openssl;  then
   config_query  SSL_TLS  "Add TLS support?"  y
 else
+  config_query  SSL  "Add SSL support?"  n
   config_query  SSL_TLS  "Add TLS support?"  n
-fi  &&
-
-if  spell_ok  openldap;  then
-  config_query  LDAP  "Add LDAP support?"  y
-else
-  config_query  LDAP  "Add LDAP support?"  n
-fi  &&
-
-if  spell_ok  postgresql;  then
-  config_query  POSTGRES  "Add Postgresql support?"  y
-else
-  config_query  POSTGRES  "Add Postgresql support?"  n
 fi  &&
 
 if  spell_ok  cyrus-sasl;  then

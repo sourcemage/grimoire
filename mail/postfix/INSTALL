@@ -1,4 +1,24 @@
-make  upgrade  &&
+if [[ $POSTFIX_PRE_EXISTING == "no" ]] ; then
+#the below are the answers to the interactive install
+/bin/bash postfix-install -non-interactive        \
+	install_root=$INSTALL_ROOT                    \
+	tempdir=$SOURCE_DIRECTORY                     \
+	config_directory=/etc/postfix                 \
+	daemon_directory=/usr/libexec/postfix         \
+	command_directory=/usr/sbin                   \
+	queue_directory=/var/spool/postfix            \
+	sendmail_path=/usr/bin/mailq                  \
+	newaliases_path=/usr/bin/newaliases           \
+	mailq_path=/usr/bin/mailq                     \
+	mail_owner=postfix                            \
+	setgid_group=postdrop                         \
+	html_directory=no                             \
+	manpage_directory=/usr/share/man              \
+	readme_directory=no
+else
+	# preexisting install found doing the upgrade, which is unattended
+	make upgrade
+fi &&
 
 ln  -sf  ../sbin/sendmail   ${INSTALL_ROOT}/usr/lib/sendmail  &&
 ln  -sf  postfix/aliases    ${INSTALL_ROOT}/etc/aliases       &&
@@ -11,16 +31,16 @@ if  [  "$BENCH"  ==  "y"  ];  then
   cp src/smtpstone/qmqp-source ${INSTALL_ROOT}/usr/sbin  &&
   cp src/smtpstone/smtp-sink   ${INSTALL_ROOT}/usr/sbin  &&
   cp src/smtpstone/smtp-source ${INSTALL_ROOT}/usr/sbin
-fi  &&
+fi
 
-mkdir  -p               ${INSTALL_ROOT}/usr/doc/$SPELL               &&
-cp  -rf  README_FILES   ${INSTALL_ROOT}/usr/doc/$SPELL/              &&
-cp  -f   INSTALL        ${INSTALL_ROOT}/usr/doc/$SPELL/README_FILES  &&
-cp  -f   RELEASE_NOTES  ${INSTALL_ROOT}/usr/doc/$SPELL/README_FILES  &&
-cp  -rf  html           ${INSTALL_ROOT}/usr/doc/$SPELL/              &&
+#mkdir  -p               ${INSTALL_ROOT}/usr/doc/$SPELL               &&
+#cp  -rf  README_FILES   ${INSTALL_ROOT}/usr/doc/$SPELL/              &&
+#cp  -f   INSTALL        ${INSTALL_ROOT}/usr/doc/$SPELL/README_FILES  &&
+#cp  -f   RELEASE_NOTES  ${INSTALL_ROOT}/usr/doc/$SPELL/README_FILES  &&
+#cp  -rf  html           ${INSTALL_ROOT}/usr/doc/$SPELL/              &&
 
-sedit  "s:#mail_spool_directory = /var/spool/mail:mail_spool_directory = ${INSTALL_ROOT}/var/spool/mail:"  \
-${INSTALL_ROOT}/etc/postfix/main.cf  &&
+#sedit  "s:#mail_spool_directory = /var/spool/mail:mail_spool_directory = ${INSTALL_ROOT}/var/spool/mail:"  \
+#${INSTALL_ROOT}/etc/postfix/main.cf  &&
 
-sedit  "s|#alias_maps = hash:/etc/aliases$|alias_maps = hash:${INSTALL_ROOT}/etc/aliases|"  \
-${INSTALL_ROOT}/etc/postfix/main.cf
+#sedit  "s|#alias_maps = hash:/etc/aliases$|alias_maps = hash:${INSTALL_ROOT}/etc/aliases|"  \
+#${INSTALL_ROOT}/etc/postfix/main.cf
