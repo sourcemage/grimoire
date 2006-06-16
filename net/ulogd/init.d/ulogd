@@ -1,0 +1,36 @@
+#!/bin/bash
+
+PROGRAM=/usr/sbin/ulogd
+ARGS="-d"
+RUNLEVEL=3
+
+. /etc/init.d/smgl_init
+
+status()
+{
+    getpids ulogd
+    if [ -n "$pidlist" ]; then
+	echo "ulogd is running with Process ID(s) $pidlist"
+    else
+	 echo "ulogd is not running"
+    fi
+}
+
+start()
+{
+    echo "Starting ulogd...\n"
+    if [ ! -d /var/log/ulogd ] ; then
+	mkdir -p /var/log/ulogd
+    fi
+    $PROGRAM $ARGS
+    evaluate_retval
+    touch /var/lock/subsys/ulogd
+}
+
+stop()
+{
+    echo "Shutting down ulogd...\n"
+    killall ulogd
+    evaluate_retval
+    rm -f /var/lock/subsys/ulogd
+}
