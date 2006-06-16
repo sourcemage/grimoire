@@ -75,8 +75,8 @@ start()
 
   echo "Mounting local filesystems..."
 # Fixed so as to not mount networked filesystems yet (no networking)
-# mountnfs.sh will take care of this.
-  mount    -a  -t  nosmbfs,nonfs,noncpfs,notmpfs
+# mountnetwork.sh will take care of this.
+  mount    -a  -t  nocifs,noncpfs,nonfs,nosmbfs,notmpfs
 # mount tmpfs mounts after physical partitions they might mount to (bug 3597)
   mount    -a  -t tmpfs
   evaluate_retval
