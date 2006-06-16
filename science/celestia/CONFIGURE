@@ -1,0 +1,32 @@
+config_query_option  CELESTIA_XINERAMA  'Enable Xinerama support?'  y  \
+                     '--with-xinerama'  '--without-xinerama'           &&
+
+if  spell_ok  kdelibs  &&
+    spell_ok  arts;  then
+  config_query_list  CELESTIA_UI  'Choose which interface you would like'  \
+                                  kde  gtk+2  gnome2  glut
+elif  spell_ok  libgnomeui;  then
+  config_query_list  CELESTIA_UI  'Choose which interface you would like'  \
+                                  gnome2  kde  gtk+2  glut
+else
+  config_query_list  CELESTIA_UI  'Choose which interface you would like'  \
+                                  glut  kde  gtk+2 gnome2
+fi
+
+#
+# --enable-final only applies to KDE code
+#
+if  [  "$CELESTIA_UI"  ==  "kde"  ];  then
+  message  "${MESSAGE_COLOR}Final code builds size optimized apps"             \
+           "(experimental - needs lots of memory). Final code can send files"  \
+           "up to 250Mb if used with distcc${DEFAULT_COLOR}"                  &&
+
+  #
+  # Final code makes objects up to 250Mb
+  #
+  config_query_option  CELESTIA_FINAL  'Enable final code?'  n  \
+                       '--enable-final'  '--disable-final'
+else
+  persistent_add  CELESTIA_FINAL    &&
+  CELESTIA_FINAL='--disable-final'
+fi
