@@ -4,16 +4,26 @@ if  [  "${DRUPAL_INSTALLED}"  ==  "n"  ];  then
   if  [  "${DRUPAL_CREATEDB}"  ==  "y"  ];  then
     case  "${DRUPAL_DATABASE_ENGINE}"  in
       mysql)
-        message  "${MESSAGE_COLOR}Creating MySQL database...${DEFAULT_COLOR}"
-        mysqladmin  create  ${DRUPAL_DATABASE_NAME}                                                            &&
+        message  "${MESSAGE_COLOR}Creating and updating MySQL database...${DEFAULT_COLOR}"
+        mysqladmin  --password=${MYSQL_PASSWORD}  create  ${DRUPAL_DATABASE_NAME}                              &&
         echo  "GRANT ALL PRIVILEGES ON ${DRUPAL_DATABASE_NAME}.*                                               \
               TO ${DRUPAL_DATABASE_USER}@${DRUPAL_DATABASE_HOST} IDENTIFIED BY '${DRUPAL_DATABASE_PASSWORD}';  \
               flush privileges;                                                                                \
-              \q "  |  mysql  ${DRUPAL_DATABASE_NAME}                                                          &&
+              \q "  |  mysql  --password=${MYSQL_PASSWORD}  --database=${DRUPAL_DATABASE_NAME}                 &&
         #
         # Return true as this will fail if the database already exists
         #
-        mysql  ${DRUPAL_DATABASE_NAME}  <  database/database.mysql  ||  true
+        if  [  "${DRUPAL_VER}"  ==  "newer"  ];  then
+          if  [  "`mysql -V | cut -d" " -f6 | cut -d"." -f1`"  >   "4"  ]   ||
+              [  "`mysql -V | cut -d" " -f6 | cut -d"." -f1`"  ==  "4"  ]   &&
+              [  "`mysql -V | cut -d" " -f6 | cut -d"." -f2`"  >   "0"  ];  then
+            mysql  --password=${MYSQL_PASSWORD}  ${DRUPAL_DATABASE_NAME}  <  database/database.4.1.mysql  ||  true
+          else
+            mysql  --password=${MYSQL_PASSWORD}  ${DRUPAL_DATABASE_NAME}  <  database/database.4.0.mysql  ||  true
+          fi
+        else
+          mysql  --password=${MYSQL_PASSWORD}  ${DRUPAL_DATABASE_NAME}  <  database/database.mysql  ||  true
+        fi
         ;;
 
       postgresql)
@@ -35,10 +45,24 @@ if  [  "${DRUPAL_INSTALLED}"  ==  "n"  ];  then
   if  [  "${DRUPAL_CONFIGURE}"  ==  "y"  ];  then
     # Update the sites/default/settings.php configuration file
     # The database connection string
-    sedit  "s|username:password@localhost/database|${DRUPAL_DATABASE_USER}:${DRUPAL_DATABASE_PASSWORD}@${DRUPAL_DATABASE_HOST}/${DRUPAL_DATABASE_NAME}|"  ${INSTALL_ROOT}/${DRUPAL_INSTALL_PATH}/${SPELL}/sites/default/settings.php  &&
+    if  [  "${DRUPAL_VER}"  ==  "newer"  ];  then
+      if  [  "${DRUPAL_DATABASE_ENGINE}"  ==  "mysql"  ];  then
+        sedit  "s|\$db_url = 'mysql://username:password@localhost/databasename';|\$db_url = 'mysql://${DRUPAL_DATABASE_USER}:${DRUPAL_DATABASE_PASSWORD}@${DRUPAL_DATABASE_HOST}/${DRUPAL_DATABASE_NAME}';|"  ${INSTALL_ROOT}/${DRUPAL_INSTALL_PATH}/${SPELL}/sites/default/settings.php
+      else
+        sedit  "s|\$db_url = 'mysql://username:password@localhost/databasename';|\$db_url = 'pgsql://${DRUPAL_DATABASE_USER}:${DRUPAL_DATABASE_PASSWORD}@${DRUPAL_DATABASE_HOST}/${DRUPAL_DATABASE_NAME}';|"  ${INSTALL_ROOT}/${DRUPAL_INSTALL_PATH}/${SPELL}/sites/default/settings.php
+      fi
+    else
+      if  [  "${DRUPAL_DATABASE_ENGINE}"  ==  "mysql"  ];  then
+        sedit  "s|\$db_url = 'mysql://username:password@localhost/database';|\$db_url = 'mysql://${DRUPAL_DATABASE_USER}:${DRUPAL_DATABASE_PASSWORD}@${DRUPAL_DATABASE_HOST}/${DRUPAL_DATABASE_NAME}';|"  ${INSTALL_ROOT}/${DRUPAL_INSTALL_PATH}/${SPELL}/sites/default/settings.php
+      else
+        sedit  "s|\$db_url = 'mysql://username:password@localhost/database';|\$db_url = 'pgsql://${DRUPAL_DATABASE_USER}:${DRUPAL_DATABASE_PASSWORD}@${DRUPAL_DATABASE_HOST}/${DRUPAL_DATABASE_NAME}';|"  ${INSTALL_ROOT}/${DRUPAL_INSTALL_PATH}/${SPELL}/sites/default/settings.php
+      fi
+    fi                                                                                                         &&
 
-    # The base URL string
-    sedit  "s|http://localhost|http://localhost/${SPELL}|"  ${INSTALL_ROOT}/${DRUPAL_INSTALL_PATH}/${SPELL}/sites/default/settings.php  &&
+    # The base URL string  (this part can be removed when support for 4.6 is removed)
+    if  [  "${DRUPAL_VER}"  ==  "older"  ];  then
+      sedit  "s|http://localhost|http://localhost/${SPELL}|"  ${INSTALL_ROOT}/${DRUPAL_INSTALL_PATH}/${SPELL}/sites/default/settings.php
+    fi                                                                                                         &&
 
     mkdir  ${INSTALL_ROOT}/${DRUPAL_INSTALL_PATH}/${SPELL}/files
   fi                                                                                                           &&
