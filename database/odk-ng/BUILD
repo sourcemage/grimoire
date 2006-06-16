@@ -1,16 +1,7 @@
-cd odkda2                   &&
-chmod u+x ./compile.sh     &&
-./compile.sh               &&
-if spell_ok g++; then
-  cd odkda-cpp             &&
-  chmod u+x ./compile.sh   &&
-  ./compile.sh             &&
-  cd ..
-fi                         &&
-if spell_ok mono; then
-  cd odkda-sharp           &&
-  chmod u+x ./compile.sh   &&
-  ./compile.sh             &&
-  cd ..
+cd $SOURCE_DIRECTORY/odkda2  &&
+chmod u+x ./compile.sh       &&
+./compile.sh                 &&
+if [ "$ODK_PY"  == "y" ];then 
+  cd $SOURCE_DIRECTORY/pyodk &&
+  python setup.py build
 fi
-
