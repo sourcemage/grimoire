@@ -5,13 +5,9 @@ persistent_read  gcc  GCC_MULTILIB  GCC_MULTILIB
 persistent_read  gcc  GCC_CFLAGS   CFLAGS   &&
 persistent_read  gcc  GCC_LDFLAGS  LDFLAGS  &&
 
-local OLD_CFLAGS="$CFLAGS"  &&
 # setup bootstrap ada compiler
-cd $SOURCE_DIRECTORY/gnat-3.15p-i686-pc-linux-gnu-bin  &&
-mkdir -p  $SOURCE_DIRECTORY/gnat-bin                   &&
-make  ins-all  prefix=$SOURCE_DIRECTORY/gnat-bin       &&
-PATH=$SOURCE_DIRECTORY/gnat-bin/bin:$PATH              &&
-CFLAGS=""                                              &&
+ADA_PATH=gnat-4.1.1-i386-pc-linux-gnu       &&
+PATH=$SOURCE_DIRECTORY/$ADA_PATH/bin:$PATH  &&
 
 cd $SOURCE_DIRECTORY.bld                                   &&
 $SOURCE_DIRECTORY/configure                                \
@@ -25,7 +21,5 @@ $SOURCE_DIRECTORY/configure                                \
              $GCC_MULTILIB                                 \
              $OPTS                                         &&
 
-CFLAGS="$OLD_CFLAGS"  &&
-# bootstrapping with gnat-bin needs different CFLAGS for the stage1 compile
-make CFLAGS="" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
+make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
      profiledbootstrap
