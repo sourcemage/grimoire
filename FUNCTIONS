@@ -185,6 +185,18 @@ function config_query_long_string() {
     return 0
 }
 
+
+#---------------------------------------------------------------------
+#
+## Returns the location that the www files are installed to
+## An attempt to get install_www_files configurable
+#---------------------------------------------------------------------
+function get_install_www_files_dir ()
+{
+  echo "/usr/share/www/"
+}
+
+
 #---------------------------------------------------------------------
 ## @param Directory with files we might want to install
 ## @param Destination directory (optional)
@@ -202,7 +214,7 @@ function  install_www_files ()
     #
     local  WWW_DEST="$INSTALL_ROOT/${2/\$INSTALL_ROOT/}"
   else
-    local  WWW_DEST="$INSTALL_ROOT/usr/share/www/$SPELL"
+    local  WWW_DEST="$INSTALL_ROOT$(get_install_www_files_dir)$SPELL"
   fi  &&
 
   #
@@ -229,7 +241,7 @@ function  install_www_files ()
   # find  $1  -type  -f  |  while  read  file;  do
   for  www_file  in  `find  $1  -type  f`;  do
     if  install_config_file  "$www_file"   "$WWW_DEST/$www_file";  then
-      chmod  0644                 "$WWW_DEST/$www_file"  &&
+      chmod  u+r,g+r,o-wx         "$WWW_DEST/$www_file"  &&
       chown  www-data:www-data    "$WWW_DEST/$www_file"
     fi
   done
@@ -239,7 +251,7 @@ function  install_www_files ()
   #
   message  "${MESSAGE_COLOR}Your web files have been moved out of the"        \
            "APACHE specific locations (apache2/htdocs, httpd/htdocs, etc.)"   \
-           "and into a shared, non-DocumentRoot $INSTALL_ROOT/usr/share/www"  \
+           "and into a shared, non-DocumentRoot $INSTALL_ROOT$(get_install_www_files_dir)"  \
            "directory. You can modify your web server to point there for"     \
            "these files now.${DEFAULT_COLOR}"
 }
@@ -409,7 +421,7 @@ function default_install_python() {
 #---
 
 disable_pic() {
-if [[ "$SMGL_COMPAT_ARCHS[1]" != "x86_64" ]] ||
+if [[ "${SMGL_COMPAT_ARCHS[1]}" != "x86_64" ]] ||
    [[ "$1" == "force" ]]
 then
 CFLAGS=${CFLAGS/-fPIC}                    &&
@@ -418,3 +430,31 @@ CXXFLAGS=${CXXFLAGS/-fPIC}                &&
 CXXFLAGS=${CXXFLAGS/-DPIC}
 fi
 }
+
+#
+## Function to check if we're using xorg-modular libs or not
+#
+
+function check_if_xorg_modular_libs()
+{
+  if  [[  "$(get_spell_provider  ${1:-$SPELL}  X11-LIBS)"  ==  "xorg-server"  ]] ||
+      [[  "$(get_spell_provider  ${1:-$SPELL}  X11-LIBS)"  ==  "xorg-libs"  ]]     
+  then
+     return 0
+  fi
+  return 1
+}
+
+#
+## Function to check if we're using xorg-modular server or not
+#
+
+function check_if_xorg_modular_server()
+{
+  if  [[  "$(get_spell_provider  ${1:-$SPELL}  X11-SERVER)"  ==  "xorg-server"  ]]
+  then
+     return 0
+  fi
+  return 1
+}
+
