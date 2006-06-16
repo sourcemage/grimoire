@@ -40,6 +40,7 @@
 				  $OPTS &&
 	  make                                                        &&
 
+     if ! list_find "$OPTS" "--disable-openssl"; then
           cd $SOURCE_DIRECTORY/plugins/msn           &&
        if [ "$LICQ_CVS" == "y" ]; then
 	  make -f Makefile.cvs 
@@ -48,8 +49,8 @@
                       --sysconfdir=/etc   \
                       --localstatedir=/var  \
                       $OPTS  &&
-           make                  &&
-
+           make 
+      fi  &&
 
 	  cd $SOURCE_DIRECTORY/plugins/auto-reply                     &&
        if [ "$LICQ_CVS" == "y" ]; then
