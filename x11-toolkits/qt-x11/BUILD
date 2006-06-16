@@ -39,6 +39,7 @@ echo  "yes"  |  ./configure                                                \
                              -datadir ${INSTALL_ROOT}/usr/share/qt         \
                              -qt-gif                                       \
                              -xft                                          \
+                             -stl                                          \
                              -dlopen-opengl                                \
                              $OPTS                                         &&
 
