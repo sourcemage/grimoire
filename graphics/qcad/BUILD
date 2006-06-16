@@ -1,3 +1,4 @@
+export  QTDIR=${QTDIR:-$INSTALL_ROOT/usr}                  &&
 export  QMAKESPEC=${QTDIR}/share/qt/mkspecs/linux-g++      &&
 
 for i in fparser dxflib
