@@ -1,8 +1,3 @@
-patch -p1 < $SCRIPT_DIRECTORY/xloadimage.4.1-linux.patch 	&&
-patch -p1 < $SCRIPT_DIRECTORY/xloadimage.4.1-nobr.patch 	&&
-patch -p1 < $SCRIPT_DIRECTORY/xloadimage-unaligned.patch 	&&
-patch -p1 < $SCRIPT_DIRECTORY/xloadimage-4.1-buffer.patch 	&&
-
 #gcc3.3 needs this
 for i in $(grep -rl varargs.h .)
 	do sedit "s/varargs.h/stdarg.h/g" $i
