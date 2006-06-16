@@ -1,7 +1,5 @@
 if [ "$GIMP_DEVEL" = "n" ];then
-  if echo $CFLAGS | grep -q pentium-m; then
-    CFLAGS="${CFLAGS/-O3/} -Os"
-  fi
+  # Temporary workaround, check on future updates if still necessary
+  CFLAGS="-fomit-frame-pointer $CFLAGS"
 fi  &&
-CFLAGS="-fomit-frame-pointer $CFLAGS" &&
 default_build
