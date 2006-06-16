@@ -51,6 +51,7 @@ function info_to_details() {
 
 # create DEPENDS file based on the package information
 function info_to_depends() {
+  # TODO get dependencies from PEAR and put them here
   echo 'depends  PHP'
 }
 
@@ -60,21 +61,26 @@ function info_to_depends() {
 function create_spell_for_package() {
   local SPELL=$(echo "PEAR-$1" | tolower) &&
   local DIR="$MY_DIRECTORY/$SPELL" &&
+  local BLD="$DIR/BUILD" &&
   local DEP="$DIR/DEPENDS" &&
+  local DET="$DIR/DETAILS" &&
+  local INS="$DIR/INSTALL" &&
+  local PBD="$DIR/PRE_BUILD" &&
 
   say "Creating/updating spell '$SPELL' in directory '$DIR'..." &&
   mkdir -p "$DIR" &&
   # create DETAILS script
-  info_to_details "$1" "$2" > "$DIR/DETAILS" &&
+  info_to_details "$1" "$2" > "$DET" &&
   # create DEPENDS script
   if ! [[ -x "$DEP" ]]; then
     info_to_depends "$1" > "$DEP"
   fi &&
   # add calls to common code
-  echo 'source  $SECTION_DIRECTORY/PEAR_PRE_BUILD' > "$DIR/PRE_BUILD" &&
-  echo 'source  $SECTION_DIRECTORY/PEAR_INSTALL' > "$DIR/INSTALL" &&
+  echo 'true' > "$BLD" &&
+  echo 'source  $SECTION_DIRECTORY/PEAR_PRE_BUILD' > "$PBD" &&
+  echo 'source  $SECTION_DIRECTORY/PEAR_INSTALL' > "$INS" &&
   # mark as executable
-  chmod +x "$DIR/DETAILS" "$DEP" "$DIR/PRE_BUILD" "$DIR/INSTALL"
+  chmod +x "$BLD" "$DEP" "$DET" "$INS" "$PBD"
 }
 
 ## usage: update_spell_for_package
