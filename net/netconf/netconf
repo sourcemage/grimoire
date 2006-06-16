@@ -2,7 +2,7 @@
 #
 # vi: ts=4 sw=4 noet
 #--------------------------- bashdoc ---------------------------------#
-## @Synposis   Source Mage network configuration tool
+## @Synopsis   Source Mage network configuration tool
 ## @Copyright  Copyright 2003-2004 Source Mage Team
 ## @License    GPL v2
 ##
@@ -46,6 +46,24 @@
 #---------------------------------------------------------------------#
 #
 # ------------------------- ChangeLog ------------------------------- #
+# 2006-06-09  Juuso Alasuutari <iuso@sourcemage.org>
+#    - Added DEVICE_MAC option to be used by udev for binding interface 
+#      names to devices. At the moment udev spell's 07-bindings.rules 
+#      compares against $MAC, which is a bug because $MAC is volatile.
+#    - Modified menu texts to fix spelling and formatting errors.
+#    - Modified the hostname submenus so that selecting Cancel in e.g. 
+#      the Hostname area menu returns back to Configure hostname menu 
+#      instead of main menu. 
+#    - Version 1.8.
+#
+# 2006-05-14  Matthew Clark <matthewclark@inlesserterms.net>
+#    - Removed the line that adds hostname to hosts file as
+#      127.0.0.1 (bug 11649)
+#
+# 2006-03-23  Matthew Clark <matthewclark@inlesserterms.net>
+#    - Exported DIALOGRC to make netconf look like all other SMGL
+#      dialogs
+#
 # 2006-03-05  Arjan Bouter <abouter@sourcemage.org>
 #    - Replaced MODE=dynamic with dynamic_set_hostname (default) or
 #      dynamic_get_hostname
@@ -247,7 +265,7 @@
 #        HOSTSFN: name of file containing hosts
 #       RESOLVFN: name of file containing nameservers
 #
-NETCONFVERSION='1.7'
+NETCONFVERSION='1.8'
 ROOTCHECK=1
 NETDEVDIR=/etc/sysconfig/network
 HOSTNAMEFN=/etc/hostname
@@ -480,7 +498,7 @@ function cfg_dns() {
 		                 --ok-label       "$BTN_SELECT"      \
 		                 --cancel-label   "$BTN_CANCEL"      \
 		                 --menu                              \
-		                 "Choose a name server to modify:"   \
+		                 "Choose a name server to modify."   \
 		                 0 0 0                               \
 		                 "1" "$ns1"                          \
 		                 "2" "$ns2"                          \
@@ -562,7 +580,7 @@ function cfg_hostname_enter() {
 	# prompt user to change hostname
 	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                \
 	                 --stdout                                \
-	                 --title "Configure Hostname"            \
+	                 --title "Enter hostname"                \
 	                 --ok-label       "$BTN_ACCEPT"          \
 	                 --cancel-label   "$BTN_CANCEL"          \
 	                 --inputbox                              \
@@ -574,6 +592,8 @@ function cfg_hostname_enter() {
 		curhostname="$COMMAND"
 		echo "$curhostname" > $HOSTNAMEFN
 		mangle_hosts
+	else
+		cfg_hostname
 	fi
 
 }
@@ -588,12 +608,12 @@ function cfg_hostname_choose() {
 
   local HOSTNAMELIST=`cat /usr/share/netconf/$1 | awk '{print $1; print "\"\""}'`
 
-  eval $DIALOG '  --title "Select hostname from $1 area"  \
-           --ok-label  "Select"            \
-           --stdout                        \
-           --menu                          \
-           ""                              \
-           0 0 0                           \
+  eval $DIALOG '  --title "$1"                 \
+           --ok-label  "Select"                \
+           --stdout                            \
+           --menu                              \
+           "Select hostname from area \"$1\""  \
+           0 0 0                               \
            '$HOSTNAMELIST
 
 }
@@ -607,12 +627,12 @@ function cfg_hostname_area() {
 
   local HOSTNAMEAREALIST=`ls /usr/share/netconf | awk '{print $1; print "\"\""}'`
 
-  HOSTNAMEAREA=`eval $DIALOG '  --title "Select hostname area"  \
-           --ok-label  "Select"            \
-           --stdout                        \
-           --menu                          \
-           ""                              \
-           0 0 0                           \
+  HOSTNAMEAREA=`eval $DIALOG '  --title "Hostname area"  \
+           --ok-label  "Select"                    \
+           --stdout                                \
+           --menu                                  \
+           "Select area to choose hostname from."  \
+           0 0 0                                   \
            '$HOSTNAMEAREALIST`
 
   COMMAND=`cfg_hostname_choose $HOSTNAMEAREA`
@@ -622,6 +642,8 @@ function cfg_hostname_area() {
                 curhostname="$COMMAND"
                 echo "$curhostname" > $HOSTNAMEFN
                 mangle_hosts
+	else
+		cfg_hostname
         fi
 
 }
@@ -646,7 +668,7 @@ function cfg_hostname() {
                          --ok-label       "$BTN_SELECT"                       \
                          --cancel-label   "$BTN_BACK"                         \
                          --menu                                               \
-                         "Choose how to configure the hostname."              \
+                         "Choose how to configure the hostname. [$HOSTNAME]"              \
                          0 0 0                                                \
                          "Enter"  "Enter a hostname"                          \
                          "Choose" "Choose from a list of proposed hostnames"`
@@ -695,7 +717,7 @@ EOF
 	mv $HOSTSFN /tmp/hosts.$$
 	grep -v ^127.0.0.1 /tmp/hosts.$$    >> $HOSTSFN
 	echo "127.0.0.1       localhost"    >> $HOSTSFN
-    echo "127.0.0.1       $curhostname" >> $HOSTSFN
+   #echo "127.0.0.1       $curhostname" >> $HOSTSFN
 	rm -f /tmp/hosts.$$
 }
 
@@ -773,6 +795,7 @@ function check_devdir() {
 ## @Global    WIFI_KEY3: wifi encryption key 3.<br>
 ## @Global    WIFI_KEY4: wifi encryption key 4.<br>
 ## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
+## @Global    DEVICE_MAC: device's MAC address.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot<br>
@@ -789,7 +812,7 @@ function loadnetdev() {
 	unset MODULE MODE IP BROADCAST NETMASK GATEWAY POINTOPOINT MTU \
               WIFI_NWID WIFI_ESSID WIFI_RATE WIFI_MODE WIFI_SECMODE \
               WIFI_KEY WIFI_KEY1 WIFI_KEY2 WIFI_KEY3 WIFI_KEY4 WIFI_DEFAULTKEY \
-              MAC CUSTOM UP_ON_BOOT NEEDS
+              DEVICE_MAC MAC CUSTOM UP_ON_BOOT NEEDS
 
 	devname=$(get_basename $1 .dev)
 
@@ -819,7 +842,7 @@ function cfg_module_enter() {
 	                 --ok-label       "$BTN_ACCEPT"                            \
 	                 --cancel-label   "$BTN_CANCEL"                            \
 	                 --inputbox                                                \
-	                 "Enter the name of the kernel module which your device uses, without the trailing .o" \
+	                 "Enter the name of the kernel module which your device uses, without the trailing \".o\"." \
 	                 0 0 $MODULE`
 
 	if [ $? -eq 0 ]; then
@@ -887,7 +910,7 @@ function cfg_module() {
 	                 --ok-label       "$BTN_SELECT"                            \
 	                 --cancel-label   "$BTN_BACK"                              \
 	                 --menu                                                    \
-	                 "Choose how to select the kernel module, select 'None' if the driver is compiled into the kernel, or select '$BTN_BACK' to keep the current setting (${dmodule})" \
+	                 "Choose how to select the kernel module. Select 'None' if the driver is compiled into the kernel, or select '$BTN_BACK' to keep the current setting. [${dmodule}]" \
 	                 0 0 0                                                     \
 	                 "Enter"  "Enter a module name"                            \
 	                 "Choose" "Choose from a list of available network modules"\
@@ -923,13 +946,7 @@ function cfg_mode() {
 	                 --ok-label       "$BTN_SELECT"                            \
 	                 --cancel-label   "$BTN_BACK"                              \
 	                 --menu                                                    \
-	                 "Choose which mode this network device uses.              \
-                      Select 'dynamic_set_hostname' to use dhcp with your own  \
-					  hostname, 'dynamic_get_hostname' to set the hostname     \
-					  provided by the DHCP server or select 'static'           \
-                      to specify IP, BROADCAST, NETMASK, GATEWAY, or           \
-                      select '${BTN_BACK}' to keep current setting             \
-                     (${MODE})"                                                \
+	                 "Choose which mode this network device uses. Select 'dynamic_set_hostname' to use dhcp with your own hostname, 'dynamic_get_hostname' to set the hostname provided by the DHCP server, or 'static' to specify IP, BROADCAST, NETMASK, and GATEWAY. Select '${BTN_BACK}' to keep current setting. [${MODE}]" \
 	                 0 0 0                                                     \
 	                 "dynamic_set_hostname" "use dhcp"                         \
 	                 "dynamic_get_hostname" "use dhcp"                         \
@@ -1053,7 +1070,7 @@ function cfg_pointopoint() {
 	                 --ok-label       "$BTN_ACCEPT"                            \
 	                 --cancel-label   "$BTN_CANCEL"                            \
 	                 --inputbox                                                \
-	                 "Enter the point to point address for this network device"\
+	                 "Enter the point to point address for this network device."\
 	                 0 0 $POINTOPOINT`
 
 	if [ $? -eq 0 ]; then
@@ -1076,7 +1093,7 @@ function cfg_mtu() {
 	                 --ok-label       "$BTN_ACCEPT"                            \
 	                 --cancel-label   "$BTN_CANCEL"                            \
 	                 --inputbox                                                \
-	                 "Enter the maximum transfer unit for this network device" \
+	                 "Enter the maximum transfer unit for this network device." \
 	                 0 0 $MTU`
 
 	if [ $? -eq 0 ]; then
@@ -1099,7 +1116,7 @@ function cfg_wifi_nwid() {
 	                 --ok-label       "$BTN_ACCEPT"             \
 	                 --cancel-label   "$BTN_CANCEL"             \
 	                 --inputbox                                 \
-	                 "Enter network name (ONLY for pre-802.11 hardware!)" \
+	                 "Enter network name. (ONLY for pre-802.11 hardware!)" \
 	                 0 0 ${WIFI_NWID}`
 
 	if [ $? -eq 0 ]; then
@@ -1121,7 +1138,7 @@ function cfg_wifi_essid() {
 	                 --ok-label       "$BTN_ACCEPT"             \
 	                 --cancel-label   "$BTN_CANCEL"             \
 	                 --inputbox                                 \
-	                 "Enter the ssid of the network (default: any)" \
+	                 "Enter the SSID of the network. (default: any)" \
 	                 0 0 ${WIFI_ESSID}`
 
 	if [ $? -eq 0 ]; then
@@ -1137,13 +1154,13 @@ function cfg_wifi_essid() {
 ## @External  dialog
 #---
 function cfg_wifi_rate() {
-	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
-	                 --stdout                                   \
-	                 --title "Configure the bitrate"            \
-	                 --ok-label       "$BTN_ACCEPT"             \
-	                 --cancel-label   "$BTN_CANCEL"             \
-	                 --inputbox                                 \
-	                 "Enter maximum bitrate of the network (examples: 5,5 11 or 54)" \
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"        \
+	                 --stdout                        \
+	                 --title "Configure bitrate"     \
+	                 --ok-label       "$BTN_ACCEPT"  \
+	                 --cancel-label   "$BTN_CANCEL"  \
+	                 --inputbox                      \
+	                 "Enter maximum bitrate of the network. (Examples: 5,5 11 or 54.)" \
 	                 0 0 ${WIFI_RATE}`
 
 	if [ $? -eq 0 ]; then
@@ -1159,15 +1176,15 @@ function cfg_wifi_rate() {
 ## @External  dialog
 #---
 function cfg_wifi_mode() {
-	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
-	                 --stdout                                   \
-	                 --title "Configure the mode"               \
-	                 --ok-label       "$BTN_ACCEPT"             \
-	                 --cancel-label   "$BTN_CANCEL"             \
-	                 --menu                                     \
-	                 "Select if you're using ad-hoc or managed mode" \
-	                 0 0 0                                      \
-                         "1"	"Managed (default)"                 \
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"          \
+	                 --stdout                          \
+	                 --title "Configure network mode"  \
+	                 --ok-label       "$BTN_ACCEPT"    \
+	                 --cancel-label   "$BTN_CANCEL"    \
+	                 --menu                            \
+	                 "Select if you're using ad-hoc or managed mode." \
+	                 0 0 0                             \
+                         "1"	"Managed (default)"        \
 			 "2"	"Ad-Hoc"`
 
 	if [ $? -eq 0 ]; then
@@ -1186,15 +1203,15 @@ function cfg_wifi_mode() {
 ## @External  dialog
 #---
 function cfg_wifi_secmode() {
-	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
-	                 --stdout                                   \
-	                 --title "Configure the security mode"      \
-	                 --ok-label       "$BTN_ACCEPT"             \
-	                 --cancel-label   "$BTN_BACK"               \
-	                 --menu                                     \
-	                 "Select the security mode"                 \
-	                 0 0 0                                      \
-                         "1"	"Open (default)"                    \
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"        \
+	                 --stdout                        \
+	                 --title "Security mode"         \
+	                 --ok-label       "$BTN_ACCEPT"  \
+	                 --cancel-label   "$BTN_BACK"    \
+	                 --menu                          \
+	                 "Select the security mode."     \
+	                 0 0 0                           \
+                         "1"	"Open (default)"         \
 			 "2"	"Restricted"`
 
 	if [ $? -eq 0 ]; then
@@ -1213,15 +1230,15 @@ function cfg_wifi_secmode() {
 ## @External  dialog
 #---
 function cfg_wifi_enablekey() {
-	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
-	                 --stdout                                   \
-	                 --title "Configure use of keys"            \
-	                 --ok-label       "$BTN_ACCEPT"             \
-	                 --cancel-label   "$BTN_BACK"               \
-	                 --menu                                     \
-	                 "Enable or disable keys"                   \
-	                 0 0 0                                      \
-                         "1"	"On"                                \
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"         \
+	                 --stdout                         \
+	                 --title "Configure use of keys"  \
+	                 --ok-label       "$BTN_ACCEPT"   \
+	                 --cancel-label   "$BTN_BACK"     \
+	                 --menu                           \
+	                 "Enable or disable keys."        \
+	                 0 0 0                            \
+                         "1"	"On"                      \
 			 "2"	"Off"`
 
 	if [ $? -eq 0 ]; then
@@ -1240,17 +1257,17 @@ function cfg_wifi_enablekey() {
 ## @External  dialog
 #---
 function cfg_wifi_defaultkey() {
-	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
-	                 --stdout                                   \
-	                 --title "Setting the default key"          \
-	                 --ok-label       "$BTN_ACCEPT"             \
-	                 --cancel-label   "$BTN_CANCEL"             \
-	                 --menu                                     \
-	                 "Select the default key to use"            \
-		                 0 0 0                              \
-		                 "1" "$WIFI_KEY1"                   \
-		                 "2" "$WIFI_KEY2"                   \
-		                 "3" "$WIFI_KEY3"                   \
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"          \
+	                 --stdout                          \
+	                 --title "Default key"             \
+	                 --ok-label       "$BTN_ACCEPT"    \
+	                 --cancel-label   "$BTN_CANCEL"    \
+	                 --menu                            \
+	                 "Select the default key to use."  \
+		                 0 0 0                     \
+		                 "1" "$WIFI_KEY1"          \
+		                 "2" "$WIFI_KEY2"          \
+		                 "3" "$WIFI_KEY3"          \
 		                 "4" "$WIFI_KEY4" `
 
 	if [ $? -eq 0 ]; then
@@ -1279,8 +1296,7 @@ function cfg_wifi_enckey() {
 	                 --ok-label       "$BTN_ACCEPT"             \
 	                 --cancel-label   "$BTN_BACK"               \
 	                 --inputbox                                 \
-	                 "Enter encryption key $1
-(either in s:something or hexadecimal form)"                      \
+	                 "Enter encryption key $1. (Either in s:something or hexadecimal form.)" \
 	                 0 0 "$currentkey" `
 
 	if [ $? -eq 0 ]; then
@@ -1307,18 +1323,18 @@ function cfg_wifi_enckey() {
 #---
 function cfg_wifi_setkeys() {
 	while [ true ]; do
-		COMMAND=`$DIALOG --backtitle "$BACKTITLE"            \
-		                 --stdout                            \
-		                 --title "Configure encryption keys" \
-		                 --ok-label       "$BTN_SELECT"      \
-		                 --cancel-label   "$BTN_BACK"        \
-		                 --menu                              \
-		                 "Choose a encryption key to modify:"   \
-		                 0 0 0                            \
-		                 "1" "$WIFI_KEY1"                 \
-		                 "2" "$WIFI_KEY2"                 \
-		                 "3" "$WIFI_KEY3"                 \
-		                 "4" "$WIFI_KEY4"                 \
+		COMMAND=`$DIALOG --backtitle "$BACKTITLE"        \
+		                 --stdout                        \
+		                 --title "Encryption keys"       \
+		                 --ok-label       "$BTN_SELECT"  \
+		                 --cancel-label   "$BTN_BACK"    \
+		                 --menu                          \
+		                 "Choose encryption key to modify." \
+		                 0 0 0                           \
+		                 "1" "$WIFI_KEY1"                \
+		                 "2" "$WIFI_KEY2"                \
+		                 "3" "$WIFI_KEY3"                \
+		                 "4" "$WIFI_KEY4"                \
 		                 "5" "Default key" `
 
 	    if [ $? = 0 ]; then
@@ -1343,13 +1359,13 @@ function cfg_wifi_setkeys() {
 #---
 function cfg_wifi_security_menu() {
     while [ true ]; do
-	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                      \
-	                 --stdout                                      \
-	                 --title "Configure security options"          \
-	                 --ok-label       "$BTN_SELECT"                \
-	                 --cancel-label   "$BTN_BACK"                  \
-	                 --menu                                        \
-	                 "WIFI Security submenu" \
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"             \
+	                 --stdout                             \
+	                 --title "Wi-Fi security"             \
+	                 --ok-label       "$BTN_SELECT"       \
+	                 --cancel-label   "$BTN_BACK"         \
+	                 --menu                               \
+	                 "Configure Wi-Fi security options."  \
 	                 0 0 0 \
 			 "1" "Security mode (enc)" \
 			 "2" "Encryption keys (key)" \
@@ -1376,13 +1392,13 @@ function cfg_wifi_security_menu() {
 #---
 function cfg_wifi() {
     while [ true ]; do
-	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                      \
-	                 --stdout                                      \
-	                 --title "Configure WIFI"                      \
-	                 --ok-label       "$BTN_SELECT"                \
-	                 --cancel-label   "$BTN_BACK"                  \
-	                 --menu                                        \
-	                 "The settings for the wifi network"           \
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"            \
+	                 --stdout                            \
+	                 --title "Configure WIFI"            \
+	                 --ok-label       "$BTN_SELECT"      \
+	                 --cancel-label   "$BTN_BACK"        \
+	                 --menu                              \
+	                 "Select Wi-Fi settings to modify."  \
 	                 0 0 0 \
 			 "1" "Network or Domain ID" \
 			 "2" "Network name" \
@@ -1408,6 +1424,28 @@ function cfg_wifi() {
 }
 
 
+#--- cfg_device_mac()
+##
+## This archives the native MAC address for the given device
+##
+## @Global    DEVICE_MAC: native MAC address for the device.<br>
+## @External  dialog
+#---
+function cfg_device_mac() {
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                \
+	                 --stdout                                \
+	                 --title "Configure device MAC address"  \
+                         --ok-label       "$BTN_ACCEPT"          \
+	                 --cancel-label   "$BTN_CANCEL"          \
+	                 --inputbox                              \
+	                 "Enter the device's native MAC address. (Used by udev for binding interface name to device.)" \
+	                 0 0 ${DEVICE_MAC}`
+
+	if [ $? -eq 0 ]; then
+		DEVICE_MAC="${COMMAND}"
+	fi
+}
+
 #--- cfg_mac()
 ##
 ## This sets the MAC address for the given device
@@ -1416,14 +1454,13 @@ function cfg_wifi() {
 ## @External  dialog
 #---
 function cfg_mac() {
-	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
-	                 --stdout                                   \
-	                 --title "Configure the MAC address"        \
-	                 --ok-label       "$BTN_ACCEPT"             \
-	                 --cancel-label   "$BTN_CANCEL"             \
-	                 --inputbox                                 \
-	                 "Enter the MAC address you want this device to use
-(usually not required, sometimes not even supported)" \
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"         \
+	                 --stdout                         \
+	                 --title "Configure MAC address"  \
+	                 --ok-label       "$BTN_ACCEPT"   \
+	                 --cancel-label   "$BTN_CANCEL"   \
+	                 --inputbox                       \
+	                 "Enter the MAC address you want this device to use. (Usually not required, sometimes not even supported.)" \
 	                 0 0 ${MAC}`
 
 	if [ $? -eq 0 ]; then
@@ -1447,8 +1484,7 @@ function cfg_needs_dev() {
                      --ok-label       "$BTN_ACCEPT"             \
                      --cancel-label   "$BTN_CANCEL"             \
                      --inputbox                                 \
-                     "Enter the name of the device this device depends on
-(usually not required, usefull in case you're setting up things like VPN connections" \
+                     "Enter the name of the device this device depends on. (Usually not required, useful in case you're setting up things like VPN connections.)" \
                      0 0 ${NEEDS}`
 
     if [ $? -eq 0 ]; then
@@ -1471,9 +1507,7 @@ function cfg_custom() {
 	                 --ok-label       "$BTN_ACCEPT"             \
 	                 --cancel-label   "$BTN_CANCEL"             \
 	                 --inputbox                                 \
-	                 "Enter the custom options you need for this device.
-Everything you enter here is passed straight to ifconfig.
-(please file a bug to get missing options added)" \
+	                 "Enter the custom options you need for this device. Everything you enter here is passed straight to ifconfig. (Please file a bug to get missing options added.)" \
 	                 0 0 "${CUSTOM}"`
 
 	if [ $? -eq 0 ]; then
@@ -1520,10 +1554,10 @@ function remove_device() {
 	devname=$(get_basename $1 .dev)
 
 	# confirm removal of network device
-	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                              \
-	                 --stdout                                              \
-	                 --title "Confirm device removal"                      \
-	                 --yesno                                               \
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"         \
+	                 --stdout                         \
+	                 --title "Confirm remove device"  \
+	                 --yesno                          \
 	                 "Are you sure you want to remove device file: ${devname}?" \
 	                 0 0`
 
@@ -1560,11 +1594,11 @@ function confirm_save() {
 	local devname
 	devname=$(get_basename $1)
 
-	COMMAND=`$DIALOG --backtitle "$BACKTITLE"                                  \
-	                 --stdout                                                  \
-	                 --title "Confirm device saving"                           \
-	                 --yesno                                                   \
-	                 "Are you sure you want to save device file: ${devname}?"  \
+	COMMAND=`$DIALOG --backtitle "$BACKTITLE"       \
+	                 --stdout                       \
+	                 --title "Confirm save device"  \
+	                 --yesno                        \
+	                 "Are you sure you want to save device file: ${devname}?" \
 	                 0 0`
 
 	if [ $? -eq 0 ]; then
@@ -1606,6 +1640,7 @@ function confirm_save() {
 ## @Global    WIFI_KEY3: wifi encryption key 3.<br>
 ## @Global    WIFI_KEY4: wifi encryption key 4.<br>
 ## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
+## @Global    DEVICE_MAC: device's MAC address.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
@@ -1669,6 +1704,9 @@ EOF
 	if [ ! -z $WIFI_DEFAULTKEY ]; then
 		echo "WIFI_DEFAULTKEY=$WIFI_DEFAULTKEY" >> $1
 	fi
+	if [ ! -z ${DEVICE_MAC} ]; then
+		echo "DEVICE_MAC='${DEVICE_MAC}'" >> $1
+	fi
 	if [ ! -z ${MAC} ]; then
 		echo "MAC='${MAC}'" >> $1
 	fi
@@ -1711,6 +1749,7 @@ EOF
 ## @Global    WIFI_KEY3: wifi encryption key 3.<br>
 ## @Global    WIFI_KEY4: wifi encryption key 4.<br>
 ## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
+## @Global    DEVICE_MAC: device's MAC address.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
@@ -1793,6 +1832,11 @@ function save_update() {
 	else
 	  sed -i '/^WIFI_DEFAULTKEY=.*/d' $1
 	fi
+	if [ ! -z ${DEVICE_MAC} ]; then
+	  cat_or_sedit "^DEVICE_MAC=.*" "DEVICE_MAC='${DEVICE_MAC}'" $1
+	else
+	  sed -i '/^DEVICE_MAC=.*/d' $1
+	fi
 	if [ ! -z ${MAC} ]; then
 	  cat_or_sedit "^MAC=.*" "MAC='${MAC}'" $1
 	else
@@ -1853,7 +1897,7 @@ function add_device() {
 	                 --ok-label       "$BTN_ACCEPT"                            \
 	                 --cancel-label   "$BTN_CANCEL"                            \
 	                 --inputbox                                                \
-	                 "Enter the name for this device (e.g. eth0, plip1)"       \
+	                 "Enter the name for this device. (Examples: eth0, plip1.)"       \
 	                 0 0`
 
 	if [ $? != 0 ]; then
@@ -1892,6 +1936,7 @@ function add_device() {
 ## @Global    WIFI_MODE: wifi card mode.<br>
 ## @Global    WIFI_SECMODE: wifi security mode.<br>
 ## @Global    WIFI_ENCKEY: wifi encryption key.<br>
+## @Global    DEVICE_MAC: device's MAC address.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
@@ -1935,17 +1980,18 @@ function cfg_device() {
 			MODE=dynamic_set_hostname
 			COMMAND=`$DIALOG --backtitle "$BACKTITLE"                          \
 			                 --stdout                                          \
-		                     --title "Modify, Remove Network Device"           \
+		                     --title "Modify, remove network device"           \
 			                 --ok-label       "$BTN_SELECT"                    \
 			                 --cancel-label   "$BTN_BACK"                      \
 			                 --menu                                            \
-			                 "Choose a setting to modify, or select Remove to remove the device" \
+			                 "Choose a setting to modify, or select 'Remove' to remove the device." \
 			                 0 0 0                                             \
 			                 "MODULE" "${dmodule}"                             \
 			                 "MODE" "dynamic (use dhcp)"                       \
 			                 "POINTOPOINT" "${dpointopoint}"                   \
 			                 "MTU"  "${dmtu}"                                  \
 			                 "WIFI"  "Wifi menu"                               \
+			                 "DEVICE_MAC"  "${DEVICE_MAC}"                                   \
 			                 "MAC"  "${MAC}"                                   \
 			                 "CUSTOM"  "Custom options"                        \
 			                 "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
@@ -1956,17 +2002,18 @@ function cfg_device() {
  			'dynamic_set_hostname' | 'dynamic_get_hostname' )
 			COMMAND=`$DIALOG --backtitle "$BACKTITLE"                          \
 			                 --stdout                                          \
-		                     --title "Modify, Remove Network Device"           \
+		                     --title "Modify, remove network device"           \
 			                 --ok-label       "$BTN_SELECT"                    \
 			                 --cancel-label   "$BTN_BACK"                      \
 			                 --menu                                            \
-			                 "Choose a setting to modify, or select Remove to remove the device" \
+			                 "Choose a setting to modify, or select 'Remove' to remove the device." \
 			                 0 0 0                                             \
 			                 "MODULE" "${dmodule}"                             \
 			                 "MODE" "dynamic (use dhcp)"                       \
 			                 "POINTOPOINT" "${dpointopoint}"                   \
 			                 "MTU"  "${dmtu}"                                  \
 			                 "WIFI"  "Wifi menu"                               \
+			                 "DEVICE_MAC"  "${DEVICE_MAC}"                                   \
 			                 "MAC"  "${MAC}"                                   \
 			                 "CUSTOM"  "Custom options"                        \
 			                 "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
@@ -1977,11 +2024,11 @@ function cfg_device() {
 		static )
 			COMMAND=`$DIALOG --backtitle "$BACKTITLE"                          \
 			                 --stdout                                          \
-		                     --title "Modify, Remove Network Device"               \
+		                     --title "Modify, remove network device"               \
 			                 --ok-label       "$BTN_SELECT"                    \
 			                 --cancel-label   "$BTN_BACK"                      \
 			                 --menu                                            \
-			                 "Choose a setting to modify, or select Remove to remove the device" \
+			                 "Choose a setting to modify, or select 'Remove' to remove the device." \
 			                 0 0 0                                             \
 			                 "MODULE" "${dmodule}"                             \
 			                 "MODE" "static"                                   \
@@ -1992,6 +2039,7 @@ function cfg_device() {
 			                 "POINTOPOINT" "${dpointopoint}"                   \
 			                 "MTU"  "${dmtu}"                                  \
 			                 "WIFI"  "Wifi submenu"                            \
+			                 "DEVICE_MAC"  "${DEVICE_MAC}"                                   \
 			                 "MAC"  "${MAC}"                                     \
 			                 "CUSTOM"  "Custom options"                        \
 			                 "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
@@ -2016,6 +2064,7 @@ function cfg_device() {
 			'POINTOPOINT') cfg_pointopoint     ;;
 			'MTU')         cfg_mtu             ;;
 			'WIFI')        cfg_wifi            ;;
+			'DEVICE_MAC')  cfg_device_mac      ;;
 			'MAC')         cfg_mac             ;;
 			'CUSTOM')      cfg_custom          ;;
 			'UP_ON_BOOT')  toggle_boot         ;;
@@ -2096,11 +2145,11 @@ function main() {
 
 		COMMAND=`$DIALOG --backtitle "$BACKTITLE"                               \
 		                 --stdout                                               \
-		                 --title "Add, Modify, Remove Netowrk Devices"          \
+		                 --title "Add, modify, remove network devices"          \
 		                 --ok-label       "$BTN_SELECT"                         \
 		                 --cancel-label   "$BTN_EXIT"                           \
 		                 --menu                                                 \
-		                 "Choose a device to modify or remove, or select Add to add a new device. Change will allow you to change the hostname of this computer." \
+		                 "Choose a device to modify or remove, or select 'Add' to add a new device. 'Hostname' will allow you to change the hostname of this computer." \
 		                 0 0 0                                                  \
 		                 ${NETDEVSMENU[*]}                                      \
 		                 "Add" "Add new network device"                         \
