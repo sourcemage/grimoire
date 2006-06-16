@@ -1,0 +1,69 @@
+--- MPEGlist.cpp~	2000-06-06 03:51:43.000000000 +0200
++++ MPEGlist.cpp	2006-05-26 10:10:38.000000000 +0200
+@@ -16,7 +16,7 @@
+   if(prev) prev->next = next;
+   if(data)
+   {
+-    delete data;
++    delete[] data;
+     data = 0;
+   }
+ }
+--- MPEGsystem.cpp~	2001-04-28 00:57:39.000000000 +0200
++++ MPEGsystem.cpp	2006-05-26 10:10:58.000000000 +0200
+@@ -1165,7 +1165,7 @@
+       time = -1;
+   }
+ 
+-  delete buffer;
++  delete[] buffer;
+ 
+   /* Get back to saved position */
+   if((pos = SDL_RWseek(source, pos, SEEK_SET)) < 0)
+--- MPEGaudio.h~	2001-04-04 22:42:40.000000000 +0200
++++ MPEGaudio.h	2006-05-26 10:04:13.000000000 +0200
+@@ -151,12 +151,6 @@
+ /* The actual MPEG audio class */
+ class MPEGaudio : public MPEGerror, public MPEGaudioaction {
+ 
+-    friend void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len);
+-    friend int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len);
+-#ifdef THREADED_AUDIO
+-    friend int Decode_MPEGaudio(void *udata);
+-#endif
+-
+ public:
+     MPEGaudio(MPEGstream *stream, bool initSDL = true);
+     virtual ~MPEGaudio();
+@@ -366,6 +360,20 @@
+ #define N_TIMESTAMPS 5
+ 
+   double timestamp[N_TIMESTAMPS];
++
++  /* Functions which access MPEGaudio internals */
++  friend void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len);
++  friend int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len);
++#ifdef THREADED_AUDIO
++  friend int Decode_MPEGaudio(void *udata);
++#endif
+ };
+ 
++/* Need to duplicate the prototypes, this is not a typo :) */
++void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len);
++int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len);
++#ifdef THREADED_AUDIO
++int Decode_MPEGaudio(void *udata);
++#endif
++
+ #endif /* _MPEGAUDIO_H_ */
+--- Makefile.in~	2001-06-18 22:59:14.000000000 +0200
++++ Makefile.in	2006-05-26 10:16:21.000000000 +0200
+@@ -105,7 +105,7 @@
+ libsmpeginclude_HEADERS =  	MPEG.h				MPEGaction.h			MPEGaudio.h			MPEGerror.h			MPEGfilter.h			MPEGring.h			MPEGlist.h			MPEGstream.h			MPEGsystem.h			MPEGvideo.h			smpeg.h
+ 
+ 
+-libsmpeg_la_LDFLAGS =          -release $(LT_RELEASE)		-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
++libsmpeg_la_LDFLAGS =          -release $(LT_RELEASE)		-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) -lstdc++
+ 
+ 
+ libsmpeg_la_LIBADD =  	audio/libaudio.la		video/libvideo.la
