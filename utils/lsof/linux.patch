@@ -1,0 +1,138 @@
+*** /tmp/T0k0aqHb	Thu May 25 14:28:35 2006
+--- dialects/linux/dproc.c	Wed May 10 01:50:57 2006
+***************
+*** 233,242 ****
+  		    pn = 1;
+  		    ss = SB_ALL;
+  		    if (HasNFS) {
+! 			if ((sv = statsafely(path, &sb))) {
+! 			    if (lnk)
+! 				sv = statEx(pbuf, &sb, &ss);
+! 			}
+  		    } else
+  			sv = stat(path, &sb);
+  		    if (sv) {
+--- 233,240 ----
+  		    pn = 1;
+  		    ss = SB_ALL;
+  		    if (HasNFS) {
+! 			if ((sv = statsafely(path, &sb)))
+! 			    sv = statEx(pbuf, &sb, &ss);
+  		    } else
+  			sv = stat(path, &sb);
+  		    if (sv) {
+***************
+*** 279,288 ****
+  		if ((scko && !slash) || !scko) {
+  		    pn = 1;
+  		    if (HasNFS) {
+! 			if ((sv = statsafely(path, &sb))) {
+! 			    if (lnk)
+! 				sv = statEx(pbuf, &sb, &ss);
+! 			}
+  		    } else
+  			sv = stat(path, &sb);
+  		    if (sv) {
+--- 277,284 ----
+  		if ((scko && !slash) || !scko) {
+  		    pn = 1;
+  		    if (HasNFS) {
+! 			if ((sv = statsafely(path, &sb)))
+! 			    sv = statEx(pbuf, &sb, &ss);
+  		    } else
+  			sv = stat(path, &sb);
+  		    if (sv) {
+***************
+*** 329,339 ****
+  		    pn = 1;
+  		    if (HasNFS) {
+  			if ((sv = statsafely(path, &sb))) {
+! 			    if (lnk) {
+! 				sv = statEx(pbuf, &sb,  &ss);
+! 				if (!sv && (ss & SB_DEV) && (ss & SB_INO))
+! 				    txts = 1;
+! 			    }
+  			}
+  		    } else
+  			sv = stat(path, &sb);
+--- 325,333 ----
+  		    pn = 1;
+  		    if (HasNFS) {
+  			if ((sv = statsafely(path, &sb))) {
+! 			    sv = statEx(pbuf, &sb,  &ss);
+! 			    if (!sv && (ss & SB_DEV) && (ss & SB_INO))
+! 				txts = 1;
+  			}
+  		    } else
+  			sv = stat(path, &sb);
+***************
+*** 422,439 ****
+  			pn = 1;
+  			if (HasNFS) {
+  			    if (lstatsafely(path, &lsb)) {
+! 				if (lnk)
+! 				    (void) statEx(pbuf, &lsb, &ls);
+! 				else
+! 				    ls = 0;
+  				enls = errno;
+  			    } else
+  				ls = SB_ALL;
+  			    if (statsafely(path, &sb)) {
+! 				if (lnk)
+! 				    (void) statEx(pbuf, &sb, &ss);
+! 				else
+! 				    ss = SB_ALL;
+  				enss = errno;
+  			    } else
+  				ss = SB_ALL;
+--- 416,427 ----
+  			pn = 1;
+  			if (HasNFS) {
+  			    if (lstatsafely(path, &lsb)) {
+! 				(void) statEx(pbuf, &lsb, &ls);
+  				enls = errno;
+  			    } else
+  				ls = SB_ALL;
+  			    if (statsafely(path, &sb)) {
+! 				(void) statEx(pbuf, &sb, &ss);
+  				enss = errno;
+  			    } else
+  				ss = SB_ALL;
+***************
+*** 664,679 ****
+  	    ||  !ep || *ep)
+  		continue;
+  	/*
+! 	 * Assemble the inode number.
+  	 */
+  	    if (!fp[5] || !*fp[5])
+  		continue;
+  	    inode = (INODETYPE)atoi(fp[5]);
+  	/*
+  	 * See if the device + inode pair match that of the executable.
+  	 * If they do, skip this map entry.
+  	 */
+- 	    dev = (dev_t)makedev((int)maj, (int)min);
+  	    if (s && (ss & SB_DEV) && (ss & SB_INO)
+  	    &&  (dev == s->st_dev) && (inode == (INODETYPE)s->st_ino))
+  		continue;
+--- 652,670 ----
+  	    ||  !ep || *ep)
+  		continue;
+  	/*
+! 	 * Assemble the device and inode numbers.  If they are both zero, skip
+! 	 * the entry.
+  	 */
++ 	    dev = (dev_t)makedev((int)maj, (int)min);
+  	    if (!fp[5] || !*fp[5])
+  		continue;
+  	    inode = (INODETYPE)atoi(fp[5]);
++ 	    if (!dev && !inode)
++ 		continue;
+  	/*
+  	 * See if the device + inode pair match that of the executable.
+  	 * If they do, skip this map entry.
+  	 */
+  	    if (s && (ss & SB_DEV) && (ss & SB_INO)
+  	    &&  (dev == s->st_dev) && (inode == (INODETYPE)s->st_ino))
+  		continue;
