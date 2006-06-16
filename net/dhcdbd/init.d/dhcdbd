@@ -1,0 +1,61 @@
+#!/bin/sh
+#
+# Modified from dhcdbd's RedHat/dhcdbd.init file
+#
+
+
+PROGRAM=/sbin/dhcdbd
+RUNLEVEL=3
+NEEDS="smgl-messagebus"
+ARGS="--system"
+PIDFILE=/var/run/dhcdbd.pid
+
+. /etc/init.d/smgl_init
+
+start()
+{
+  echo  "Starting dhcdbd..."
+  $PROGRAM  $ARGS
+  mkdir -p /var/lock/subsys
+  [ $(evaluate_retval) -eq 0 && touch /var/lock/subsys/dhcdbd
+}
+
+stop()
+{
+  echo  "Stopping dhcdbd..."
+  if  [  -e  /var/lock/subsys/dhcdbd          ]   &&
+      [  -e  /var/run/dbus/system_bus_socket  ];  then
+    /usr/bin/dbus-send  --system                \
+                        --dest=com.redhat.dhcp  \
+                        --type=method_call      \
+                        --print-reply           \
+                        --reply-timeout=20000   \
+                        /com/redhat/dhcp        \
+                        com.redhat.dhcp.quit    >/dev/null 2>&1
+     evaluate_retval
+  else
+    killproc  dhcdbd  -TERM
+     evaluate_retval
+  fi
+
+  rm  -f  /var/lock/subsys/dhcdbd
+}
+
+status()
+{
+  pid=$(cat $PIDFILE)
+  if [ "$(evaluate_retval)" -eq 0 ] && [ -n "$pid" ]; then
+    sender=`/usr/bin/dbus-send  --system                \
+                                --dest=com.redhat.dhcp  \
+                                --type=method_call      \
+                                --print-reply           \
+                                --reply-timeout=20000   \
+                                /com/redhat/dhcp        \
+                                com.redhat.dhcp.ping    |
+            grep  'sender='  |  sed  's/^.*sender=//;s/\ .*$//'`
+    if  [  "$(evaluate_retval)" -eq 0 ]; then
+      echo "dhcdbd ( $pid ) listening on $sender"
+    fi
+  fi
+}
+
