@@ -1,0 +1,196 @@
+--- htext.h	2006-01-16 21:04:04.000000000 -0700
++++ /home/mleisher/src/gbdfed/htext.h	2006-04-26 21:12:25.000000000 -0600
+@@ -21,7 +21,7 @@
+  */
+ 
+ /*
+- * $Id: htext.h 39 2006-01-17 04:04:04Z mleisher $
++ * $Id: htext.h 47 2006-04-27 03:12:32Z mleisher $
+  */
+ static gchar *about_text = "\
+                  GBDFEditor 1.0\n\
+@@ -1205,7 +1205,7 @@
+ static gchar *otf_text = "\
+ If this program was compiled with the FreeType\n\
+ library to support importing OpenType fonts\n\
+-(.otf extension), TrueType fonts (.ttfextension), and\n\
++(.otf extension), TrueType fonts (.ttf extension), and\n\
+ TrueType collections (.ttc extension),\n\
+ when importing a font or collection, a dialog\n\
+ will be presented to allow you to choose a single font,\n\
+--- README	2006-01-16 21:01:35.000000000 -0700
++++ /home/mleisher/src/gbdfed/README	2006-04-26 21:12:39.000000000 -0600
+@@ -1,5 +1,5 @@
+ #
+-# $Id: README 38 2006-01-17 04:01:35Z mleisher $
++# $Id: README 48 2006-04-27 03:12:45Z mleisher $
+ #
+ 
+ gbdfed 1.0
+@@ -30,7 +30,7 @@
+   o  Imports Sun console fonts (vfont format).
+   o  Imports fonts from the X server.
+   o  Imports Windows FON/FNT fonts.
+-  o  Imports TrueType fonts and collections.
++  o  Imports OpenType/TrueType fonts and collections.
+   o  Exports PSF fonts.
+   o  Exports HEX fonts.
+ 
+@@ -212,7 +212,12 @@
+ 
+   James Cloos <cloos@jhcloos.com> for finding problems with gbdfed.
+ 
++  Ming Hua <minghua@rice.edu> for locating a problem with editing glyphs.
++
++  Sergio Martins <smartins@students.dei.uc.pt> for finding a typo and several
++  dialog related bugs.
++
+ AUTHOR
+ ------
+   Mark Leisher <mleisher@crl.nmsu.edu>
+-  07 January 2006
++  26 April 2006
+--- guigedit.c	2006-01-17 10:07:28.000000000 -0700
++++ /home/mleisher/src/gbdfed/guigedit.c	2006-04-26 21:14:54.000000000 -0600
+@@ -21,9 +21,9 @@
+  */
+ #ifndef lint
+ #ifdef __GNUC__
+-static char svnid[] __attribute__ ((unused)) = "$Id: guigedit.c 40 2006-01-17 17:07:28Z mleisher $";
++static char svnid[] __attribute__ ((unused)) = "$Id: guigedit.c 49 2006-04-27 03:14:37Z mleisher $";
+ #else
+-static char svnid[] = "$Id: guigedit.c 40 2006-01-17 17:07:28Z mleisher $";
++static char svnid[] = "$Id: guigedit.c 49 2006-04-27 03:14:37Z mleisher $";
+ #endif
+ #endif
+ 
+@@ -548,8 +548,8 @@
+     previous_glyph(w, data);
+ }
+ 
+-static void
+-close_glyph_editor(GtkWidget *w, gpointer data)
++static gboolean
++close_glyph_editor(GtkWidget *w, GdkEvent *ev, gpointer data)
+ {
+     GlypheditRec *ge = glyph_editors + GPOINTER_TO_UINT(data);
+ 
+@@ -559,7 +559,7 @@
+      * glyph editors.
+      */
+     if (ge->owner == ~0)
+-      return;
++      return TRUE;
+ 
+     /*
+      * We don't check to see if the grid has been modified, because
+@@ -580,6 +580,14 @@
+      * Hide the shell.
+      */
+     gtk_widget_hide(ge->shell);
++
++    return TRUE;
++}
++
++static void
++activate_close_glyph_editor(GtkWidget *w, gpointer data)
++{
++    (void) close_glyph_editor(w, 0, data);
+ }
+ 
+ static GtkWidget *
+@@ -619,9 +627,9 @@
+     gtk_menu_shell_append(GTK_MENU_SHELL(menu), sep);
+ 
+     mitem = make_accel_menu_item(menu, "_Close", "<Control>F4", ge->ag);
+-    g_signal_connect(G_OBJECT(mitem), "activate",
+-                     G_CALLBACK(close_glyph_editor),
+-                     GUINT_TO_POINTER(ge->id));
++    (void) g_signal_connect(G_OBJECT(mitem), "activate",
++                            G_CALLBACK(activate_close_glyph_editor),
++                            GUINT_TO_POINTER(ge->id));
+ 
+     gtk_menu_item_set_submenu(GTK_MENU_ITEM(file), menu);
+ 
+@@ -1830,14 +1838,16 @@
+ 
+     ge->shell = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+ 
++    gtk_window_set_title(GTK_WINDOW(ge->shell), buffer1);
++
+     gtk_window_set_resizable(GTK_WINDOW(ge->shell), TRUE);
+ 
+-    (void) g_signal_connect(G_OBJECT(ge->shell), "destroy",
+-                            G_CALLBACK(gtk_widget_hide), 0);
++    (void) g_signal_connect(G_OBJECT(ge->shell), "destroy_event",
++                            G_CALLBACK(close_glyph_editor),
++                            GUINT_TO_POINTER(ge->id));
+     (void) g_signal_connect(G_OBJECT(ge->shell), "delete_event",
+-                            G_CALLBACK(gtk_widget_hide), 0);
+-
+-    gtk_window_set_title(GTK_WINDOW(ge->shell), buffer1);
++                            G_CALLBACK(close_glyph_editor),
++                            GUINT_TO_POINTER(ge->id));
+ 
+     vbox = gtk_vbox_new(FALSE, 0);
+     gtk_container_add(GTK_CONTAINER(ge->shell), vbox);
+@@ -2152,7 +2162,7 @@
+      */
+     for (i = 0; i < num_glyph_editors; i++) {
+         if (glyph_editors[i].id != ~0)
+-          close_glyph_editor(0, GUINT_TO_POINTER(i));
++          close_glyph_editor(0, 0, GUINT_TO_POINTER(i));
+     }
+ 
+     /*
+--- gbdfed.c	2006-05-01 08:33:09.000000000 -0600
++++ /home/mleisher/src/gbdfed/gbdfed.c	2006-04-26 21:14:54.000000000 -0600
+@@ -21,9 +21,9 @@
+  */
+ #ifndef lint
+ #ifdef __GNUC__
+-static char svnid[] __attribute__ ((unused)) = "$Id: gbdfed.c 41 2006-01-17 17:22:52Z mleisher $";
++static char svnid[] __attribute__ ((unused)) = "$Id: gbdfed.c 49 2006-04-27 03:14:37Z mleisher $";
+ #else
+-static char svnid[] = "$Id: gbdfed.c 41 2006-01-17 17:22:52Z mleisher $";
++static char svnid[] = "$Id: gbdfed.c 49 2006-04-27 03:14:37Z mleisher $";
+ #endif
+ #endif
+ 
+@@ -209,8 +209,8 @@
+  *
+  **************************************************************************/
+ 
+-static void
+-quit_application(GtkWidget *w, gpointer data)
++static gboolean
++quit_application(GtkWidget *w, GdkEvent *ev, gpointer data)
+ {
+     guint i, modified;
+ 
+@@ -258,7 +258,7 @@
+      */
+     if (options.really_exit &&
+         !guiutil_yes_or_no(editors[0].shell, "Really Quit?", TRUE))
+-      return;
++      return TRUE;
+ 
+     /*
+      * Call all the cleanup routines in case something really needs to be
+@@ -1666,14 +1666,14 @@
+     gtk_window_set_resizable(GTK_WINDOW(ed->shell), TRUE);
+ 
+     if (ed->id == 0) {
+-        (void) g_signal_connect(G_OBJECT(ed->shell), "destroy",
++        (void) g_signal_connect(G_OBJECT(ed->shell), "destroy_event",
+                                 G_CALLBACK(quit_application),
+                                 GUINT_TO_POINTER(ed->id));
+         (void) g_signal_connect(G_OBJECT(ed->shell), "delete_event",
+                                 G_CALLBACK(quit_application),
+                                 GUINT_TO_POINTER(ed->id));
+     } else {
+-        (void) g_signal_connect(G_OBJECT(ed->shell), "destroy",
++        (void) g_signal_connect(G_OBJECT(ed->shell), "destroy_event",
+                                 G_CALLBACK(gtk_widget_hide), 0);
+         (void) g_signal_connect(G_OBJECT(ed->shell), "delete_event",
+                                 G_CALLBACK(gtk_widget_hide), 0);
