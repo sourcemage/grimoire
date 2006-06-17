@@ -16,6 +16,7 @@ sedit  's:-lpostproc:-Llibpostproc -lpostproc:'  libavcodec/Makefile  &&
              --enable-gpl                            \
              --enable-a52                            \
              $OPTS                                   &&
+sedit  's:SDL_LIBS=.*:\0 -L/usr/X11R6/lib -lX11:'  config.mak  &&
 cd  libavcodec/libpostproc  &&
 make                        &&
 cd  $SOURCE_DIRECTORY       &&
