@@ -1,7 +1,2 @@
-if [ "$KINO_FFMPEG" == "y" ]; then
-   OPTS="$OPTS --with-avcodec"
-fi  &&
-
-OPTS="$OPTS --with-hotplug-script-dir=/etc/hotplug/usb"  &&
-
+OPTS="--enable-hotplug-script-dir=/etc/hotplug/usb $OPTS"  &&
 default_build
