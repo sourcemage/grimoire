@@ -23,10 +23,6 @@ KERNEL=="vcs[0-9]*", 	NAME="vcc/%n", 	SYMLINK="%k"
 KERNEL=="vcsa", 	NAME="vcc/a0", 	SYMLINK="%k"
 KERNEL=="vcsa[0-9]*", 	NAME="vcc/a%n", SYMLINK="%k"
 
-# all block devices
-SUBSYSTEM=="block", GROUP="disk", MODE="0640"
-SUBSYSTEM=="block", SYSFS{removable}=="1", GROUP="floppy"
-
 # device mapper creates its own device nodes so ignore these
 KERNEL=="dm-[0-9]*", 	OPTIONS="ignore_device"
 KERNEL=="device-mapper", NAME="mapper/control"
@@ -38,17 +34,21 @@ KERNEL=="ataraid*",      NAME="%k", GROUP="disk"
 BUS=="scsi", KERNEL=="sr[0-9]*", GROUP="scsi"
 BUS=="scsi", KERNEL=="sg[0-9]*", GROUP="burning"
 
-# cdrom devices
-BUS=="ide", 	KERNEL=="hd[a-z]",  ACTION=="add", IMPORT="cdrom_id --export $tempnode"
-BUS=="scsi", 	KERNEL=="sr[0-9]*", ACTION=="add", IMPORT="cdrom_id --export $tempnode"
-BUS=="scsi", 	KERNEL=="scd[a-z]", ACTION=="add", IMPORT="cdrom_id --export $tempnode"
-ENV{ID_CDROM}=="?*",            SYMLINK+="cdrom%e", GROUP="cdrom"
-ENV{ID_CDROM_CD_RW}=="?*",      SYMLINK+="cdrw%e", MODE="0660", GROUP="burning"
-ENV{ID_CDROM_DVD}=="?*",        SYMLINK+="dvd%e"
-ENV{ID_CDROM_DVD_R}=="?*",      SYMLINK+="dvdrw%e"
+# all block devices
+SUBSYSTEM=="block", GROUP="disk", MODE="0640"
+SUBSYSTEM=="block", SYSFS{removable}=="1", GROUP="floppy", MODE="0660"
 
-# permissions for SCSI CD devices
+# ide cdrom devices
+BUS=="ide", KERNEL=="hd[a-z]", ACTION=="add", IMPORT="cdrom_id --export $tempnode"
+
+# scsi cdrom devices
+BUS=="scsi", KERNEL=="sr[0-9]*", ACTION=="add", IMPORT="cdrom_id --export $tempnode"
+BUS=="scsi", KERNEL=="scd[a-z]", ACTION=="add", IMPORT="cdrom_id --export $tempnode"
 BUS=="scsi", KERNEL=="s[grt][0-9]*", SYSFS{type}=="5", MODE="0660", GROUP="cdrom"
+
+# cdrom device symlinks and permissions
+ENV{ID_CDROM}=="?*", PROGRAM="cdsymlink_helper %k", SYMLINK+="%c", GROUP="cdrom"
+ENV{ID_CDROM_CD_R}=="?*", SYMLINK+="%c", MODE="0660", GROUP="burning"
 
 # tape devices
 KERNEL=="ht*", 		NAME="%k"
