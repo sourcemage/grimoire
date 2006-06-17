@@ -346,7 +346,7 @@
  	    }
 --- mac-fdisk-0.1.orig/partition_map.c
 +++ mac-fdisk-0.1/partition_map.c
-@@ -30,7 +30,6 @@
+@@ -30,14 +30,12 @@
  #include <stdlib.h>
  #include <unistd.h>
  #endif
@@ -354,7 +354,15 @@
  #include <errno.h>
  
  #include <fcntl.h>
-@@ -65,6 +64,8 @@
+ #ifdef __linux__
+ #include <sys/ioctl.h>
+-#include <linux/fs.h>
+-#include <linux/hdreg.h>
++#include "kernel-defs.h"
+ #include <sys/stat.h>
+ #endif
+ 
+@@ -65,6 +63,8 @@
  const char * kFreeType	= "Apple_Free";
  const char * kMapType	= "Apple_partition_map";
  const char * kUnixType	= "Apple_UNIX_SVR2";
@@ -363,7 +371,7 @@
  
  const char * kFreeName = "Extra";
  
-@@ -288,15 +289,17 @@
+@@ -288,15 +288,17 @@
  	    free(block);
  	}
      }
@@ -385,7 +393,7 @@
  	sleep(2);
  	if ((i = ioctl(fd, BLKRRPART)) != 0) {
  	    saved_errno = errno;
-@@ -304,20 +307,26 @@
+@@ -304,20 +306,26 @@
  	    // some kernel versions (1.2.x) seem to have trouble
  	    // rereading the partition table, but if asked to do it
  	    // twice, the second time works. - biro@yggdrasil.com */
@@ -417,7 +425,7 @@
  	    printf("Reboot your system to ensure the "
  		    "partition table is updated.\n");
  	}
-@@ -692,9 +701,9 @@
+@@ -692,9 +700,9 @@
  		geometry.heads*geometry.sectors*geometry.cylinders);
      }
  
@@ -429,7 +437,7 @@
  	printf("llseek to end of device failed on second try\n");
      } else {
  	printf("llseek: pos = %d, blocks=%d\n", pos, pos/PBLOCK_SIZE);
-@@ -895,6 +904,7 @@
+@@ -895,6 +903,7 @@
  	printf("No such partition\n");
      } else {
  	remove_from_disk_order(cur);
@@ -450,7 +458,7 @@
  
 --- mac-fdisk-0.1.orig/pdisk.c
 +++ mac-fdisk-0.1/pdisk.c
-@@ -30,12 +30,12 @@
+@@ -30,18 +30,17 @@
  #include <stdio.h>
  #ifdef __linux__
  #include <getopt.h>
@@ -464,7 +472,14 @@
  #include <errno.h>
  
  #ifdef __linux__
-@@ -94,6 +94,7 @@
+ #include <sys/ioctl.h>
+-#include <linux/fs.h>
+-#include <linux/hdreg.h>
++#include "kernel-defs.h"
+ #endif
+ 
+ #include "pdisk.h"
+@@ -94,6 +93,7 @@
  void do_add_intel_partition(partition_map_header *map);
  void do_change_map_size(partition_map_header *map);
  void do_create_partition(partition_map_header *map, int get_type);
@@ -472,7 +487,7 @@
  void do_delete_partition(partition_map_header *map);
  int do_expert(partition_map_header *map);
  void do_reorder(partition_map_header *map);
-@@ -114,6 +115,7 @@
+@@ -114,6 +114,7 @@
  main(int argc, char **argv)
  {
      int name_index;
@@ -480,7 +495,7 @@
  
      if (sizeof(DPME) != PBLOCK_SIZE) {
  	fatal(-1, "Size of partion map entry (%d) "
-@@ -150,7 +152,9 @@
+@@ -150,7 +151,9 @@
      } else if (!vflag) {
  	usage("no device argument");
   	do_help();
@@ -490,7 +505,7 @@
  }
  #else
  main()
-@@ -351,7 +355,8 @@
+@@ -351,7 +354,8 @@
  	    printf("  P    (print ordered by base address)\n");
  	    printf("  i    initialize partition map\n");
  	    printf("  s    change size of partition map\n");
@@ -500,7 +515,7 @@
  	    printf("  C    (create with type also specified)\n");
  	    printf("  d    delete a partition\n");
  	    printf("  r    reorder partition entry in map\n");
-@@ -378,6 +383,10 @@
+@@ -378,6 +382,10 @@
  	case 'i':
  	    map = init_partition_map(name, map);
  	    break;
@@ -511,7 +526,7 @@
  	case 'C':
  	    get_type = 1;
  	    // fall through
-@@ -471,6 +480,30 @@
+@@ -471,6 +479,30 @@
  }
  
  
@@ -542,7 +557,7 @@
  int
  get_base_argument(long *number, partition_map_header *map)
  {
-@@ -508,7 +541,7 @@
+@@ -508,7 +540,7 @@
      int result = 0;
      long multiple;
  
@@ -551,7 +566,7 @@
  	bad_input("Bad length");
      } else {
  	result = 1;
-@@ -605,13 +638,22 @@
+@@ -605,13 +637,22 @@
  	bad_input("The map is not writeable.");
  	return;
      }
@@ -586,18 +601,20 @@
  #include <fcntl.h>
  #include <ctype.h>
  #include <setjmp.h>
-@@ -71,6 +70,10 @@
+@@ -71,9 +70,9 @@
  
  #include <sys/ioctl.h>
  
-+#include <linux/types.h>
-+
+-#include <linux/genhd.h>
+-#include <linux/hdreg.h>
+-#include <linux/fs.h>
 +typedef unsigned short kdev_t;	/* BAD hack; kdev_t is not exported */
 +
- #include <linux/genhd.h>
- #include <linux/hdreg.h>
- #include <linux/fs.h>
-@@ -428,7 +431,7 @@
++#include "kernel-defs.h"
+ 
+ #include "fdisk.h"
+ 
+@@ -428,7 +427,7 @@
  		offsets[partitions] = extended_offset + SWAP32(p->start_sect);
  		if (!extended_offset)
  			extended_offset = SWAP32(p->start_sect);
@@ -606,7 +623,7 @@
  			       * SECTOR_SIZE, SEEK_SET) < 0)
  			fatal(unable_to_seek);
  		if (!(buffers[partitions] = (char *) malloc(SECTOR_SIZE)))
-@@ -438,14 +441,14 @@
+@@ -438,14 +437,14 @@
  		part_table[partitions] = ext_pointers[partitions] = NULL;
  		q = p = offset(buffers[partitions], 0);
  		for (i = 0; i < 4; i++, p++) {
@@ -623,7 +640,7 @@
  				if (part_table[partitions])
  					fprintf(stderr,
  						"Warning: ignoring extra data "
-@@ -453,15 +456,18 @@
+@@ -453,15 +452,18 @@
  						partitions + 1);
  				else
  					part_table[partitions] = p;
@@ -644,7 +661,7 @@
  		p = ext_pointers[partitions++];
  	}
  }
-@@ -497,11 +503,12 @@
+@@ -497,11 +499,12 @@
  	warn_geometry();
  
  	for (i = 0; i < 4; i++)
@@ -658,7 +675,7 @@
  
  	for (i = 3; i < partitions; i++)
  		if (SWAP16(*table_check(buffers[i])) != PART_TABLE_FLAG) {
-@@ -621,6 +628,7 @@
+@@ -621,6 +624,7 @@
  			case lower: i += low; break;
  			case upper: i += high; break;
  			case deflt: i += dflt; break;
@@ -666,7 +683,7 @@
  			}
  		}
  		else
-@@ -844,12 +852,12 @@
+@@ -844,12 +848,12 @@
  		return;		/* do not check extended partitions */
  
  /* physical beginning c, h, s */
@@ -681,7 +698,7 @@
  	peh = p->end_head;
  	pes = p->end_sector & 0x3f;
  
-@@ -941,7 +949,7 @@
+@@ -941,7 +945,7 @@
  		disk_device, heads, sectors, cylinders);
          printf("Nr AF  Hd Sec  Cyl  Hd Sec  Cyl   Start    Size ID\n");
  	for (i = 0 ; i < partitions; i++)
@@ -690,7 +707,7 @@
                          printf("%2d %02x%4d%4d%5d%4d%4d%5d%8d%8d %02x\n",
  				i + 1, p->boot_ind, p->head,
  				sector(p->sector),
-@@ -1026,7 +1034,7 @@
+@@ -1026,7 +1030,7 @@
  				last[i]);
  			total += last[i] + 1 - first[i];
  			for (j = 0; j < i; j++)
@@ -699,7 +716,7 @@
  					|| (last[i] <= last[j] &&
  					last[i] >= first[j])) {
  				printf("Warning: partition %d overlaps "
-@@ -1060,11 +1068,11 @@
+@@ -1060,11 +1064,11 @@
  	if (total > heads * sectors * cylinders)
  		printf("Total allocated sectors %d greater than the maximum "
  			"%d\n", total, heads * sectors * cylinders);
@@ -713,7 +730,7 @@
  {
  	char mesg[48];
  	int i, read = 0;
-@@ -1100,11 +1108,12 @@
+@@ -1100,11 +1104,12 @@
  		for (i = 0; i < partitions; i++) {
  			if (start == offsets[i])
  				start += sector_offset;
@@ -727,7 +744,7 @@
  		}
  		if (start > limit)
  			break;
-@@ -1249,7 +1258,7 @@
+@@ -1249,7 +1254,7 @@
  	for (i = 3; i < partitions; i++)
  		if (changed[i]) {
  			*table_check(buffers[i]) = SWAP16(PART_TABLE_FLAG);
@@ -736,7 +753,7 @@
  					* SECTOR_SIZE, SEEK_SET) < 0)
  				fatal(unable_to_seek);
  			if (write(fd, buffers[i], SECTOR_SIZE) != SECTOR_SIZE)
-@@ -1262,7 +1271,7 @@
+@@ -1262,7 +1267,7 @@
  	       "(Reboot to ensure the partition table has been updated.)\n");
  	sync();
  	sleep(2);
@@ -745,7 +762,7 @@
                  error = errno;
          } else {
                  /* some kernel versions (1.2.x) seem to have trouble
-@@ -1270,7 +1279,7 @@
+@@ -1270,7 +1275,7 @@
  		   twice, the second time works. - biro@yggdrasil.com */
                  sync();
                  sleep(2);
@@ -754,7 +771,7 @@
                          error = errno;
          }
  
-@@ -1391,7 +1400,7 @@
+@@ -1391,7 +1396,7 @@
  void try(char *device)
  {
  	disk_device = device;
@@ -763,7 +780,7 @@
  		if ((fd = open(disk_device, type_open)) >= 0) {
  			close(fd);
  			get_boot();
-@@ -1407,6 +1416,7 @@
+@@ -1407,6 +1412,7 @@
  		    exit(1);
  		 }
  	      }
@@ -781,15 +798,18 @@
  #include <fcntl.h>
  #include <ctype.h>
  #include <setjmp.h>
-@@ -47,7 +46,6 @@
+@@ -47,9 +46,7 @@
  #include <sys/ioctl.h>
  #include <sys/param.h>
  
 -#include <linux/genhd.h>
- #include <linux/hdreg.h>
- #include <linux/fs.h>
+-#include <linux/hdreg.h>
+-#include <linux/fs.h>
++#include "kernel-defs.h"
  
-@@ -377,7 +375,7 @@
+ #include "fdisk.h"
+ #define DKTYPENAMES
+@@ -377,7 +374,7 @@
      {
  #if defined (i386)
        if (bsd_initlabel (bsd_part, &bsd_dlabel, bsd_part_index) == 1)
@@ -798,7 +818,7 @@
        if (bsd_initlabel (NULL, &bsd_dlabel, 0) == 1)
  #endif
        {
-@@ -515,7 +513,7 @@
+@@ -515,7 +512,7 @@
    alpha_bootblock_checksum (buffer);
  #endif
  
@@ -807,7 +827,7 @@
      fatal (unable_to_seek);
    if (BSD_BBSIZE != write (fd, buffer, BSD_BBSIZE))
      fatal (unable_to_write);
-@@ -679,7 +677,7 @@
+@@ -679,7 +676,7 @@
    sector = 0;
  #endif
  
@@ -816,7 +836,7 @@
      fatal (unable_to_seek);
    if (BSD_BBSIZE != read (fd, buffer, BSD_BBSIZE))
      fatal (unable_to_read);
-@@ -724,12 +722,12 @@
+@@ -724,12 +721,12 @@
  
  #if defined (__alpha__) && BSD_LABELSECTOR == 0
    alpha_bootblock_checksum (buffer);
@@ -864,40 +884,110 @@
  
  distribution:
  	cd ..; tar cvf pdisk.src.tar.`date +%y%m%d` --files-from pdisk/list.src
---- mac-fdisk-0.1.orig/debian/README.debian
-+++ mac-fdisk-0.1/debian/README.debian
-@@ -0,0 +1,18 @@
-+mac-fdisk for DEBIAN
-+----------------------
+--- mac-fdisk-0.1.orig/kernel-defs.h
++++ mac-fdisk-0.1/kernel-defs.h
+@@ -0,0 +1,64 @@
++/* from asm/types.h */
++typedef unsigned short __u16;
++typedef unsigned int __u32;
 +
-+Comments regarding mac-fdisk
++/* from linux/hdreg.h */
++#define HDIO_GETGEO		0x0301	/* get device geometry */
 +
-+mac-fdisk provides Apple partition format utilities required for
-+installation of Debian/68k on Apple Macintosh computers. The Debian version
-+of mac-fdisk is derived from pdisk 0.4a2 (pdisk.970115.tar) by Eryk Vershen 
-+(eryk@apple.com).
-+pmac-fdisk is a version of the PC partition format utilities for PowerPC
-+computers, taken from the same pdisk source version and can be used for
-+installation of Debian/68k on PC partition format disks on Macintosh.
++struct hd_geometry {
++      unsigned char heads;
++      unsigned char sectors;
++      unsigned short cylinders;
++      unsigned long start;
++};
 +
-+Modifications have been made to the pdisk partition table output code to permit
-+parsing the output of 'mac-fdisk -l' in a manner consistent with other Linux
-+fdisk utilities. (Christiaan Welvaart, <>)
++/* from asm/ioctl.h */
++#define _IOC_NRBITS	8
++#define _IOC_TYPEBITS	8
++#define _IOC_SIZEBITS	13
++#define _IOC_DIRBITS	3
 +
-+Michael Schmitz <schmitz@lcbvax.cchem.berkeley.edu>, Sat, 28 Feb 1998 12:58:07 -0800
---- mac-fdisk-0.1.orig/debian/postinst.debhelper
-+++ mac-fdisk-0.1/debian/postinst.debhelper
-@@ -0,0 +1,7 @@
-+# Automatically added by dh_installdocs
-+if [ "$1" = "configure" ]; then
-+	if [ -d /usr/doc -a ! -e /usr/doc/mac-fdisk -a -d /usr/share/doc/mac-fdisk ]; then
-+		ln -sf ../share/doc/mac-fdisk /usr/doc/mac-fdisk
-+	fi
-+fi
-+# End automatically added section
++#define _IOC_NRMASK	((1 << _IOC_NRBITS)-1)
++#define _IOC_TYPEMASK	((1 << _IOC_TYPEBITS)-1)
++#define _IOC_SIZEMASK	((1 << _IOC_SIZEBITS)-1)
++#define _IOC_DIRMASK	((1 << _IOC_DIRBITS)-1)
++
++#define _IOC_NRSHIFT	0
++#define _IOC_TYPESHIFT	(_IOC_NRSHIFT+_IOC_NRBITS)
++#define _IOC_SIZESHIFT	(_IOC_TYPESHIFT+_IOC_TYPEBITS)
++#define _IOC_DIRSHIFT	(_IOC_SIZESHIFT+_IOC_SIZEBITS)
++
++#ifdef __powerpc__
++#define _IOC_NONE	1U
++#define _IOC_READ	2U
++#define _IOC_WRITE	4U
++#else
++#define _IOC_NONE	0U
++#define _IOC_READ	2U
++#define _IOC_WRITE	1U
++#endif
++
++#define _IOC(dir,type,nr,size) \
++	(((dir)  << _IOC_DIRSHIFT) | \
++	 ((type) << _IOC_TYPESHIFT) | \
++	 ((nr)   << _IOC_NRSHIFT) | \
++	 ((size) << _IOC_SIZESHIFT))
++#define _IO(type,nr)		_IOC(_IOC_NONE,(type),(nr),0)
++
++/* from linux/fs.h */
++#define BLKRRPART  _IO(0x12,95)      /* re-read partition table */
++#define BLKFLSBUF  _IO(0x12,97)      /* flush buffer cache */
++
++/* from linux/genhd.h */
++struct partition {
++	unsigned char boot_ind;		/* 0x80 - active */
++	unsigned char head;		/* starting head */
++	unsigned char sector;		/* starting sector */
++	unsigned char cyl;		/* starting cylinder */
++	unsigned char sys_ind;		/* What partition type */
++	unsigned char end_head;		/* end head */
++	unsigned char end_sector;	/* end sector */
++	unsigned char end_cyl;		/* end cylinder */
++	unsigned int start_sect;	/* starting sector counting from 0 */
++	unsigned int nr_sects;		/* nr of sectors in partition */
++} __attribute__((packed));
 --- mac-fdisk-0.1.orig/debian/changelog
 +++ mac-fdisk-0.1/debian/changelog
-@@ -0,0 +1,103 @@
+@@ -0,0 +1,137 @@
++mac-fdisk (0.1-13) unstable; urgency=low
++
++  * Add patch for broken dpkg --print-gnu-build-architecture (patch by 
++    Andreas Jochens <aj@andaco.de>).
++    Closes: #328102.
++
++ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Wed, 14 Sep 2005 17:25:23 +0100
++
++mac-fdisk (0.1-12) unstable; urgency=low
++
++  * Add makefile support for ppc64 arch (patch by Andreas Jochens
++    <aj@andaco.de>).
++    Closes: #307897.
++
++ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Mon, 09 May 2005 12:58:47 +0100
++
++mac-fdisk (0.1-11) unstable; urgency=low
++
++  * Big fat overdue cleanup - back in business after replacing my stolen
++    Powerbook. 
++  * fixes as suggested in proposed NMU: changes mostly by Frank Lichtenheld
++    <djpig@debian.org>, with subarchitecture modifications by Colin Watson 
++    <cjwatson@debian.org>.
++  * Copy needed kernel definitions from kernel-headers 2.4.25 (powerpc) and
++    2.4.26-m68k (cjwatson; Closes: #262457).
++  * Add Subarchitecture: fields in DEBIAN/control of the udebs. "mac" for
++    mac-fdisk-udeb on m68k, "powermac_oldworld powermac_newworld" for
++    mac-fdisk-udeb on powerpc, and "chrp chrp_pegasos prep iseries" for
++    pmac-fdisk-udeb on powerpc (djpig; Closes: #250581).
++  * Remove XSI:sms in debian/rules and debian/postinst, patch by David
++    Weinehall (djpig; Closes: #254918).
++
++ -- Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>  Thu, 26 Aug 2004 14:23:13 +0200
++
 +mac-fdisk (0.1-10) unstable; urgency=high
 +
 +  * Added .udeb magic to rules (kudos to Gaudenz Steinlin
@@ -1001,14 +1091,346 @@
 +mode: debian-changelog
 +add-log-mailing-address: "schmitz@biophys.uni-duesseldorf.de"
 +End:
---- mac-fdisk-0.1.orig/debian/prerm.debhelper
-+++ mac-fdisk-0.1/debian/prerm.debhelper
-@@ -0,0 +1,5 @@
-+# Automatically added by dh_installdocs
-+if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/mac-fdisk ]; then
-+	rm -f /usr/doc/mac-fdisk
+--- mac-fdisk-0.1.orig/debian/README.debian
++++ mac-fdisk-0.1/debian/README.debian
+@@ -0,0 +1,18 @@
++mac-fdisk for DEBIAN
++----------------------
++
++Comments regarding mac-fdisk
++
++mac-fdisk provides Apple partition format utilities required for
++installation of Debian/68k on Apple Macintosh computers. The Debian version
++of mac-fdisk is derived from pdisk 0.4a2 (pdisk.970115.tar) by Eryk Vershen 
++(eryk@apple.com).
++pmac-fdisk is a version of the PC partition format utilities for PowerPC
++computers, taken from the same pdisk source version and can be used for
++installation of Debian/68k on PC partition format disks on Macintosh.
++
++Modifications have been made to the pdisk partition table output code to permit
++parsing the output of 'mac-fdisk -l' in a manner consistent with other Linux
++fdisk utilities. (Christiaan Welvaart, <>)
++
++Michael Schmitz <schmitz@lcbvax.cchem.berkeley.edu>, Sat, 28 Feb 1998 12:58:07 -0800
+--- mac-fdisk-0.1.orig/debian/rules
++++ mac-fdisk-0.1/debian/rules
+@@ -0,0 +1,192 @@
++#!/usr/bin/make -f
++# Made with the aid of debmake, by Christoph Lameter,
++# based on the sample debian/rules file for GNU hello by Ian Jackson.
++
++export DH_VERBOSE=1
++
++#BUILDARCH = $(shell dpkg --print-gnu-build-architecture)
++BUILDARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH_CPU)
++POWERPC = $(findstring $(BUILDARCH),powerpc ppc64)
++
++packmn  = mac-fdisk
++packmc  = mac-fdisk-cross
++packpmn = pmac-fdisk
++packpmc = pmac-fdisk-cross
++packudeb = mac-fdisk-udeb
++packpudeb = pmac-fdisk-udeb
++tmpmn   = debian/tmp
++tmpmc   = debian/$(packmc)
++tmppmn  = debian/$(packpmn)
++tmppmc  = debian/$(packpmc)
++tmpudeb = debian/$(packudeb)
++tmppudeb = debian/$(packpudeb)
++docmn   = $(tmpmn)/usr/share/doc/$(packmn)
++docmc   = $(tmpmc)/usr/share/doc/$(packmc)
++docpmn  = $(tmppmn)/usr/share/doc/$(packpmn)
++docpmc  = $(tmppmc)/usr/share/doc/$(packpmc)
++
++ifeq "$(BUILDARCH)" "powerpc"
++mac_subarches=powermac_oldworld powermac_newworld
++pmac_subarches=chrp chrp_pegasos prep iseries
++else
++mac_subarches=mac
++endif
++
++build:
++	$(checkdir)
++	make CFLAGS="-O2 -g -Wall"
++	touch build
++
++clean:
++	$(checkdir)
++	-rm -f build
++	-make clean
++	-rm -f `find . -name "*~"`
++	-rm -rf $(tmpmn) $(tmpmc) $(tmppmn) $(tmppmc) $(tmpudeb) $(tmppudeb) debian/files* core debian/*substvars
++
++binary-indep: build
++	$(checkdir)
++# There are no architecture-independent files to be uploaded
++# generated by this package.  If there were any they would be
++# made here.
++
++binary-arch: build
++	dh_testdir pdisk.h
++	dh_testroot
++	dh_clean -k
++	#dh_installdirs
++	# we don't want to package the pdisk man page
++	mv pdisk.8 pdisk.8.in
++	set -e; if [ "$(BUILDARCH)" = "m68k" ] || [ -n "$(POWERPC)" ]; then \
++		install -d $(tmpmn)/sbin; \
++		install -m 755 pdisk $(tmpmn)/sbin/mac-fdisk; \
++		install -d $(tmpmn)/usr/share/man/man8; \
++		install -m 644 mac-fdisk.8.in $(tmpmn)/usr/share/man/man8/mac-fdisk.8; \
++		dh_installdocs README -p$(packmn); \
++		dh_installmanpages -p$(packmn); \
++		dh_installchangelogs HISTORY -p$(packmn); \
++	else \
++		install -d $(tmpmc)/usr/sbin; \
++		install -m 755 pdisk $(tmpmc)/usr/sbin/mac-fdisk; \
++		install -d $(tmpmn)/usr/share/man/man8; \
++		install -m 644 mac-fdisk.8.in $(tmpmn)/usr/share/man/man8/mac-fdisk.8; \
++		dh_installdocs README -p$(packmc); \
++		dh_installmanpages  -p$(packmc); \
++		dh_installchangelogs HISTORY -p$(packmc); \
++	fi
++	set -e; if [ -n "$(POWERPC)" ]; then \
++		install -d $(tmppmn)/sbin; \
++		install -m 755 fdisk $(tmppmn)/sbin/pmac-fdisk; \
++		install -d $(tmppmn)/usr/share/man/man8; \
++		install -m 644 pmac-fdisk.8.in $(tmppmn)/usr/share/man/man8/pmac-fdisk.8; \
++		dh_installdocs README -p$(packpmn); \
++		dh_installmanpages  -p$(packpmn); \
++		dh_installchangelogs HISTORY -p$(packpmn); \
++	else \
++		install -d $(tmppmc)/usr/sbin; \
++		install -m 755 fdisk $(tmppmc)/usr/sbin/pmac-fdisk; \
++		install -d $(tmppmc)/usr/share/man/man8; \
++		install -m 644 pmac-fdisk.8.in $(tmppmc)/usr/share/man/man8/pmac-fdisk.8; \
++		dh_installdocs README -p$(packpmc); \
++		dh_installmanpages  -p$(packpmc); \
++		dh_installchangelogs HISTORY -p$(packpmc); \
++	fi
++	# install README.Debian also in cross package (not done by dh_installdocs)
++	set -e; if [ "$(BUILDARCH)" != "m68k" ] && ! [ -n "$(POWERPC)" ]; then \
++		install -m 644 debian/README.debian $(docmc)/README.Debian; \
++	fi
++	# and move the pdisk man page back again ...
++	mv pdisk.8.in pdisk.8
++
++	# install mac-fdisk-udeb files
++	set -e; if [ "$(BUILDARCH)" = "m68k" ] || [ -n "$(POWERPC)" ]; then \
++		install -d $(tmpudeb)/sbin; \
++		install -d $(tmpudeb)/DEBIAN; \
++		install -m 755 pdisk $(tmpudeb)/sbin/mac-fdisk; \
++	fi
++
++	# install pmac-fdisk-udeb files
++	set -e; if [ -n "$(POWERPC)" ]; then \
++		install -d $(tmppudeb)/usr/sbin; \
++		install -d $(tmppudeb)/DEBIAN; \
++		install -m 755 fdisk $(tmppudeb)/usr/sbin/pmac-fdisk; \
++	fi
++
++	# build native pdisk only for m68k, cross package only for others
++	set -e; if [ "$(BUILDARCH)" = "m68k" ] || [ -n "$(POWERPC)" ]; then \
++		dh_strip -p$(packmn) -P$(tmpmn); \
++		dh_compress -p$(packmn) -P$(tmpmn); \
++		dh_fixperms -p$(packmn) -P$(tmpmn); \
++		dh_installdeb -p$(packmn) -P$(tmpmn); \
++		dh_shlibdeps -p$(packmn) -P$(tmpmn); \
++		dh_gencontrol -p$(packmn) -P$(tmpmn); \
++		dh_md5sums -p$(packmn) -P$(tmpmn); \
++	else \
++		dh_strip -p$(packmc); \
++		dh_compress -p$(packmc); \
++		dh_fixperms -p$(packmc); \
++		dh_installdeb -p$(packmc); \
++		dh_shlibdeps -p$(packmc); \
++		dh_gencontrol -p$(packmc); \
++		dh_md5sums -p$(packmc); \
++	fi
++	# build native fdisk only for powerpc, cross package only for others
++	set -e; if [ -n "$(POWERPC)" ]; then \
++		dh_strip -p$(packpmn); \
++		dh_compress -p$(packpmn); \
++		dh_fixperms -p$(packpmn); \
++		dh_installdeb -p$(packpmn); \
++		dh_shlibdeps -p$(packpmn); \
++		dh_gencontrol -p$(packpmn); \
++		dh_md5sums -p$(packpmn); \
++	else \
++		dh_strip -p$(packpmc); \
++		dh_compress -p$(packpmc); \
++		dh_fixperms -p$(packpmc); \
++		dh_installdeb -p$(packpmc); \
++		dh_shlibdeps -p$(packpmc); \
++		dh_gencontrol -p$(packpmc); \
++		dh_md5sums -p$(packpmc); \
++	fi
++	set -e; if [ "$(BUILDARCH)" = "m68k" ] || [ -n "$(POWERPC)" ]; then \
++		dh_builddeb -p$(packmn) -P$(tmpmn); \
++	else \
++		dh_builddeb -p$(packmc); \
++	fi
++	set -e; if [ -n "$(POWERPC)" ]; then \
++		dh_builddeb -p$(packpmn); \
++	else \
++		dh_builddeb -p$(packpmc); \
++	fi
++
++	# build mac-fdisk-udeb on powerpc and m68k
++	set -e; if [ "$(BUILDARCH)" = "m68k" ] || [ -n "$(POWERPC)" ]; then \
++		dh_strip -p$(packudeb); \
++		dh_installdeb -p$(packudeb); \
++		dh_shlibdeps -p$(packudeb); \
++		dh_gencontrol -p$(packudeb) -- -isp "-DSubarchitecture=$(mac_subarches)" -fdebian/files~; \
++		dpkg-distaddfile $(packudeb)_$(shell dpkg-parsechangelog | grep ^Version: | cut -d ' ' -f 2)_$(BUILDARCH).udeb debian-installer standard; \
++		dh_builddeb -p$(packudeb) --filename=$(packudeb)_$(shell dpkg-parsechangelog | grep ^Version: | cut -d ' ' -f 2)_$(BUILDARCH).udeb; \
++	fi
++
++	# build pmac-fdisk-udeb on powerpc
++	set -e; if [ -n "$(POWERPC)" ]; then \
++		dh_strip -p$(packpudeb); \
++		dh_installdeb -p$(packpudeb); \
++		dh_shlibdeps -p$(packpudeb); \
++		dh_gencontrol -p$(packpudeb) -- -isp "-DSubarchitecture=$(pmac_subarches)" -fdebian/files~; \
++		dpkg-distaddfile $(packpudeb)_$(shell dpkg-parsechangelog | grep ^Version: | cut -d ' ' -f 2)_$(BUILDARCH).udeb debian-installer standard; \
++		dh_builddeb -p$(packpudeb) --filename=$(packpudeb)_$(shell dpkg-parsechangelog | grep ^Version: | cut -d ' ' -f 2)_$(BUILDARCH).udeb; \
++	fi
++
++define checkdir
++	test -f debian/rules
++endef
++
++binary: binary-indep binary-arch
++
++checkroot:
++	$(checkdir)
++	test root = "`whoami`"
++
++.PHONY: binary binary-arch binary-indep clean checkroot
+--- mac-fdisk-0.1.orig/debian/postinst
++++ mac-fdisk-0.1/debian/postinst
+@@ -0,0 +1,50 @@
++#! /bin/sh
++set -e
++
++Arch=`dpkg --print-installation-architecture`
++
++#
++# make symlink /sbin/fdisk point to the native fdisk
++#
++
++# This is also true if /sbin/fdisk is a dangling symlink; in that case we
++# want to update the link, too.
++if [ ! -e /sbin/fdisk ]; then
++	machine=""
++	if [ "$Arch" = "m68k" ]; then
++		case `awk '$1 == "Model:" { print $2 }' /proc/hardware` in
++			Atari)
++				machine=atari
++				;;
++			Amiga)
++				machine=amiga
++				;;
++			Macintosh)
++				machine=mac
++				;;
++			Motorola) # MVME
++				;;
++		esac
++	elif [ "$Arch" = "powerpc" ]; then
++		# case `awk '$1 == "motherboard" { print $6 }' /proc/cpuinfo` in
++		# case `cat /proc/cpuinfo | grep -E "^motherboard" | sed -e 's/.* \([a-zA-Z]*\)$/\1/'` in
++		case `awk '$1 == "motherboard" { print $NF }' /proc/cpuinfo` in
++			Macintosh)
++				machine=mac
++				;;
++			*)
++				machine=pmac
++				;;
++		esac
++
++	fi
++	if [ -n "$machine" ] && [ -f /sbin/$machine-fdisk ]; then
++		ln -sf $machine-fdisk /sbin/fdisk
++	else
++		echo "No native fdisk for this machine type!"
++	fi
 +fi
-+# End automatically added section
++
++#DEBHELPER#
++
++exit 0
+--- mac-fdisk-0.1.orig/debian/control
++++ mac-fdisk-0.1/debian/control
+@@ -0,0 +1,68 @@
++Source: mac-fdisk
++Section: base
++Priority: required
++Build-Depends: debhelper, coreutils, grep
++Maintainer: Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>
++Standards-Version: 3.5.8.0
++
++Package: mac-fdisk
++Architecture: m68k powerpc ppc64
++Depends: ${shlibs:Depends}
++Description: Apple disk partition manipulation tool
++ The fdisk utilities from the MkLinux project, adopted for Linux/m68k.
++ Mac-fdisk allows you to create and edit the partition table of a disk. 
++ It supports only the Apple partition format used on Macintosh and PowerMac, 
++ use pmac-fdisk for PC partition format disks as used on PowerPC machines. 
++ Mac-fdisk is an interactive tool with a menu similar to PC fdisk, supported 
++ options are somewhat different from PC fdisk due to the differences in 
++ partition format.
++
++Package: pmac-fdisk
++Architecture: powerpc ppc64
++Depends: ${shlibs:Depends}
++Description: fdisk partition manipulation tool for PowerPC
++ The fdisk utilities from the MkLinux project, adopted for Linux/ppc.
++ Pmac-fdisk allows you to create and edit the partition table of a disk. 
++ It supports the PC partition format as used on PowerPC. It is an 
++ interactive tool similar to PC fdisk. 
++
++Package: pmac-fdisk-cross
++Architecture: m68k
++Section: otherosfs
++Priority: extra
++Depends: ${shlibs:Depends}
++Description: fdisk partition manipulation tool for PowerPC
++ The fdisk utilities from the MkLinux project, adopted for Linux/ppc.
++ Pmac-fdisk allows you to create and edit the partition table of a disk. 
++ It supports the PC partition format as used on PowerPC. It is an 
++ interactive tool similar to PC fdisk. 
++
++Package: mac-fdisk-udeb
++Architecture: powerpc ppc64 m68k
++Priority: standard
++Section: debian-installer
++Depends: ${shlibs:Depends}
++Description:  Apple disk partition manipulation tool
++ The fdisk utilities from the MkLinux project, adopted for Linux/m68k.
++ Mac-fdisk allows you to create and edit the partition table of a disk. 
++ It supports only the Apple partition format used on Macintosh and PowerMac, 
++ use pmac-fdisk for PC partition format disks as used on PowerPC machines. 
++ Mac-fdisk is an interactive tool with a menu similar to PC fdisk, supported 
++ options are somewhat different from PC fdisk due to the differences in 
++ partition format.
++ .
++ This is a minimal mac-fdisk package used by the debian-installer.
++
++Package: pmac-fdisk-udeb
++Architecture: powerpc ppc64
++Priority: standard
++Section: debian-installer
++Depends: ${shlibs:Depends}
++Description: fdisk partition manipulation tool for PowerPC
++ The fdisk utilities from the MkLinux project, adopted for Linux/ppc.
++ Pmac-fdisk allows you to create and edit the partition table of a disk. 
++ It supports the PC partition format as used on PowerPC. It is an 
++ interactive tool similar to PC fdisk. 
++ .
++ This is a minimal pmac-fdisk package used by the debian-installer.
++
 --- mac-fdisk-0.1.orig/debian/copyright
 +++ mac-fdisk-0.1/debian/copyright
 @@ -0,0 +1,25 @@
@@ -1037,346 +1459,6 @@
 + * LOSS OF USE, DATA OR PROFITS, WHETHER IN ACTION OF CONTRACT, 
 + * NEGLIGENCE, OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION 
 + * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. 
---- mac-fdisk-0.1.orig/debian/control
-+++ mac-fdisk-0.1/debian/control
-@@ -0,0 +1,68 @@
-+Source: mac-fdisk
-+Section: base
-+Priority: required
-+Build-Depends: debhelper, coreutils, grep
-+Maintainer: Michael Schmitz <schmitz@biophys.uni-duesseldorf.de>
-+Standards-Version: 3.5.8.0
-+
-+Package: mac-fdisk
-+Architecture: m68k powerpc
-+Depends: ${shlibs:Depends}
-+Description: Apple disk partition manipulation tool
-+ The fdisk utilities from the MkLinux project, adopted for Linux/m68k.
-+ Mac-fdisk allows you to create and edit the partition table of a disk. 
-+ It supports only the Apple partition format used on Macintosh and PowerMac, 
-+ use pmac-fdisk for PC partition format disks as used on PowerPC machines. 
-+ Mac-fdisk is an interactive tool with a menu similar to PC fdisk, supported 
-+ options are somewhat different from PC fdisk due to the differences in 
-+ partition format.
-+
-+Package: pmac-fdisk
-+Architecture: powerpc
-+Depends: ${shlibs:Depends}
-+Description: fdisk partition manipulation tool for PowerPC
-+ The fdisk utilities from the MkLinux project, adopted for Linux/ppc.
-+ Pmac-fdisk allows you to create and edit the partition table of a disk. 
-+ It supports the PC partition format as used on PowerPC. It is an 
-+ interactive tool similar to PC fdisk. 
-+
-+Package: pmac-fdisk-cross
-+Architecture: m68k
-+Section: otherosfs
-+Priority: extra
-+Depends: ${shlibs:Depends}
-+Description: fdisk partition manipulation tool for PowerPC
-+ The fdisk utilities from the MkLinux project, adopted for Linux/ppc.
-+ Pmac-fdisk allows you to create and edit the partition table of a disk. 
-+ It supports the PC partition format as used on PowerPC. It is an 
-+ interactive tool similar to PC fdisk. 
-+
-+Package: mac-fdisk-udeb
-+Architecture: powerpc m68k
-+Priority: standard
-+Section: debian-installer
-+Depends: ${shlibs:Depends}
-+Description:  Apple disk partition manipulation tool
-+ The fdisk utilities from the MkLinux project, adopted for Linux/m68k.
-+ Mac-fdisk allows you to create and edit the partition table of a disk. 
-+ It supports only the Apple partition format used on Macintosh and PowerMac, 
-+ use pmac-fdisk for PC partition format disks as used on PowerPC machines. 
-+ Mac-fdisk is an interactive tool with a menu similar to PC fdisk, supported 
-+ options are somewhat different from PC fdisk due to the differences in 
-+ partition format.
-+ .
-+ This is a minimal mac-fdisk package used by the debian-installer.
-+
-+Package: pmac-fdisk-udeb
-+Architecture: powerpc
-+Priority: standard
-+Section: debian-installer
-+Depends: ${shlibs:Depends}
-+Description: fdisk partition manipulation tool for PowerPC
-+ The fdisk utilities from the MkLinux project, adopted for Linux/ppc.
-+ Pmac-fdisk allows you to create and edit the partition table of a disk. 
-+ It supports the PC partition format as used on PowerPC. It is an 
-+ interactive tool similar to PC fdisk. 
-+ .
-+ This is a minimal pmac-fdisk package used by the debian-installer.
-+
---- mac-fdisk-0.1.orig/debian/rules
-+++ mac-fdisk-0.1/debian/rules
-@@ -0,0 +1,183 @@
-+#!/usr/bin/make -f
-+# Made with the aid of debmake, by Christoph Lameter,
-+# based on the sample debian/rules file for GNU hello by Ian Jackson.
-+
-+export DH_VERBOSE=1
-+
-+BUILDARCH = $(shell dpkg --print-gnu-build-architecture)
-+
-+packmn  = mac-fdisk
-+packmc  = mac-fdisk-cross
-+packpmn = pmac-fdisk
-+packpmc = pmac-fdisk-cross
-+packudeb = mac-fdisk-udeb
-+packpudeb = pmac-fdisk-udeb
-+tmpmn   = debian/tmp
-+tmpmc   = debian/$(packmc)
-+tmppmn  = debian/$(packpmn)
-+tmppmc  = debian/$(packpmc)
-+tmpudeb = debian/$(packudeb)
-+tmppudeb = debian/$(packpudeb)
-+docmn   = $(tmpmn)/usr/share/doc/$(packmn)
-+docmc   = $(tmpmc)/usr/share/doc/$(packmc)
-+docpmn  = $(tmppmn)/usr/share/doc/$(packpmn)
-+docpmc  = $(tmppmc)/usr/share/doc/$(packpmc)
-+
-+build:
-+	$(checkdir)
-+	make CFLAGS="-O2 -g -Wall"
-+	touch build
-+
-+clean:
-+	$(checkdir)
-+	-rm -f build
-+	-make clean
-+	-rm -f `find . -name "*~"`
-+	-rm -rf $(tmpmn) $(tmpmc) $(tmppmn) $(tmppmc) $(tmpudeb) $(tmppudeb) debian/files* core debian/substvars
-+
-+binary-indep: build
-+	$(checkdir)
-+# There are no architecture-independent files to be uploaded
-+# generated by this package.  If there were any they would be
-+# made here.
-+
-+binary-arch: build
-+	dh_testdir pdisk.h
-+	dh_testroot
-+	dh_clean -k
-+	#dh_installdirs
-+	# we don't want to package the pdisk man page
-+	mv pdisk.8 pdisk.8.in
-+	set -e; if [ "$(BUILDARCH)" = "m68k" -o "$(BUILDARCH)" = "powerpc" ]; then \
-+		install -d $(tmpmn)/sbin; \
-+		install -m 755 pdisk $(tmpmn)/sbin/mac-fdisk; \
-+		install -d $(tmpmn)/usr/share/man/man8; \
-+		install -m 644 mac-fdisk.8.in $(tmpmn)/usr/share/man/man8/mac-fdisk.8; \
-+		dh_installdocs README -p$(packmn); \
-+		dh_installmanpages -p$(packmn); \
-+		dh_installchangelogs HISTORY -p$(packmn); \
-+	else \
-+		install -d $(tmpmc)/usr/sbin; \
-+		install -m 755 pdisk $(tmpmc)/usr/sbin/mac-fdisk; \
-+		install -d $(tmpmn)/usr/share/man/man8; \
-+		install -m 644 mac-fdisk.8.in $(tmpmn)/usr/share/man/man8/mac-fdisk.8; \
-+		dh_installdocs README -p$(packmc); \
-+		dh_installmanpages  -p$(packmc); \
-+		dh_installchangelogs HISTORY -p$(packmc); \
-+	fi
-+	set -e; if [ "$(BUILDARCH)" = "powerpc" ]; then \
-+		install -d $(tmppmn)/sbin; \
-+		install -m 755 fdisk $(tmppmn)/sbin/pmac-fdisk; \
-+		install -d $(tmppmn)/usr/share/man/man8; \
-+		install -m 644 pmac-fdisk.8.in $(tmppmn)/usr/share/man/man8/pmac-fdisk.8; \
-+		dh_installdocs README -p$(packpmn); \
-+		dh_installmanpages  -p$(packpmn); \
-+		dh_installchangelogs HISTORY -p$(packpmn); \
-+	else \
-+		install -d $(tmppmc)/usr/sbin; \
-+		install -m 755 fdisk $(tmppmc)/usr/sbin/pmac-fdisk; \
-+		install -d $(tmppmc)/usr/share/man/man8; \
-+		install -m 644 pmac-fdisk.8.in $(tmppmc)/usr/share/man/man8/pmac-fdisk.8; \
-+		dh_installdocs README -p$(packpmc); \
-+		dh_installmanpages  -p$(packpmc); \
-+		dh_installchangelogs HISTORY -p$(packpmc); \
-+	fi
-+	# install README.Debian also in cross package (not done by dh_installdocs)
-+	set -e; if [ "$(BUILDARCH)" != "m68k" -a "$(BUILDARCH)" != "powerpc" ]; then \
-+		install -m 644 debian/README.debian $(docmc)/README.Debian; \
-+	fi
-+	# and move the pdisk man page back again ...
-+	mv pdisk.8.in pdisk.8
-+
-+	# install mac-fdisk-udeb files
-+	set -e; if [ "$(BUILDARCH)" = "m68k" -o "$(BUILDARCH)" = "powerpc" ]; then \
-+		install -d $(tmpudeb)/sbin; \
-+		install -d $(tmpudeb)/DEBIAN; \
-+		install -m 755 pdisk $(tmpudeb)/sbin/mac-fdisk; \
-+	fi
-+
-+	# install pmac-fdisk-udeb files
-+	set -e; if [ "$(BUILDARCH)" = "powerpc" ]; then \
-+		install -d $(tmppudeb)/usr/sbin; \
-+		install -d $(tmppudeb)/DEBIAN; \
-+		install -m 755 fdisk $(tmppudeb)/usr/sbin/pmac-fdisk; \
-+	fi
-+
-+	# build native pdisk only for m68k, cross package only for others
-+	set -e; if [ "$(BUILDARCH)" = "m68k" -o "$(BUILDARCH)" = "powerpc" ]; then \
-+		dh_strip -p$(packmn) -P$(tmpmn); \
-+		dh_compress -p$(packmn) -P$(tmpmn); \
-+		dh_fixperms -p$(packmn) -P$(tmpmn); \
-+		dh_installdeb -p$(packmn) -P$(tmpmn); \
-+		dh_shlibdeps -p$(packmn) -P$(tmpmn); \
-+		dh_gencontrol -p$(packmn) -P$(tmpmn); \
-+		dh_md5sums -p$(packmn) -P$(tmpmn); \
-+	else \
-+		dh_strip -p$(packmc); \
-+		dh_compress -p$(packmc); \
-+		dh_fixperms -p$(packmc); \
-+		dh_installdeb -p$(packmc); \
-+		dh_shlibdeps -p$(packmc); \
-+		dh_gencontrol -p$(packmc); \
-+		dh_md5sums -p$(packmc); \
-+	fi
-+	# build native fdisk only for powerpc, cross package only for others
-+	set -e; if [ "$(BUILDARCH)" = "powerpc" ]; then \
-+		dh_strip -p$(packpmn); \
-+		dh_compress -p$(packpmn); \
-+		dh_fixperms -p$(packpmn); \
-+		dh_installdeb -p$(packpmn); \
-+		dh_shlibdeps -p$(packpmn); \
-+		dh_gencontrol -p$(packpmn); \
-+		dh_md5sums -p$(packpmn); \
-+	else \
-+		dh_strip -p$(packpmc); \
-+		dh_compress -p$(packpmc); \
-+		dh_fixperms -p$(packpmc); \
-+		dh_installdeb -p$(packpmc); \
-+		dh_shlibdeps -p$(packpmc); \
-+		dh_gencontrol -p$(packpmc); \
-+		dh_md5sums -p$(packpmc); \
-+	fi
-+	set -e; if [ "$(BUILDARCH)" = "m68k" -o "$(BUILDARCH)" = "powerpc" ]; then \
-+		dh_builddeb -p$(packmn) -P$(tmpmn); \
-+	else \
-+		dh_builddeb -p$(packmc); \
-+	fi
-+	set -e; if [ "$(BUILDARCH)" = "powerpc" ]; then \
-+		dh_builddeb -p$(packpmn); \
-+	else \
-+		dh_builddeb -p$(packpmc); \
-+	fi
-+
-+	# build mac-fdisk-udeb on powerpc and m68k
-+	set -e; if [ "$(BUILDARCH)" = "m68k" -o "$(BUILDARCH)" = "powerpc" ]; then \
-+		dh_strip -p$(packudeb); \
-+		dh_installdeb -p$(packudeb); \
-+		dh_shlibdeps -p$(packudeb); \
-+		dh_gencontrol -p$(packudeb) -- -isp -fdebian/files~; \
-+		dpkg-distaddfile $(packudeb)_$(shell dpkg-parsechangelog | grep ^Version: | cut -d ' ' -f 2)_$(BUILDARCH).udeb debian-installer standard; \
-+		dh_builddeb -p$(packudeb) --filename=$(packudeb)_$(shell dpkg-parsechangelog | grep ^Version: | cut -d ' ' -f 2)_$(BUILDARCH).udeb; \
-+	fi
-+
-+	# build pmac-fdisk-udeb on powerpc
-+	set -e; if [ "$(BUILDARCH)" = "powerpc" ]; then \
-+		dh_strip -p$(packpudeb); \
-+		dh_installdeb -p$(packpudeb); \
-+		dh_shlibdeps -p$(packpudeb); \
-+		dh_gencontrol -p$(packpudeb) -- -isp -fdebian/files~; \
-+		dpkg-distaddfile $(packpudeb)_$(shell dpkg-parsechangelog | grep ^Version: | cut -d ' ' -f 2)_$(BUILDARCH).udeb debian-installer standard; \
-+		dh_builddeb -p$(packpudeb) --filename=$(packpudeb)_$(shell dpkg-parsechangelog | grep ^Version: | cut -d ' ' -f 2)_$(BUILDARCH).udeb; \
-+	fi
-+
-+define checkdir
-+	test -f debian/rules
-+endef
-+
-+binary: binary-indep binary-arch
-+
-+checkroot:
-+	$(checkdir)
-+	test root = "`whoami`"
-+
-+.PHONY: binary binary-arch binary-indep clean checkroot
---- mac-fdisk-0.1.orig/debian/pmac-fdisk.postinst.debhelper
-+++ mac-fdisk-0.1/debian/pmac-fdisk.postinst.debhelper
-@@ -0,0 +1,7 @@
-+# Automatically added by dh_installdocs
-+if [ "$1" = "configure" ]; then
-+	if [ -d /usr/doc -a ! -e /usr/doc/pmac-fdisk -a -d /usr/share/doc/pmac-fdisk ]; then
-+		ln -sf ../share/doc/pmac-fdisk /usr/doc/pmac-fdisk
-+	fi
-+fi
-+# End automatically added section
---- mac-fdisk-0.1.orig/debian/postinst
-+++ mac-fdisk-0.1/debian/postinst
-@@ -0,0 +1,50 @@
-+#! /bin/sh
-+set -e
-+
-+Arch=`dpkg --print-installation-architecture`
-+
-+#
-+# make symlink /sbin/fdisk point to the native fdisk
-+#
-+
-+# This is also true if /sbin/fdisk is a dangling symlink; in that case we
-+# want to update the link, too.
-+if [ ! -e /sbin/fdisk ]; then
-+	machine=""
-+	if [ "$Arch" == "m68k" ]; then
-+		case `awk '$1 == "Model:" { print $2 }' /proc/hardware` in
-+			Atari)
-+				machine=atari
-+				;;
-+			Amiga)
-+				machine=amiga
-+				;;
-+			Macintosh)
-+				machine=mac
-+				;;
-+			Motorola) # MVME
-+				;;
-+		esac
-+	elif [ "$Arch" == "powerpc" ]; then
-+		# case `awk '$1 == "motherboard" { print $6 }' /proc/cpuinfo` in
-+		# case `cat /proc/cpuinfo | egrep "^motherboard" | sed -e 's/.* \([a-zA-Z]*\)$/\1/'` in
-+		case `awk '$1 == "motherboard" { print $NF }' /proc/cpuinfo` in
-+			Macintosh)
-+				machine=mac
-+				;;
-+			*)
-+				machine=pmac
-+				;;
-+		esac
-+
-+	fi
-+	if [ -n "$machine" -a -f /sbin/$machine-fdisk ]; then
-+		ln -sf $machine-fdisk /sbin/fdisk
-+	else
-+		echo "No native fdisk for this machine type!"
-+	fi
-+fi
-+
-+#DEBHELPER#
-+
-+exit 0
---- mac-fdisk-0.1.orig/debian/pmac-fdisk.prerm.debhelper
-+++ mac-fdisk-0.1/debian/pmac-fdisk.prerm.debhelper
-@@ -0,0 +1,5 @@
-+# Automatically added by dh_installdocs
-+if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/pmac-fdisk ]; then
-+	rm -f /usr/doc/pmac-fdisk
-+fi
-+# End automatically added section
---- mac-fdisk-0.1.orig/debian/mac-fdisk-udeb.substvars
-+++ mac-fdisk-0.1/debian/mac-fdisk-udeb.substvars
-@@ -0,0 +1 @@
-+shlibs:Depends=libc6 (>= 2.2.5-13)
---- mac-fdisk-0.1.orig/debian/pmac-fdisk.substvars
-+++ mac-fdisk-0.1/debian/pmac-fdisk.substvars
-@@ -0,0 +1 @@
-+shlibs:Depends=libc6 (>= 2.2.5-13)
---- mac-fdisk-0.1.orig/debian/pmac-fdisk-udeb.substvars
-+++ mac-fdisk-0.1/debian/pmac-fdisk-udeb.substvars
-@@ -0,0 +1 @@
-+shlibs:Depends=libc6 (>= 2.2.5-13)
 --- mac-fdisk-0.1.orig/mac-fdisk.8.in
 +++ mac-fdisk-0.1/mac-fdisk.8.in
 @@ -0,0 +1,262 @@
