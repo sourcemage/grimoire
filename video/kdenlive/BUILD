@@ -1,2 +1,2 @@
-patch  -p1  <  $SPELL_DIRECTORY/gcc.diff  &&
+make -f Makefile.cvs   &&
 default_build
