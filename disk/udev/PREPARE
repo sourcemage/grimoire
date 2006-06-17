@@ -1,3 +1,6 @@
+# Source grimoire FUNCTIONS to have get_kernel_version
+. $SCRIPT_DIRECTORY/../../FUNCTIONS
+
 # testing if the install_config_file function is available
 # we don't want to spend time building udev if we can't install it properly
 
@@ -7,16 +10,18 @@ if  ! grep -q install_config_file /var/lib/sorcery/modules/libapi ;  then
     return  1
 fi                                                                                              &&
 
-message "${MESSAGE_COLOR}"                                                                      &&
-message "This update will move your current udev.rules to /etc/udev/rules.d/00-local.rules"        &&
-message "As this is a major change, it won't happen unless\
- you answer y to the following question. ${DEFAULT_COLOR}"                                      &&
+KERNEL_VERSION=$(get_kernel_version)  &&
+PATCHLEVEL=`echo $KERNEL_VERSION | cut -d. -f2`  &&
+SUBLEVEL=`echo $KERNEL_VERSION | cut -d. -f3`  &&
+tmp=`echo $KERNEL_VERSION | cut -d. -f3 | sed 's/^[0-9]*//g'`  &&
+SUBLEVEL=${SUBLEVEL/$tmp/}  &&
 
-config_query  UDEV_UPDATE2  "Do you still wish to continue?"  n                                 &&
-
-if  [  "$UDEV_UPDATE2"  ==  "n"  ];  then
-  return  1
+# kernel < 2.6.15-rc1 can't use udev > 0.93 tarballs because udevsend has been removed
+if [ $SUBLEVEL -ge 15 -a $PATCHLEVEL -ge 6 ]; then
+  RECENT_KERNEL="y"
 else
-  message "A default udev.rules will be placed in /etc/udev/rules.d/50-default.rules" &&
-  message "And some examples in /etc/udev/rules.d/rules.examples"
-fi
+  RECENT_KERNEL="n"  &&
+  message  "You have a kernel < 2.6.15, it is too old for latest udev."  &&
+  message  "Switching to 092..."
+fi  &&
+persistent_add RECENT_KERNEL
