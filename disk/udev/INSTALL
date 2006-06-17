@@ -9,15 +9,23 @@ for file in $SCRIPT_DIRECTORY/rules/* ; do
   install_config_file $file ${UDEV_CFG}/rules.d/$(basename $file)
 done  &&
 
-# install diff default rules on hotplug and non-hotplug systems
+# install diff default rules on hotplug and non-hotplug systems, install 
+# required modprobe aliases for non-hotplug rules
 if spell_ok hotplug; then
-  install_config_file $SCRIPT_DIRECTORY/50-default.rules-hotplug ${UDEV_CFG}/rules.d/50-default.rules
+  install_config_file $SCRIPT_DIRECTORY/52-modules.rules-hotplug ${UDEV_CFG}/rules.d/52-modules.rules
 else
-  install_config_file $SCRIPT_DIRECTORY/50-default.rules ${UDEV_CFG}/rules.d/50-default.rules
+  install_config_file $SCRIPT_DIRECTORY/52-modules.rules ${UDEV_CFG}/rules.d/52-modules.rules  &&
+  mkdir -p $INSTALL_ROOT/etc/modprobe.d  &&
+  install_config_file $SCRIPT_DIRECTORY/modprobe.aliases $INSTALL_ROOT/etc/modprobe.d/udev
 fi
 
+# install early rules
+install_config_file $SOURCE_DIRECTORY/etc/udev/05-udev-early.rules  \
+                           ${UDEV_CFG}/rules.d/05-udev-early.rules
+
 # install alsa rules
-install_config_file etc/udev/suse/40-alsa.rules ${UDEV_CFG}/rules.d/40-alsa.rules
+install_config_file etc/udev/suse/40-alsa.rules  \
+              ${UDEV_CFG}/rules.d/40-alsa.rules
 
 # udevstart and udevsend are nolonger installed by default. we still need them
 install udevsend udevstart  ${INSTALL_ROOT}/sbin &&
@@ -34,7 +42,7 @@ $INSTALL_ROOT/lib/udev                              &&
 
 if [[ "$UDEV_EXTRAS" == 'y' ]]; then
   make EXTRAS="extras/ata_id extras/dasd_id extras/edd_id extras/floppy extras/scsi_id extras/usb_id extras/volume_id" prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ ${OPTS} V=true install   &&
-  install  extras/path_id/path_id  ${INSTALL_ROOT}/sbin  &&
+  install  extras/path_id/path_id  ${INSTALL_ROOT}/lib/udev  &&
 
   if [[ "$UDEV_PERSIST" == 'y' ]];then
     install_config_file etc/udev/60-persistent-storage.rules ${UDEV_CFG}/rules.d/60-persistent-storage.rules

@@ -1,0 +1,35 @@
+# Module loading rules for systems without hotplug
+
+# Autoload modules that lack aliases but have them defined in 
+# /etc/modprobe.conf
+ENV{MODALIAS}!="?*", SUBSYSTEM=="pnp", RUN+="/bin/sh -c 'while read id; do /sbin/modprobe pnp:d$$id; done < /sys$devpath/id'"
+
+# Check whether we need these rules for this event
+ACTION!="add", GOTO="modprobe_end"
+
+# Autoload modules with aliases
+SYSFS{modalias}=="?*", RUN+="/sbin/modprobe $env{MODALIAS}"
+
+# PCMCIA
+SUBSYSTEM=="pcmcia_socket", RUN+="/sbin/modprobe pcmcia"
+
+# I2O
+SUBSYSTEM!="i2o", GOTO="i2o_end"
+RUN+="/sbin/modprobe i2o-block"
+LABEL="i2o_end"
+
+# MMC
+SUBSYSTEM!="mmc", GOTO="mmc_end"
+RUN+="/sbin/modprobe mmc-block"
+LABEL="mmc_end"
+
+# SCSI
+SUBSYSTEM!="scsi_device", GOTO="scsi_device_end"
+SYSFS{type}=="0|7|14", RUN+="/sbin/modprobe sd_mod"
+SYSFS{type}=="1", SYSFS{vendor}=="Onstream", SYSFS{model}!="ADR*" RUN+="/sbin/modprobe osst"
+SYSFS{type}=="1", RUN+="/sbin/modprobe st"
+SYSFS{type}=="[345]", RUN+="/sbin/modprobe sr_mod"
+RUN+="/sbin/modprobe sg"
+LABEL="scsi_device_end"
+
+LABEL="modprobe_end"
