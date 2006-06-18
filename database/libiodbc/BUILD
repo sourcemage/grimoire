@@ -1,3 +1,2 @@
-make_single &&
-default_build &&
-make_normal
+OPTS="--disable-static $OPTS"  &&
+default_build 
