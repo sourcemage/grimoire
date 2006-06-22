@@ -3,14 +3,15 @@
 #
 local  OLD_OPTS=$OPTS  &&
 
-OPTS="$GVIM_MULTIBYTE     \
-      --disable-workshop  \
-      --enable-gui=no     \
-      --without-x         \
-      --disable-xim       \
-      --disable-fontset   \
-      $GVIM_HANGUL        \
-      $OPTS"              &&
+OPTS="$GVIM_MULTIBYTE                 \
+      --with-features=${VIM_FEATURES} \
+      --disable-workshop              \
+      --enable-gui=no                 \
+      --without-x                     \
+      --disable-xim                   \
+      --disable-fontset               \
+      $GVIM_HANGUL                    \
+      $OPTS"                          &&
 
 sedit  '/shUntil\|link shRepeat/{
      /shUntil/N
