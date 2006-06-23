@@ -1,2 +1,2 @@
-if ! list_find $AM_SND "arts" ; then OPTS="$OPTS --without-arts"; fi  &&
+OPTS="$OPTS --without-arts" &&
 default_build
