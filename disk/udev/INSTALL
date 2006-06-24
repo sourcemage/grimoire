@@ -1,12 +1,14 @@
 install -d ${INSTALL_ROOT}/sys                &&
-local file UDEV_CFG=${INSTALL_ROOT}/etc/udev  &&
+local FILE UDEV_CFG=${INSTALL_ROOT}/etc/udev  &&
+# udev <= 092 and > 092 gives a different name for the firmware helper
+local FIRMWARE_HELPER_NAME FIRMWARE_RULE      &&
 mkdir  -p  ${UDEV_CFG}/rules.d                &&
 
 install_config_file $SCRIPT_DIRECTORY/udev.conf ${UDEV_CFG}/udev.conf &&
 install_config_file $SCRIPT_DIRECTORY/udev.missing ${UDEV_CFG}/udev.missing &&
 
-for file in $SCRIPT_DIRECTORY/rules/* ; do
-  install_config_file $file ${UDEV_CFG}/rules.d/$(basename $file)
+for FILE in $SCRIPT_DIRECTORY/rules/* ; do
+  install_config_file $FILE ${UDEV_CFG}/rules.d/$(basename $FILE)
 done  &&
 
 # install diff default rules on hotplug and non-hotplug systems, install 
@@ -27,18 +29,27 @@ install_config_file $SOURCE_DIRECTORY/etc/udev/05-udev-early.rules  \
 install_config_file etc/udev/suse/40-alsa.rules  \
               ${UDEV_CFG}/rules.d/40-alsa.rules
 
-# udevstart and udevsend are nolonger installed by default. we still need them
-install udevsend udevstart  ${INSTALL_ROOT}/sbin &&
+if [ "$RECENT_KERNEL" == "n" ]; then
+  # udevstart and udevsend are nolonger installed by default. we need them for kernel < 2.6.15rc1
+  install udevsend udevstart  ${INSTALL_ROOT}/sbin  &&
+  FIRMWARE_HELPER_NAME="firmware_helper"
+else
+  FIRMWARE_HELPER_NAME="firmware.sh"
+fi  &&
+
+FIRMWARE_RULE="SUBSYSTEM==\"firmware\", ACTION==\"add\", RUN+=\"/lib/udev/$FIRMWARE_HELPER_NAME\""  &&
+echo $FIRMWARE_RULE >> ${UDEV_CFG}/rules.d/50-default.rules  &&
 
 make prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ V=true ${OPTS} install   &&
 make EXTRAS="extras/run_directory extras/cdrom_id extras/firmware" \
   prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ \
   V=true ${OPTS} install &&
 
-# Install interface name retriever script
-mkdir -p /lib/udev                                  &&
-install -m 755 $SCRIPT_DIRECTORY/helpers/mac2name   \
-$INSTALL_ROOT/lib/udev                              &&
+# Install helper scripts
+mkdir -p /lib/udev  &&
+for FILE in $SCRIPT_DIRECTORY/helpers/*; do
+  install -m 755 $FILE $INSTALL_ROOT/lib/udev
+done  &&
 
 if [[ "$UDEV_EXTRAS" == 'y' ]]; then
   make EXTRAS="extras/ata_id extras/dasd_id extras/edd_id extras/floppy extras/scsi_id extras/usb_id extras/volume_id" prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ ${OPTS} V=true install   &&
@@ -48,14 +59,18 @@ if [[ "$UDEV_EXTRAS" == 'y' ]]; then
     install_config_file etc/udev/60-persistent-storage.rules ${UDEV_CFG}/rules.d/60-persistent-storage.rules
   fi
 
+  if [ "$RECENT_KERNEL" == "y" ]; then
+    if [[ "$UDEV_PERSIST_INPUT" == 'y' ]];then
+      install_config_file etc/udev/60-persistent-input.rules ${UDEV_CFG}/rules.d/60-persistent-input.rules
+    fi
+  fi
 fi  &&
 
 if [[ "$UDEV_STATIC" == 'y' ]]; then
   pushd __static__ &&
   # we are not supposed to use `make install'
-  local __FILE
-  for __FILE in $UDEV_STATIC_TARGET; do
-    install -D $__FILE $INSTALL_ROOT/usr/sbin/$__FILE.static
+  for FILE in $UDEV_STATIC_TARGET; do
+    install -D $FILE $INSTALL_ROOT/usr/sbin/$FILE.static
   done &&
   popd
 fi

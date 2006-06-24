@@ -1,12 +1,13 @@
-MUNAME=`uname -m`
-if  [ $MUNAME = 'x86_64' ]
-then
-  sedit  "s/^CFLAGS_SHLIB =/CFLAGS_SHLIB = -fPIC/" Makefile.config.in
-fi &&
+#sedit  "s/^CFLAGS_SHLIB =/CFLAGS_SHLIB = ${CFLAGS}/" Makefile.config.in &&
+#sedit  "s/^\(CFLAGS_FOR_BUILD = \)\$(CFLAGS)/\1${CFLAGS}/" Makefile.config.in &&
 echo  -e  "\ngnu\nregular\nshared\ny\n\n\n\n\n\n\n\n\n\n\n\n"  |
 #  Ignores  $OPTS
 # to get our OPTS and CFLAGS, etc we'll need to sed Makefile.config.in
 ./configure                        &&
+# I have no idea how netpbm gets its standard set
+# of cflags, the entries in Makefile.config.in are all
+# commented out!
+sedit  "s/^\(CFLAGS =\)/\1 ${CFLAGS} /" Makefile.config &&
 make_single                        &&
 make                               &&
 if [ -e /tmp/netpbm ]; then

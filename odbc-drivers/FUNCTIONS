@@ -1,0 +1,39 @@
+#-------------------------------------------------------------------------
+## Section-default odbc configuration scripts
+#-------------------------------------------------------------------------
+# all spells in this section have a file odbc.in which describes the settings for the 
+# driver. The functions parse  that file and perform the appropriate update to the 
+# odbc configuration files.
+
+function odbc_install_cfg() {
+#  local ODBC_DRIVER
+#persistent_read ODBC_DRIVER
+  if spell_ok unixodbc;then
+    odbcinst -i -d  -f $SPELL_DIRECTORY/odbc.in
+  else
+    message ${SPELL_COLOR}you must configure the $SPELL driver manually.
+  fi
+}
+
+
+function default_post_install() {
+  persistent_add ODBC_DRIVER
+  ODBC_DRIVER=`grep "\[" $SPELL_DIRECTORY/odbc.in|sed "s|\[||;s|\]||"`
+  odbc_install_cfg
+}
+
+function default_post_resurrect() {
+ persistent_read ODBC_DRIVER
+ odbc_install_cfg
+}
+
+
+function default_pre_remove() {
+  persistent_read ODBC_DRIVER
+  if spell_ok unixodbc;then
+    odbcinst -u -d -n $ODBC_DRIVER
+  else
+    message "${SPELL_COLOR}you must manually remove the $ODBC_DRIVER ODBC driver" \
+            "from /etc/odbc.ini${DEFAULT_COLOR}"
+  fi
+}

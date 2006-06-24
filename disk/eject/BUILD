@@ -1,2 +1,2 @@
-sedit  's:-I/usr/src/linux -I/usr/src/linux/include::'  Makefile.in  &&
+OPTS="--enable-default-device=$DEFAULT_DEV"  &&
 default_build

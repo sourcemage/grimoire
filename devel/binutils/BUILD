@@ -8,5 +8,6 @@ cd     buildit
               --mandir=${TRACK_ROOT}/usr/share/man       \
               --enable-shared               \
               --disable-static              \
+              --disable-werror              \
               $OPTS  &&
 make DESTDIR=$INSTALL_ROOT
