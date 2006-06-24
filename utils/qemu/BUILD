@@ -4,6 +4,6 @@ message "Target list:$QEMU_ARCHS"  &&
 --prefix=/usr \
 --sysconfdir=/etc \
 --localstatedir=/var \
---target-list="$QEMU_ARCHS"
+--target-list="$QEMU_ARCHS" \
 $OPTS &&
 make

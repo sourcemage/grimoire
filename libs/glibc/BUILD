@@ -45,6 +45,7 @@ unset  LD_LIBRARY_PATH  &&
 
 #
 # Setup sanitised glibc-kernel-headers for the glibc compile
+# ...as well as other arch-dependend specialties
 #
 persistent_add  GLIBC_ARCH  &&
 if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
@@ -89,7 +90,18 @@ elif [[ ${SMGL_COMPAT_ARCHS[0]} == 32 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; th
   sedit  "s:CPPFLAGS += -DHAVE_INITFINI:CPPFLAGS += -DHAVE_INITFINI -fno-pie -fno-PIE:"  csu/Makefile
   export    CFLAGS="${CFLAGS/-fcall-used-g7/}"
   export    CFLAGS="$CFLAGS  -fcall-used-g6"
-fi  &&
+elif [[ ${SMGL_COMPAT_ARCHS[1]} == alpha ]]; then
+  # This is a first attempt to get alpha going, being paranoid about any CFLAGS,
+  # not without reason: -Os/-O breaks compile in strange ways:
+  #  either an elf/ld.so that segfaults (build failing at sunrpc) or
+  #  internal compiler error(s) in intl/
+  # glibc knows itself what flags to choose
+  export CFLAGS="" &&
+  GLIBC_ARCH=alpha
+else
+  message "Glibc spell doesn't know your architecture!" &&
+  false
+fi &&
 
 # set the asm headers to point to the correct architecture
 cd  $GLIBC_HEADERS_DIR/include  &&
