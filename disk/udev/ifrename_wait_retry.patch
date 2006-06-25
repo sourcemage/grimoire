@@ -1,0 +1,58 @@
+--- udev_device.c	2006-06-25 15:56:38.000000000 +0300
++++ udev_device.c.new	2006-06-25 15:52:20.000000000 +0300
+@@ -86,6 +86,7 @@
+ 	int sk;
+ 	struct ifreq ifr;
+ 	int retval;
++	int timeout = (1000000 / 50000) * 30; /* 30 seconds */
+ 
+ 	info("changing net interface name from '%s' to '%s'", udev->dev->kernel_name, udev->name);
+ 	if (udev->test_run)
+@@ -102,10 +103,44 @@
+ 	strlcpy(ifr.ifr_newname, udev->name, IFNAMSIZ);
+ 
+ 	retval = ioctl(sk, SIOCSIFNAME, &ifr);
+-	if (retval != 0)
+-		err("error changing net interface name: %s", strerror(errno));
+-	close(sk);
++	if (retval != 0) {
++		if (errno != EEXIST) {
++			err("error changing net interface name %s to %s: %s", ifr.ifr_name, ifr.ifr_newname, strerror(errno));
++			goto error;
++		}
++
++		/* Destination interface already exits.
++		 * First rename our interface to something temporary in case
++		 * we're trying to swap with that one. */
++		strlcpy(ifr.ifr_newname, udev->dev->kernel_name, IFNAMSIZ);
++		strlcat(ifr.ifr_newname, "_temp", IFNAMSIZ);
++
++		retval = ioctl(sk, SIOCSIFNAME, &ifr);
++		if (retval != 0) {
++			err("error changing net interface name %s to %s: %s", ifr.ifr_name, ifr.ifr_newname, strerror(errno));
++			goto error;
++		}
++
++		/* Now we loop until our target interface goes away. */
++		strlcpy(ifr.ifr_name, ifr.ifr_newname, IFNAMSIZ);
++		strlcpy(ifr.ifr_newname, udev->name, IFNAMSIZ);
++		while ((retval = ioctl(sk, SIOCSIFNAME, &ifr)) != 0) {
++			if (errno != EEXIST) {
++				err("error changing net interface name %s to %s: %s", ifr.ifr_name, ifr.ifr_newname, strerror(errno));
++				break;
++			}
++
++			if (timeout-- <= 0) {
++				err("error changing net interface name %s to %s: timeout", ifr.ifr_name, ifr.ifr_newname);
++				break;
++			}
+ 
++			usleep(50000);
++		}
++	}
++
++error:
++	close(sk);
+ 	return retval;
+ }
+ 
