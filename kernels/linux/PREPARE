@@ -1,29 +1,28 @@
-
+#!/bin/bash
 # kernel information directory
-kernelsdir="${SPELL_DIRECTORY}/info/kernels"
+local KERNELS_DIRECTORY="${SPELL_DIRECTORY}/info/kernels"
+
 # patches information directory
-patchesdir="${SPELL_DIRECTORY}/info/patches"
+local KPATCHES_DIRECTORY="${SPELL_DIRECTORY}/info/patches"
 # sourced from DETAILS to create SOURCE_URL SOURCE
 # KERNEL_VERSION environmental vars
-detailsdefaults="${CONFIG_CACHE}/details.defaults"
-dependsmakefile="${CONFIG_CACHE}/makefile.patches"
+local USER_KDETAILS="${CONFIG_CACHE}/${SPELL}.details.defaults"
+local DEPENDS_MAKEFILE="${CONFIG_CACHE}/${SPELL}.makefile.patches"
 # Latest versions of your favorite kernel sources and patches
-latestdefaults="${SPELL_DIRECTORY}/latest.defaults"
-# debug log duh ;)
-debug="${SPELL_DIRECTORY}/debug.log"
+local LATEST_KDEFAULTS="${SPELL_DIRECTORY}/latest.defaults"
 
 # Source patch info for the patch
 # this is used for getting specific information about the source name source url
 # verification checking what the dependancies are, things like that.
-source_patch()
+function source_patch()
 {	
 	local tmploc
 	case $1 in
 		LATEST*)
-			tmploc=$(find $patchesdir/*/${!1} | head -n 1)
+			tmploc=$(find $KPATCHES_DIRECTORY/*/${!1} | head -n 1)
 			;;
 		*)
-			tmploc=$(find $patchesdir/*/${1} | head -n 1)
+			tmploc=$(find $KPATCHES_DIRECTORY/*/${1} | head -n 1)
 	esac &&
 	[ -f $tmploc ] && . $tmploc
 }
@@ -31,22 +30,22 @@ source_patch()
 # Source info for patch
 # this is used for general info about the patch, what the patch is, contains,
 # made by, things like that.
-source_info()
+function source_info()
 {
 	local tmploc
 	case $1 in
 		LATEST*)
-			tmploc=$(find $patchesdir/*/${!1} | head -n 1)
+			tmploc=$(find $KPATCHES_DIRECTORY/*/${!1} | head -n 1)
 			;;
 		*)
-			tmploc=$(find $patchesdir/*/$1 | head -n 1)
+			tmploc=$(find $KPATCHES_DIRECTORY/*/$1 | head -n 1)
 			;;
 	esac &&
 	[ -f `dirname $tmp`/.info ] && . `dirname $tmploc`/.info
 }
 
 # Create the default KERNEL_ARCH variable
-arch_default()
+function arch_default()
 {
 	if [ -z "$KERNEL_ARCH" ]
 	then
@@ -73,53 +72,71 @@ arch_default()
 	fi
 }
 
+# convert the old variable names to new variable names
+# $1 pass a file name
+function old_var_compat()
+{
+	local old_var
+	old_var=( kernel_arch mode reconf kver patches selected_patches )
+	local new_var
+	new_var=( KERNEL_ARCH KMODE KLINUX_RECONFIGURE BASE_KVER CANONICAL_PATCHES SELECTED_PATCHES )
+	if [[ -f $1 ]] 
+	then
+		for(( i=0 ; $i < ${#old_var[*]} ; i++))
+		do
+			sedit "s/^${old_var[$i]}/${new_var[$i]}/g" $1 &&
+			persistent_remove ${old_var[$i]}
+		done
+	fi
+}
+
 # create the defaults file from scratch
 # do this with every command
-create_defaults()
+function create_defaults()
 {
 	arch_default
-	kernel_arch=$KERNEL_ARCH
 	# add variables that I need
 	
 	# what arch the kernel is being made for
-	persistent_add kernel_arch
+	persistent_add KERNEL_ARCH
 	
 	# what are we doing, 
 	# making a new kernel tree: newktree
 	# recompiling an old kernel tree: oldktree
 	# using a custom existing kernel tree: expert
-	persistent_add mode
+	persistent_add KMODE
 
 	# internal semi-copy of RECONFIGURE so that the spell can call
 	# menuconfig in PRE_BUILD
-	persistent_add reconf
+	persistent_add KLINUX_RECONFIGURE
 
 	# kernel version for the base kernel source, or in case of expert the
 	# full kernel version of the source tree
-	persistent_add kver
+	persistent_add BASE_KVER
 
 	# list of final patches after depends resolution
-	persistent_add patches
+	persistent_add CANONICAL_PATCHES
 
 	# list of patches that the user selected
-	persistent_add selected_patches
+	persistent_add SELECTED_PATCHES
 
 	# make sure that the state of the spell is good when we compile
 	# since users can put the spell into a state where it will always fail
 	# do some sanity checks to get a working installed configuration
 
 	# check if the grimoire version was completed successfully and load
-	# it's set of persistent vars and change the mode to oldktree if the
-	# mode that made the kernel wasn't expert
+	# it's set of persistent vars and change the KMODE to oldktree if the
+	# KMODE that made the kernel wasn't expert
 	VERSION="`gaze version $SPELL | awk 'NR == 3 {print $4}'`"
 	if [ -f ${BUILD_DIRECTORY}/linux-${VERSION}/.spell-config.p ]
 	then
-		cp ${BUILD_DIRECTORY}/linux-${VERSION}/.spell-config.p \
+		old_var_compat ${BUILD_DIRECTORY}/linux-$VERSION/.spell-config.p &&
+		cp ${BUILD_DIRECTORY}/linux-$VERSION/.spell-config.p \
 		   ${SPELL_CONFIG}.p
 		persistent_load
-		if [[ "$mode" != "expert" ]]
+		if [[ "$KMODE" != "expert" ]]
 		then
-			mode="oldktree"
+			KMODE="oldktree"
 		fi
 	
 	# upgrade path: if the installed version of the spell was installed
@@ -127,21 +144,22 @@ create_defaults()
 	# so the update can be performed.
 	elif [ -f ${BUILD_DIRECTORY}/linux-$(installed_version $SPELL)/.spell-config.p ]
 	then
+		old_var_compat ${BUILD_DIRECTORY}/linux-$(installed_version $SPELL)/.spell-config.p &&
 		cp ${BUILD_DIRECTORY}/linux-$(installed_version $SPELL)/.spell-config.p ${SPELL_CONFIG}.p
 		persistent_load
-		mode="newktree"
+		KMODE="newktree"
 		
 	# we don't have any configuration and we need to set some sane defaults
 	# so that things won't break.
 	# these defaults are the vanilla kernel with the latest maintenance
 	# patches
 	else
-		[ -z "$mode" ] && mode="newktree"
-		[ -z "$kver" ] && kver="LATEST_2_6"
-		[ -z "$selected_patches" ] && selected_patches="LATEST_maintenance_patches"
+		[ -z "$KMODE" ] && KMODE="newktree"
+		[ -z "$BASE_KVER" ] && BASE_KVER="LATEST_2_6"
+		[ -z "$SELECTED_PATCHES" ] && SELECTED_PATCHES="LATEST_maintenance_patches"
 	fi
 
-	# check RECONFIGURE for cast -r linux and set reconf appropriately
+	# check RECONFIGURE for cast -r linux and set KLINUX_RECONFIGURE appropriately
 	# since the questions afterwards are saved with the persistent vars we
 	# need to remove them from the persistent var table so that the 
 	# questions will be asked again.
@@ -150,9 +168,9 @@ create_defaults()
 		persistent_remove MAKEMODE &&
 		persistent_remove UPDATE_BL &&
 		persistent_remove CONFIG_KERNEL 
-		reconf="true"
+		KLINUX_RECONFIGURE="true"
 	else
-		reconf="false"
+		KLINUX_RECONFIGURE="false"
 	fi
 
 	# do this just to make sure
@@ -167,16 +185,16 @@ dialog=( "dialog" "--stdout" )
 # spell
 # output is the kernel version that is the updated version of the spell...
 # might need to be modified...
-get_usr_src_kver()
+function get_usr_src_kver()
 {
 	local spell_config=$1
 	local newkver
 	local ret
 	. $spell_config
 	calculate_depends > /dev/null
-	if [[ ! -z $patches ]]
+	if [[ ! -z $CANONICAL_PATCHES ]]
 	then
-		for patch in $patches
+		for patch in $CANONICAL_PATCHES
 		do
 			source_patch ${patch}
 			if [[ ! -z $patchversion ]]
@@ -186,12 +204,12 @@ get_usr_src_kver()
 		done
 		echo $newkver
 	else
-		case $kver in
+		case $BASE_KVER in
 			LATEST*)
-				echo ${!kver}
+				echo ${!BASE_KVER}
 				;;
 			*)
-				echo $kver
+				echo $BASE_KVER
 				;;
 		esac
 	fi
@@ -203,7 +221,7 @@ get_usr_src_kver()
 # installed into the source directory
 # also the check is done to determine the version of each linux source to see if
 # the kernel source needs updating
-list_usr_src()
+function list_usr_src()
 {
 	local tmpkver
 	local linuxsrcs
@@ -228,14 +246,14 @@ list_usr_src()
 }
 																			
 # main menu uhhh, what else is there to say?
-main_menu()
+function main_menu()
 {
 	while true
 	do
 		command=$( "${dialog[@]}" --title "New or Used Kernel Tree" \
-		--item-help --default-item "$mode" \
+		--item-help --default-item "$KMODE" \
 		--cancel-label "Exit" --menu \
-		"Would you like to use a new kernel tree or an existing one?\nThe Current kernel is $kver\nThe current selected patches: ${selected_patches}" 0 0 0 \
+		"Would you like to use a new kernel tree or an existing one?\nThe Current kernel is $BASE_KVER\nThe current selected patches: ${SELECTED_PATCHES}" 0 0 0 \
 		"newktree" "New Kernel Tree" "I want to use a new kernel tree"  \
 		"oldktree" "Old Kernel Tree" "I want to use an old kernel tree"  \
 		"expert"   "User Generated Kernel Tree" "I want to use a kernel tree that I made" \
@@ -245,15 +263,15 @@ main_menu()
 		then
 			case "$command" in
 				"newktree") 
-					mode=$command
+					KMODE=$command
 					new_tree_menu 
 					;;
 				"oldktree")
-					mode=$command
+					KMODE=$command
 					old_src_menu
 					;;
 				"expert")
-					mode=$command
+					KMODE=$command
 					custom_kernel
 					;;
 				"Options")
@@ -268,7 +286,7 @@ main_menu()
 }
 
 # clean a source directory ($1)
-clean_src_menu()
+function clean_src_menu()
 {
 	while true
 	do
@@ -291,7 +309,7 @@ clean_src_menu()
 }
 # select which kernel source to clean
 # pass that kernel source to clean_src_menu
-clean_menu()
+function clean_menu()
 {
         while true
         do
@@ -309,7 +327,7 @@ clean_menu()
 }
 
 # making other package types for other Linux distros
-other_pkg_src_menu()
+function other_pkg_src_menu()
 {
 	while true
 	do
@@ -335,7 +353,7 @@ other_pkg_src_menu()
 }
 
 # list the linux sources to make other package types
-other_package_menu()
+function other_package_menu()
 {
 	while true
 	do
@@ -353,7 +371,7 @@ other_package_menu()
 }
 
 # select other arch to compile for
-arch_menu() 
+function arch_menu() 
 {
 	arch_default
 	local DEFAULT=${KERNEL_ARCH}
@@ -395,7 +413,7 @@ arch_menu()
 			then
 				COMMAND="$DEFAULT"
 			fi
-			kernel_arch=$COMMAND
+			KERNEL_ARCH=$COMMAND
 			break
 		else
 			break
@@ -405,7 +423,7 @@ arch_menu()
 
 # change the O option for the kernel
 # doesn't work with some patched kernels
-build_dir_menu()
+function build_dir_menu()
 {
 	output_dir=$( "${dialog[@]}" --nocancel --inputbox \
 	"Would you like to select a kernel output dir.\n\
@@ -427,7 +445,7 @@ build_dir_menu()
 }
 
 # restore a config file from a different location
-restore_config()
+function restore_config()
 {
 	. ${SPELL_DIRECTORY}/DETAILS
 	while true
@@ -461,7 +479,7 @@ restore_config()
 }
 
 # other misc options menu
-options_menu()
+function options_menu()
 {
 	while true
 	do
@@ -502,22 +520,21 @@ options_menu()
 	done
 }
 
-custom_kernel()
+function custom_kernel()
 {
-	. $latestdefaults
 	command=$("${dialog[@]}" --inputbox "Enter the kernel version for the source you want to build?\nExamples:\n2.4.31\n2.6.13.4-selinux1\n${LATEST_2_6}" 0 0 "")
 	retval=$?
 	echo $command
 	if [[ "$?" == "0" ]] 
 	then
-		kver=$command
-		old_src_tree="/usr/src/linux-${kver}"
+		BASE_KVER=$command
+		old_src_tree="/usr/src/linux-${BASE_KVER}"
 		persistent_add old_src_tree
-		reconf="true"
+		KLINUX_RECONFIGURE="true"
 		persistent_remove MAKEMODE
 		persistent_remove UPDATE_BL
 		persistent_remove CONFIG_KERNEL
-		selected_patches=""
+		SELECTED_PATCHES=""
 		patches=""
 	fi
 }
@@ -525,19 +542,19 @@ custom_kernel()
 # create a new linux source tree
 # I use awk to parse the latest.defaults file
 # that should be changed but how?
-new_tree_menu() 
+function new_tree_menu() 
 {
 	while true
 	do
 		menu=""
-		versions="`ls -r1 $kernelsdir`"
+		versions="`ls -r1 $KERNELS_DIRECTORY`"
 		for version in $versions
 		do
 			menu="${menu}${version} Linux_Kernel Select_one "
 		done
-		menu="$( awk -F= '$1 ~ /LATEST_2/ {print $1 " Linux_Kernel " $2 }' $latestdefaults ) ${menu}"
+		menu="$( awk -F= '$1 ~ /LATEST_2/ {print $1 " Linux_Kernel " $2 }' $LATEST_KDEFAULTS ) ${menu}"
 		command=$( "${dialog[@]}" --title "Select Kernel Version" \
-		--item-help --cancel-label "Exit" --default-item "$kver" --menu \
+		--item-help --cancel-label "Exit" --default-item "$BASE_KVER" --menu \
 		"Select a kernel version to use" 0 0 0 \
 		$menu )
 		retval="$?"
@@ -545,12 +562,12 @@ new_tree_menu()
 		then
 			case "$command" in
 				2.[0-9].[0-9]*) 
-					kver=$command
-					patch_menu $kver
+					BASE_KVER=$command
+					patch_menu $BASE_KVER
 					;;
 				LATEST*)
-					kver=$command
-					patch_menu $kver
+					BASE_KVER=$command
+					patch_menu $BASE_KVER
 					;;
 				CUSTOM*)
 					custom_kernel
@@ -566,7 +583,7 @@ new_tree_menu()
 }
 
 # find all patches list the directories and LATEST patches for the kernel version $1
-patch_list()
+function patch_list()
 {
 	local tmp
 	local found
@@ -574,25 +591,10 @@ patch_list()
 	local patchver
 	local patches
 	local patch
-	. $latestdefaults
-	patches="`ls -1 $patchesdir/`"
+	patches="`ls -1 $KPATCHES_DIRECTORY/`"
 	for patch in $patches
 	do
-		tmp="LATEST_$patch"
-		if [ "${!tmp}" != "" ]
-		then
-			source_patch ${tmp}
-			for applied in $appliedkernels
-			do
-				if [[ $applied == $1  || $applied == ${!1} ]]
-				then
-					echo LATEST_$patch
-					echo ${!tmp}
-#					echo $patch
-				fi
-			done
-		fi
-		patchvers="`ls -1r $patchesdir/${patch}`"
+		patchvers="`ls -1r $KPATCHES_DIRECTORY/${patch}`"
 		found="false"
 		for patchver in $patchvers
 		do
@@ -614,10 +616,23 @@ patch_list()
 }
 
 # list all patches for kernel version $1 and for patch $2
-list_specific_patch_dir()
+function list_specific_patch_dir()
 {
-	. $latestdefaults
-	patchvers="`ls -1r $patchesdir/$2`"
+  local tmp="LATEST_$2"
+
+	if [[ ${!tmp} ]]
+	then
+	  echo $tmp
+		echo Toggle
+		if [[ ${3/$tmp/} == ${3} ]]
+		then
+		  echo off
+		else
+		  echo on
+		fi
+		echo $2
+	fi
+	patchvers="`ls -1r $KPATCHES_DIRECTORY/$2`"
 	for patchver in $patchvers
 	do
 		source_patch $patchver
@@ -626,7 +641,13 @@ list_specific_patch_dir()
 			if [[ $applied == $1 || $applied == ${!1} ]]
 			then
 				echo $patchver
-				echo PATCH
+				echo Toggle
+				if [[ ${3/$patchver /} == ${3} ]]
+				then
+				  echo off
+				else
+				  echo on
+				fi
 				echo $2
 			fi
 		done
@@ -636,10 +657,9 @@ list_specific_patch_dir()
 # main patch menu called from main_menu
 # list directories and valid latest patches
 # that apply to the kernel version $1
-patch_menu() 
+function patch_menu() 
 {
-#	new_patch_list=$selected_patches
-	new_patch_list=""
+	local new_patch_list=""
 	while true
 	do
 		menu=$(patch_list $1)
@@ -649,63 +669,68 @@ patch_menu()
 		fi
 		eval 'command=$( "${dialog[@]}" --title "Select Patches" \
 			--help-button --cancel-label "Commit" \
-			--ok-label "Toggle" --menu \
+			--ok-label "Select" --menu \
 			"Currently selected kernel: $1\nCurrently selected patches: $new_patch_list" 0 0 0 '${menu}' )'
 		retval="$?"
 		if [[ "$retval" == "0" && "$command" != "No_Patches" ]]
 		then
-			case "$command" in
-				LATEST*)
-					;;
-				*)
-					. $patchesdir/$command/.info	
-					command=$( "${dialog[@]}" --title "Select Patches" \
-						--item-help --cancel-label "Commit" \
-						--ok-label "Toggle" --menu \
-						"$help\n\nCurrently seleted kernel: $1\nCurrently selected patches: $new_patch_list" 0 0 0 \
-						$(list_specific_patch_dir $1 $command) )
-					;;
-			esac
-			found=false
-			tmp_patch_list=""
-			for patch in $new_patch_list
-			do
-				if [ "$command" != "$patch" ]
-				then
-					tmp_patch_list="${tmp_patch_list}${patch} "
-				else
-					found="true"
-				fi
-					
-			done
-			if [ "$found" == "true" ]
-			then
-				new_patch_list=$tmp_patch_list
-			else
-				new_patch_list="${new_patch_list}${command} "
-			fi
+			dialog_specific_patchdir $1 $command "$new_patch_list" new_patch_list
 		elif [[ "$retval" == "2" && "${command}" != "No_Patches" ]]
 		then
 			if [[ "LATEST_${command/HELP LATEST_/}" == "${command/HELP /}" ]]
 			then
 				tmp=${command/HELP /}
-				. $latestdefaults 
 				source_info ${tmp}
 				"${dialog[@]}" --msgbox "Selecting this will keep the kernel tree updated.\n$help" 0 0
 			else
 				tmp=${command/HELP /}
-				. $patchesdir/${command/HELP /}/.info
+				. $KPATCHES_DIRECTORY/${command/HELP /}/.info
 				"${dialog[@]}" --msgbox "$help" 0 0
 			fi
 		else
-			selected_patches=$new_patch_list
+			SELECTED_PATCHES=$new_patch_list
+			break
+		fi
+	done
+}
+
+function dialog_specific_patchdir()
+{
+  local patchdir=$2
+	local retval patch
+	local npatch_list=$3
+	local upvar=$4
+	while true
+	do
+		. $KPATCHES_DIRECTORY/$patchdir/.info	
+		command=$( "${dialog[@]}" --title "Select Patches" \
+			--item-help --cancel-label "Commit" \
+			--ok-label "Toggle" --checklist \
+			"$help\n\nCurrently seleted kernel: $1\nCurrently selected patches: $npatch_list" 0 0 0 \
+			$(list_specific_patch_dir $1 $patchdir "$npatch_list") )
+		retval=$?
+		if [[ $retval == 0 ]]
+		then
+			for patch in $npatch_list
+			do
+			  if [[ -f "$KPATCHES_DIRECTORY/$patchdir/$patch" || -f "$KPATCHES_DIRECTORY/$patchdir/${!patch}" ]] 
+				then
+				  npatch_list=${npatch_list/$patch /}
+				fi
+			done
+			for patch in ${command}
+			do
+				npatch_list="${npatch_list}${patch//\"/} "
+			done
+		else
+		  eval "$upvar=\${npatch_list}"
 			break
 		fi
 	done
 }
 
 # list the old source menu to reconfigure an old source tree
-old_src_menu()
+function old_src_menu()
 {
 	while true
 	do
@@ -725,6 +750,7 @@ need updating" \
 			fi
 			if [[ "${old_src_tree}" != "${BUILD_DIRECTORY}/linux-`get_usr_src_kver ${old_src_tree}/.spell-config.p`" ]]
 			then
+				old_var_compat ${old_src_tree}/.spell-config.p
 				if dialog --yesno "${old_src_tree} will be updated to `get_usr_src_kver ${old_src_tree}/.spell-config.p`.\nDo you want to continue?" 0 0
 				then
 					load_old_src_tree
@@ -742,19 +768,20 @@ need updating" \
 	done
 }
 
-load_old_src_tree()
+function load_old_src_tree()
 {
 	local tmp
+	old_var_compat ${old_src_tree}/.spell-config.p
 	cp ${old_src_tree}/.spell-config.p ${SPELL_CONFIG}.p
 	tmp=$old_src_tree
 	persistent_load
 	persistent_add old_src_tree
-	if [[ $mode != "expert" ]]
+	if [[ $KMODE != "expert" ]]
 	then
-		mode="oldktree"
+		KMODE="oldktree"
 	fi
 	old_src_tree=$tmp
-	reconf="true"
+	KLINUX_RECONFIGURE="true"
 	persistent_remove MAKEMODE
 	persistent_remove UPDATE_BL
 	persistent_remove CONFIG_KERNEL
@@ -764,17 +791,16 @@ load_old_src_tree()
 
 # if any of the patches needs any other patches applied before it is
 # for example the mm patches apply against the pre patched kernel
-calculate_depends()
+function calculate_depends()
 {
 	# create Makefile
 	dependslist=""
 	new_patches_list=""
 	all_patches_list=""
-	. $latestdefaults
-	if [[ "$selected_patches" != "" ]]
+	if [[ "$SELECTED_PATCHES" != "" ]]
 	then
 		# check for post patches and add those to the new_patches_list
-		for patch in $selected_patches
+		for patch in $SELECTED_PATCHES
 		do
 			source_patch ${patch}
 			if [ "$post_patch" != "" ]
@@ -800,7 +826,7 @@ calculate_depends()
 				esac
 			fi
 		done
-		rm $dependsmakefile
+		rm $DEPENDS_MAKEFILE
 		(
 		makefile_targets="all "
 		echo "all: $all_patches_list"
@@ -810,14 +836,14 @@ calculate_depends()
 			rec_dep_make $i
 		done
 		echo ".PHONY : ${makefile_targets}"
-		) > $dependsmakefile
+		) > $DEPENDS_MAKEFILE
 		# this doesn't work with persistent vars don't know why?
-		patches=$(make -sf $dependsmakefile all)
-		echo $patches
+		CANONICAL_PATCHES=$(make -sf $DEPENDS_MAKEFILE all)
+		echo $CANONICAL_PATCHES
 	fi
 }
 
-rec_dep_make()
+function rec_dep_make()
 {
 	depends=""
 	case "$1" in
@@ -858,9 +884,8 @@ rec_dep_make()
 
 # created details.defaults file to be sourced by DETAILS file for VERSION SOURCE_URL SOURCE
 # stuff like that
-create_details()
+function create_details()
 {
-	. $latestdefaults
 	local counter="3"
 	local patches 
 	local basekver 
@@ -874,9 +899,9 @@ create_details()
 	local md5sum
 	local sha1sum
 	local patch_det_version="false"
-	case "$mode" in
+	case "$KMODE" in
 		*ktree)
-			patches=""
+			CANONICAL_PATCHES=""
 			basekver=""
 			source_gpg_list=""
 			source_gpg_list_url=""
@@ -889,7 +914,7 @@ create_details()
 			# deal with the basic sources for the patches
 			# involes the main source for each patch and figuring
 			# out the base kernel version to use
-			for patch in $patches
+			for patch in $CANONICAL_PATCHES
 			do
 				source=""
 				source_url=""
@@ -978,12 +1003,12 @@ create_details()
 			done
 			if [[ "$basekver" != "" ]]
 			then
-				kver="$basekver"
+				BASE_KVER="$basekver"
 			fi
-                        case "$kver" in
+                        case "$BASE_KVER" in
 				2.[0-9]*)
-					. $kernelsdir/${kver}
-					echo ". \${SPELL_DIRECTORY}/info/kernels/${kver}"
+					. $KERNELS_DIRECTORY/${BASE_KVER}
+					echo ". \${SPELL_DIRECTORY}/info/kernels/${BASE_KVER}"
 					echo "SOURCE=\$source"
 					echo "SOURCE_URL=\$source_url"
 					echo "SOURCE2=\${source}.sign"
@@ -991,8 +1016,8 @@ create_details()
 					echo "SOURCE2_URL=\${source_url}.sign"
 					;;
 				*)
-					. $kernelsdir/${!kver}
-					echo ". \${SPELL_DIRECTORY}/info/kernels/\$$kver"
+					. $KERNELS_DIRECTORY/${!BASE_KVER}
+					echo ". \${SPELL_DIRECTORY}/info/kernels/\$$BASE_KVER"
 					echo "SOURCE=\$source"
 					echo "SOURCE_URL=\$source_url"
 					echo "SOURCE2=\${source}.sign"
@@ -1006,15 +1031,15 @@ create_details()
 			then
 				echo 'KERNEL_VERSION=${version}'
 			fi
-			) > $detailsdefaults
+			) > $USER_KDETAILS
 			;;
 		expert)
 			# shouldn't have any source information when expert
 			# is being used
-			echo "KERNEL_VERSION=$kver" > $detailsdefaults
+			echo "KERNEL_VERSION=$BASE_KVER" > $USER_KDETAILS
 			;;
 		*)
-			echo "I don't know what the hell is $mode"
+			echo "I don't know what the hell is $KMODE"
 			;;
 	esac
 }
@@ -1022,20 +1047,21 @@ create_details()
 # Start of the execution
 
 # if it's not there create it
+. $LATEST_KDEFAULTS
 create_defaults
 
-if [[ "$reconf" == "true" || "$kver" == "" ]]
+if [[ "$KLINUX_RECONFIGURE" == "true" || "$BASE_KVER" == "" ]]
 then
 	main_menu
-	if [ "$kver" == "" ]
+	if [ "$BASE_KVER" == "" ]
 	then
 		echo "You really need to tell the spell what linux kernel you are dealing with."
 		sleep 5
 	fi
-	while [ "$kver" == "" ]
+	while [ "$BASE_KVER" == "" ]
 	do
 		main_menu
-		if [ "$kver" == "" ]
+		if [ "$BASE_KVER" == "" ]
 		then
 			echo "You really need to tell the spell what linux kernel you are dealing with."
 			sleep 5
