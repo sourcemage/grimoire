@@ -4,7 +4,7 @@ echo  "This is the version: $VERSION"  &&
 # ppc kernels does not support stripping. This apply to both 2.4 kernels and
 # 2.6 kernels.
 
-case "${kernel_arch}" in
+case "${KERNEL_ARCH}" in
   ppc)
     LDFLAGS="${LDFLAGS/-s/}"
     ;;
