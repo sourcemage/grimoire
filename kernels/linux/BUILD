@@ -19,7 +19,7 @@ if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
     2.[024]*)
       echo "making for a 2.4 kernel"  &&
       make dep    &&
-      case  $kernel_arch  in
+      case  $KERNEL_ARCH  in
         sparc*)  make $EXTRA_MAKE_OPTIONS vmlinux  ||  return  1  ;;
            ppc)  make $EXTRA_MAKE_OPTIONS vmlinux  ||  return  1  ;;
             sh)  make $EXTRA_MAKE_OPTIONS zImage  ||  return  1  ;;
