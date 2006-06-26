@@ -1,0 +1,74 @@
+diff -uNr ODBC_V2-0-BETA/OdbcJdbc/Builds/Gcc.lin/makefile.linux ODBC_V2-0-BETA.cp/OdbcJdbc/Builds/Gcc.lin/makefile.linux
+--- ODBC_V2-0-BETA/OdbcJdbc/Builds/Gcc.lin/makefile.linux	2004-12-21 19:39:24.000000000 +0100
++++ ODBC_V2-0-BETA.cp/OdbcJdbc/Builds/Gcc.lin/makefile.linux	2006-06-26 15:39:04.000000000 +0200
+@@ -52,11 +52,11 @@
+ endif
+ 
+ ifdef INTERBASE
+-INCLUDEDIR      := -I/opt/interbase/include -I/usr/include/odbc $(INCLUDEDIR)
+-EXTLIBDIR       := -L/opt/interbase/lib -L/usr/lib/unixODBC $(EXTLIBDIR)
++INCLUDEDIR      := -I/usr/interbase/include -I/usr/include $(INCLUDEDIR)
++EXTLIBDIR       := -L/usr/interbase/lib -L/usr/lib/unixODBC $(EXTLIBDIR)
+ else
+-INCLUDEDIR      = -I/opt/firebird/include -I/usr/include/odbc
+-EXTLIBDIR       := -L/opt/firebird/lib -L/usr/lib/unixODBC $(EXTLIBDIR)
++INCLUDEDIR      = -I/usr/firebird/include -I/usr/include
++EXTLIBDIR       := -L/usr/firebird/lib -L/usr/lib/unixODBC $(EXTLIBDIR)
+ endif
+ #
+ 
+@@ -75,10 +75,10 @@
+ LIST_ODBCJDBCSETUPSRC	= $(addprefix $(ODBCJDBCDIR)/, $(ODBCJDBCSETUPSRC_LINUX))
+ LIST_ODBCJDBCSETUPOBJ	= $(addprefix $(BUILDDIR)/, $(ODBCJDBCSETUPSRC_LINUX:.cpp=.o))
+ #
+-COMPFLAGS	= -g -w -D_REENTRANT -D_PTHREADS -DEXTERNAL $(INCLUDEDIR) -I$(FBINCDIR)
++COMPFLAGS	= -DPIC -fPIC  $(CFLAGS) -w -D_REENTRANT -D_PTHREADS -DEXTERNAL $(INCLUDEDIR) -I$(FBINCDIR)
+ #
+-#LINKFLAGS	= -rdynamic -export-dynamic -shared 
+-LINKFLAGS	= -shared
++#LINKFLAGS	= -rdynamic -export-dynamic  -shared 
++LINKFLAGS	=  -shared
+ EXTLIBS		= $(EXTLIBDIR) -lcrypt -ldl
+ #
+ ISCDBC			= libIscDbc.so
+diff -uNr ODBC_V2-0-BETA/OdbcJdbc/Builds/makefile.environ ODBC_V2-0-BETA.cp/OdbcJdbc/Builds/makefile.environ
+--- ODBC_V2-0-BETA/OdbcJdbc/Builds/makefile.environ	2003-12-13 19:27:26.000000000 +0100
++++ ODBC_V2-0-BETA.cp/OdbcJdbc/Builds/makefile.environ	2006-06-26 13:37:51.000000000 +0200
+@@ -3,8 +3,8 @@
+ #FBINCDIR	= /mnt/third_party/interbase/sun5-2003-3-10/include
+ #FBLIBDIR	= /mnt/third_party/interbase/sun5-2003-3-10/lib
+ #
+-FBINCDIR	= d:/Firebird/include
+-FBLIBDIR	= d:/Firebird/lib
++FBINCDIR	= /usr/irebird/include
++FBLIBDIR	= /usr/firebird/lib
+ #
+ ISCDBCDIR 		= ../../IscDbc
+ ODBCJDBCDIR 		= ../..
+diff -uNr ODBC_V2-0-BETA/OdbcJdbc/OdbcConnection.cpp ODBC_V2-0-BETA.cp/OdbcJdbc/OdbcConnection.cpp
+--- ODBC_V2-0-BETA/OdbcJdbc/OdbcConnection.cpp	2006-06-21 16:52:14.000000000 +0200
++++ ODBC_V2-0-BETA.cp/OdbcJdbc/OdbcConnection.cpp	2006-06-26 12:36:02.000000000 +0200
+@@ -1026,7 +1026,7 @@
+ 
+ void OdbcConnection::writeAttributeFileDSN(const char * attribute, const char * value)
+ {
+-	SQLWriteFileDSN (savedsn, "ODBC", attribute, value);
++	SQLWriteFileDSN (savedsn, "ODBC", attribute, (char*)value);
+ }
+ 
+ SQLRETURN OdbcConnection::sqlGetFunctions(SQLUSMALLINT functionId, SQLUSMALLINT * supportedPtr)
+diff -uNr ODBC_V2-0-BETA/OdbcJdbc/OdbcJdbc.h ODBC_V2-0-BETA.cp/OdbcJdbc/OdbcJdbc.h
+--- ODBC_V2-0-BETA/OdbcJdbc/OdbcJdbc.h	2005-06-02 14:54:48.000000000 +0200
++++ ODBC_V2-0-BETA.cp/OdbcJdbc/OdbcJdbc.h	2006-06-23 19:13:10.000000000 +0200
+@@ -137,3 +137,11 @@
+ 
+ #endif
+ 
++#ifndef UINT
++#define UINT   SQLUINTEGER
++#endif
++
++#ifndef DWORD
++#define DWORD   SQLUINTEGER
++#endif
++
