@@ -1,2 +1,3 @@
-perl  Makefile.PL  INSTALLDIRS=vendor  &&
+chmod +x ${SOURCE_DIRECTORY}/configure &&
+./configure                            &&
 make
