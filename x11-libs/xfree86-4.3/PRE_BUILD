@@ -1,15 +1,43 @@
-mk_source_dir  $SOURCE_DIRECTORY    &&
-unpack_file   &&
-unpack_file 2  &&
-unpack_file 3  &&
-unpack_file 4  &&
-unpack_file 5  &&
-unpack_file 6  &&
-unpack_file 7  &&
-unpack_file 8  &&
-unpack_file 9  &&
-patch  -d xc/lib/font/fontfile/ < $SOURCE_CACHE/$SOURCE9 &&
-patch  -d xc -p0  <  $SCRIPT_DIRECTORY/xfree86-xft-releasefile-crash.patch  &&
-patch  -d xc -p0  <  $SCRIPT_DIRECTORY/CAN-2005-2495.patch  &&
-#recommended by xfree86.org
-mk_source_dir  $SOURCE_DIRECTORY.bld 
+default_pre_build      &&
+cd  $SOURCE_DIRECTORY  &&
+
+if    [  -f  $CONFIG_CACHE/host.def  ]
+then  cp     $CONFIG_CACHE/host.def  config/cf/host.def
+fi                                                      &&
+### but if it can't be copied then use system defaults for these
+if ! grep -q HasFreetype2 config/cf/host.def
+    then echo "#define HasFreetype2   YES" >> config/cf/host.def
+fi                                                      &&
+if ! grep -q BuildFreetype2Library  config/cf/host.def
+   then echo "#define BuildFreetype2Library     NO" >> config/cf/host.def
+fi                                                      &&
+if ! grep -q HasZlib config/cf/host.def
+   then echo "#define HasZlib   YES" >> config/cf/host.def
+fi                                                      &&
+if ! grep -q HasFontconfig config/cf/host.def
+   then echo "#define HasFontconfig  YES" >> config/cf/host.def
+fi                                                      &&
+if ! grep -q HasExpat config/cf/host.def
+   then echo "#define HasExpat  YES" >> config/cf/host.def
+fi                                                      &&
+message  "Building XFree86 takes a very long time."
+
+### Apply 4.3.0.1 patch
+zcat  ${SOURCE_CACHE}/${SOURCE8}  |  patch  -p1  &&
+
+### Apply Xinput locking patch
+patch  -p2  <  $SCRIPT_DIRECTORY/Xi-locking.patch  &&
+### Apply linux version patch to support 2.6.X
+patch  -p1  <  $SCRIPT_DIRECTORY/XFree86-4.3.0-linux-2.6.0.patch  &&
+
+### removing -Os from copied host.def bug#3694 and cleaning up $CFLAGS
+if [ -f config/cf/host.def ] 
+then sedit s"/-Os//g" config/cf/host.def 
+fi                                               &&
+if  (echo $CFLAGS | grep -q -- "-Os"); then
+  export CFLAGS="-O2 ${CFLAGS//-Os/}"
+fi                                               &&
+
+if  spell_ok  linux-pam
+then  echo  "#define  HasPam  YES"  >>  config/cf/site.def
+fi

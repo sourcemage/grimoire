@@ -41,49 +41,12 @@ done  &&
 # install
 #
 make  install install_root="${INSTALL_ROOT}" &&
-if [[ "$HOST" == x86_64-* ]]; then
+if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
   [ -d /lib64 -a ! -f /lib64/ld-linux-x86-64.so.2 -a -f /lib/ld-linux-x86-64.so.2 ] &&
     ln -s /lib/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
   true  # see bug 8626 for info about this conditional
 fi &&
 (  ldconfig  ||  true  )  &&
-
-#
-# generate the localedef file from installed specs
-#
-local  GLIBC_INPUTFILE  GLIBC_CHARMAP  GLIBC_LOCALE  &&
-if  [  -z  "$GLIBC_LOCALES"  ];  then
-  local  GLIBC_DESCRIPTION                                                         &&
-  cat  $SCRIPT_DIRECTORY/locales                 |
-  while  read  GLIBC_LOCALE  GLIBC_DESCRIPTION;  do
-    GLIBC_INPUTFILE=`echo  $GLIBC_LOCALE  |  cut  -d /  -f1`                             &&
-      GLIBC_CHARMAP=`echo  $GLIBC_LOCALE  |  cut  -d /  -f2`                             &&
-    mkdir  -p  ${INSTALL_ROOT}/usr/lib/locale/$GLIBC_INPUTFILE                     &&
-    echo  "localedef  -f  $GLIBC_CHARMAP  -i  $GLIBC_INPUTFILE  $GLIBC_INPUTFILE"  \
-          " $GLIBC_DESCRIPTION"                                                    &&
-    localedef  --prefix=${INSTALL_ROOT} -i  $GLIBC_INPUTFILE  -f  $GLIBC_CHARMAP   \
-               $GLIBC_INPUTFILE                                                    &&
-    if  [  "$GLIBC_UTF" =  "y"      ]   &&
-    !   [  "$GLIBC_CHARMAP" =  "UTF-8"  ];  then
-       echo  "localedef  -f  UTF-8  -i  $GLIBC_INPUTFILE  $GLIBCINPUTFILE.UTF-8  $GLIBC_DESCRIPTION"  \
-             " (UNICODE Charset)"                                                    &&
-       localedef  --prefix=${INSTALL_ROOT}  -i  $GLIBC_INPUTFILE  -f  UTF-8  $GLIBC_INPUTFILE.UTF-8
-    fi
-  done  ||  true
-else
-  for  LOCALE  in  $GLIBC_LOCALES;  do
-    INPUTFILE=`echo  $LOCALE  |  cut  -d /  -f1`                                   &&
-      CHARMAP=`echo  $LOCALE  |  cut  -d /  -f2`                                   &&
-    mkdir  -p  ${INSTALL_ROOT}/usr/lib/locale/$INPUTFILE                           &&
-    echo  "localedef  -f  $CHARMAP  -i  $INPUTFILE $INPUTFILE"                     &&
-    localedef  --prefix=${INSTALL_ROOT}  -i  $INPUTFILE  -f  $CHARMAP  $INPUTFILE  &&
-    if  [  "$GLIBC_UTF"      =  "y"     ]   &&
-    !   [  "$CHARMAP"  =  "UTF-8" ];  then
-      echo  "localedef  -f  UTF-8  -i  $INPUTFILE  $INPUTFILE.UTF-8"               &&
-      localedef  --prefix=${INSTALL_ROOT}  -i  $INPUTFILE  -f  UTF-8  $INPUTFILE.UTF-8
-    fi
-  done  ||  true
-fi  &&
 
 #
 # Now install sanitised glibc-kernel-headers
