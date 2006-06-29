@@ -1,30 +1,34 @@
-mk_source_dir  $SOURCE_DIRECTORY    &&
-unpack_file   &&
-unpack_file 2  &&
-unpack_file 3  &&
-unpack_file 4  &&
-unpack_file 5  &&
-unpack_file 6  &&
-unpack_file 7  &&
-cd $SOURCE_DIRECTORY                &&
-INDEX=7                             &&
-for p in ${PATCH_SOURCES[*]}
- do message "${MESSAGE_COLOR}Checking integrity of patch $p...${DEFAULT_COLOR}"           &&
-    SUM=$(bzip2 -cd $SOURCE_CACHE/$p | md5sum | cut -d ' ' -f 1)                          &&
-    if [ "$SUM" != "${MD5[$((INDEX++))]}" ]
-       then message "${PROBLEM_COLOR}Integrity check for patch $p failed${DEFAULT_COLOR}" &&
-            return 1  # in a loop, '&&' thingy doesn't do what it's supposed to
-    fi                                                                                    &&
-    message "${MESSAGE_COLOR}Applying patch $p...${DEFAULT_COLOR}"                        &&
-    if ! bzip2 -cd $SOURCE_CACHE/$p | patch -N -p1 -s; then
-      ### xfree86 patches may not be maintained properly, and some minor errors
-      ### may occur during their application, that do not preclude us from proceeding.
-      true
-    fi
- done                                                                                    &&
-  rm -fr lib/zlib   # moved in CVS, patch doesn't apply cleanly
+default_pre_build      &&
+cd  $SOURCE_DIRECTORY  &&
 
-patch  -d $SOURCE_DIRECTORY -p0  <  $SCRIPT_DIRECTORY/xfree86-xft-releasefile-crash.patch  &&
-#recommended by xfree86.org
-mk_source_dir  $SOURCE_DIRECTORY.bld 
+if    [  -f  $CONFIG_CACHE/host.def  ]
+then  cp     $CONFIG_CACHE/host.def  config/cf/host.def
+fi                                                      &&
+### but if it can't be copied then use system defaults for these
+if ! grep -q HasFreetype2 config/cf/host.def
+    then echo "#define HasFreetype2   YES" >> config/cf/host.def
+fi                                                      &&
+if ! grep -q BuildFreetype2Library  config/cf/host.def
+   then echo "#define BuildFreetype2Library     NO" >> config/cf/host.def
+fi                                                      &&
+if ! grep -q HasZlib config/cf/host.def
+   then echo "#define HasZlib   YES" >> config/cf/host.def
+fi                                                      &&
+if ! grep -q HasFontconfig config/cf/host.def
+   then echo "#define HasFontconfig  YES" >> config/cf/host.def
+fi                                                      &&
+if ! grep -q HasExpat config/cf/host.def
+   then echo "#define HasExpat  YES" >> config/cf/host.def
+fi                                                      &&
 
+### removing -Os from copied host.def bug#3694 and cleaning up $CFLAGS
+if [ -f config/cf/host.def ] 
+then sedit s"/-Os//g" config/cf/host.def 
+fi                                               &&
+if  (echo $CFLAGS | grep -q -- "-Os"); then
+  export CFLAGS="-O2 ${CFLAGS//-Os/}"
+fi                                               &&
+
+if  spell_ok  linux-pam
+then  echo  "#define  HasPam  YES"  >>  config/cf/site.def
+fi
