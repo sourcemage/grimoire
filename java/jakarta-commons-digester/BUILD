@@ -1,13 +1,11 @@
-(
-
-  . $SECTION_DIRECTORY/java-functions
+. $SECTION_DIRECTORY/java-functions
   
-  set_ant_env		&&
+set_ant_env  &&
   
-  export CLASSPATH="${JAVA_HOME}/lib/tools.jar:${JAVA_HOME}/lib/classes.zip:${ANT_HOME}/lib/ant.jar"
+export CLASSPATH="${JAVA_HOME}/lib/tools.jar:${JAVA_HOME}/lib/classes.zip:${ANT_HOME}/lib/ant.jar"
 
-  # create build.properties
-  cat > $SOURCE_DIRECTORY/build.properties <<EOF
+# create build.properties
+cat > $SOURCE_DIRECTORY/build.properties <<EOF
 jaxp.home=${SM_SUN_HOME}/java_xml_pack/jaxm-1.1_01/lib
 jaxp.jaxp.jar=\${jaxp.home}/jaxp-api.jar
 jaxp.parser.jar=${SM_JAKARTA_HOME}/lib/xercesImpl.jar
@@ -20,13 +18,6 @@ commons-logging.jar=\${commons-logging.home}/commons-logging.jar
 junit.jar=${SM_IBM_HOME}/lib/junit.jar
 EOF
 
-  sedit  "s:../LICENSE:LICENSE.txt:"   build.xml && 
+sedit  "s:../LICENSE:LICENSE.txt:"   build.xml && 
 
-  ant  dist	&&
-  
-  prepare_install								&&
-
-  extract_jakarta_src   ${PKG_SUBPRJ}-${PKG_NAME}  ${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}    $SOURCE_DIRECTORY 	&&
-  register_jakarta_jar  ${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}/dist/commons-digester.jar     commons-digester.jar
-
-) > $C_FIFO 2>&1
+ant  dist
