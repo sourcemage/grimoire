@@ -1,14 +1,12 @@
-(
-
-  . $SECTION_DIRECTORY/java-functions
+. $SECTION_DIRECTORY/java-functions
   
-  set_ant_env			&&
+set_ant_env  &&
 
-  # ant test 
-  export CLASSPATH="${JAVA_HOME}/lib/tools.jar:${JAVA_HOME}/lib/classes.zip:${ANT_HOME}/lib/ant.jar"
+# ant test 
+export CLASSPATH="${JAVA_HOME}/lib/tools.jar:${JAVA_HOME}/lib/classes.zip:${ANT_HOME}/lib/ant.jar"
 
-  # create build.properties
-  cat > $SOURCE_DIRECTORY/${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}-src/build.properties <<EOF
+# create build.properties
+cat > $SOURCE_DIRECTORY/${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}-src/build.properties <<EOF
 base.path=${SM_JAKARTA_HOME}
 commons-collections.home=\${base.path}/commons-collections
 commons-collections.jar=\${commons-collections.home}/commons-collections.jar
@@ -27,13 +25,6 @@ jndi.lib=\${jndi.home}/lib
 jndi.jar=\${jndi.lib}/jndi.jar
 EOF
 
-  cd  ${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}-src &&
-  cp  LICENSE.txt ../LICENSE	&&
-  ant  dist			&&
-
-  prepare_install 		&&
-
-  extract_jakarta_src   ${PKG_SUBPRJ}-${PKG_NAME} ${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}    $SOURCE_DIRECTORY/${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}-src  &&
-  register_jakarta_jar  ${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}/dist/commons-dbcp.jar   commons-dbcp.jar
-    
-) > $C_FIFO 2>&1
+cd  ${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}-src &&
+cp  LICENSE.txt ../LICENSE  &&
+ant  dist
