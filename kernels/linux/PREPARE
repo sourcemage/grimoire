@@ -838,7 +838,7 @@ function calculate_depends()
 		echo ".PHONY : ${makefile_targets}"
 		) > $DEPENDS_MAKEFILE
 		# this doesn't work with persistent vars don't know why?
-		CANONICAL_PATCHES=$(make -sf $DEPENDS_MAKEFILE all)
+		CANONICAL_PATCHES=$(make -sf $DEPENDS_MAKEFILE all 2>/dev/null)
 		echo $CANONICAL_PATCHES
 	fi
 }
@@ -1044,6 +1044,101 @@ function create_details()
 	esac
 }
 
+function linux_sort_list()
+{
+	local upvar=$1
+  local list="$2"
+	local new_list=""
+	local elem
+	for elem in $list
+	do
+		if [[ ${elem/LATEST_/} == ${elem} ]]
+		then
+			new_list="${new_list}${elem} "
+		else
+			new_list="${elem} ${new_list}"
+		fi
+	done
+	eval "$upvar=\"${new_list}\""
+}
+
+function fix_conflicts_dialog()
+{
+	local list="$@"
+	local new_list
+	local menu_list=""
+	local elem
+	local retval
+	for elem in $list
+	do
+		menu_list="${menu_list}$elem patch off "
+	done
+  while true
+	do
+	  new_list=$( "${dialog[@]}" --title "Fix Conflicting Patches" \
+	              --cancel-label "Commit" --ok-label "Okay" --checklist \
+		  					"You have conflicting patches.\nSelected patches will be removed." \
+		  					0 0 0 ${menu_list} )
+		retval=$?
+		if [[ $retval == 0 ]]
+		then
+		  echo "${new_list//\"}"
+			for elem in ${new_list//\"}
+			do
+				SELECTED_PATCHES="${SELECTED_PATCHES//$elem }"
+				SELECTED_PATCHES="${SELECTED_PATCHES%%$elem}"
+			done
+			break
+		else
+			break
+		fi
+	done
+}
+
+function run_conflicts()
+{
+  local patch
+	local conflicting_patch
+	local conflicting_list=""
+	message "${MESSAGE_COLOR}Generating Conflicts${DEFAULT_COLOR}"
+	echo $SELECTED_PATCHES
+	for patch in $SELECTED_PATCHES
+	do
+		source_patch ${patch}
+		for conflicting_patch in $SELECTED_PATCHES
+		do
+# duplicate patches conflict
+# just remove it...
+			if [[ ${patch} == ${conflicting_patch} ]]
+			then
+				SELECTED_PATCHES="${SELECTED_PATCHES//$patch } ${patch}"
+			fi
+
+# built in conflicts between LATEST_<patches>
+			if [[ ${patch/LATEST_} != ${patch} && ${conflicting_patch/LATEST_} != ${conflicting_patch} && ${patch} != ${conflicting_patch} ]]
+			then
+				conflicting_list="${conflicting_list//$patch }${patch} "
+			fi
+
+# same directory patches also conflict
+			if [[ -f $KPATCHES_DIRECTORY/${patch/LATEST_}/${conflicting_patch} ||
+			      -f $KPATCHES_DIRECTORY/${conflicting_patch/LATEST_}/${patch} ]]
+			then
+				conflicting_list="${conflicting_list//$conflicting_patch }${conflicting_patch} "
+				conflicting_list="${conflicting_list//$patch }${patch} "
+			fi
+		done
+	done
+	linux_sort_list conflicting_list "${conflicting_list}"
+	message "${MESSAGE_COLOR}Conflicting Patches${DEFAULT_COLOR}"
+	message "${PROBLEM_COLOR}${conflicting_list}${DEFAULT_COLOR}"
+	if [[ ${conflicting_list} ]]
+	then
+		fix_conflicts_dialog ${conflicting_list} &&
+		run_conflicts
+	fi
+}
+
 # Start of the execution
 
 # if it's not there create it
@@ -1069,5 +1164,6 @@ then
 	done
 else
 	echo "No Reconfigure, using ${SPELL_CONFIG}.p for defaults"
-fi
+fi &&
+run_conflicts &&
 create_details
