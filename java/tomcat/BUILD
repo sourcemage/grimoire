@@ -1,13 +1,11 @@
-(
-
-  . $SECTION_DIRECTORY/java-functions
+. $SECTION_DIRECTORY/java-functions
   
-  set_ant_env		&&
+set_ant_env  &&
 
-  export CLASSPATH="${JAVA_HOME}/lib/tools.jar:${JAVA_HOME}/lib/classes.zip:${ANT_HOME}/lib/ant.jar"
+export CLASSPATH="${JAVA_HOME}/lib/tools.jar:${JAVA_HOME}/lib/classes.zip:${ANT_HOME}/lib/ant.jar"
 
-  # create build.properties
-  cat > $SOURCE_DIRECTORY/jakarta-${SPELL}-${VERSION}-src/build.properties <<EOF
+# create build.properties
+cat > $SOURCE_DIRECTORY/jakarta-${SPELL}-${VERSION}-src/build.properties <<EOF
 # -----------------------------------------------------------------------------
 # Source Mage GNU/Linux Tomcat ${VERSION} build.properties
 # -----------------------------------------------------------------------------
@@ -173,15 +171,8 @@ struts.loc=http://jakarta.apache.org/builds/jakarta-struts/release/v1.0.2/jakart
 #tyrex.loc=ftp://ftp.exolab.org/pub/tyrex/tyrex-1.0/tyrex-1.0.jar
 EOF
 
-  cd  jakarta-${SPELL}-${VERSION}-src	&&
-  ln  -s ../jakarta-${SPELL}-connectors-${VERSION}-src jakarta-${SPELL}-connectors-${VERSION}-src &&
+cd  jakarta-${SPELL}-${VERSION}-src  &&
+ln  -s ../jakarta-${SPELL}-connectors-${VERSION}-src jakarta-${SPELL}-connectors-${VERSION}-src &&
   
-  ant  detect		&&
-  ant  dist		&&
-
-  prepare_install	&&
-
-  mkdir -p ${SM_JAVA_APP_HOME}/${SPELL}		&&
-  cp  -Rv dist/*  ${SM_JAVA_APP_HOME}/${SPELL}
-  
-) > $C_FIFO 2>&1
+ant  detect  &&
+ant  dist
