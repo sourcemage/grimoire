@@ -1,20 +1,11 @@
-(
+. $SECTION_DIRECTORY/java-functions
+  
+set_ant_env  &&
+export CLASSPATH="${JAVA_HOME}/lib/tools.jar:${JAVA_HOME}/lib/classes.zip:${ANT_HOME}/lib/ant.jar:${SM_SUN_HOME}/lib/jdmkrt.jar" &&
+cd build   &&
+chmod a+x build-regexp.sh   &&
+./build-regexp.sh jar   &&
 
-  . $SECTION_DIRECTORY/java-functions
-  
-  set_ant_env			&&
-  export CLASSPATH="${JAVA_HOME}/lib/tools.jar:${JAVA_HOME}/lib/classes.zip:${ANT_HOME}/lib/ant.jar:${SM_SUN_HOME}/lib/jdmkrt.jar" &&
-  cd build 			&&
-  chmod a+x build-regexp.sh 	&&
-  ./build-regexp.sh jar 	&&
-
-  rm  $SOURCE_DIRECTORY/jakarta-regexp-1.2.jar							&&
-  mv  $SOURCE_DIRECTORY/bin/jakarta-regexp-1.2.jar  $SOURCE_DIRECTORY/jakarta-regexp-1.2.jar	&&
-  rm  -rf $SOURCE_DIRECTORY/bin									&&
-  
-  prepare_install										&&
-  
-  extract_jakarta_src   ${PKG_NAME}  ${PKG_NAME}-${VERSION}    $SOURCE_DIRECTORY		&&
-  register_jakarta_jar  ${PKG_NAME}-${VERSION}/jakarta-regexp-1.2.jar  jakarta-regexp.jar
-	
-) > $C_FIFO 2>&1
+rm  $SOURCE_DIRECTORY/jakarta-regexp-1.2.jar  &&
+mv  $SOURCE_DIRECTORY/bin/jakarta-regexp-1.2.jar  $SOURCE_DIRECTORY/jakarta-regexp-1.2.jar  &&
+rm  -rf $SOURCE_DIRECTORY/bin
