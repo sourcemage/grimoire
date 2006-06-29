@@ -1,0 +1,39 @@
+install_drm()  {
+  DRM_DIR="programs/Xserver/hw/xfree86/os-support/linux/drm/kernel"
+  DRM_DEST="/lib/modules/$(uname -r)/kernel/drivers/char/drm"
+  mkdir   -p                $DRM_DEST
+  cp          $DRM_DIR/*.o  $DRM_DEST  2>/dev/null
+  depmod  -a
+  true
+}
+
+#### the following is needed for pkgconfig to find the .pc files
+mkdir  -p  /usr/X11R6/lib                                      &&
+ln -sf  /usr/lib/pkgconfig  /usr/X11R6/lib                     &&
+make  install                                                  &&
+make  install.man                                              &&
+      install_drm                                              &&
+mkdir  -p  /usr/X11R6/include/GL
+
+rm     -f  /usr/X11R6/include/zlib.h
+rm     -f  /usr/X11R6/lib/libz.a
+
+if  [  !  -e                      /etc/skel/.xsession  ];  then
+  cp  $SCRIPT_DIRECTORY/xsession  /etc/skel/.xsession
+fi
+
+if  [  !  -e                    /usr/bin/X11  ];  then
+  ln      -sf   /usr/X11R6/bin  /usr/bin/X11
+fi
+
+if  [  !  -e          /usr/X11  ];  then
+  ln      -sf  X11R6  /usr/X11
+fi
+
+if  [  !  -e                         /usr/include/X11  ];  then
+  ln      -sf  ../X11R6/include/X11  /usr/include/X11
+fi
+
+if  [  !  -e                     /usr/lib/X11  ];  then
+  ln      -sf  ../X11R6/lib/X11  /usr/lib/X11
+fi
