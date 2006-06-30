@@ -1,0 +1,2 @@
+cd drbd   &&
+make all
