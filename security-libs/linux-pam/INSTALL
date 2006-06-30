@@ -1,16 +1,17 @@
-default_install  &&
+make  install  &&
 
-if [ "$PAM_SELINUX" == "y" ] ; then
-  echo "session	required	pam_selinux.so multiple" >> /etc/pam.d/login
-fi &&
+# this is a BUG, the SA should decide if/when selinux is configured
+# properly. Activating it before that breaks login, which is BAD.
+#if [ "$PAM_SELINUX" == "y" ]; then
+#  echo "session	required	pam_selinux.so multiple" >> /etc/pam.d/login
+#fi &&
 
-if  [  !  -f  /etc/securetty  ]
-then
+if [ "$PAM_SECTTY" == "y" ]; then
   . /etc/sysconfig/devices  &&
   if  [  "$DEVICES"  ==  "devfs"  ]
   then
-    cp  $SCRIPT_DIRECTORY/securetty.devfs  /etc/securetty
+    install_config_file  $SCRIPT_DIRECTORY/securetty.devfs  /etc/securetty
   else
-    cp  $SCRIPT_DIRECTORY/securetty.udev   /etc/securetty
+    install_config_file  $SCRIPT_DIRECTORY/securetty.udev   /etc/securetty
   fi
 fi  
