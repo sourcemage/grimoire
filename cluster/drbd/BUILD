@@ -1,2 +1,1 @@
-cd drbd   &&
 make all
