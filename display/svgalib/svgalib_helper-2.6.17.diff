@@ -1,0 +1,119 @@
+diff -urbBw /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/Makefile svgalib_helper/Makefile
+--- /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/Makefile	2005-12-16 14:53:10.000000000 +0200
++++ svgalib_helper/Makefile	2006-05-20 15:31:04.000000000 +0300
+@@ -1,8 +1,6 @@
+ 
+ SVGALIB_HELPER_MAJOR=209
+ 
+-# list-multi	:= svgalib_helper.o
+-
+ svgalib_helper-objs := main.o i810.o interrupt.o virtual.o displaystart.o
+ obj-m		:= svgalib_helper.o
+ 
+@@ -6,10 +4,8 @@
+ svgalib_helper-objs := main.o i810.o interrupt.o virtual.o displaystart.o
+ obj-m		:= svgalib_helper.o
+ 
+-
+ ifneq ($(KERNELRELEASE),)
+ 
+-EXTRA_CFLAGS = -DSVGALIB_HELPER_MAJOR=$(SVGALIB_HELPER_MAJOR) $(CLASS_CFLAGS)
+ VER    ?= $(KERNELRELEASE)
+ KDIR	:= /lib/modules/$(VER)/build
+ PWD	:= $(shell pwd)
+@@ -34,6 +31,9 @@
+   CLASS_CFLAGS = -DCLASS_SIMPLE=1
+ endif
+ 
++EXTRA_CFLAGS := -DSVGALIB_HELPER_MAJOR=$(SVGALIB_HELPER_MAJOR) $(CLASS_CFLAGS)
++
++
+ default:
+ 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) CLASS_CFLAGS=$(CLASS_CFLAGS) modules
+ 
+diff -urbBw /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/dkms.conf svgalib_helper/dkms.conf
+--- /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/dkms.conf	2005-12-17 21:30:55.000000000 +0200
++++ svgalib_helper/dkms.conf	2006-01-12 19:49:00.000000000 +0200
+@@ -5,5 +5,5 @@
+ 
+ BUILT_MODULE_NAME="svgalib_helper"
+ PACKAGE_NAME="svgalib_helper"
+-PACKAGE_VERSION="1.9.24"
++PACKAGE_VERSION="1.9.25"
+ AUTOINSTALL="yes"
+diff -urbBw /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/kernel26compat.h svgalib_helper/kernel26compat.h
+--- /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/kernel26compat.h	2005-11-05 00:33:00.000000000 +0200
++++ svgalib_helper/kernel26compat.h	2006-05-20 15:17:13.000000000 +0300
+@@ -36,6 +36,11 @@
+ #  define KERNEL_2_6
+ # endif
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
++# undef MODULE_PARM
++# define MODULE_PARM(x,y) module_param(x, int, 0)
++#endif
++
+ /* WHY ? */
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+ # define PCI_GET_CLASS pci_find_class
+@@ -84,6 +89,7 @@
+ #  define SLH_SYSFS_REGISTER                                            \
+      svgalib_helper_class = class_create(THIS_MODULE, "svgalib_helper");
+ 
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+ #  define SLH_SYSFS_ADD_CONTROL                                         \
+      class_device_create(svgalib_helper_class,                      	\
+                              MKDEV(SVGALIB_HELPER_MAJOR, 0),            \
+@@ -93,6 +99,17 @@
+      class_device_create(svgalib_helper_class,                      	\
+                              MKDEV(SVGALIB_HELPER_MAJOR, _minor),       \
+                              &sh_pci_devs[_minor]->dev->dev, _name);
++#else /* 2.6.15 changed class_device_create */
++#  define SLH_SYSFS_ADD_CONTROL                                         \
++     class_device_create(svgalib_helper_class, NULL,                	\
++                             MKDEV(SVGALIB_HELPER_MAJOR, 0),            \
++                             NULL, "svga");
++
++#  define SLH_SYSFS_ADD_DEVICE(_name, _minor)                           \
++     class_device_create(svgalib_helper_class, NULL,                	\
++                             MKDEV(SVGALIB_HELPER_MAJOR, _minor),       \
++                             &sh_pci_devs[_minor]->dev->dev, _name);
++#endif /* 2.6.15 */
+ 
+ #  define SLH_SYSFS_REMOVE_DEVICE(i)                                    \
+      class_destroy(svgalib_helper_class);
+@@ -140,3 +157,7 @@
+ #if !defined(MODULE_VERSION) 
+ # define MODULE_VERSION(x)
+ #endif
++
++#ifndef PCI_VENDOR_ID_RENDITION 
++#define PCI_VENDOR_ID_RENDITION               0x1163
++#endif
+diff -urbBw /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/main.c svgalib_helper/main.c
+--- /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/main.c	2005-12-16 20:17:57.000000000 +0200
++++ svgalib_helper/main.c	2006-01-12 20:17:53.000000000 +0200
+@@ -731,7 +731,6 @@
+ 			kfree(sh_pci_devs[i]);
+ 		}
+ 
+-	SLH_SYSFS_REMOVE_DEVICE(0);
+ 	SLH_SYSFS_UNREGISTER;
+ 
+ 	devfs_unregister_chrdev(SVGALIB_HELPER_MAJOR, "svgalib_helper");
+@@ -748,7 +747,6 @@
+             kfree(sh_pci_devs[i]);
+         }
+ 	
+-	SLH_SYSFS_REMOVE_DEVICE(0);
+ 	SLH_SYSFS_UNREGISTER;
+      
+ #ifdef CONFIG_DEVFS_FS
+diff -urbBw /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/vgaversion.h svgalib_helper/vgaversion.h
+--- /usr/src/svgalib/svgalib-1.9.24/kernel/svgalib_helper/vgaversion.h	2005-12-16 20:18:04.000000000 +0200
++++ svgalib_helper/vgaversion.h	2005-12-24 00:25:39.000000000 +0200
+@@ -1,2 +1,2 @@
+-int vga_version=0x1924;
+-static char versionstr[32]="1.9.24";
++int vga_version=0x1925;
++static char versionstr[32]="1.9.25";
