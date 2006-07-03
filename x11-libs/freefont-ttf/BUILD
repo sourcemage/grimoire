@@ -1,3 +1,1 @@
-# Nothing to do
-/bin/true
-
+true
