@@ -1,11 +1,5 @@
-# gcc 3.4 fix
-local name  &&
-for name in elfutils/*/Makefile.in; do
-  sedit  's/-Werror//' $name
-done  &&
+WITH_DB_SUBDIR=/usr/lib  &&
 export LDFLAGS=${LDFLAGS/-z combreloc/} &&
-export CPPFLAGS="$CPPFLAGS -I/usr/include/python$(installed_version python| cut -c 1-3)" &&
-./configure --prefix=${INSTALL_ROOT}/usr &&
-make_single  &&
-make         &&
-make_normal
+OPTS="$OPTS $RPM_API $RPM_SELINUX --disable-static --with-libintl-prefix=/usr"      &&
+#export CPPFLAGS="$CPPFLAGS -I/usr/include/python$(installed_version python| cut -c 1-3)" &&
+default_build
