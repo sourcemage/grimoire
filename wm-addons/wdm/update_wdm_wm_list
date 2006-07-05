@@ -1,0 +1,70 @@
+#!/bin/sh
+
+#    update_wdm_wm_list: generates list of window managers for wdm
+#    Copyright (C) 2006  Florian Franzmann
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+. /etc/sorcery/config
+
+DESKTOP_DIR="${INSTALL_ROOT}/usr/share/xsessions"
+WDM_CONFIG="${INSTALL_ROOT}/etc/wdm/wdm-config"
+
+function check_dir () {
+	if [ ! -d "$1" ]; then
+		message -n "$PROBLEM_COLOR"
+		message -n "$1 is not a directory, will not continue."
+		message "$DEFAULT_COLOR"
+		exit 1
+	fi
+}
+
+function check_file () {
+	if [ ! -w "$1" ] || [ ! -r "$1" ]; then
+		message -n "$PROBLEM_COLOR"
+		message -n "I do not have read/write permissions on $1, "
+		message -n "will not continue."
+		message "$DEFAULT_COLOR"
+		exit 1
+	fi
+}
+
+check_dir "$DESKTOP_DIR"
+check_file "$WDM_CONFIG"
+
+message -n "$MESSAGE_COLOR"
+message -n "creating wdm's list of windowmanagers:"
+message "$DEFAULT_COLOR"
+
+for desktop in $DESKTOP_DIR/*.desktop; do
+	TRYEXEC="$(grep '^TryExec' $desktop | cut -f2 -d'=' | sed -e 's/^ *//')"
+	EXEC="$(grep '^Exec' $desktop | cut -f2 -d'=' | sed -e 's/^ *//')"
+	if [ -x $(which $TRYEXEC) ]; then
+		message -n "$MESSAGE_COLOR"
+		message -n "\tincluding $FILE_COLOR$EXEC"
+		message "$DEFAULT_COLOR"
+		if [ -z "$WMLIST" ]; then
+			WMLIST="$EXEC"
+		else
+			WMLIST="$WMLIST:$EXEC"
+		fi
+	fi
+done
+message -n "$MESSAGE_COLOR"
+message -n "done."
+message "$DEFAULT_COLOR"
+
+sedit "s/^ *DisplayManager\*wdmWm:.*/DisplayManager*wdmWm:\
+         $WMLIST/" $WDM_CONFIG
