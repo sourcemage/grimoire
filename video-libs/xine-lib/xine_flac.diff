@@ -1,0 +1,54 @@
+--- src/demuxers/demux_flac.c	2004-09-22 23:54:44.000000000 +0300
++++ src/demuxers/demux_flac.c.new	2006-07-06 02:36:47.000000000 +0300
+@@ -270,23 +270,36 @@
+   /* send start buffers */
+   _x_demux_control_start(this->stream);
+ 
+-  if (this->audio_fifo) {
+-    buf = this->audio_fifo->buffer_pool_alloc (this->audio_fifo);
+-    buf->type = BUF_AUDIO_FLAC;
+-    buf->decoder_flags = BUF_FLAG_HEADER|BUF_FLAG_STDHEADER|BUF_FLAG_FRAME_END;
+-    buf->decoder_info[0] = 0;
+-    buf->decoder_info[1] = this->sample_rate;
+-    buf->decoder_info[2] = this->bits_per_sample;
+-    buf->decoder_info[3] = this->channels;
+-    /* copy the faux WAV header */
+-    buf->size = sizeof(xine_waveformatex) + FLAC_STREAMINFO_SIZE;
+-    memcpy(buf->content, this->streaminfo, buf->size);
+-    /* forge a WAV header with the proper length */
+-    wave.cbSize = FLAC_STREAMINFO_SIZE;
+-    memcpy(buf->content, &wave, sizeof(xine_waveformatex));
+-    this->audio_fifo->put (this->audio_fifo, buf);
++  if ( ! this->audio_fifo )
++  {
++    this->status = DEMUX_FINISHED;
++    return;
+   }
+ 
++  buf = this->audio_fifo->buffer_pool_alloc (this->audio_fifo);
++  buf->type = BUF_AUDIO_FLAC;
++  buf->decoder_flags = BUF_FLAG_HEADER|BUF_FLAG_STDHEADER|BUF_FLAG_FRAME_END;
++  buf->decoder_info[0] = 0;
++  buf->decoder_info[1] = this->sample_rate;
++  buf->decoder_info[2] = this->bits_per_sample;
++  buf->decoder_info[3] = this->channels;
++  /* copy the faux WAV header */
++  buf->size = sizeof(xine_waveformatex) + FLAC_STREAMINFO_SIZE;
++  memcpy(buf->content, this->streaminfo, buf->size);
++  /* forge a WAV header with the proper length */
++  wave.cbSize = FLAC_STREAMINFO_SIZE;
++  memcpy(buf->content, &wave, sizeof(xine_waveformatex));
++  this->audio_fifo->put (this->audio_fifo, buf);
++
++  _x_stream_info_set(this->stream, XINE_STREAM_INFO_HAS_VIDEO, 0);
++  _x_stream_info_set(this->stream, XINE_STREAM_INFO_HAS_AUDIO, 1);
++  _x_stream_info_set(this->stream, XINE_STREAM_INFO_AUDIO_CHANNELS,
++                       this->channels);
++  _x_stream_info_set(this->stream, XINE_STREAM_INFO_AUDIO_SAMPLERATE,
++                       this->sample_rate);
++  _x_stream_info_set(this->stream, XINE_STREAM_INFO_AUDIO_BITS,
++                       this->bits_per_sample);
++
+   this->status = DEMUX_OK;
+ }
+ 
