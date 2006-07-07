@@ -18,6 +18,7 @@ SQUID_AUTH_NTLM='' &&
   --enable-auth="$SQUID_AUTH"                        \
   --enable-digest-auth-helpers="$SQUID_AUTH_DIGEST"  \
   --enable-ntlm-auth-helpers="$SQUID_AUTH_NTLM"      \
-  $OPTS                                              &&
+    $SQUID_ARP_ACL                                   \
+    $OPTS                                            &&                                          
 
 make
