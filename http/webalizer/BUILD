@@ -1,6 +1,6 @@
 ./configure  --prefix=/usr         \
              --sysconfdir=/etc     \
              --localstatedir=/var  \
-             --enable-dns          \
+             --mandir=/usr/share/man \
              $OPTS                 &&
 make
