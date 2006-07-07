@@ -1,0 +1,1044 @@
+
+Property changes on: pixmaps
+___________________________________________________________________
+Name: svn:ignore
+   + Makefile
+
+
+Index: ChangeLog
+===================================================================
+--- ChangeLog	(.../original-1.2.9pre1)	(revision 31)
++++ ChangeLog	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -9,3 +9,20 @@
+ 	* added russian and polish translations
+ 	* improved german translation
+ 	* the spec file isn't maintained anymore directly by me
++
++2006-03-28 Shlomi Fish <shlomif@iglu.org.il>
++	* Fix a data corruption bug with the search function.
++	* Fix the "Find again" functionality.
++	* Eliminate many compilation warnings caused due to a confusion between 
++	signed and unsigned char strings.
++	* Integrated a patch by wwp that:
++		* Fixes proto for find() in src/grg_entries_vis.h (not really used anyway)
++		* Fixes compilation on FC3 (missing #includes to stdio.h)
++		* Adds sensitivity to HTAB environment variable to change the 
++		horizontal tab value in the main edition widget (default: 8)
++
++2006-04-04 Shlomi Fish <shlomif@iglu.org.il>
++	* Fix a data corruption bug caused by the previous data corruption bug
++	fix, in which before the search the entry's widget's text was not synced 
++	into memory.
++
+Index: src/grg_entries_vis.h
+===================================================================
+--- src/grg_entries_vis.h	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_entries_vis.h	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -22,6 +22,27 @@
+ #ifndef GRG_ENTRIES_VIS_H
+ #define GRG_ENTRIES_VIS_H
+ 
++typedef struct _GtkCustomTextView GtkCustomTextView;
++typedef struct _GtkCustomTextViewClass GtkCustomTextViewClass;
++
++struct _GtkCustomTextView
++{
++	GtkTextView	parent;
++	guint		tabs_width;
++};
++
++struct _GtkCustomTextViewClass 
++{
++	GtkTextViewClass parent_class;
++};
++
++#define GTK_TYPE_CUSTOM_TEXT_VIEW	(gtk_custom_text_view_get_type())
++#define GTK_CUSTOM_TEXT_VIEW(obj)	(G_TYPE_CHECK_INSTANCE_CAST((obj), GTK_TYPE_CUSTOM_TEXT_VIEW, GtkCustomTextView))
++#define GTK_CUSTOM_TEXT_VIEW_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), GTK_TYPE_CUSTOM_TEXT_VIEW, GtkCustomTextViewClass))
++#define GTK_IS_CUSTOM_TEXT_VIEW(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_CUSTOM_TEXT_VIEW))
++#define GTK_IS_CUSTOM_TEXT_VIEW_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), GTK_TYPE_CUSTOM_TEXT_VIEW))
++#define GTK_CUSTOM_TEXT_VIEW_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), GTK_TYPE_CUSTOM_TEXT_VIEW, GtkCustomTextViewClass))
++
+ void entries_vis_init (void);
+ void entries_vis_deinit (void);
+ 
+@@ -32,8 +53,8 @@
+ void clear_clipboard (void);
+ 
+ //Search operation
+-void find (gpointer callback_data, guint again, GtkWidget *parent);
+ void del_needle (void);
+ gboolean has_needle (void);
++void find (GtkWidget *widget, gpointer callback_data);
+ 
+ #endif
+Index: src/grg_recent_dox.h
+===================================================================
+--- src/grg_recent_dox.h	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_recent_dox.h	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -28,6 +28,6 @@
+ 
+ void grg_recent_dox_init (void);
+ void grg_recent_dox_deinit (void);
+-void grg_recent_dox_push (const guchar * file);
++void grg_recent_dox_push (const gchar * file);
+ 
+ #endif
+Index: src/grg_prefs_io.c
+===================================================================
+--- src/grg_prefs_io.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_prefs_io.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -38,7 +38,7 @@
+ gint
+ grg_save_prefs (void)
+ {
+-	guchar *path, *row, algo, *grg_pref_file_local,
++	gchar *path, *row, algo, *grg_pref_file_local,
+ 		*grg_pref_font_string_local;
+ 	gint fd;
+ 
+@@ -318,7 +318,7 @@
+ gint
+ grg_load_prefs (void)
+ {
+-	guchar *path, *content, active_opt = 0;
++	gchar *path, *content, active_opt = 0;
+ 	gint fd, end;
+ 	GMarkupParser *context =
+ 		(GMarkupParser *) grg_malloc (sizeof (GMarkupParser));
+Index: src/grg_widgets.c
+===================================================================
+--- src/grg_widgets.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_widgets.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -232,7 +232,7 @@
+  * grg_find_dialog:
+  */
+ gboolean
+-grg_find_dialog (guchar ** needle, gboolean * only_current,
++grg_find_dialog (gchar ** needle, gboolean * only_current,
+ 		 gboolean * case_sens, GtkWindow * parent)
+ {
+ 	GtkWidget *dialog, *question, *label, *chk1, *chk2;
+Index: src/grg_entries.c
+===================================================================
+--- src/grg_entries.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_entries.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -36,7 +36,7 @@
+ 
+ static GList *entries = NULL;
+ GList *current = NULL;
+-static guchar *serialized;
++static gchar *serialized;
+ static gint pos_to_restore;
+ static gboolean newer_data = FALSE;
+ static gchar *afname, *afcomment;
+@@ -443,11 +443,11 @@
+ 		struct grg_attachment *att =
+ 			(struct grg_attachment *) attlist->data;
+         void * void_origfile;
+-		guchar *origfile, *b64file, *append;
++		gchar *origfile, *b64file, *append;
+ 
+ 		grg_get_content (att, &void_origfile, NULL);
+-        origfile = (guchar*)void_origfile;
+-		b64file = grg_encode64 (origfile, att->filedim, NULL);
++        origfile = (gchar*)void_origfile;
++		b64file = (gchar*)grg_encode64 ((guchar*)origfile, att->filedim, NULL);
+ 		GRGFREE (void_origfile, att->filedim);
+ 		append = g_strdup_printf (XML_ATT_FORMAT, attachments,
+ 					  att->filename, att->comment,
+@@ -503,7 +503,7 @@
+ 
+ 	grg_wait_message_change_reason (wait, _("saving"));
+ 
+-	err = grg_encrypt_file (gctx, key, file, serialized,
++	err = grg_encrypt_file (gctx, key, (guchar*)file, (guchar*)serialized,
+ 				strlen (serialized));
+ 
+ 	grg_wait_message_change_reason (wait, _("cleaning up"));
+@@ -576,7 +576,7 @@
+ 	case ATTACH_FIELD:
+ 	{
+ 		guint dim;
+-		gchar *decoded = grg_decode64 (text, text_len, &dim);
++		gchar *decoded = (gchar*)grg_decode64 ((guchar*)text, text_len, &dim);
+ 		grg_attach_content (decoded, dim, afname, afcomment);
+ 		GRGFREE (decoded, dim);
+ 		GRGAFREE (afname);
+@@ -645,13 +645,19 @@
+  * Returns: 0 if OK; an error code otherwise (see libgringotts' docs)
+  */
+ gint
+-grg_load_wrapper (guchar ** txt, GRG_KEY key, const gint fd,
++grg_load_wrapper (gchar ** txt, GRG_KEY key, const gint fd,
+ 		  const gchar * file)
+ {
+ 	gint err;
+-	gulong len = 0;
++	glong len = 0;
++    guchar *unsigned_txt;
+ 
+-	err = grg_decrypt_file_direct (gctx, key, fd, txt, &len);
++    /* I'm doing this assignment in and out because one cannot guarantee that
++     * pointers of different types will be the same.
++     * */
++    unsigned_txt = (guchar*)*txt;
++	err = grg_decrypt_file_direct (gctx, key, fd, &unsigned_txt, &len);
++    *txt = (gchar*)unsigned_txt;
+ 
+ 	grg_prefs_update ();
+ 
+@@ -713,7 +719,7 @@
+ grg_entries_find (gchar * needle, glong offset, gboolean only_current,
+ 		  gboolean case_sens)
+ {
+-	guchar *text = grg_entries_get_Body (), *start =
++	gchar *text = grg_entries_get_Body (), *start =
+ 		g_utf8_offset_to_pointer (text, offset), *occur;
+ 	glong result;
+ 
+Index: src/grg_widgets.h
+===================================================================
+--- src/grg_widgets.h	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_widgets.h	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -44,7 +44,7 @@
+ //Associates the Gringotts icon with the given window.
+ void grg_window_set_icon (GtkWindow * w);
+ 
+-gboolean grg_find_dialog (guchar ** needle, gboolean * only_current,
++gboolean grg_find_dialog (gchar ** needle, gboolean * only_current,
+ 			  gboolean * case_sens, GtkWindow * parent);
+ 
+ //displays a "Wait..." window, to be destroyed at the end of waiting
+Index: src/grg_list.c
+===================================================================
+--- src/grg_list.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_list.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -59,7 +59,7 @@
+ 	for (i = 0; i < max; i++, grg_entries_next ())
+ 	{
+ 		guint nat = grg_entries_n_att ();
+-		guchar *snat =
++		gchar *snat =
+ 			(nat == 0) ? g_strdup ("-") : g_strdup_printf ("%d",
+ 								       nat);
+ 
+Index: src/grg_safe.c
+===================================================================
+--- src/grg_safe.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_safe.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -46,6 +46,7 @@
+ #include <sys/types.h>
+ #include <sys/resource.h>
+ #include <sys/stat.h>
++#include <stdio.h>
+ 
+ #define GRG_SAFE			0
+ #define GRG_SLIGHTLY_UNSAFE	1
+@@ -138,6 +139,7 @@
+                    *xauth;
+ #endif
+     gchar          *lang;
++    gchar          *htab;
+ 
+     if (!rootCheck && (!getuid() || !geteuid()))
+ 	// forbid usage as root user
+@@ -183,6 +185,7 @@
+ 
+     // extract
+     lang = getenv("LANG");
++    htab = getenv("HTAB");
+ #ifdef ENV_CHECK
+     display = getenv("DISPLAY");
+     xauth = getenv("XAUTHORITY");
+@@ -222,6 +225,8 @@
+     // re-set (warning: don't free() the g_strconcat'ed strings)
+     if (lang != NULL)
+ 	putenv(g_strconcat("LANG=", lang, NULL));
++    if (htab != NULL)
++	putenv(g_strconcat("HTAB=", htab, NULL));
+     putenv(g_strconcat("DISPLAY=", display, NULL));
+     if (xauth != NULL)
+ 	putenv(g_strconcat("XAUTHORITY=", xauth, NULL));
+Index: src/grg_entries.h
+===================================================================
+--- src/grg_entries.h	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_entries.h	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -99,7 +99,7 @@
+ 				   gboolean X);
+ 
+ //Wrapper to file-related functions, to add UTF-8 handling
+-gint grg_load_wrapper (guchar ** txt, GRG_KEY key, const gint fd,
++gint grg_load_wrapper (gchar ** txt, GRG_KEY key, const gint fd,
+ 		       const gchar * file);
+ 
+ //Searches for a text in the entries.
+Index: src/grg_prefs.c
+===================================================================
+--- src/grg_prefs.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_prefs.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -42,8 +42,8 @@
+ #define NEW_ROW_SEPARATOR(box) \
+ 	gtk_box_pack_start(GTK_BOX(box), gtk_hseparator_new(), FALSE, FALSE, 0);
+ 
+-static guchar *grg_pref_file = NULL;
+-static guchar *grg_prefs_editor_font = NULL;
++static gchar *grg_pref_file = NULL;
++static gchar *grg_prefs_editor_font = NULL;
+ 
+ static guchar tmp_pref_crypto;
+ static guchar tmp_pref_hash;
+@@ -71,7 +71,7 @@
+ gint grg_prefs_xpire = EXP_TIME_DEF;	//abs(x)= num of days; < 0 = never
+ gint grg_prefs_wipe_passes = WIPE_PASSES_DEF;
+ 
+-guchar *
++gchar *
+ get_pref_file (void)
+ {
+ 	if (grg_pref_file)
+@@ -80,13 +80,13 @@
+ }
+ 
+ void
+-set_pref_file (const guchar * newval)
++set_pref_file (const gchar * newval)
+ {
+ 	g_free (grg_pref_file);
+ 	grg_pref_file = g_strdup (newval);
+ }
+ 
+-guchar *
++gchar *
+ get_pref_font_string (void)
+ {
+ 	if (grg_prefs_editor_font)
+@@ -95,7 +95,7 @@
+ }
+ 
+ void
+-set_pref_font_string (const guchar * newval)
++set_pref_font_string (const gchar * newval)
+ {
+ 	g_free (grg_prefs_editor_font);
+ 	grg_prefs_editor_font = g_strdup (newval);
+@@ -104,7 +104,7 @@
+ void
+ set_pref_font_string_from_editor (void)
+ {
+-	guchar *newval = get_editor_font ();
++	gchar *newval = get_editor_font ();
+ 	set_pref_font_string (newval);
+ 	g_free (newval);
+ }
+@@ -144,7 +144,7 @@
+ {
+ 	if (grg_load_prefs () != GRG_OK)
+ 	{
+-		guchar *msg =
++		gchar *msg =
+ 			_("Invalid preferences file. Resetting to defaults.");
+ 		grg_msg (msg, GTK_MESSAGE_WARNING, parent);
+ 		grg_prefs_reset_defaults ();
+Index: src/gringotts.c
+===================================================================
+--- src/gringotts.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/gringotts.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -27,6 +27,7 @@
+ #include <locale.h>
+ #include <time.h>
+ #include <fcntl.h>
++#include <stdio.h>
+ 
+ #include <gtk/gtk.h>
+ 
+@@ -47,6 +48,8 @@
+ 
+ #include <libgringotts.h>
+ 
++#include "gringotts.h"
++
+ //appends a stock item to a toolbar
+ #define	TOOLBAR_INS_STOCK(tbar, stock, callback, tooltip) \
+ 	grg_toolbar_insert_stock (GTK_TOOLBAR (tbar), stock, tooltip, \
+@@ -85,7 +88,7 @@
+ static GtkComboBox *combo_attach;
+ static GtkListStore * combo_attach_list_store;
+ 
+-static guchar *grgfile = NULL, *caption = NULL;
++static gchar *grgfile = NULL, *caption = NULL;
+ static gboolean started = FALSE, gtk_loop_started = FALSE;
+ static gboolean created = FALSE;
+ static guint tout;
+@@ -315,8 +318,6 @@
+     grg_attachment_fill_combo_box (combo_attach);
+ }
+ 
+-void set_editor_font (const guchar * font_desc);
+-
+ /**
+  * update:
+  *
+@@ -471,7 +472,7 @@
+ 	      _("You'll lose all the changes from\nlast save! Are you sure?"),
+ 	      FALSE, win1) == GRG_YES))
+ 	{
+-		guchar *tmp = NULL;
++		gchar *tmp = NULL;
+ 		GtkWidget *wait = grg_wait_msg (_("loading"), win1);
+ 
+ 		gint err, fd;
+@@ -600,7 +601,7 @@
+ 	GtkWidget *wait;
+ 	GRG_KEY tmpkey;
+ 	gint err, fd;
+-	guchar *res;
++	gchar *res;
+ 	struct stat buf1, buf2;
+ 
+ 	if (!filename || !*filename)
+@@ -996,7 +997,7 @@
+ 		    (fpath + strlen (fpath) - SUFFIX_LEN, SUFFIX,
+ 		     SUFFIX_LEN) != 0)
+ 		{
+-			guchar *tmp = g_strconcat (tmpfile, SUFFIX, NULL);
++			gchar *tmp = g_strconcat (tmpfile, SUFFIX, NULL);
+ 			g_free (tmpfile);
+ 			tmpfile = g_strdup (tmp);
+ 			g_free (tmp);
+@@ -1432,7 +1433,7 @@
+ 		update_saveable (GRG_SAVE_ACTIVE);
+ }
+ 
+-guchar *
++gchar *
+ get_editor_font (void)
+ {
+ 	PangoContext *editorFont = gtk_widget_get_pango_context (edit);
+@@ -1442,7 +1443,7 @@
+ }
+ 
+ void
+-set_editor_font (const guchar * font_desc)
++set_editor_font (const gchar * font_desc)
+ {
+ 	PangoFontDescription *fdesc =
+ 		pango_font_description_from_string (font_desc);
+@@ -1736,14 +1737,14 @@
+ main (gint argc, gchar ** argv)
+ {
+ 	gchar *file2load = NULL, *file2loadInArgv = NULL, *finalfile = NULL;
+-	gchar *version = grg_get_version (); //libgringotts version
++	guchar *version = grg_get_version (); //libgringotts version
+ 	gint prefs_err;
+ 	gboolean root = FALSE;
+ 
+ 	if (!grg_mlockall_and_drop_root_privileges ())
+ 		exit (1);
+ 
+-	gctx = grg_context_initialize_defaults ("GRG");
++	gctx = grg_context_initialize_defaults ((guchar*)"GRG");
+ 
+ 	//parse cmdline args
+ 	grg_parse_argv (argc, argv, &file2loadInArgv, &root);
+Index: src/grg_popt.c
+===================================================================
+--- src/grg_popt.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_popt.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -47,7 +47,7 @@
+ 	GRG_KEY key;
+ 	glong len;
+ 	gint err, fd;
+-	guchar *txt;
++	gchar *txt;
+ 
+ #ifndef HAVE_TCGETATTR
+ 	fprintf (stderr, "%s: %s\n", _("Warning"),
+@@ -119,7 +119,11 @@
+ 			continue;
+ 		}
+ 
+-		err = grg_decrypt_file_direct (gctx, key, fd, &txt, &len);
++        {
++            guchar *unsigned_txt;
++		    err = grg_decrypt_file_direct (gctx, key, fd, &unsigned_txt, &len);
++            txt = (gchar*)unsigned_txt;
++        }
+ 
+ 		grg_key_free (gctx, key);
+ 
+Index: src/grg_prefs.h
+===================================================================
+--- src/grg_prefs.h	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_prefs.h	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -32,10 +32,10 @@
+ gint grg_prefs_xpire;
+ gint grg_prefs_wipe_passes;
+ 
+-guchar *get_pref_file (void);
+-void set_pref_file (const guchar * newval);
+-guchar *get_pref_font_string (void);
+-void set_pref_font_string (const guchar * newval);
++gchar *get_pref_file (void);
++void set_pref_file (const gchar * newval);
++gchar *get_pref_font_string (void);
++void set_pref_font_string (const gchar * newval);
+ void set_pref_font_string_from_editor (void);
+ 
+ void grg_pref_dialog (GtkWidget * parent);
+Index: src/gringotts.h
+===================================================================
+--- src/gringotts.h	(.../original-1.2.9pre1)	(revision 31)
++++ src/gringotts.h	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -99,10 +99,10 @@
+ void about (void);
+ 
+ //Performs an action about saveability.
+-gboolean update_saveable (gint mode);
++gboolean update_saveable (grg_saveable mode);
+ 
+-guchar *get_editor_font (void);
+-void set_editor_font (const guchar * font_desc);
++gchar *get_editor_font (void);
++void set_editor_font (const gchar * font_desc);
+ 
+ void update (void);
+ 
+Index: src/grg_entries_vis.c
+===================================================================
+--- src/grg_entries_vis.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_entries_vis.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -22,15 +22,29 @@
+ #include <gtk/gtk.h>
+ 
+ #include "grg_defs.h"
++#include "grg_entries_vis.h"
+ #include "gringotts.h"
+ #include "grg_entries.h"
+ #include "grg_prefs.h"
+ #include "grg_widgets.h"
+ 
++#include <stdlib.h>
++
++/* Properties */
++enum {
++	PROP_0,
++	PROP_TABS_WIDTH
++};
++
++#define MAX_TAB_WIDTH			32
++#define DEFAULT_TAB_WIDTH 		8
++
++static GObjectClass *parent_class = NULL;
++	
+ static GtkClipboard *clip = NULL;
+ static gboolean isThereAClip = FALSE;
+ 
+-static guchar *needle = NULL;
++static gchar *needle = NULL;
+ 
+ /**************
+  * Sorry for the many commented pieces of code. It's work in progress...
+@@ -42,9 +56,30 @@
+ #if 0
+ static GtkListStore *mdl = NULL;
+ #endif
+-static GtkWidget *simpleSheet = NULL/*, *structSheet = NULL*/;
++static GtkCustomTextView *simpleSheet = NULL/*, *structSheet = NULL*/;
+ static gulong simpleSigID = 0/*, structSigID = 0*/;
+ 
++static void gtk_custom_text_view_init (GtkCustomTextView *view);
++static void gtk_custom_text_view_class_init (GtkCustomTextViewClass *klass);
++static guint gtk_custom_text_view_get_tabs_width (GtkCustomTextView *klass);
++static void	gtk_custom_text_view_set_property 		(GObject           *object,
++							 guint              prop_id,
++							 const GValue      *value,
++							 GParamSpec        *pspec);
++static void	gtk_custom_text_view_get_property		(GObject           *object,
++							 guint              prop_id,
++							 GValue            *value,
++							 GParamSpec        *pspec);
++void gtk_custom_text_view_set_tabs_width (GtkCustomTextView *view,
++							 guint          width);
++void gtk_source_view_set_tabs_width (GtkCustomTextView *view,
++							 guint          width);
++GType gtk_custom_text_view_get_type (void);
++static gboolean set_tab_stops_internal (GtkCustomTextView *view);
++static gint	calculate_real_tab_width 		(GtkCustomTextView     *view, 
++							 guint              tab_size,
++							 gchar              c);
++
+ void entries_vis_init (void){
+ 	/*GtkTreeViewColumn *c1, *c2, *c3;
+ 	GtkCellRenderer *cr1, *cr2, *cr3;
+@@ -54,8 +89,10 @@
+ 		isThereAClip = TRUE;
+ 
+ 	entryBuf = gtk_text_buffer_new (NULL);
+-	simpleSheet = gtk_text_view_new_with_buffer (entryBuf);
++	simpleSheet = g_object_new (GTK_TYPE_CUSTOM_TEXT_VIEW, NULL);
++	gtk_text_view_set_buffer (GTK_TEXT_VIEW (simpleSheet), GTK_TEXT_BUFFER (entryBuf));
+ 	gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (simpleSheet), GTK_WRAP_WORD);
++
+ 	simpleSigID = g_signal_connect (G_OBJECT (entryBuf), "changed",
+ 		G_CALLBACK (meta_saveable), GINT_TO_POINTER (GRG_SAVE_ACTIVE));
+ /*
+@@ -74,6 +111,207 @@
+ 	gtk_tree_view_append_column (GTK_TREE_VIEW (structSheet), c3);*/
+ }
+ 
++static void
++gtk_custom_text_view_init (GtkCustomTextView *view)
++{
++	char* htab_env = getenv("HTAB");
++	int htab = DEFAULT_TAB_WIDTH;
++
++	if (htab_env) {
++		int value;
++		char* chk;
++
++		value = (int)strtol(htab_env, &chk, 10);
++		if (!*chk) {
++			htab = value;
++		}
++	}
++	g_object_set(view, "tabs_width", htab, NULL);
++}
++
++static void
++gtk_custom_text_view_class_init (GtkCustomTextViewClass *klass)
++{
++	GObjectClass	 *object_class;
++	GtkTextViewClass *textview_class;
++	GtkWidgetClass   *widget_class;
++	
++	object_class 	= G_OBJECT_CLASS (klass);
++	textview_class 	= GTK_TEXT_VIEW_CLASS (klass);
++	parent_class 	= g_type_class_peek_parent (klass);
++	widget_class 	= GTK_WIDGET_CLASS (klass);
++	
++	object_class->get_property = gtk_custom_text_view_get_property;
++	object_class->set_property = gtk_custom_text_view_set_property;
++
++	g_object_class_install_property (object_class,
++					 PROP_TABS_WIDTH,
++					 g_param_spec_uint ("tabs_width",
++							    _("Tabs Width"),
++							    _("Tabs Width"),
++							    1,
++							    MAX_TAB_WIDTH,
++							    DEFAULT_TAB_WIDTH,
++							    G_PARAM_READWRITE));
++}
++
++static guint
++gtk_custom_text_view_get_tabs_width (GtkCustomTextView *view)
++{
++	g_return_val_if_fail (view != NULL, FALSE);
++	g_return_val_if_fail (GTK_IS_CUSTOM_TEXT_VIEW (view), FALSE);
++
++	return view->tabs_width;
++}
++
++void
++gtk_custom_text_view_set_tabs_width (GtkCustomTextView *view,
++				guint          width)
++{
++	guint save_width;
++	
++	g_return_if_fail (GTK_CUSTOM_TEXT_VIEW (view));
++	g_return_if_fail (width <= MAX_TAB_WIDTH);
++	g_return_if_fail (width > 0);
++
++	if (view->tabs_width == width)
++		return;
++	
++	gtk_widget_ensure_style (GTK_WIDGET (view));
++	
++	save_width = view->tabs_width;
++	view->tabs_width = width;
++	if (set_tab_stops_internal (view))
++	{
++		g_object_notify (G_OBJECT (view), "tabs_width");
++	}
++	else
++	{
++		g_warning ("Impossible to set tabs width.");
++		view->tabs_width = save_width;
++	}
++}
++
++GType
++gtk_custom_text_view_get_type (void)
++{
++	static GType our_type = 0;
++
++	if (our_type == 0) {
++		static const GTypeInfo our_info = {
++			sizeof (GtkCustomTextViewClass),
++			(GBaseInitFunc) NULL,
++			(GBaseFinalizeFunc) NULL,
++			(GClassInitFunc) gtk_custom_text_view_class_init,
++			NULL,	/* class_finalize */
++			NULL,	/* class_data */
++			sizeof (GtkCustomTextView),
++			0,	/* n_preallocs */
++			(GInstanceInitFunc) gtk_custom_text_view_init
++		};
++		our_type = g_type_register_static (GTK_TYPE_TEXT_VIEW,
++						   "GtkCustomTextView",
++						   &our_info, 0);
++	}
++	return our_type;
++}
++
++static void 
++gtk_custom_text_view_set_property (GObject      *object,
++			      guint         prop_id,
++			      const GValue *value,
++			      GParamSpec   *pspec)
++{
++	GtkCustomTextView *view;
++	
++	g_return_if_fail (GTK_IS_CUSTOM_TEXT_VIEW (object));
++
++	view = GTK_CUSTOM_TEXT_VIEW (object);
++    
++	switch (prop_id)
++	{
++		case PROP_TABS_WIDTH:
++			gtk_custom_text_view_set_tabs_width (view, 
++							g_value_get_uint (value));
++			break;
++		
++		default:
++			G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
++			break;
++	}
++}
++
++static void 
++gtk_custom_text_view_get_property (GObject    *object,
++			      guint       prop_id,
++			      GValue     *value,
++			      GParamSpec *pspec)
++{
++	GtkCustomTextView *view;
++	
++	g_return_if_fail (GTK_IS_CUSTOM_TEXT_VIEW (object));
++
++	view = GTK_CUSTOM_TEXT_VIEW (object);
++    
++	switch (prop_id)
++	{
++		case PROP_TABS_WIDTH:
++			g_value_set_uint (value,
++					  gtk_custom_text_view_get_tabs_width (view));
++			break;
++
++		default:
++			G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
++			break;
++	}
++}
++
++static gboolean
++set_tab_stops_internal (GtkCustomTextView *view)
++{
++	PangoTabArray *tab_array;
++	gint real_tab_width;
++
++	real_tab_width = calculate_real_tab_width (view, view->tabs_width, ' ');
++
++	if (real_tab_width < 0)
++		return FALSE;
++	
++	tab_array = pango_tab_array_new (1, TRUE);
++	pango_tab_array_set_tab (tab_array, 0, PANGO_TAB_LEFT, real_tab_width);
++
++	gtk_text_view_set_tabs (GTK_TEXT_VIEW (view), 
++				tab_array);
++
++	pango_tab_array_free (tab_array);
++
++	return TRUE;
++}
++
++static gint
++calculate_real_tab_width (GtkCustomTextView *view, guint tab_size, gchar c)
++{
++	PangoLayout *layout;
++	gchar *tab_string;
++	gint tab_width = 0;
++
++	if (tab_size == 0)
++		return -1;
++
++	tab_string = g_strnfill (tab_size, c);
++	layout = gtk_widget_create_pango_layout (GTK_WIDGET (view), tab_string);
++	g_free (tab_string);
++
++	if (layout != NULL) {
++		pango_layout_get_pixel_size (layout, &tab_width, NULL);
++		g_object_unref (G_OBJECT (layout));
++		tab_width*=2;
++	} else
++		tab_width = -1;
++
++	return tab_width;
++}
++
+ gboolean
+ has_needle (void) {
+ 	return needle != NULL;
+@@ -182,10 +420,16 @@
+         guint again = GPOINTER_TO_UINT(callback_data);
+ 	static gboolean only_current, case_sens;
+ 	gint found, offset = 0;
+-	guchar *buf;
++	gchar *buf;
+ 	GtkTextIter position;
+ 	GtkTextMark *cursor, *endsel;
+         GtkWidget *parent = gtk_widget_get_toplevel(widget);
++
++	/* Save the entry into memory, so if update() is called next it will
++	 * be saved. 
++	 * */
++	sync_entry(); 
++
+ 	if (!again)
+ 		if (!grg_find_dialog
+ 		    (&needle, &only_current, &case_sens, GTK_WINDOW (parent)))
+@@ -216,28 +460,38 @@
+ 
+ 			//to avoid that searching again and again the same text finds
+ 			//the same portion, we set the cursor AFTER the found text
++			/* And this time really do it -- Shlomi Fish */
+ 			cursor = gtk_text_buffer_get_mark (entryBuf,
+ 							   "insert");
+ 			gtk_text_buffer_get_iter_at_mark (entryBuf, &position,
+ 							  cursor);
+ 			endsel = gtk_text_buffer_get_mark (entryBuf,
+ 							   "selection_bound");
+-			gtk_text_iter_set_offset (&position, found);
+-			gtk_text_buffer_move_mark (entryBuf, cursor,
+-						   &position);
+ 			gtk_text_iter_set_offset (&position,
+ 						  found +
+ 						  g_utf8_strlen (needle, -1));
++			gtk_text_buffer_move_mark (entryBuf, cursor,
++						   &position);
++			gtk_text_iter_set_offset (&position, found);
+ 			gtk_text_buffer_move_mark (entryBuf, endsel,
+ 						   &position);
+ 
+-            /*
+-             * Make sure that the text-view window scrolls to view the current 
+-             * selection.
+-             * */
+-            gtk_text_view_scroll_mark_onscreen (GTK_TEXT_VIEW (simpleSheet),
++			/*
++			 * Make sure that the text-view window scrolls to
++			 * view the current selection.
++			 * */
++			gtk_text_view_scroll_mark_onscreen (GTK_TEXT_VIEW (simpleSheet),
+ 				gtk_text_buffer_get_mark (entryBuf,
+ 				"insert"));
++
++			/*
++			 * Make sure that the sheet gets focus, this is so
++			 * pressing "Find again" consecutively will yield
++			 * a second result, as well, as let the user move the
++			 * cursor immediately.
++			 * */
++			gtk_widget_grab_focus (GTK_WIDGET (simpleSheet));
++
+ 			break;
+ 		}
+ 		else
+@@ -257,6 +511,12 @@
+ 				     FALSE, parent) == GRG_YES)
+ 				{
+ 					grg_entries_first ();
++					/* Call update() now, because we changed the page and
++					 * sync_entry() may be called later, which will otherwise
++					 * cause the first page to be over-rided with the
++					 * info in the current page.
++					 * */
++					update();
+ 					offset = 0;
+ 					continue;
+ 				}
+Index: src/grg_recent_dox.c
+===================================================================
+--- src/grg_recent_dox.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_recent_dox.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -52,7 +52,7 @@
+ void
+ grg_recent_dox_init (void)
+ {
+-	guchar *path, *content;
++	gchar *path, *content;
+ 	int fd, end;
+ 	GMarkupParser *context =
+ 		(GMarkupParser *) grg_malloc (sizeof (GMarkupParser));
+@@ -106,7 +106,7 @@
+ static void
+ recent_dox_save (void)
+ {
+-	guchar *path, i = 1;
++	gchar *path, i = 1;
+ 	GSList *cur;
+ 	gint fd;
+ 
+@@ -144,7 +144,7 @@
+ }
+ 
+ void
+-grg_recent_dox_push (const guchar * file)
++grg_recent_dox_push (const gchar * file)
+ {
+ 	GSList *cur, *tmp;
+ 
+@@ -168,7 +168,7 @@
+ 	}
+ 
+ 	grg_recent_dox =
+-		g_slist_prepend (grg_recent_dox, g_strdup ((guchar *) file));
++		g_slist_prepend (grg_recent_dox, g_strdup (file));
+ 
+ 	recent_dox_save ();
+ 	grg_menu_update ();
+Index: src/grg_pwd.c
+===================================================================
+--- src/grg_pwd.c	(.../original-1.2.9pre1)	(revision 31)
++++ src/grg_pwd.c	(.../tags/releases/gringotts-shlomif/0.4.x/0.4.3)	(revision 31)
+@@ -99,7 +99,8 @@
+ {
+ 	GtkWidget *wait = NULL;
+ 	gint fd, len;
+-	gchar *pwd, *upath;
++	gchar *upath;
++    guchar *pwd;
+ 	GRG_KEY key;
+ 	struct stat buf;
+ 
+@@ -142,7 +143,7 @@
+ {
+ 	GtkWidget *wait = NULL;
+ 	gint fd, len;
+-	gchar *file;
++	guchar *file;
+ 	GRG_KEY key = NULL;
+ 
+ #if defined(BLOCK_DEV_IS_FLOPPY) && defined(HAVE_LINUX_FD_H)
+@@ -251,12 +252,12 @@
+ 						 NULL, &bout, NULL);
+ 
+ 		gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (quality),
+-					       grg_ascii_pwd_quality (mapIsUTF
++					       grg_ascii_pwd_quality ((guchar*)(mapIsUTF
+ 								      ?
+ 								      gtk_entry_get_text
+ 								      (GTK_ENTRY
+ 								       (question))
+-								      : sq,
++								      : sq),
+ 								      g_utf8_strlen
+ 								      (gtk_entry_get_text
+ 								       (GTK_ENTRY
+@@ -270,12 +271,12 @@
+ 	case TYPE_FILE:
+ 	{
+ 		gchar *upath =
+-			g_filename_from_utf8 ((guchar *)
++			g_filename_from_utf8 (
+ 					      gtk_entry_get_text (GTK_ENTRY
+ 								  (file_entry)),
+ 					      -1, NULL, NULL, NULL);
+ 		gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (quality),
+-					       grg_file_pwd_quality (upath));
++					       grg_file_pwd_quality ((guchar*)upath));
+ 		g_free (upath);
+ 	}
+ 		break;
+@@ -440,14 +441,14 @@
+ 				break;
+ 			}
+ 
+-			key = grg_key_gen (ret1, pwd_len);
++			key = grg_key_gen ((guchar*)ret1, pwd_len);
+ 
+ 			exit = TRUE;
+ 			break;
+ 		}
+ 		case TYPE_FILE:
+ 		{
+-			const guchar *path =
++			const gchar *path =
+ 				gtk_entry_get_text (GTK_ENTRY (file_entry));
+ 
+ 			key = read_pwd_file (path, dialog, TRUE);
+@@ -615,13 +616,13 @@
+ 		switch (curr_type_pwd_req)
+ 		{
+ 		case TYPE_PWD:
+-			key = grg_key_gen (gtk_entry_get_text
++			key = grg_key_gen ((guchar*)gtk_entry_get_text
+ 					   (GTK_ENTRY (entry)), -1);
+ 			exit = TRUE;
+ 			break;
+ 		case TYPE_FILE:
+ 		{
+-			const guchar *path =
++			const gchar *path =
+ 				gtk_entry_get_text (GTK_ENTRY (entry));
+ 			key = read_pwd_file (path, dlg, TRUE);
+ 
+@@ -718,12 +719,12 @@
+ 			gsize ulen;
+ 
+ 			UTF8d = g_locale_to_utf8 (pwd, -1, NULL, &ulen, NULL);
+-			ret = grg_key_gen (UTF8d, ulen);
++			ret = grg_key_gen ((guchar*)UTF8d, ulen);
+ 			GRGFREE (UTF8d, ulen);
+ 			ulen = 0;
+ 		}
+ 		else
+-			ret = grg_key_gen (pwd, -1);
++			ret = grg_key_gen ((guchar*)pwd, -1);
+ 		GRGAFREE (pwd);
+ 	}
+ 		break;
+
+Property changes on: src
+___________________________________________________________________
+Name: svn:ignore
+   + .deps
+gringotts
+Makefile
+
+
+
+Property changes on: po
+___________________________________________________________________
+Name: svn:ignore
+   + *.gmo
+Makefile
+Makefile.in
+POTFILES
+
+
+
+Property changes on: .
+___________________________________________________________________
+Name: svn:ignore
+   + config.h
+config.log
+config.status
+gringotts.desktop
+gringotts.spec
+Makefile
+stamp-h1
+
+
