@@ -1,0 +1,417 @@
+--- chkrootkit-0.46a.orig/chkrootkit
++++ chkrootkit-0.46a/chkrootkit
+@@ -17,6 +17,11 @@
+ unalias ps > /dev/null 2>&1
+ unalias dirname > /dev/null 2>&1
+ 
++# the base chkrootkit is designed to be run from it's build directory,
++# therefor it uses "./" as a prefix to all it's executables.  we need to
++# change to /usr/lib/chkrootkit to keep this working
++cd /usr/lib/chkrootkit
++
+ # Workaround for recent GNU coreutils
+ export _POSIX2_VERSION=199209
+ 
+@@ -28,8 +33,10 @@
+ ps pstree rpcinfo rlogind rshd slogin sendmail sshd syslogd tar tcpd \
+ tcpdump top telnetd timed traceroute vdir w write"
+ 
++# i removed chkutmp from this list, for now, because it doesn't seem quite
++# ready for prime time
+ # Tools
+-TOOLS="aliens asp bindshell lkm rexedcs sniffer w55808 wted scalper slapper z2 chkutmp"
++TOOLS="aliens asp bindshell lkm rexedcs sniffer w55808 wted scalper slapper z2"
+ 
+ # Return Codes
+ INFECTED=0
+@@ -196,11 +203,11 @@
+     fi
+ 
+     if [ "${EXPERT}" = "t" ]; then
+-        expertmode_output "./chklastlog -f ${WTMP} -l ${LASTLOG}"
++        expertmode_output "./chklastlog ${QUIET_ARG} -f ${WTMP} -l ${LASTLOG}"
+         return 5
+     fi
+ 
+-    if ./chklastlog -f ${WTMP} -l ${LASTLOG}
++    if ./chklastlog ${QUIET_ARG} -f ${WTMP} -l ${LASTLOG}
+     then
+       if [ "${QUIET}" != "t" ]; then echo "chklastlog: nothing deleted"; fi
+     fi
+@@ -235,12 +242,12 @@
+           expertmode_output "./chkwtmp -f ${WTMP}"
+           return 5
+        fi
+-    fi
+ 
+-    if ./chkwtmp -f ${WTMP}
+-    then
+-      if [ "${QUIET}" != "t" ]; then echo "chkwtmp: nothing deleted"; fi
+-    fi
++       if ./chkwtmp -f ${WTMP}
++       then
++           if [ "${QUIET}" != "t" ]; then echo "chkwtmp: nothing deleted"; fi
++       fi
++   fi
+ }
+ 
+ bindshell () {
+@@ -544,9 +551,9 @@
+ 
+       ### shell history file check
+       if [ ! -z "${SHELL}" -a ! -z "${HOME}" ]; then
+-      expertmode_output "${find} ${ROOTDIR}${HOME} -name .*history \
++      expertmode_output "${find} ${ROOTDIR}${HOME} ${findargs} -name .*history \
+  -size 0"
+-      expertmode_output "${find} ${ROOTDIR}${HOME} -name .*history \
++      expertmode_output "${find} ${ROOTDIR}${HOME} ${findargs} -name .*history \
+  \( -links 2 -o -type l \)"
+       fi
+ 
+@@ -702,9 +709,12 @@
+       then
+       if [ "${QUIET}" != "t" ]; then echo "nothing found"; fi
+    else
++      if [ "${QUIET}" = "t" ]; then
++          printn "The following suspicious files and directories were found:"
++      fi
+       echo
+-      echo ${files}
+-      echo ${dirs}
++      echo "${files}"
++      echo "${dirs}"
+    fi
+ 
+    ### LPD Worm
+@@ -1042,7 +1052,7 @@
+    ### ESRK
+    if [ "${QUIET}" != "t" ]; then
+       printn "Searching for ESRK rootkit default files... "; fi
+-   if [ -d "${ROOTDIR}usr/lib/tcl5.3" ]; then
++   if [ -d "${ROOTDIR}/usr/lib/tcl5.3" ]; then
+       echo "Possible ESRK rootkit installed"
+    else
+       if [ "${QUIET}" != "t" ]; then echo "nothing found"; fi
+@@ -1068,10 +1078,10 @@
+       printn "Searching for anomalies in shell history files... "; fi
+    files=""
+    if [ ! -z "${SHELL}" -a ! -z "${HOME}" ]; then
+-      files=`${find} ${ROOTDIR}${HOME} -name '.*history' -size 0`
++      files=`${find} ${ROOTDIR}${HOME} ${findargs} -name '.*history' -size 0`
+       [ ! -z "${files}" ] && \
+         echo "Warning: \`${files}' file size is zero"
+-      files=`${find} ${ROOTDIR}${HOME} -name '.*history' \( -links 2 -o -type l \)`
++      files=`${find} ${ROOTDIR}${HOME} ${findargs} -name '.*history' \( -links 2 -o -type l \)`
+       [ ! -z "${files}" ] && \
+         echo "Warning: \`${files}' is linked to another file"
+    fi
+@@ -1123,14 +1133,16 @@
+             ${egrep} -v egrep | ${egrep} -v chkrootkit | _head -1 | \
+             ${awk} '{ print $5 }'`
+ 
+-   for i in ${ROOTDIR}${RUNNING} ${ROOTDIR}usr/sbin/${1} `loc ${1} ${1} $pth`
+-   do
+-      CMD="${i}"
+-      if [ -r "${i}" ]
+-        then
+-        return 0
+-      fi
+-   done
++   if [ -n "${RUNNING}" ]; then
++       for i in ${ROOTDIR}${RUNNING} ${ROOTDIR}usr/sbin/${1} `loc ${1} ${1} $pth`
++       do
++          CMD="${i}"
++          if [ -r "${i}" ]
++            then
++            return 0
++          fi
++       done
++   fi
+    return 1
+ }
+ 
+@@ -2268,7 +2280,7 @@
+     fi
+     [ -z "${CMD}" ] && CMD=`loc tcpd tcpd $pth`
+ 
+-    [ "tcpd" = "${CMD}" ] && return ${NOT_FOUND};
++    [ "tcpd" = "${CMD}" -o ! -f "${CMD}" ] && return ${NOT_FOUND};
+ 
+     if [ "${EXPERT}" = "t" ]; then
+         expertmode_output "${strings} -a ${CMD}"
+@@ -2434,7 +2446,9 @@
+ 
+         -x)     EXPERT=t;;
+ 
+-        -q)     QUIET=t;;
++        -q)     QUIET=t
++                QUIET_ARG="-q"
++                ;;
+ 
+         -V)     echo >&2 "chkrootkit version ${CHKROOTKIT_VERSION}"
+                 exit 1;;
+--- chkrootkit-0.46a.orig/chkproc.c
++++ chkrootkit-0.46a/chkproc.c
+@@ -85,6 +85,30 @@
+ int isathread[MAX_PROCESSES+1];
+ #endif
+ 
++/*
++ * read at most the first (size-1) chars into s and terminate with a '\0'.
++ * stops reading after a newline or EOF.  if a newline is read, it will be
++ * the last char in the string.  if no newline is found in the first
++ * (size-1) chars, then keep reading and discarding chars until a newline
++ * is found or EOF.
++ */
++char *readline(char *s, int size, FILE *stream)
++{
++  char *rv = fgets(s, size, stream);
++
++  if (strlen(s) == (size-1) && s[size-1] != '\n')
++  {
++    char buf[MAX_BUF];
++    fgets(buf, MAX_BUF, stream);
++    while (strlen(buf) == (MAX_BUF-1) && buf[MAX_BUF-1] != '\n')
++    {
++      fgets(buf, MAX_BUF, stream);
++    }
++  }
++
++  return rv;
++}
++
+ int main(int argc, char **argv)
+ {
+    char buf[MAX_BUF], *p, path[MAX_BUF];
+@@ -149,14 +173,14 @@
+    }
+ 
+    *buf = 0;
+-   fgets(buf, MAX_BUF, ps); /* Skip header */
++   readline(buf, MAX_BUF, ps); /* Skip header */
+ #if defined(__sun)
+    if (!isspace(*buf))
+ #else
+    if (!isalpha(*buf))
+ #endif
+    {
+-     fgets(buf, MAX_BUF, ps); /* Skip header */
++     readline(buf, MAX_BUF, ps); /* Skip header */
+      if (!isalpha(*buf) && pv != PS_LNX)
+      {
+ 	if (pv != PS_LOL)
+@@ -175,7 +199,7 @@
+ #endif
+    }
+ 
+-   while (fgets(buf, MAX_BUF, ps))
++   while (readline(buf, MAX_BUF, ps))
+    {
+       p = buf;
+ #if defined(__sun)
+@@ -300,7 +324,7 @@
+       printf("You have % 5d process hidden for ps command\n", retps);
+ #if defined(__linux__)
+    kill(1, 100); /*  Check for SIGINVISIBLE Adore signal */
+-   if (kill (1, 25) > 0 && errno == 3)
++   if (kill (1, SIGXFSZ) == -1 && errno == 3)
+    {
+       printf("SIGINVISIBLE Adore found\n");
+       retdir+= errno;
+--- chkrootkit-0.46a.orig/ifpromisc.c
++++ chkrootkit-0.46a/ifpromisc.c
+@@ -51,6 +51,8 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <unistd.h>
++#include <dirent.h>
++#include <sys/stat.h>
+ 
+ struct interface
+ {
+@@ -73,8 +75,9 @@
+     int index;
+     int type;
+     int proto;
+-    int inode;
++    ino_t inode;
+     char *cmd;
++    char *pid;
+     struct packet_info *next;
+ };
+ 
+@@ -109,9 +112,9 @@
+         int             type = 0;
+         unsigned int    proto = 0;
+         int             index = 0;
+-        unsigned int    inode = 0;
++        unsigned long   inode = 0;
+ 
+-        if (sscanf(buf, "%*p %*d %d %x   %d %*d %*u %*u %u",
++        if (sscanf(buf, "%*p %*d %d %x   %d %*d %*u %*u %lu",
+                   &type, &proto, &index, &inode) == 4)
+         {
+             struct packet_info *pi;
+@@ -136,7 +139,7 @@
+ }
+ 
+ /* look up an entry from /proc/net/packet by inode */
+-static struct packet_info *find_packet_info(int inode)
++static struct packet_info *find_packet_info(ino_t inode)
+ {
+     struct packet_info *p;
+     for (p = proc_net_packet; p; p = p->next)
+@@ -166,7 +169,10 @@
+ 
+     if ((dir = opendir(path)) == NULL)
+     {
+-        perror(path);
++        if (errno != ENOENT)
++        {
++            perror(path);
++        }
+         return;
+     }
+ 
+@@ -185,7 +191,10 @@
+ 
+         if (stat(path, &statbuf) == -1)
+         {
+-            perror(path);
++            if (errno != ENOENT)
++            {
++                perror(path);
++            }
+             continue;
+         }
+ 
+@@ -200,6 +209,7 @@
+             snprintf(path, sizeof(path), "/proc/%s/exe", process);
+             readlink(path, link, sizeof(link) - 1);
+             info->cmd = strdup(link);
++            info->pid = strdup(process);
+         }
+     }
+ 
+@@ -233,46 +243,42 @@
+ }
+ 
+ /* return 1 if index is a member of pcap_session_list, 0 otherwise. */
+-static int has_packet_socket(int index)
++static struct packet_info *has_packet_socket(int index)
+ {
+     struct packet_info *p;
+     for (p = proc_net_packet; p; p = p->next)
+     {
+         if (p->index == index)
+         {
+-            return 1;
++            return p;
+         }
+     }
+-    return 0;
++    return NULL;
+ }
+ #endif /* __linux__ */
+ 
+ static void ife_print(struct interface *ptr)
+ {
+ #ifdef __linux__
+-    int promisc = ptr->flags & IFF_PROMISC;
+-    int has_packet = has_packet_socket(ptr->index);
++    int                 promisc = ptr->flags & IFF_PROMISC;
++    struct packet_info *sniffer = has_packet_socket(ptr->index);
++    struct packet_info *p;
+ 
+-    if (promisc || has_packet)
++    if (promisc || sniffer)
+     {
+         printf("%s:", ptr->name);
+         if (promisc)
+             printf(" PROMISC");
+-        if (has_packet)
++
++        if (sniffer)
+         {
+-            struct packet_info *p;
+-            printf(" PF_PACKET(");
+-            p = proc_net_packet;
+-            if (p)
++            printf(" PACKET SNIFFER(");
++            printf("%s[%s]", sniffer->cmd, sniffer->pid);
++            for (p = sniffer->next; p; p = p->next)
+             {
+-                printf("%s", p->cmd);
+-
+-                for (p = p->next; p; p = p->next)
++                if (p->index == ptr->index)
+                 {
+-                    if (p->index == ptr->index)
+-                    {
+-                        printf(", %s", p->cmd);
+-                    }
++                    printf(", %s[%s]", p->cmd, p->pid);
+                 }
+             }
+             printf(")");
+@@ -282,7 +288,7 @@
+     else
+     {
+         if (!q)
+-            printf("%s: not promisc and no PF_PACKET sockets\n",
++            printf("%s: not promisc and no packet sniffer sockets\n",
+                    ptr->name);
+     }
+ #else
+@@ -346,8 +352,6 @@
+ #endif
+ 	 continue;
+       }
+-      if (!memcmp(ifr->ifr_name, "lo", 2))
+-         continue;
+       ife_print(&ife);
+    }
+ }
+--- chkrootkit-0.46a.orig/chklastlog.c
++++ chkrootkit-0.46a/chklastlog.c
+@@ -104,6 +104,8 @@
+ 	struct stat	wtmp_stat;
+ 	struct s_localpwd	*localpwd;
+ 	uid_t		*uid;
++    int         quiet = 0;
++
+         char wtmpfile[128], lastlogfile[128];
+ 
+         memcpy(wtmpfile, WTMP_FILENAME, 127);
+@@ -125,10 +127,18 @@
+               ++argv;
+               memcpy(lastlogfile, *argv, 127);
+            }
++           else if (!memcmp("-q", *argv, 2))
++           {
++             quiet = 1;
++           }
+         }
+ 
+-	signal(SIGALRM, read_status);
+-	alarm(5);
++    if (!quiet)
++    {
++      signal(SIGALRM, read_status);
++      alarm(5);
++    }
++
+ 	for (i=0; i<MAX_ID; i++)
+ 		userid[i]=FALSE;
+ 
+--- chkrootkit-0.46a.orig/Makefile
++++ chkrootkit-0.46a/Makefile
+@@ -4,7 +4,7 @@
+ #
+ 
+ CC       = gcc
+-CFLAGS	 = -DHAVE_LASTLOG_H
++CFLAGS	 = -DHAVE_LASTLOG_H -Wall -pedantic
+ STATIC   = -static
+ 
+ ###
