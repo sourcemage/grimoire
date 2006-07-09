@@ -1,5 +1,5 @@
-# Clean out the old alsa drivers.
-rm  -f  /lib/modules/`installed_version linux-new`/misc/snd*  &&
+# Clean out the old alsa drivers. FIXME: Bad location for 2.6!
+rm  -f  /lib/modules/`installed_version linux`/misc/snd*  &&
 
 if [ -e /proc/config.gz ] ; then
     if [ `zgrep -c CONFIG_SOUND=m /proc/config.gz` = 1 ] ; then
