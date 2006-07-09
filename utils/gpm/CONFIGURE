@@ -1,33 +1,24 @@
-get_gpm()  {
-if ! grep -q "MOUSE" $SPELL_CONFIG 
-  then
-    touch $SPELL_CONFIG
-    MOUSETYPES=$(cat $SCRIPT_DIRECTORY/mousetypes)
+persistent_add MOUSE DEV &&
+# query not config_query! See locale's CONFIGURE for explanation why this is correct
+if query "Do you want to select a mouse type and device?" n; then
+    MOUSETYPES=$(< $SCRIPT_DIRECTORY/mousetypes)
     MOUSETYPES=$(dialog \
       --backtitle 'GPM Configuration Menu' \
       --stdout \
       --title     'Select your mouse type please' \
       --menu      '' 0 100 10 $MOUSETYPES)
-    echo "MOUSE=${MOUSETYPES//\"/}" >> $SPELL_CONFIG
-fi
-}
-get_mousedev()  {
-if ! grep -q "DEV" $SPELL_CONFIG 
-  then
-    touch $SPELL_CONFIG
-    MOUSEDEV=$(cat $SCRIPT_DIRECTORY/mousedev)
+    MOUSE="${MOUSETYPES//\"/}"
+
+    MOUSEDEV=$(< $SCRIPT_DIRECTORY/mousedev)
     MOUSEDEV=$(dialog \
       --backtitle 'GPM Configuration Menu' \
       --stdout \
       --title     'Select your mouse device entry please' \
       --menu      '' 0 100 10 $MOUSEDEV)
     if [[ "$MOUSEDEV" == "custom" ]]; then
+      persistent_remove DEV
       config_query_string DEV "Input mouse device:"
     else      
-      echo "DEV=${MOUSEDEV//\"/}" >> $SPELL_CONFIG
+      DEV="${MOUSEDEV//\"/}"
     fi
 fi
-}
-
-get_gpm
-get_mousedev
