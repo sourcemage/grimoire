@@ -1,2 +1,1 @@
-invoke_gcc &&
 make
