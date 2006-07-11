@@ -9,7 +9,11 @@ echo  -e  "\ngnu\nregular\nshared\ny\n\n\n\n\n\n\n\n\n\n\n\n\n\n"  |
 # commented out!
 sedit  "s/^\(CFLAGS =\)/\1 ${CFLAGS} /" Makefile.config &&
 make_single                        &&
-make X11LIB=/usr/X11R6/lib/libX11.so  &&
+if spell_ok xorg;then
+  make X11LIB=/usr/X11R6/lib/libX11.so
+else
+  make X11LIB=/usr/lib/libX11.so
+fi                                 &&
 if [ -e /tmp/netpbm ]; then
    rm -rf /tmp/netpbm              
 fi                                 &&
