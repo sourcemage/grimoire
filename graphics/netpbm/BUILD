@@ -1,6 +1,6 @@
 #sedit  "s/^CFLAGS_SHLIB =/CFLAGS_SHLIB = ${CFLAGS}/" Makefile.config.in &&
 #sedit  "s/^\(CFLAGS_FOR_BUILD = \)\$(CFLAGS)/\1${CFLAGS}/" Makefile.config.in &&
-echo  -e  "\ngnu\nregular\nshared\ny\n\n\n\n\n\n\n\n\n\n\n\n"  |
+echo  -e  "\ngnu\nregular\nshared\ny\n\n\n\n\n\n\n\n\n\n\n\n\n\n"  |
 #  Ignores  $OPTS
 # to get our OPTS and CFLAGS, etc we'll need to sed Makefile.config.in
 ./configure                        &&
@@ -9,7 +9,7 @@ echo  -e  "\ngnu\nregular\nshared\ny\n\n\n\n\n\n\n\n\n\n\n\n"  |
 # commented out!
 sedit  "s/^\(CFLAGS =\)/\1 ${CFLAGS} /" Makefile.config &&
 make_single                        &&
-make                               &&
+make X11LIB=/usr/X11R6/lib/libX11.so  &&
 if [ -e /tmp/netpbm ]; then
    rm -rf /tmp/netpbm              
 fi                                 &&
