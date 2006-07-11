@@ -1,5 +1,3 @@
-cp    Makefile  Makefile.original
-echo  "CFLAGS = $CFLAGS"  >  Makefile
-grep  -v  "^CFLAGS"  Makefile.original  >>  Makefile
+sed -i "s/^CFLAGS.*$/CFLAGS = $CFLAGS/" Makefile &&
 
 make  x86info
