@@ -1,5 +1,3 @@
-  sedit 's|/usr/local|/usr|;s/-O/$CFLAGS/' Configure &&
-#  sedit 's|^[[:space:]]*\./install.sh$||' Configure &&
-
-  ./Configure  		&&
+  sedit 's|/man/|/share/man/|;s|/usr/local|${INSTALL_ROOT}/usr|;s/-O/$CFLAGS/' Configure &&
+  ./Configure    &&
   make
