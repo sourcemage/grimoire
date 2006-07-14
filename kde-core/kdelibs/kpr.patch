@@ -1,0 +1,327 @@
+--- a/kdeprint/cups/kmcupsmanager.cpp
++++ b/kdeprint/cups/kmcupsmanager.cpp
+@@ -72,11 +72,10 @@ static int trials = 5;
+ 	// be sure to create the CupsInfos object -> password
+ 	// management is handled correctly.
+ 	CupsInfos::self();
+ 	m_cupsdconf = 0;
+ 	m_currentprinter = 0;
+-	m_socket = 0;
+ 
+ 	setHasManagement(true);
+ 	setPrinterOperationMask(KMManager::PrinterAll);
+ 	setServerOperationMask(KMManager::ServerAll);
+ 
+@@ -86,11 +85,10 @@ static int trials = 5;
+ 	setenv("LANG", "en", 1);
+ }
+ 
+ KMCupsManager::~KMCupsManager()
+ {
+-	//delete m_socket;
+ }
+ 
+ QString KMCupsManager::driverDbCreationProgram()
+ {
+ 	return QString::fromLatin1("make_driver_db_cups");
+@@ -914,27 +912,16 @@ QString KMCupsManager::stateInformation(
+ }
+ 
+ void KMCupsManager::checkUpdatePossibleInternal()
+ {
+ 	kdDebug(500) << "Checking for update possible" << endl;
+-	delete m_socket;
+-	/*m_socket = new KExtendedSocket( CupsInfos::self()->host(), CupsInfos::self()->port() );
+-	connect( m_socket, SIGNAL( connectionSuccess() ), SLOT( slotConnectionSuccess() ) );
+-	connect( m_socket, SIGNAL( connectionFailed( int ) ), SLOT( slotConnectionFailed( int ) ) );
+-	m_socket->setTimeout( 1 );*/
+-	m_socket = new QSocket( this );
+-	connect( m_socket, SIGNAL( connected() ), SLOT( slotConnectionSuccess() ) );
+-	connect( m_socket, SIGNAL( error( int ) ), SLOT( slotConnectionFailed( int ) ) );
+-	trials = 5;
++	trials = 0;
+ 	QTimer::singleShot( 1, this, SLOT( slotAsyncConnect() ) );
+ }
+ 
+ void KMCupsManager::slotConnectionSuccess()
+ {
+-	kdDebug(500) << "Connection success, trying to send a request..." << endl;
+-	m_socket->close();
+-
+ 	IppRequest req;
+ 	req.setOperation( CUPS_GET_PRINTERS );
+ 	req.addKeyword( IPP_TAG_OPERATION, "requested-attributes", QString::fromLatin1( "printer-name" ) );
+ 	if ( req.doRequest( "/printers/" ) )
+ 		setUpdatePossible( true );
+@@ -955,31 +942,11 @@ void KMCupsManager::slotConnectionSucces
+ 	}
+ }
+ 
+ void KMCupsManager::slotAsyncConnect()
+ {
+-	kdDebug(500) << "Starting async connect" << endl;
+-	//m_socket->startAsyncConnect();
+-	m_socket->connectToHost( CupsInfos::self()->host(), CupsInfos::self()->port() );
+-}
+-
+-void KMCupsManager::slotConnectionFailed( int errcode )
+-{
+-	kdDebug(500) << "Connection failed trials=" << trials << endl;
+-	if ( trials > 0 )
+-	{
+-		//m_socket->setTimeout( ++to );
+-		//m_socket->cancelAsyncConnect();
+-		trials--;
+-		m_socket->close();
+-		QTimer::singleShot( 1000, this, SLOT( slotAsyncConnect() ) );
+-		return;
+-	}
+-
+-	setErrorMsg( i18n( "Connection to CUPS server failed. Check that the CUPS server is correctly installed and running. "
+-				"Error: %1." ).arg( errcode == QSocket::ErrConnectionRefused ? i18n( "connection refused" ) : i18n( "host not found" ) ) );
+-	setUpdatePossible( false );
++	slotConnectionSuccess();
+ }
+ 
+ void KMCupsManager::hostPingSlot() {
+ 	m_hostSuccess = true;
+ 	m_lookupDone = true;
+--- a/kdeprint/cups/kmcupsmanager.h
++++ b/kdeprint/cups/kmcupsmanager.h
+@@ -93,11 +93,10 @@ protected:
+ 	void checkUpdatePossibleInternal();
+ 
+ private:
+ 	KLibrary	*m_cupsdconf;
+ 	KMPrinter	*m_currentprinter;
+-	QSocket *m_socket;
+ 	bool m_hostSuccess;
+ 	bool m_lookupDone;
+ };
+ 
+ #endif
+--- a/kdeprint/cups/kmcupsmanager.cpp
++++ b/kdeprint/cups/kmcupsmanager.cpp
+@@ -57,11 +57,11 @@
+ #include <math.h>
+ 
+ #define ppdi18n(s)	i18n(QString::fromLocal8Bit(s).utf8())
+ 
+ void extractMaticData(QString& buf, const QString& filename);
+-QString printerURI(KMPrinter *p, bool useExistingURI = false);
++QString printerURI(KMPrinter *p, bool useExistingURI);
+ QString downloadDriver(KMPrinter *p);
+ 
+ static int trials = 5;
+ 
+ //*****************************************************************************************************
+@@ -211,11 +211,11 @@ bool KMCupsManager::setPrinterState(KMPr
+ {
+ 	IppRequest	req;
+ 	QString		uri;
+ 
+ 	req.setOperation(state);
+-	uri = printerURI(p);
++	uri = printerURI(p, true);
+ 	req.addURI(IPP_TAG_OPERATION,"printer-uri",uri);
+ 	if (req.doRequest("/admin/"))
+ 		return true;
+ 	reportIppError(&req);
+ 	return false;
+--- a/kdeprint/cups/kmcupsmanager.cpp
++++ b/kdeprint/cups/kmcupsmanager.cpp
+@@ -978,12 +978,24 @@ void extractMaticData(QString& buf, cons
+ QString printerURI(KMPrinter *p, bool use)
+ {
+ 	QString	uri;
+ 	if (use && !p->uri().isEmpty())
+ 		uri = p->uri().prettyURL();
+-	else
+-		uri = QString("ipp://%1:%2/%4/%3").arg(CupsInfos::self()->host()).arg(CupsInfos::self()->port()).arg(p->printerName()).arg((p->isClass(false) ? "classes" : "printers"));
++	else {
++		int		port = CupsInfos::self()->port();
++		QString		host = CupsInfos::self()->host();
++#if CUPS_VERSION_MAJOR == 1 && CUPS_VERSION_MINOR >= 2
++		// Resolve potential domain sockets and other potential "weired" hostnames
++		http_t		*http = httpConnect(host.latin1(), port);
++		if (http) {
++		    char	buf[256];
++		    host = QString::fromLatin1(httpGetHostname(http, buf, sizeof(buf)));
++		    httpClose(http);
++		}
++#endif
++		uri = QString("ipp://%1:%2/%4/%3").arg(host).arg(port).arg(p->printerName()).arg((p->isClass(false) ? "classes" : "printers"));
++	}
+ 	return uri;
+ }
+ 
+ QString downloadDriver(KMPrinter *p)
+ {
+--- a/kdeprint/cups/kmcupsmanager.cpp
++++ b/kdeprint/cups/kmcupsmanager.cpp
+@@ -60,12 +60,10 @@
+ 
+ void extractMaticData(QString& buf, const QString& filename);
+ QString printerURI(KMPrinter *p, bool useExistingURI);
+ QString downloadDriver(KMPrinter *p);
+ 
+-static int trials = 5;
+-
+ //*****************************************************************************************************
+ 
+ 	KMCupsManager::KMCupsManager(QObject *parent, const char *name, const QStringList & /*args*/)
+ : KMManager(parent,name)
+ {
+@@ -453,21 +451,15 @@ void KMCupsManager::loadServerPrinters()
+ 			{
+ 				QString	s = QString::null;
+ 				req.name("printer-name",s);
+ 				setHardDefault(findPrinter(s));
+ 			}
+-			// This request may fails for example if no printer is defined. Just
+-			// discard the error message. Indeed as we successfully got printers
+-			// and classes, the most probable reason why this request may fail is
+-			// because of no printer defined. The best would be to actually check
+-			// there's no printer (TODO).
+-			return;
+ 		}
+ 	}
+ 
+-	// something went wrong if we get there, report the error
+-	reportIppError(&req);
++	if (req.status() != IPP_NOT_FOUND)
++		reportIppError(&req);
+ }
+ 
+ void KMCupsManager::processRequest(IppRequest* req)
+ {
+ 	ipp_attribute_t	*attr = req->first();
+@@ -912,43 +904,25 @@ QString KMCupsManager::stateInformation(
+ }
+ 
+ void KMCupsManager::checkUpdatePossibleInternal()
+ {
+ 	kdDebug(500) << "Checking for update possible" << endl;
+-	trials = 0;
+-	QTimer::singleShot( 1, this, SLOT( slotAsyncConnect() ) );
+-}
+ 
+-void KMCupsManager::slotConnectionSuccess()
+-{
+ 	IppRequest req;
+ 	req.setOperation( CUPS_GET_PRINTERS );
+ 	req.addKeyword( IPP_TAG_OPERATION, "requested-attributes", QString::fromLatin1( "printer-name" ) );
+-	if ( req.doRequest( "/printers/" ) )
+-		setUpdatePossible( true );
++	if ( req.doRequest( "/printers/" ) || req.status() == IPP_NOT_FOUND)
++		setUpdatePossible(true);
+ 	else
+ 	{
+ 		kdDebug(500) << "Unable to get printer list" << endl;
+-		if ( trials > 0 )
+-		{
+-			trials--;
+-			QTimer::singleShot( 1000, this, SLOT( slotAsyncConnect() ) );
+-		}
+-		else
+-		{
+-			setErrorMsg( i18n( "Connection to CUPS server failed. Check that the CUPS server is correctly installed and running. "
+-				"Error: %1." ).arg( i18n( "the IPP request failed for an unknown reason" ) ) );
+-			setUpdatePossible( false );
+-		}
++		setErrorMsg(i18n("Connection to CUPS server failed. Check that the CUPS server is correctly installed and running. "
++			"Error: %1.").arg(req.statusMessage()));
++		setUpdatePossible(false);
+ 	}
+ }
+ 
+-void KMCupsManager::slotAsyncConnect()
+-{
+-	slotConnectionSuccess();
+-}
+-
+ void KMCupsManager::hostPingSlot() {
+ 	m_hostSuccess = true;
+ 	m_lookupDone = true;
+ }
+ 
+--- a/kdeprint/cups/kmcupsmanager.h
++++ b/kdeprint/cups/kmcupsmanager.h
+@@ -67,14 +67,10 @@ public:
+ public slots:
+ 	void exportDriver();
+ 	void printerIppReport();
+ 
+ protected slots:
+-	void slotConnectionFailed( int );
+-	void slotConnectionSuccess();
+-	void slotAsyncConnect();
+-
+ 	void hostPingSlot();
+ 	void hostPingFailedSlot();
+ 
+ protected:
+ 	// the real printer listing job is done here
+--- a/kdeprint/cups/cupsdconf2/cupsddialog.cpp
++++ b/kdeprint/cups/cupsdconf2/cupsddialog.cpp
+@@ -204,18 +204,13 @@ bool CupsdDialog::restartServer(QString&
+ 		msg = i18n("Unable to find a running CUPS server");
+ 	}
+ 	else
+ 	{
+                 bool success = false;
+-                if (getuid() == 0 )
+-                        success = (::kill(serverPid, SIGHUP) == 0);
+-                else
+-                {
+-                        KProcess proc;
+-                        proc << "kdesu" << "-c" << "kill -SIGHUP " + QString::number( serverPid );
+-                        success = proc.start( KProcess::Block ) && proc.normalExit();
+-                }
++		KProcess proc;
++		proc << "kdesu" << "-c" << "/etc/init.d/cupsys restart";
++		success = proc.start( KProcess::Block ) && proc.normalExit();
+                 if( !success )    
+ 			msg = i18n("Unable to restart CUPS server (pid = %1)").arg(serverPid);
+ 	}
+         return (msg.isEmpty());
+ }
+--- kdelibs/kdeprint/cups/kmcupsmanager.cpp	2006-04-19 17:17:55.000000000 +0200
++++ kdelibs/kdeprint/cups/kmcupsmanager.cpp	2006-04-24 23:20:38.000000000 +0200
+@@ -454,6 +454,10 @@
+ 				setHardDefault(findPrinter(s));
+ 			}
+ 		}
++		
++		// We got at least the printers, so we discard any error message here
++		// there were reports about e.g. successful-ok-ignored-or-substituted-attributes otherwise
++		return;
+ 	}
+ 
+ 	if (req.status() != IPP_NOT_FOUND)
+--- a/kdeprint/cups/cupsdconf2/cups-util.c
++++ b/kdeprint/cups/cupsdconf2/cups-util.c
+@@ -6,7 +6,7 @@
+ #include <sys/stat.h>
+ #include <unistd.h>
+ 
+-#define CUPS_SERVERROOT	"/etc/cups"
++#define CUPS_SERVERROOT	"/var/run/cups"
+ static http_t		*cups_server;
+ static ipp_status_t	last_error;
+ static char		authstring[HTTP_MAX_VALUE];
+@@ -440,11 +440,11 @@ cups_local_auth(http_t *http)	/* I - Con
+ 
+  /*
+   * See if we are accessing localhost...
+-	the struct has changed in newer versions - PiggZ (adam@piggz.co.uk)
++	THIS IS AN UGLY HACK, maybe use cups/auth.[ch] instead for authentication (mh21@piware.de)?
+   */
+ #if CUPS_VERSION_MAJOR == 1 && CUPS_VERSION_MINOR >= 2
+-	if (ntohl(*(int*)&http->_hostaddr.sin_addr) != 0x7f000001 &&
+-      strcasecmp(http->hostname, "localhost") != 0)
++   if ((http->hostaddr && !httpAddrLocalhost(http->hostaddr)) || 
++      http->hostname[0] != '/')
+ #else
+ 	if (ntohl(*(int*)&http->hostaddr.sin_addr) != 0x7f000001 &&
+       strcasecmp(http->hostname, "localhost") != 0)
