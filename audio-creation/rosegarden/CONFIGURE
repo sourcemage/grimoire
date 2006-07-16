@@ -1,2 +1,36 @@
-config_query_option  ROSEGARDEN_DSSI  "Enable DSSI support?"  y  \
-                     ""  "nodssi=1"
+if  !  grep  -q  "CONFIGURED"  ${SPELL_CONFIG}
+then
+
+  if    query  "Enable Xinerama support?"  n
+  then  echo  'OPTS="${OPTS}  --with-xinerama"'     >>  ${SPELL_CONFIG}
+  else  echo  'OPTS="${OPTS}  --without-xinerama"'  >>  ${SPELL_CONFIG}
+  fi  &&
+
+  if    query  "Enable LADSPA plugin?"  y
+  then  depends  ladspa  &&
+        echo  'OPTS="${OPTS}  --with-ladspa"'  >>  ${SPELL_CONFIG}
+    if    query  "Enable liblrdf metadata for LADSPA?"  y
+    then  depends  liblrdf  &&
+          echo  'OPTS="${OPTS}  --with-liblrdf"'     >>  ${SPELL_CONFIG}
+    else  echo  'OPTS="${OPTS}  --without-liblrdf"'  >>  ${SPELL_CONFIG}
+    fi
+  else  echo  'OPTS="${OPTS}  --without-ladspa  --without-liblrdf"'  \
+                                                   >>  ${SPELL_CONFIG}
+  fi  &&
+
+  if    query  "Enable aRTS support (at the cost of ALSA)?"  n
+  then  depends  arts  &&
+        echo  'OPTS="${OPTS}  --with-arts"'     >>  ${SPELL_CONFIG}
+  else  echo  'OPTS="${OPTS}  --without-arts"'  >>  ${SPELL_CONFIG}  &&
+    if    query  "Enable ALSA support?"  y
+    then  depends  alsa-lib  &&
+          echo  'OPTS="${OPTS}  --with-alsa=yes"'  >>  ${SPELL_CONFIG}
+    # Disabling ALSA doesn't actually work if ALSA is installed
+    # The configure script pretty much does what it wants
+    else  echo  'OPTS="${OPTS}  --with-alsa=no  --disable-alsatest"'  \
+                                              >>  ${SPELL_CONFIG}
+    fi
+  fi  &&
+
+  echo  "CONFIGURED='y'"  >>  ${SPELL_CONFIG}
+fi
