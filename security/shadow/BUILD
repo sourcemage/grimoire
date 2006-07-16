@@ -2,6 +2,9 @@
 # Bug #4008
 patch  -p1  <  ${SCRIPT_DIRECTORY}/su.patch  &&
 
+# Do not install default pam configuration files
+sedit 's|pam.d||' etc/Makefile.in  &&
+
 OPTS="$OPTS --enable-shadowgrp --build=${BUILD}" &&
 if [[ $CROSS_INSTALL == on ]]; then OPTS="$OPTS --host=${HOST}"; fi &&
 
