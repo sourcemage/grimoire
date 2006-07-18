@@ -9,7 +9,7 @@ echo  -e  "\ngnu\nregular\nshared\ny\n\n\n\n\n\n\n\n\n\n\n\n\n\n"  |
 # commented out!
 sedit  "s/^\(CFLAGS =\)/\1 ${CFLAGS} /" Makefile.config &&
 make_single                        &&
-if [[ "$(get_spell_provider $SPELL  X11-SERVER)" != "xorg-server" ]]; then
+if [[ "$(get_spell_provider $SPELL  X11-LIBS)" != "xorg-server" ]]; then
   make X11LIB=/usr/X11R6/lib/libX11.so
 else
   make X11LIB=/usr/lib/libX11.so
