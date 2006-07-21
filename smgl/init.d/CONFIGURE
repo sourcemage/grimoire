@@ -1,23 +1,19 @@
-if ! grep -q DEVICES $SPELL_CONFIG; then
-  message "\nYou can choose devfs, udev or static dev for /dev management."
-  [ -e /dev/.devfsd ] && message "\n${PROBLEM_COLOR}\n\t\t+++++++++++++++++++++++++++++++++++++++++++\n\n\
-CONVERTING TO UDEV OR STATIC FROM DEVFS CURRENTLY NEEDS MANUAL CHANGING OF THE /ETC/FSTAB \
-\n\n\t\t+++++++++++++++++++++++++++++++++++++++++++${DEFAULT_COLOR}" && sleep 5
-  if grep -q devfs /proc/filesystems \
-     &&  [ -e /dev/.devfsd ] \
-     && query  "Use devfs to manage /dev ?" y; then
-    DEVICES=devfs
-  else
-    message "devfs doesn't seem to be enabled in your kernel or isn't already running, skipping devfs."
-    if [[ `uname -r` == 2.6* ]] \
-       && grep -q hotplug /proc/kallsyms \
-       && grep -q ramfs /proc/filesystems \
-       && query  "Use udev to manage /dev ?" y; then
-    DEVICES=udev
-    else
-      message "you need hotplug and ramfs support in your kernel for udev, skipping udev."
-      DEVICES=static
-    fi
-  fi
-  echo "DEVICES=$DEVICES" >> $SPELL_CONFIG
-fi
+.  $GRIMOIRE/FUNCTIONS
+
+local  DEVICES_LIST  &&
+
+if  [[ $(get_sorcery_kernel_config CONFIG_NET) == y  &&
+       $(get_sorcery_kernel_config CONFIG_UNIX) == y  &&
+       $(get_sorcery_kernel_config CONFIG_HOTPLUG) == y ]]; then
+  DEVICES_LIST="udev static"
+else
+  DEVICES_LIST="static"
+fi  &&
+
+if  grep -q devfs /proc/filesystems  &&
+    [[ -e /dev/.devfsd ]]; then
+  DEVICES_LIST="$DEVICES_LIST devfs"  &&
+  message "\n${MESSAGE_COLOR}NOTICE: Switching from devfs to udev or static currently needs manual editing of /etc/fstab.${DEFAULT_COLOR}\n"
+fi  &&
+
+config_query_list  DEVICES  "Choose /dev management mode:"  $DEVICES_LIST
