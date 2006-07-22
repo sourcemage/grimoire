@@ -1,14 +1,9 @@
-#!/bin/sh
-
-patch -p1 < "${SCRIPT_DIRECTORY}/installwatch-ld-preload.diff" &&
-patch -p1 < "${SCRIPT_DIRECTORY}/installwatch-errno.diff"  &&
-patch -p1 < "${SCRIPT_DIRECTORY}/installwatch-buffer.diff" &&
-patch -p1 < "${SCRIPT_DIRECTORY}/installwatch-cflags.diff" &&
-patch -p1 < "${SCRIPT_DIRECTORY}/installwatch-syslog.diff" &&
-
-# If LIB is not defined, we do not have the bi-arch sorcery, so we
-# define LIB
-
-LIB="${LIB:-/lib}"
-make PREFIX="${TRACK_ROOT}/usr" LIBDIR="${TRACK_ROOT}/usr/${LIB}"
-
+patch -p1 < ${SPELL_DIRECTORY}/installwatch-regressions.patch &&
+patch -p1 < ${SPELL_DIRECTORY}/getcwd-fix.patch               &&
+patch -p1 < ${SPELL_DIRECTORY}/utimes-addition.patch          &&
+patch -p1 < ${SPELL_DIRECTORY}/access-addition.patch          &&
+patch -p1 < ${SPELL_DIRECTORY}/remove-root-check.patch        &&
+patch -p1 < ${SPELL_DIRECTORY}/execve-addition.patch          &&
+patch -p1 < ${SPELL_DIRECTORY}/makefile-cflags.patch          &&
+cd ${SOURCE_DIRECTORY}/${SPELL}-${VERSION}                    &&
+make

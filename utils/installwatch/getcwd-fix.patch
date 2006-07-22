@@ -1,0 +1,35 @@
+diff --git a/installwatch-0.7.0beta4/installwatch.c b/installwatch-0.7.0beta4/installwatch.c
+index 176e384..a626b55 100644
+--- a/installwatch-0.7.0beta4/installwatch.c
++++ b/installwatch-0.7.0beta4/installwatch.c
+@@ -2404,12 +2404,25 @@ char *getcwd(char *buffer,size_t size) {
+ 			wsize=strlen(wptr)+1;
+ 		}
+ 
+-		  /* we must adapt to the 'buffer' that was given */
+-		if(size>=wsize) {
+-			strcpy(buffer,wptr);	
++		if (buffer == NULL) {
++			if (size !=0 && size < wsize) {
++				result=NULL;
++				errno=(size<=0?EINVAL:ERANGE);
++			} else {
++				result=malloc(wsize);
++				if(result == NULL) {
++					errno=ENOMEM;
++				} else {
++					strcpy(result,wptr);
++				}
++			}
+ 		} else {
+-			result=NULL;
+-			errno=(size<=0?EINVAL:ERANGE);
++			if(size>=wsize) {
++				strcpy(buffer,wptr);
++			} else {
++				result=NULL;
++				errno=(size<=0?EINVAL:ERANGE);
++			}
+ 		}
+ 	} else  {
+ 		result=true_getcwd(buffer,size);

@@ -1,0 +1,63 @@
+diff --git a/installwatch-0.7.0beta4/installwatch.c b/installwatch-0.7.0beta4/installwatch.c
+index a626b55..e2b2e9f 100644
+--- a/installwatch-0.7.0beta4/installwatch.c
++++ b/installwatch-0.7.0beta4/installwatch.c
+@@ -90,6 +90,7 @@ static int (*true_symlink)(const char *,
+ static int (*true_truncate)(const char *, TRUNCATE_T);
+ static int (*true_unlink)(const char *);
+ static int (*true_utime)(const char *,const struct utimbuf *);
++static int (*true_utimes)(const char *,const struct timeval *);
+ 
+ #if(GLIBC_MINOR >= 1)
+ 
+@@ -314,6 +315,7 @@ static void initialize(void) {
+ 	true_truncate    = dlsym(libc_handle, "truncate");
+ 	true_unlink      = dlsym(libc_handle, "unlink");
+ 	true_utime       = dlsym(libc_handle, "utime");
++	true_utimes      = dlsym(libc_handle, "utimes");
+ 
+ #if(GLIBC_MINOR >= 1)
+ 	true_creat64     = dlsym(libc_handle, "creat64");
+@@ -3112,6 +3114,42 @@ int utime (const char *pathname, const s
+ 	return result;
+ }
+ 
++int utimes (const char *pathname, const struct timeval *newtimes) {
++	int result;
++	instw_t instw;
++
++	if (!libc_handle)
++		initialize();
++
++#if DEBUG
++	debug(2,"utimes(%s,newtimes)\n",pathname);
++#endif
++
++	  /* We were asked to work in "real" mode */
++	if( !(__instw.gstatus & INSTW_INITIALIZED) ||
++	    !(__instw.gstatus & INSTW_OKWRAP) ) {
++		result=true_utimes(pathname,newtimes);
++		return result;
++	}
++
++	instw_new(&instw);
++	instw_setpath(&instw,pathname);
++
++#if DEBUG
++	instw_print(&instw);
++#endif
++
++	backup(instw.truepath);
++	instw_apply(&instw);
++
++	result=true_utimes(instw.translpath,newtimes);
++	log("%d\tutimes\t%s\t#%s\n",result,instw.reslvpath,error(result));
++
++	instw_delete(&instw);
++
++	return result;
++}
++
+ #if(GLIBC_MINOR >= 1)
+ 
+ int creat64(const char *pathname, __mode_t mode) {

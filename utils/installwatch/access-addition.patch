@@ -1,0 +1,63 @@
+diff --git a/installwatch-0.7.0beta4/installwatch.c b/installwatch-0.7.0beta4/installwatch.c
+index e2b2e9f..7db45c9 100644
+--- a/installwatch-0.7.0beta4/installwatch.c
++++ b/installwatch-0.7.0beta4/installwatch.c
+@@ -91,6 +91,7 @@ static int (*true_truncate)(const char *
+ static int (*true_unlink)(const char *);
+ static int (*true_utime)(const char *,const struct utimbuf *);
+ static int (*true_utimes)(const char *,const struct timeval *);
++static int (*true_access)(const char *, int);
+ 
+ #if(GLIBC_MINOR >= 1)
+ 
+@@ -316,6 +317,7 @@ static void initialize(void) {
+ 	true_unlink      = dlsym(libc_handle, "unlink");
+ 	true_utime       = dlsym(libc_handle, "utime");
+ 	true_utimes      = dlsym(libc_handle, "utimes");
++	true_access      = dlsym(libc_handle, "access");
+ 
+ #if(GLIBC_MINOR >= 1)
+ 	true_creat64     = dlsym(libc_handle, "creat64");
+@@ -3150,6 +3152,42 @@ int utimes (const char *pathname, const 
+ 	return result;
+ }
+ 
++int access (const char *pathname, int type) {
++	int result;
++	instw_t instw;
++	int status;
++	
++	if (!libc_handle)
++		initialize();
++
++#if DEBUG
++	debug(2,"access(%s,%d)\n",pathname,type);
++#endif
++
++	  /* We were asked to work in "real" mode */
++	if( !(__instw.gstatus & INSTW_INITIALIZED) ||
++	    !(__instw.gstatus & INSTW_OKWRAP) ) {
++		result=true_access(pathname,type);
++		return result;
++	}
++
++	instw_new(&instw);
++	instw_setpath(&instw,pathname);
++
++#if DEBUG
++	instw_print(&instw);
++#endif
++
++        instw_getstatus(&instw,&status);
++        if(status&INSTW_TRANSLATED)
++		result=true_access(instw.translpath,type);
++	else
++		result=true_access(instw.path,type);
++	
++	instw_delete(&instw);
++	return result;
++}
++
+ #if(GLIBC_MINOR >= 1)
+ 
+ int creat64(const char *pathname, __mode_t mode) {
