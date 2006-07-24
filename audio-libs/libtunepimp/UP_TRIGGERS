@@ -1,0 +1,14 @@
+# up_trigger everything on update to 0.4.2 as soname was changed from
+# libtunepimp.so.2 to libtunepimp.so.3
+
+if spell_ok  $SPELL; then
+  local OLD_SPELL_VERSION="$(installed_version $SPELL)"
+  if [[ $OLD_SPELL_VERSION == "0.3.0" ]]; then
+    for each in $(show_up_depends $SPELL 1); do
+      if gaze install $each | xargs readelf -d 2> /dev/null |
+         grep -q "NEEDED.*libtunepimp.so.2"; then
+           up_trigger $each cast_self
+      fi
+    done
+  fi
+fi
