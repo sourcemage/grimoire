@@ -11,7 +11,7 @@ OPTS="$OPTS  $KDEBASE_XCONSOLE  $KDEBASE_DPMS  $KDEBASE_XDMCP"  &&
 #  OPTS="$OPTS  --with-krb5auth"
 #fi  &&
 
-.  $SECTION_DIRECTORY/KDE_BUILD
+.  $SECTION_DIRECTORY/KDE_BUILD                                 &&
 
 # Backup existing kdm dir
 if spell_ok $SPELL; then
