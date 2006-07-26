@@ -1,5 +1,7 @@
+# don't install xinetd script
+sedit "/XINETD=/D" configure            &&
 # prevent install of init scripts
-OPTS="--without-rcdir $OPTS"  &&
+OPTS="--without-rcdir  $OPTS"  &&
 # choose languages
 local CLIST                   &&
 # remove leading blank,
