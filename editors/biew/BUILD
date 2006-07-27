@@ -4,7 +4,6 @@
   if    [ "$I586"   == "on" ];  then  TP="i586" HC="$HC -DHAVE_MMX"
   elif  [ "$I686"   == "on" ];  then  TP="i686" HC="$HC -DHAVE_MMX2 -DHAVE_SSE"
   elif  [ "$K6"     == "on" ];  then  TP="k6"   HC="$HC -DHAVE_MMX"
-
   elif  [ "$ATHLON" == "on" ];  then  TP="athlon" HC="$HC -DHAVE_MMX2 -DHAVE_SSE -DHAVE_3DNOWEX"
   fi
 
@@ -26,5 +25,4 @@
   sedit  "s/USE_MOUSE=n/USE_MOUSE=$UM/"                 makefile  &&
   sedit  "s/\/usr\/local/\/usr/"  biewlib/sysdep/generic/unix/os_dep.c  &&
 
-#  invoke_gcc &&
   make
