@@ -1,3 +1,6 @@
+# fix amd64 warnings
+patch -p1 < $SCRIPT_DIRECTORY/assert64.patch 
+
 export OLDQTDIR=$QTDIR &&
 unset QTDIR &&
 cd scons/libs &&
