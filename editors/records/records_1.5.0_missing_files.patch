@@ -1,0 +1,1174 @@
+diff -urNp records-1.5.0.orig/recordsadmin.in records-1.5.0/recordsadmin.in
+--- records-1.5.0.orig/recordsadmin.in	1970-01-01 01:00:00.000000000 +0100
++++ records-1.5.0/recordsadmin.in	2006-07-27 13:59:45.000000000 +0200
+@@ -0,0 +1,840 @@
++#! @PERL@ -- -*- perl -*-
++
++### recordsadmin.in
++###
++### $Id: recordsadmin.in,v 1.15 2003/05/20 05:05:08 dmasterson Exp $
++###
++### Copyright (C) 1996 by Ashvin Goel
++###
++### This file is under the Gnu Public License.
++
++require 5.000;
++
++use Getopt::Std;
++use File::Basename;
++
++# global - should be set by makefile
++
++$homedir="$ENV{HOME}";
++$records_srcdirpath="@lispdir@";
++
++# handle cygwin windows environment
++# probably flaky right now
++$cygpath="@CYGPATH@";
++if ((($ENV{OSTYPE} eq "cygwin") || ($ENV{OSTYPE} eq "CYGWIN")) &&
++    $cygpath ne "") {
++    $homedir = &cygwin_translate_path($homedir);
++    $records_srcdirpath=&cygwin_translate_path($records_srcdirpath);
++}
++
++$records_init_file="${homedir}/.emacs-records";
++$records_emacs_init_file="${homedir}/.emacs";
++
++# external global variables read from .emacs-records
++# with their documentation
++# initialized here to sane defaults 
++
++@records_external_vars = (
++    "records_directory", 1, 'Directory under which all records are stored.',
++    "records_index_file", 1, 'File name in which records subject index is stored.
++Make sure that the file is within the records directory.',
++    "records_dindex_file", 1, 'File name in which records date index is stored.
++Make sure that the file is within the records directory.',
++    "records_directory_structure", 0, 'The directory structure for records files.
++Its values can be 
++0 => all records are stored in records_directory. 
++1 => records are stored by year within records_directory.
++2 => records are stored by year and month within records_directory.',
++    "records_day_order", 0, 'A records file name is composed of a day, month and year.
++This variable determines the order of the day in date. 
++For example, day = 0, if you want a records date to be in (day, month, year)
++format and day = 2, if you want a records date to be (year, month, day), etc.
++Valid values for day are 0, 1 or 2 only.',
++    "records_month_order", 0, 'A records file name is composed of a day, month and year.
++This variable determines the order of the month in date. 
++For example, month = 1, if you want a records date to be in (day, month, year)
++format and month = 0, if you want a records date to be (month, day, year), etc.
++Valid values for month are 0, 1 or 2 only.',
++    "records_year_order", 0, 'A records file name is composed of a day, month and year.
++This variable determines the order of the year in date. 
++For example, year = 2, if you want a records date to be in (day, month, year)
++format and year = 0, if you want a records date to be (year, month, day), etc.
++Valid values are 0, 1 or 2 only.',
++    "records_year_length", 0, 'The length of a records file year. 
++This can be 4 (example 1996) or 2 (96).
++Even if it is 2, records will work correctly after the turn of the century.
++Valid values are 2 or 4 only.',
++);
++
++$records_directory = "${homedir}/records";
++$records_index_file = "${records_directory}/index";
++$records_dindex_file = "${records_directory}/dindex";
++$records_directory_structure = 1;
++$records_day_order = 0;
++$records_month_order = 1;
++$records_year_order = 2;
++$records_year_length = 4;
++
++# internal global variables
++# initialized in &records_initialize_vars
++$records_date_length = 0;
++@records_date_order = ();
++@records_date = ();
++@records_glob_regexp = ();
++
++# other global variables
++$records_day_length = 0;
++$records_month_length = 0;
++%records_raw_index = ();
++%records_date_index = ();
++$alternate = 1; # alternate set of variables
++
++$records_init_mesg = ";;; AUTOMATICALLY GENERATED: DO NOT ALTER OR DELETE FROM THIS LINE ONWARDS";
++
++$records_more_init_mesg = <<MORE_MESG
++
++;;; Add any emacs customization before this comment.
++
++(let ((f (expand-file-name "$records_srcdirpath")))
++  (if (not (member f load-path))
++      (setq load-path (cons f load-path))))
++
++(autoload 'records-mode "records" "records mode" t)
++(autoload 'records-goto-today "records" "Go to today's records" t)
++(autoload 'records-underline-line "records" "underine a title" t)
++(autoload 'records-index-mode "records-index" "records index mode" t)
++
++(setq auto-mode-alist
++      (cons (cons "[0-9][0-9][0-9][0-9][0-9][0-9].?.?\$" 'records-mode)
++	    auto-mode-alist))
++
++;;; The following part of the file is also read by perl.
++MORE_MESG
++;
++
++#
++# Start the bang bang '
++#
++ 
++if (!getopts('hdvicn')) {
++    &usage();
++}
++
++# testing
++# &records_initialize_vars(1);
++# &records_query_vars($alternate);
++# &records_initialize_vars(0, $alternate);
++# &records_update_links("/home/asgoel/records/96/961209", $alternate);
++# exit(0);
++
++&usage() if ($opt_h);
++$debug = 1 if ($opt_d);
++$verbose = 1 if ($opt_v);
++
++if ($opt_i) {
++    &records_install_init_file();
++}
++
++if ($opt_c) {
++    &records_convert_format();
++}
++
++if (!$opt_n) {
++   print "Indexing all records...\n";
++   &records_recreate_indexes();
++}
++
++print "If you already have an emacs running with records mode loaded, run
++M-x records-initialize (C-c C-z) in a record buffer\n";
++
++exit(0);
++
++sub usage {
++    print STDERR "Usage: $0 [-options ...]
++
++This program will recreate the records indexes and modifed records files
++to reflect the new indexes. With more options, it will also
++install records defaults, convert date and directory formats, etc.
++
++where options are:
++	[-h]	this usage message
++	[-i]	install records defaults and then reindexes records
++	[-c]	converts one date and directory format to another and reindex
++	[-n]	do not reindex records (useful with -i or -c)
++	[-d]	run in debug mode
++	[-v]	run in verbose mode
++";
++    exit(1);
++}
++
++# make directory hierarchy
++sub mkdirhier {
++    local($dir, $mode) = @_;
++    local($pdir) = dirname($dir);
++
++    if (!(-d $pdir)) {
++	&mkdirhier($pdir, $mode);
++    }
++    mkdir($dir, $mode) ||
++	die "Couldn't make directory $dir: $!\n";
++}
++
++sub records_write_file {
++    local($file, *records_file) = @_;
++
++    print "$file is modified.\n" if ($verbose);
++    # rewrite the new file
++    if (!rename("$file", "$file~")) {
++	warn("Could not rename $file: $!\n");
++	return;
++    }
++    if (!open(OUT, ">$file")) {
++	warn("Could not open $file for writing: $!\n");
++	# get back old file
++	rename("$file~", "$file");
++	return;
++    }
++    print OUT @records_file;
++    close (OUT);
++}
++
++# returns 1 if the init file has the generated stuff in it or else 0
++sub records_read_init_file {
++    local($var);
++    local($init_msg_seen) = 0;
++
++    if (!open(IN, "< $records_init_file")) {
++        return 0;
++    }
++    while(<IN>) {
++	if (!$init_msg_seen) {
++	    next unless /$records_init_mesg/;
++	    $init_msg_seen = 1;
++	}
++	next if /^\s*$/;
++	next if /^\s*;/;
++	if (/\s*\(\s*setq\s+([A-Za-z-]+)\s+([0-9]+)\s*\)/) {
++	    # numeric quantity found
++	    $var = $1;
++	    $val = $2;
++	    $var =~ s/-/_/g;
++	    ${$var} = $val;
++	    next;
++        }
++	if (/\s*\(\s*setq\s+([A-Za-z-]+)\s+\"(.*)\"\s*\)/) {
++	    # string quantity found
++	    $var = $1;
++	    $val = $2;
++	    $var =~ s/-/_/g;
++	    ${$var} = $val;
++	    next;
++	}
++    }
++    close(IN);
++    return $init_msg_seen;
++}
++
++# will take alternate set of variables
++sub records_write_init_file {
++    local($init, $val) = @_;
++    local($len) = $#records_external_vars; # length of the array
++    local($i, $var, $value, $str);
++
++
++    # if init file exists 
++    # we have to remove the generated stuff from it.
++    if ($init) {
++	if (!rename("$records_init_file", "$records_init_file~")) {
++	    warn("Could not rename $records_init_file: $!\n");
++	    return;
++	}
++	if (!open(IN, "< $records_init_file~")) {
++	    die "Couldn't open $records_init_file~: $!\n";
++	}
++    }
++    if (!open(AP, ">> $records_init_file")) {
++	die "Couldn't write to $records_init_file: $!\n";
++    }
++    if ($init) {
++	# get stuff from $records_init_file~
++	while(<IN>) {
++	    if (!/$records_init_mesg/) {
++		print AP;
++		next;
++	    }
++	    last;
++	}
++	close(IN);	
++    }
++    print AP $records_init_mesg;
++    print AP $records_more_init_mesg;
++    for ($i = 0; $i < $len; $i += 3) {
++	$var = $records_external_vars[$i];
++	$str = $records_external_vars[$i+1];
++	$value = ${$var . $val};
++	$var =~ s/_/-/g;
++	if ($str) {
++	    print AP "(setq ", $var, " ", "\"",  $value, "\"", ")\n";
++        } else {
++	    print AP "(setq ", $var, " ", $value, ")\n";
++        }
++    }
++    close(AP);
++}
++
++# will take alternate set of variables
++# returns 1 if the validate is unsuccessful or else 0
++sub records_validate_vars {
++    local($val) = @_;
++    local($ret) = 0;
++
++    local(*records_directory_structure_a)
++	= \${"records_directory_structure_a" . $val};
++    local(*records_day_order_a) = \${"records_day_order" . $val};
++    local(*records_month_order_a) = \${"records_month_order" . $val};
++    local(*records_year_order_a) = \${"records_year_order" . $val};
++    local(*records_year_length_a) = \${"records_year_length" . $val};
++
++    if ($records_directory_structure_a != 0 && 
++	$records_directory_structure_a != 1 &&
++	$records_directory_structure_a != 2) {
++	print "records_directory_structure: should have a value of 0, 1 or 2.\n";
++	$ret = 1;
++    }
++    if ($records_day_order_a != 0 &&
++	$records_day_order_a != 1 &&
++	$records_day_order_a != 2) {
++	print "records_day_order: should have a value of 0, 1 or 2.\n";
++	$ret = 1;
++    }
++    if ($records_month_order_a != 0 &&
++	$records_month_order_a != 1 &&
++	$records_month_order_a != 2) {
++	print "records_month_order: should have a value of 0, 1 or 2.\n";
++	$ret = 1;
++    }
++    if ($records_year_order_a != 0 && 
++	$records_year_order_a != 1 &&
++	$records_year_order_a != 2) {
++	print "records_year_order: should have a value of 0, 1 or 2.\n";
++	$ret = 1;
++    }
++    if (($records_day_order_a == $records_month_order_a) ||
++	($records_month_order_a == $records_year_order_a) ||
++	($records_year_order_a == $records_day_order_a)) {
++	print "records_{day|month|year}_order: should have different values.\n";
++	$ret = 1;
++    }
++    if (!($records_year_length_a == 2 || $records_year_length_a == 4)) {
++	print "records_year_length: should have a value of 2 or 4.\n";
++    }
++    return $ret;
++}
++
++# will take alternate set of variables
++sub records_initialize_vars {
++    local($read_init, $val) = @_;
++    local($i, $dmy, $dmylen);
++    local($dir_regexp, $file_regexp);
++
++    local(*records_day_length_a) = \${"records_day_length" . $val};
++    local(*records_month_length_a) = \${"records_month_length" . $val};
++    local(*records_year_length_a) = \${"records_year_length" . $val};
++
++    local(*records_day_order_a) = \${"records_day_order" . $val};
++    local(*records_month_order_a) = \${"records_month_order" . $val};
++    local(*records_year_order_a) = \${"records_year_order" . $val};
++
++    local(*records_date_length_a) = \${"records_date_length" . $val};
++    local(*records_date_order_a) = \@{"records_date_order" . $val};
++    local(*records_date_a) = \@{"records_date" . $val};
++
++    local(*records_directory_structure_a)
++	= \${"records_directory_structure" . $val};
++    local(*records_glob_regexp_a) = \@{"records_glob_regexp" . $val};
++
++    if ($read_init) {
++	&records_read_init_file();
++    }
++
++    $records_day_length_a = 2;
++    $records_month_length_a = 2;
++    $records_date_length_a = 0;
++    @records_date_a = (['year', 0, 0], ['month', 0, 0], ['day', 0, 0]); 
++
++    # initialize records_date_order
++    $records_date_order_a[$records_day_order_a] = 'day';
++    $records_date_order_a[$records_month_order_a] = 'month';
++    $records_date_order_a[$records_year_order_a] = 'year';
++    # initialize records_date
++    foreach $dmy (@records_date_order_a) {
++	for ($i = 0; $i < 3; $i++) {
++	    if ($records_date_a[$i][0] eq $dmy) {
++		$dmylen = ${"records_" . $dmy . "_length_a"};
++		$records_date_a[$i][1] = $records_date_length_a;
++		$records_date_a[$i][2] = $dmylen;
++		$records_date_length_a += $dmylen;
++	    }
++	}
++    }
++
++    # initialize records_glob_regexp 
++    # directory structure + date length considered
++    if ($records_directory_structure_a == 0) {
++	$dir_regexp = '';
++    } elsif ($records_directory_structure_a == 1) {
++	for ($i = 0; $i < $records_year_length_a; $i++) {
++	    $dir_regexp .= "[0-9]";
++	}
++	$dir_regexp .= "/";	
++    } elsif ($records_directory_structure_a == 2) {
++	for ($i = 0; $i < $records_year_length_a; $i++) {
++	    $dir_regexp .= "[0-9]";
++	}
++	$dir_regexp .= "/[0-9][0-9]/";	
++    }
++    for ($i = 0; $i < $records_date_length_a; $i++) {
++	$file_regexp .= "[0-9]";
++    }
++    @records_glob_regexp_a = ($dir_regexp, $file_regexp);
++}
++
++# will take alternate set of variables
++# query the user for values
++sub records_query_vars {
++    local($val) = @_;
++
++    local($len) = $#records_external_vars; # length of the array
++    local($i);
++    local($var, $doc, $value);
++    local($do_validate) = 1;
++
++    while ($do_validate) {
++	for ($i = 0; $i < $len; $i += 3) {
++	    $var = $records_external_vars[$i];
++	    $doc = $records_external_vars[$i+2];
++	    if ($val) {
++		${$var . $val} = ${$var};
++	    }
++	    print $doc, "\n";
++	    print $var, " (", ${$var}, "): "; 
++            chop($value = <>);
++	    if ($value ne "") {
++		${$var . $val} = $value;
++	    }
++	    print "\n";
++	}
++	# validate input
++	$do_validate = &records_validate_vars($val);
++	if ($do_validate) {
++	    print "You have input bad values. Try again.\n\n";
++	}
++    }
++}
++
++sub records_find_records {
++    local(@files);
++    local($i);
++    local($dir_regexp);
++    local($file_regexp);
++    local($regexp);
++
++    chdir $records_directory ||
++	die "Can't change directory to $records_directory: $!\n";
++    @files = glob($records_glob_regexp[0] . $records_glob_regexp[1]);
++    return @files;
++}
++
++sub records_normalize_date {
++    local($date) = @_;
++    local($i);
++    local(@date);
++    
++    for ($i = 0; $i < 3; $i++) {
++	$date[$i] = substr($date, $records_date[$i][1], $records_date[$i][2]);
++    }
++    if (length($date[0]) == 2) {
++	# normalize year
++        local($year) = substr($date[0], 0, 2);
++	if ($date[0] > 90) {
++	    substr($date[0], 0, 2) = "19";
++	} else {
++	    substr($date[0], 0, 2) = "20";
++	}
++	substr($date[0], 2, 4) = $year;
++    }
++    # year month day
++    return $date[0] . $date[1] . $date[2];
++}
++
++# will take alternate set of variables
++sub records_denormalize_date {
++    local($ndate, $val) = @_;
++    local(*records_date_length_a) = \${"records_date_length" . $val};
++    local(*records_date_a) = \@{"records_date" . $val};
++
++    local($date) = sprintf("%${records_date_length_a}s", " ");
++    if ($records_date_a[0][2] == 2) {
++	# denormalize year
++	substr($date, $records_date_a[0][1], $records_date_a[0][2]) = 
++	    substr($ndate, 2, 2);
++    } else {
++	substr($date, $records_date_a[0][1], $records_date_a[0][2]) = 
++	    substr($ndate, 0, 4);
++    }
++    substr($date, $records_date_a[1][1], $records_date_a[1][2])
++	= substr($ndate, 4, 2);
++    substr($date, $records_date_a[2][1], $records_date_a[2][2])
++	= substr($ndate, 6, 2);
++    return $date;
++}
++
++# will take alternate set of variables
++# absolute =  0 => relative path from a records file
++#	   =  1 => full absolute path
++#	   = -1 => relative path from the records directory
++sub records_directory_path {
++    local($date, $absolute, $val) = @_;
++    local(*records_date_a) = \@{"records_date" . $val};
++    local(*records_directory_a) = \${"records_directory" . $val};
++    local(*records_directory_structure_a) = 
++	\${"records_directory_structure" . $val};
++
++    if ($records_directory_structure_a == 0) {
++	return ($absolute >= 1) ? $records_directory_a : '';
++    } elsif ($records_directory_structure_a == 1) {
++	return (($absolute >= 1) ? $records_directory_a . "/" : 
++		($absolute <= -1) ? '' : "../") .
++		    substr($date, $records_date_a[0][1], $records_date_a[0][2]); 
++    } elsif ($records_directory_structure_a == 2) {
++	return (($absolute >= 1) ? $records_directory_a . "/" : 
++		($absolute <= -1) ? '' : "../../") .
++		    substr($date, $records_date_a[0][1], $records_date_a[0][2]) .
++			"/" . substr($date, $records_date_a[1][1], 
++				     $records_date_a[1][2]); 
++    } else {
++	die "records_directory_path: bad value\n";
++    }
++}
++
++sub records_update_file {
++    local($file) = @_;
++    local($date) = basename($file);
++    local($subject);
++    local($file_modified);
++    local(@records_file);
++
++    ## variables in the finite state machine
++    local($regexp, $a_link_regexp, $link_regexp);
++    local($a_link_found, $link_found);
++    local($subject_found, $full_subject_found);
++    local($tag, $tag_generated);
++    local($state) = 1;
++
++    # TODO: finite state machine diagram.
++
++    if (!open(IN, "< $file")) {
++        warn("$0: cannot open $file.  Skipped.\n");
++        return;
++    }
++
++    while ($state) {
++	if ($state == 1) {
++	    if (!($_ = <IN>)) {
++		# eof detected
++		$state = 0;
++		next;
++	    }
++	    chop;
++	    if (!$a_link_found) {
++		$state = 2;
++	    } else {
++		$state = 3;
++	    }
++	    next;
++	} elsif ($state == 2) {
++	    # look for subject
++	    if (!$subject_found) {
++		if (/^\* (.*)\s*$/) {
++		    # partial subject was found
++		    # get potential subject name
++		    $subject = $1;
++		    $subject_found = 1;
++		}
++		$state = 4;
++		next;
++	    }
++	    if (!$full_subject_found) {
++		$regexp = "^-{" . sprintf("%d", length($subject) + 2) . "}";
++		if (/$regexp/) {
++		    $full_subject_found = 1;
++		} else {
++		    # subject is bogus
++		    $subject_found = 0;
++		}
++		$state = 4;
++		next;
++	    }
++	    # found a records subject
++	    $state = 3;
++	    next;
++	} elsif ($state == 3) {
++	    if (!$tag_generated) {
++		$tag = records_add_record_to_rawindex($subject, $date);
++		$tag_generated = 1;
++	    }
++	    # check loose link match
++	    $a_link_regexp = "^(link|prev|next): <.*>";
++	    if (/$a_link_regexp/) {
++		$a_link_found = 1;
++		$link_regexp = "^link: <.*\/" . $date . "#" . $tag . "\\* " . 
++		    $subject . ">";
++		if (/$link_regexp/) {
++		    $link_found = 1;
++		    $state = 4;
++		} else {
++		    $file_modified = 1 unless ($file_modified);
++		    $state = 1;
++		}
++		next;
++	    } else {
++		if (!$link_found) {
++		    $file_modified = 1 unless ($file_modified);
++		    push(@records_file, "link: <" . &records_directory_path($date)
++			 . "/" . $date . "#" . $tag . "* " . $subject . ">\n");
++		}
++		$a_link_found = 0;
++		$link_found = 0;
++		$subject_found = 0;
++		$full_subject_found = 0;
++		$tag_generated = 0;
++		$state = 2;
++		next;
++	    }
++	} elsif ($state == 4) {
++	    push(@records_file, $_ . "\n");
++	    $state = 1;
++	    next;
++	}
++    }
++    close (IN);
++    if ($file_modified) {
++	&records_write_file($file, *records_file);
++    } else {
++	print "$file unchanged.\n" if ($verbose);
++    }
++}
++
++# TODO: finish writing it
++# will take alternate set of variables
++# after format conversion, update the links in file. 
++sub records_update_links {
++    local($file, $val) = @_;
++    local(@records_file, $file_modified);
++    local($newdate, $newdir);
++
++    local($link_regexp) = "<(.*)" . $records_glob_regexp[0] . "("
++	. $records_glob_regexp[1] . ")(#[0-9]*\\* .*)>";
++
++    if (!open(IN, "< $file")) {
++        warn("$0: cannot open $file.  Skipped.\n");
++        return;
++    }
++    while (<IN>) {
++	if (!/$link_regexp/) {
++	    push(@records_file, $_);
++	} else {
++	    $file_modified = 1 unless ($file_modified);
++	    $newdate = &records_denormalize_date(&records_normalize_date($2),
++					       $val);
++	    $newdir = &records_directory_path($newdate, 0, $val);
++	    # TODO: broken
++	    push(@records_file, $` . "<" . $newdir . "/" . $newdate 
++		 . $3 . ">" . $');
++	}
++    }
++    close(IN);
++    if ($file_modified) {
++	&records_write_file($file, *records_file);
++    } else {
++	print "$file unchanged.\n" if ($verbose);
++    }
++}
++
++sub records_add_record_to_rawindex {
++    local($subject, $date) = @_;
++    local($ndate) = &records_normalize_date($date);
++    local($key) = $subject . $ndate;
++
++    # add the date and count of number of subjects to the date index
++    if (!exists($records_date_index{$ndate})) {
++	$records_date_index{$ndate} = 1;
++    } else {
++	$records_date_index{$ndate}++;
++    }
++    if (!exists($records_raw_index{$key})) {
++	$records_raw_index{$key} = 0;
++	return '';
++    } else {
++	return sprintf("%d", ++$records_raw_index{$key});
++    }
++}
++    
++sub records_make_index {
++    local($subject_ndate);
++    local($subject, $old_subject);
++    local($ndate, $date);
++    local($tags, $i);
++ 
++    if ( -T "$records_index_file" ) {
++	rename("$records_index_file", "$records_index_file~") ||
++	    die("Could not rename $records_index_file: $!\n");
++    }
++    open(INDEX, ">$records_index_file") || 
++	die("Could not open $records_index_file for writing: $!\n");
++    # index start up 
++    print INDEX "-*- records-index -*- ";
++    foreach $subject_ndate (sort keys(%records_raw_index)) {
++	$subject = substr($subject_ndate, 0, -8);
++	$ndate = substr($subject_ndate, -8);
++	$date = &records_denormalize_date($ndate);
++	$tags = $records_raw_index{$subject_ndate};
++	if ($subject ne $old_subject) {
++	    # new subject. write it out
++	    print INDEX "\n", $subject, ": ";
++	    $old_subject = $subject;
++	}
++	# write out the first tag
++	print INDEX $date . " ";
++	# write out other tags if they exist
++	for ($i = 1; $i <= $tags; $i++) {
++	    print INDEX $date . "#" . sprintf("%d", $i) . " ";
++	}
++    }
++    print INDEX "\n";
++    close(INDEX);
++}
++
++sub records_make_dindex {
++    local($date, $ndate);
++
++    if ( -T "$records_dindex_file" ) {
++	rename("$records_dindex_file", "$records_dindex_file~") ||
++	    die("Could not rename $records_dindex_file: $!\n");
++    }
++    open(DINDEX, ">$records_dindex_file") || 
++	die("Could not open $records_dindex_file for writing: $!\n");
++    # print DINDEX " "; 
++    foreach $ndate (sort keys (%records_date_index)) {
++	$date = &records_denormalize_date($ndate);
++	print DINDEX $date, "#", $records_date_index{$ndate}, " ";
++    }
++    print DINDEX "\n"; # add a newline at the end of file to make emacs happy
++    close (DINDEX);
++}
++
++sub records_install_init_file {
++    local($init) = &records_read_init_file();
++    local($val);
++    if ($init) {
++	print "You have a valid $records_init_file.
++I will use its values to initialize your records.
++Unless you know what you are doing, do not change these values.
++If you wish to change the date or directory format, use 
++$0 -c\n\n";
++	print "Do you still want to re-initialize your init file (y or n) ";
++	chop($val= <>);
++	if ($val eq "n") {
++            # write out the init file
++            &records_write_init_file($init);
++	    return;
++	}
++    }
++
++    print "The default values of the variables are shown in parenthesis.
++If you want the default value, press return.\n\n";
++
++    # query the user for values
++    &records_query_vars();
++    # write out the init file
++    &records_write_init_file($init);
++    # Add stuff to emacs init file
++    open(EIT, ">>$records_emacs_init_file") ||
++	die "Could not open $records_emacs_init_file for writing: $!\n";
++    print EIT "(load \"$records_init_file\")\n";
++    close EIT;
++    &mkdirhier($records_directory, 0700) unless ( -d $records_directory);
++
++}
++
++sub records_convert_format {
++    local($file, @records_files, $newfile, $newdir);
++    local($date, $ndate, $newdate);
++    
++    if (!&records_read_init_file()) {
++	print "Records init file has not been initialized.\n";
++	print "Run $0 -i to initialize the init file before
++attempting to convert records formats.\n\n";
++	exit(1);
++    }
++    # original set of variables has been read and initialized
++    &records_initialize_vars(1);
++    # read the new set of vars.
++    print "You must input the new values of the records variables.\n\n";
++    &records_query_vars($alternate);
++    &records_initialize_vars(0, $alternate);
++    @records_files = &records_find_records();
++    foreach $file (@records_files) {
++	$date = basename($file);
++	$ndate = &records_normalize_date($date);
++	$newdate = &records_denormalize_date($ndate, $alternate);
++	$newdir = &records_directory_path($newdate, 1, $alternate);
++	$newfile =  $newdir . "/" . $newdate;
++	if ($file eq $newfile) {
++	    die "The old and new variable settings are the same.
++We will not go any further!!\n";
++	}
++	&mkdirhier($newdir, 0700) unless ( -d $newdir);
++	rename($file, $newfile) ||
++	    warn "Couldn't rename $file to $newfile: $!\n";
++	&records_update_links($newfile, $alternate);
++    }
++    &records_write_init_file(1, $alternate);
++}
++
++sub records_recreate_indexes {
++    local(@records_files);
++
++    &records_initialize_vars(1);
++    @records_files = &records_find_records();
++
++    foreach (@records_files) {
++	&records_update_file($_);
++    }
++    &records_make_index();
++    &records_make_dindex();
++}
++
++# This function might have to be changed for different emacs flavors
++# (native,cygwin) (emacs, xemacs).
++sub cygwin_translate_path {
++    local ($path) = @_;
++    local ($npath);
++
++    # convert path to windows path
++    $npath=`$cygpath -w $path`;
++    chop ($npath);
++    #print "path is $npath\n";
++
++    # Fix cygwin bug where even if $path has no trailing slash, $npath may 
++    # have it (when $path is a windows drive)
++    if (!($path =~ m#.*\\$#) && ($npath =~ m#.*\\$#)) {
++          chop ($npath);
++    }
++    $path = $npath;
++
++    # convert backslashes to slashes for emacs
++    $path =~ s#\\#/#g;
++    #print "translated path is $npath\n";
++    return $path;
++}
+diff -urNp records-1.5.0.orig/records-vars.el.in records-1.5.0/records-vars.el.in
+--- records-1.5.0.orig/records-vars.el.in	1970-01-01 01:00:00.000000000 +0100
++++ records-1.5.0/records-vars.el.in	2006-07-27 14:00:39.000000000 +0200
+@@ -0,0 +1,326 @@
++;;;
++;;; records-vars.el
++;;;
++;;; $Id: records-vars.el.in,v 1.1 2003/05/20 05:05:56 dmasterson Exp $
++;;;
++;;; Copyright (C) 1996 by Ashvin Goel
++;;;
++;;; This file is under the Gnu Public License.
++
++;;;
++;;; The next set of variables are accessed by recordsadmin.
++;;; Do not set them explicitly since they are set in your
++;;; records initilization file (see records-init-file) when recordsadmin 
++;;; is run. Beware!
++;;;
++
++(defvar records-init-file
++  (expand-file-name (concat (getenv "HOME") "/.emacs-records"))
++  "* All the records initialization should be put in this file.
++This file is also read by the perl index generator.
++If you change this variable, you must change the perl scripts also.")
++
++(defvar records-directory
++  (expand-file-name (concat (getenv "HOME") "/records"))
++  "* Directory under which all records are stored.")
++
++(defvar records-index-file
++  (expand-file-name (concat records-directory "/index"))
++  "* File name in which records subject index is stored.")
++
++(defvar records-dindex-file
++  (expand-file-name (concat records-directory "/dindex"))
++  "* File name in which records date index is stored.")
++
++(defvar records-directory-structure 1
++  "* The directory structure for records files. Its values can be 
++0 => all records are stored in the variable records-directory. 
++1 => records are stored by year.
++2 => records are stored by year and month.")
++
++(defvar records-day-order 0
++  "* A records file name is composed of a day, month and year.
++This variable determines the order of the day in date. 
++Valid values are 0, 1 or 2 only.")
++
++(defvar records-month-order 1
++  "* A records file name is composed of a day, month and year.
++This variable determines the order of the month in date. 
++Valid values are 0, 1 or 2 only.")
++
++(defvar records-year-order 2
++  "* A records file name is composed of a day, month and year.
++This variable determines the order of the month in date. 
++Valid values are 0, 1 or 2 only.")
++
++(defvar records-year-length 4
++  "* The length of a records file year. Valid values are 2 or 4 only.")
++
++;;;
++;;; You are free to play with these variables.
++;;; Use M-x set-variable records-.* (records- followed by completion) 
++;;; to see all these variables.
++;;;
++(defgroup records nil
++  "The Records Mode for Emacs"
++  :group 'packages
++  )
++
++(defcustom records-use-font-lock t 
++  "* Enable fontification in records mode.
++If font-lock-auto-fontify is t, records may be fontified even if this
++value is nil. In that case, to turn off records fontification, add
++\"records-mode\" as an element into the list called 
++font-lock-mode-disable-list."
++  :type 'boolean
++  :group 'records
++)
++
++; silence font lock in emacs (xemacs doesn't seem to have this problem)
++(defvar bold 'bold)
++
++;; for compatibility with xemacs-20
++;; (find-face 'font-lock-warning-face)
++(if (memq 'font-lock-warning-face (face-list))
++    ()
++  (defface font-lock-warning-face
++    '((((class color) (background light)) (:foreground "Red" :bold t))
++      (((class color) (background dark)) (:foreground "Pink" :bold t))
++      (t (:inverse-video t :bold t)))
++    "Font Lock mode face used to highlight warnings."
++    :group 'font-lock-faces)
++)
++
++;; TODO: hard to make it customizable: look at tag-table-alist in etags.el 
++(defvar records-mode-font-lock-keywords
++  '(
++    ;; subject face: this regexp obtained from records-subject-regexp
++    ("^\\* \\(.*\\)\n\\-\\-\\-+$" . bold)
++    ("^\\(END_\\)?TODO:?" . font-lock-warning-face) ; todo
++    ;; ("^link:\\ <\\(.*\\)>$" 1 font-lock-reference-face) ; link
++    ("<\\([^\n]*\\)>" 1 font-lock-reference-face) ; link
++    ("^TODO:\\ \\(//\\ .*$\\)" 1 font-lock-comment-face)) ; todo comment
++  "* Font-lock keywords for records mode."
++  )
++
++(defcustom records-subject-read-only t
++  "* If t, records subjects are made read-only.
++This disables any accidental updates to a records subject. 
++This variable has a local value for each records buffer."
++  :type 'boolean
++  :group 'records
++  )
++
++;; todo variables
++(defcustom records-todo-prev-day nil
++  "* If t, records-get-todo is invoked for a new file from 
++records-goto-prev-day. A file is new if it does not have any records in it.
++If nil, records-get-todo is not invoked.
++If not nil and not t, user is asked whether records-get-todo should be 
++invoked."
++  :type '(choice (const nil)
++                 (const t)
++                 (const ask))
++  :group 'records
++  )
++
++(defcustom records-todo-next-day nil
++  "* If t, records-get-todo is invoked for a new file from 
++records-goto-next-day.
++If nil, records-get-todo is not invoked.
++If not nil and not t, user is asked whether records-get-todo should be
++invoked."
++  :type '(choice (const nil)
++                 (const t)
++                 (const ask))
++  :group 'records
++)
++
++(defcustom records-todo-today t
++  "* If t, records-get-todo is invoked for a new file from records-goto-today.
++If nil, records-get-todo is not invoked.
++If not nil and not t, user is asked whether records-get-todo should be
++invoked."
++  :type '(choice (const nil)
++                 (const t)
++                 (const ask))
++  :group 'records
++)
++
++(defcustom records-todo-begin-copy-regexp "CTODO: "
++  "* The beginning of the copy todo is recognized by this variable. 
++NOTE: this variable will be recognized at the beginning of a line."
++  :type 'string
++  :group 'records
++)
++
++(defcustom records-todo-begin-move-regexp "TODO: "
++  "* The beginning of the move todo is recognized by this variable.
++NOTE: this variable will be recognized at the beginning of a line."
++  :type 'string
++  :group 'records
++)
++
++(defcustom records-todo-end-regexp "END_TODO"
++  "* The end of both the copy and move todo is recognized by this variable.
++NOTE: this variable will be recognized at the beginning of a line."
++  :type 'string
++  :group 'records
++)
++
++(defcustom records-todo-delete-empty-record t
++  "* If t, delete record if it is empty after a todo move.
++If nil, don't delete record.
++If not nil and not t, ask user about deleting the record."
++  :type '(choice (const nil)
++                 (const t)
++                 (const ask))
++  :group 'records  
++)
++
++(defcustom records-history-length 10
++  "* The number of records that are stored in records-history."
++  :type 'integer
++  :group 'records  
++  )
++
++(defcustom records-output-buffer "*RECORDS-OUTPUT*"
++  "* Contains the output of concatenating records."
++  :type 'string
++  :group 'records
++  )
++
++(defcustom records-subject-prefix-on-concat "--- "
++  "* Prefix prepended to each subject on records concatenation. 
++See \\[records-concatenate-records\], and \\[records-concatenate-record-files\]."
++  :type 'string
++  :group 'records
++)
++
++(defcustom records-subject-suffix-on-concat " ---"
++  "* Suffix appended to each subject on records concatenation. 
++See \\[records-concatenate-records\], and \\[records-concatenate-record-files\]."
++  :type 'string
++  :group 'records
++)
++
++(defcustom records-date-prefix-on-concat "* "
++  "* Prefix prepended to each date on records concatenation. 
++See \\[records-concatenate-records\], and \\[records-concatenate-record-files\]."
++  :type 'string
++  :group 'records
++)
++
++(defcustom records-date-suffix-on-concat ""
++  "* Suffix appended to each date on records concatenation. 
++See \\[records-concatenate-records\], and \\[records-concatenate-record-files\]."
++  :type 'string
++  :group 'records
++)
++
++(defcustom records-select-buffer-on-concat nil
++  "* If non nil, the records-output-buffer is selected after records are
++concatenated by \\[records-concatenate-records\].
++If nil, the records-output-buffer is just displayed."
++  :type 'boolean
++  :group 'records
++)
++
++(defcustom records-erase-output-buffer nil
++  "* If non nil, the records-output-buffer is erased, 
++every time \\[records-concatenate-records\] is invoked.
++If nil, the output is appended."
++  :type 'boolean
++  :group 'records
++)
++
++;; location of latex template for records.
++(defcustom records-tex-directory 
++  (expand-file-name "@pkgdatadir@")
++  "* Location of latex template for records."
++  :type 'string
++  :group 'records
++  )
++
++;; name of latex template
++(defcustom records-tex-template-plain
++  (expand-file-name (concat records-tex-directory "records-templ.tex"))
++  "* Location of plain template for LaTeX'ing records."
++  :type 'string
++  :group 'records
++  )
++
++(defcustom records-tex-temp-output-file
++  (expand-file-name (concat records-directory "records-temp.tex"))
++  "* Output location for Latex runs."
++  :type 'string
++  :group 'records
++  )
++
++(defcustom records-latex-output-buffer "*RECORDS-LATEX-OUTPUT*"
++  "* Contains the Latex output from concatenating records."
++  :type 'string
++  :group 'records
++  )
++
++(defcustom records-template-alist nil 
++  "* List of templates associated with record subjects. 
++Each value is a tempo template expression (not an already defined template, 
++but the expression that would be passed to tempo-define-template).
++This alist can be used to insert templates associated with each record
++subject. See the function records-insert-template.
++
++An example of this alist is
++  ((\"Tennis\" . (\"Partner: \\nField no: \\nWho won: \\n\"))
++   (\"Health\" . (\"Medication: \\nWeight: \\n\"))
++   (\"Today\" . (\"Time: \" (current-time-string) \"\\n\"))
++
++The third element inserts the current time when the Today record is inserted.
++"
++  :type '(repeat (cons :format "%v"
++                       (choice :value "" (string :tag "Records Subject"))
++                       (choice :value "" (sexp :tag "Records template"))))
++  :group 'records
++)
++
++;;; records hooks
++(defcustom records-index-mode-hooks nil
++  "* Hook functions that are run when the records index buffer is created."
++  :type 'hook
++  :group 'records
++  )
++
++(defcustom records-mode-hooks nil
++  "* Hook functions that are run when any records file buffer is created."
++  :type 'hook
++  :group 'records
++  )
++
++(defcustom records-load-hooks nil
++  "* Hook functions that are run when records mode is loaded."
++  :type 'hook
++  :group 'records
++  )
++
++(defcustom records-make-record-hook nil
++  "* Hook functions that are run when a record is created. 
++This hook can be used to create record templates."
++  :type 'hook
++  :group 'records
++  )
++
++(if (boundp 'running-xemacs)
++    ()
++  (if (string-match "Lucid" (emacs-version))
++      (setq running-xemacs t)
++    (setq running-xemacs nil)
++    ))
++
++;;; Adding emacs compatibility code here, just so it is loaded first.
++(if (not (fboundp 'first))
++    (fset 'first 'car))
++
++(if (not (fboundp 'second))
++    (fset 'second 'cadr))
++
++(provide 'records-vars)

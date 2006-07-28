@@ -1,3 +1,4 @@
+  disable_pic
   HC="$CFLAGS"
 
   if    [ "$I586"   == "on" ];  then  TP="i586" HC="$HC -DHAVE_MMX"
@@ -24,5 +25,4 @@
   sedit  "s/USE_MOUSE=n/USE_MOUSE=$UM/"                 makefile  &&
   sedit  "s/\/usr\/local/\/usr/"  biewlib/sysdep/generic/unix/os_dep.c  &&
 
-  invoke_gcc &&
   make

@@ -7,7 +7,7 @@ OPTS="--enable-dynamic-linking $OPTS"  &&
              --sysconfdir=${TRACK_ROOT}/etc          \
              --localstatedir=${TRACK_ROOT}/var/run   \
              --sbindir=${TRACK_ROOT}/sbin            \
-             --mandir=${TRACK_ROOT}//usr/share/man   \
+             --mandir=${TRACK_ROOT}/usr/share/man   \
              $OPTS                                   &&
 
 make DESTDIR=${INSTALL_ROOT}
