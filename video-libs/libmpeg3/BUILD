@@ -1,5 +1,3 @@
-invoke_gcc
-
 # fails to compile with -DPIC -fPIC except on systems that need -fPIC
 if [[ "$SMGL_COMPAT_ARCHS[1]" != "x86_64" ]]
 then
