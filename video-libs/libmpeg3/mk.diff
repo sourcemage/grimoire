@@ -1,0 +1,128 @@
+diff -uNr libmpeg3-1.7/audio/mpeg3audio.c libmpeg3-1.7.cp/audio/mpeg3audio.c
+--- libmpeg3-1.7/audio/mpeg3audio.c	2006-02-19 12:43:27.000000000 +0100
++++ libmpeg3-1.7.cp/audio/mpeg3audio.c	2006-07-31 09:45:45.000000000 +0200
+@@ -3,6 +3,7 @@
+ 
+ #include <math.h>
+ #include <stdlib.h>
++#include <memory.h>
+ 
+ 
+ 
+diff -uNr libmpeg3-1.7/Makefile libmpeg3-1.7.cp/Makefile
+--- libmpeg3-1.7/Makefile	2006-02-15 06:09:31.000000000 +0100
++++ libmpeg3-1.7.cp/Makefile	2006-07-31 10:44:22.000000000 +0200
+@@ -2,7 +2,6 @@
+ NASM = nasm
+ USE_MMX = 0
+ USE_CSS = 1
+-A52DIR := $(shell expr a52dec* )
+ 
+ 
+ ifeq ("$(PREFIX)", "")
+@@ -59,24 +58,7 @@
+ 
+ 
+ 
+-
+-
+-
+-CFLAGS += \
+-	-I. \
+-	-I$(A52DIR)/include \
+-	-I$(A52DIR)/liba52
+-
+-
+-
+-CFLAGS += -g
+-
+-
+-
+-
+-
+-
+-
++CFLAGS += -I. -I/usr/include/a52dec
+ 
+ 
+ 
+@@ -136,23 +118,20 @@
+ 	$(OBJDIR)/audio \
+ 	$(OBJDIR)/video
+ 
+-include Makefile.a52
+-
+-DIRS += $(A52DIRS)
+ 
+-
+-OUTPUT = $(OBJDIR)/libmpeg3.a
++OUTPUT = libmpeg3.so
+ UTILS = $(OBJDIR)/mpeg3dump $(OBJDIR)/mpeg3peek $(OBJDIR)/mpeg3toc  $(OBJDIR)/mpeg3cat
+ 
+ #$(OBJDIR)/mpeg3split
+ 
+ 
+-LIBS = -lm -lpthread
++#LIBS = -lm -lpthread  -L$(shell uname --machine) -la52 -lmpeg3
++LIBS = -lm -lpthread  -la52 -lmpeg3
+ 
+ $(shell if ! test -d $(OBJDIR) \; then mkdir -p $(OBJDIR) \; fi )
+ 
+ $(shell echo $(CFLAGS) > $(OBJDIR)/c_flags)
+-$(shell echo $(A52CFLAGS) > $(OBJDIR)/a52_flags)
++#$(shell echo $(A52CFLAGS) > $(OBJDIR)/a52_flags)
+ $(shell echo $(OBJS) $(ASMOBJS) $(A52OBJS) $(NASMOBJS) > $(OBJDIR)/objs)
+ $(shell mkdir -p $(DIRS) )
+ 
+@@ -160,7 +139,7 @@
+ 
+ 
+ $(OUTPUT): $(OBJS) $(ASMOBJS) $(NASMOBJS) $(A52OBJS)
+-	ar rcs $(OUTPUT) `cat $(OBJDIR)/objs`
++	ld -shared -o $(OUTPUT) `cat $(OBJDIR)/objs` $(LIBS)
+ 
+ 
+ 
+@@ -191,10 +170,11 @@
+ 		-ldl
+ 
+ install: 
++	mkdir -p /usr/include/libmpeg3
+ 	cp $(UTILS) $(PREFIX)/bin
+-#	cp $(OUTPUT) $(PREFIX)/lib
+-#	cp libmpeg3.h mpeg3private.h $(PREFIX)/include
+-
++	cp $(OUTPUT) $(PREFIX)/lib
++	cp libmpeg3.h mpeg3private.h mpeg3protos.h $(PREFIX)/include/libmpeg3
++	
+ clean:
+ 	rm -rf $(OBJDIR)
+ 
+@@ -211,8 +191,8 @@
+ 	$(CC) -c `cat $(OBJDIR)/c_flags` $(subst $(OBJDIR)/,, $*.S) -o $*.o
+ $(NASMOBJS): 
+ 	$(NASM) -f elf $(subst $(OBJDIR)/,, $*.s) -o $*.o
+-$(A52OBJS):
+-	$(CC) -c `cat $(OBJDIR)/a52_flags` $(subst $(OBJDIR)/,, $*.c) -o $*.o
++#$(A52OBJS):
++#	$(CC) -c `cat $(OBJDIR)/a52_flags` $(subst $(OBJDIR)/,, $*.c) -o $*.o
+ 
+ $(OBJDIR)/libmpeg3.o: 				    libmpeg3.c
+ $(OBJDIR)/mpeg3atrack.o: 			    mpeg3atrack.c
+@@ -259,4 +239,4 @@
+ 
+ 
+ 
+-include depend.a52
++#include depend.a52
+diff -uNr libmpeg3-1.7/video/subtitle.c libmpeg3-1.7.cp/video/subtitle.c
+--- libmpeg3-1.7/video/subtitle.c	2006-02-27 05:14:00.000000000 +0100
++++ libmpeg3-1.7.cp/video/subtitle.c	2006-07-31 09:44:48.000000000 +0200
+@@ -2,6 +2,7 @@
+ #include "mpeg3protos.h"
+ 
+ #include <stdlib.h>
++#include <memory.h>
+ 
+ static unsigned char get_nibble(unsigned char **ptr, int *nibble)
+ {
