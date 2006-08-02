@@ -20,6 +20,14 @@ if [ "$FIREFOX_CVS" == "y" ]; then
 fi &&
 cp browser/config/mozconfig .mozconfig &&
 
+# Ugly hack to get spells using gecko engine to compile against the headers and libs
+# under /usr/lib/firefox instead of /usr/lib.firefox-$VERSION, so that we can avoid
+# to recompile them on each minor upgrade
+# This will make the replacement in pkconfig files and firefox-config command
+sedit 's#$(includedir)#/usr/include/firefox#g' build/unix/Makefile.in  &&
+sedit 's#$(mozappdir)#/usr/lib/firefox#g' build/unix/Makefile.in  &&
+sedit 's#$(idldir)#/usr/share/idl/firefox#g' build/unix/Makefile.in  &&
+
 ./configure                                       \
   --prefix=${INSTALL_ROOT}/usr                    \
   --with-user-appdir=.firefox                     \
