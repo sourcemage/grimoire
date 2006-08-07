@@ -1,2 +1,2 @@
 sedit "s:/local::" Makefile  &&
-make
+make KVERS=$(get_kernel_version)
