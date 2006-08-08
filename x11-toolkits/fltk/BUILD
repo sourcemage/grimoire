@@ -1,2 +1,2 @@
-OPTS="$OPTS --enable-shared --enable-xft" &&
+OPTS="$FLTK_SHARED $FLTK_THREADS $FLTK_XDBE $FLTK_XFT $OPTS"  &&
 default_build
