@@ -12,7 +12,11 @@ then ant docs-javadoc
 fi &&
 if [[ "${JEDIT_DOCS_PDF_A4}" == "y" ]]
 then ant docs-pdf-a4
-fi &&
-if [[ "${JEDIT_DOCS_PDF_US}" == "y" ]]
-then ant docs-pdf-USletter
 fi
+##
+#
+# US-letter breaks
+#
+#if [[ "${JEDIT_DOCS_PDF_US}" == "y" ]]
+#then ant docs-pdf-USletter
+#fi
