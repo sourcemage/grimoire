@@ -11,6 +11,19 @@ sedit  "s:/local::"  Makefile  &&
 local TCL_VERSION=$(installed_version tcl | cut -d. -f-2)          &&
 sedit  "s/TCL_VERSION = .*/TCL_VERSION = $TCL_VERSION/"  Makefile  &&
 
+# Fix for xorg 7.x and insert $TRACK_ROOT
+if check_if_xorg_modular_libs; then
+  sedit  "s:XLIB = .*:XLIB = -L${TRACK_ROOT}/usr/lib -lX11:"  \
+         Makefile  &&
+  sedit  "s:XINC = .*:XINC = -I${TRACK_ROOT}/usr/include:"  \
+         Makefile
+else
+  sedit  "s:XLIB = .*:XLIB = -L${TRACK_ROOT}/usr/X11R6/lib -lX11:"  \
+         Makefile  &&
+  sedit  "s:XINC = .*:XINC = -I${TRACK_ROOT}/usr/X11R6/include:"  \
+         Makefile
+fi
+
 # Apply config settings
 if [[ $USE_AWE == n ]]; then
   sedit  "s/USE_AWE =.*/USE_AWE = 0/"  Makefile
