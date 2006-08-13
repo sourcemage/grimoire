@@ -1,0 +1,386 @@
+diff -uNr quicktime4linux-2.2/configure quicktime4linux-2.2.cp/configure
+--- quicktime4linux-2.2/configure	2005-08-31 06:02:31.000000000 +0200
++++ quicktime4linux-2.2.cp/configure	2006-08-01 13:03:32.000000000 +0200
+@@ -53,23 +53,7 @@
+ 
+ # configure them all
+ 
+-# version 2.0 of faad2 produced defective Makefile
+-cd faad2* && ./configure && sed 's/       /\t/' Makefile > Makefile2 && mv -f Makefile2 Makefile && cd ..
+-
+-cd faac* && ./configure && cd ..
+-
+-cd ffmpeg* && ./configure && cd ..
+-
+-cd x264* && ./configure --enable-pthread && cd ..
+-
+-cd libdv* && ./configure --disable-gtk --enable-shared=no && cd ..
+-
+-cd libogg* && ./configure && cd ..
+-
+-LIBOGG_PATH=`expr libogg*` && \
+-cd libvorbis* && \
+-CFLAGS="-I../../$LIBOGG_PATH/include -L../../$LIBOGG_PATH/src/" ./configure --enable-shared=no&& \
+-cd ..
++#cd faac* && ./configure && cd ..
+ 
+ 
+ 
+diff -uNr quicktime4linux-2.2/Makefile quicktime4linux-2.2.cp/Makefile
+--- quicktime4linux-2.2/Makefile	2006-06-11 04:41:39.000000000 +0200
++++ quicktime4linux-2.2.cp/Makefile	2006-08-01 14:38:09.000000000 +0200
+@@ -17,52 +17,13 @@
+ #DECORE_DIR := decore50
+ ENCORE_INCLUDE := $(ENCORE_DIR)/encore.h
+ #DECORE_INCLUDE := $(DECORE_DIR)/decore.h
+-MPEG3_DIR := $(shell expr ../libmpeg3* )
+ OBJS := 
+ 
+ 
+-# bug fixes for ffmpeg are required
+-# Add test to ffmpeg/libavcodec/svq3.c to make sure extradata is
+-# nonzero before memcmping it.
+-FFMPEG_DIR := $(shell expr ffmpeg*)
+-FFMPEG_LIB := $(OBJDIR)/ffmpeg/
+-FFMPEG_INCLUDE := -I$(FFMPEG_DIR)/libavcodec -I$(FFMPEG_DIR)/libavutil
+-
+-FAAD_DIR := faad2-2.0
+-FAAD_LIB := $(OBJDIR)/faad/
+-FAAD_INCLUDE := $(FAAD_DIR)/include/
+-
+-FAAC_DIR := faac-1.24
+-FAAC_LIB := $(OBJDIR)/faac/
+-FAAC_INCLUDE := $(FAAC_DIR)/include/
+-
+-X264_DIR := $(shell expr x264*)
+-X264_LIB := $(OBJDIR)/x264
+-X264_INCLUDE := $(X264_DIR)
+-
+-DV_DIR := libdv-0.104
+-DV_LIB := $(OBJDIR)/libdv
+-DV_INCLUDE := $(DV_DIR)
+-
+-OGG_DIR := $(shell expr libogg* )
+-OGG_LIB := $(OBJDIR)/ogg
+-
+-VORBIS_DIR := $(shell expr libvorbis* )
+-VORBIS_LIB := $(OBJDIR)/vorbis
+-
+ ifeq ($(OBJDIR), i686)
+ 
+   JPEG_DIR := $(shell expr jpeg-mmx* )
+-  JPEG_LIB := $(OBJDIR)/jpeg
+   JPEG_LIB2 := $(JPEG_DIR)/libjpeg-mmx.a
+-  JPEG_INCLUDE := $(JPEG_DIR)
+-
+-else
+-
+-  JPEG_DIR := jpeg
+-  JPEG_LIB := $(OBJDIR)/jpeg
+-  JPEG_LIB2 := $(JPEG_DIR)/libjpeg.a
+-  JPEG_INCLUDE := $(JPEG_DIR)
+ 
+ endif
+ 
+@@ -92,27 +53,13 @@
+ 
+ 
+ 
+-#include Makefile.jpeg
+-#include Makefile.vorbis
+-include Makefile.lame
+-#include Makefile.dv
+ include Makefile.encore50
+ 
+-
+-
+-
+-
+-#CFLAGS += -g
+ CFLAGS += -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
+ CFLAGS += -DHAVE_FIREWIRE
+ 
+ 
+ 
+-
+-
+-
+-
+-
+ OBJS += \
+ 	$(OBJDIR)/atom.o \
+ 	$(OBJDIR)/avcc.o \
+@@ -204,23 +151,19 @@
+ 
+ 
+ 
+-OUTPUT = $(OBJDIR)/libquicktime.a
+-SHAREDOUTPUT = $(OBJDIR)/libquicktime.so
++OUTPUT = libquicktime.so
+ 
+ CFLAGS += \
+ 	-I. \
+ 	-I$(ENCORE_DIR) \
+-	-I$(FAAC_INCLUDE) \
+-	-I$(FAAD_INCLUDE) \
+-	$(FFMPEG_INCLUDE) \
++	-I/usr/include/ffmpeg \
+ 	-DENCORE_INCLUDE=\"$(ENCORE_INCLUDE)\" \
+-	-I$(X264_INCLUDE) \
+-	-I$(DV_INCLUDE) \
+-	-I$(JPEG_INCLUDE) \
+-	-I$(MPEG3_DIR) \
+-	-I$(LAME_DIR)/include \
+-	-I$(OGG_DIR)/include \
+-	-I$(VORBIS_DIR)/include \
++	-I/usr/include/libdv \
++	-I/usr/include \
++	-I/usr/include/libmpeg3 \
++	-I/usr/include/lame \
++	-I/usr/include/ogg \
++	-I/usr/include/vorbis \
+ 	-ffast-math \
+ 	-mno-ieee-fp
+ 
+@@ -242,102 +185,44 @@
+ 	$(OBJDIR)/$(ENCORE_DIR)/mbtransquant/intel_mmx
+ 
+ 
+-LIBS := $(OUTPUT) $(MPEG3_DIR)/$(OBJDIR)/libmpeg3.a -lpng -lz -lpthread -ldl -lm
++LIBS := -lmpeg3 -lraw1394 -lmp3lame -logg -lvorbis -lvorbisenc -ldv -ljpeg -lpng \
++         -lx264 -lavcodec -lfaad -lfaac -lz -lpthread -ldl -lm
+ 
++QTLINK := $(LIBS) -L. -lquicktime
+ 
+ $(shell if ! test -d $(OBJDIR) \; then mkdir -p $(DIRS) \; fi )
+ $(shell echo  $(CFLAGS) > $(OBJDIR)/c_flags)
+-$(shell echo  $(LAME_CFLAGS) > $(OBJDIR)/lame_flags)
+-$(shell echo  $(OBJS) $(JPEG_LIB)/*.o $(DV_LIB)/*.o $(FAAD_LIB)/*.o $(FAAC_LIB)/*.o $(FFMPEG_LIB)/*.o $(X264_LIB)/*.o $(OGG_LIB)/*.o $(VORBIS_LIB)/*.o $(LAME_OBJS) > $(OBJDIR)/objs)
++$(shell echo  $(OBJS)     > $(OBJDIR)/objs)
++
++all: $(OBJDIR) $(OUTPUT) $(UTILS)
++
++$(OUTPUT): $(OBJS) $(ENCOREMMX_OBJS) $(JPEG_NASM)
++	ld -shared -o $(OUTPUT) `cat $(OBJDIR)/objs` $(LIBS)
++
+ 
+-all: $(OBJDIR) $(OUTPUT)
++$(OBJDIR)/qtdump: $(OBJDIR)/dump.o 
++	$(CC) -o $(OBJDIR)/qtdump $(OBJDIR)/dump.o $(QTLINK)
+ 
+-$(OUTPUT): $(OBJS) $(ENCOREMMX_OBJS) $(JPEG_NASM) $(LAME_OBJS) $(FAAD_LIB) $(FAAC_LIB) $(FFMPEG_LIB) $(X264_LIB) $(DV_LIB) $(JPEG_LIB) $(OGG_LIB)/ $(VORBIS_LIB)
+-	ar rcs $(OUTPUT) `cat $(OBJDIR)/objs`
++$(OBJDIR)/make_streamable: $(OBJDIR)/make_streamable.o 
++	$(CC) -o $(OBJDIR)/make_streamable $(OBJDIR)/make_streamable.o $(QTLINK)
+ 
+-# this is the only way we figured out to merge .a files
+-$(FFMPEG_LIB):
+-	$(MAKE) -C $(FFMPEG_DIR) && \
+-	mkdir -p $(FFMPEG_LIB) && \
+-	cd $(FFMPEG_LIB) && \
+-	ar x ../../$(FFMPEG_DIR)/libavcodec/libavcodec.a && \
+-	ar x ../../$(FFMPEG_DIR)/libavutil/libavutil.a
+-
+-$(FAAD_LIB):
+-	$(MAKE) -C $(FAAD_DIR) && \
+-	mkdir -p $(FAAD_LIB) && \
+-	cd $(FAAD_LIB) && \
+-	ar x ../../$(FAAD_DIR)/libfaad/.libs/libfaad.a
+-
+-$(FAAC_LIB):
+-	$(MAKE) -C $(FAAC_DIR) && \
+-	mkdir -p $(FAAC_LIB) && \
+-	cd $(FAAC_LIB) && \
+-	ar x ../../$(FAAC_DIR)/libfaac/.libs/libfaac.a
+-
+-$(DV_LIB):
+-	$(MAKE) -C $(DV_DIR) && \
+-	mkdir -p $(DV_LIB) && \
+-	cd $(DV_LIB) && \
+-	ar x ../../$(DV_DIR)/libdv/.libs/libdv.a
+-
+-$(JPEG_LIB):
+-	$(MAKE) -C $(JPEG_DIR) && \
+-	mkdir -p $(JPEG_LIB) && \
+-	cd $(JPEG_LIB) && \
+-	ar x ../../$(JPEG_LIB2)
+-
+-# need some trickery to get the duplicated filenames out
+-$(X264_LIB):
+-	$(MAKE) -C $(X264_DIR) && \
+-	mkdir -p $(X264_LIB) && \
+-	cd $(X264_LIB) && \
+-	ar x ../../$(X264_DIR)/libx264.a && \
+-	mv predict.o predict2.o && \
+-	mv cabac.o cabac2.o && \
+-	mv macroblock.o macroblock2.o && \
+-	mv set.o set2.o && \
+-	ar xN 1 ../../$(X264_DIR)/libx264.a predict.o cabac.o macroblock.o set.o
+-
+-$(OGG_LIB):
+-	$(MAKE) -C $(OGG_DIR) && \
+-	mkdir -p $(OGG_LIB) && \
+-	cd $(OGG_LIB) && \
+-	ar x ../../$(OGG_DIR)/src/.libs/libogg.a
+-
+-$(VORBIS_LIB):
+-	$(MAKE) -C $(VORBIS_DIR) && \
+-	mkdir -p $(VORBIS_LIB) && \
+-	cd $(VORBIS_LIB) && \
+-	ar x ../../$(VORBIS_DIR)/lib/.libs/libvorbis.a && \
+-	ar x ../../$(VORBIS_DIR)/lib/.libs/libvorbisenc.a && \
+-	ar x ../../$(VORBIS_DIR)/lib/.libs/libvorbisfile.a
+-
+-
+-
+-$(OBJDIR)/qtdump: $(OBJDIR)/dump.o $(OUTPUT)
+-	$(CC) -o $(OBJDIR)/qtdump $(OBJDIR)/dump.o $(LIBS)
+-
+-$(OBJDIR)/make_streamable: $(OBJDIR)/make_streamable.o $(OUTPUT)
+-	$(CC) -o $(OBJDIR)/make_streamable $(OBJDIR)/make_streamable.o $(LIBS)
+-
+-$(OBJDIR)/dechunk: $(OBJDIR)/dechunk.o $(OUTPUT)
+-	$(CC) -o $(OBJDIR)/dechunk $(OBJDIR)/dechunk.o $(LIBS)
+-
+-$(OBJDIR)/rechunk: $(OBJDIR)/rechunk.o $(OUTPUT)
+-	$(CC) -o $(OBJDIR)/rechunk $(OBJDIR)/rechunk.o $(LIBS)
++$(OBJDIR)/dechunk: $(OBJDIR)/dechunk.o
++	$(CC) -o $(OBJDIR)/dechunk $(OBJDIR)/dechunk.o $(QTLINK)
+ 
+-$(OBJDIR)/recover: $(OBJDIR)/recover.o $(OUTPUT)
+-	$(CC) -o $(OBJDIR)/recover $(OBJDIR)/recover.o $(LIBS)
++$(OBJDIR)/rechunk: $(OBJDIR)/rechunk.o
++	$(CC) -o $(OBJDIR)/rechunk $(OBJDIR)/rechunk.o $(QTLINK)
+ 
+-$(OBJDIR)/yuv4toyuv: $(OBJDIR)/yuv4toyuv.o $(OUTPUT)
+-	$(CC) -o $(OBJDIR)/yuv4toyuv $(OBJDIR)/yuv4toyuv.o $(LIBS)
++$(OBJDIR)/recover: $(OBJDIR)/recover.o
++	$(CC) -o $(OBJDIR)/recover $(OBJDIR)/recover.o $(QTLINK)
+ 
+-$(OBJDIR)/yuv2mov: $(OBJDIR)/yuv2mov.o $(OUTPUT)
+-	$(CC) -o $(OBJDIR)/yuv2mov $(OBJDIR)/yuv2mov.o $(LIBS)
++$(OBJDIR)/yuv4toyuv: $(OBJDIR)/yuv4toyuv.o
++	$(CC) -o $(OBJDIR)/yuv4toyuv $(OBJDIR)/yuv4toyuv.o $(QTLINK)
++
++$(OBJDIR)/yuv2mov: $(OBJDIR)/yuv2mov.o 
++	$(CC) -o $(OBJDIR)/yuv2mov $(OBJDIR)/yuv2mov.o $(QTLINK)
+ 
+ $(OBJDIR)/qtinfo: $(OBJDIR)/qtinfo.o
+-	$(CC) -o $(OBJDIR)/qtinfo $(OBJDIR)/qtinfo.o $(LIBS)
++	$(CC) -o $(OBJDIR)/qtinfo $(OBJDIR)/qtinfo.o $(QTLINK)
+ 
+ util:  $(UTILS)
+ 	
+@@ -352,24 +237,11 @@
+ 		-o -name '*.so' \) -exec rm -f {} \; -prune
+ 	find \( -name $(OBJDIR) \) -exec rm -rf {} \; -prune
+ #	find \( -name .deps \) -exec rm -rf {} \; -prune
+-	make -i -C $(FFMPEG_DIR) clean
+-	make -i -C $(FAAD_DIR) clean
+-	make -i -C $(FAAC_DIR) clean
+-	make -i -C $(FAAD_DIR) clean
+-	make -i -C $(X264_DIR) clean
+-	make -i -C $(DV_DIR) clean
+-	make -i -C $(OGG_DIR) clean
+-	make -i -C $(VORBIS_DIR) clean
+-	make -i -C $(JPEG_DIR) clean
+-
+-wc:
+-	cat *.c *.h | wc
+-
+-backup: clean
+-	cd .. && \
+-	tar zcvf quicktime.tar.gz quicktime
+ 
+-install:
++install: $(OUTPUT) $(UTILS)
++	mkdir -p /usr/include/quicktime
++	cp quicktime.h qtprivate.h colormodels.h libmjpeg.h /usr/include/quicktime
++	cp $(OUTPUT) /usr/lib
+ 	cp $(UTILS) /usr/bin
+ 
+ $(OBJDIR)/dump.o \
+@@ -386,21 +258,7 @@
+ $(JPEG_FAIL):
+ 	$(CC) -c -O3 -march=i686 -fmessage-length=0 $(subst $(OBJDIR)/,, $*.c) -o $*.o
+ 
+-$(DV_OBJS):
+-	$(CC) -c `cat $(OBJDIR)/c_flags` $(subst $(OBJDIR)/,, $*.c) -o $*.o
+-
+-#$(FAAD_OBJS):
+-#	$(CC) -c `cat $(OBJDIR)/faad_flags` $(subst $(OBJDIR)/,, $*.c) -o $*.o
+ 
+-#$(FAAC_OBJS):
+-#	$(CC) -c `cat $(OBJDIR)/faac_flags` $(subst $(OBJDIR)/,, $*.c) -o $*.o
+-
+-$(DVMMXOBJS):
+-	$(CC) -c `cat $(OBJDIR)/c_flags` $(subst $(OBJDIR)/,, $*.S) -o $*.o
+-
+-$(DVMMXOBJ): $(DV_DIR)/libdv/gasmoff.c
+-	$(CC) `cat $(OBJDIR)/c_flags` $(DV_DIR)/libdv/gasmoff.c -o $(OBJDIR)/$(DV_DIR)/libdv/gasmoff -lm
+-	$(OBJDIR)/$(DV_DIR)/libdv/gasmoff > $(DVMMXOBJ)
+ 
+ $(JPEG_NASM):
+ 	nasm -f elf $(subst $(OBJDIR)/,, $*.s) -o $*.o
+@@ -412,16 +270,6 @@
+ #	$(CC) -c `cat $(OBJDIR)/c_flags` $(subst $(OBJDIR)/,, $*.S) -o $*.o
+ 
+ 
+-#$(FFMPEG_OBJS) $(FFMPEGIA32_OBJS):
+-#	$(CC) `cat $(OBJDIR)/ffmpeg_flags` -c $(subst $(OBJDIR)/,, $*.c) -o $*.o
+-
+-$(LAME_OBJS):
+-	$(CC) `cat $(OBJDIR)/lame_flags` -c $(subst $(OBJDIR)/,, $*.c) -o $*.o
+-
+-#$(FFMPEGIA32_OBJS):
+-#	nasm -f elf $(subst $(OBJDIR)/,, $*.s) -o $*.o
+-
+-
+ 
+ 
+ #$(OBJDIR)/div3.o:                         div3.c
+@@ -553,11 +401,4 @@
+ 
+ 
+ 
+-#include depend.vorbis
+-#include depend.ffmpeg
+-#include depend.jpeg
+-include depend.lame
+-#include depend.dv
+ include depend.encore50
+-#include depend.faad
+-#include depend.faac
+diff -uNr quicktime4linux-2.2/qth264.c quicktime4linux-2.2.cp/qth264.c
+--- quicktime4linux-2.2/qth264.c	2006-05-30 08:57:46.000000000 +0200
++++ quicktime4linux-2.2.cp/qth264.c	2006-07-31 19:20:03.000000000 +0200
+@@ -138,7 +138,8 @@
+ 		x264_param_t default_params;
+ 		x264_param_default(&default_params);
+ // Reset quantizer if fixed bitrate
+-		if(codec->param.rc.b_cbr)
++//		if(codec->param.rc.b_cbr)
++                if(codec->param.rc.i_rc_method == X264_RC_ABR)
+ 		{
+ 			codec->param.rc.i_qp_constant = default_params.rc.i_qp_constant;
+ 			codec->param.rc.i_qp_min = default_params.rc.i_qp_min;
+@@ -471,7 +472,8 @@
+ 		}
+ 		else
+ 		if(!strcasecmp(key, "h264_fix_bitrate"))
+-			codec->param.rc.b_cbr = (*(int*)value) / 1000;
++//			codec->param.rc.b_cbr = (*(int*)value) / 1000;
++			codec->param.rc.i_bitrate = (*(int*)value) / 1000;
+ 	}
+ }
+ 
+diff -uNr quicktime4linux-2.2/rechunk.c quicktime4linux-2.2.cp/rechunk.c
+--- quicktime4linux-2.2/rechunk.c	2005-04-21 05:59:36.000000000 +0200
++++ quicktime4linux-2.2.cp/rechunk.c	2006-07-31 18:41:12.000000000 +0200
+@@ -1,5 +1,6 @@
+ #include "funcprotos.h"
+ #include "quicktime.h"
++#include <string.h>
+ 
+ int usage(void)
+ {

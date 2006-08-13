@@ -1,3 +1,4 @@
+ patch -p0 < $SPELL_DIRECTORY/config.sub.patch &&
  patch  -p1  <  $SCRIPT_DIRECTORY/wu-ftpd-2.6.1-fixinternalls.patch &&
  patch  -p1  <  $SCRIPT_DIRECTORY/wu-ftpd-2.6.1-privatepw.patch     &&
  patch  -p1  <  $SCRIPT_DIRECTORY/wu-ftpd-2.6.0-nonrootfix.patch    &&

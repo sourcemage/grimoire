@@ -1,0 +1,36 @@
+default_pre_build      &&
+cd  $SOURCE_DIRECTORY  &&
+
+# Fix incorrect version string
+sedit  "s/0\.1\.16/0.1.17/"  Makefile  &&
+
+# /usr/local -> /usr
+sedit  "s:/local::"  Makefile  &&
+
+# Make sure tcl version is correct
+local TCL_VERSION=$(installed_version tcl | cut -d. -f-2)          &&
+sedit  "s/TCL_VERSION = .*/TCL_VERSION = $TCL_VERSION/"  Makefile  &&
+
+# Fix for xorg 7.x and insert $TRACK_ROOT
+if check_if_xorg_modular_libs; then
+  sedit  "s:XLIB = .*:XLIB = -L${TRACK_ROOT}/usr/lib -lX11:"  \
+         Makefile  &&
+  sedit  "s:XINC = .*:XINC = -I${TRACK_ROOT}/usr/include:"  \
+         Makefile
+else
+  sedit  "s:XLIB = .*:XLIB = -L${TRACK_ROOT}/usr/X11R6/lib -lX11:"  \
+         Makefile  &&
+  sedit  "s:XINC = .*:XINC = -I${TRACK_ROOT}/usr/X11R6/include:"  \
+         Makefile
+fi
+
+# Apply config settings
+if [[ $USE_AWE == n ]]; then
+  sedit  "s/USE_AWE =.*/USE_AWE = 0/"  Makefile
+fi  &&
+if [[ $USE_MIDI == n ]]; then
+  sedit  "s/USE_MIDI =.*/USE_MIDI = 0/"  Makefile
+fi  &&
+if [[ $USE_ALSA == n ]]; then
+  sedit  "s/USE_ALSA =.*/USE_ALSA = 0/"  Makefile
+fi
