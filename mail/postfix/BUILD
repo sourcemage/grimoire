@@ -69,4 +69,19 @@ make  makefiles           \
       "OPT=$CFLAGS"       \
       "AUXLIBS=$AUXLIBS"  \
       "CCARGS=$CCARGS"    &&
-make
+make &&
+
+# Fix directories in the main.cf
+
+
+if [[ "$POSTFIX_PRE_EXISTING" == "yes" ]] ; then
+	if [[ "$POSTFIX_FIX_MAINCF" == "y" ]]; then
+		# repair directories in the main.cf
+		MANPAGE_DIR="$(grep manpage_directory /etc/postfix/main.cf | cut -d"=" -f2)"
+		MANPAGE_DIR="${MANPAGE_DIR## }"
+		if [[ "$MANPAGE_DIR" != "/usr/share/man" ]]; then
+			sed -i -e "s|manpage_directory.*=.*|manpage_directory = /usr/share/man|" /etc/postfix/main.cf
+		fi
+	fi
+fi
+
