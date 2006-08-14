@@ -1,0 +1,38 @@
+#!/bin/bash
+
+PROGRAM=/usr/bin/netswitch
+RUNLEVEL=3
+
+. /etc/init.d/smgl_init
+
+start() {
+  # Find the profile to activate from Kernel command line
+  PROFILE=`cat /proc/cmdline|sed 's/.*netswitch=\([^ ]*\).*/\1/'`
+  if [ -n "`netswitch list|grep \"$PROFILE\"`" ]; then
+    loadproc $PROGRAM profile on $PROFILE
+    evaluate_retval
+  fi
+}
+
+stop() {
+  loadproc $PROGRAM profile off
+  evaluate_retval
+}
+
+restart() {
+  echo "Restarting netswitch..."
+  if [ -f $PIDFILE ]; then
+    $0 stop
+    sleep 2
+  fi
+  $0 start
+}
+
+status() { exit 3; }
+
+reload() { exit 3; }
+force_reload() { exit 3; }
+
+usage() {
+  echo "Usage: $0 {start|stop|restart|status}"
+}
