@@ -3,6 +3,7 @@
 # I think redhat is closest
 #
 OPTS="--with-distro=redhat  \
+      LIBNL_CFLAGS=-I/usr/include/netlink LIBNL_LIBS=-lnl \
       $OPTS"                &&
 
 default_build
