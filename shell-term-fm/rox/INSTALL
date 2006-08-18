@@ -1,9 +1,40 @@
-./install.sh << EOF
-4
-/usr/libexec/rox
-/usr/bin
-/usr/share
-/usr/share/Choices
-/usr/share/man
-y
+##
+# Create install directories
+mkdir -p ${INSTALL_ROOT}/usr/libexec/rox   &&
+mkdir -p ${INSTALL_ROOT}/usr/bin           &&
+mkdir -p ${INSTALL_ROOT}/usr/share/Choices/rox.sourceforge.net &&
+mkdir -p ${INSTALL_ROOT}/usr/share/man/man1     &&
+mkdir -p ${INSTALL_ROOT}/usr/share/mime/packages    &&
+
+##
+# Copy files
+
+# Script in /usr/bin
+cat > "${INSTALL_ROOT}/usr/bin/rox" << EOF
+#!/bin/sh
+exec /usr/libexec/rox/ROX-Filer/AppRun "\$@"
 EOF
+chmod 755 ${INSTALL_ROOT}/usr/bin/rox &&
+
+# Files in /usr/libexec
+cp -r ${SOURCE_DIRECTORY}/ROX-Filer ${INSTALL_ROOT}/usr/libexec/rox/  &&
+
+# Choices to /usr/share/Choices, must check if destination files exist
+for file in MIME-types/*; do
+  if [ -f "$file" ]; then
+    dest="${INSTALL_ROOT}/usr/share/Choices/rox.sourceforge.net/$file"
+    if [ ! -f "$dest" ]; then
+      if [ ! -d "$dest" ]; then
+        cp "$file" "$dest"
+      fi
+    fi
+  fi
+done
+
+# Man pages
+cp rox.1 ${INSTALL_ROOT}/usr/share/man/man1 &&
+ln ${INSTALL_ROOT}/usr/share/man/man1/rox.1 \
+   ${INSTALL_ROOT}/usr/share/man/man1/ROX-Filer.1
+
+# Mime types
+cp rox.xml ${INSTALL_ROOT}/usr/share/mime/packages/
