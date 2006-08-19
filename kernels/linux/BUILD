@@ -31,7 +31,11 @@ if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
       echo "There is no kernel version: $VERSION"  &&
       return 1
     ;;
-  esac
+  esac &&
+  if grep -q CONFIG_BONDING=m ./.config || grep -q CONFIG_BONDING=y ./.config
+  then
+    gcc -Wall -O -I/usr/src/linux/include ./Documentation/networking/ifenslave.c -o ifenslave
+  fi
 else
   # This is for the iso team don't touch
   make scripts/ &&
