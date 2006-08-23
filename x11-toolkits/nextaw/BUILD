@@ -1,4 +1,3 @@
 cd $SOURCE_DIRECTORY &&
-xmkmf &&
-make Makefiles &&
+default_build &&
 make
