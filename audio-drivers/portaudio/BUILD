@@ -1,11 +1,4 @@
-(
-
-  sedit "s:/usr/local:/usr:" Makefile.linux  &&
-
-  prepare_install                     &&
-  make -f Makefile.linux              &&
-  make -f Makefile.linux libinstall   &&
-  cp  pa_common/portaudio.h           \
-      /usr/include
-
-) > $C_FIFO 2>&1
+sedit "s:/usr/local:${INSTALL_ROOT}/usr:" Makefile.linux  &&
+# dependent apps should be able to link without specifying -lpthread
+sedit 's:gcc -shared -o:gcc -shared $(LIBS) -o:' Makefile.linux &&
+make -f Makefile.linux sharedlib
