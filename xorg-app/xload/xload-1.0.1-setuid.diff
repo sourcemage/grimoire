@@ -1,0 +1,36 @@
+Index: xload.c
+===================================================================
+RCS file: /cvs/xorg/app/xload/xload.c,v
+retrieving revision 1.2
+diff -u -r1.2 xload.c
+--- xload.c	23 Apr 2004 19:54:57 -0000	1.2
++++ xload.c	19 Jun 2006 21:32:20 -0000
+@@ -34,7 +34,7 @@
+  * xload - display system load average in a window
+  */
+ 
+-
++#include <errno.h>
+ #include <stdio.h> 
+ #include <stdlib.h>
+ #include <unistd.h>
+@@ -162,8 +162,17 @@
+     /* For security reasons, we reset our uid/gid after doing the necessary
+        system initialization and before calling any X routines. */
+     InitLoadPoint();
+-    setgid(getgid());		/* reset gid first while still (maybe) root */
+-    setuid(getuid());
++    /* reset gid first while still (maybe) root */
++    if (setgid(getgid()) == -1) {
++	    fprintf(stderr, "%s: setgid failed: %s\n", 
++		ProgramName, strerror(errno));
++	    exit(1);
++    }
++    if (setuid(getuid()) == -1) {
++	    fprintf(stderr, "%s: setuid failed: %s\n", 
++		ProgramName, strerror(errno));
++	    exit(1);
++    }
+ 
+     XtSetLanguageProc(NULL, (XtLanguageProc) NULL, NULL);
+ 
