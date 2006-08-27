@@ -1,3 +1,4 @@
-make_single    &&
-default_build  &&
+make_single                          &&
+OPTS="$OPTS --disable-update-mimedb" &&
+default_build                        &&
 make_normal
