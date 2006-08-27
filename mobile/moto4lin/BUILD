@@ -1,0 +1,3 @@
+qmake &&
+make &&
+make install
