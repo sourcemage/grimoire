@@ -1,1 +1,0 @@
-make ${MESALIB_BUILD}
