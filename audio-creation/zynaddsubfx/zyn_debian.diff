@@ -1,0 +1,192 @@
+--- zynaddsubfx-2.2.1.orig/src/Synth/LFO.C
++++ zynaddsubfx-2.2.1/src/Synth/LFO.C
+@@ -108,7 +108,12 @@
+         else out*=lfointensity*amp2;
+     if (lfodelay<0.00001) {
+ 	    if (freqrndenabled==0) x+=incx;
+-		else x+=incx*(incrnd*(1.0-x)+nextincrnd*x);
++		else {
++		    float tmp=(incrnd*(1.0-x)+nextincrnd*x);
++		    if (tmp>1.0) tmp=1.0;
++			else if (tmp<0.0) tmp=0.0;
++		    x+=incx*tmp;
++		};
+ 	    if (x>=1) {
+ 		x=fmod(x,1.0);
+ 		amp1=amp2;
+@@ -136,6 +141,5 @@
+ 	if (freqrndenabled==0) return;
+ 	incrnd=nextincrnd;
+ 	nextincrnd=pow(0.5,lfofreqrnd)+RND*(pow(2.0,lfofreqrnd)-1.0);
+-	if (nextincrnd*incx>=0.49999999) nextincrnd=1.0;
+ };
+ 
+--- zynaddsubfx-2.2.1.orig/src/Params/EnvelopeParams.C
++++ zynaddsubfx-2.2.1/src/Params/EnvelopeParams.C
+@@ -51,7 +51,7 @@
+ };
+ 
+ REALTYPE EnvelopeParams::getdt(char i){
+-    REALTYPE result=(pow(2.0,Penvdt[i]/127.0*12.0)-1.0)*10.0;//miliseconds
++    REALTYPE result=(pow(2.0,Penvdt[(int)i]/127.0*12.0)-1.0)*10.0;//miliseconds
+     return(result);
+ };
+ 
+--- zynaddsubfx-2.2.1.orig/src/Output/JACKaudiooutput.C
++++ zynaddsubfx-2.2.1/src/Output/JACKaudiooutput.C
+@@ -35,6 +35,7 @@
+     jackmaster=master_;
+     jackclient=0;
+     char tmpstr[100];
++    const char **ports;
+ 
+     for (int i=0;i<15;i++){
+ 	if (i!=0) snprintf(tmpstr,100,"ZynAddSubFX_%d",i);
+@@ -50,7 +51,7 @@
+ 
+     fprintf(stderr,"Internal SampleRate   = %d\nJack Output SampleRate= %d\n",SAMPLE_RATE,jack_get_sample_rate(jackclient));
+     if ((unsigned int)jack_get_sample_rate(jackclient)!=(unsigned int) SAMPLE_RATE) 
+-	fprintf(stderr,"It is recomanded that the both samplerates to be equal.\n");
++	fprintf(stderr,"It is recommended that the both samplerates to be equal.\n");
+     
+     jack_set_process_callback(jackclient,jackprocess,0);    
+     jack_set_sample_rate_callback(jackclient,jacksrate,0);    
+@@ -66,10 +67,20 @@
+ 	return(false);
+     };
+     
+-    /*
++  
++   /* 
+     jack_connect(jackclient,jack_port_name(outport_left),"alsa_pcm:out_1");
+     jack_connect(jackclient,jack_port_name(outport_right),"alsa_pcm:out_2");
+-     */
++   */
++
++    if ((ports = jack_get_ports (jackclient, NULL, NULL, JackPortIsPhysical|JackPortIsInput)) == NULL) 
++	fprintf(stderr,"Cannot connect to jack output, you may hear no sound\n");       else {
++      if (jack_connect(jackclient,jack_port_name(outport_left),ports[0]))
++	fprintf(stderr,"Cannot connect to left output port\n");
++      if (jack_connect(jackclient,jack_port_name(outport_right),ports[1]))
++	fprintf(stderr,"Cannot connect to right output port\n");
++    }
++     
+      return(true);
+ };
+ 
+--- zynaddsubfx-2.2.1.orig/src/Output/OSSaudiooutput.C
++++ zynaddsubfx-2.2.1/src/Output/OSSaudiooutput.C
+@@ -31,6 +31,19 @@
+ #include "OSSaudiooutput.h"
+ #include "../Misc/Util.h"
+ 
++#if __BYTE_ORDER ==  __BIG_ENDIAN
++/* borrowed from glib2 */
++#define SHORT_SWAP_LE_BE(val)  ((short) ( \
++    (short) ((short) (val) >> 8) |     \
++    (short) ((short) (val) << 8)))
++
++void swap_endian(short *data, int length)
++{
++       int i;
++       for (i = 0; i < length; i += 1, data++)
++               *data = SHORT_SWAP_LE_BE(*data);
++}
++#endif
+ OSSaudiooutput::OSSaudiooutput(){
+     int i;
+     int snd_bitsize=16;
+@@ -76,6 +89,9 @@
+ 	smps[i*2]=(short int) (l*32767.0);    
+ 	smps[i*2+1]=(short int) (r*32767.0);
+     };
++#if __BYTE_ORDER == __BIG_ENDIAN
++    swap_endian(smps, SOUND_BUFFER_SIZE*4);
++#endif
+     write(snd_handle,smps,SOUND_BUFFER_SIZE*4);// *2 because is 16 bit, again * 2 because is stereo
+ };
+ 
+--- zynaddsubfx-2.2.1.orig/src/UI/BankUI.fl
++++ zynaddsubfx-2.2.1/src/UI/BankUI.fl
+@@ -35,6 +35,8 @@
+   } {}
+   decl {Bank *bank;} {public
+   }
++  Function {~BankProcess_()} {return_type virtual
++  } {code {} {}}
+ } 
+ 
+ class BankSlot {: {public Fl_Button,BankProcess_}
+--- zynaddsubfx-2.2.1.orig/src/UI/PartUI.fl
++++ zynaddsubfx-2.2.1/src/UI/PartUI.fl
+@@ -86,6 +86,8 @@
+ class PartUI_ {} {
+   Function {showparameters(int kititem,int engine)} {return_type virtual
+   } {}
++  Function {~PartUI_()} {return_type virtual} { code {} {}
++  }
+ } 
+ 
+ class PartKitItem {: {public Fl_Group}
+--- zynaddsubfx-2.2.1.orig/src/UI/VirKeyboard.fl
++++ zynaddsubfx-2.2.1/src/UI/VirKeyboard.fl
+@@ -168,7 +168,8 @@
+   }
+   Function {presskey(int nk,int exclusive,int type)} {} {
+     code {if (nk>=N_OCT*12) return;
+-if ((nk<0)&&(exclusive==0)) {
++if ((nk<0)) {
++  if(exclusive==0)
+   relaseallkeys(type);
+   return;
+ };
+--- zynaddsubfx-2.2.1.orig/src/main.C
++++ zynaddsubfx-2.2.1/src/main.C
+@@ -90,7 +90,7 @@
+  * Try to get the realtime priority
+  */
+ void set_realtime(){
+-#ifdef OS_LINUX
++#if 0
+     sched_param sc;
+     
+     sc.sched_priority=50;
+@@ -230,7 +230,7 @@
+  */
+ 
+ 
+-void initprogram(){
++void initprogram(int noui){
+ #ifndef JACKAUDIOOUT
+ #ifndef JACK_RTAUDIOOUT
+     fprintf(stderr,"\nSample Rate = \t\t%d\n",SAMPLE_RATE);
+@@ -284,7 +284,8 @@
+     Midi=new NULLMidiIn();
+ #endif
+ #ifndef DISABLE_GUI
+-    ui=new MasterUI(master,&Pexitprogram);
++    if (noui==0) 
++	ui=new MasterUI(master,&Pexitprogram);
+ #endif
+ };
+ 
+@@ -475,8 +476,10 @@
+ 	fprintf(stderr,"%s","  -D , --dump\t\t\t\t Dumps midi note ON/OFF commands\n");
+ 	fprintf(stderr,"%s","  -U , --no-gui\t\t\t\t Run ZynAddSubFX without user interface\n");
+ #ifdef JACKAUDIOOUT
++#ifdef OSSAUDIOOUT
+ 	fprintf(stderr,"%s","  -A , --not-use-jack\t\t\t Use OSS/ALSA instead of JACK\n");
+ #endif
++#endif
+ #ifdef OS_WINDOWS
+ 	fprintf(stderr,"%s","\nWARNING: On Windows systems, only short comandline parameters works.\n");
+ 	fprintf(stderr,"%s","  eg. instead '--buffer-size=512' use '-b 512'\n");
+@@ -487,7 +490,7 @@
+     
+     //---------
+     
+-    initprogram();
++    initprogram(noui);
+ 
+     if (strlen(loadfile)>1){
+         int tmp=master->loadXML(loadfile);
