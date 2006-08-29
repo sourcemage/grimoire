@@ -1,3 +1,4 @@
+make_single &&
   ./configure --prefix=${INSTALL_ROOT}/usr  \
           --sysconfdir=${INSTALL_ROOT}/etc  \
        --localstatedir=${INSTALL_ROOT}/var  \
@@ -6,4 +7,5 @@
                        $OPTS                 &&
 sedit "s:RANLIB = @RANLIB@:RANLIB = /usr/bin/ranlib:" lib/Makefile  &&
 make &&
+make_normal &&
 make install
