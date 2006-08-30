@@ -6,6 +6,8 @@ if test "$(get_spell_provider $SPELL GECKO)" = "firefox"; then
   fi
 elif test "$(get_spell_provider $SPELL GECKO)" = "seamonkey"; then
   sedit  's/mozilla-plugin/seamonkey-plugin/'  configure
+elif test "$(get_spell_provider $SPELL GECKO)" = "xulrunner"; then
+  sedit  's/mozilla-plugin/xulrunner-plugin/'  configure
 fi  &&
 ./configure --prefix=${INSTALL_ROOT}/usr  \
         --sysconfdir=${INSTALL_ROOT}/etc  \
