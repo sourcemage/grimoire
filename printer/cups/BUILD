@@ -1,15 +1,15 @@
 # don't install xinetd script
 sedit "/XINETD=/D" configure            &&
 # prevent install of init scripts
-OPTS="--without-rcdir  $OPTS"  &&
+OPTS="$OPTS --without-rcdir"  &&
 # choose languages
 local CLIST                   &&
 # remove leading blank,
 CLIST=`echo ${CUPS_LANG} | sed "s/^ *//"`  &&
 
 if [ $CLIST == none ];then
-  OPTS="--without-languages $OPTS"
+  OPTS="$OPTS --without-languages"
 else
-  OPTS="--with-languages=\"$CLIST\" $OPTS"
+  OPTS="$OPTS --with-languages=\"$CLIST\" "
 fi                            &&
 default_build

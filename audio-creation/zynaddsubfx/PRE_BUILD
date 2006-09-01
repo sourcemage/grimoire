@@ -1,0 +1,36 @@
+default_pre_build      &&
+cd  $SOURCE_DIRECTORY  &&
+
+# Apply bugfixes from Debian
+patch -p1 < $SCRIPT_DIRECTORY/zyn_debian.diff  &&
+
+# Apply config options shared by standalone & DSSI builds
+sedit  "s/^ASM_F2I=.*/ASM_F2I=$ASM_F2I/"  src/Makefile.inc  &&
+if ! is_depends_enabled $SPELL fltk; then
+  sedit  "s/^DISABLE_GUI=.*/DISABLE_GUI=YES/"  src/Makefile.inc
+fi  &&
+
+# Make a copy of the build dir for DSSI build (if only DSSI is selected 
+# we can simply rename the existing dir)
+if [[ "$BUILD_MODE" != "Standalone synth" ]]; then
+  if [[ "$BUILD_MODE" == "DSSI plugin" ]]; then
+    mv src/ src_dssi/
+  else
+    mkdir         src_dssi/  &&
+    cp -r  src/*  src_dssi/
+  fi  &&
+  sedit  "s/^LINUX_DSSI=.*/LINUX_DSSI=YES/"  src_dssi/Makefile.inc
+fi  &&
+
+# Apply JACK unzombify + LASH support patches (do this after the DSSI 
+# stuff above, borks compile otherwise)
+patch -p1 < $SCRIPT_DIRECTORY/zyn_unzombify.diff  &&
+if is_depends_enabled $SPELL lash; then
+  patch -p1 < $SCRIPT_DIRECTORY/zyn_lash.diff
+fi  &&
+
+# If standalone is enabled apply midi & audio configs
+if [[ "$BUILD_MODE" != "DSSI plugin" ]]; then
+  sedit  "s/^LINUX_MIDIIN=.*/LINUX_MIDIIN=$LINUX_MIDIIN/"  src/Makefile.inc  &&
+  sedit  "s/^LINUX_AUDIOOUT=.*/LINUX_AUDIOOUT=$LINUX_AUDIOOUT/"  src/Makefile.inc
+fi
