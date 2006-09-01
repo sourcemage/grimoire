@@ -21,7 +21,7 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
             --mandir=$INSTALL_ROOT/usr/share/man             \
             --with-default-mozilla-five-home=$MOZILLA_HOME   \
             --with-user-appdir=.xulrunner                    \
-            --enable-extensions=all${MOZILLA_EXT}            \
+            --enable-extensions=auth,content-packs,cookie,cview,datetime,finger,help,inspector,irc,java,layout-debug,p3p,permissions,pref,reporter,spatialnavigation,spellcheck,sql,sroaming,tasks,transformiix,tridentprofile,universalchardet,venkman,webdav,webservices,xforms,xmlextras,xml-rpc,xmlterm                          \
             --enable-optimize="$CFLAGS"                      \
             --with-pthreads                                  \
             --disable-freetype2                              \
@@ -32,14 +32,15 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
             --enable-storage                                 \
             --enable-cpp-rtti                                \
             --enable-application=xulrunner                   \
+            --enable-cookies                                 \
+            --disable-composer                               \
+            --disable-mailnews                               \
+            --disable-calendar                               \
             --disable-debug                                  \
             --disable-tests                                  \
             --disable-installer                              \
             --disable-updater                                \
             --disable-pedantic                               \
-            --disable-composer                               \
-            --disable-mailnews                               \
-            --disable-calendar                               \
             $XULRUNNER_OPTS                                  \
             $OPTS                                            &&
 make_single  &&
