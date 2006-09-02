@@ -10,6 +10,9 @@ fi &&
 if test "$(get_spell_provider $SPELL GECKO)" = mozilla-nightly; then
    OPTS="$OPTS --with-gecko-engine=mozilla"
 fi &&
+if test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
+   OPTS="$OPTS --with-gecko-engine=xulrunner"
+fi &&
 
 # requires at least -O2 to not segfault on startup with gcc 4.0
 if ! echo "$CFLAGS" | grep -q -- '-O3'; then

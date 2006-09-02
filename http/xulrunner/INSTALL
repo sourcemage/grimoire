@@ -1,0 +1,44 @@
+make_normal  &&
+
+MOZILLA_HOME=$INSTALL_ROOT/usr/lib/xulrunner &&
+
+#
+# everything coming into /usr/lib/seamonkey-${VERSION/rc*}/
+# must actually go to /usr/lib/seamonkey/
+#
+mkdir -p $MOZILLA_HOME &&
+ln -fns $MOZILLA_HOME $MOZILLA_HOME-${VERSION/rc*} &&
+mkdir -p $INSTALL_ROOT/usr/share/idl/xulrunner &&
+ln -fns $INSTALL_ROOT/usr/share/idl/xulrunner \
+        $INSTALL_ROOT/usr/share/idl/xulrunner-${VERSION/rc*} &&
+
+make install &&
+
+#
+# Script to set MOZILLA_FIVE_HOME
+#
+cp  ${SCRIPT_DIRECTORY}/${SPELL}.sh  $INSTALL_ROOT/etc/profile.d &&
+
+#
+# Create symlink from NSS Root CA store, if it exists.  NSS requires this
+# to be in the same directory as the current application binary.  See:
+# http://www.mozilla.org/projects/security/pki/nss/loadable_certs.html
+# https://bugzilla.mozilla.org/show_bug.cgi?id=128290
+# Only create if $MOZILLA_HOME/libnssckbi.so does not exist or is already a
+# symlink.
+#
+if  test  -f   $INSTALL_ROOT/usr/lib/libnssckbi.so;  then
+  if  !  test  -f   $MOZILLA_HOME/libnssckbi.so  ||
+         test  -h   $MOZILLA_HOME/libnssckbi.so; then
+    ln  -sf  $INSTALL_ROOT/usr/lib/libnssckbi.so  $MOZILLA_HOME/libnssckbi.so
+  fi                                                                  
+fi  &&
+if [[ "$XULRUNNER_NULLPLUGIN" == "n" ]]
+then
+   rm $MOZILLA_HOME/plugins/libnullplugin.so
+fi  &&
+
+# make the pkgconfig files reference the nspr from the standalone nspr spell
+sedit  's/nspr/mozilla-nspr/'  ${INSTALL_ROOT}/usr/lib/pkgconfig/xulrunner-js.pc  &&
+sedit  's/nspr/mozilla-nspr/'  ${INSTALL_ROOT}/usr/lib/pkgconfig/xulrunner-nss.pc  &&
+sedit  's/nspr/mozilla-nspr/'  ${INSTALL_ROOT}/usr/lib/pkgconfig/xulrunner-xpcom.pc

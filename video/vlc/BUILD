@@ -13,6 +13,9 @@ if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
 elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
   OPTS="$OPTS MOZILLA_CONFIG=/usr/bin/seamonkey-config XPIDL=/usr/lib/seamonkey/xpidl XPIDL_INCL=-I/usr/share/idl/seamonkey"  &&
   CPPFLAGS="$CPPFLAGS -I/usr/include/nspr"
+elif test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
+  OPTS="$OPTS MOZILLA_CONFIG=/usr/bin/xulrunner-config XPIDL=/usr/lib/xulrunner/xpidl XPIDL_INCL=-I/usr/share/idl/xulrunner"  &&
+  CPPFLAGS="$CPPFLAGS -I/usr/include/nspr"
 fi  &&
 
 # needs to be exported so vlc configure sees it, no idea why
