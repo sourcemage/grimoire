@@ -1,0 +1,44 @@
+# ignore sub_depends if not supported by sorcery
+declare -f sub_depends &> /dev/null ||
+{
+  function sub_depends() {
+   :
+  }
+
+  function depends() {
+    [[ $1 == "-sub" ]] && shift 2
+    real_depends "$@"
+  }
+
+  function optional_depends() {
+    [[ $1 == "-sub" ]] && shift 2
+    real_optional_depends "$@"
+  }
+}
+
+# ignore force_depends if not supported by sorcery
+declare -f force_depends &> /dev/null ||
+function force_depends() {
+ :
+}
+
+#-------------------------------------------------------------------------
+## Grimoire gaze depends alternative
+## Uses gaze depends if the internal sorcery function isn't available
+#-------------------------------------------------------------------------
+declare -f show_up_depends &> /dev/null ||
+function show_up_depends() {
+  gaze -q depends --fast "$@"
+}
+
+# fall back to optional_depends if suggest_depends isn't implemented
+declare -f suggest_depends &> /dev/null ||
+function suggest_depends() {
+  optional_depends "$@"
+}
+
+# fall back to depends if runtime_depends isn't implemented
+declare -f runtime_depends &> /dev/null ||
+function runtime_depends() {
+  depends "$@"
+}
