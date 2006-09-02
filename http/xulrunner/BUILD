@@ -21,7 +21,7 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
             --mandir=$INSTALL_ROOT/usr/share/man             \
             --with-default-mozilla-five-home=$MOZILLA_HOME   \
             --with-user-appdir=.xulrunner                    \
-            --enable-extensions=auth,content-packs,cookie,cview,datetime,finger,help,inspector,irc,java,layout-debug,p3p,permissions,pref,reporter,spatialnavigation,spellcheck,sql,sroaming,tasks,transformiix,tridentprofile,universalchardet,venkman,webdav,webservices,xforms,xmlextras,xml-rpc,xmlterm,wallet                          \
+            --enable-extensions=default,permissions,cookie,wallet   \
             --enable-optimize="$CFLAGS"                      \
             --with-pthreads                                  \
             --disable-freetype2                              \
