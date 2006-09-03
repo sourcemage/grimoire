@@ -1,8 +1,7 @@
-if  [  -e  /tmp/initd_first_install  ]  ;  then
-  install  -m 754  $SCRIPT_DIRECTORY/files/tshutdown  /sbin/tshutdown
+if  [[ ${INITD_FIRST} == y ]]  ;  then
+  install  -m 754  $SCRIPT_DIRECTORY/files/tshutdown  ${INSTALL_ROOT}/sbin/tshutdown
   install  -m 754  $SCRIPT_DIRECTORY/files/smgl-cleanup  \
-        /etc/init.d/runlevels/%S/
-  rm -f /tmp/initd_first_install
+        ${INSTALL_ROOT}/etc/init.d/runlevels/%S/
 fi
 
 if  [  -e  /tmp/devices2dev  ]  ;  then
@@ -20,7 +19,7 @@ if  [  -e  /tmp/devices2dev  ]  ;  then
   rm  /tmp/devices2dev
 fi
 
-sedit  "s/DEVICES=.*/DEVICES=$DEVICES/"  /etc/sysconfig/devices
+sedit  "s/DEVICES=.*/DEVICES=$DEVICES/"  ${INSTALL_ROOT}/etc/sysconfig/devices
 
 if  [  "$DEVICES" == "devfs"  ]; then
   sedit  "s:/dev/tty\(.\):/dev/vc/\1:"  ${INSTALL_ROOT}/etc/inittab
@@ -30,6 +29,7 @@ else
 fi
 
 # remove /etc/inittab from the simpleinit install log
+# this should work for $INSTALL_ROOT/etc/inittab, too
 for i in $INSTALL_LOGS/simpleinit* $MD5SUM_LOGS/simpleinit*
 do if [ -f $i ] ; then
   sedit  "/\/etc\/inittab/D"  $i
@@ -41,9 +41,9 @@ done
 # where casting from a queue (or not using -r) will not reassign
 # it. Should be removed in about a month (~20040926)
 #
-if  grep  -q  "mountall$"  /etc/sysconfig/facilities;  then
-  message "${MESSAGE_COLOR}Fixing /etc/sysconfig/facilities:local_fs${DEFAULT_COLOR}"  &&
-  sedit  's:mountall:mountall.sh:'  /etc/sysconfig/facilities
+if  grep  -q  "mountall$"  ${INSTALL_ROOT}/etc/sysconfig/facilities;  then
+  message "${MESSAGE_COLOR}Fixing ${INSTALL_ROOT}/etc/sysconfig/facilities:local_fs${DEFAULT_COLOR}"  &&
+  sedit  's:mountall:mountall.sh:'  ${INSTALL_ROOT}/etc/sysconfig/facilities
 fi  &&
 #
 # End rename fix

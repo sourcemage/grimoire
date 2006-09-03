@@ -1,21 +1,49 @@
 # Remove old init.d
+persistent_add INITD_FIRST &&
+INITD_FIRST=n &&
 if ! [ "$CROSS_INSTALL" = "on" ] ; then
-if  [  !  -e  /etc/init.d/smgl_init  ]  ;  then
-  touch /tmp/initd_first_install
+if  [  !  -e  ${INSTALL_ROOT}/etc/init.d/smgl_init  ]  ;  then
 
-  mkdir  -p  /etc/init.d.backup
+  INITD_FIRST=y &&
 
-  mv  /etc/init.d  /etc/init.d.backup
+  if [[ -e ${INSTALL_ROOT}/etc/init.d ]]
+  then
+
+  message "doing backup of old init.d" &&
+  local bd=${INSTALL_ROOT}/etc/init.d.backup &&
+
+  if [[ -e ${bd} ]]
+  then
+    message "$bd exists, trying with number suffix" &&
+    local num=2 &&
+    while [[ -e ${bd}.$num ]]
+    do
+      let num+=1 &&
+      message "trying ${bd}.$num..."
+    done
+    message "using ${bd}.$num" &&
+    bd=${bd}.$num
+  fi &&
+  
+  
+  mkdir  -pv  $bd &&
+
+  mv -v ${INSTALL_ROOT}/etc/init.d ${bd} &&
 
   for  l  in  0 1 2 3 4 5 6 S  ;  do
-    [  -d  /etc/rc$l.d  ]  &&  mv  /etc/rc$l.d  /etc/init.d.backup
+    if [[  -d  ${INSTALL_ROOT}/etc/rc$l.d  ]]
+    then
+      mv  ${INSTALL_ROOT}/etc/rc$l.d  ${bd}
+    fi
   done
+  
+  fi
 fi
-fi
+fi &&
 
 # remove left behind file, bug #5784.
-if [ -f /etc/init.d/runlevels/%3/z-misc.sh ]; then
-  rm /etc/init.d/runlevels/%3/z-misc.sh
-fi
+if [ -f ${INSTALL_ROOT}/etc/init.d/runlevels/%3/z-misc.sh ]; then
+  rm ${INSTALL_ROOT}/etc/init.d/runlevels/%3/z-misc.sh
+fi &&
 
 true
