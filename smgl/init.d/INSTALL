@@ -1,16 +1,27 @@
 check_static_dev () {
   echo  "checking if your static /dev is ok..."  &&
   mkdir  /tmp/$$.bindmount                       &&
-  mount  --bind  /  /tmp/$$.bindmount            &&
+  mount  --bind  ${INSTALL_ROOT}/  /tmp/$$.bindmount            &&
   cd  /tmp/$$.bindmount/dev                      &&
   if [ ! -c console -o ! -c null ]; then
-    if query "You don't seem to have a static /dev tree, should i create it ?" y
-    then $SCRIPT_DIRECTORY/MAKEDEV generic-nopty md
-      mkdir  -p  shm  pts  &&
-      mknod  initctl  p
-    fi
+    message "Ok, going to create!" &&
+  # asked in CONFIGURE
+  # if query "You don't seem to have a static /dev tree, should i create it ?" y
+  # then
+    create_group kmem &&
+    create_group tty &&
+    create_group ppp &&
+    create_group lp &&
+    create_group disk &&
+    create_group floppy &&
+	 create_group audio &&
+    # existing nodes should not make me fail
+    $SCRIPT_DIRECTORY/MAKEDEV generic-nopty md || true &&
+    mkdir  -p  shm  pts  &&
+    mknod  initctl  p || true
+  # fi
   else
-    echo "seems ok"
+  echo "seems ok"
   fi                         &&
   cd  /                      &&
   umount  /tmp/$$.bindmount  &&
@@ -39,7 +50,7 @@ FD=$SCRIPT_DIRECTORY/files    # Files Directory
 ID=${INSTALL_ROOT}/etc/init.d                # Init Dir
 RD=${INSTALL_ROOT}/etc/init.d/runlevels      # Runlevels Dir
 
-if  [ "$DEVICES" != "devfs" ]; then
+if  [[ "$DEVICES" != "devfs" ]] && [[ "$CREATE_DEV_TREE" == y ]]; then
   check_static_dev
 fi  &&
 
@@ -78,19 +89,22 @@ mkdep 3 2                                                   &&
 mkdep 4 3                                                   &&
 mkdep 5 4                                                   &&
 
-if ! grep -sq runlevels /etc/inittab ; then
-    pinfo "Installing /etc/inittab..."                      &&
+if ! grep -sq runlevels ${INSTALL_ROOT}/etc/inittab ; then
+    pinfo "Installing ${INSTALL_ROOT}/etc/inittab..."                      &&
     install -v -m 644 $FD/inittab ${INSTALL_ROOT}/etc/inittab
 fi                                                          &&
 
 pinfo "Other stuff..."                                      &&
 
 # Proper shutdown procedure
-ln -fsv ${TRACK_ROOT}/etc/sysconfig/shutdown ${INSTALL_ROOT}/etc/shutdown.conf  &&
+# TRACK_ROOT???
+# ln -fsv ${TRACK_ROOT}/etc/sysconfig/shutdown ${INSTALL_ROOT}/etc/shutdown.conf  &&
+ln -fsv sysconfig/shutdown ${INSTALL_ROOT}/etc/shutdown.conf  &&
 
 # Yeah, I know
 ln  -sfv  /bin/true  $RD/rc  &&
 
 # LILO uses the auto runlevel when it doesn't encounter any user input
-ln  -sfv  /etc/init.d/runlevels/%default              \
+# path relative to be safer for chroots
+ln  -sfv  %default              \
           ${INSTALL_ROOT}/etc/init.d/runlevels/%auto
