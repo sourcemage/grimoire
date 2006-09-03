@@ -1,3 +1,4 @@
+create_group tty &&
 OPTS="$OPTS --build=${BUILD}" &
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
