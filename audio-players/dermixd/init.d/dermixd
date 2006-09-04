@@ -1,0 +1,59 @@
+#!/bin/bash
+
+PROGRAM=/usr/bin/dermixd
+RUNLEVEL=3
+
+CONTROL=/usr/bin/dermixd-control
+#some defaults...
+PORT=8888
+BUFFER=2048
+AUDIO_RATE=44100
+CHANNELS=2
+DEBUG_OUT=
+DEFAULT_OUTPUT=
+DEFAULT_OUTFILE=
+MPG123_DECODER=/usr/bin/mpg123
+MPG123_PREBUFFER=4
+MPG123_ZEROSCAN=yes
+MPG123_ZEROLEVEL=100
+INITIAL_SETUP=yes
+OUTPUT_STOPPED=yes
+NICE=-5
+#be on the safe side
+USER=nobody
+REMOTE=no
+
+. /etc/init.d/smgl_init
+. /etc/sysconfig/dermixd
+
+start()
+{
+	echo "starting DerMixD..."
+	COMMAND="$PROGRAM port='$PORT' buffer='$BUFFER' audio_rate='$AUDIO_RATE' channels='$CHANNELS' mpg123_input.decoder='$MPG123_DECODER' mpg123_input.prebuffer='$MPG123_PREBUFFER' mpg123_input.zeroscan='$MPG123_ZEROSCAN'"
+	if ! test -z "$DEBUG_OUT"; then COMMAND="$COMMAND output='$DEBUG_OUT'"; fi
+	if [[ "$REMOTE" == "yes" ]]; then COMMAND="$COMMAND -r"; fi
+	if [[ "$INITIAL_SETUP" == "yes" ]]
+	then
+		if ! test -z "$DEFAULT_OUTPUT"; then COMMAND="$COMMAND default_output='$DEBUG_OUT'"; fi
+		if ! test -z "$DEFAULT_OUTFILE"; then COMMAND="$COMMAND output_outfile='$DEBUG_OUT'"; fi
+	else
+		COMMAND="$COMMAND -n"
+	fi
+	nice -n $NICE su -s /bin/bash -c "${COMMAND}" ${USER} &&
+	if [[ "$INITIAL_SETUP" == "yes" ]] && [[ "$OUTPUT_STOPPED" == "yes" ]]
+	then
+		$CONTROL outstop 0
+	fi
+}
+
+stop()
+{
+	echo "stopping daemon politely"
+	$CONTROL --port=${PORT} shutdown
+}
+
+status()
+{
+	echo "status:"
+	$CONTROL --port=${PORT} fullstat
+}
