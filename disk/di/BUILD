@@ -1,1 +1,1 @@
-make prefix=/usr
+CC=gcc prefix=/usr ./Build -mkc
