@@ -14,7 +14,9 @@ ESSENTIAL=yes
 
 function recursive_rm() {
   for file in "$@" ; do
-    if [ -d $file ] ; then
+    if [ -h $file ] ; then
+      unlink $file
+    elif [ -d $file ] ; then
       recursive_rm "$file"/*
     else
       rm -f "$file"
