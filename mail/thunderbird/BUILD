@@ -71,7 +71,6 @@ fi  &&
 make &&
 
 if [[ "$BUILD_ENIGMAIL" == 'y' ]]; then
-   build/autoconf/make-makefile extensions/ipc extensions/enigmail &&
-   make -C extensions/ipc &&
-   make -C extensions/enigmail
+   build/autoconf/make-makefile mailnews/extensions/enigmail &&
+   make -C mailnews/extensions/enigmail
 fi
