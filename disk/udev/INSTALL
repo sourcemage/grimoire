@@ -22,12 +22,16 @@ else
 fi  &&
 
 # install early rules
-install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/05-udev-early.rules  \
+if [ "$RECENT_KERNEL" == "n" ]; then
+ install_config_file $SOURCE_DIRECTORY/etc/udev/05-udev-early.rules  \
+                           ${UDEV_CFG}/rules.d/05-udev-early.rules
+else
+ install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/05-udev-early.rules  \
                            ${UDEV_CFG}/rules.d/05-udev-early.rules  &&
-
-# install late rules
-install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/95-udev-late.rules  \
-                           ${UDEV_CFG}/rules.d/95-udev-late.rules  &&
+ # install late rules
+ install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/95-udev-late.rules  \
+                           ${UDEV_CFG}/rules.d/95-udev-late.rules
+fi  &&
 
 if [ "$RECENT_KERNEL" == "n" ]; then
   # udevstart and udevsend are nolonger installed by default. we need them for kernel < 2.6.15rc1
@@ -55,12 +59,16 @@ if [[ "$UDEV_EXTRAS" == 'y' ]]; then
   make EXTRAS="extras/ata_id extras/dasd_id extras/edd_id extras/floppy extras/scsi_id extras/usb_id extras/volume_id" prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ ${OPTS} V=true install   &&
   install  extras/path_id/path_id  ${INSTALL_ROOT}/lib/udev  &&
 
-  if [[ "$UDEV_PERSIST" == 'y' ]];then
-    install_config_file etc/udev/rules.d/60-persistent-storage.rules ${UDEV_CFG}/rules.d/60-persistent-storage.rules
-  fi
+  if [[ "$UDEV_PERSIST" == 'y' ]]; then
+    if [ "$RECENT_KERNEL" == "n" ]; then
+       install_config_file etc/udev/60-persistent-storage.rules ${UDEV_CFG}/rules.d/60-persistent-storage.rules
+    else
+       install_config_file etc/udev/rules.d/60-persistent-storage.rules ${UDEV_CFG}/rules.d/60-persistent-storage.rules
+    fi
+  fi  &&
 
   if [ "$RECENT_KERNEL" == "y" ]; then
-    if [[ "$UDEV_PERSIST_INPUT" == 'y' ]];then
+    if [ "$UDEV_PERSIST_INPUT" == 'y' ]; then
       install_config_file etc/udev/rules.d/60-persistent-input.rules ${UDEV_CFG}/rules.d/60-persistent-input.rules
     fi
   fi
