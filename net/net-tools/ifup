@@ -25,8 +25,33 @@ device_is_up()
   fi
 }
 
+# $* - parameters for iwconfig, except device name
+# to be called from _do_device_up
+_set_wlan()
+{
+  iwconfig $DEV $* &&
+  IWC="$IWC $*"
+}
+
 _do_device_up()
 {
+    # collect settings for iwconfig
+    local IWC=
+    [[ -n "$WIFI_NWID" ]] && _set_wlan nwid $WIFI_NWID
+    [[ -n "$WIFI_ESSID" ]] && _set_wlan essid $WIFI_ESSID
+    [[ -n "$WIFI_RATE" ]] && _set_wlan rate $WIFI_RATE
+    [[ -n "$WIFI_MODE" ]] && _set_wlan mode $WIFI_MODE
+    [[ -n "$WIFI_KEY1" ]] && _set_wlan key $WIFI_KEY1 '[1]'
+    [[ -n "$WIFI_KEY2" ]] && _set_wlan key $WIFI_KEY2 '[2]'
+    [[ -n "$WIFI_KEY3" ]] && _set_wlan key $WIFI_KEY3 '[3]'
+    [[ -n "$WIFI_KEY4" ]] && _set_wlan key $WIFI_KEY4 '[4]'
+    [[ -n "$WIFI_DEFAULTKEY" ]] && _set_wlan key "[$WIFI_DEFAULTKEY]"
+    [[ -n "$WIFI_SECMODE" ]] && _set_wlan key $WIFI_SECMODE
+    [[ -n "$WIFI_KEY" ]] && _set_wlan key $WIFI_KEY
+
+    # make sure the wifi settings are applied if any of them are present
+    [[ -n "$IWC" ]] && iwconfig $DEV commit && sleep 2
+
     case "$MODE" in
     dynamic )
       sed -i 's/MODE=.*/MODE=dynamic_set_hostname/' $netdevdir/$DEV.dev &&
@@ -136,7 +161,8 @@ if device_is_up $DEV ; then
   exit 0
 fi
 
-unset MODE MODULE IP BROADCAST NETMASK GATEWAY POINTOPOINT MTU WIFI UP_ON_BOOT MAC NEEDS
+unset MODE MODULE IP BROADCAST NETMASK GATEWAY POINTOPOINT MTU UP_ON_BOOT MAC NEEDS
+unset WIFI_NWID WIFI_ESSID WIFI_RATE WIFI_MODE WIFI_SECMODE WIFI_ENCKEY
 unset do_device_up do_route_up on_up
 
 . $netdevdir/$DEV.dev
