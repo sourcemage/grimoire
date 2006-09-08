@@ -21,14 +21,8 @@ fi                                             &&
 if [ "${EPIPHANY_AUTOSCROLL}" == "y" ]; then
    OPTS="${OPTS}auto-scroller,"
 fi                                             &&
-#if [ "${EPIPHANY_BOOKTRAY}" == "y" ]; then
-#   OPTS="${OPTS}bookmarks-tray,"
-#fi                                              &&
 if [ "${EPIPHANY_CERTS}" == "y" ]; then
    OPTS="${OPTS}certificates,"
-fi                                              &&
-if [ "${EPIPHANY_DASHBOARD}" == "y" ]; then
-   OPTS="${OPTS}dashboard,"
 fi                                              &&
 if [ "${EPIPHANY_ERRORVIEWER}" == "y" ]; then
    OPTS="${OPTS}error-viewer,"
@@ -45,15 +39,12 @@ fi                                              &&
 if [ "${EPIPHANY_GMONKEY}" == "y" ]; then
    OPTS="${OPTS}greasemonkey,"
 fi                                              &&
-if [ "${EPIPHANY_IMAGEBAR}" == "y" ]; then
-   OPTS="${OPTS}imagebar,"
-fi                                              &&
 if [ "${EPIPHANY_JAVACON}" == "y" ]; then
    OPTS="${OPTS}java-console,"
 fi                                              &&
-#if [ "${EPIPHANY_NETMON}" == "y" ]; then
-#   OPTS="${OPTS}net-monitor,"
-#fi                                              &&
+if [ "${EPIPHANY_LIVEHTTP}" == "y" ]; then
+   OPTS="${OPTS}livehttpheaders,"
+fi                                              &&
 if [ "${EPIPHANY_PAGEINFO}" == "y" ]; then
    OPTS="${OPTS}page-info,"
 fi                                              &&
