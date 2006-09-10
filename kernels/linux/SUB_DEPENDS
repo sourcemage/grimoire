@@ -1,0 +1,54 @@
+local patch
+. ${SPELL_DIRECTORY}/liblinux
+case $THIS_SUB_DEPENDS in
+  CONFIG_*)
+    # not done yet
+    # this would be setting kernel config vars
+  ;;
+  *)
+    if echo ${SELECTED_PATCHES} | grep -q " $THIS_SUB_DEPENDS"
+    then
+      message "${MESSAGE_COLOR}$THIS_SUB_DEPENDS already in selected patches list${DEFAULT_COLOR}"
+    elif [[ -d ${SPELL_DIRECTORY}/info/patches/${THIS_SUB_DEPENDS} ]]
+    then
+      local found
+      local LATEST_CHECK
+      for patch in ${SELECTED_PATCHES}
+      do
+        if [[ -f "${SPELL_DIRECTORY}/info/patches/${THIS_SUB_DEPENDS}/${patch}" ]]
+        then
+          found=found
+        fi
+      done &&
+      if [[ $found ]]
+      then
+        message "${MESSAGE_COLOR}Found requested patch group ${THIS_SUB_DEPENDS}${DEFAULT_COLOR}"
+      else
+        message "${MESSAGE_COLOR}Didn't find patch in group ${THIS_SUB_DEPENDS}${DEFAULT_COLOR}" &&
+	if grep -q "^LATEST_${THIS_SUB_DEPENDS}" ${SPELL_DIRECTORY}/latest.defaults
+	then
+	  LATEST_CHECK="LATEST_${THIS_SUB_DEPENDS}"
+	fi &&
+	config_query_list NEW_PATCH "Which patch would you like to choose?" ${LATEST_CHECK} `ls ${SPELL_DIRECTORY}/info/patches/${THIS_SUB_DEPENDS}` &&
+	SELECTED_PATCHES="${SELECTED_PATCHES} ${NEW_PATCH}"
+	run_conflicts &&
+	create_details
+      fi
+    elif grep -q "^${THIS_SUB_DEPENDS}" ${SPELL_DIRECTORY}/latest.defaults
+    then
+      message "${MESSAGE_COLOR}Adding ${THIS_SUB_DEPENDS} to selected patches${DEFAULT_COLOR}"
+      SELECTED_PATCHES="${SELECTED_PATCHES} ${THIS_SUB_DEPENDS}"
+      run_conflicts &&
+      create_details
+    elif find ${SPELL_DIRECTORY}/info/patches | grep "${THIS_SUB_DEPENDS}$"
+    then
+      message "${MESSAGE_COLOR}Adding ${THIS_SUB_DEPENDS} to selected patches${DEFAULT_COLOR}"
+      SELECTED_PATCHES="${SELECTED_PATCHES} ${THIS_SUB_DEPENDS}"
+      run_conflicts &&
+      create_details
+    else
+      message "${PROBLEM_COLOR}Unknown sub-depends requested ${THIS_SUB_DEPENDS}${DEFAULT_COLOR}"
+      return 1
+    fi
+  ;;
+esac
