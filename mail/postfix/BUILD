@@ -21,7 +21,7 @@ fi  &&
 
 if  [  "$SASL"  ==  "y"  ];  then
   AUXLIBS="$AUXLIBS -lsasl2"                             &&
-  CCARGS="$CCARGS  -DUSE_SASL_AUTH -I/usr/include/sasl"  &&
+  CCARGS="$CCARGS  -DUSE_SASL_AUTH -DUSE_CYRUS_SASL -I/usr/include/sasl"  &&
   message "${MESSAGE_COLOR}Cyrus-sasl detected: Using Cyrus-SASL${DEFAULT_COLOR}"
 fi  &&
 
