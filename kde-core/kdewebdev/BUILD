@@ -1,4 +1,4 @@
-OPTS="$KDEWEBDEV_EDITORS  \
+OPTS="$KDEWEBDEV_DEPENDS  \
       $OPTS"              &&
 
 source  $SECTION_DIRECTORY/KDE_BUILD
