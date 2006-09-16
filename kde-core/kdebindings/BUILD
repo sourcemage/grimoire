@@ -1,9 +1,15 @@
 sedit  's/$(dir @qt_includes@)/\/usr/'  python/Makefile.am  &&
-aclocal                                                     &&
 
 OPTS="--with-smoke=kde  \
       KDEDIRS=$INSTALL_ROOT/usr  \
       $OPTS"            &&
 
-TMAKEPATH=/usr/share/tmake/lib/linux-g++  \
-source  $SECTION_DIRECTORY/KDE_BUILD
+cd $SOURCE_DIRECTORY &&
+./configure &&
+
+cd $SOURCE_DIRECTORY/smoke/qt &&
+make
+
+cd $SOURCE_DIRECTORY &&
+make TMAKEPATH=/usr/share/tmake/lib/linux-g++
+
