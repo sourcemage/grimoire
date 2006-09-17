@@ -1,2 +1,2 @@
-echo "\n\n" | ./make/library
-
+echo "\n\n" | ./build libraries  &&
+./build man
