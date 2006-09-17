@@ -1,18 +1,41 @@
+depends  g++      &&
 depends  scons    &&
-depends  kdelibs  &&
 depends  qt-x11   &&
+depends  kdelibs  &&
 
-optional_depends  JACK-DRIVER               \
-                  ""                        \
-                  "nojack=1"                \
-                  "for JACK audio support"  &&
+if [[ "$ROSEGARDEN_SOUND" == y ]]; then
 
-optional_depends  alsa-lib            \
-                  ""                  \
-                  "noalsa=1"          \
-                  "for ALSA support"  &&
+  optional_depends  alsa-lib                           \
+                    ""                                 \
+                    "noalsa=1"                         \
+                    "for ALSA audio and MIDI support"  &&
+
+  optional_depends  JACK-DRIVER               \
+                    ""                        \
+                    "nojack=1"                \
+                    "for JACK audio support"  &&
+
+  optional_depends  ladspa  ""  ""  "for LADSPA plugin support"  &&
+
+  optional_depends  dssi                       \
+                    ""                         \
+                    "nodssi=1"                 \
+                    "for DSSI plugin support"  &&
+
+  if is_depends_enabled $SPELL ladspa ||
+     is_depends_enabled $SPELL dssi; then
+    optional_depends  liblo  ""  ""  "for audio plugin custom GUI support"  &&
+    optional_depends  liblrdf  ""  ""  "for audio plugin metadata support"
+  fi
+
+fi  &&
+
+.  $GRIMOIRE/FUNCTIONS
+if check_if_xorg_modular_libs qt-x11; then
+  optional_depends  libxft  ""  ""  "for better score rendering quality"
+fi  &&
 
 optional_depends  lirc                 \
                   ""                   \
                   "nolirc=1"           \
-                  "for lirc support?"
+                  "for LIRC support"
