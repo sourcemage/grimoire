@@ -1,3 +1,3 @@
+cd $SOURCE_DIRECTORY &&
 qmake &&
-make &&
-make install
+make
