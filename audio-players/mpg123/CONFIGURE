@@ -1,13 +1,17 @@
-config_query_list MPG123_CPU  "choose build variant / optimization" \
-  auto \
-  generic \
-  i386 \
-  i486 \
-  i586 \
-  i586_dither \
-  mmx \
-  3dnow \
-  altivec &&
+#these should work on any platform
+#(excluding no-fpu ones, that's experimental anyway)
+build_list="auto generic"
+
+#now add arch-specific options
+if [[ "${SMGL_COMPAT_ARCHS[1]}" == "ia32" ]]
+then
+  build_list="$build_list i386 i486 i586 i586_dither mmx 3dnow"
+elif [[ "${SMGL_COMPAT_ARCHS[1]}" == "ppc" ]]
+then
+  build_list="$build_list altivec"
+fi &&
+
+config_query_list MPG123_CPU  "choose build variant / optimization" $build_list &&
 config_query_list MPG123_AUDIO "choose audio output (will possibly add dependencies)" \
   oss \
   alsa \
@@ -17,5 +21,5 @@ config_query_list MPG123_AUDIO "choose audio output (will possibly add dependenc
   nas \
   sdl \
   dummy &&
-config_query_option MPG123_OPTS "gapless mp3 playback?" n "--enable-gapless" "--disable-gapless" &&
+config_query_option MPG123_OPTS "gapless mp3 playback?" y "--enable-gapless" "--disable-gapless" &&
 config_query_string MPG123_SEEKTABLE "seektable size" 2000
