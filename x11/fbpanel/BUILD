@@ -3,7 +3,6 @@ if  [  "$FBPANEL_CPUMON"  =  "y"  ];  then
 else
   OPTS="$OPTS  --cpu=off"
 fi  &&
-
 ./configure  --prefix=/usr  \
              $OPTS          &&
 make
