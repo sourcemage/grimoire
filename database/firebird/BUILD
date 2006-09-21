@@ -13,8 +13,13 @@
   ./configure 				\
 	--prefix=$FB_PREFIX 		\
 	$OPTS					&&
+if [ $FB_CLIENT == n ]; then
+
   make                                          &&
 # prepare an install image
   cd gen                                        &&
   ./install/makeInstallImage.sh
-
+else
+  cd gen                                        &&
+  make -f Makefile.libfbclient
+fi
