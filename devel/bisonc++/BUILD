@@ -1,7 +1,6 @@
 # use system copy of flex
-rm  flex/FlexLexer.h   &&
-cd  scanner            &&
-flex lexer             &&
-cd ..                  &&
-./make/program
+rm scanner/yylex.cc  &&
+./build program      &&
+#./build manual       &&
+./build man
 
