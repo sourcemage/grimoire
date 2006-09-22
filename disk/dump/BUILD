@@ -1,5 +1,4 @@
-message  "${MESSAGE_COLOR}If this spell complains that e2fsprogs"
-message  "is not installed simply: cast e2fsprogs dump${DEFAULT_COLOR}"
+OPTS="--with-manowner=root --with-mangrp=root --with-bingrp=root \
+$DUMP_RMT $OPTS"  &&
 
-OPTS="--enable-largefile --enable-rmt ${OPTS} --with-manowner=root --with-mangrp=root" &&
 default_build
