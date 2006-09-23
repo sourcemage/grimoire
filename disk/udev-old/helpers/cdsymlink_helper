@@ -1,0 +1,61 @@
+#!/bin/bash
+
+if [[ -z "$1" ]]; then
+  echo "Not enough input!"
+  echo "Usage: $0 %k"
+  exit 1
+fi
+
+# Prevent conflicts between parallel processes by creating a lock dir 
+# and using it as a queue ticket. Only the process that can create it 
+# (meaning it doesn't already exist from another process) is allowed to 
+# proceed, others have to wait. Maximum queue time is 5 seconds, queue 
+# check happens every 20 milliseconds.
+lock()
+{
+  [[ -d /dev/.udev ]] ||
+    if ! mkdir -p /dev/.udev; then
+      echo "Cannot create /dev/.udev!"
+      exit 1
+    fi
+  LOCK_DIR=/dev/.udev/.lock-cdsymlink
+  local retry=250
+  while ! mkdir $LOCK_DIR 2>/dev/null; do
+    if ((retry==0)); then
+       echo "Cannot lock $LOCK_DIR!" >&2
+       exit 2
+    fi
+    sleep 0.02
+    ((retry-=1))
+  done
+}
+
+# Once the process is finished, delete lock dir so that the next process 
+# may step forward in queue.
+unlock()
+{
+  [[ "$LOCK_DIR" ]] || return 0
+  rm -r $LOCK_DIR 2>/dev/null || return 0
+}
+
+# Find the next available symlink name for device. $1 is the device name 
+# from kernel (udev's %k value), $2 is the desired symlink basename 
+# (e.g. basename "cdrom" will be used to create symlinks /dev/cdrom, 
+# /dev/cdrom1, etc.)
+echo_link()
+{
+  local num
+  while [[ -e /dev/$2$num ]] &&
+        [[ "$(readlink /dev/$2$num)" != "$1" ]]; do
+    ((num+=1))
+  done
+  echo -n "$2$num "
+}
+
+lock
+
+# Output symlink name for cdrom, and then for dvd if needed.
+echo_link $1 cdrom
+[[ "$ID_CDROM_DVD" ]] && echo_link $1 dvd
+
+unlock

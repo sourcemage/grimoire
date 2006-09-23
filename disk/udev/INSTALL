@@ -1,7 +1,5 @@
 install -d ${INSTALL_ROOT}/sys                &&
 local FILE UDEV_CFG=${INSTALL_ROOT}/etc/udev  &&
-# udev <= 092 and > 092 gives a different name for the firmware helper
-local FIRMWARE_HELPER_NAME FIRMWARE_RULE      &&
 mkdir  -p  ${UDEV_CFG}/rules.d                &&
 
 install_config_file $SCRIPT_DIRECTORY/udev.conf ${UDEV_CFG}/udev.conf &&
@@ -22,27 +20,11 @@ else
 fi  &&
 
 # install early rules
-if [ "$RECENT_KERNEL" == "n" ]; then
- install_config_file $SOURCE_DIRECTORY/etc/udev/05-udev-early.rules  \
-                           ${UDEV_CFG}/rules.d/05-udev-early.rules
-else
- install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/05-udev-early.rules  \
+install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/05-udev-early.rules  \
                            ${UDEV_CFG}/rules.d/05-udev-early.rules  &&
- # install late rules
- install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/95-udev-late.rules  \
+# install late rules
+install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/95-udev-late.rules  \
                            ${UDEV_CFG}/rules.d/95-udev-late.rules
-fi  &&
-
-if [ "$RECENT_KERNEL" == "n" ]; then
-  # udevstart and udevsend are nolonger installed by default. we need them for kernel < 2.6.15rc1
-  install udevsend udevstart  ${INSTALL_ROOT}/sbin  &&
-  FIRMWARE_HELPER_NAME="/lib/udev/firmware_helper"
-else
-  FIRMWARE_HELPER_NAME="firmware.sh"
-fi  &&
-
-FIRMWARE_RULE="SUBSYSTEM==\"firmware\", ACTION==\"add\", RUN+=\"$FIRMWARE_HELPER_NAME\""  &&
-echo $FIRMWARE_RULE >> ${UDEV_CFG}/rules.d/50-default.rules  &&
 
 make prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ V=true ${OPTS} install   &&
 make EXTRAS="extras/run_directory extras/cdrom_id extras/firmware" \
@@ -60,17 +42,11 @@ if [[ "$UDEV_EXTRAS" == 'y' ]]; then
   install  extras/path_id/path_id  ${INSTALL_ROOT}/lib/udev  &&
 
   if [[ "$UDEV_PERSIST" == 'y' ]]; then
-    if [ "$RECENT_KERNEL" == "n" ]; then
-       install_config_file etc/udev/60-persistent-storage.rules ${UDEV_CFG}/rules.d/60-persistent-storage.rules
-    else
        install_config_file etc/udev/rules.d/60-persistent-storage.rules ${UDEV_CFG}/rules.d/60-persistent-storage.rules
-    fi
   fi  &&
 
-  if [ "$RECENT_KERNEL" == "y" ]; then
-    if [ "$UDEV_PERSIST_INPUT" == 'y' ]; then
-      install_config_file etc/udev/rules.d/60-persistent-input.rules ${UDEV_CFG}/rules.d/60-persistent-input.rules
-    fi
+  if [ "$UDEV_PERSIST_INPUT" == 'y' ]; then
+    install_config_file etc/udev/rules.d/60-persistent-input.rules ${UDEV_CFG}/rules.d/60-persistent-input.rules
   fi
 fi
 

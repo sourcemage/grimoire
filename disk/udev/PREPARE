@@ -8,7 +8,7 @@ if  ! grep -q install_config_file /var/lib/sorcery/modules/libapi ;  then
     message  "${PROBLEM_COLOR}You don't have the latest stable Sorcery. Run
               \`sorcery update\`${DEFAULT_COLOR}"  &&
     return  1
-fi                                                                                              &&
+fi
 
 KERNEL_VERSION=$(get_kernel_version)  &&
 PATCHLEVEL=`echo $KERNEL_VERSION | cut -d. -f2`  &&
@@ -17,11 +17,8 @@ tmp=`echo $KERNEL_VERSION | cut -d. -f3 | sed 's/^[0-9]*//g'`  &&
 SUBLEVEL=${SUBLEVEL/$tmp/}  &&
 
 # kernel < 2.6.15-rc1 can't use udev > 0.93 tarballs because udevsend has been removed
-if [ $SUBLEVEL -ge 15 -a $PATCHLEVEL -ge 6 ]; then
-  RECENT_KERNEL="y"
-else
-  RECENT_KERNEL="n"  &&
-  message  "You have a kernel < 2.6.15, it is too old for latest udev."  &&
-  message  "Switching to 092..."
-fi  &&
-persistent_add RECENT_KERNEL
+if [ $SUBLEVEL -lt 15 -o $PATCHLEVEL -lt 6 ]; then
+  message  "${PROBLEM_COLOR}You have a kernel < 2.6.15, it is too old for latest udev."  &&
+  message  "Please use udev-old spell instead..."  && 
+  return 1
+fi

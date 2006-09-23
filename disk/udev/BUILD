@@ -5,7 +5,8 @@ make EXTRAS="extras/run_directory extras/cdrom_id extras/firmware" \
      ${UDEV_DEBUG} DEST_DIR="./" V=true &&
 
 if [[ "$UDEV_EXTRAS" == 'y' ]]; then
-  make EXTRAS="extras/ata_id extras/dasd_id extras/edd_id extras/floppy extras/scsi_id extras/usb_id extras/volume_id" \
+  make EXTRAS="extras/ata_id extras/dasd_id extras/edd_id extras/floppy \
+       extras/scsi_id extras/usb_id extras/volume_id" \
        prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ ${OPTS} \
        ${UDEV_DEBUG} DEST_DIR="./" V=true 
 fi
