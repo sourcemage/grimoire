@@ -1,12 +1,4 @@
-#
-# Append CONFIGURE settings to OPTS
-#
-#OPTS="$OPTS             \
-#      $OMOTIF_CATALOG"  &&
-
-./configure  --build=$BUILD      \
-            --prefix=/usr/X11R6  \
-        --sysconfdir=/etc        \
-     --localstatedir=/var        \
-             $OPTS               &&
-make
+if ! check_if_xorg_modular_libs ; then
+  OPTS="--prefix=/usr/X11R6 $OPTS"
+fi &&
+default_build
