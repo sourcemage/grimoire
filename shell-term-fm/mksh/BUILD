@@ -1,4 +1,4 @@
-gzip -n9 mksh.1 &
-/bin/sh ./Build.sh -d -r
-./test.sh -v
-wait # for compressing the manual page to finish
+cd $SOURCE_DIRECTORY &&
+/bin/sh ./Build.sh -d -r &&
+gzip -n9 mksh.1 &&
+./test.sh -v >/var/log/mksh.test.log 2>&1
