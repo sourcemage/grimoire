@@ -10,14 +10,14 @@ rm  -f  src/svgalib_helper.h                                           &&
 make  shared                                                           &&
 
 # Missing in some cases ...
-ln  -s  libvga.so.${VERSION}  sharedlib/libvga.so                      &&
+#ln  -s  libvga.so.${VERSION}  sharedlib/libvga.so                      &&
 # Build lrmi and tools ...
 make  LDFLAGS="-L../sharedlib"  textutils  lrmi  utils                 &&
 # Build the gl stuff too
 make  -C  gl                                                           &&
 make  -C  gl  libvgagl.so.${VERSION}                                   &&
 # Missing in some cases ...
-ln  -s  libvgagl.so.${VERSION}  sharedlib/libvgagl.so                  &&
+#ln  -s  libvgagl.so.${VERSION}  sharedlib/libvgagl.so                  &&
 rm  -f  src/svgalib_helper.h                                           &&
 make  -C  src  libvga.so.${VERSION}                                    &&
 cp  -a  src/libvga.so.${VERSION}  sharedlib/                           &&
