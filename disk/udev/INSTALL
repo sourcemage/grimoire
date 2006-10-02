@@ -9,15 +9,9 @@ for FILE in $SCRIPT_DIRECTORY/rules/* ; do
   install_config_file $FILE ${UDEV_CFG}/rules.d/$(basename $FILE)
 done  &&
 
-# install diff default rules on hotplug and non-hotplug systems, install 
-# required modprobe aliases for non-hotplug rules
-if spell_ok hotplug; then
-  install_config_file $SCRIPT_DIRECTORY/52-modules.rules-hotplug ${UDEV_CFG}/rules.d/52-modules.rules
-else
-  install_config_file $SCRIPT_DIRECTORY/52-modules.rules ${UDEV_CFG}/rules.d/52-modules.rules  &&
-  mkdir -p $INSTALL_ROOT/etc/modprobe.d  &&
-  install_config_file $SCRIPT_DIRECTORY/modprobe.aliases $INSTALL_ROOT/etc/modprobe.d/udev
-fi  &&
+# install required modprobe aliases for non-hotplug rules
+mkdir -p $INSTALL_ROOT/etc/modprobe.d  &&
+install_config_file $SCRIPT_DIRECTORY/modprobe.aliases $INSTALL_ROOT/etc/modprobe.d/udev
 
 # install early rules
 install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/05-udev-early.rules  \
@@ -27,15 +21,9 @@ install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/95-udev-late.rules  \
                            ${UDEV_CFG}/rules.d/95-udev-late.rules
 
 make prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ V=true ${OPTS} install   &&
-make EXTRAS="extras/run_directory extras/cdrom_id extras/firmware" \
+make EXTRAS="extras/run_directory extras/cdrom_id extras/firmware extras/rule_generator" \
   prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ \
   V=true ${OPTS} install &&
-
-# Install helper scripts
-mkdir -p /lib/udev  &&
-for FILE in $SCRIPT_DIRECTORY/helpers/*; do
-  install -m 755 $FILE $INSTALL_ROOT/lib/udev
-done  &&
 
 if [[ "$UDEV_EXTRAS" == 'y' ]]; then
   make EXTRAS="extras/ata_id extras/dasd_id extras/edd_id extras/floppy extras/scsi_id extras/usb_id extras/volume_id" prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ ${OPTS} V=true install   &&
