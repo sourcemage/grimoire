@@ -5,4 +5,4 @@ fi                                              &&
 
 OPTS="$OPTS --with-pid-file=/var/run/hald.pid \
 	    --enable-sysfs-carrier --enable-hotplug-map --disable-policy-kit"  &&
-default_build
+PKG_CONFIG="/usr/bin/pkg-config"  default_build
