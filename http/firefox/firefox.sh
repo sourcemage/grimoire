@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/sh
 # First check if this variable is already set 
 # then if not set, check it (maybe), then set it 
 #
@@ -6,7 +6,7 @@
 # the mozilla libs (e.g. monodevelop)
 #
 
-if  [  -z  "$MOZILLA_FIVE_HOME" -a  !  -f  /etc/profile.d/mozilla.sh  ];  then 
+if  [  -z  "$MOZILLA_FIVE_HOME" -a  !  -f  /etc/profile.d/mozilla.sh  ];  then
   MOZILLA_FIVE_HOME=/usr/lib/firefox
 fi  &&
 
