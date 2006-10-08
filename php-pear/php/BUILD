@@ -35,10 +35,12 @@ case "$PHP4_APACHE" in
 esac  &&
 
 #Check for xorg or xserver and pass location of xpm
-if check_if_xorg_modular_libs; then
-   OPTS="$OPTS --with-xpm-dir=/usr"
-else
-   OPTS="$OPTS --with-xpm-dir=/usr/X11R6"
+if [ "$PHP5_X11LIBS" == "y" ]; then
+   if check_if_xorg_modular_libs; then
+       OPTS="$OPTS --with-xpm-dir=/usr"
+   else
+       OPTS="$OPTS --with-xpm-dir=/usr/X11R6"
+   fi
 fi &&
 
 ./configure      --prefix=${INSTALL_ROOT}/usr      \
@@ -67,7 +69,6 @@ fi &&
                  --enable-pdo                      \
             --with-layout=GNU                      \
                           $OPTS                    &&
-invoke_gcc &&
 make                                               &&
 
 # safety precaution against earlier PHP installations removing httpd.conf
