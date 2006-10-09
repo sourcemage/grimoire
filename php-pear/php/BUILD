@@ -39,7 +39,7 @@ if [ "$PHP5_X11LIBS" == "y" ]; then
    if check_if_xorg_modular_libs; then
        OPTS="$OPTS --with-xpm-dir=/usr"
    else
-       OPTS="$OPTS --with-xpm-dir=/usr/X11R6"
+       OPTS="$OPTS --with-xpm-dir=/usr/X11R6/lib"
    fi
 fi &&
 
