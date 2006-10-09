@@ -43,6 +43,11 @@ if [ "$PHP5_X11LIBS" == "y" ]; then
    fi
 fi &&
 
+#check to see if internal GD requested
+if [ "$PHP5_GD" == "internal" ]; then
+       OPTS="--with-gd --enable-gd-native-ttf $OPTS"
+fi &&
+
 ./configure      --prefix=${INSTALL_ROOT}/usr      \
              --sysconfdir=${INSTALL_ROOT}/etc      \
           --with-exec-dir=${INSTALL_ROOT}/usr/bin  \
@@ -74,5 +79,6 @@ make                                               &&
 # safety precaution against earlier PHP installations removing httpd.conf
 # we can remove this sedit after a couple of ISOs (today's 2003-11-05)
 if  [  -f  $INSTALL_LOGS/$SPELL-*  ]
-   then  sedit 's|.*/httpd\.conf.*||g'  $INSTALL_LOGS/$SPELL-* 
+   then  sedit 's|.*/httpd\.conf.*||g'  $INSTALL_LOGS/$SPELL-*
 fi
+

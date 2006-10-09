@@ -1,6 +1,7 @@
 source $GRIMOIRE/FUNCTIONS &&
 
 depends  flex    &&
+depends  readline "--with-readline=/usr" &&
 
 # Officially ZLib is optional, but we require it because some other
 # optional extensions depend on it, and it"s omnipresent anyway.
@@ -20,6 +21,10 @@ if [ "$PHP5_X11LIBS" == "y" ]; then
       depends libxpm
    fi
 fi  &&
+
+if [ "$PHP5_GD" == "external" ]; then
+      depends  gd  "--with-gd=/usr --enable-gd-native-ttf" 
+fi &&
 
 optional_depends  C-CLIENT            \
                   "--with-imap"       \
@@ -142,7 +147,9 @@ optional_depends  libpng                                    \
                   "--without-png-dir"                       \
                   "for PNG support (also required for GD)"  &&
 
-optional_depends  gd                                                               \
-                  "--with-gd --enable-gd-native-ttf --with-freetype-dir=/usr/lib"  \
-                  "--without-gd"                                                   \
-                  "for on the fly graphics creation (GD support)"
+if [ "$PHP5_GD" != "none" ]; then
+                  optional_depends  freetype2 \
+                  "--with-freetype-dir=/usr" \
+                  "--without-freetype-dir"       \
+                  "for freetype2 support"
+fi
