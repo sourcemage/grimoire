@@ -11,4 +11,4 @@ cd Applications/Terminal                                              &&
 
 make                                                                  &&
 
-cd ../../                                                             &&
+cd ../../                                                             

@@ -11,4 +11,4 @@ cd Frameworks/PrefsModule
 
 make                                                                  &&
 
-cd ../../                                                             &&
+cd ../../                                                             
