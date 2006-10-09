@@ -18,4 +18,4 @@ then
     make                                                              &&
     make_normal                                                       &&
     cd ../
-fi                                                                    &&
+fi                                                                    
