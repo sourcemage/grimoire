@@ -39,8 +39,13 @@ if [ "$PHP5_X11LIBS" == "y" ]; then
    if check_if_xorg_modular_libs; then
        OPTS="$OPTS --with-xpm-dir=/usr"
    else
-       OPTS="$OPTS --with-xpm-dir=/usr/X11R6"
+       OPTS="$OPTS --with-xpm-dir=/usr/X11R6/lib"
    fi
+fi &&
+
+#check to see if internal GD requested
+if [ "$PHP5_GD" == "internal" ]; then
+       OPTS="--with-gd --enable-gd-native-ttf $OPTS"
 fi &&
 
 ./configure      --prefix=${INSTALL_ROOT}/usr      \
@@ -74,5 +79,6 @@ make                                               &&
 # safety precaution against earlier PHP installations removing httpd.conf
 # we can remove this sedit after a couple of ISOs (today's 2003-11-05)
 if  [  -f  $INSTALL_LOGS/$SPELL-*  ]
-   then  sedit 's|.*/httpd\.conf.*||g'  $INSTALL_LOGS/$SPELL-* 
+   then  sedit 's|.*/httpd\.conf.*||g'  $INSTALL_LOGS/$SPELL-*
 fi
+

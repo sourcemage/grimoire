@@ -36,6 +36,20 @@ case "$PHP4_APACHE" in
     ;;
 esac  &&
 
+#Check for xorg or xserver and pass location of xpm
+if [ "$PHP4_X11LIBS" == "y" ]; then
+   if check_if_xorg_modular_libs; then
+       OPTS="$OPTS --with-xpm-dir=/usr"
+   else
+       OPTS="$OPTS --with-xpm-dir=/usr/X11R6"
+   fi
+fi &&
+
+#check to see if internal GD requested
+if [ "$PHP4_GD" == "internal" ]; then
+       OPTS="--with-gd --enable-gd-native-ttf $OPTS"
+fi &&
+
 ./configure      --prefix=${INSTALL_ROOT}/usr      \
              --sysconfdir=${INSTALL_ROOT}/etc      \
           --with-exec-dir=${INSTALL_ROOT}/usr/bin  \

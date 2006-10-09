@@ -1,4 +1,7 @@
+source $GRIMOIRE/FUNCTIONS &&
+
 depends  flex    &&
+depends  readline "--with-readline=/usr" &&
 
 # Officially ZLib is optional, but we require it because some other
 # optional extensions depend on it, and it"s omnipresent anyway.
@@ -8,6 +11,17 @@ case  "$PHP4_APACHE"  in
   handler)  depends  APACHE;;
   filter)   depends  APACHE2;;
 esac  &&
+
+if [ "$PHP4_X11LIBS" == "y" ]; then
+      depends X11-LIBS
+   if check_if_xorg_modular_libs; then
+      depends libxpm
+   fi
+fi  &&
+
+if [ "$PHP4_GD" == "external" ]; then
+      depends  gd  "--with-gd=/usr --enable-gd-native-ttf"
+fi &&
 
 optional_depends  C-CLIENT            \
                   "--with-imap"       \
@@ -125,14 +139,10 @@ optional_depends  libpng                                    \
                   "--without-png-dir"                       \
                   "for PNG support (also required for GD)"  &&
 
-optional_depends  gd                                                               \
-                  "--with-gd --enable-gd-native-ttf --with-freetype-dir=/usr/lib"  \
-                  "--without-gd"                                                   \
-                  "for on the fly graphics creation (GD support)"                  &&
+if [ "$PHP4_GD" != "none" ]; then
+                  optional_depends  freetype2 \
+                  "--with-freetype-dir=/usr" \
+                  "--without-freetype-dir"       \
+                  "for freetype2 support"
+fi
 
-optional_depends  X11-LIBS                             \
-                  "--with-xpm-dir=/usr/X11R6           \
-                   --with-x-includes=/usr/X11/include  \
-                   --with-x-libraries=/usr/X11/lib"    \
-                  ""                                   \
-                  "for XFree86 support"
