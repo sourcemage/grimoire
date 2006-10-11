@@ -1,30 +1,65 @@
 #!/bin/bash
 
+PROGRAM=/usr/bin/jabberd
 RUNLEVEL=3
 NEEDS="+network +remote_fs"
 
 . /etc/init.d/smgl_init
 
-case $1 in
-  start)    echo "Starting jabberd..."
-            daemon -u jabber -n jabberd jabberd
-            evaluate_retval
-            ;;
+killAndWait() {
+	#$1 is pidfile to wait for
+	if [[ "$(ps -eaf | grep $(cat $1) | grep -v grep)" != "" ]]; then
+		kill $(cat $1)
+		while [[ "$(ps -eaf | grep $(cat $1) | grep -v grep)" != "" ]]; do
+			sleep 0.5
+		done
+	fi
+	# always have to remove the pid file, because jabberd doesn't clean up
+	# after itself
+	rm $1
+}
 
-  stop)     echo "Stopping jabberd..."
-            daemon -u jabber -n jabberd --stop
-            evaluate_retval
-            ;;
+start() {
+	echo "Starting jabberd..."
+	su -s /bin/bash jabber -c "$PROGRAM &"
+	evaluate_retval
+}
 
-  restart)  echo "Restarting jabberd..."
-            daemon -u jabber -n jabberd --restart
-            evaluate_retval
-            ;;
+stop() {
+	echo "Stopping jabberd..."
+	if [ -f /var/jabberd/pid/router.pid ] && [[
+	   	"$(ps -eaf | grep $(cat /var/jabberd/pid/router.pid) | grep -v grep)" != "" ]]; then
+		
+		killAndWait /var/jabberd/pid/router.pid
 
-  status)   daemon -v -u jabber -n jabberd --running
-            ;;
+		if [[ "$(ps -eaf | grep $(cat /var/jabberd/pid/*.pid) | grep -v grep)" == "" ]]; then
+			echo "Jabber services not running but pidfiles exists! Cleaning..."
+			rm /var/jabberd/pid/*.pid
+		else
+			killAndWait /var/jabberd/pid/router.pid
+			echo "Ensuring the rest of the server went down"
+			for foo in $(ls /var/jabberd/pid/*.pid); do
+				killAndWait $foo
+			done
+		fi
+	fi
+	#ps -eaf | grep $(cat pid/router.pid ) | grep -v grep
+}
 
-  *)        echo "Usage: $0 {start|stop|restart|status}"
-            exit 1
-            ;;
-esac
+restart() {
+	stop
+	start
+}
+
+status() {
+	local JABBERPIDS=""
+	if [[ "$(ls /var/jabberd/pid)" != "" ]]; then
+		for foo in $(ls /var/jabberd/pid/*.pid); do
+			JABBERPIDS="$JABBERPIDS $(cat $foo)"
+		done
+		echo "Jabber services running at pids:$JABBERPIDS"
+	else 
+		echo "Jabber services are not running"
+	fi
+}
+
