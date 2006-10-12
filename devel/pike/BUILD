@@ -1,5 +1,4 @@
-  cd src
-
-  ./configure  --prefix=/usr            \
-               $OPTS                    &&
-  make 
+cd $SOURCE_DIRECTORY/src &&
+./configure  --prefix=/usr \
+OPTS="$CONFIG_OPTS $OPTS" &&
+default_build 
