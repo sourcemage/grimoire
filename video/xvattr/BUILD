@@ -1,6 +1,11 @@
 ./configure  $OPTS  &&
 make  xvattr        &&
-# change this to is_depends_enabled once that makes it to stable sorcery
-if  spell_ok  gtk+;  then
+
+#
+## Remove this after is_depends_enabled is integrated to stable sorcery.
+#
+source  "$GRIMOIRE/is_depends_enabled.function"  &&
+
+if is_depends_enabled $SPELL gtk+;  then
   make gxvattr
 fi
