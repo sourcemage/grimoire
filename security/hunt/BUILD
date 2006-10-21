@@ -8,7 +8,7 @@
   prepare_install                                             &&
 
   install  -m 755  hunt tpserv/tpserv /usr/bin/               &&
-  install  -m 644  man/hunt.1 /usr/man/man1/hunt.1
+  install  -m 644  man/hunt.1 /usr/share/man/man1/hunt.1
 
 ) > $C_FIFO 2>&1
 
