@@ -58,7 +58,11 @@ start()
 
   echo "Mounting proc file system..."
   mount -a -t /proc
-  evaluate_retval
+  evaluate_retval &&
+# bug 7311
+  if ! grep -wq "/proc" /etc/mtab; then
+    builtin echo 'none /proc proc rw 0 0' >> /etc/mtab
+  fi
 
   if optional_executable /sbin/vgscan && optional_executable /sbin/vgchange ; then
     echo -n "Scanning for and initializing all available LVM volume groups..."
