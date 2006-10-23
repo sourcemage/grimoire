@@ -2,8 +2,6 @@ create_group tty &&
 OPTS="$OPTS --build=${BUILD}" &
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
-patch -p1 < $SCRIPT_DIRECTORY/util-linux-2.12p-cramfs-1.patch &&
-
 sedit  "s/HAVE_SLN=no/HAVE_SLN=yes/"            MCONFIG  &&
 sedit  "s/# ADD_RAW=yes/ADD_RAW=yes/"           MCONFIG  &&
 sedit  "s/\$(OPT)//"                            MCONFIG  &&
