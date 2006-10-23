@@ -1,0 +1,48 @@
+--- Makefile.am.orig	2005-04-24 10:32:06.000000000 +0200
++++ Makefile.am	2005-04-24 10:35:30.000000000 +0200
+@@ -24,7 +24,7 @@
+ ## tests.
+ SUBDIRS = . doc m4 lib tests
+ 
+-bin_SCRIPTS = automake aclocal
++bin_SCRIPTS = automake-@APIVERSION@ aclocal-@APIVERSION@
+ 
+ CLEANFILES = $(bin_SCRIPTS)
+ AUTOMAKESOURCES = automake.in aclocal.in
+@@ -34,19 +34,6 @@
+ EXTRA_DIST = ChangeLog.96 ChangeLog.98 ChangeLog.00 ChangeLog.01 ChangeLog.02 \
+   $(AUTOMAKESOURCES)
+ 
+-## Make versioned links.  We only run the transform on the root name;
+-## then we make a versioned link with the transformed base name.  This
+-## seemed like the most reasonable approach.
+-install-exec-hook:
+-	@$(POST_INSTALL)
+-	@for p in $(bin_SCRIPTS); do \
+-	  f="`echo $$p|sed '$(transform)'`"; \
+-	  fv="$$f-$(APIVERSION)"; \
+-	  rm -f $(DESTDIR)$(bindir)/$$fv; \
+-	  echo " $(LN) $(DESTDIR)$(bindir)/$$f $(DESTDIR)$(bindir)/$$fv"; \
+-	  $(LN) $(DESTDIR)$(bindir)/$$f $(DESTDIR)$(bindir)/$$fv; \
+-	done
+-
+ uninstall-hook:
+ 	@for p in $(bin_SCRIPTS); do \
+ 	  f="`echo $$p|sed '$(transform)'`"; \
+@@ -71,14 +58,14 @@
+ ## These files depend on Makefile so they are rebuilt if $(VERSION),
+ ## $(datadir) or other do_subst'ituted variables change.
+ ## Use chmod a-w to prevent people from editing the wrong file by accident.
+-automake: automake.in Makefile
++automake-@APIVERSION@: automake.in Makefile
+ 	rm -f $@ $@.tmp
+ 	$(do_subst) $(srcdir)/automake.in >$@.tmp
+ 	chmod +x $@.tmp
+ 	chmod a-w $@.tmp
+ 	mv -f $@.tmp $@
+ 
+-aclocal: aclocal.in Makefile
++aclocal-@APIVERSION@: aclocal.in Makefile
+ 	rm -f $@ $@.tmp
+ 	$(do_subst) $(srcdir)/aclocal.in >$@.tmp
+ 	chmod +x $@.tmp
