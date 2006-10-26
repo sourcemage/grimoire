@@ -1,5 +1,5 @@
 # add link to /usr/bin/qt4 so annotator can find it
-ln -s /usr/bin/qt4 /usr/lib/qt4/bin
+ln -s $TRACK_ROOT/usr/bin/qt4 /usr/lib/qt4/bin
 export OLDQTDIR=$QTDIR &&
 unset QTDIR &&
 export QTDIR=/usr/lib/qt4 &&
