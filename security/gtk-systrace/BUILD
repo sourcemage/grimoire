@@ -14,6 +14,6 @@
 
 ) >  $C_FIFO  2>&1  &&  (
 
- ln -s /usr/bin/notification /usr/X11R6/bin/xsystrace 
+ ln -s $TRACK_ROOT/usr/bin/notification /usr/X11R6/bin/xsystrace 
 
 )
