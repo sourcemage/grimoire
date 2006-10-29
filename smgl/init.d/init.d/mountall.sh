@@ -64,6 +64,14 @@ start()
     builtin echo 'none /proc proc rw 0 0' >> /etc/mtab
   fi
 
+  # find devices that were set up in initramfs/rd
+  if optional_executable /sbin/dmsetup
+  then 
+    echo "(re)creating device mapper nodes"
+    /sbin/dmsetup mknodes
+    evaluate_retval
+  fi
+
   if optional_executable /sbin/vgscan && optional_executable /sbin/vgchange ; then
     echo -n "Scanning for and initializing all available LVM volume groups..."
     /sbin/vgscan       --ignorelockingfailure  --mknodes  &&
