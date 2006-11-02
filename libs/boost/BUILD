@@ -12,6 +12,6 @@ OPTS="$OPTS $BLIST"                               &&
 CXXFLAGS="$CXXFLAGS"                              \
 bjam --prefix=${INSTALL_ROOT}/usr                 \
      -sTOOLS=gcc                                  \
-     "-sBUILD=${BOOST_VARIANT}"  \
+     "-sBUILD=${BOOST_VARIANT## }"                \
      --layout=system                              \
      $OPTS
