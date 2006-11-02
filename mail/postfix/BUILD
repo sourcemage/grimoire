@@ -65,7 +65,7 @@ if  glibc_is_nptl; then
 fi  &&
 
 make  makefiles           \
-      "CC=gcc"            \
+      "OPTS="             \
       "OPT=$CFLAGS"       \
       "AUXLIBS=$AUXLIBS"  \
       "CCARGS=$CCARGS"    &&

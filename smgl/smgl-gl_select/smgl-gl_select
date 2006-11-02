@@ -1,0 +1,102 @@
+#!/bin/bash
+GL_SELECT_VERSION="0.5"
+GL_LIBS="$(ls ${TRACK_ROOT}/usr/lib/*/libGL.so | awk -F"/" '{print $4}' 2> /dev/null )"
+. /var/lib/sorcery/modules/libmedia
+LOCAL_MEDIA_CONFIG=/etc/sorcery/local/media source /etc/sorcery/media
+function message() {
+  echo -e "$@"
+}
+
+function gl_list() {
+  message "Available GL Libraries on the system"
+  ls ${TRACK_ROOT}/usr/lib/*/libGL.so | awk -F"/" '{print $4}' 2> /dev/null
+  exit 0
+}
+
+function gl_pick() {
+  if ! grep -q "$1" <<< "$GL_LIBS"
+  then
+    message "Error $1 is not a valid GL Library"
+    exit 1
+  fi
+  message "Selecting $1 as the default system GL library"
+  if [[ -L ${TRACK_ROOT}/usr/lib/libGL.so ]] ||
+     [[ ! -e ${TRACK_ROOT}/usr/lib/libGL.so ]]
+  then
+    ln -vfs ${TRACK_ROOT}/usr/lib/$1/libGL.so* ${TRACK_ROOT}/usr/lib/
+    case "$1" in
+       ati) if gaze installed xorg-server ; then
+            ln -vfs ${TRACK_ROOT}/usr/include/GL/mesa/*.h                    \
+                    ${TRACK_ROOT}/usr/include/GL/                            &&
+            ln -vfs ${TRACK_ROOT}/usr/lib/xorg/modules/extensions/mesa/*     \
+                    ${TRACK_ROOT}/usr/lib/xorg/modules/extensions/
+            else
+            ln -vfs ${TRACK_ROOT}/usr/X11R6/include/GL/monolithic/*.h        \
+                    ${TRACK_ROOT}/usr/X11R6/include/GL/                      &&
+            ln -vfs ${TRACK_ROOT}/usr/X11R6/lib/modules/extensions/monolithic/* \
+                    ${TRACK_ROOT}/usr/X11R6/lib/modules/extensions/
+            fi                                                               ;;
+      mesa) ln -vfs ${TRACK_ROOT}/usr/include/GL/mesa/*.h                    \
+                    ${TRACK_ROOT}/usr/include/GL/                            &&
+            ln -vfs ${TRACK_ROOT}/usr/lib/xorg/modules/extensions/mesa/*     \
+                    ${TRACK_ROOT}/usr/lib/xorg/modules/extensions/           ;;
+    nvidia) if gaze installed xorg-server ; then
+            ln -vfs ${TRACK_ROOT}/usr/include/GL/nvidia/*.h                  \
+                    ${TRACK_ROOT}/usr/include/GL/                            &&
+            ln -vfs ${TRACK_ROOT}/usr/lib/xorg/modules/extensions/nvidia/*   \
+                    ${TRACK_ROOT}/usr/lib/xorg/modules/extensions/
+            else
+            ln -vfs ${TRACK_ROOT}/usr/X11R6/include/GL/nvidia/*.h            \
+                    ${TRACK_ROOT}/usr/X11R6/include/GL/                      &&
+            ln -vfs ${TRACK_ROOT}/usr/X11R6/lib/modules/extensions/nvidia/*  \
+                    ${TRACK_ROOT}/usr/X11R6/lib/modules/extensions/
+            fi                                                               ;;
+
+monolithic) ln -vfs ${TRACK_ROOT}/usr/X11R6/include/GL/monolithic/*.h        \
+                    ${TRACK_ROOT}/usr/X11R6/include/GL/                      &&
+            ln -vfs ${TRACK_ROOT}/usr/X11R6/lib/modules/extensions/monolithic/*  \
+                    ${TRACK_ROOT}/usr/X11R6/lib/modules/extensions/           ;;
+         *) message "Unknown secondary files so I only linked the libGL.so"  ;;
+    esac
+    exit 0
+  else
+    message "Error ${TRACK_ROOT}/usr/lib/libGL.so is not a symlink unable to procede!!!"
+    message "Please recast X and whatever GL driver you use."
+    exit 1
+  fi
+}
+
+function gl_help() {
+  message "gl_select -$GL_SELECT_VERSION
+Copyright (C) 2006 Source Mage
+This is free software.  You may redistribute copies of it under the terms of
+the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+There is NO WARRANTY, to the extent permitted by law.
+"
+  gl_usage
+  exit 0
+}
+
+function gl_usage() {
+  message "USAGE: gl_select OPTIONS
+
+OPTIONS:
+  --list, -l               List available GL Libraries on the system.
+  --select, -s <PARAM>       Select a GL Library that's available.
+  --help, -h               Print the help message."
+  exit 0
+}
+
+while  [[  -n  "$1"  ]];  do
+  if  echo  "" $1  |  grep  -q  "^ -";  then
+    case  $1  in
+      --list|-l)gl_list ;;
+      --help|-h)gl_help ;;
+    --select|-s)gl_pick $2 ; shift 2 ;;
+              *)gl_usage ;;
+    esac
+  else
+    shift
+  fi
+done
+
