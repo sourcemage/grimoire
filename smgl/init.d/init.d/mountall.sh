@@ -68,8 +68,8 @@ start()
   if optional_executable /sbin/dmsetup
   then 
     echo "(re)creating device mapper nodes"
+    # won't check retval because kernel just may lack device mapper
     /sbin/dmsetup mknodes
-    evaluate_retval
   fi
 
   if optional_executable /sbin/vgscan && optional_executable /sbin/vgchange ; then
