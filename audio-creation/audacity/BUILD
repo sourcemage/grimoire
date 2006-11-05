@@ -1,6 +1,14 @@
+if [ "$REL" == "beta" ]; then
+   OPTS="$SOUNDTOUCH $OPTS"
+fi &&
+
+OPTS="$LADSPA $PORTMIXER $PORTAUDIO $OPTS" &&
+
 ./configure  --prefix=/usr         \
              --sysconfdir=/etc     \
              --localstatedir=/var  \
-             --without-id3         \
              $OPTS                 &&
-make
+
+make_single &&
+make &&
+make_normal
