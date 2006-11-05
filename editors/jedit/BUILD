@@ -9,10 +9,13 @@ then ant docs-html
 fi &&
 if [[ "${JEDIT_DOCS_JAVA}" == "y" ]]
 then ant docs-javadoc
-fi &&
-if [[ "${JEDIT_DOCS_PDF_A4}" == "y" ]]
-then ant docs-pdf-a4
 fi
+
+# pdf docs build seems broken...
+
+#if [[ "${JEDIT_DOCS_PDF_A4}" == "y" ]]
+#then ant docs-pdf-a4
+#fi
 ##
 #
 # US-letter breaks
