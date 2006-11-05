@@ -313,8 +313,8 @@ fi  &&
 # End setting up OPTS
 
 # Launch automake tools to get the patchs options integrated
-aclocal &&
-automake &&
+aclocal-1.9 &&
+automake-1.9 &&
 autoconf &&
 
 ./configure  --build=$BUILD             \
