@@ -8,12 +8,35 @@ echo  -e  "\ngnu\nregular\nshared\ny\n\n\n\n\n\n\n\n\n\n\n\n\n\n"  |
 # of cflags, the entries in Makefile.config.in are all
 # commented out!
 sedit  "s/^\(CFLAGS =\)/\1 ${CFLAGS} /" Makefile.config &&
+if list_find "$OPTS" no-x11
+then
+  message "disabling X11 stuff" &&
+  sedit 's/^\(X11LIB =\).*$/\1 NONE/' \
+  Makefile.config &&
+  sedit 's/^\(X11HDR_DIR =\).*$/\1/' \
+  Makefile.config
+fi &&
+if list_find "$OPTS" no-svga
+then
+  message "disabling svgalib stuff" &&
+  sedit 's/^\(LINUXSVGALIB =\).*$/\1 NONE/' \
+  Makefile.config &&
+  sedit 's/^\(LINUXSVGAHDR_DIR =\).*$/\1/' \
+  Makefile.config
+fi &&
 make_single                        &&
-if [[ "$(get_spell_provider $SPELL  X11-LIBS)" != "xorg-server" ]]; then
-  make X11LIB=/usr/X11R6/lib/libX11.so
+
+if list_find "$OPTS" yes-x11
+then
+  if [[ "$(get_spell_provider $SPELL  X11-LIBS)" != "xorg-server" ]]; then
+    make X11LIB=/usr/X11R6/lib/libX11.so
+  else
+    make X11LIB=/usr/lib/libX11.so
+  fi
 else
-  make X11LIB=/usr/lib/libX11.so
-fi                                 &&
+  make
+fi &&
+
 if [ -e /tmp/netpbm ]; then
    rm -rf /tmp/netpbm              
 fi                                 &&
