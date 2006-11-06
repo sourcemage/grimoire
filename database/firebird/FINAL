@@ -2,7 +2,7 @@ if [ $FB_CLIENT == n ]; then
 
 # we do this here, so that things are not tracked, as these files are 
 # constantly modified in normal use
-local FF FileName DB                          &&
+local FF FileName DB LCK                        &&
 
 cd $FB_PREFIX                                   &&
   chown -R root:root $FB_PREFIX                 &&
@@ -29,13 +29,16 @@ cd $FB_PREFIX                                   &&
 #    done                                        &&
 
 # create lock files
+  LCK=$INSTALL_ROOT/var/lock/firebird            &&
+  mkdir -p $LCK                                  &&
   for FF in isc_init1 isc_lock1 isc_event1 isc_guard1
     do
-      FileName=$FF.`hostname`
-      touch $FileName
-      chown firebird:firebird $FileName
-      chmod u+w $FileName
-    done					&&
+      FileName=$FF.`hostname`                    &&
+      touch $LCK/$FileName                       &&
+      chown firebird:firebird $LCK/$FileName     &&
+      chmod u+w $LCK/$FileName                   &&
+      ln -sf $TRACK_ROOT/var/lock/firebird/$FileName ./
+    done					 &&
 
 # log file
   mkdir -p $INSTALL_ROOT/var/log/				&&

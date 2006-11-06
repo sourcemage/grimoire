@@ -21,5 +21,18 @@ if [ $FB_CLIENT == n ]; then
   ./install/makeInstallImage.sh
 else
   cd gen                                        &&
-  make -f Makefile.libfbclient
+  make includes                                 &&
+  make -f Makefile.boot.gpre                    &&
+  make -f Makefile.libfbclient                  &&
+  make -f Makefile.client.isql                  &&
+  cd firebird                                   &&
+  FBDEST=../buildroot${FB_PREFIX}/bin              &&
+  mkdir -p $FBDEST                              &&
+  cp -a bin/isql $FBDEST                        &&
+  FBDEST=../buildroot${INSTALL_ROOT}/usr/lib       &&
+  mkdir -p $FBDEST                              &&
+  cp -a lib/* $FBDEST                           &&
+  FBDEST=../buildroot${INSTALL_ROOT}/usr/include   &&
+  mkdir -p $FBDEST                              &&
+  cp -a include/* $FBDEST
 fi
