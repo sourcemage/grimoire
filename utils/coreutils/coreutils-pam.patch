@@ -25,9 +25,9 @@
 +
 +#endif
 +
-    Options:
-    -, -l, --login	Make the subshell a login shell.
- 			Unset all environment variables except
+    Compile-time options:
+    -DSYSLOG_SUCCESS	Log successful su's (by default, to root) with syslog.
+    -DSYSLOG_FAILURE	Log failed su's (by default, to root) with syslog.
 @@ -81,6 +91,15 @@
     prototype (returning `int') in <unistd.h>.  */
  #define getusershell _getusershell_sys_proto_
@@ -51,9 +51,9 @@
 +#ifndef USE_PAM
  char *crypt ();
 +#endif
- char *getpass ();
  char *getusershell ();
  void endusershell ();
+ void setusershell ();
 @@ -158,8 +179,13 @@
  
  extern char **environ;
@@ -259,7 +259,7 @@
 +      if(chdir(pw->pw_dir))
 +	      error(0, errno, _("warning: cannot change directory to %s"), pw->pw_dir);
 +
-       shell_basename = base_name (shell);
+       shell_basename = last_component (shell);
        arg0 = xmalloc (strlen (shell_basename) + 2);
        arg0[0] = '-';
 @@ -383,6 +531,66 @@
@@ -342,61 +342,11 @@
 -  run_shell (shell, command, argv + optind, MAX (0, argc - optind));
 +  run_shell (shell, command, argv + optind, MAX (0, argc - optind), pw);
  }
---- coreutils-5.92/doc/coreutils.texi.pam	2005-10-16 08:26:21.000000000 +0100
-+++ coreutils-5.92/doc/coreutils.texi	2005-10-24 17:58:21.000000000 +0100
-@@ -12746,8 +12746,11 @@
- @findex syslog
- @command{su} can optionally be compiled to use @code{syslog} to report
- failed, and optionally successful, @command{su} attempts.  (If the system
--supports @code{syslog}.)  However, GNU @command{su} does not check if the
--user is a member of the @code{wheel} group; see below.
-+supports @code{syslog}.)
-+
-+This version of @command{su} has support for using PAM for
-+authentication.  You can edit @file{/etc/pam.d/su} to customize its
-+behaviour.
- 
- The program accepts the following options.  Also see @ref{Common options}.
- 
-@@ -12828,33 +12831,6 @@
- the exit status of the subshell otherwise
- @end display
- 
--@cindex wheel group, not supported
--@cindex group wheel, not supported
--@cindex fascism
--@subsection Why GNU @command{su} does not support the @samp{wheel} group
--
--(This section is by Richard Stallman.)
--
--@cindex Twenex
--@cindex MIT AI lab
--Sometimes a few of the users try to hold total power over all the
--rest.  For example, in 1984, a few users at the MIT AI lab decided to
--seize power by changing the operator password on the Twenex system and
--keeping it secret from everyone else.  (I was able to thwart this coup
--and give power back to the users by patching the kernel, but I
--wouldn't know how to do that in Unix.)
--
--However, occasionally the rulers do tell someone.  Under the usual
--@command{su} mechanism, once someone learns the root password who
--sympathizes with the ordinary users, he or she can tell the rest.  The
--``wheel group'' feature would make this impossible, and thus cement the
--power of the rulers.
--
--I'm on the side of the masses, not that of the rulers.  If you are
--used to supporting the bosses and sysadmins in whatever they do, you
--might find this idea strange at first.
--
--
- @node Process control
- @chapter Process control
- 
 --- coreutils-5.92/configure.ac.pam	2005-10-24 17:58:21.000000000 +0100
 +++ coreutils-5.92/configure.ac	2005-10-24 17:58:21.000000000 +0100
 @@ -28,6 +28,13 @@
  AB_INIT()
- AM_INIT_AUTOMAKE([1.8.3 gnits dist-bzip2])
+ AM_INIT_AUTOMAKE([1.9.6 gnits dist-bzip2])
  
 +dnl Give the chance to enable PAM
 +AC_ARG_ENABLE(pam, dnl
@@ -405,11 +355,11 @@
 +LIB_PAM="-ldl -lpam -lpam_misc"
 +AC_SUBST(LIB_PAM)])
 +
- gl_DEFAULT_POSIX2_VERSION
- gl_USE_SYSTEM_EXTENSIONS
- gl_PERL
---- coreutils-5.92/config.hin.pam	2005-10-24 17:58:21.000000000 +0100
-+++ coreutils-5.92/config.hin	2005-10-24 17:58:21.000000000 +0100
+ AC_PROG_CC_STDC
+ AM_PROG_CC_C_O
+ AC_PROG_CPP
+--- coreutils-5.92/lib/config.hin.pam	2005-10-24 17:58:21.000000000 +0100
++++ coreutils-5.92/lib/config.hin	2005-10-24 17:58:21.000000000 +0100
 @@ -1526,6 +1526,9 @@
  /* Define if you want access control list support. */
  #undef USE_ACL
