@@ -9,7 +9,12 @@ else
   done
 fi                                                &&
 OPTS="$OPTS $BLIST"                               && 
+if spell_ok python; then
+  PY_VER="`installed_version python|cut -c-3`"    &&
+  persistent_add PY_VER
+fi &&
 CXXFLAGS="$CXXFLAGS"                              \
+PYTHON_VERSION="$PY_VER"                          \
 bjam --prefix=${INSTALL_ROOT}/usr                 \
      -sTOOLS=gcc                                  \
      "-sBUILD=${BOOST_VARIANT## }"                \
