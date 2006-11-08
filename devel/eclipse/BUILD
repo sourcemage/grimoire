@@ -35,9 +35,11 @@ fi  &&
 # TODO define arch and windowing system
 # possible values are in ./build
 ws=gtk                                                               &&
-if uname -m | grep -q 'i.\+86'; then
-  arch=x86
-fi                                                                   &&
+case "${SMGL_COMPAT_ARCH[2]}" in
+  ia32) arch=x86 ;;
+  x86_64) arch=x86_64 ;;
+  ppc) arch=ppc ;;
+esac &&
 persistent_add ws                                                    &&
 persistent_add arch                                                  &&
 ./build -os linux -ws "$ws" -arch "$arch"                            &&
