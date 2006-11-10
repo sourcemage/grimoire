@@ -1,16 +1,9 @@
-function  make_menuconfig()  {
-  if  [  -r  $CONFIG_CACHE/kconfig-${XEN_KVER}-$1  ];  then
-    cp  $CONFIG_CACHE/kconfig-${XEN_KVER}-$1  linux-${XEN_KVER}-$1/.config
-  fi  &&
-  make  -C  linux-${XEN_KVER}-$1/  menuconfig  ARCH=xen  &&
-  cp  linux-${XEN_KVER}-$1/.config  $CONFIG_CACHE/kconfig-${XEN_KVER}-$1 
-}
-
-
 default_pre_build                                 &&
 cd  $SOURCE_DIRECTORY                             &&
 patch  -p0  <  $SCRIPT_DIRECTORY/patch.makefile   &&
 patch  -p0  <  $SCRIPT_DIRECTORY/patch.mklinux    &&
+sedit "s_LINUX\_SRC\_PATH\t?=\ \.:\.\._LINUX\_SRC\_PATH\t?=\ ${SOURCE_CACHE}_g"\
+    ${SOURCE_DIRECTORY}/buildconfigs/Rules.mk
  
 if  [  -r  $SOURCE_CACHE/linux-${XEN_KVER}.tar.bz2  ];  then
   cp  $SOURCE_CACHE/linux-${XEN_KVER}.tar.bz2  .
@@ -18,5 +11,12 @@ fi  &&
 
 make  patchkrn  &&
   
-if  [  $XEN0  =  "y"  ];  then  make_menuconfig  xen0;  fi  &&
-if  [  $XENU  =  "y"  ];  then  make_menuconfig  xenU;  fi
+if [[ "${XEN_CONFIG}" == "y" ]] ; then
+
+  if  [  -r  $CONFIG_CACHE/kconfig-${XEN_KVER}-xen ];  then
+    cp  $CONFIG_CACHE/kconfig-${XEN_KVER}-xen linux-${XEN_KVER}-xen/.config
+  fi  &&
+  make linux-2.6-xen-config CONFIGMODE=menuconfig &&
+  cp  linux-${XEN_KVER}-xen/.config  $CONFIG_CACHE/kconfig-${XEN_KVER}-xen
+
+fi
