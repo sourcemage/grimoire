@@ -7,6 +7,7 @@
   echo "with-python-libraries=/usr/lib/python${PY_VER}/config" >> settings &&
   echo $OPTS >> settings                                &&
   echo $RK_XBASE >> settings                            &&
-  KDEDIR=/usr make config                               &&
-  make
+  mv settings settings.${RK_GUI}                        &&
+  make config.${RK_GUI}                                 &&
+  make ${RK_GUI}
 
