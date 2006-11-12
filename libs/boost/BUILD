@@ -1,21 +1,22 @@
 local BLIST=""                                    &&
+local BL                                          &&
 if list_find "${BOOST_LIBS}" "all" ; then
   BLIST=""
 else
   local SEP=" --with-"                            &&
-  for BL in $BOOST_LIBS;do
+  for BL in $BOOST_LIBS $BOOST_OPTS1 ;do
     BL=${BL// /}                                  &&
     BLIST="${BLIST}${SEP}${BL}"
   done
 fi                                                &&
-OPTS="$OPTS $BLIST"                               && 
-if spell_ok python; then
-  PY_VER="`installed_version python|cut -c-3`"    &&
-  persistent_add PY_VER
-fi &&
+if ! list_find "$BOOST_LIBS" "python"  &&
+   ! list_find "$BOOST_OPTS1" "python" ; then
+   BLIST="$BLIST --without-python"
+fi
+OPTS="$OPTS $BLIST"                               &&
 CXXFLAGS="$CXXFLAGS"                              \
-PYTHON_VERSION="$PY_VER"                          \
-bjam --prefix=${INSTALL_ROOT}/usr                 \
+bjam -q                                           \
+     --prefix=${INSTALL_ROOT}/usr                 \
      -sTOOLS=gcc                                  \
      "-sBUILD=${BOOST_VARIANT## }"                \
      --layout=system                              \
