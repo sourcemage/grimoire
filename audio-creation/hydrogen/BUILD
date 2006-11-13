@@ -1,2 +1,5 @@
-sed -i "/update-menus/D" Makefile.in	&&
+OPTS="$HYDROGEN_OSS $OPTS"  &&
+if [[ -f /etc/profile.d/qt.sh ]]; then
+  . /etc/profile.d/qt.sh
+fi &&
 default_build
