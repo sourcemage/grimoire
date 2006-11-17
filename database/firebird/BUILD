@@ -25,6 +25,8 @@ else
   make -f Makefile.boot.gpre                    &&
   make -f Makefile.libfbclient                  &&
   make -f Makefile.client.isql                  &&
+# probably need to build gbak and then restore messages and help fdb
+#  make -f Makefile.client.gbak                  &&
   cd firebird                                   &&
   FBDEST=../buildroot${FB_PREFIX}/bin              &&
   mkdir -p $FBDEST                              &&
