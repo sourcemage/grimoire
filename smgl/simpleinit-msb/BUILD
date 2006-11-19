@@ -1,3 +1,5 @@
 ./configure  &&
-#  sedit  's/CFLAGS.*:=/CFLAGS := -DDEBUG_GETPATH=1 /'  mconfig  &&
+if [[ $SIMPLEINIT_NLS == y ]]; then
+sedit 'd/#define HAVE_locale_h/' defines.h
+fi
 make  OPT="$CFLAGS"
