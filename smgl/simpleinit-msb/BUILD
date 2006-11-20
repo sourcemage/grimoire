@@ -1,3 +1,3 @@
 ./configure  &&
-#  sedit  's/CFLAGS.*:=/CFLAGS := -DDEBUG_GETPATH=1 /'  mconfig  &&
+sedit 'd/#define HAVE_locale_h/' defines.h
 make  OPT="$CFLAGS"

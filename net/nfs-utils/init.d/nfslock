@@ -2,20 +2,44 @@
 
 PROGRAM=/bin/false
 RUNLEVEL=3
-NEEDS="+remote_fs +network +portmap nfs"
+NEEDS="+remote_fs +network +portmap"
 
 . /etc/init.d/smgl_init
+
+# may be outsourced
+get_kernel_pids()
+{
+  local rval=1
+  for pid in $(pidof $1)
+  do
+    if [[ -z $(</proc/$pid/cmdline) ]]; then
+      builtin echo $pid
+      rval=0
+    fi
+  done
+  return $rval
+}
 
 start()
 {
   required_executable /usr/sbin/rpc.statd
   
-  echo   "Starting NFS file locking services, rpc.statd"
+  echo "Starting NFS file locking services (for client)"
   loadproc /usr/sbin/rpc.statd
+  # rpc.lockd is automatic for linux >= 2.2.18
 }
 
 stop()
 {
   echo "Stopping NFS file locking services"
   killproc /usr/sbin/rpc.statd
+}
+
+status()
+{
+  statusproc /usr/sbin/rpc.statd
+  # kernel lockd shows itself only when actually at work
+  echo -n "kernel lockd "
+  kpid=$(get_kernel_pids lockd)
+  [[ -n $kpid ]] && echo "is active (PID $kpid)" || echo "is not active (but hopefully ready)" 
 }

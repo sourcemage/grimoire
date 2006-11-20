@@ -14,32 +14,74 @@ if [ ! -e /etc/exports ] ; then
   exit 1
 fi
 
+# may be outsourced
+get_kernel_pids()
+{
+  local rval=1
+  for pid in $(pidof $1)
+  do
+    if [[ -z $(</proc/$pid/cmdline) ]]; then
+      builtin echo $pid
+      rval=0
+    fi
+  done
+  return $rval
+}
+
 start()
 {
+  echo "Starting full NFS services (server & locking)"
+  # why do we reexport before the daemons are up?
+  # doesn't seem to matter much
   required_executable /usr/sbin/exportfs
-  required_executable /usr/sbin/rpc.rquotad
-  required_executable /usr/sbin/rpc.mountd
-  required_executable /usr/sbin/rpc.nfsd
-  required_executable /usr/sbin/rpc.statd
-
-  echo "Starting NFS services"
+  echo -n "exportfs"
   /usr/sbin/exportfs -r 
   evaluate_retval
 
-  loadproc /usr/sbin/rpc.rquotad
-  loadproc /usr/sbin/rpc.mountd  $MOUNTDOPTS
-  loadproc /usr/sbin/rpc.nfsd    $NUMSERVERS
-  loadproc /usr/sbin/rpc.statd
+  # nfs-howto says: these daemons in this order
+  # userspace does not bother about lockd since linux 2.2.18
+  for d in mountd nfsd statd rquotad
+  do
+    required_executable /usr/sbin/rpc.$d
+    local opts=
+    if [[ $d == mountd ]]; then opts="$MOUNTDOPTS"
+    elif [[ $d == nfsd ]]; then opts="$NUMSERVERS"
+    fi
+    echo -n $d
+    loadproc /usr/sbin/rpc.$d $opts
+  done
 }
 
 stop()
 {
   echo "Stopping NFS services"
+  echo -n "unexporting filesystems"
   /usr/sbin/exportfs -au
   evaluate_retval
-    
-  killproc /usr/sbin/rpc.rquotad
-  killproc /usr/sbin/rpc.mountd
-  killproc /usr/sbin/rpc.nfsd
-  killproc /usr/sbin/rpc.statd 
+  
+  # all in one loop to simplify code, reversed order
+  # atm. only nfsd is really in-kernel (and lockd self-managed)
+  for d in rquotad statd nfsd mountd
+  do
+    local kpid=$(get_kernel_pids $d)
+    if [[ -z $kpid ]]; then
+      echo -n "killing $d"
+      killproc /usr/sbin/rpc.$d
+    else
+      echo "not killing kernel $d (PID $kpid)"
+    fi
+  done
+}
+
+status()
+{
+  for d in mountd nfsd statd rquotad
+  do
+    local kpid=$(get_kernel_pids $d)
+    [[ -n $kpid ]] && echo "kernel $d there with PIDs $kpid" ||
+    statusproc /usr/sbin/rpc.$d
+  done
+  echo -n "kernel lockd "
+  kpid=$(get_kernel_pids lockd)
+  [[ -n $kpid ]] && echo "is active (PID $kpid)" || echo "is not active (but hopefully ready)" 
 }

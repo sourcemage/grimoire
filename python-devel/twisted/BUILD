@@ -1,6 +1,27 @@
-cd $SOURCE_DIRECTORY/TwistedCore-2.4.0 &&
-chmod +x setup.py &&
-./setup.py build
+cd $SOURCE_DIRECTORY/TwistedConch-0.7.0  &&
+python setup.py build &&
 
-cd $SOURCE_DIRECTORY &&
-./setup.py build
+cd $SOURCE_DIRECTORY/TwistedLore-0.2.0  &&
+python setup.py build &&
+
+cd $SOURCE_DIRECTORY/TwistedMail-0.3.0  &&
+python setup.py build &&
+
+cd $SOURCE_DIRECTORY/TwistedMail-0.3.0  &&
+python setup.py build &&
+
+cd $SOURCE_DIRECTORY/TwistedNames-0.3.0  &&
+python setup.py build &&
+
+cd $SOURCE_DIRECTORY/TwistedNews-0.2.0  &&
+python setup.py build &&
+
+cd $SOURCE_DIRECTORY/TwistedRunner-0.2.0  &&
+python setup.py build &&
+
+cd $SOURCE_DIRECTORY/TwistedWeb-0.6.0  &&
+python setup.py build &&
+
+cd $SOURCE_DIRECTORY/TwistedWords-0.4.0  &&
+python setup.py build
+
