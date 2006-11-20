@@ -1,3 +1,2 @@
-sedit  's:netbsd-syscalls.c::'  Makefile.in  &&
-
+LDFLAGS="${LDFLAGS/-s}"
 default_build
