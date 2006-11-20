@@ -1,3 +1,4 @@
+  local LL                                      &&
   persistent_add FB_PREFIX                      &&
   FB_PREFIX=${INSTALL_ROOT}/usr/firebird        &&
   OPTS="${OPTS} ${FB_SS}"                       &&
@@ -8,13 +9,19 @@
   if spell_ok libedit; then
     LDFLAGS="$LDFLAGS -ledit"
   fi                                            &&
+# prepare optional language support
+  for LL in $FB_GPRE; do
+    if [ $LL != none ]; then
+      OPTS="${OPTS} --with-gpre-${LL}"
+    fi
+  done                                          &&
+  OPTS="${OPTS} ${FB_STAT}"                     &&
   LDFLAGS="$LDFLAGS -lpthread"                  &&
 
   ./configure 				\
 	--prefix=$FB_PREFIX 		\
 	$OPTS					&&
 if [ $FB_CLIENT == n ]; then
-
   make                                          &&
 # prepare an install image
   cd gen                                        &&
