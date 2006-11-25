@@ -1,3 +1,6 @@
+if [[ "x${ERUBY_UTF8}" == "xy" ]]; then
+  OPTS="$OPTS --with-charset=UTF-8"
+fi &&
 
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
