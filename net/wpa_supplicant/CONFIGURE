@@ -1,22 +1,94 @@
-config_query CONFIG_WIRELESS_EXTENSION "wireless extensions?" y
-config_query CONFIG_DRIVER_WEXT "generic wireless extensions support?" y
+# Notice: CONFIG_WIRELESS_EXTENSION and CONFIG_IEEE8021X_EAPOL are
+# automatically enabled in Makefile if relevant options are chosen,
+# prompting about them is unnecessary.
 
-echo now choose hardare drivers
-config_query CONFIG_DRIVER_HOSTAP "Host AP support?" n
-config_query CONFIG_DRIVER_MADWIFI "madwifi support?" n
-config_query CONFIG_DRIVER_HERMES "Agere support?" n
-config_query CONFIG_DRIVER_PRISM54 "Prism54 support?" n
-config_query CONFIG_DRIVER_NDISWRAPPER "ndiswrapper support?" n
-config_query CONFIG_DRIVER_ATMEL "Atmel support?" n
-config_query CONFIG_DRIVER_BROADCOM "Broadcom support?" n
-config_query CONFIG_DRIVER_IPW "Intel ipw2100/ipw2200 support?" n
+config_query  CONFIG_NO_WPA  "Build without WPA support?"  n  &&
 
-echo now choose control interfaces
-config_query CONFIG_CTRL_IFACE "internal supplicant?" y
-config_query CONFIG_XSUPPLICANT_IFACE "external supplicant?" n
+if [[ $WPA_RELEASE != devel ]]
+then
+  config_query  CONFIG_CTRL_IFACE                                          \
+                "Build external control interface?"                        \
+                y                                                          &&
+  config_query  CONFIG_DNET_PCAP                                           \
+                "Use libpcap/libdnet instead of native Linux packet socket \
+interface?"                                                                \
+                n
+else
+  config_query  CONFIG_NO_WPA2  "Build without WPA2 support?"  n        &&
+  config_query_list  CONFIG_CTRL_IFACE                                  \
+                     "Select control interface to build (n is none):"   \
+                     unix                                               \
+                     udp                                                \
+                     n                                                  &&
+  config_query_list  CONFIG_L2_PACKET                                   \
+                     "Select layer2 packet processing implementation:"  \
+                     linux                                              \
+                     pcap
+fi  &&
 
-config_query WAP_EAP "WAP-Enterprise support" n
-if [ "$WAP_EAP" == "y" ];then
-  config_query CONFIG_EAP_TTLS "EAP-TTLS support?" n
-  config_query CONFIG_EAP_PEAP "EAP-PEAP support?" n
+config_query  CONFIG_NO_STDOUT_DEBUG  "Remove debugging code?"  n  &&
+
+message "${MESSAGE_COLOR}Hardware driver options:${DEFAULT_COLOR}"  &&
+
+#
+## Commented-out options require external sources to work, WIP.
+#
+config_query  CONFIG_DRIVER_HOSTAP  "Host AP (Prism2/2.5/3) support?"  y     &&
+#config_query  CONFIG_DRIVER_HERMES  "Agere support?"  n                      &&
+#config_query  CONFIG_DRIVER_MADWIFI  "MADWIFI support?"  n                   &&
+config_query  CONFIG_DRIVER_ATMEL  "Atmel AT76C5XXx support?"  y             &&
+config_query  CONFIG_DRIVER_WEXT  "Generic Wireless Extensions support?"  y  &&
+config_query  CONFIG_DRIVER_NDISWRAPPER  "NdisWrapper support?"  n           &&
+#config_query  CONFIG_DRIVER_BROADCOM  "Broadcom IEEE 802.11a/g support?"  n  &&
+config_query  CONFIG_DRIVER_IPW  "Intel IPW2100/IPW2200 support?"  n         &&
+config_query  CONFIG_DRIVER_WIRED  "Wired Ethernet support?"  y              &&
+
+message "${MESSAGE_COLOR}Authentication method options:${DEFAULT_COLOR}"  &&
+
+config_query  CONFIG_EAP_MD5  "EAP-MD5-Challenge support?"  y  &&
+config_query  CONFIG_EAP_MSCHAPV2  "EAP-MSCHAPv2 support?"  y  &&
+config_query  CONFIG_EAP_TLS  "EAP-TLS support?"  y            &&
+config_query  CONFIG_EAP_PEAP  "EAP-PEAP support?"  y          &&
+config_query  CONFIG_EAP_TTLS  "EAP-TTLS support?"  y          &&
+config_query  CONFIG_EAP_GTC  "EAP-GTC support?"  y            &&
+config_query  CONFIG_EAP_OTP  "EAP-OTC support?"  y            &&
+config_query  CONFIG_EAP_SIM  "EAP-SIM (GSM) support?"  n      &&
+config_query  CONFIG_EAP_AKA  "EAP-AKA (UMTS) support?"  n     &&
+config_query  CONFIG_EAP_PSK  "EAP-PSK support?"  n            &&
+config_query  CONFIG_EAP_PAX  "EAP-PAX support?"  n            &&
+config_query  CONFIG_EAP_LEAP  "LEAP support?"  y              &&
+
+if [[ $WPA_RELEASE == devel ]]
+then
+  config_query  CONFIG_EAP_SAKE  "EAP-SAKE support?"  n  &&
+  config_query  CONFIG_EAP_GPSK  "EAP-GPSK support?"  n  &&
+
+  if [[ $CONFIG_EAP_GPSK == y ]]
+  then
+    config_query  CONFIG_EAP_GPSK_SHA256                     \
+                  "Build SHA256 cipher suite for EAP-GPSK?"  \
+                  n
+  fi
+fi  &&
+
+if [[ $CONFIG_EAP_TLS  == y ||
+      $CONFIG_EAP_PEAP == y ||
+      $CONFIG_EAP_TTLS == y ]]
+then
+  message "${MESSAGE_COLOR}Crypto options:${DEFAULT_COLOR}"  &&
+
+  if [[ $WPA_RELEASE != devel ]]
+  then
+    CONFIG_TLS=openssl          &&
+    persistent_add  CONFIG_TLS
+  else
+    config_query_list  CONFIG_TLS                    \
+                       "Select TLS library to use:"  \
+                       openssl                       \
+                       gnutls                        \
+                       internal
+  fi  &&
+
+  config_query  CONFIG_PKCS12  "Enable PKCS#12 certificate support?"  y  &&
+  config_query  CONFIG_SMARTCARD  "Enable smartcard support?"  y
 fi

@@ -1,0 +1,56 @@
+#!/bin/bash
+
+. /etc/sysconfig/wpa_supplicant
+
+PROGRAM=/usr/sbin/wpa_supplicant
+RUNLEVEL=3
+NEEDS="+network"
+
+CLI=/usr/sbin/wpa_cli
+DROPFILE=/var/tmp/wpa_supplicant.drop
+
+. /etc/init.d/smgl_init
+
+start()
+{
+  required_executable /usr/sbin/iwconfig
+
+  if /usr/sbin/iwconfig 2>&1 | grep -q "^$INTERFACE "; then
+    if [[ $(/usr/sbin/iwconfig 2>/dev/null | grep "$INTERFACE *unassociated") ]]
+    then
+      echo Starting control interface...
+      $PROGRAM -B -i $INTERFACE -D $DRIVER -c $CONFIG -g $CONTROL
+      evaluate_retval
+      /bin/echo "INTERFACE=\"$INTERFACE\"" 2>/dev/null > $DROPFILE
+    elif [[ $(/usr/sbin/iwconfig 2>/dev/null | grep "$INTERFACE *radio off") ]]
+    then
+      echo $INTERFACE: radio off
+      (exit 1)
+      evaluate_retval
+    else
+      echo $INTERFACE: already connected
+      (exit 1)
+      evaluate_retval
+    fi
+  else
+    echo $INTERFACE: not found
+    (exit 1)
+    evaluate_retval
+  fi
+}
+
+stop()
+{
+  required_executable $CLI
+
+  [[ -f $DROPFILE ]] && . $DROPFILE && rm $DROPFILE
+  echo Stopping control interface...
+  $CLI -i $INTERFACE terminate 1>/dev/null
+  evaluate_retval
+}
+
+status()
+{
+  required_executable $CLI
+  $CLI status
+}
