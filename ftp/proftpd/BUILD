@@ -1,11 +1,11 @@
-if [[ $PROFTPD_DEVEL == "n" ]]; then
-  if [[ -z $PROFTPD_CAPS ]]; then
-      CFLAGS=${CFLAGS/-fPIC}                                          &&
-      CFLAGS=${CFLAGS/-DPIC}                                          &&
-      CXXFLAGS=${CXXFLAGS/-fPIC}                                      &&
-      CXXFLAGS=${CXXFLAGS/-DPIC}                
-  fi
-fi                                                                    &&
+#if [[ $PROFTPD_DEVEL == "n" ]]; then
+if [[ -z $PROFTPD_CAPS ]]; then
+  CFLAGS=${CFLAGS/-fPIC}                                          &&
+  CFLAGS=${CFLAGS/-DPIC}                                          &&
+  CXXFLAGS=${CXXFLAGS/-fPIC}                                      &&
+  CXXFLAGS=${CXXFLAGS/-DPIC}                
+fi
+#fi                                                                    &&
 
 sedit  "s/	standalone/	inetd/"  sample-configurations/basic.conf     &&
 
