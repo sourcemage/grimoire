@@ -6,6 +6,7 @@ OPTS="$OPTS --build=$ARK $MATHCORE $MATHMORE $REFLEX $CINTEX $ROOFIT" &&
             --libdir=${TRACK_ROOT}/usr/lib/root                        \
             --incdir=${TRACK_ROOT}/usr/include/root                    \
             --datadir=${TRACK_ROOT}/usr/share/root                     \
+            --docdir=${TRACK_ROOT}/usr/share/doc/${SPELL}              \
             --mandir=${TRACK_ROOT}/usr/share/man/man1                  \
             $OPTS                                                     &&
 
