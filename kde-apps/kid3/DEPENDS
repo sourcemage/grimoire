@@ -1,2 +1,56 @@
-depends  kdelibs  &&
-depends  id3lib
+depends  g++     &&
+
+# This is optional really, but because compile fails if at least one out
+# of id3lib, taglib, and libvorbis isn't selected, we'll force this in.
+depends  id3lib  &&
+
+if [[ $KID3_KDE == "--with-kde" ]]
+then
+  .  "$SECTION_DIRECTORY/KDE_DEPENDS"
+else
+  .  "$GRIMOIRE/FUNCTIONS"  &&
+  depends  X11-LIBS  &&
+  depends  qt-x11    &&
+  depends  libpng    &&
+  if check_if_xorg_modular_libs
+  then
+    depends  libxext  &&
+    depends  libx11   &&
+    depends  libsm    &&
+    depends  libice
+  fi
+fi  &&
+
+optional_depends  taglib              \
+                  "--with-taglib"     \
+                  "--without-taglib"  \
+                  "to use TagLib"     &&
+
+message  "${MESSAGE_COLOR}libvorbis is required for FLAC and"  \
+         "MusicBrainz support.${DEFAULT_COLOR}"                &&
+
+optional_depends  libvorbis                \
+                  "--with-vorbis"          \
+                  "--without-vorbis        \
+                   --without-flac          \
+                   --without-musicbrainz"  \
+                  "to use Ogg Vorbis"      &&
+
+# Please check if this limitation (upstream bug) still applies after 
+# version bumps (this hack applied for 0.8.1)
+.  "$GRIMOIRE/is_depends_enabled.function"  &&
+if is_depends_enabled $SPELL libvorbis
+then
+  depends  libogg                            &&
+  optional_depends  flac                     \
+                    "--with-flac"            \
+                    "--without-flac"         \
+                    "to use FLAC"            &&
+  optional_depends  libtunepimp              \
+                    "--with-musicbrainz"     \
+                    "--without-musicbrainz"  \
+                    "to use MusicBrainz"
+else
+  message "${MESSAGE_COLOR}libvorbis was not selected, will not query"  \
+          "about FLAC and MusicBrains support.${DEFAULT_COLOR}"
+fi
