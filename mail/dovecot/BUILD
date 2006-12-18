@@ -11,7 +11,7 @@ fi &&
 default_build &&
 
 if [[ "$DOVECOT_EXT_LDA" == 'y' ]]; then
-  pushd dovecot-lda-* &&
+  pushd dovecot-sieve-* &&
   ./configure \
     --prefix=$INSTALL_ROOT/usr \
     --sysconfdir=$INSTALL_ROOT/etc \
