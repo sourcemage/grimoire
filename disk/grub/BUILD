@@ -313,15 +313,14 @@ fi  &&
 # End setting up OPTS
 
 # Launch automake tools to get the patchs options integrated
-aclocal-1.9 &&
-automake-1.9 &&
-autoconf &&
+aclocal   &&
+automake  &&
+autoconf  &&
 
-./configure  --build=$BUILD             \
-             --prefix=/usr              \
-             --sbindir=/sbin            \
-             --mandir=/usr/share/man    \
-             --infodir=/usr/share/info  \
-           $OPTS                        &&
-invoke_gcc                              &&
+./configure  --build=$BUILD                            \
+             --prefix=${INSTALL_ROOT}/usr              \
+             --sbindir=${INSTALL_ROOT}/sbin            \
+             --mandir=${INSTALL_ROOT}/usr/share/man    \
+             --infodir=${INSTALL_ROOT}/usr/share/info  \
+           $OPTS                                       &&
 make

@@ -1,20 +1,30 @@
 if  list_find "$MSQL_ENGINES" "ARCHIVE"  ;  then
   OPTS="--with-archive-storage-engine $OPTS"
+else
+  OPTS="--without-archive-storage-engine $OPTS"
 fi                                                       &&
 if  ! list_find "$MSQL_ENGINES" "BerkeleyDB"  ;  then
   OPTS="--without-berkeley-db $OPTS"
 fi                                                       &&
 if  list_find "$MSQL_ENGINES" "BLACKHOLE"  ;  then
   OPTS="--with-blackhole-storage-engine $OPTS"
+else
+  OPTS="--without-blackhole-storage-engine $OPTS"
 fi                                                       &&
 if  list_find "$MSQL_ENGINES" "CSV"  ;  then
   OPTS="--with-csv-storage-engine $OPTS"
+else
+  OPTS="--without-csv-storage-engine $OPTS"
 fi                                                       &&
 if  list_find "$MSQL_ENGINES" "EXAMPLE"  ;  then
   OPTS="--with-example-storage-engine $OPTS"
+else
+  OPTS="--without-example-storage-engine $OPTS"
 fi                                                       &&
 if  list_find "$MSQL_ENGINES" "FEDERATED"  ;  then
   OPTS="--with-federated-storage-engine $OPTS"
+else
+  OPTS="--without-federated-storage-engine $OPTS"
 fi                                                       &&
 if  list_find "$MSQL_ENGINES" "InnoDB"  ;  then
   OPTS="--with-innodb $OPTS"
@@ -23,6 +33,8 @@ else
 fi                                                       &&
 if  list_find "$MSQL_ENGINES" "ndbcluster"  ;  then
   OPTS="--with-ndbcluster $OPTS"
+else
+  OPTS="--without-ndbcluster $OPTS"
 fi                                                       &&
 
 OPTS="$MSQL_SERVER $MSQL_EMBED $OPTS"                    &&
@@ -38,7 +50,7 @@ if glibc_is_nptl; then
   export CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
 fi  &&
 OPTS="$OPTS --with-mysqld-user=mysql  --without-bench    \
-        --localstatedir=/var/lib/mysql                   \
+        --localstatedir=${INSTALL_ROOT}/var/lib/mysql    \
         --enable-assembler --enable-thread-safe-client"  &&
 default_build                                            &&
 
