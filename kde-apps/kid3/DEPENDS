@@ -1,17 +1,13 @@
-depends  g++     &&
-
-# This is optional really, but because compile fails if at least one out
-# of id3lib, taglib, and libvorbis isn't selected, we'll force this in.
-depends  id3lib  &&
+depends  g++  &&
 
 if [[ $KID3_KDE == "--with-kde" ]]
 then
   .  "$SECTION_DIRECTORY/KDE_DEPENDS"
 else
-  .  "$GRIMOIRE/FUNCTIONS"  &&
   depends  X11-LIBS  &&
   depends  qt-x11    &&
   depends  libpng    &&
+  .  "$GRIMOIRE/FUNCTIONS"  &&
   if check_if_xorg_modular_libs
   then
     depends  libxext  &&
@@ -21,10 +17,15 @@ else
   fi
 fi  &&
 
-optional_depends  taglib              \
-                  "--with-taglib"     \
-                  "--without-taglib"  \
-                  "to use TagLib"     &&
+# Taglib, id3lib, and libvorbis are optional but build fails if none
+# of them are selected. The author recommended taglib as the minimum
+# in a mail he sent me. -iuso
+depends  taglib  &&
+
+optional_depends  id3lib              \
+                  "--with-id3lib"     \
+                  "--without-id3lib"  \
+                  "to use id3lib"     &&
 
 message  "${MESSAGE_COLOR}libvorbis is required for FLAC and"  \
          "MusicBrainz support.${DEFAULT_COLOR}"                &&
@@ -36,8 +37,6 @@ optional_depends  libvorbis                \
                    --without-musicbrainz"  \
                   "to use Ogg Vorbis"      &&
 
-# Please check if this limitation (upstream bug) still applies after 
-# version bumps (this hack applied for 0.8.1)
 .  "$GRIMOIRE/is_depends_enabled.function"  &&
 if is_depends_enabled $SPELL libvorbis
 then
