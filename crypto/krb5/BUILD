@@ -6,6 +6,9 @@ fi
 
 cd  $SPELL-$VERSION/src                 &&
 
+# MIT krb5 Security Advisory 2006-001
+patch -p0 < $SCRIPT_DIRECTORY/2006-001-patch_1.5.txt  &&
+
 ./configure  --enable-dns-for-kdc       \
              --enable-dns-for-realm     \
              --infodir=/usr/share/info  \
