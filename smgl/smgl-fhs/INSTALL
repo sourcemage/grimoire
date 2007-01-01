@@ -20,6 +20,14 @@ done  &&
 
 fhs_mkdir /tmp 1777  &&
 
+if [[ $FHS_2_3 == y ]]
+then
+  for root_directory in srv media
+  do
+    fhs_mkdir /$root_directory
+  done
+fi &&
+
 #
 # http://www.pathname.com/fhs/2.2/fhs-6.1.html
 # in the linux specific section, /proc is indeed mentioned
@@ -29,10 +37,17 @@ fhs_mkdir /proc &&
 #
 # http://www.pathname.com/fhs/2.2/fhs-3.7.html
 #
-for  etc_directory  in  opt  X11  sgml
+for  etc_directory  in  opt
 do
   fhs_mkdir  /etc/$etc_directory
 done  &&
+if [[ $OPTIONAL_ETC == y ]]
+then
+  for etc_directory in sgml opt X11 xml
+  do
+    fhs_mkdir /etc/$etc_directory
+  done
+fi &&
 
 #
 # http://www.pathname.com/fhs/2.2/fhs-3.9.html
@@ -45,16 +60,23 @@ done  &&
 #
 # http://www.pathname.com/fhs/2.2/fhs-4.html
 #
-for  usr_directory  in  X11R6  bin  include  lib  local  sbin  share  src
+for  usr_directory  in  bin  include  lib  local  sbin  share
 do
   fhs_mkdir  /usr/$usr_directory
 done  &&
 
-#
-# For games
-#
-create_group  games  &&
-fhs_mkdir  /usr/games  0750  root  games  &&
+if [[ $OPTIONAL_USR == y ]]
+then
+  for usr_directory in X11R6 src
+  do
+    fhs_mkdir /usr/$usr_directory
+  done &&
+  #
+  # For games
+  #
+  create_group  games  &&
+  fhs_mkdir  /usr/games  0750  root  games
+fi &&
 
 #
 # http://www.pathname.com/fhs/2.2/fhs-4.6.html
@@ -75,11 +97,18 @@ done  &&
 #
 # http://www.pathname.com/fhs/2.2/fhs-4.11.html
 #
-for  share_directory  in  dict  doc  games  info  locale  man  misc  nls  \
-                          sgml  terminfo  tmac  zoneinfo
+for  share_directory  in  man  misc
 do
-  fhs_mkdir  /usr/share/$share_directory
-done  &&
+  fhs_mkdir /usr/share/$share_directory
+done &&
+if [[ $OPTIONAL_USR_SHARE == y ]]
+then
+  for  share_directory  in  dict  doc  games  info  locale  nls  \
+                            sgml  terminfo  tmac  zoneinfo
+  do
+    fhs_mkdir  /usr/share/$share_directory
+  done
+fi &&
 
 #
 # http://www.pathname.com/fhs/2.2/fhs-4.11.html (4.11.5.2)
@@ -92,23 +121,32 @@ done  &&
 #
 # http://www.pathname.com/fhs/2.2/fhs-4.4.html
 #
-for  X11_directory  in  bin  lib/X11  include/X11
-do
-  fhs_mkdir  /usr/X11R6/$X11_directory  &&
-  pushd  $INSTALL_ROOT/                 &&
-  ln  -sf  usr/$X11_directory           \
-           usr/X11R6/$X11_directory     &&
-  popd
-done  &&
+if [[ $OPTIONAL_USR == y ]]
+then
+  for  X11_directory  in  bin  lib/X11  include/X11
+  do
+    fhs_mkdir  /usr/X11R6/$X11_directory  &&
+    pushd  $INSTALL_ROOT/                 &&
+    ln  -sf  usr/$X11_directory           \
+             usr/X11R6/$X11_directory     &&
+    popd
+  done
+fi &&
 
 #
 # http://www.pathname.com/fhs/2.2/fhs-5.html
 #
-for  var_directory  in  account  cache  crash  games  lib  lock  log  \
-                        opt  run  spool  yp
+for  var_directory  in  cache  lib  local  lock  log  opt  run  spool 
 do
   fhs_mkdir  /var/$var_directory
 done  &&
+if [[ $OPTIONAL_VAR == y ]]
+then
+  for var_directory in account crash games mail yp
+  do
+    fhs_mkdir /var/$var_directory
+  done
+fi &&
 
 #
 # This is the permission set I have on mine
