@@ -21,19 +21,17 @@ perm=$?  #0 if writing to /dev/initctl is permitted
 INIT_ROOT=""
 PRE_PATH=""
 
-if [ $UID != 0 ]; then
+if [ `id -u` != 0 ]; then
 	echo "Enter the root password, please."
 	exec su - -c "DISPLAY=$DISPLAY PATH=$PATH $0 $*"
 fi
 
-if [ z"$1" == z"--" ]; then shift 1; fi
+if [ z"$1" = z"--" ]; then shift 1; fi
 
 get_inittab_entry()
 {
-#  sed -n s/$'^[ \r\t]*'${1}$'[ \r\t]*=*[ \r\t]*''\('$'[^ \r\t]*''\).*$/\1/p' <$INIT_ROOT/etc/inittab
-
-  #echo before cat to get initial newline because the regex needs it
-  expr "`echo ; cat $INIT_ROOT/etc/inittab`" : $'.*\n[ \r\t]*'${1}$'[ \r\t]*=*[ \r\t]*''\('$'[^ \r\t\n]*''\).*' 
+  #Hard tabs for maximum sh/sed compatibility!
+  sed -n 's/^[ 	]*'"$1"'[ 	]*[ 	=][ 	]*//p' $INIT_ROOT/etc/inittab
 }
 
 
