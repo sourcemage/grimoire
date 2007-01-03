@@ -6,9 +6,14 @@ if [ "$GLIBC_NOLIB64" = "y" ]; then
   sedit "s/264/2/" sysdeps/unix/sysv/linux/x86_64/ldd-rewrite.sed
 fi                                                              &&
 
+
+# this causes configure to be run again where it fails for some people on PIII and for me on Alpha
+# the error is about no working grep found...
+if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
 # install x86_64 libraries to lib instead of lib64
 sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure    &&
-sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure.in &&
+sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure.in
+fi &&
 
 #
 # bug#5570 ccache sometimes has trouble correctly recognising minor differences 

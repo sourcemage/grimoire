@@ -1,0 +1,15 @@
+default_pre_build &&
+cd  $SOURCE_DIRECTORY  &&
+
+# Make it work with gcc3
+patch -p1 < $SCRIPT_DIRECTORY/flash-gcc3.patch &&
+
+# The KDE screensaver doesn't work with kde3
+sed -i 's:SUBDIRS=.*:SUBDIRS= Jpeg Zlib Lib Player Plugin:' Makefile &&
+
+# grr, the makefile doesn't respect flags from the environment
+# -fPIC is necessary to build on 64-bit, due to static/shared library linking
+sed -i 's:CXXFLAGS=:CXXFLAGS=-fPIC :' Lib/Makefile &&
+sed -i 's:CFLAGS=:CFLAGS=-fPIC :' Plugin/Makefile Jpeg/Makefile Zlib/Makefile &&
+
+invoke_gcc
