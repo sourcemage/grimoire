@@ -6,6 +6,18 @@ config_query  CONFIG_NO_WPA  "Build without WPA support?"  n  &&
 
 if [[ $WPA_RELEASE == old ]]
 then
+  if [[ $CONFIG_CTRL_IFACE == unix || $CONFIG_CTRL_IFACE == udp ]]
+  then
+    CONFIG_CTRL_IFACE=y                &&
+    persistent_add  CONFIG_CTRL_IFACE
+  fi  &&
+  if [[ -z $CONFIG_DNET_PCAP ]]   &&
+     [[ $CONFIG_L2_PACKET == pcap ]]
+  then
+    CONFIG_DNET_PCAP=y                &&
+    persistent_add  CONFIG_DNET_PCAP
+  fi  &&
+
   config_query  CONFIG_CTRL_IFACE                                          \
                 "Build external control interface?"                        \
                 y                                                          &&
@@ -14,7 +26,20 @@ then
 interface?"                                                                \
                 n
 else
-  config_query  CONFIG_NO_WPA2  "Build without WPA2 support?"  n        &&
+  config_query  CONFIG_NO_WPA2  "Build without WPA2 support?"  n  &&
+
+  if [[ $CONFIG_CTRL_IFACE == y ]]
+  then
+    CONFIG_CTRL_IFACE=unix             &&
+    persistent_add  CONFIG_CTRL_IFACE
+  fi  &&
+  if [[ -z $CONFIG_L2_PACKET ]] &&
+     [[ $CONFIG_DNET_PCAP == y  ]]
+  then
+    CONFIG_L2_PACKET=pcap             &&
+    persistent_add  CONFIG_L2_PACKET
+  fi  &&
+
   config_query_list  CONFIG_CTRL_IFACE                                  \
                      "Select control interface to build (n is none):"   \
                      unix                                               \
