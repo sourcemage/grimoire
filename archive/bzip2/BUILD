@@ -1,5 +1,5 @@
-sedit  "s/-O/-fPIC ${CFLAGS}/;s|)/man|)/share/man|;/^LDFLAGS/d"  Makefile  &&
-sedit  "s/-O/${CFLAGS}/;s|)/man|)/share/man|;/^LDFLAGS/d"            \
+sedit  "s/-O2/-fPIC ${CFLAGS}/;s|)/man|)/share/man|;/^LDFLAGS/d"  Makefile  &&
+sedit  "s/-O2/${CFLAGS}/;s|)/man|)/share/man|;/^LDFLAGS/d"            \
        Makefile-libbz2_so                                                   &&
 
 rm  -vf  ${INSTALL_ROOT}/usr/bin/bzgrep   &&
