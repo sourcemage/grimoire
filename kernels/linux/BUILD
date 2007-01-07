@@ -14,6 +14,7 @@ if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
   case "$VERSION" in
     2.6*)
       echo "making for a 2.6 kernel"  &&
+      make $EXTRA_MAKE_OPTIONS modules &&
       make $EXTRA_MAKE_OPTIONS || return 1
     ;;
     2.[024]*)
