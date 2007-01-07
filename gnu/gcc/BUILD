@@ -6,7 +6,8 @@ if [[ "$GCC_NOLIB64" == 'y' ]]; then
 fi                                                        &&
 
 if  [[ "$ARCHITECTURE"  ==  "pentium4"  ]];  then
-  CFLAGS=${CFLAGS/-ffast-math/}
+  CFLAGS=${CFLAGS//-ffast-math/}
+  CXXFLAGS=${CXXFLAGS//-ffast-math/}
 fi  &&
 
 # store CFLAGS and LDFLAGS persistently so they can be read by the other

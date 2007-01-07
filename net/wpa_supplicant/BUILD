@@ -27,8 +27,6 @@ done  &&
 
 make  &&
 
-.  "$GRIMOIRE/is_depends_enabled.function"  &&
-
 if is_depends_enabled $SPELL qt-x11
 then
   make  wpa_gui

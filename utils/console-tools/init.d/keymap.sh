@@ -48,7 +48,7 @@ start()
   for n in $TTY_NUMS; do
     echo "Loading settings for $DEV_TTY$n..."
     if [[ "$CONSOLECHARS_ARGS" ]]; then
-      /usr/bin/consolechars $CONSOLECHARS_ARGS --tty=/dev/$DEV_TTY$n
+      /usr/bin/consolechars -v $CONSOLECHARS_ARGS --tty=/dev/$DEV_TTY$n
       evaluate_retval
     fi
     [[ "$UNICODE_START" ]] && /bin/echo -ne "\033%G" > /dev/$DEV_TTY$n
@@ -80,7 +80,7 @@ stop()
     echo "Unloading settings for $DEV_TTY$n..."
     [[ "$UNICODE_START" ]] && /bin/echo -ne '\033%@' > /dev/$DEV_TTY$n
     if [[ "$CONSOLECHARS_ARGS" ]]; then
-      /usr/bin/consolechars -d --tty=/dev/$DEV_TTY$n
+      /usr/bin/consolechars -v -d --tty=/dev/$DEV_TTY$n
       evaluate_retval
     fi
   done
