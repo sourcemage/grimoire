@@ -1,24 +1,19 @@
 # Source grimoire FUNCTIONS to have get_kernel_version
-. $SCRIPT_DIRECTORY/../../FUNCTIONS
+.  "$GRIMOIRE/FUNCTIONS"
 
-# testing if the install_config_file function is available
-# we don't want to spend time building udev if we can't install it properly
+# kernel < 2.6.15-rc1 can't use udev > 0.93 because udevsend
+# has been removed
 
-if  ! grep -q install_config_file /var/lib/sorcery/modules/libapi ;  then
-    message  "${PROBLEM_COLOR}You don't have the latest stable Sorcery. Run
-              \`sorcery update\`${DEFAULT_COLOR}"  &&
-    return  1
-fi
+local  KVER=$(get_kernel_version)        &&
+local  VER2=$(echo $KVER | cut -d. -f2)  &&
+local  VER3=$(echo $KVER | cut -d. -f3)  &&
+       VER3=${VER3%%[^0-9]*}             &&
 
-KERNEL_VERSION=$(get_kernel_version)  &&
-PATCHLEVEL=`echo $KERNEL_VERSION | cut -d. -f2`  &&
-SUBLEVEL=`echo $KERNEL_VERSION | cut -d. -f3`  &&
-tmp=`echo $KERNEL_VERSION | cut -d. -f3 | sed 's/^[0-9]*//g'`  &&
-SUBLEVEL=${SUBLEVEL/$tmp/}  &&
-
-# kernel < 2.6.15-rc1 can't use udev > 0.93 tarballs because udevsend has been removed
-if [ $SUBLEVEL -lt 15 -o $PATCHLEVEL -lt 6 ]; then
-  message  "${PROBLEM_COLOR}You have a kernel < 2.6.15, it is too old for latest udev."  &&
-  message  "Please use udev-old spell instead..."  && 
+if (( VER2 < 6 ))            ||
+   (( VER2 == 6 && VER3 < 15 ))
+then
+  message  "${PROBLEM_COLOR}You have a kernel < 2.6.15, it is too"    \
+           "old for the latest udev.\nPlease cast udev-old instead."  \
+           "$DEFAULT_COLOR"                                           &&
   return 1
 fi

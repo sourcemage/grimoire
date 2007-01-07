@@ -1,22 +1,44 @@
-config_query UDEV_PERSIST 'Install persistent storage rules?' n &&
+# Added in stable 0.6, remove when appropriate
+if [[ $UDEV_PERSIST ]]
+then
+  UDEV_PERSIST_STORAGE=$UDEV_PERSIST    &&
+  persistent_add  UDEV_PERSIST_STORAGE  &&
+  persistent_remove  UDEV_PERSIST
+fi  &&
 
-config_query UDEV_PERSIST_INPUT 'Install persistent input rules?' n
+config_query  UDEV_PERSIST_STORAGE                 \
+              'Install persistent storage rules?'  \
+              n                                    &&
 
-config_query_option UDEV_DEBUG 'Compile extra debugging messages?' n 'DEBUG=true' 'DEBUG=false' &&
+config_query  UDEV_PERSIST_INPUT                 \
+              'Install persistent input rules?'  \
+              n                                  &&
 
-#config_query UDEV_STATIC 'Create static binaries in addition to dynamically linked ones?' n &&
-#if [[ "$UDEV_STATIC" == 'y' ]]; then
-#  if [[ -z "$UDEV_STATIC_TARGET" ]]; then
-#    # add more UDEV utilities here as necessary, space-separated
-#    local UDEV_STATIC_TARGET="udevstart"
-#  fi &&
-#  persistent_add UDEV_STATIC_TARGET &&
-#  message "${MESSAGE_COLOR}Static utilities (with suffix .static): $UDEV_STATIC_TARGET${DEFAULT_COLOR}"
-#fi  &&
+if [[ $UDEV_PERSIST_STORAGE == n ]]
+then
+  config_query  UDEV_EXTRAS             \
+                'Build extra helpers?'  \
+                y
+fi  &&
 
-if [[ "$UDEV_PERSIST" == "y" ]]; then
-  UDEV_EXTRAS=y  &&
-  persistent_add UDEV_EXTRAS
-else
-  config_query UDEV_EXTRAS 'Compile extras helpers?' y
-fi
+config_query_option  UDEV_DEBUG                           \
+                     'Compile extra debugging messages?'  \
+                     n                                    \
+                     'DEBUG=true'                         \
+                     'DEBUG=false'                        &&
+
+# Store extras build options in a var for reuse
+
+local  _EXTRAS_TARG="extras/run_directory extras/cdrom_id    \
+                     extras/firmware extras/rule_generator"  &&
+
+if [[ $UDEV_EXTRAS == y || $UDEV_PERSIST_STORAGE == y ]]
+then
+  _EXTRAS_TARG="$_EXTRAS_TARG extras/ata_id extras/usb_id extras/edd_id \
+                extras/floppy extras/scsi_id extras/dasd_id extras/volume_id"
+elif [[ $UDEV_PERSIST_INPUT == y ]]
+then
+  _EXTRAS_TARG="$_EXTRAS_TARG extras/usb_id"
+fi  &&
+
+persistent_add  _EXTRAS_TARG
