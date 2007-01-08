@@ -1,4 +1,4 @@
-.  $GRIMOIRE/FUNCTIONS
+.  $GRIMOIRE/FUNCTIONS &&
 
 local  DEVICES_LIST  &&
 
@@ -16,7 +16,11 @@ if  grep -q devfs /proc/filesystems  &&
   message "\n${MESSAGE_COLOR}NOTICE: Switching from devfs to udev or static currently needs manual editing of /etc/fstab.${DEFAULT_COLOR}\n"
 fi  &&
 
-config_query_list  DEVICES  "Choose /dev management mode:"  $DEVICES_LIST &&
+# default to the previously selected option #9772 - only a problem on the very
+# second cast. Adding it to the start of the list makes it the default in
+# the next query.
+. /etc/sysconfig/devices &&
+config_query_list DEVICES "Choose /dev management mode:" $DEVICES ${DEVICES_LIST/$DEVICES/}
 if [[ "$DEVICES" != "devfs" ]]
 then
   config_query  CREATE_DEV_TREE  "check for/create static /dev tree" y
