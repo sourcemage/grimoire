@@ -81,7 +81,7 @@ stop()
     echo "Unloading settings for $DEV_TTY$n..."
     [[ "$UNICODE_START" ]] && /bin/echo -ne '\033%@' > /dev/$DEV_TTY$n
     if [[ "$SETFONT_ARGS" ]]; then
-      /usr/bin/setfont -C /dev/$DEV_TTY$n
+      /usr/bin/setfont default8x16 -C /dev/$DEV_TTY$n
       evaluate_retval
     fi
   done
