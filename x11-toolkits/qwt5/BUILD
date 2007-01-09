@@ -1,7 +1,14 @@
 export QTDIR=${INSTALL_ROOT}/usr               &&
-${TRACK_ROOT}/usr/bin/qt4/qmake qwt.pro        &&
+local QMAKE                                    &&
+if spell_ok qt4;then 
+  QMAKE=${TRACK_ROOT}/usr/bin/qt4/qmake
+else
+  QMAKE=${TRACK_ROOT}/usr/bin/qmake
+fi                                             &&
+$QMAKE qwt.pro                                 &&
+
 make                                           &&
 cd designer                                    &&
-${TRACK_ROOT}/usr/bin/qt4/qmake qwtplugin.pro  &&
+$QMAKE qwtplugin.pro                           &&
 make                                           &&
 cd ..
