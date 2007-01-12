@@ -47,10 +47,15 @@ patch  -p0  <  $SCRIPT_DIRECTORY/Makefile.patch     &&
 
 # disabled libgd detection/building memusagestat for now until a better
 # fix has been found, bug #8277
-
 sedit  's/LIBGD=yes/LIBGD=no/'  $SOURCE_DIRECTORY/configure  &&
 
 #
 # Create the build directory
 #
-mk_source_dir  $SOURCE_DIRECTORY.bld
+mk_source_dir  $SOURCE_DIRECTORY.bld &&
+
+# fix #11832 - linking in /tmp doesn't work with grsecurity so do it elsewhere
+local test_path=$SOURCE_DIRECTORY.bld/test-installation &&
+mkdir $test_path &&
+sed -i "s,/tmp,$test_path,g" scripts/test-installation.pl
+
