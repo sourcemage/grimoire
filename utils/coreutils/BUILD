@@ -1,7 +1,3 @@
-if  echo  $OPTS  |  grep  -q  enable-pam;  then
-  MAKEFLAG='CPPFLAGS=-DUSE_PAM su_LDFLAGS=-lpam_misc'         
-fi  &&
-
 ./configure                                \
    --build=$BUILD                          \
    --bindir=${TRACK_ROOT}/bin              \
