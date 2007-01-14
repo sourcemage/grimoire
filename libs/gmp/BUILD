@@ -1,5 +1,6 @@
+# gcc bug when running test?
+CFLAGS=${CFLAGS/-O3/-O2}   &&
 default_build &&
-
 # GMP authors suggest that the GMP binaries are not to be used
 # if `make check' is not successful
 if ! make check; then
