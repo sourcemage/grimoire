@@ -42,6 +42,24 @@ mv $INSTALL_ROOT/lib/libncurses.so-bak.$MVERSION \
 ldconfig; true # but we don't care if there is nothing there (chroot install)
 } &&
 
+# get rid of the old version of libncursesw.so  Bug #13408
+{ 
+mv $INSTALL_ROOT/lib/libncursesw.so.$VERSION      \
+   $INSTALL_ROOT/lib/libncursesw.so-bak.$VERSION  &&
+mv $INSTALL_ROOT/lib/libncursesw.so.$MVERSION      \
+   $INSTALL_ROOT/lib/libncursesw.so-bak.$MVERSION &&
+{ rm $INSTALL_ROOT/lib/libncursesw.so.* ; true; } && # we might not be using an old version
+mv $INSTALL_ROOT/lib/libncursesw.so-bak.$VERSION  \
+   $INSTALL_ROOT/lib/libncursesw.so.$VERSION      &&
+mv $INSTALL_ROOT/lib/libncursesw.so-bak.$MVERSION \
+   $INSTALL_ROOT/lib/libncursesw.so.$MVERSION     &&
+ldconfig; true # but we don't care if there is nothing there (chroot install)
+} &&
+
+# Do not install the libs again. Causes problems.  Bug #13408
+
+sedit 's/cd ncurses /# cd ncurses /' Makefile &&
+
 # really install it -- all the libs should be in place
 make  install       DESTDIR="$INSTALL_ROOT"     &&
 

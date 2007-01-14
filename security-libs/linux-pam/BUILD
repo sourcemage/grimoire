@@ -5,7 +5,7 @@ fi
 export PS2PDF=no
 
 #autoconf                                             &&
-./configure  --libdir=/usr/lib                       \
+./configure  --libdir=/lib                           \
              --sbindir=/lib/security                 \
              --enable-securedir=/lib/security        \
              --enable-read-both-confs                \
