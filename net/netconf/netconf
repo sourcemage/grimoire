@@ -46,6 +46,10 @@
 #---------------------------------------------------------------------#
 #
 # ------------------------- ChangeLog ------------------------------- #
+# 2007-01-17 Juuso Alasuutari <iuso@sourcemage.org>
+#    - Removed DEVICE_MAC feature (bug #13401).
+#    - Version 1.8.1.
+#
 # 2006-10-15 Jaka Kranjc <lynxlynxlynx@sourcemage.org>
 #    - Changed all tabs to spaces
 #
@@ -268,7 +272,7 @@
 #        HOSTSFN: name of file containing hosts
 #       RESOLVFN: name of file containing nameservers
 #
-NETCONFVERSION='1.8'
+NETCONFVERSION='1.8.1'
 ROOTCHECK=1
 NETDEVDIR=/etc/sysconfig/network
 HOSTNAMEFN=/etc/hostname
@@ -798,7 +802,6 @@ function check_devdir() {
 ## @Global    WIFI_KEY3: wifi encryption key 3.<br>
 ## @Global    WIFI_KEY4: wifi encryption key 4.<br>
 ## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
-## @Global    DEVICE_MAC: device's MAC address.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot<br>
@@ -815,7 +818,7 @@ function loadnetdev() {
   unset MODULE MODE IP BROADCAST NETMASK GATEWAY POINTOPOINT MTU \
               WIFI_NWID WIFI_ESSID WIFI_RATE WIFI_MODE WIFI_SECMODE \
               WIFI_KEY WIFI_KEY1 WIFI_KEY2 WIFI_KEY3 WIFI_KEY4 WIFI_DEFAULTKEY \
-              DEVICE_MAC MAC CUSTOM UP_ON_BOOT NEEDS
+              MAC CUSTOM UP_ON_BOOT NEEDS
 
   devname=$(get_basename $1 .dev)
 
@@ -1427,28 +1430,6 @@ function cfg_wifi() {
 }
 
 
-#--- cfg_device_mac()
-##
-## This archives the native MAC address for the given device
-##
-## @Global    DEVICE_MAC: native MAC address for the device.<br>
-## @External  dialog
-#---
-function cfg_device_mac() {
-  COMMAND=`$DIALOG --backtitle "$BACKTITLE"                \
-                   --stdout                                \
-                   --title "Configure device MAC address"  \
-                         --ok-label       "$BTN_ACCEPT"          \
-                   --cancel-label   "$BTN_CANCEL"          \
-                   --inputbox                              \
-                   "Enter the device's native MAC address. (Used by udev for binding interface name to device.)" \
-                   0 0 ${DEVICE_MAC}`
-
-  if [ $? -eq 0 ]; then
-    DEVICE_MAC="${COMMAND}"
-  fi
-}
-
 #--- cfg_mac()
 ##
 ## This sets the MAC address for the given device
@@ -1643,7 +1624,6 @@ function confirm_save() {
 ## @Global    WIFI_KEY3: wifi encryption key 3.<br>
 ## @Global    WIFI_KEY4: wifi encryption key 4.<br>
 ## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
-## @Global    DEVICE_MAC: device's MAC address.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
@@ -1707,9 +1687,6 @@ EOF
   if [ ! -z $WIFI_DEFAULTKEY ]; then
     echo "WIFI_DEFAULTKEY=$WIFI_DEFAULTKEY" >> $1
   fi
-  if [ ! -z ${DEVICE_MAC} ]; then
-    echo "DEVICE_MAC='${DEVICE_MAC}'" >> $1
-  fi
   if [ ! -z ${MAC} ]; then
     echo "MAC='${MAC}'" >> $1
   fi
@@ -1752,7 +1729,6 @@ EOF
 ## @Global    WIFI_KEY3: wifi encryption key 3.<br>
 ## @Global    WIFI_KEY4: wifi encryption key 4.<br>
 ## @Global    WIFI_DEFAULTKEY: wifi encryption default key.<br>
-## @Global    DEVICE_MAC: device's MAC address.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
@@ -1834,11 +1810,6 @@ function save_update() {
     cat_or_sedit "^WIFI_DEFAULTKEY=.*" "WIFI_DEFAULTKEY=${WIFI_DEFAULTKEY}" $1
   else
     sed -i '/^WIFI_DEFAULTKEY=.*/d' $1
-  fi
-  if [ ! -z ${DEVICE_MAC} ]; then
-    cat_or_sedit "^DEVICE_MAC=.*" "DEVICE_MAC='${DEVICE_MAC}'" $1
-  else
-    sed -i '/^DEVICE_MAC=.*/d' $1
   fi
   if [ ! -z ${MAC} ]; then
     cat_or_sedit "^MAC=.*" "MAC='${MAC}'" $1
@@ -1939,7 +1910,6 @@ function add_device() {
 ## @Global    WIFI_MODE: wifi card mode.<br>
 ## @Global    WIFI_SECMODE: wifi security mode.<br>
 ## @Global    WIFI_ENCKEY: wifi encryption key.<br>
-## @Global    DEVICE_MAC: device's MAC address.<br>
 ## @Global    MAC: MAC address.<br>
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
@@ -1994,7 +1964,6 @@ function cfg_device() {
                        "POINTOPOINT" "${dpointopoint}"                   \
                        "MTU"  "${dmtu}"                                  \
                        "WIFI"  "Wifi menu"                               \
-                       "DEVICE_MAC"  "${DEVICE_MAC}"                                   \
                        "MAC"  "${MAC}"                                   \
                        "CUSTOM"  "Custom options"                        \
                        "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
@@ -2016,7 +1985,6 @@ function cfg_device() {
                        "POINTOPOINT" "${dpointopoint}"                   \
                        "MTU"  "${dmtu}"                                  \
                        "WIFI"  "Wifi menu"                               \
-                       "DEVICE_MAC"  "${DEVICE_MAC}"                                   \
                        "MAC"  "${MAC}"                                   \
                        "CUSTOM"  "Custom options"                        \
                        "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
@@ -2042,7 +2010,6 @@ function cfg_device() {
                        "POINTOPOINT" "${dpointopoint}"                   \
                        "MTU"  "${dmtu}"                                  \
                        "WIFI"  "Wifi submenu"                            \
-                       "DEVICE_MAC"  "${DEVICE_MAC}"                                   \
                        "MAC"  "${MAC}"                                     \
                        "CUSTOM"  "Custom options"                        \
                        "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
@@ -2067,7 +2034,6 @@ function cfg_device() {
       'POINTOPOINT') cfg_pointopoint     ;;
       'MTU')         cfg_mtu             ;;
       'WIFI')        cfg_wifi            ;;
-      'DEVICE_MAC')  cfg_device_mac      ;;
       'MAC')         cfg_mac             ;;
       'CUSTOM')      cfg_custom          ;;
       'UP_ON_BOOT')  toggle_boot         ;;
