@@ -58,11 +58,7 @@ start()
 
   echo "Mounting proc file system..."
   mount -a -t /proc
-  evaluate_retval &&
-# bug 7311
-  if ! grep -wq "/proc" /etc/mtab; then
-    builtin echo 'none /proc proc rw 0 0' >> /etc/mtab
-  fi
+  evaluate_retval
 
   # find devices that were set up in initramfs/rd
   if optional_executable /sbin/dmsetup
