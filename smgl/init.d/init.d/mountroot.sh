@@ -36,6 +36,23 @@ checkrootfs()
   rm -f /fastboot /forcefsck
 }
 
+scanlvm()
+{
+  # find devices that were set up in initramfs/rd
+  if optional_executable /sbin/dmsetup
+  then 
+    echo "(re)Creating device mapper nodes..."
+    # won't check retval because kernel just may lack device mapper
+    /sbin/dmsetup mknodes
+  fi
+
+  if optional_executable /sbin/vgscan && optional_executable /sbin/vgchange ; then
+    echo "Scanning for and initializing all available LVM volume groups..."
+    /sbin/vgscan       --ignorelockingfailure  --mknodes  &&
+    /sbin/vgchange -ay --ignorelockingfailure
+  fi
+}
+
 start()
 {
   required_executable /bin/mount
@@ -50,6 +67,9 @@ start()
   elif [ -f /etc/raidtab    ] ; then
     raidstart  --all
   fi
+
+  scanlvm
+  evaluate_retval
 
   echo "Mounting root file system read only..."
   mount   -n  -o  remount,ro  /

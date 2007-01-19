@@ -1,6 +1,19 @@
 default_pre_build      &&
 cd  $SOURCE_DIRECTORY  &&
 #patch  -p1  <  $SCRIPT_DIRECTORY/coreutils-cp-mv-oMFS-bug.patch  &&
+
+#
+# Don't install coreutils' hostname  (Bug #7089)
+#
+patch  -p1  <  $SCRIPT_DIRECTORY/hostname.diff &&
+
+#
+# Cause mv(1) to try a backup strategy more often when rename(2) fails
+# (needed for inter-directory file moving on a 9p mount in particular)
+# Bug #13377
+#
+patch  -p1  <  $SCRIPT_DIRECTORY/coreutils-6.4_9p_mv_EPERM.patch &&
+
 #
 # patch for pam support in su
 #
@@ -8,16 +21,4 @@ if  echo  $OPTS  |  grep  -q  enable-pam;  then
    message "${MESSAGE_COLOR} linux-pam is  enabled ${DEFAULT_COLOR}"   &&
    patch  -p1  <  $SCRIPT_DIRECTORY/coreutils-pam.patch &&
    autoreconf --force # make sure to give clear situation with automake-1.9
-fi  &&
-
-#
-# Don't install coreutils' hostname  (Bug #7089)
-#
-patch  -p1  <  $SCRIPT_DIRECTORY/hostname.diff
-
-#
-# Cause mv(1) to try a backup strategy more often when rename(2) fails
-# (needed for inter-directory file moving on a 9p mount in particular)
-# Bug #13377
-#
-patch  -p1  <  $SCRIPT_DIRECTORY/coreutils-6.4_9p_mv_EPERM.patch
+fi
