@@ -51,29 +51,30 @@ checkfs()
   rm -f /fastboot /forcefsck
 }
 
-start()
+scanlvm()
 {
-  required_executable /bin/mount
-  required_executable /sbin/fsck
-
-  echo "Mounting proc file system..."
-  mount -a -t /proc
-  evaluate_retval
-
   # find devices that were set up in initramfs/rd
   if optional_executable /sbin/dmsetup
   then 
-    echo "(re)creating device mapper nodes"
+    echo "(re)Creating device mapper nodes..."
     # won't check retval because kernel just may lack device mapper
     /sbin/dmsetup mknodes
   fi
 
   if optional_executable /sbin/vgscan && optional_executable /sbin/vgchange ; then
-    echo -n "Scanning for and initializing all available LVM volume groups..."
+    echo "Scanning for and initializing all available LVM volume groups..."
     /sbin/vgscan       --ignorelockingfailure  --mknodes  &&
     /sbin/vgchange -ay --ignorelockingfailure
-    evaluate_retval
   fi
+}
+
+start()
+{
+  required_executable /bin/mount
+  required_executable /sbin/fsck
+
+  scanlvm
+  evaluate_retval
 
   checkfs
 
