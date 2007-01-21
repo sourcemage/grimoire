@@ -1,50 +1,30 @@
-FIREFOX_HOME=${INSTALL_ROOT}/usr/lib/firefox  &&
+FIREFOX_HOME=$INSTALL_ROOT/usr/lib/firefox &&
 
 if  spell_ok  Firebird;  then
   dispel Firebird
 fi  &&
 
-#
-# Firefox now installs to /usr/lib/firefox and leaves /usr/lib/mozilla alone
+# Not recommended by http://www.mozilla.org/build to use
+# make install.  Manually install the files.
+
+mkdir -p $INSTALL_ROOT/usr/lib/firefox  &&
+cd $SOURCE_DIRECTORY   &&
+cp -RLv dist/bin/* $INSTALL_ROOT/usr/lib/firefox/  &&
+mkdir -p $INSTALL_ROOT/usr/include/firefox/ &&
+cp -LfRv dist/include/* $INSTALL_ROOT/usr/include/firefox/ &&
+mkdir -p $INSTALL_ROOT/usr/share/idl/firefox/ &&
+cp -LfRv dist/idl/* $INSTALL_ROOT/usr/share/idl/firefox/ &&
+
+#fix install directories in *.pc files.
+sed -i s#usr/local#usr# build/unix/firefox-* &&
+sed -i s#-2.0.0.1## build/unix/firefox-* &&
+cp build/unix/firefox*.pc $INSTALL_ROOT/usr/lib/pkgconfig &&
+
 
 #
-# Make sure these directories exist, symlink them, and /then/ install
-# This fixes both Wolfgang's problems and johnny17's problems. :)
+# Script to set MOZILLA_FIVE_HOME
 #
-if  [  !  -d  $FIREFOX_HOME  ];  then
-  mkdir  -p  $FIREFOX_HOME
-fi  &&
-
-if  [  !  -d  ${INSTALL_ROOT}/usr/share/idl/firefox-$VERSION  ];  then
-  mkdir  -p  ${INSTALL_ROOT}/usr/share/idl/firefox-$VERSION
-fi  &&
-
-if  [  !  -d  ${INSTALL_ROOT}/usr/include/firefox-$VERSION  ];  then
-  mkdir  -p  ${INSTALL_ROOT}/usr/include/firefox-$VERSION
-fi  &&
-
-ln  -fns   $FIREFOX_HOME  $FIREFOX_HOME-$VERSION           &&
-ln  -fns   ${INSTALL_ROOT}/usr/share/idl/firefox-$VERSION  \
-           ${INSTALL_ROOT}/usr/share/idl/firefox           &&
-ln  -fns   ${INSTALL_ROOT}/usr/include/firefox-$VERSION    \
-           ${INSTALL_ROOT}/usr/include/firefox             &&
-make  install                                              &&
-
-#
-# Don't do this!
-# http://lists.freebsd.org/pipermail/freebsd-gnome/2004-October/008443.html
-#
-#if  !  grep  -q  firefox  /etc/ld.so.conf;  then
-#  echo  '/usr/lib/firefox'  >>  /etc/ld.so.conf
-#fi  &&
-
-#
-# Make sure $INSTALL_ROOT/usr/lib/firefox is not in $INSTALL_ROOT/etc/ld.so.conf
-#
-if  grep  -q  firefox  $INSTALL_ROOT/etc/ld.so.conf;  then
-  sedit  "s:/usr/lib/firefox::"  $INSTALL_ROOT/etc/ld.so.conf  &&
-  /sbin/ldconfig
-fi  &&
+cp  ${SCRIPT_DIRECTORY}/${SPELL}.sh  $INSTALL_ROOT/etc/profile.d &&
 
 #
 # Create symlink to mozilla for hardwired applications
@@ -63,43 +43,29 @@ fi  &&
 # to be in the same directory as the current application binary.  See:
 # http://www.mozilla.org/projects/security/pki/nss/loadable_certs.html
 # https://bugzilla.mozilla.org/show_bug.cgi?id=128290
-# Only create if $FIREFOX_HOME/libnssckbi.so does not exist or is already a
+# Only create if $MOZILLA_HOME/libnssckbi.so does not exist or is already a
 # symlink.
 #
 if  test  -f   $INSTALL_ROOT/usr/lib/libnssckbi.so;  then
   if  !  test  -f   $FIREFOX_HOME/libnssckbi.so  ||
          test  -h   $FIREFOX_HOME/libnssckbi.so; then
     ln -sf $TRACK_ROOT/usr/lib/libnssckbi.so  $FIREFOX_HOME/libnssckbi.so
-  fi
+  fi                                                                  
 fi  &&
+if [[ "$FIREFOX_NULLPLUGIN" == "n" ]]
+then
+   rm $FIREFOX_HOME/plugins/libnullplugin.so
+fi &&
+
 
 #
-# Fix for starting firefox without running as root first
-# Bug #7114 (thanks to Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
-#
-# first remove the files the patch creates so patch doesn't fail, see bug #8874
-while read firefox_remove_file; do
-  rm  -f  $FIREFOX_HOME/$firefox_remove_file
-done < $SCRIPT_DIRECTORY/init-files  &&
-# now patch
-patch  -d  $FIREFOX_HOME           -p1  -N      \
-       <  $SCRIPT_DIRECTORY/firefox-init.patch  &&
-
-#
-# Script to set MOZILLA_FIVE_HOME
-#
-cp  ${SCRIPT_DIRECTORY}/${SPELL}.sh  $INSTALL_ROOT/etc/profile.d  &&
-
-if test  "$FIREFOX_NULLPLUGIN" == "n";  then
-  rm  $FIREFOX_HOME/plugins/libnullplugin.so
-fi  &&
-#
-# Install firefox script so it loads properly
+# install firefox script so it loads properly even if MOZILLA_FIVE_HOME is
+# not set or set to a different mozilla/firefox directory
 #
 install  -m  755  -o  root  -g  root  $SCRIPT_DIRECTORY/firefox  \
          $INSTALL_ROOT/usr/bin  &&
 
 # make the pkgconfig files reference the nspr from the standalone nspr spell
-#sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-nss.pc  &&
+sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-nss.pc  &&
 sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-js.pc  &&
 sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-xpcom.pc
