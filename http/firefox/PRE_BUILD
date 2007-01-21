@@ -1,3 +1,5 @@
+if  [  "$FIREFOX_CVS"  =  "y"   ]              &&
+    [  -f  $SOURCE_CACHE/$FIREFOX_TARBALL  ];  then
 if  [  !  -f  /root/.cvspass  ];  then
   touch /root/.cvspass
 fi                                                                          &&
@@ -6,19 +8,9 @@ mk_source_dir  $SOURCE_DIRECTORY                                            &&
 
 FIREFOX_TARBALL=firefox-1.0+.tar.bz2  &&
 
-if  [  "$FIREFOX_CVS"  =  "y"   ]              &&
-    [  -f  $SOURCE_CACHE/$FIREFOX_TARBALL  ];  then
     message  "${MESSAGE_COLOR}Unpacking source file $FIREFOX_TARBALL"       \
              "$for ${SPELL_COLOR}$SPELL${DEFAULT_COLOR}"                    &&
-    tar  jxf  $SOURCE_CACHE/$FIREFOX_TARBALL
-else
-  unpack_file  ''
-fi                                                                          &&
-
-#
-#cvs updates anyone?
-#
-if  [  "$FIREFOX_CVS"  =  "y"  ];  then
+    tar  jxf  $SOURCE_CACHE/$FIREFOX_TARBALL                                &&
   message  "${MESSAGE_COLOR}\tIt can take some considerable time to"        \
            "\tregenerate the cvs tags you will not see much progress or a"  \
            "\ttime but do not despair, GOOD THINGS are happening in the"    \
@@ -32,18 +24,13 @@ if  [  "$FIREFOX_CVS"  =  "y"  ];  then
   tar  jcf  $FIREFOX_TARBALL  mozilla/                                      &&
   message  "Moving $FIREFOX_TARBALL to/var/spool/sorcery${DEFAULT_COLOR}"   &&
   mv  -v  $FIREFOX_TARBALL  $SOURCE_CACHE/
-fi                                                                          &&
+else
+  default_pre_build
+  cd  $SOURCE_DIRECTORY    &&
+  patch -p0 < $SCRIPT_DIRECTORY/x-lib.patch
+fi &&
 
-cd  $SOURCE_DIRECTORY                                                       &&
-
-# 1.5 patches
-# 1) visibility
-patch -p0 < $SCRIPT_DIRECTORY/firefox-1.1-visibility.patch       &&
-# 2) removing pangoxft
-patch -p1 < $SCRIPT_DIRECTORY/firefox-nopangoxft.patch           &&
-# 3) no crash uri loader with gnome-vfs
-patch -p0 < $SCRIPT_DIRECTORY/firefox-1.1-uriloader.patch        &&
-# 4) typeahead
-patch -p1 < $SCRIPT_DIRECTORY/embed-typeaheadfind-1.patch        &&
-# 5) sec fix
-patch -p0 < $SCRIPT_DIRECTORY/mozilla-firefox-1.5-mork.patch
+cp $SCRIPT_DIRECTORY/mozconfig $SOURCE_DIRECTORY/.mozconfig &&
+if [ "$FIREFOX_OFFICIAL" == "y" ]; then
+ sedit '24iac_add_options --enable-official-branding' $SOURCE_DIRECTORY/.mozconfig
+fi
