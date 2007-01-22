@@ -1,0 +1,21 @@
+# we changed powerpc-linux-gnu to powerpc-unknown-linux-gnu
+# we must ensure all gcc-family spells are cast no to prevent
+# inconsistencies later
+# so on upgrade to >= 0.7.0, recast stuff
+if [[ ${SMGL_COMPAT_ARCHS[1]} == ppc ]]; then
+  local OLD_SPELL_VERSION=""
+  if spell_ok $SPELL; then
+    OLD_SPELL_VERSION="$(installed_version $SPELL)" &&
+    local MAJOR=$(echo $OLD_SPELL_VERSION | awk -F. '{print $1}') &&
+    local MINOR=$(echo $OLD_SPELL_VERSION | awk -F. '{print $2}') &&
+    if [[ "$MAJOR" -eq 0 ]] && [[ "$MINOR" -lt 7 ]]; then
+      message "this update of archspecs demands recast of all your gnu compilers..."
+      # gcc34 and friends still work, the dissected compilers must match each other
+      # for /usr/lib/gcc/powerpc-unknown-linux-gnu and similar
+      for gnu in gcc g++ fortran g77 gcj objc
+      do
+        if spell_ok $gnu; then up_trigger $gnu cast_self; fi
+      done
+    fi
+  fi
+fi
