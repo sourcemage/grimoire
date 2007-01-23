@@ -1,6 +1,8 @@
 if [ "$VOICE_16" == "y" ]; then
-  sedit  "s/\@FL_VOX\@/cmu_us_kal16/" config/config.in
+  OPTS="$OPTS --with-vox=cmu_us_kal16"
 fi &&
-sedit "s/#include <string.h>/#include <string.h>\n#define const/g" tools/find_sts_main.c
-default_build
+OPTS="$OPTS --enable-shared" &&
+make_single &&
+default_build &&
+make_normal
 
