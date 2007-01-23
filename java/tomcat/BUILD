@@ -147,7 +147,7 @@ jta.jar=\${jta.lib}/jta.jar
 junit.home=${SM_IBM_HOME}/junit
 junit.lib=\${junit.home}
 junit.jar=\${junit.lib}/junit.jar
-junit.loc=http://download.sourceforge.net/junit/junit3.7.zip
+junit.loc=$SOURCEFORGE_URL/junit/junit3.7.zip
 # ----- Java Mail, version 1.2 or later -----
 mail.home=${SM_SUN_HOME}/javamail
 mail.lib=\${mail.home}
