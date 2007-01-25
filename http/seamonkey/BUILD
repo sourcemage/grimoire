@@ -19,28 +19,14 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
             --with-user-appdir=.seamonkey                    \
             --enable-extensions=all${MOZILLA_EXT}            \
             --enable-optimize="$CFLAGS"                      \
-            --with-pthreads                                  \
-            --disable-pango                                  \
-            --disable-freetype2                              \
-            --enable-canvas                                  \
-            --enable-xft                                     \
-            --enable-reorder                                 \
-            --enable-elf-dynstr-gc                           \
-            --enable-storage                                 \
-            --enable-cpp-rtti                                \
             --enable-application=suite                       \
-            --disable-debug                                  \
-            --disable-tests                                  \
-            --disable-installer                              \
-            --disable-updater                                \
-            --disable-pedantic                               \
             $SEAMONKEY_MAILNEWS                              \
             $SEAMONKEY_CHAT                                  \
-            $SEAMONKEY_CALENDAR                              \
             $SEAMONKEY_COMPOSER                              \
             $SEAMONKEY_MATHML                                \
             $SEAMONKEY_JS                                    \
             $SEAMONKEY_XINERAMA                              \
             $OPTS                                            &&
-make_single  &&
-make
+make_single                                                  &&
+make                                                         &&
+make_normal
