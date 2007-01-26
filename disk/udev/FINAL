@@ -1,3 +1,8 @@
+# moving the old rules to rules.d
+if [ -f ${UDEV_CFG}/udev.rules ];then
+    install_config_file ${UDEV_CFG}/udev.rules ${UDEV_CFG}/rules.d/00-local.rules       &&
+    rm -f ${UDEV_CFG}/udev.rules
+fi
 #Ensure that all groups used in 50-default.rules exist
 create_group disk
 create_group cdrom
@@ -7,12 +12,16 @@ create_group video
 create_group audio
 
 # warn of coming changes
-message ""
-message "${PROBLEM_COLOR}About persistent net interfaces naming:"
-message ""
-message "${MESSAGE_COLOR}The spell now uses udev rules generator. Next time you boot, udev will generate"
-message "a rules file called /etc/udev/rules.d/70-persistent-net.rules for all the"
-message "interfaces it has detected. Then you can modify the name of the interface by"
-message "changing the NAME key. Udev will not erase it."
-message "The old configuration stuff with the DEVICE_MAC field in netconf is now obsolete."
-message "${DEFAULT_COLOR}"
+cat << EOF
+MODALIAS and \$modalias are not needed and will be removed from one of
+the next udev versions, replace it in all rules with ENV{MODALIAS} or
+the sysfs "modalias" value.
+
+RUN="/bin/program" not longer automatically adds the subsystem
+as the first parameter. This is from the days of /sbin/hotplug
+which is dead now and it's just confusing to need to add a space at
+the end of the program name to prevent this.
+If you use rules that need the subsystem as the first parameter,
+like the old "udev_run_hotlugd" and "udev_run_devd", add the subsystem
+to the key like RUN+="/bin/program $env{SUBSYSTEM}".
+EOF

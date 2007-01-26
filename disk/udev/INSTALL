@@ -1,48 +1,45 @@
-install -d ${INSTALL_ROOT}/sys                &&
-local FILE UDEV_CFG=${INSTALL_ROOT}/etc/udev  &&
-mkdir  -p  ${UDEV_CFG}/rules.d                &&
+install -d ${INSTALL_ROOT}/sys     &&
+UDEV_CFG=${INSTALL_ROOT}/etc/udev  &&
+DEV_DDIR=/etc/dev.d                &&
+mkdir  -p  ${UDEV_CFG}/rules.d     &&
 
-install_config_file $SCRIPT_DIRECTORY/udev.conf ${UDEV_CFG}/udev.conf &&
-install_config_file $SCRIPT_DIRECTORY/udev.missing ${UDEV_CFG}/udev.missing &&
-
-for FILE in $SCRIPT_DIRECTORY/rules/* ; do
-  install_config_file $FILE ${UDEV_CFG}/rules.d/$(basename $FILE)
+for file in $SCRIPT_DIRECTORY/udev.{conf,missing} ; do
+	install_config_file $file ${UDEV_CFG}/$(basename $file)
 done  &&
 
-# install required modprobe aliases for non-hotplug rules
-mkdir -p $INSTALL_ROOT/etc/modprobe.d  &&
-install_config_file $SCRIPT_DIRECTORY/modprobe.aliases $INSTALL_ROOT/etc/modprobe.d/udev
+for file in $SCRIPT_DIRECTORY/rules/* ; do
+	install_config_file $file ${UDEV_CFG}/rules.d/$(basename $file)
+done  &&
 
-# install early rules
-install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/05-udev-early.rules  \
-                           ${UDEV_CFG}/rules.d/05-udev-early.rules  &&
-# install late rules
-install_config_file $SOURCE_DIRECTORY/etc/udev/rules.d/95-udev-late.rules  \
-                           ${UDEV_CFG}/rules.d/95-udev-late.rules
+# install some of the suse rules
+for file in etc/udev/suse/40-alsa.rules ; do
+        install_config_file $file ${UDEV_CFG}/rules.d/$(basename $file)
+done  &&
+
+# udevstart and udevsend are nolonger installed by default. we still need them
+install udevsend udevstart  ${INSTALL_ROOT}/sbin &&
 
 make prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ V=true ${OPTS} install   &&
-make EXTRAS="extras/run_directory extras/cdrom_id extras/firmware extras/rule_generator" \
+make EXTRAS="extras/run_directory extras/cdrom_id extras/firmware" \
   prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ \
   V=true ${OPTS} install &&
-
 if [[ "$UDEV_EXTRAS" == 'y' ]]; then
   make EXTRAS="extras/ata_id extras/dasd_id extras/edd_id extras/floppy extras/scsi_id extras/usb_id extras/volume_id" prefix=${INSTALL_ROOT}/ exec_prefix=${INSTALL_ROOT}/ ${OPTS} V=true install   &&
-  install  extras/path_id/path_id  ${INSTALL_ROOT}/lib/udev  &&
+  install  extras/path_id  ${INSTALL_ROOT}/sbin  &&
 
-  if [[ "$UDEV_PERSIST" == 'y' ]]; then
-       install_config_file etc/udev/rules.d/60-persistent-storage.rules ${UDEV_CFG}/rules.d/60-persistent-storage.rules
-  fi  &&
+  if [[ "$UDEV_PERSIST" == 'y' ]];then
+    for file in etc/udev/persistent-disk.rules ; do
+	    install_config_file $file ${UDEV_CFG}/rules.d/60-$(basename $file)
+    done
+  fi 
 
-  if [ "$UDEV_PERSIST_INPUT" == 'y' ]; then
-    install_config_file etc/udev/rules.d/60-persistent-input.rules ${UDEV_CFG}/rules.d/60-persistent-input.rules
-  fi
+fi  &&
+
+if [[ "$UDEV_STATIC" == 'y' ]]; then
+  pushd __static__ &&
+  # we are not supposed to use `make install'
+  for __FILE in $UDEV_STATIC_TARGET; do
+    install -D $__FILE $INSTALL_ROOT/usr/sbin/$__FILE.static
+  done &&
+  popd
 fi
-
-#if [[ "$UDEV_STATIC" == 'y' ]]; then
-#  pushd __static__ &&
-#  # we are not supposed to use `make install'
-#  for FILE in $UDEV_STATIC_TARGET; do
-#    install -D $FILE $INSTALL_ROOT/usr/sbin/$FILE.static
-#  done &&
-#  popd
-#fi

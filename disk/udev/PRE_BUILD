@@ -1,12 +1,11 @@
-default_pre_build     &&
-cd $SOURCE_DIRECTORY  &&
+default_pre_build &&
+cd $SOURCE_DIRECTORY &&
+patch -p0 < $SCRIPT_DIRECTORY/Makefile.patch &&
 
-# Prevent udev restart on 'make install',
-# allow network interface renaming with existing name.
-patch -p0 < $SCRIPT_DIRECTORY/Makefile.patch
-
-#if [[ "$UDEV_STATIC" == 'y' ]]; then
-#  message "${MESSAGE_COLOR}Setting up static build directory...${DEFAULT_COLOR}" &&
-#  mkdir __static__ &&
-#  cp -aRv Makefile *.{c,h} ./__static__/
-#fi
+if [[ "$UDEV_STATIC" == 'y' ]]; then
+  message "${MESSAGE_COLOR}Setting up static build directory...${DEFAULT_COLOR}" &&
+  mkdir __static__ &&
+  cp -aRv Makefile *.{c,h} ./__static__/  &&
+  # fix file so static build actually works
+  sedit '29i#include <errno.h>'  __static__/udev_libc_wrapper.c
+fi
