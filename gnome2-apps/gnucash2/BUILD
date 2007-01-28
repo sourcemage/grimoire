@@ -1,2 +1,2 @@
-OPTS="${OPTS} --disable-error-on-warning --with-slib=/usr/lib/slib"  &&
+OPTS="${OPTS} --disable-error-on-warning"  &&
 default_build
