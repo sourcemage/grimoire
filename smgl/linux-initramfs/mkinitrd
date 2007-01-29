@@ -1,4 +1,24 @@
 #!/bin/bash
+#====================================================================
+# This is a Source Mage script for generating initial ramdisks to be
+# loaded by the kernel
+#
+# @Copyright Source Mage GNU/Linux Developers
+#
+# USAGE:
+#
+#   # mkinitrd -o /boot/initrd.img-2.6.20 2.6.20
+#
+#    -v|--version               displays usage version and exits
+#    --enable-raid              force the usage of raid
+#    --enable-lvm               force the usage of lvm
+#    --disable-raid             don't use raid
+#    --disable-lvm              don't use lvm
+#    -f|--force                 if initrd file exists blow it away
+#    --ignore-missing           ignore missing modules that may show up
+#    -m|--with-module           add module to the initrd
+#    -o|--output                output file 
+#====================================================================
 
 FORCE_RAID=${FORCE_RAID:=false}
 FORCE_LVM=${FORCE_LVM:=false}
@@ -680,5 +700,32 @@ then
   echo "Bah!!! can't find the gen_init_cpio file is your kernel built?"
   usage
   exit -1
-fi
+fi &&
+if [[ -f $INITRD_FILE && ! $REMOVE_OLD_INITRD ]]
+then
+	echo "Refusing to blow away original initrd"
+	usage
+	exit -1
+fi &&
 /lib/modules/$KVERSION/build/usr/gen_init_cpio /tmp/initrd.lst | gzip -c > $INITRD_FILE
+
+#---------------------------------------------------------------------
+##=back
+##
+##=head1 LICENSE
+##
+## This software is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This software is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this software; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#---------------------------------------------------------------------
