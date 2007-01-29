@@ -1,2 +1,1 @@
-make &&
-make install
+make
