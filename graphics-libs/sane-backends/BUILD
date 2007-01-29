@@ -16,5 +16,9 @@ if [ "$HP5400NVSM" == "y" ]; then
   echo '#define NO_STRING_VERSION_MATCH
 ' >> $SOURCE_DIRECTORY/backend/hp5400_internal.h
 fi &&
-
+if [ $SANE_LOCAL == none ];then
+  OPTS="$OPTS --disable-local-backends"
+else
+export BACKENDS=$SANE_LOCAL
+fi &&
 default_build
