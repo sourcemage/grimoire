@@ -1,6 +1,2 @@
-(
-
-   make		&&
-   make	install
-
-) > $C_FIFO 2>&1
+sed -i 's,local,,' Makefile &&
+make

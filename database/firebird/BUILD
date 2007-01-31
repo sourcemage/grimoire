@@ -21,6 +21,7 @@
   ./configure 				\
 	--prefix=$FB_PREFIX 		\
 	$OPTS					&&
+  make_single                                   &&
 if [ $FB_CLIENT == n ]; then
   make                                          &&
 # prepare an install image
@@ -44,4 +45,5 @@ else
   FBDEST=../buildroot${INSTALL_ROOT}/usr/include   &&
   mkdir -p $FBDEST                              &&
   cp -a include/* $FBDEST
-fi
+fi                                              &&
+make_normal
