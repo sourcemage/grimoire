@@ -5,22 +5,22 @@ mkdir  -p         $INSTALL_ROOT/var/spool/mail  &&
 chmod  1777       $INSTALL_ROOT/var/spool/mail  &&
 chown  exim:exim  $INSTALL_ROOT/var/spool/mail  &&
 
-if  [  -e  $INSTALL_ROOT/var/spool/mail/db  ]
+if  [[  -e  $INSTALL_ROOT/var/spool/mail/db  ]]
 then
   chown  -R  exim:exim  $INSTALL_ROOT/var/spool/mail/db
 fi  &&
 
-if  [  -e  $INSTALL_ROOT/var/spool/mail/input  ]
+if  [[  -e  $INSTALL_ROOT/var/spool/mail/input  ]]
 then
   chown  -R  exim:exim  $INSTALL_ROOT/var/spool/mail/input
 fi  &&
 
-if  [  -e  $INSTALL_ROOT/var/spool/mail/log  ]
+if  [[  -e  $INSTALL_ROOT/var/spool/mail/log  ]]
 then
   chown  -R  exim:exim  $INSTALL_ROOT/var/spool/mail/log
 fi  &&
 
-if  [  -e  $INSTALL_ROOT/var/spool/mail/msglog  ]
+if  [[  -e  $INSTALL_ROOT/var/spool/mail/msglog  ]]
 then
   chown  -R  exim:exim  $INSTALL_ROOT/var/spool/mail/msglog
 fi  &&
@@ -29,7 +29,7 @@ chgrp  -R  exim  $INSTALL_ROOT/var/spool/mail  &&
 
 mkdir  -p  Local  &&
 
-if  [  "$EXIM_XFREE86"  ==  "y"  ]
+if  [[  "$EXIM_XFREE86"  ==  "y"  ]]
 then
   cp  src/EDITME           Local/Makefile     &&
   cp  exim_monitor/EDITME  Local/eximon.conf
@@ -37,13 +37,13 @@ else
    grep  -v  "EXIM_MONITOR="  src/EDITME  >  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_TCPWRAPPERS"  ==  "y"  ]
+if  [[  "$EXIM_TCPWRAPPERS"  ==  "y"  ]]
 then
   echo  "USE_TCP_WRAPPERS=yes"  >> Local/Makefile  &&
   EXTRALIBS="$EXTRALIBS  -lwrap"
 fi  &&
 
-if  [  "$EXIM_LINUXPAM"  ==  "y"  ]
+if  [[  "$EXIM_LINUXPAM"  ==  "y"  ]]
 then
   echo  "SUPPORT_PAM=yes"  >>  Local/Makefile  &&
   if  spell_ok  tcp_wrappers
@@ -52,101 +52,101 @@ then
   fi
 fi  &&
 
-if  [  "$EXIM_MYSQL"  ==  "y"  ]
+if  [[  "$EXIM_MYSQL"  ==  "y"  ]]
 then
   echo  "LOOKUP_MYSQL=yes"                      >>  Local/Makefile  &&
   echo  "LOOKUP_INCLUDE=-I /usr/include/mysql"  >>  Local/Makefile  &&
   LOOKUP_LIBS="$LOOKUP_LIBS  -lmysqlclient"
 fi  &&
 
-if  [  "$EXIM_PGSQL"  ==  "y"  ]
+if  [[  "$EXIM_PGSQL"  ==  "y"  ]]
 then
   echo  "LOOKUP_PGSQL=yes"  >>  Local/Makefile  &&
   LOOKUP_LIBS="$LOOKUP_LIBS  -lpq"
 fi  &&
 
-if  [  "$EXIM_OPENLDAP"  ==  "y"  ]
+if  [[  "$EXIM_OPENLDAP"  ==  "y"  ]]
 then
   echo  "LOOKUP_LDAP=yes"            >>  Local/Makefile  &&
   echo  "LDAP_LIB_TYPE=OPENLDAP2"    >>  Local/Makefile  &&
   LOOKUP_LIBS="$LOOKUP_LIBS  -lldap -llber"
 fi  &&
 
-if  [  "$OPENSSL"  ==  "y"  ]
+if  [[  "$EXIM_OPENSSL"  ==  "y"  ]]
 then
   echo  "SUPPORT_TLS=yes"          >>  Local/Makefile  &&
-  TLS_LIBS="$TLS_LIBS  -lssl -lcrypto"
+  echo  "TLS_LIBS=-lssl -lcrypto" >> Local/Makefile
 fi  &&
 
-if  [  "$GNUTLS"  ==  "y"  ]
+if  [[  "$EXIM_GNUTLS"  ==  "y"  ]]
 then
   echo  "SUPPORT_TLS=yes"                    >>  Local/Makefile  &&
   echo  "USE_GNUTLS=yes"                     >>  Local/Makefile  &&
-  TLS_LIBS="$TLS_LIBS  -lgnutls -ltasn1 -lgcrypt"
+  echo  "TLS_LIBS=-lgnutls -ltasn1 -lgcrypt" >> Local/Makefile
 fi  &&
 
-if  [  "$EXIM_MAILDIR"  ==  "y"  ]
+if  [[  "$EXIM_MAILDIR"  ==  "y"  ]]
 then
   echo  "SUPPORT_MAILDIR=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_MAILSTORE"  ==  "y"  ]
+if  [[  "$EXIM_MAILSTORE"  ==  "y"  ]]
 then
   echo  "SUPPORT_MAILSTORE=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_MBX"  ==  "y"  ]
+if  [[  "$EXIM_MBX"  ==  "y"  ]]
 then
   echo  "SUPPORT_MBX=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_NIS"  ==  "y"  ]
+if  [[  "$EXIM_NIS"  ==  "y"  ]]
 then
   echo  "LOOKUP_NIS=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_NISPLUS"  ==  "y"  ]
+if  [[  "$EXIM_NISPLUS"  ==  "y"  ]]
 then
   echo  "LOOKUP_NISPLUS=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_ORACLE"  ==  "y"  ]
+if  [[  "$EXIM_ORACLE"  ==  "y"  ]]
 then
   echo  "LOOKUP_ORACLE=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_PASSWD"  ==  "y"  ]
+if  [[  "$EXIM_PASSWD"  ==  "y"  ]]
 then
   echo  "LOOKUP_PASSWD=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_SCAN"  ==  "y"  ]
+if  [[  "$EXIM_SCAN"  ==  "y"  ]]
 then
   echo  "WITH_CONTENT_SCAN=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_MD5"  ==  "y"  ]
+if  [[  "$EXIM_MD5"  ==  "y"  ]]
 then
   echo  "AUTH_CRAM_MD5=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_SASL"  ==  "y"  ]
+if  [[  "$EXIM_SASL"  ==  "y"  ]]
 then
   echo  "AUTH_CYRUS_SASL=yes"  >>  Local/Makefile  &&
   echo  "AUTH_LIBS=-lsasl2"    >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_PLAINTEXT"  ==  "y"  ]
+if  [[  "$EXIM_PLAINTEXT"  ==  "y"  ]]
 then
   echo  "AUTH_PLAINTEXT=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_SPA"  ==  "y"  ]
+if  [[  "$EXIM_SPA"  ==  "y"  ]]
 then
   echo  "AUTH_SPA=yes"  >>  Local/Makefile
 fi  &&
 
-if  [  "$EXIM_READLINE"  ==  "y"  ]
+if  [[  "$EXIM_READLINE"  ==  "y"  ]]
 then
   echo  "USE_READLINE=yes"  >>  Local/Makefile  &&
   EXTRALIBS="$EXTRALIBS  -ldl"
@@ -155,7 +155,7 @@ fi  &&
 echo  "LOOKUP_LIBS=$LOOKUP_LIBS"  >>  Local/Makefile  &&
 echo  "EXTRALIBS=$EXTRALIBS"  >>  Local/Makefile  &&
 
-if  [  "$EXIM_FROZEN"  ==  "y"  ]
+if  [[  "$EXIM_FROZEN"  ==  "y"  ]]
 then
   echo  "SUPPORT_MOVE_FROZEN_MESSAGES=yes"  >>  Local/Makefile
 fi  &&
