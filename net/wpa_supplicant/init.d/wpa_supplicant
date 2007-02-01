@@ -14,26 +14,31 @@ DROPFILE=/var/tmp/wpa_supplicant.drop
 start()
 {
   required_executable /usr/sbin/iwconfig
+  local IWCONFIG=`builtin echo $(/usr/sbin/iwconfig $INTERFACE 2>&1)`
 
-  if /usr/sbin/iwconfig 2>&1 | grep -q "^$INTERFACE "; then
-    if [[ $(/usr/sbin/iwconfig 2>/dev/null | grep "$INTERFACE *unassociated") ]]
-    then
-      echo Starting wpa_supplicant...
-      $PROGRAM -B -i $INTERFACE -D $DRIVER -c $CONFIG -g $CONTROL
-      evaluate_retval
-      /bin/echo "INTERFACE=\"$INTERFACE\"" 2>/dev/null > $DROPFILE
-    elif [[ $(/usr/sbin/iwconfig 2>/dev/null | grep "$INTERFACE *radio off") ]]
-    then
-      echo $INTERFACE: radio off
-      (exit 1)
-      evaluate_retval
-    else
-      echo $INTERFACE: already connected
-      (exit 1)
-      evaluate_retval
-    fi
+  if [[ "$IWCONFIG" == $INTERFACE\ unassociated* ]]
+  then
+    echo Starting wpa_supplicant...
+    $PROGRAM -B -i $INTERFACE -D $DRIVER -c $CONFIG -g $CONTROL
+    evaluate_retval
+    /bin/echo "INTERFACE=\"$INTERFACE\"" 2>/dev/null > $DROPFILE
+  elif [[ "$IWCONFIG" == $INTERFACE\ radio\ off* ]]
+  then
+    echo $INTERFACE: radio off
+    (exit 1)
+    evaluate_retval
+  elif [[ "$IWCONFIG" == $INTERFACE\ no\ wireless* ]]
+  then
+    echo $INTERFACE: no wireless extensions
+    (exit 1)
+    evaluate_retval
+  elif [[ "$IWCONFIG" == $INTERFACE\ No\ such* ]]
+  then
+    echo $INTERFACE: no such device
+    (exit 1)
+    evaluate_retval
   else
-    echo $INTERFACE: not found
+    echo $INTERFACE: already connected
     (exit 1)
     evaluate_retval
   fi
