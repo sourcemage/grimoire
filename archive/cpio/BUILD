@@ -9,6 +9,7 @@ sedit  's: mt.1::'  doc/Makefile.in  &&
 
   ./configure --prefix=${TRACK_ROOT}/usr  \
           --sysconfdir=${TRACK_ROOT}/etc  \
+              --bindir=${TRACK_ROOT}/bin  \
        --localstatedir=${TRACK_ROOT}/var  \
               --mandir=${TRACK_ROOT}/usr/share/man   \
              --infodir=${TRACK_ROOT}/usr/share/info  \
