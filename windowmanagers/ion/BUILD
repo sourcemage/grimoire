@@ -1,17 +1,20 @@
-cd ${SOURCE_DIRECTORY}/build/ac &&
-autoreconf                      &&
+cd  "$SOURCE_DIRECTORY/build/ac"  &&
+autoreconf                        &&
 
-OPTS="$OPTS --build=${BUILD}"
+OPTS="$ION_XINERAMA $ION_LOCALE $OPTS --build=${BUILD}"  &&
 
-[[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+if [[ $CROSS_INSTALL == on ]]
+then
+  OPTS="$OPTS --host=${HOST}"
+fi  &&
 
-./configure --prefix=${INSTALL_ROOT}/usr              \
-            --sysconfdir=${INSTALL_ROOT}/etc          \
-            --localstatedir=${INSTALL_ROOT}/var       \
-            --mandir=${INSTALL_ROOT}/usr/share/man    \
-            --infodir=${INSTALL_ROOT}/usr/share/info  \
-            $OPTS                                     &&
+./configure  --prefix=${INSTALL_ROOT}/usr              \
+             --sysconfdir=${INSTALL_ROOT}/etc          \
+             --localstatedir=${INSTALL_ROOT}/var       \
+             --mandir=${INSTALL_ROOT}/usr/share/man    \
+             --infodir=${INSTALL_ROOT}/usr/share/info  \
+             $OPTS                                     &&
 
-cd ${SOURCE_DIRECTORY}          &&
+cd  "$SOURCE_DIRECTORY"  &&
 
 make
