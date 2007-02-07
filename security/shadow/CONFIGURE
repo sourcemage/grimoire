@@ -1,5 +1,19 @@
-config_query SHADOW_CONV "Attempt to convert/fix accounts (with installed shadow utils)" n &&
-if [[ "$SHADOW_CONV" == y ]]; then
+# There's a bug introduced by the solution of bug 8834:
+# if you said "n" to $SHADOW_CONV, you ended up with the state pw/grpunconv
+# left on dispelling old shadow.
+# Introducing the temporary SHADOW_RECONV to support fixing that situation.
+
+if [[ "$SHADOW_CONV" == n ]] && [[ -z "$SHADOW_RECONV" ]]; then
+  message "Checking passwd for shadowness (there could have been an unwanted run of pwunconv/grpunconv, see bug #8834)." &&
+  if ! grep -q '^root:x:' "$INSTALL_ROOT/etc/passwd"; then
+    message "${PROBLEM_COLOR}Your passwd file contains password hashes, resuggesting conversion to shadow." &&
+    message "${MESSAGE_COLOR}You can still say n to the upcoming query but make sure to run pwconv / grpconv yourself if you want existing passwords shadowed." &&
+    config_query SHADOW_RECONV "One-time query: convert/fix accounts (with installed shadow utils) this time" n
+  fi
+else
+  config_query SHADOW_CONV "Attempt to convert/fix accounts (with installed shadow utils)" n
+fi &&
+if [[ "$SHADOW_CONV" == y ]] || [[ "$SHADOW_RECONV" == y ]]; then
   message "OK, checking your user and group accounts" &&
   grpck -r "$INSTALL_ROOT/etc/group" "$INSTALL_ROOT/etc/gshadow" ||
   {
