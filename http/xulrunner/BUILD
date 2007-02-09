@@ -33,6 +33,7 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
             --enable-cpp-rtti                                \
             --enable-application=xulrunner                   \
             --enable-cookies                                 \
+            --disable-javaxpcom                              \
             --disable-composer                               \
             --disable-mailnews                               \
             --disable-calendar                               \
