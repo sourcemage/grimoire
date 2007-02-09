@@ -11,5 +11,8 @@ else
   JS_CFLAGS="-I/usr/include/mozilla-$(installed_version mozilla)/js"  &&
   LDFLAGS="-L/usr/lib/mozilla -Wl,-rpath -Wl,/usr/lib/mozilla"
 fi  &&
-JS_LIBS="-lmozjs"  &&
+# JS1_LIBS is used to completely ignore the madness of gxines JS lib detection,
+# whatever configure does, the one actually used in the build is JS1_LIBS
+JS1_LIBS="-lmozjs"  &&
+export JS_CFLAGS JS1_LIBS  &&
 default_build
