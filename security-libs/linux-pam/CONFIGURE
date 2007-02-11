@@ -1,3 +1,17 @@
-config_query PAM_SECTTY "Install a default /etc/securetty?" n &&
-config_query PAM_SELINUX "Enable selinux support?" n          &&
+PATH=$PATH:/lib/security
+
+local chkpwd_suid_default  &&
+
+if  hash unix_chkpwd >&/dev/null  &&  [ -u $(hash -t unix_chkpwd) ];  then
+  chkpwd_suid_default=y
+else
+  chkpwd_suid_default=n
+fi  &&
+
+config_query PAM_CHKPWD_SUID                                              \
+  "Install unix_chkpwd suid root so non-root programs can authenticate?"  \
+  $chkpwd_suid_default                                                    &&
+
+config_query PAM_SECTTY "Install a default /etc/securetty?" n             &&
+config_query PAM_SELINUX "Enable selinux support?" n                      &&
 config_query PAM_DOCS "Build documentation?" n

@@ -1,3 +1,5 @@
+# fix problems on amd64 with libtool versions (bug #13943)
+./autogen.sh &&
 # fix configure so our CXXFLAGS get used
 sedit  's/test $CXXFLAGS/test -n "$CXXFLAGS"/'  configure  &&
 # remove -O3 from CXXFLAGS on gcc 4.0.x, leads to wrong code -> segfault

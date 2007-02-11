@@ -1,6 +1,6 @@
 # add better optimisation flags
-sedit "s#-O2#$CFLAGS#" mkspecs/linux-g++/qmake.conf &&
-sedit "s#-O2#$CFLAGS#" mkspecs/linux-cxx/qmake.conf &&
+# following line causes segmentation fault in moc when using gcc-4.1.1
+sedit  "s#-O2#${CFLAGS/-O3/-O2}#" mkspecs/common/g++.conf &&
 
 export QTDIR=$SOURCE_DIRECTORY  &&
 export LD_LIBRARY_PATH=$SOURCE_DIRECTORY/lib:$LD_LIBRARY_PATH &&
