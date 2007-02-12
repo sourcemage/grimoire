@@ -9,9 +9,11 @@ OPTS="$QT_DEBUG   \
       $QT_NIS     \
       $QT_XRAMA   \
       $QT_GIF     \
+      $QT_EXCEPT  \
+      $QT_PCH     \
       $OPTS"      &&
 
-echo  "yes"  |  ./configure                                                                \
+./configure   -confirm-license                                                             \
                              -prefix $INSTALL_ROOT/usr/                                    \
                              -bindir $INSTALL_ROOT/usr/bin/qt4                             \
                              -libdir $INSTALL_ROOT/usr/lib/qt4                             \
