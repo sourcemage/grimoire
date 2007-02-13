@@ -6,7 +6,7 @@ if ! declare -f up_trigger > /dev/null; then
 persistent_add PREVIOUS_VERSION	&&
 PREVIOUS_VERSION="`installed_version perl`"
 fi  &&
-CONFIG="$DEPENDS_CONFIG/perl_config.sh"     &&
+local  PERL_CONFIG="$DEPENDS_CONFIG/perl_config.sh"     &&
 
 SITEMAN1DIR="${INSTALL_ROOT}/usr/share/site_perl/man/man1"     &&
 SITEMAN3DIR="${INSTALL_ROOT}/usr/share/site_perl/man/man3"     &&
@@ -17,25 +17,34 @@ PERL_PATHS="-Dprefix=/usr \
            -Dvendorprefix=/usr -Dvendorman1dir=$VENDORMAN1DIR -Dvendorman3dir=$VENDORMAN3DIR \
            -Dsiteprefix=/usr -Dsiteman1dir=$SITEMAN1DIR -Dsiteman3dir=$SITEMAN3DIR " &&
 
-CONFIG_OPTS="-Ui_db -Duseshrplib -Ulocincpth=" &&
+local  CONFIG_OPTS="-Ui_db -Duseshrplib -Ulocincpth=" &&
 
 if glibc_is_nptl; then
   LDFLAGS="$LDFLAGS -lpthread"
 fi &&
 
-if [ "$OLD_CUSTOM" == "y" ]; then 
+if [[ "$OLD_CUSTOM" == "y" ]]; then 
    CONFIG_OPTS="-S "
-   cp $CONFIG ./config.sh
+   cp $PERL_CONFIG ./config.sh
 fi &&
 
-[ "$THREADED" == "y" ] && CONFIG_OPTS="$CONFIG_OPTS -Dusethreads"
-[ "$OLD_CUSTOM" != "y" ] && [ "NEW_CUSTOM" != "y" ] && CONFIG_OPTS="-d -e $CONFIG_OPTS"
+if  [[ "$THREADED" == "y" ]];  then
+  CONFIG_OPTS="$CONFIG_OPTS -Dusethreads"
+fi  &&
+
+if  [[ "$NEW_CUSTOM" != "y" ]];  then
+  CONFIG_OPTS="-d -e $CONFIG_OPTS"
+else
+   rm -f config.sh
+fi  &&
+
 ./Configure -Doptimize="$CFLAGS" $CONFIG_OPTS $PERL_PATHS &&
-if [ "$NEW_CUSTOM"  ==  "y" ]; then
-   cp config.sh $CONFIG
-fi &&
 
 make_single  &&
 make depend  &&
 make         &&
-make_normal
+make_normal  &&
+
+if [[ "$NEW_CUSTOM"  ==  "y" ]]; then
+   cp config.sh $PERL_CONFIG
+fi
