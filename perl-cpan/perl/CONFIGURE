@@ -1,21 +1,27 @@
 CONFIG_FILE="$DEPENDS_CONFIG/perl_config.sh"  &&
 
-if  [  -f  $CONFIG_FILE  ];  then
-   config_query  OLD_CUSTOM  "Use old custom configuration for Perl?"  y
+if  [[  -f  $CONFIG_FILE  ]];  then
+  if  [[  "$(installed_version perl)"  !=  "$VERSION"  ]];  then
+     message "${MESSAGE_COLOR}Config changes between versions, using old config is not an option. Removing $CONFIG_FILE${DEFAULT_COLOR}"  &&
+     local OLD_CUSTOM="n"                                       &&
+     rm -f "$CONFIG_FILE"
+  else
+    config_query  OLD_CUSTOM  "Use old custom configuration for Perl?"  y
 
-   if [ "$OLD_CUSTOM" == "n" ]; then
-      config_query RM_OLD_CUSTOM "Remove old custom configuration file ?" n
-   fi
+    if [[ "$OLD_CUSTOM" == "n" ]]; then
+       config_query RM_OLD_CUSTOM "Remove old custom configuration file ?" n
+    fi  &&
+
+    if [[ "$RM_OLD_CUSTOM" == "y" ]]; then 
+       rm -f "$CONFIG_FILE"
+    fi
+  fi
 else
-   OLD_CUSTOM="n"
-   RM_OLD_CUSTOM="n"
+  # Just used for the check below
+  local OLD_CUSTOM="n"
 fi  &&
 
-if [ "$RM_OLD_CUSTOM" == "y" ]; then 
-   rm "$CONFIG_FILE"
-fi
-
-if  [ ! "$OLD_CUSTOM"  ==  "y"  ];  then
+if  [[ "$OLD_CUSTOM"  ==  "n" ]];  then
   config_query  NEW_CUSTOM  "New custom configuration for Perl?"  n
 fi  &&
 
