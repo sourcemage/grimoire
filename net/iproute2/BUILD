@@ -19,8 +19,8 @@ if ! test -e ip/ip ; then
 fi  &&
 
 if  [  "$BUILD_DOCS"  =  y  ];  then
-  cd $SOURCE_DIRECTORY/doc                    &&
-  make                                        &&
-  mkdir -p /usr/share/doc/iproute2            &&
+  cd $SOURCE_DIRECTORY/doc                         &&
+  make                                             &&
+  mkdir -p ${INSTALL_ROOT}/usr/share/doc/${SPELL}  &&
   cd $SOURCE_DIRECTORY
 fi
