@@ -1,5 +1,5 @@
 if [[ $MPLAYER_SVN = y ]]; then
-  OPTS="$OPTS --with-extraincdir=/usr/include/ffmpeg"
+  OPTS="$OPTS --with-extraincdir=${TRACK_ROOT}/usr/include/ffmpeg"
 fi  &&
 
 OPTS="$MPLAYER_OPTS $OPTS"  &&
