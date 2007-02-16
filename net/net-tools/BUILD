@@ -1,3 +1,14 @@
+source $GRIMOIRE/is_depends_enabled.function  &&
+
+if  is_depends_enabled  $SPELL  gettext
+then
+  CONFIG_OPTS="y\n\
+$CONFIG_OPTS"
+else
+  CONFIG_OPTS="n\n\
+$CONFIG_OPTS"
+fi  &&
+
 echo  -e\n  $CONFIG_OPTS  >  smgl_config_opts                &&
 patch  -p1  <  $SCRIPT_DIRECTORY/gcc-3.4.patch               &&
 patch  -p1  <  $SCRIPT_DIRECTORY/x25_address-fix.patch       &&
