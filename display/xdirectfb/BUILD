@@ -12,7 +12,7 @@ fi  &&
 ### xdirectfb specific stuff
 cp $SOURCE_DIRECTORY/programs/Xserver/hw/xfree86/xf86Version.h $SOURCE_DIRECTORY/ &&
 cp $SOURCE_DIRECTORY/programs/Xserver/hw/xfree86/xf86Date.h $SOURCE_DIRECTORY/    &&
-cat <<__EOF__ >config/cf/host.def
+cat <<__EOF__ >config/cf/host.def &&
 
 #define DefaultCCOptions      $CFLAGS
 #define DefaultGcc2i386Opt    $CFLAGS
@@ -43,19 +43,18 @@ cat <<__EOF__ >config/cf/host.def
 #define BuildXprint             YES
 __EOF__
 # end
- 
-if echo $CFLAGS| grep -q "mmmx"; then
+
+if [[ "$XDFB_MMX" == "y" ]]; then
   echo "#define HasMMXSupport YES" >> config/cf/host.def
 fi  &&
 
-if echo $CFLAGS| grep -q "msse"; then
+if [[ "$XDFB_SSE" == "y" ]]; then
   echo "#define HasSSESupport YES" >> config/cf/host.def
 fi  &&
 
-if echo $CFLAGS| grep -q "m3dnow"; then
+if [[ "$XDFB_3DNOW" == "y" ]]; then
   echo "#define Has3DNowSupport YES" >> config/cf/host.def
 fi  &&
-
 
 cd config/util                                                 &&
 make -f Makefile.ini lndir                                     &&
