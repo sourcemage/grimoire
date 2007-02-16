@@ -14,6 +14,12 @@ fi  &&
 CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
+#
+# -ffast-math breaks plugins
+#
+CFLAGS="${CFLAGS//-ffast-math/}"      &&
+CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
+
 ./configure --prefix=$INSTALL_ROOT/usr                       \
             --mandir=$INSTALL_ROOT/usr/share/man             \
             --enable-optimize="$CFLAGS"                      \
