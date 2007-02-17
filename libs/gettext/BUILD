@@ -17,7 +17,7 @@ make_single  &&
 
 make  &&
 
-if  [  "$GETTEXT_TETEX"  ==  "y"  ];  then
+if  is_depends_enabled  tetex;  then
   cd  gettext-tools/doc  &&
   make  dvi              &&
   make  ps               &&
