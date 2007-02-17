@@ -1,1 +1,3 @@
-gcc $CFLAGS -o dcraw $SOURCE_CACHE/$SOURCE $LDFLAGS -lm -llcms -ljpeg
+cd $SOURCE_DIRECTORY &&
+message "${MESSAGE_COLOR}Compiling dcraw${DEFAULT_COLOR}" &&
+gcc $CFLAGS -o dcraw dcraw.c $LDFLAGS -lm -llcms -ljpeg
