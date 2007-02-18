@@ -1,5 +1,10 @@
+OPTS="--disable-dependency-tracking $OPTS"  &&
+
 default_build  &&
 
-if [[ $GATHER_DOCS == on && $LIBGIG_DOCS == y ]]; then
-  make docs
+.  "$GRIMOIRE/is_depends_enabled.function"  &&
+
+if  is_depends_enabled  $SPELL  doxygen
+then
+  make  docs
 fi
