@@ -1,7 +1,7 @@
 if [ "$NAGIOS_HTML" == "y" ]; then
    local HTML_DIR="${INSTALL_ROOT}/usr/share/nagios/htdoc"   &&
-   local CGI_DIR="${INSTALL_ROOT}/usr/share/nagios/cgi-bin"
-   local NAGIOS_HTMLCGI_OPTS="--datadir=${HTML_DIR} --sbindir=${CGI_DIR}" &&
+   local CGI_DIR="${INSTALL_ROOT}/usr/share/nagios/cgi-bin"  &&
+   local NAGIOS_HTMLCGI_OPTS="--datadir=${HTML_DIR} --sbindir=${CGI_DIR}"
 fi                                                           &&
 
 create_account nagios                                        &&
