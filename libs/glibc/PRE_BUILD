@@ -6,12 +6,26 @@ default_pre_build  &&
 persistent_add  GLIBC_HEADERS_DIR                                        &&
 GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/linux-libc-headers-$HEADERS_VERSION  &&
 
+#
+# Set GLIBC_LIBIDN_DIR for use later
+#
+persistent_add  GLIBC_LIBIDN_DIR                                         &&
+GLIBC_LIBIDN_DIR=$SOURCE_DIRECTORY/glibc-libidn-$VERSION                 &&
+
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   cd      $SOURCE_DIRECTORY                           &&
   # fix for upstream bug http://sourceware.org/bugzilla/show_bug.cgi?id=2429
   patch  -p1  <  $SCRIPT_DIRECTORY/nisplus_fix.diff                      &&
   # fix for upstream bug https://bugzilla.samba.org/show_bug.cgi?id=3678
   patch  -p1  <  $SCRIPT_DIRECTORY/glibc-2.4-iconv_open.patch            &&
+
+  if [ "$GLIBC_USEIDN" = "y" ]; then
+    #
+    # Unpack glibc-libidn
+    #
+    unpack_file 4                         &&
+    mv $GLIBC_LIBIDN_DIR libidn
+  fi &&
 
   #
   # Unpack glibc-kernel-headers
