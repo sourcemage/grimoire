@@ -4,9 +4,10 @@ message "Target list:$QEMU_ARCHS"  &&
 # Disable PIC if building soft MMU targets
 # Pentium3/4 breaks on building soft MMU, downgrade to pentium-mmx
 #
-if  list_find  "$QEMU_ARCHS"  *-softmmu;  then
+if grep -q softmmu <<< "$QEMU_ARCHS"; then
   CFLAGS=${CFLAGS/pentium4/pentium-mmx}  &&
   CFLAGS=${CFLAGS/pentium3/pentium-mmx}  &&
+  CFLAGS=${CFLAGS/-march=athlon-xp/}  &&
   disable_pic
 fi  &&
 
