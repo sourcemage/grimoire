@@ -1,2 +1,2 @@
-echo "\n\n" | ./build libraries  &&
+echo -e "\n\n" | ./build libraries  &&
 ./build man
