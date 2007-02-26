@@ -1,3 +1,2 @@
-#sedit "s/-O2/$CFLAGS/" build  &&
-./build package
-
+CFLAGS="$CFLAGS -c"        &&
+perl contrib/build.pl make
