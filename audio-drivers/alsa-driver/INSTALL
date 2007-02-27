@@ -5,10 +5,10 @@ mconf()
 for i in `seq 6` ;
   do C=`echo snd-$CARDS | sed s/\,/\,snd-/g | cut -d, -f${i}` ;
   if [ -n "$C" ] ; then
-    echo  "alias snd-card-`expr $i - 1` $C">>/etc/modules.d/alsa
+    echo  "alias snd-card-`expr $i - 1` $C">>${INSTALL_ROOT}/etc/modules.d/alsa &&
     echo  "alias snd-slot-`expr $i - 1` snd-card-`expr $i - 1`">>/etc/modules.d/alsa
   fi ;
-done
+done  &&
 
 cat >> /etc/modules.d/alsa <<EOF
 alias /dev/mixer snd-mixer-oss
@@ -47,42 +47,40 @@ EOF
   fi
 }
 
-make_normal      &&
 default_install  &&
 ./snddevices     &&
 
-if  [  -f  /dev/snd  ];  then
-  rm  -f   /dev/snd
+if  [  -f  ${TRACK_ROOT}/dev/snd  ];  then
+  rm  -f   ${TRACK_ROOT}/dev/snd
 fi  &&
 
-chown root.audio /dev/adsp         &&
-chmod 777 /dev/adsp                &&
-chown root.audio /dev/amidi        &&
-chmod 777 /dev/amidi               &&
-chown root.audio /dev/audio        &&
-chmod 777 /dev/audio               &&
-chown root.audio /dev/dsp          &&
-chmod 777 /dev/dsp                 &&
-chown root.audio /dev/midi*        &&
-chmod 777 /dev/midi*               &&
-chown root.audio /dev/mixer        &&
-chmod 777 /dev/mixer               &&
-chown root.audio /dev/sequencer*   &&
-chmod 777 /dev/sequencer*          &&
-chown root.audio /dev/snd          &&
-chmod 777 /dev/snd                 &&
+chown root.audio ${INSTALL_ROOT}/dev/adsp         &&
+chmod 777 ${INSTALL_ROOT}/dev/adsp                &&
+chown root.audio ${INSTALL_ROOT}/dev/amidi        &&
+chmod 777 ${INSTALL_ROOT}/dev/amidi               &&
+chown root.audio ${INSTALL_ROOT}/dev/audio        &&
+chmod 777 ${INSTALL_ROOT}/dev/audio               &&
+chown root.audio ${INSTALL_ROOT}/dev/dsp          &&
+chmod 777 ${INSTALL_ROOT}/dev/dsp                 &&
+chown root.audio ${INSTALL_ROOT}/dev/midi*        &&
+chmod 777 ${INSTALL_ROOT}/dev/midi*               &&
+chown root.audio ${INSTALL_ROOT}/dev/mixer        &&
+chmod 777 ${INSTALL_ROOT}/dev/mixer               &&
+chown root.audio ${INSTALL_ROOT}/dev/sequencer*   &&
+chmod 777 ${INSTALL_ROOT}/dev/sequencer*          &&
+chown root.audio ${INSTALL_ROOT}/dev/snd          &&
+chmod 777 ${INSTALL_ROOT}/dev/snd                 &&
 
-if  [  !  -f   /etc/modules.d/alsa  ];  then
-  mkdir   -p   /etc/modules.d  &&
+if  [  !  -f   ${TRACK_ROOT}/etc/modules.d/alsa  ];  then
+  mkdir   -p   ${INSTALL_ROOT}/etc/modules.d  &&
   mconf
 fi  &&
 
 dconf   &&
 
-MOD="/etc/modules.conf"
-INC="include  /etc/modules.d/alsa"
+MOD="${TRACK_ROOT}/etc/modules.conf"
+INC="include  ${TRACK_ROOT}/etc/modules.d/alsa"
     
 grep    -q  "$INC"      $MOD  ||
 echo        "$INC"  >>  $MOD  &&
 depmod  -a
-#true
