@@ -1,26 +1,20 @@
 # Clean out the old alsa drivers. FIXME: Bad location for 2.6!
-rm  -f  /lib/modules/`installed_version linux`/misc/snd*  &&
+rm  -f  ${TRACK_ROOT}/lib/modules/`get_kernel_version`/misc/snd*  &&
 
-if [ -e /proc/config.gz ] ; then
-    if [ `zgrep -c CONFIG_SOUND=m /proc/config.gz` = 1 ] ; then
+if [ -e ${TRACK_ROOT}/proc/config.gz ] ; then
+    if [ `zgrep -c CONFIG_SOUND=m ${TRACK_ROOT}/proc/config.gz` = 1 ] ; then
 	modprobe -q soundcore
     fi
-elif [ `grep -c CONFIG_SOUND=m /etc/sorcery/local/kernel.config` = 1 ] ; then
+elif [ `grep -c CONFIG_SOUND=m ${TRACK_ROOT}/etc/sorcery/local/kernel.config` = 1 ] ; then
     modprobe -q soundcore
-fi
+fi  &&
 
+sedit  "s:/usr/bin/awk:${TRACK_ROOT}/bin/awk:"  utils/convert_isapnp_ids  &&
+sedit  "s: install-scripts : :"                 Makefile                  &&
+sedit  "s:root.root:root.audio:"                snddevices                &&
 
+OPTS="--with-isapnp=yes --with-sequencer=yes --with-oss=yes --with-debug=none  \
+      --with-moddir=${INSTALL_ROOT}/lib/modules/$(get_kernel_version)/misc     \
+       --with-cards=${CARDS} ${OPTS}"                                          &&
 
-sedit  "s:/usr/bin/awk:/bin/awk:"  utils/convert_isapnp_ids  &&
-sedit  "s: install-scripts : :"    Makefile                  &&
-sedit  "s:root.root:root.audio:"   snddevices                &&
-
-./configure  --prefix=/usr         \
-             --with-isapnp=yes     \
-             --with-sequencer=yes  \
-             --with-oss=yes        \
-             --with-debug=none     \
-             --with-cards=$CARDS   \
-             $OPTS                 &&
-make_single                        &&
-make
+default_build
