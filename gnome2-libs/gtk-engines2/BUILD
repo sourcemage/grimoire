@@ -1,41 +1,45 @@
-if [ "$CLEARLOOKS" == "y" ]; then
+if [ "$GTKENGINE_CLEARLOOKS" == "n" ]; then
    OPTS="$OPTS --disable-clearlooks"
 fi                                        &&
 
-if [ "$CRUX" == "y" ]; then
+if [ "$GTKENGINE_CRUX" == "n" ]; then
    OPTS="$OPTS --disable-crux"
 fi                                        &&
 
-if [ "$HC" == "y" ]; then
+if [ "$GTKENGINE_HC" == "n" ]; then
    OPTS="$OPTS --disable-hc"
 fi                                        &&
 
-if [ "$INDUSTRIAL" == "y" ]; then
+if [ "$GTKENGINE_INDUSTRIAL" == "n" ]; then
    OPTS="$OPTS --disable-industrial"
 fi                                        &&
 
-if [ "$LIGHTHOUSE" == "y" ]; then
-   OPTS="$OPTS --disable-lighthouseblue"
-fi                                        &&
-
-if [ "$METAL" == "y" ]; then
-   OPTS="$OPTS --disable-metal"
-fi                                        &&
-
-if [ "$MIST" == "y" ]; then
+if [ "$GTKENGINE_MIST" == "n" ]; then
    OPTS="$OPTS --disable-mist"
 fi                                        &&
 
-if [ "$REDMOND" == "y" ]; then
+if [ "$GTKENGINE_REDMOND" == "n" ]; then
    OPTS="$OPTS --disable-redmond"
 fi                                        &&
 
-if [ "$SMOOTH" == "y" ]; then
+if [ "$GTKENGINE_SMOOTH" == "n" ]; then
    OPTS="$OPTS --disable-smooth"
 fi                                        &&
 
-if [ "$THINICE" == "y" ]; then
+if [ "$GTKENGINE_GLIDE" == "n" ]; then
+   OPTS="$OPTS --disable-glide"
+fi                                        &&
+
+if [ "$GTKENGINE_THINICE" == "n" ]; then
    OPTS="$OPTS --disable-thinice"
+fi                                        &&
+
+if [ "$GTKENGINE_LUA" == "y" ]; then
+   OPTS="$OPTS --enable-thinice"
+fi                                        &&
+
+if [ "$GTKENGINE_ANIMATION" == "y" ]; then
+   OPTS="$OPTS --enable-animation"
 fi                                        &&
 
 default_build
