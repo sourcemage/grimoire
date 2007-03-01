@@ -1,10 +1,10 @@
 if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
-  OPTS="$OPTS --enable-gecko=firefox"
+  OPTS="$OPTS --enable-gecko=firefox --disable-xulrunner"
 elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
-  OPTS="$OPTS --enable-gecko=seamonkey"
+  OPTS="$OPTS --enable-gecko=seamonkey --disable-xulrunner"
 elif test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
   OPTS="$OPTS --enable-xulrunner"
 else
-  OPTS="$OPTS --enable-gecko=mozilla"
+  OPTS="$OPTS --enable-gecko=mozilla --disable-xulrunner"
 fi  &&
 default_build
