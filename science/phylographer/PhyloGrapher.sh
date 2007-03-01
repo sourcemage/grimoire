@@ -1,5 +1,5 @@
 #!/bin/sh
-# Created by Eric Sandall <sandalle@yahoo.com>
+# Created by Eric Sandall <sandalle@sourcemage.org>
 #
 # PhyloGrapher.sh  v1.1.0  2003-05-27
 #
