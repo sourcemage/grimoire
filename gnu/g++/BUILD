@@ -6,7 +6,8 @@ persistent_read  gcc  GCC_NOLIB64   GCC_NOLIB64
 persistent_read  gcc  GCC_CFLAGS   CFLAGS   &&
 persistent_read  gcc  GCC_LDFLAGS  LDFLAGS  &&
 
-if  [[  "$ARCHITECTURE"  ==  "pentium4"  ]];  then
+if  [[  "$ARCHITECTURE"  ==  "pentium4"  ||
+        "$ARCHITECTURE"  ==  "pentium-m"  ]];  then
   CXXFLAGS=${CXXFLAGS//-ffast-math/}
 fi  &&
 
