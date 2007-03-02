@@ -1,0 +1,1251 @@
+--- rplay-3.3.2.orig/devrplay/Makefile.in
++++ rplay-3.3.2/devrplay/Makefile.in
+@@ -24,7 +24,7 @@
+ #$(TARGET):	$(OBJS) ../librplay/librplay.so
+ #		$(CC) -o $@ $(OBJS) ../librplay/rplay.lo ../librplay/rptp.lo $(LDFLAGS)
+ 
+-$(TARGET):	$(OBJS) ../librplay/librplay.so
++$(TARGET):	$(OBJS) ../librplay/librplay.so.@RPLAY_VERSION@
+ 		$(CC) -o $@ $(OBJS) $(LDFLAGS)
+ 
+ ../librplay/librplay.so:
+--- rplay-3.3.2.orig/gsm/Makefile
++++ rplay-3.3.2/gsm/Makefile
+@@ -0,0 +1,68 @@
++# Generated automatically from Makefile.in by configure.
++include /opt/home/lmoore/rplay/rplay-3.3.2/Makefile.config
++
++srcdir = .
++
++INSTALL = /usr/bin/install -c
++INSTALL_PROGRAM = ${INSTALL}
++INSTALL_DATA = ${INSTALL} -m 644
++
++SASR = -DSASR
++MULHACK = -DUSE_FLOAT_MUL
++FAST = -DFAST
++#LTP_CUT = -DLTP_CUT
++LTP_CUT =
++
++CPPFLAGS=	$(CC_OPTIONS) -I. -I../include -I. -I./../include -I./../lib -DHAVE_CONFIG_H
++
++.c.o:
++		$(CC) -c $(CPPFLAGS) $(SASR) $(DEBUG) $(MULHACK) $(FAST) $(LTP_CUT) $(CFLAGS) $<
++
++LDFLAGS=	$(LD_OPTIONS) -L. -lgsm 
++
++TARGET=		libgsm.a
++
++SRCS=		add.c code.c debug.c decode.c gsm_create.c gsm_decode.c \
++		gsm_destroy.c gsm_encode.c gsm_explode.c gsm_implode.c gsm_option.c \
++		gsm_print.c long_term.c lpc.c preprocess.c rpe.c short_term.c table.c
++
++OBJS=		add.o code.o debug.o decode.o gsm_create.o gsm_decode.o \
++		gsm_destroy.o gsm_encode.o gsm_explode.o gsm_implode.o gsm_option.o \
++		gsm_print.o long_term.o lpc.o preprocess.o rpe.o short_term.o table.o
++
++TOAST=		toast
++TOAST_SRCS=	toast.c toast_alaw.c toast_audio.c toast_lin.c toast_ulaw.c
++
++TOAST_OBJS=	toast.o toast_alaw.o toast_audio.o toast_lin.o toast_ulaw.o
++
++
++all:		$(TARGET) $(TOAST)
++
++$(TARGET):	$(OBJS)
++		$(AR) rcv $@ $?
++		$(RANLIB) $@
++
++$(TOAST):	$(TARGET) $(TOAST_OBJS)
++		$(CC) -o $@ $(TOAST_OBJS) $(LDFLAGS)
++
++install:
++
++uninstall:
++
++clean:
++		$(RM) $(OBJS) $(TARGET) $(TOAST_OBJS) $(TOAST) a.out core *~ *.bak *.orig TAGS
++
++distclean:	clean
++		$(RM) Makefile
++
++tags:
++		$(TAGS) *.[ch]
++
++TAGS:		tags
++
++etags:		tags
++
++depend:
++		$(MAKEDEPEND) -- $(CPPFLAGS) $(CFLAGS) -- $(SRCS)
++
++
+--- rplay-3.3.2.orig/librplay/Makefile.in
++++ rplay-3.3.2/librplay/Makefile.in
+@@ -9,7 +9,7 @@
+ MKINSTALLDIRS= @srcdir@/../mkinstalldirs
+ 
+ CPPFLAGS=	$(CC_OPTIONS) -I. -I../include -I@srcdir@/../include @DEFS@
+-LDFLAGS=	$(LD_OPTIONS) -shared @LDFLAGS@
++LDFLAGS=	$(LD_OPTIONS) -shared -Xlinker -soname -Xlinker librplay.so.3 @LDFLAGS@
+ 
+ .c.o:
+ 		$(CC) -c $(CPPFLAGS) $(CFLAGS) $<
+@@ -33,7 +33,10 @@
+ 		$(RANLIB) $@
+ 
+ librplay.so:	$(SHAREDOBJS)
+-		$(CC) -o $@ $(SHAREDOBJS) $(LDFLAGS)
++		$(CC) -o $@.@RPLAY_VERSION@ $(SHAREDOBJS) $(LDFLAGS)
++		ln -fs $@.@RPLAY_VERSION@ $@.3
++		ln -fs $@.@RPLAY_VERSION@ $@
++
+ 
+ #
+ # For HP-UX comment above and uncomment below.
+@@ -50,14 +53,16 @@
+ install:	all
+ 		$(MKINSTALLDIRS) $(libdir)
+ 		$(INSTALL_DATA) $(TARGET) $(libdir)
+-		$(INSTALL_DATA) librplay.so $(libdir)
++		$(INSTALL_DATA) librplay.so.@RPLAY_VERSION@ $(libdir)
++		(cd $(libdir) && ln -s librplay.so.@RPLAY_VERSION@ librplay.so.3)
++		(cd $(libdir) && ln -s librplay.so.@RPLAY_VERSION@ librplay.so)
+ 
+ uninstall:
+ 		$(RM) $(libdir)/$(TARGET)
+ 		$(RM) $(libdir)/librplay.so
+ 
+ clean:
+-		$(RM) $(OBJS) $(SHAREDOBJS) $(TARGET) librplay.so a.out core *~ *.bak *.orig TAGS
++		$(RM) $(OBJS) $(SHAREDOBJS) $(TARGET) librplay.so* a.out core *~ *.bak *.orig TAGS
+ 
+ distclean:	clean
+ 		$(RM) Makefile
+--- rplay-3.3.2.orig/rx/config.log
++++ rplay-3.3.2/rx/config.log
+@@ -0,0 +1,4 @@
++This file contains any messages produced by compilers while
++running configure, to aid debugging if configure makes a mistake.
++
++configure:890: gcc -o conftest -g -O   conftest.c  1>&5
+--- rplay-3.3.2.orig/rx/Makefile
++++ rplay-3.3.2/rx/Makefile
+@@ -0,0 +1,152 @@
++# Generated automatically from Makefile.in by configure.
++# Makefile for librx
++# Copyright (C) 1994 Free Software Foundation, Inc.
++# 
++# This file is part of GNU Rx
++# 
++# GNU Rx is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2, or (at your option)
++# any later version.
++# 
++# GNU Rx is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with GNU Rx; see the file COPYING.LIB.  If not, write to
++# the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++
++
++SHELL = /bin/sh
++
++srcdir = .
++prefix = /usr
++exec_prefix = ${prefix}
++bindir = $(exec_prefix)/bin
++libdir = $(exec_prefix)/lib
++includedir = $(prefix)/include
++infodir = $(prefix)/info
++
++#### Start of system configuration section. ####
++
++CC = gcc
++INSTALL = /usr/bin/install -c
++DEFS =  -DSTDC_HEADERS=1 
++CFLAGS = -g -O
++ALL_CFLAGS =  -I. -I$(srcdir) -I$(srcdir)/../libsystas $(CFLAGS)
++AR = ar
++AR_FLAGS = rc
++RANLIB = ranlib
++opt_objs=
++
++source= hashrexp.c rx.c rxanal.c rxbasic.c rxbitset.c rxcset.c rxdbug.c rxgnucomp.c rxhash.c rxnfa.c rxnode.c rxposix.c rxsimp.c rxspencer.c rxstr.c rxsuper.c rxunfa.c rgx.c
++
++headers=_rx.h rx.h rxanal.h rxbasic.h rxbitset.h rxcontext.h rxcset.h rxgnucomp.h rxhash.h rxnfa.h rxnode.h inst-rxposix.h  rxposix.h rxproto.h rxsimp.h rxspencer.h rxstr.h rxsuper.h rxunfa.h  rxall.h
++
++ancillery=configure.in Makefile.in configure \
++	  COPYING.LIB ChangeLog PLUGIN  \
++	  ../doc/rx.texi ../doc/rx.info ../doc/texinfo.tex
++distfiles=$(source) $(headers) $(ancillery)
++libobjs= hashrexp.o rx.o rxanal.o rxbasic.o rxbitset.o rxcset.o rxdbug.o rxgnucomp.o rxhash.o rxnfa.o rxnode.o rxposix.o rxsimp.o rxspencer.o rxstr.o rxsuper.o rxunfa.o
++gen_c_files=rgx.x
++
++.SUFFIXES:
++.SUFFIXES: .o .c .h .ps .dvi .info .texinfo .scm .cd .x
++
++.c.x:
++	$(CC) $(ALL_CFLAGS) -DSCM_MAGIC_SNARFER -E $< | grep "^%%%" | sed -e "s/^%%%//" > $@ ; \
++
++.c.o:
++	$(CC) -c $(ALL_CFLAGS) $(DEFS) -I$(srcdir) $<
++
++all: librx.a
++
++install: all
++	test -d $(libdir) || mkdir $(libdir)
++	test -d $(includedir) || mkdir $(includedir)
++	$(INSTALL) librx.a $(libdir)/librx.a
++	$(RANLIB) $(libdir)/librx.a
++	$(INSTALL) $(srcdir)/inst-rxposix.h $(includedir)/rxposix.h
++
++
++uninstall:
++	-rm -f $(libdir)/librx.a
++	-rm -f $(includedir)/rxposix.h
++
++clean:
++	-rm -f $(libobjs) librx.a  $(opt_objs) 
++
++distclean: clean
++	-rm Makefile config.status config.log rgx.x
++
++mostlyclean: clean
++
++realclean: distclean
++
++TAGS:
++	etags $(source)
++
++info:
++
++install-info:
++
++clean-info:
++
++dvi:
++
++check:
++
++SUBDIR=.
++manifest:
++	for file in $(distfiles); do echo $(SUBDIR)/$$file; done
++
++dist:	$(distfiles)
++	echo rx-`sed -e '/version_string/!d' -e 's/[^0-9.]*\([0-9.]*\).*/\1/' -e q rx.c` > .fname
++	rm -rf `cat .fname`
++	mkdir `cat .fname`
++	ln $(distfiles) `cat .fname`
++	tar chzf `cat .fname`.tar.gz `cat .fname`
++	rm -rf `cat .fname` .fname
++
++
++librx.a: $(libobjs) $(opt_objs)
++	rm -f librx.a
++	$(AR) $(AR_FLAGS) librx.a $(libobjs) $(opt_objs)
++	$(RANLIB) librx.a
++
++
++depends:
++	touch $(gen_c_files) scmconfig.h
++	gcc -MM -I. -I../libsystas $(source)
++	rm $(gen_c_files) scmconfig.h
++###
++hashrexp.o : hashrexp.c rxall.h rxnode.h rxbitset.h rxcset.h rxhash.h 
++rx.o : rx.c rx.h rxhash.h rxbitset.h rxall.h rxnfa.h _rx.h rxcset.h rxnode.h rxsuper.h
++rxanal.o : rxanal.c rxall.h rxanal.h rxcset.h rxbitset.h rxnode.h rxsuper.h \
++  rxnfa.h _rx.h rxhash.h 
++rxbasic.o : rxbasic.c rxall.h rxbasic.h rxcontext.h rxnode.h rxbitset.h rxcset.h \
++  rxspencer.h rxproto.h rxunfa.h _rx.h rxhash.h rxanal.h rxsuper.h rxnfa.h inst-rxposix.h \
++  rxstr.h 
++rxbitset.o : rxbitset.c rxall.h rxbitset.h 
++rxcset.o : rxcset.c rxall.h rxcset.h rxbitset.h 
++rxdbug.o : rxdbug.c rxall.h rxgnucomp.h rxcset.h rxbitset.h rxnode.h rxnfa.h \
++  _rx.h rxhash.h 
++rxgnucomp.o : rxgnucomp.c rxall.h rxgnucomp.h rxcset.h rxbitset.h rxnode.h 
++rxhash.o : rxhash.c rxall.h rxhash.h rxbitset.h 
++rxnfa.o : rxnfa.c rxall.h rxnfa.h _rx.h rxhash.h rxbitset.h rxcset.h rxnode.h 
++rxnode.o : rxnode.c rxall.h rxnode.h rxbitset.h rxcset.h 
++rxposix.o : rxposix.c rxall.h rxposix.h rxspencer.h rxproto.h rxnode.h rxbitset.h \
++  rxcset.h rxunfa.h _rx.h rxhash.h rxanal.h rxsuper.h rxnfa.h inst-rxposix.h rxcontext.h \
++  rxgnucomp.h rxbasic.h rxsimp.h 
++rxsimp.o : rxsimp.c rxall.h rxsimp.h rxcset.h rxbitset.h rxnode.h 
++rxspencer.o : rxspencer.c rxall.h rxspencer.h rxproto.h rxnode.h rxbitset.h \
++  rxcset.h rxunfa.h _rx.h rxhash.h rxanal.h rxsuper.h rxnfa.h inst-rxposix.h 
++rxstr.o : rxstr.c rxall.h rxstr.h rxspencer.h rxproto.h rxnode.h rxbitset.h \
++  rxcset.h rxunfa.h _rx.h rxhash.h rxanal.h rxsuper.h rxnfa.h inst-rxposix.h rxcontext.h 
++rxsuper.o : rxsuper.c rxall.h rxsuper.h rxnfa.h _rx.h rxhash.h rxbitset.h rxcset.h \
++  rxnode.h 
++rxunfa.o : rxunfa.c rxall.h rx.h rxhash.h rxbitset.h rxunfa.h _rx.h rxcset.h \
++  rxnfa.h rxnode.h 
++rgx.o : rgx.c rgx.x
+--- rplay-3.3.2.orig/rx/config.status
++++ rplay-3.3.2/rx/config.status
+@@ -0,0 +1,125 @@
++#! /bin/sh
++# Generated automatically by configure.
++# Run this file to recreate the current configuration.
++# This directory was configured as follows,
++# on host scooter:
++#
++# ./configure  --prefix=/usr --sysconfdir=/etc/rplay --without-x --enable-rplayd-user=nobody --enable-rplayd-group=audio --cache-file=.././config.cache --srcdir=.
++#
++# Compiler output produced by configure, useful for debugging
++# configure, is in ./config.log if it exists.
++
++ac_cs_usage="Usage: ./config.status [--recheck] [--version] [--help]"
++for ac_option
++do
++  case "$ac_option" in
++  -recheck | --recheck | --rechec | --reche | --rech | --rec | --re | --r)
++    echo "running ${CONFIG_SHELL-/bin/sh} ./configure  --prefix=/usr --sysconfdir=/etc/rplay --without-x --enable-rplayd-user=nobody --enable-rplayd-group=audio --cache-file=.././config.cache --srcdir=. --no-create --no-recursion"
++    exec ${CONFIG_SHELL-/bin/sh} ./configure  --prefix=/usr --sysconfdir=/etc/rplay --without-x --enable-rplayd-user=nobody --enable-rplayd-group=audio --cache-file=.././config.cache --srcdir=. --no-create --no-recursion ;;
++  -version | --version | --versio | --versi | --vers | --ver | --ve | --v)
++    echo "./config.status generated by autoconf version 2.10"
++    exit 0 ;;
++  -help | --help | --hel | --he | --h)
++    echo "$ac_cs_usage"; exit 0 ;;
++  *) echo "$ac_cs_usage"; exit 1 ;;
++  esac
++done
++
++ac_given_srcdir=.
++ac_given_INSTALL="/usr/bin/install -c"
++
++trap 'rm -fr Makefile conftest*; exit 1' 1 2 15
++
++# Protect against being on the right side of a sed subst in config.status.
++sed 's/%@/@@/; s/@%/@@/; s/%g$/@g/; /@g$/s/[\\&%]/\\&/g;
++ s/@@/%@/; s/@@/@%/; s/@g$/%g/' > conftest.subs <<\CEOF
++/^[ 	]*VPATH[ 	]*=[^:]*$/d
++
++s%@CFLAGS@%-g -O%g
++s%@CPPFLAGS@%%g
++s%@CXXFLAGS@%%g
++s%@DEFS@% -DSTDC_HEADERS=1 %g
++s%@LDFLAGS@%%g
++s%@LIBS@%%g
++s%@exec_prefix@%${prefix}%g
++s%@prefix@%/usr%g
++s%@program_transform_name@%s,x,x,%g
++s%@bindir@%${exec_prefix}/bin%g
++s%@sbindir@%${exec_prefix}/sbin%g
++s%@libexecdir@%${exec_prefix}/libexec%g
++s%@datadir@%${prefix}/share%g
++s%@sysconfdir@%/etc/rplay%g
++s%@sharedstatedir@%${prefix}/com%g
++s%@localstatedir@%${prefix}/var%g
++s%@libdir@%${exec_prefix}/lib%g
++s%@includedir@%${prefix}/include%g
++s%@oldincludedir@%/usr/include%g
++s%@infodir@%${prefix}/info%g
++s%@mandir@%${prefix}/man%g
++s%@CC@%gcc%g
++s%@CPP@%gcc -E%g
++s%@RANLIB@%ranlib%g
++s%@INSTALL_PROGRAM@%${INSTALL}%g
++s%@INSTALL_DATA@%${INSTALL} -m 644%g
++s%@opt_objs@%%g
++s%@opt_cflags@%%g
++
++CEOF
++
++CONFIG_FILES=${CONFIG_FILES-"Makefile"}
++for ac_file in .. $CONFIG_FILES; do if test "x$ac_file" != x..; then
++  # Support "outfile[:infile]", defaulting infile="outfile.in".
++  case "$ac_file" in
++  *:*) ac_file_in=`echo "$ac_file"|sed 's%.*:%%'`
++       ac_file=`echo "$ac_file"|sed 's%:.*%%'` ;;
++  *) ac_file_in="${ac_file}.in" ;;
++  esac
++
++  # Adjust relative srcdir, etc. for subdirectories.
++
++  # Remove last slash and all that follows it.  Not all systems have dirname.
++  ac_dir=`echo $ac_file|sed 's%/[^/][^/]*$%%'`
++  if test "$ac_dir" != "$ac_file" && test "$ac_dir" != .; then
++    # The file is in a subdirectory.
++    test ! -d "$ac_dir" && mkdir "$ac_dir"
++    ac_dir_suffix="/`echo $ac_dir|sed 's%^\./%%'`"
++    # A "../" for each directory in $ac_dir_suffix.
++    ac_dots=`echo $ac_dir_suffix|sed 's%/[^/]*%../%g'`
++  else
++    ac_dir_suffix= ac_dots=
++  fi
++
++  case "$ac_given_srcdir" in
++  .)  srcdir=.
++      if test -z "$ac_dots"; then top_srcdir=.
++      else top_srcdir=`echo $ac_dots|sed 's%/$%%'`; fi ;;
++  /*) srcdir="$ac_given_srcdir$ac_dir_suffix"; top_srcdir="$ac_given_srcdir" ;;
++  *) # Relative path.
++    srcdir="$ac_dots$ac_given_srcdir$ac_dir_suffix"
++    top_srcdir="$ac_dots$ac_given_srcdir" ;;
++  esac
++
++  case "$ac_given_INSTALL" in
++  [/$]*) INSTALL="$ac_given_INSTALL" ;;
++  *) INSTALL="$ac_dots$ac_given_INSTALL" ;;
++  esac
++  echo creating "$ac_file"
++  rm -f "$ac_file"
++  configure_input="Generated automatically from `echo $ac_file_in|sed 's%.*/%%'` by configure."
++  case "$ac_file" in
++  *Makefile*) ac_comsub="1i\\
++# $configure_input" ;;
++  *) ac_comsub= ;;
++  esac
++  sed -e "$ac_comsub
++s%@configure_input@%$configure_input%g
++s%@srcdir@%$srcdir%g
++s%@top_srcdir@%$top_srcdir%g
++s%@INSTALL@%$INSTALL%g
++" -f conftest.subs $ac_given_srcdir/$ac_file_in > $ac_file
++fi; done
++rm -f conftest.subs
++
++
++
++exit 0
+--- rplay-3.3.2.orig/debian/rules
++++ rplay-3.3.2/debian/rules
+@@ -0,0 +1,154 @@
++#!/usr/bin/make -f
++# Made with the aid of debmake, by Christoph Lameter,
++# based on the sample debian/rules file for GNU hello by Ian Jackson.
++
++SHELL=/bin/bash
++
++i = $(shell pwd)/debian/tmp
++b = $(shell pwd)/debian/build
++
++build: build-debstamp
++build-debstamp:
++	$(checkdir)
++	./configure --prefix=/usr --sysconfdir=/etc/rplay --without-x \
++		--enable-rplayd-user=nobody --enable-rplayd-group=audio
++	make CFLAGS="-O2 -D_REENTRANT"
++	(cd contrib/mailsound; make CFLAGS="-O2 -g")
++	touch build-debstamp
++
++clean: 
++	[ ! -f Makefile ] || make distclean
++	$(checkdir)
++	-rm -f *-debstamp
++	-rm -f `find . -name "*~"`
++	-rm -f contrib/mailsound/mailsound{,.o}
++	-rm -rf $(i) $(b) debian/files* core debian/substvars
++
++install: build install-debstamp
++install-debstamp:
++	dh_testdir
++	dh_testroot
++	dh_clean
++	rm -rf $(b) $(i)
++	make install prefix=$(i)/usr infodir=$(i)/usr/share/info mandir=$(i)/usr/share/man
++	install -s contrib/mailsound/mailsound $(i)/usr/bin
++	mkdir -p $(i)/usr/lib/perl5
++	install -m 664 perl/{RPlay.pm,rplay.ph,RPTP.pm} $(i)/usr/lib/perl5
++	install perl/Mailsound $(i)/usr/bin
++	install -m 644 contrib/mailsound/mailsound.1 $(i)/usr/share/man/man1
++	install -m 644 perl/Mailsound.1 $(i)/usr/share/man/man1
++	install -d $(i)/etc/rplay
++	install -m 644 etc/rplay.{conf,helpers,hosts,servers} $(i)/etc/rplay
++	touch install-debstamp
++
++binary: binary-indep binary-arch
++
++binary-indep: install
++	$(checkroot)
++
++binary-arch: checkroot install librplay3 librplay3-dev rplay rplay-server rplay-perl rplay-contrib rplay-client rplay
++
++rplay: install
++	install -d $(b)/$@/usr/share/doc
++	cd $(b)/$@/usr/share/doc && ln -s librplay3 $@
++	dh_installdeb		-p$@ -P$(b)/$@
++	dh_gencontrol        	-p$@ -P$(b)/$@
++	dh_md5sums		-p$@ -P$(b)/$@
++	dh_builddeb		-p$@ -P$(b)/$@
++
++librplay3: install
++	dh_installdocs		-p$@ -P$(b)/$@
++	cd $(b)/$@/usr/share/doc/$@/ && ln -s ChangeLog.gz changelog.gz
++	dh_installchangelogs	-p$@ -P$(b)/$@
++	dh_movefiles		-p$@ -P$(b)/$@
++	dh_makeshlibs		-p$@ -P$(b)/$@
++	dh_strip		-p$@ -P$(b)/$@
++	dh_compress		-p$@ -P$(b)/$@
++	dh_fixperms		-p$@ -P$(b)/$@
++	dh_installmime		-p$@ -P$(b)/$@
++	dh_installdeb		-p$@ -P$(b)/$@
++	dh_shlibdeps		-p$@ -P$(b)/$@
++	dh_gencontrol        	-p$@ -P$(b)/$@
++	dh_md5sums		-p$@ -P$(b)/$@
++	dh_builddeb		-p$@ -P$(b)/$@
++
++librplay3-dev: install
++	install -d $(b)/$@/usr/share/doc
++	cd $(b)/$@/usr/share/doc && ln -s librplay3 $@
++	dh_movefiles		-p$@ -P$(b)/$@
++	dh_strip		-p$@ -P$(b)/$@
++	dh_compress		-p$@ -P$(b)/$@
++	dh_fixperms		-p$@ -P$(b)/$@
++	dh_installinfo		-p$@ -P$(b)/$@
++	dh_installmime		-p$@ -P$(b)/$@
++	dh_installdeb		-p$@ -P$(b)/$@
++	dh_shlibdeps		-p$@ -P$(b)/$@
++	dh_gencontrol        	-p$@ -P$(b)/$@
++	dh_md5sums		-p$@ -P$(b)/$@
++	dh_builddeb		-p$@ -P$(b)/$@
++
++rplay-client: install
++	install -d $(b)/$@/usr/share/doc
++	cd $(b)/$@/usr/share/doc && ln -s librplay3 $@
++	dh_movefiles		-p$@ -P$(b)/$@
++	dh_strip		-p$@ -P$(b)/$@
++	dh_compress		-p$@ -P$(b)/$@
++	dh_fixperms		-p$@ -P$(b)/$@
++	dh_installinfo		-p$@ -P$(b)/$@
++	dh_installmime		-p$@ -P$(b)/$@
++	dh_installdeb		-p$@ -P$(b)/$@
++	dh_shlibdeps		-p$@ -P$(b)/$@
++	dh_gencontrol        	-p$@ -P$(b)/$@
++	dh_md5sums		-p$@ -P$(b)/$@
++	dh_builddeb		-p$@ -P$(b)/$@
++
++rplay-server: install
++	install -d $(b)/$@/usr/share/doc/librplay3
++	cd $(b)/$@/usr/share/doc && ln -s librplay3 $@
++	dh_movefiles		-p$@ -P$(b)/$@
++	dh_installexamples	-p$@ -P$(b)/$@
++	dh_strip		-p$@ -P$(b)/$@
++	dh_compress		-p$@ -P$(b)/$@
++	dh_fixperms		-p$@ -P$(b)/$@
++	dh_installinit		-p$@ -P$(b)/$@ --init-script=rplay
++	dh_installdeb		-p$@ -P$(b)/$@
++	dh_shlibdeps		-p$@ -P$(b)/$@
++	dh_gencontrol        	-p$@ -P$(b)/$@
++	dh_md5sums		-p$@ -P$(b)/$@
++	dh_builddeb		-p$@ -P$(b)/$@
++
++rplay-perl: install
++	dh_installdocs		-p$@ -P$(b)/$@
++	dh_installchangelogs	-p$@ -P$(b)/$@
++	dh_movefiles		-p$@ -P$(b)/$@
++	dh_perl			-p$@ -P$(b)/$@
++	dh_compress		-p$@ -P$(b)/$@
++	dh_fixperms		-p$@ -P$(b)/$@
++	dh_installdeb		-p$@ -P$(b)/$@
++	dh_gencontrol        	-p$@ -P$(b)/$@
++	dh_md5sums		-p$@ -P$(b)/$@
++	dh_builddeb		-p$@ -P$(b)/$@
++
++rplay-contrib: install
++	install -d $(b)/$@/usr/share/doc
++	cd $(b)/$@/usr/share/doc && ln -s rplay-perl $@
++	dh_movefiles		-p$@ -P$(b)/$@
++	dh_perl			-p$@ -P$(b)/$@
++	dh_strip		-p$@ -P$(b)/$@
++	dh_compress		-p$@ -P$(b)/$@
++	dh_fixperms		-p$@ -P$(b)/$@
++	dh_installdeb		-p$@ -P$(b)/$@
++	dh_shlibdeps		-p$@ -P$(b)/$@
++	dh_gencontrol        	-p$@ -P$(b)/$@
++	dh_md5sums		-p$@ -P$(b)/$@
++	dh_builddeb		-p$@ -P$(b)/$@
++
++define checkdir
++	test -f debian/rules
++endef
++
++checkroot: 
++	$(checkdir)
++	test root = "`whoami`"
++
++.PHONY: binary binary-arch binary-indep clean checkroot
+--- rplay-3.3.2.orig/debian/changelog
++++ rplay-3.3.2/debian/changelog
+@@ -0,0 +1,67 @@
++rplay (3.3.2-2) unstable; urgency=medium
++
++  * added soname and -D_REENTRANT (fixes 37125, 48520)
++  * split package into subcomponents (fixes 36910)
++
++ -- lantz moore <lmoore@debian.org>  Sun,  7 Nov 1999 21:20:59 -0800
++
++rplay (3.3.2-1) unstable; urgency=low
++
++  * new upstream version.
++  * install the new devrplay library.
++  * depends on perl5, closes 41473.
++
++ -- lantz moore <lmoore@debian.org>  Sun, 18 Jul 1999 22:53:52 -0700
++
++rplay (3.3.1-3) unstable; urgency=low
++
++  * upstream patches fixing an annoying sprintf problem.
++
++ -- lantz moore <lmoore@debian.org>  Wed,  4 Nov 1998 09:14:49 -0800
++
++rplay (3.3.1-2) unstable; urgency=low
++
++  * forgot to remove install-mime from prerm. Bug#28395
++
++ -- lantz moore <lmoore@debian.org>  Thu, 22 Oct 1998 10:47:45 -0700
++
++rplay (3.3.1-1) unstable; urgency=low
++
++  * new upstream source.
++  * use update-mime.
++
++ -- lantz moore <lmoore@debian.org>  Thu, 15 Oct 1998 09:28:29 -0700
++
++rplay (3.3.0-4) unstable; urgency=low
++
++  * moved startup script to 40 so that rplayd gets started after amd.
++
++ -- lantz moore <lmoore@debian.org>  Fri, 31 Jul 1998 09:30:30 -0700
++
++rplay (3.3.0-3) unstable; urgency=low
++
++  * applied upstream "broadcast" patch.
++  * changed mpeg helper regex to match mp[1-3]
++  * fixed all lintian warnings.
++
++ -- lantz moore <lmoore@debian.org>  Wed, 29 Jul 1998 13:53:06 -0700
++
++rplay (3.3.0-2) unstable; urgency=medium
++
++  * fixed info installation bug.
++  * fixed "corrupt installation bug" Bug#24494.
++  * use the init.d and purge files for debstd.
++  * remove /etc/rplay/rplay.hosts from the distribution.
++  
++ -- lantz moore <lmoore@debian.org>  Sun, 12 Jul 1998 20:39:04 -0700
++
++rplay (3.3.0-1) unstable; urgency=low
++
++  * Initial Release.
++
++ -- lantz moore <lmoore@debian.org>  Mon, 22 Jun 1998 13:55:25 -0700
++
++Local variables:
++mode: debian-changelog
++add-log-mailing-address: "lmoore@debian.org"
++End:
+--- rplay-3.3.2.orig/debian/control
++++ rplay-3.3.2/debian/control
+@@ -0,0 +1,128 @@
++Source: rplay
++Section: sound
++Priority: optional
++Maintainer: lantz moore <lmoore@debian.org>
++Standards-Version: 3.1.0.0
++
++Package: rplay
++Architecture: any
++Depends: rplay-server, rplay-client, rplay-contrib, librplay3, librplay3-dev, rplay-perl
++Description: A fake transitional package.
++ Contains a set of dependencies designed to mitigate upgrade problems.
++ This package will cause all of the rplay packages to be installed, after
++ which time it can safely be removed.
++ .
++ rplay-server contains the rplay server.
++ rplay-client contains the rplay clients.
++ librplay3{,-dev} contains the rplay libraries.
++ rplay-perl contains the rplay perl modules.
++ rplay-contrib currently only contains the mailsound stuff.
++ .
++ RPlay allows sounds to be played to and from local and remote Unix
++ systems.  Sounds can be played with or without sending audio data over
++ the network using either UDP or TCP/IP.  RPlay audio servers can be
++ configured to share sound files with each other. 
++ .
++ Support for RPlay is included in several applications.  These include
++ xpilot, xlockmore, xboing, fvwm, and ctwm.
++
++Package: rplay-client
++Architecture: any
++Depends: ${shlibs:Depends}, librplay3
++Conflicts: rplay (<< 3.3.2-2)
++Replaces: rplay (<< 3.3.2-2)
++Description: The basic rplay clients.
++ This package contains the basic rplay clients (rplay, rptp).  The clients
++ are used to play sounds on the local host or remote systems.
++ .
++ RPlay allows sounds to be played to and from local and remote Unix
++ systems.  Sounds can be played with or without sending audio data over
++ the network using either UDP or TCP/IP.  RPlay audio servers can be
++ configured to share sound files with each other. 
++ .
++ Support for RPlay is included in several applications.  These include
++ xpilot, xlockmore, xboing, fvwm, and ctwm.
++
++Package: rplay-server
++Architecture: any
++Depends: ${shlibs:Depends}, librplay3
++Conflicts: rplay (<< 3.3.2-2)
++Replaces: rplay (<< 3.3.2-2)
++Suggests: xmp (>> 1.1.5), mpg123
++Description: The rplay network audio system server.
++ This package contains the rplay server.  The rplay server allows sounds
++ to be played on the system.
++ .
++ RPlay allows sounds to be played to and from local and remote Unix
++ systems.  Sounds can be played with or without sending audio data over
++ the network using either UDP or TCP/IP.  RPlay audio servers can be
++ configured to share sound files with each other. 
++ .
++ Support for RPlay is included in several applications.  These include
++ xpilot, xlockmore, xboing, fvwm, and ctwm.
++
++Package: librplay3
++Architecture: any
++Depends: ${shlibs:Depends}
++Conflicts: rplay (<< 3.3.2-2)
++Replaces: rplay (<< 3.3.2-2)
++Description: Shared libraries for the rplay network audio system.
++ Contains shared libraries for the rplay network audio system.
++ .
++ RPlay allows sounds to be played to and from local and remote Unix
++ systems.  Sounds can be played with or without sending audio data over
++ the network using either UDP or TCP/IP.  RPlay audio servers can be
++ configured to share sound files with each other. 
++ .
++ Support for RPlay is included in several applications.  These include
++ xpilot, xlockmore, xboing, fvwm, and ctwm.
++
++Package: librplay3-dev
++Architecture: any
++Conflicts: rplay (<< 3.3.2-2)
++Replaces: rplay (<< 3.3.2-2)
++Depends: librplay3 (= ${Source-Version})
++Description: Development libraries for the rplay network autio system.
++ Contains header files and development libraries for the rplay network
++ audio system.
++ .
++ RPlay allows sounds to be played to and from local and remote Unix
++ systems.  Sounds can be played with or without sending audio data over
++ the network using either UDP or TCP/IP.  RPlay audio servers can be
++ configured to share sound files with each other. 
++ .
++ Support for RPlay is included in several applications.  These include
++ xpilot, xlockmore, xboing, fvwm, and ctwm.
++
++Package: rplay-contrib
++Architecture: any
++Depends: ${shlibs:Depends}, librplay3, rplay-perl, perl5, ${perl:Depends}
++Conflicts: rplay (<< 3.3.2-2)
++Replaces: rplay (<< 3.3.2-2)
++Description: Contributed binaries for the rplay network audio system.
++ Contains mailsounds and Mailsounds each of which can be used to play
++ sounds on a system when new mail arrives.
++ .
++ RPlay allows sounds to be played to and from local and remote Unix
++ systems.  Sounds can be played with or without sending audio data over
++ the network using either UDP or TCP/IP.  RPlay audio servers can be
++ configured to share sound files with each other. 
++ .
++ Support for RPlay is included in several applications.  These include
++ xpilot, xlockmore, xboing, fvwm, and ctwm.
++
++Package: rplay-perl
++Architecture: any
++Conflicts: rplay (<< 3.3.2-2)
++Replaces: rplay (<< 3.3.2-2)
++Depends: perl5, ${perl:Depends}
++Description: Perl modules for the rplay network audio system.
++ Contains perl modules which aid in creating rplay-aware perl scripts.
++ .
++ RPlay allows sounds to be played to and from local and remote Unix
++ systems.  Sounds can be played with or without sending audio data over
++ the network using either UDP or TCP/IP.  RPlay audio servers can be
++ configured to share sound files with each other. 
++ .
++ Support for RPlay is included in several applications.  These include
++ xpilot, xlockmore, xboing, fvwm, and ctwm.
+--- rplay-3.3.2.orig/debian/librplay3-dev.postinst
++++ rplay-3.3.2/debian/librplay3-dev.postinst
+@@ -0,0 +1,11 @@
++#!/bin/sh -e
++
++pkg=librplay3-dev
++
++if [ "$1" = "configure" ]; then
++  if [ -d /usr/doc -a ! -e /usr/doc/$pkg -a -d /usr/share/doc/$pkg ]; then
++    ln -sf ../share/doc/$pkg /usr/doc/$pkg
++  fi
++fi
++
++#DEBHELPER#
+--- rplay-3.3.2.orig/debian/rplay-server.preinst
++++ rplay-3.3.2/debian/rplay-server.preinst
+@@ -0,0 +1,24 @@
++#!/bin/sh -e
++
++case "$1" in
++install)
++	;;
++
++upgrade)
++	start-stop-daemon --stop --quiet --exec /usr/sbin/rplayd || true
++	;;
++
++abort-upgrade)
++	;;
++
++*)
++	echo "preinst called with unknown argument \`$1'" >&2
++	exit 0
++	;;
++esac
++
++if [ ! -x /etc/init.d/rplay ]; then
++    exit 0
++fi
++
++#DEBHELPER#
+--- rplay-3.3.2.orig/debian/rplay-client.postrm
++++ rplay-3.3.2/debian/rplay-client.postrm
+@@ -0,0 +1,4 @@
++#!/bin/sh -e
++
++#DEBHELPER#
++
+--- rplay-3.3.2.orig/debian/librplay3-dev.prerm
++++ rplay-3.3.2/debian/librplay3-dev.prerm
+@@ -0,0 +1,9 @@
++#!/bin/sh -e
++
++pkg=librplay3-dev
++
++if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/$pkg ]; then
++  rm -f /usr/doc/$pkg
++fi
++
++#DEBHELPER#
+--- rplay-3.3.2.orig/debian/rplay.postinst
++++ rplay-3.3.2/debian/rplay.postinst
+@@ -0,0 +1,11 @@
++#!/bin/sh -e
++
++pkg=rplay
++
++if [ "$1" = "configure" ]; then
++  if [ -d /usr/doc -a ! -e /usr/doc/$pkg -a -d /usr/share/doc/$pkg ]; then
++    ln -sf ../share/doc/$pkg /usr/doc/$pkg
++  fi
++fi
++
++#DEBHELPER#
+--- rplay-3.3.2.orig/debian/librplay3.files
++++ rplay-3.3.2/debian/librplay3.files
+@@ -0,0 +1,3 @@
++usr/lib/devrplay.so
++usr/lib/librplay.so.3.3.2
++usr/lib/librplay.so.3
+--- rplay-3.3.2.orig/debian/librplay3-dev.files
++++ rplay-3.3.2/debian/librplay3-dev.files
+@@ -0,0 +1,3 @@
++usr/include/rplay.h
++usr/lib/librplay.a
++usr/lib/librplay.so
+--- rplay-3.3.2.orig/debian/README.debian
++++ rplay-3.3.2/debian/README.debian
+@@ -0,0 +1,7 @@
++rplay for DEBIAN
++----------------------
++
++A patch, supplied by Mark Boyns <boyns@contigo.com>, correcting rplay
++broadcasting has been applied.
++
++lantz moore <lmoore@debian.org>, Tue, 16 Jun 1998 19:11:13 -0700
+--- rplay-3.3.2.orig/debian/librplay3.substvars
++++ rplay-3.3.2/debian/librplay3.substvars
+@@ -0,0 +1 @@
++shlibs:Depends=libc6 (>= 2.1)
+--- rplay-3.3.2.orig/debian/copyright
++++ rplay-3.3.2/debian/copyright
+@@ -0,0 +1,23 @@
++This package was debianized by lantz moore <lmoore@debian.org>.
++
++It was downloaded from ftp://rplay.doit.org/pub/rplay-3.3.1.tar.gz
++
++RPlay was written by Mark Boyns <boyns@doit.org>.
++
++Copyright (C) 1993-98 Mark R. Boyns <boyns@doit.org>
++
++This program is free software; you may redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; either version 2, or (at your option)
++any later version.
++
++This is distributed in the hope that it will be useful, but without
++any warranty; without even the implied warranty of merchantability or
++fitness for a particular purpose. See the GNU General Public License
++for more details.
++
++A copy of the GNU General Public License is available as
++/usr/doc/copyright/GPL in the Debian GNU/Linux distribution or on the
++World Wide Web at http://www.gnu.org/copyleft/gpl.html.  You can also
++obtain it by writing to the Free Software Foundation, Inc., 59 Temple
++Place - Suite 330, Boston, MA 02111-1307, USA.
+--- rplay-3.3.2.orig/debian/rplay-server.postinst
++++ rplay-3.3.2/debian/rplay-server.postinst
+@@ -0,0 +1,21 @@
++#!/bin/sh -e
++
++pkg=rplayd
++
++if [ "$1" = "configure" ]; then
++  if [ -d /usr/doc -a ! -e /usr/doc/$pkg -a -d /usr/share/doc/$pkg ]; then
++    ln -sf ../share/doc/$pkg /usr/doc/$pkg
++  fi
++
++  if [ -e /etc/init.d/rplayd ]; then
++      rm /etc/init.d/rplayd
++  fi
++
++  if [ ! -e /etc/rplay/rplay.hosts ]; then
++      echo "RPlayd is currently configured to only allow connections from localhost."
++      echo "  man rplay.hosts(5) for details of how to modify this."
++  fi
++fi
++
++#DEBHELPER#
++
+--- rplay-3.3.2.orig/debian/rplay-client.files
++++ rplay-3.3.2/debian/rplay-client.files
+@@ -0,0 +1,4 @@
++usr/bin/rplay
++usr/bin/rptp
++usr/share/man/man1/rplay.1
++usr/share/man/man1/rptp.1
+--- rplay-3.3.2.orig/debian/rplay-perl.files
++++ rplay-3.3.2/debian/rplay-perl.files
+@@ -0,0 +1,3 @@
++usr/lib/perl5/RPlay.pm
++usr/lib/perl5/RPTP.pm
++usr/lib/perl5/rplay.ph
+--- rplay-3.3.2.orig/debian/rplay-contrib.files
++++ rplay-3.3.2/debian/rplay-contrib.files
+@@ -0,0 +1,4 @@
++usr/bin/mailsound
++usr/bin/Mailsound
++usr/share/man/man1/mailsound.1
++usr/share/man/man1/Mailsound.1
+--- rplay-3.3.2.orig/debian/rplay.prerm
++++ rplay-3.3.2/debian/rplay.prerm
+@@ -0,0 +1,9 @@
++#!/bin/sh -e
++
++pkg=rplay
++
++if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/$pkg ]; then
++  rm -f /usr/doc/$pkg
++fi
++
++#DEBHELPER#
+--- rplay-3.3.2.orig/debian/rplay-client.info
++++ rplay-3.3.2/debian/rplay-client.info
+@@ -0,0 +1,3 @@
++debian/tmp/usr/share/info/RPTP.info
++debian/tmp/usr/share/info/RPLAY.info
++debian/tmp/usr/share/info/rplay.info
+--- rplay-3.3.2.orig/debian/rplay-server.postrm
++++ rplay-3.3.2/debian/rplay-server.postrm
+@@ -0,0 +1,3 @@
++#!/bin/sh -e
++
++#DEBHELPER#
+--- rplay-3.3.2.orig/debian/rplay-server.prerm
++++ rplay-3.3.2/debian/rplay-server.prerm
+@@ -0,0 +1,9 @@
++#!/bin/sh -e
++
++pkg=rplayd
++
++if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/$pkg ]; then
++  rm -f /usr/doc/$pkg
++fi
++
++#DEBHELPER#
+--- rplay-3.3.2.orig/debian/librplay3.postinst.debhelper
++++ rplay-3.3.2/debian/librplay3.postinst.debhelper
+@@ -0,0 +1,7 @@
++# Automatically added by dh_installdocs
++if [ "$1" = "configure" ]; then
++	if [ -d /usr/doc -a ! -e /usr/doc/librplay3 -a -d /usr/share/doc/librplay3 ]; then
++		ln -sf ../share/doc/librplay3 /usr/doc/librplay3
++	fi
++fi
++# End automatically added section
+--- rplay-3.3.2.orig/debian/librplay3.shlibs
++++ rplay-3.3.2/debian/librplay3.shlibs
+@@ -0,0 +1 @@
++librplay 3	librplay3 (>= 3.3.2-2)
+--- rplay-3.3.2.orig/debian/librplay3-dev.info
++++ rplay-3.3.2/debian/librplay3-dev.info
+@@ -0,0 +1 @@
++debian/tmp/usr/share/info/librplay.info
+--- rplay-3.3.2.orig/debian/librplay3.docs
++++ rplay-3.3.2/debian/librplay3.docs
+@@ -0,0 +1,8 @@
++ChangeLog
++INSTALL
++INSTALL.generic
++NEWS
++PORTING
++README
++README.linux
++TODO
+--- rplay-3.3.2.orig/debian/rplay-server.files
++++ rplay-3.3.2/debian/rplay-server.files
+@@ -0,0 +1,9 @@
++usr/sbin/rplayd
++usr/share/man/man5/rplay.conf.5
++usr/share/man/man5/rplay.helpers.5
++usr/share/man/man5/rplay.hosts.5
++usr/share/man/man5/rplay.servers.5
++usr/share/man/man8/rplayd.8
++etc/rplay/rplay.conf
++etc/rplay/rplay.servers
++etc/rplay/rplay.helpers
+--- rplay-3.3.2.orig/debian/rplay-client.mime
++++ rplay-3.3.2/debian/rplay-client.mime
+@@ -0,0 +1,7 @@
++audio/wav; rplay %s; description="WAV Audio"
++audio/x-wav; rplay %s; description="WAV Audio"
++audio/au; rplay %s; description="Sun Audio"
++audio/basic; rplay %s; description="Basic Audio"
++audio/mpeg; rplay %s; description="MPEG Audio"
++audio/x-mpeg; rplay %s; description="MPEG Audio"
++audio/x-aiff; rplay %s; description="AIFF Audio"
+--- rplay-3.3.2.orig/debian/rplay-client.postinst
++++ rplay-3.3.2/debian/rplay-client.postinst
+@@ -0,0 +1,11 @@
++#!/bin/sh -e
++
++pkg=rplay
++
++if [ "$1" = "configure" ]; then
++  if [ -d /usr/doc -a ! -e /usr/doc/$pkg -a -d /usr/share/doc/$pkg ]; then
++    ln -sf ../share/doc/$pkg /usr/doc/$pkg
++  fi
++fi
++
++#DEBHELPER#
+--- rplay-3.3.2.orig/debian/rplay-client.prerm
++++ rplay-3.3.2/debian/rplay-client.prerm
+@@ -0,0 +1,9 @@
++#!/bin/sh -e
++
++pkg=rplay
++
++if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/$pkg ]; then
++  rm -f /usr/doc/$pkg
++fi
++
++#DEBHELPER#
+--- rplay-3.3.2.orig/debian/librplay3.prerm.debhelper
++++ rplay-3.3.2/debian/librplay3.prerm.debhelper
+@@ -0,0 +1,5 @@
++# Automatically added by dh_installdocs
++if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/librplay3 ]; then
++	rm -f /usr/doc/librplay3
++fi
++# End automatically added section
+--- rplay-3.3.2.orig/debian/rplay-server.conffiles
++++ rplay-3.3.2/debian/rplay-server.conffiles
+@@ -0,0 +1,4 @@
++/etc/rplay/rplay.conf
++/etc/rplay/rplay.servers
++/etc/rplay/rplay.helpers
++/etc/init.d/rplay
+--- rplay-3.3.2.orig/debian/rplay-server.examples
++++ rplay-3.3.2/debian/rplay-server.examples
+@@ -0,0 +1 @@
++etc/rplay.helpers
+--- rplay-3.3.2.orig/debian/librplay3-dev.postinst.debhelper
++++ rplay-3.3.2/debian/librplay3-dev.postinst.debhelper
+@@ -0,0 +1,3 @@
++# Automatically added by dh_installinfo
++install-info --quiet /usr/share/info/librplay.info
++# End automatically added section
+--- rplay-3.3.2.orig/debian/librplay3.postinst
++++ rplay-3.3.2/debian/librplay3.postinst
+@@ -0,0 +1,6 @@
++#!/bin/sh -e
++
++ldconfig
++
++#DEBHELPER#
++
+--- rplay-3.3.2.orig/debian/librplay3-dev.prerm.debhelper
++++ rplay-3.3.2/debian/librplay3-dev.prerm.debhelper
+@@ -0,0 +1,3 @@
++# Automatically added by dh_installinfo
++install-info --quiet --remove /usr/share/info/librplay.info
++# End automatically added section
+--- rplay-3.3.2.orig/debian/rplay-server.postinst.debhelper
++++ rplay-3.3.2/debian/rplay-server.postinst.debhelper
+@@ -0,0 +1,4 @@
++# Automatically added by dh_installinit
++update-rc.d rplay defaults >/dev/null
++/etc/init.d/rplay start
++# End automatically added section
+--- rplay-3.3.2.orig/debian/rplay-server.prerm.debhelper
++++ rplay-3.3.2/debian/rplay-server.prerm.debhelper
+@@ -0,0 +1,3 @@
++# Automatically added by dh_installinit
++/etc/init.d/rplay stop
++# End automatically added section
+--- rplay-3.3.2.orig/debian/rplay-server.rplay
++++ rplay-3.3.2/debian/rplay-server.rplay
+@@ -0,0 +1,42 @@
++#!/bin/sh
++
++# /etc/init.d/rplay: start and stop the rplay daemon
++
++# there have been requests to have rplay start up after autofs and amd.
++FLAGS="defaults 40"
++
++test -x /usr/sbin/rplayd || exit 0
++
++if egrep "^rplay" /etc/inetd.conf > /dev/null; then
++    echo "RPlayd is currently started from inetd"
++    exit 0
++fi
++
++case "$1" in
++start)	echo -n "Starting rplay server: rplayd"
++	start-stop-daemon --start --quiet --exec /usr/sbin/rplayd 2> /dev/null
++	echo "."
++	;;
++
++stop)	echo -n "Stopping rplay server: rplayd"
++	start-stop-daemon --stop --quiet --exec /usr/sbin/rplayd
++	echo "."
++	;;
++    
++reload|force-reload)
++	/usr/bin/rplay --reset
++	;;
++
++restart)
++	echo -n "Restarting rplay server: rplayd"
++	start-stop-daemon --stop --quiet --exec /usr/sbin/rplayd
++	start-stop-daemon --start --quiet --exec /usr/sbin/rplayd 2> /dev/null
++	echo "."
++	;;
++
++*)
++	echo "Usage: /etc/init.d/rplay {start|stop|reload}" >&2
++	exit 1
++	;;
++esac
++exit 0
+--- rplay-3.3.2.orig/debian/rplay-server.postrm.debhelper
++++ rplay-3.3.2/debian/rplay-server.postrm.debhelper
+@@ -0,0 +1,5 @@
++# Automatically added by dh_installinit
++if [ "$1" = "purge" ] ; then
++	update-rc.d rplay remove >/dev/null
++fi
++# End automatically added section
+--- rplay-3.3.2.orig/debian/rplay-contrib.prerm
++++ rplay-3.3.2/debian/rplay-contrib.prerm
+@@ -0,0 +1,7 @@
++#!/bin/sh -e
++
++pkg=rplay-contrib
++
++if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/$pkg ]; then
++  rm -f /usr/doc/$pkg
++fi
+--- rplay-3.3.2.orig/debian/rplay-contrib.postinst
++++ rplay-3.3.2/debian/rplay-contrib.postinst
+@@ -0,0 +1,9 @@
++#!/bin/sh -e
++
++pkg=rplay-contrib
++
++if [ "$1" = "configure" ]; then
++  if [ -d /usr/doc -a ! -e /usr/doc/$pkg -a -d /usr/share/doc/$pkg ]; then
++    ln -sf ../share/doc/$pkg /usr/doc/$pkg
++  fi
++fi
+--- rplay-3.3.2.orig/debian/rplay-perl.prerm.debhelper
++++ rplay-3.3.2/debian/rplay-perl.prerm.debhelper
+@@ -0,0 +1,5 @@
++# Automatically added by dh_installdocs
++if [ \( "$1" = "upgrade" -o "$1" = "remove" \) -a -L /usr/doc/rplay-perl ]; then
++	rm -f /usr/doc/rplay-perl
++fi
++# End automatically added section
+--- rplay-3.3.2.orig/debian/rplay-server.substvars
++++ rplay-3.3.2/debian/rplay-server.substvars
+@@ -0,0 +1 @@
++shlibs:Depends=libc6 (>= 2.1), libgsm1 (>= 1.0.10-3), librx1g
+--- rplay-3.3.2.orig/debian/rplay-perl.postinst.debhelper
++++ rplay-3.3.2/debian/rplay-perl.postinst.debhelper
+@@ -0,0 +1,7 @@
++# Automatically added by dh_installdocs
++if [ "$1" = "configure" ]; then
++	if [ -d /usr/doc -a ! -e /usr/doc/rplay-perl -a -d /usr/share/doc/rplay-perl ]; then
++		ln -sf ../share/doc/rplay-perl /usr/doc/rplay-perl
++	fi
++fi
++# End automatically added section
+--- rplay-3.3.2.orig/debian/rplay-perl.substvars
++++ rplay-3.3.2/debian/rplay-perl.substvars
+@@ -0,0 +1 @@
++perl:Depends=perl5
+--- rplay-3.3.2.orig/debian/rplay-contrib.substvars
++++ rplay-3.3.2/debian/rplay-contrib.substvars
+@@ -0,0 +1,2 @@
++perl:Depends=perl5
++shlibs:Depends=libc6 (>= 2.1)
+--- rplay-3.3.2.orig/debian/rplay-client.postinst.debhelper
++++ rplay-3.3.2/debian/rplay-client.postinst.debhelper
+@@ -0,0 +1,12 @@
++# Automatically added by dh_installinfo
++install-info --quiet /usr/share/info/RPTP.info
++# End automatically added section
++# Automatically added by dh_installinfo
++install-info --quiet /usr/share/info/RPLAY.info
++# End automatically added section
++# Automatically added by dh_installinfo
++install-info --quiet /usr/share/info/rplay.info
++# End automatically added section
++# Automatically added by dh_installmime
++if [ -x /usr/sbin/update-mime ]; then update-mime; fi
++# End automatically added section
+--- rplay-3.3.2.orig/debian/rplay-client.prerm.debhelper
++++ rplay-3.3.2/debian/rplay-client.prerm.debhelper
+@@ -0,0 +1,9 @@
++# Automatically added by dh_installinfo
++install-info --quiet --remove /usr/share/info/RPTP.info
++# End automatically added section
++# Automatically added by dh_installinfo
++install-info --quiet --remove /usr/share/info/RPLAY.info
++# End automatically added section
++# Automatically added by dh_installinfo
++install-info --quiet --remove /usr/share/info/rplay.info
++# End automatically added section
+--- rplay-3.3.2.orig/debian/rplay-client.postrm.debhelper
++++ rplay-3.3.2/debian/rplay-client.postrm.debhelper
+@@ -0,0 +1,3 @@
++# Automatically added by dh_installmime
++if [ -x /usr/sbin/update-mime ]; then update-mime; fi
++# End automatically added section
+--- rplay-3.3.2.orig/debian/rplay-client.substvars
++++ rplay-3.3.2/debian/rplay-client.substvars
+@@ -0,0 +1 @@
++shlibs:Depends=libc6 (>= 2.1), libncurses4 (>= 4.2-3.1), libreadlineg2 (>= 2.1-12)

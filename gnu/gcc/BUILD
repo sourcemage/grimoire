@@ -5,7 +5,8 @@ if [[ "$GCC_NOLIB64" == 'y' ]]; then
   sedit "s/lib64/lib/" gcc/config/i386/t-linux64           
 fi                                                        &&
 
-if  [[ "$ARCHITECTURE"  ==  "pentium4"  ]];  then
+if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
+       "$ARCHITECTURE"  ==  "pentium-m"  ]];  then
   CFLAGS=${CFLAGS//-ffast-math/}
   CXXFLAGS=${CXXFLAGS//-ffast-math/}
 fi  &&
