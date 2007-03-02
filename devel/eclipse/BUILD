@@ -35,14 +35,14 @@ fi  &&
 # TODO define arch and windowing system
 # possible values are in ./build
 ws=gtk                                                               &&
-case "${SMGL_COMPAT_ARCH[2]}" in
+case "${SMGL_COMPAT_ARCHS[1]}" in
   ia32) arch=x86 ;;
   x86_64) arch=x86_64 ;;
   ppc) arch=ppc ;;
 esac &&
+
 persistent_add ws                                                    &&
 persistent_add arch                                                  &&
-./build -os linux -ws "$ws" -arch "$arch"                            &&
+./build -os linux -ws "$ws" -arch "$arch" -java5home "$JAVA_HOME"    &&
 echo '/usr/share/eclipse/eclipse -data ~/workspace' > eclipse-script &&
 chmod 755 eclipse-script
-
