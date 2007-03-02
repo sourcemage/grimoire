@@ -1,4 +1,4 @@
-OPTS="--without-perl ${OPTS}"  &&
+OPTS="--enable-shared ${OPTS}"  &&
 
 if [[ $GM_SNAP != y ]]
 then
