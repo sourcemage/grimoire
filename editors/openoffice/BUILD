@@ -1,5 +1,4 @@
 if [ "$OPENOFFICE_VERSION" == "stable" ]; then
-invoke_gcc
 optimize
 fi
 
