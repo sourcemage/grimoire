@@ -1,0 +1,181 @@
+diff -U10 -Naupr fvwm-2.5.21-17/fvwm/menus.c fvwm-2.5.21-18/fvwm/menus.c
+--- fvwm-2.5.21-17/fvwm/menus.c	2007-03-03 13:26:07.000000000 +0100
++++ fvwm-2.5.21-18/fvwm/menus.c	2007-03-03 13:26:56.000000000 +0100
+@@ -3114,20 +3114,27 @@ static int pop_menu_up(
+ 		 * empty from the start. */
+ 		return False;
+ 	}
+ 	fw = (*pexc)->w.fw;
+ 	if (fw && !check_if_fvwm_window_exists(fw))
+ 	{
+ 		fw = NULL;
+ 	}
+ 	context = (*pexc)->w.wcontext;
+ 
++	/* Popup menu with first item (not title) under pointer */
++	if(MI_IS_TITLE(MR_FIRST_ITEM(mr)))
++	{
++		y-=MI_HEIGHT(MR_FIRST_ITEM(mr));
++		do_warp_to_item = True;
++	}
++
+ 	/*
+ 	 * Create a new menu instance (if necessary)
+ 	 */
+ 
+ 	if (MR_MAPPED_COPIES(mr) > 0)
+ 	{
+ 		/* create a new instance of the menu */
+ 		*pmenu = copy_menu_root(*pmenu);
+ 		if (!*pmenu)
+ 		{
+diff -U10 -Naupr fvwm-2.5.21-17/fvwm/menus.c~ fvwm-2.5.21-18/fvwm/menus.c~
+--- fvwm-2.5.21-17/fvwm/menus.c~	2007-03-03 13:26:07.000000000 +0100
++++ fvwm-2.5.21-18/fvwm/menus.c~	2007-03-03 13:26:38.000000000 +0100
+@@ -2429,20 +2429,55 @@ static Bool paint_menu_gradient_backgrou
+ 			XFreeGC(dpy, pmapgc);
+ 			XFreePixmap(dpy, pmap);
+ 			MR_IS_BACKGROUND_SET(mr) = True;
+ 		}
+ 		do_clear = True;
+ 		break;
+ 	}
+ 	return do_clear;
+ }
+ 
++#define DRAWMENUBORDER(NUM, XX, YY) XCopyArea(\
++	dpy, pm[(NUM)]->picture, MR_WINDOW(mr), Scr.TransMaskGC,\
++	0, 0, pm[(NUM)]->width, pm[(NUM)]->height, (XX), (YY))
++static Bool paint_menu_multipixmap_background(
++	MenuRoot *mr, XEvent *pevent)
++{
++	MenuStyle *ms = MR_STYLE(mr);
++	int width, height, x, y;
++	int bw = MST_BORDER_WIDTH(mr);
++	FvwmPicture **pm;
++	pm = ST_FACE(ms).u.mb.pixmaps;
++
++	width = MR_WIDTH(mr);
++	height = MR_HEIGHT(mr);
++
++	FvwmPicture *p = pm[0];
++
++	width = MR_WIDTH(mr);
++	height = MR_HEIGHT(mr);
++
++	x = 0;
++
++	for (x = 0; x < width; x+=pm[1]->width) DRAWMENUBORDER(1, x, 0);
++	for (x = 0; x < width; x+=pm[5]->width) DRAWMENUBORDER(5, x, height-pm[5]->height);
++	for (x = 0; x < height; x+=pm[3]->height) DRAWMENUBORDER(3, width-pm[3]->height, x);
++	for (x = 0; x < height; x+=pm[7]->height) DRAWMENUBORDER(7, 0, x);
++
++	DRAWMENUBORDER(0, 0, 0);
++	DRAWMENUBORDER(2, width-pm[2]->width, 0);
++	DRAWMENUBORDER(4, width-pm[4]->width, height-pm[4]->height);
++	DRAWMENUBORDER(6, 0, height-pm[6]->height);
++
++	return False;
++}
++
+ static Bool paint_menu_pixmap_background(
+ 	MenuRoot *mr, XEvent *pevent)
+ {
+ 	MenuStyle *ms = MR_STYLE(mr);
+ 	int width, height, x, y;
+ 	int bw = MST_BORDER_WIDTH(mr);
+ 	FvwmPicture *p;
+ 
+ 	p = ST_FACE(ms).u.p;
+ 	width = MR_WIDTH(mr) - 2 * bw;
+@@ -2533,29 +2568,34 @@ static void paint_menu(
+ 		fw = NULL;
+ 	}
+ 	if (MR_IS_PAINTED(mr) && pevent &&
+ 	    (pevent->xexpose.x >= MR_WIDTH(mr) - bw ||
+ 	     pevent->xexpose.x + pevent->xexpose.width <= bw ||
+ 	     pevent->xexpose.y >= MR_HEIGHT(mr) - bw ||
+ 	     pevent->xexpose.y + pevent->xexpose.height <= bw))
+ 	{
+ 		/* Only the border was obscured. Redraw it centrally instead of
+ 		 * redrawing several menu items. */
+-		RelieveRectangle(
+-			dpy, MR_WINDOW(mr), 0, 0, MR_WIDTH(mr) - 1,
+-			MR_HEIGHT(mr) - 1, (Pdepth < 2) ?
+-			SHADOW_GC(MST_MENU_INACTIVE_GCS(mr)) :
+-			HILIGHT_GC(MST_MENU_INACTIVE_GCS(mr)),
+-			SHADOW_GC(MST_MENU_INACTIVE_GCS(mr)), bw);
++		if (ms && ST_FACE(ms).type == MultiPixmapMenu)
+ 		{
+-			return;
++			paint_menu_multipixmap_background(mr, pevent);
+ 		}
++		else
++		{
++			RelieveRectangle(
++				dpy, MR_WINDOW(mr), 0, 0, MR_WIDTH(mr) - 1,
++				MR_HEIGHT(mr) - 1, (Pdepth < 2) ?
++				SHADOW_GC(MST_MENU_INACTIVE_GCS(mr)) :
++				HILIGHT_GC(MST_MENU_INACTIVE_GCS(mr)),
++				SHADOW_GC(MST_MENU_INACTIVE_GCS(mr)), bw);
++		}
++		return;
+ 	}
+ 	MR_IS_PAINTED(mr) = 1;
+ 	/* paint the menu background */
+ 	if (ms && ST_HAS_MENU_CSET(ms))
+ 	{
+ 		if (MR_IS_BACKGROUND_SET(mr) == False)
+ 		{
+ 			SetWindowBackground(
+ 				dpy, MR_WINDOW(mr), MR_WIDTH(mr),
+ 				MR_HEIGHT(mr), &Colorset[ST_CSET_MENU(ms)],
+@@ -2576,37 +2616,43 @@ static void paint_menu(
+ 			XSetWindowBackground(
+ 				dpy, MR_WINDOW(mr), MST_FACE(mr).u.back);
+ 			do_clear = True;
+ 			break;
+ 		case GradientMenu:
+ 			do_clear = paint_menu_gradient_background(mr, pevent);
+ 			break;
+ 		case PixmapMenu:
+ 			do_clear = paint_menu_pixmap_background(mr, pevent);
+ 			break;
++		case MultiPixmapMenu:
++			do_clear = paint_menu_multipixmap_background(mr, pevent);
++			break;
+ 		case TiledPixmapMenu:
+ 			XSetWindowBackgroundPixmap(
+ 				dpy, MR_WINDOW(mr), ST_FACE(ms).u.p->picture);
+ 			do_clear = True;
+ 			break;
+ 		} /* switch(type) */
+ 		if (do_clear == True)
+ 		{
+ 			clear_expose_menu_area(MR_WINDOW(mr), pevent);
+ 		}
+ 	} /* if (ms) */
+ 	/* draw the relief */
+-	RelieveRectangle(dpy, MR_WINDOW(mr), 0, 0, MR_WIDTH(mr) - 1,
+-			 MR_HEIGHT(mr) - 1, (Pdepth < 2) ?
+-			 SHADOW_GC(MST_MENU_INACTIVE_GCS(mr)) :
+-			 HILIGHT_GC(MST_MENU_INACTIVE_GCS(mr)),
+-			 SHADOW_GC(MST_MENU_INACTIVE_GCS(mr)), bw);
++	if (!(ms && ST_FACE(ms).type == MultiPixmapMenu))
++	{
++		RelieveRectangle(dpy, MR_WINDOW(mr), 0, 0, MR_WIDTH(mr) - 1,
++				 MR_HEIGHT(mr) - 1, (Pdepth < 2) ?
++				 SHADOW_GC(MST_MENU_INACTIVE_GCS(mr)) :
++				 HILIGHT_GC(MST_MENU_INACTIVE_GCS(mr)),
++				 SHADOW_GC(MST_MENU_INACTIVE_GCS(mr)), bw);
++	}
+ 	/* paint the menu items */
+ 	for (mi = MR_FIRST_ITEM(mr); mi != NULL; mi = MI_NEXT_ITEM(mi))
+ 	{
+ 		int do_draw = 0;
+ 
+ 		/* be smart about handling the expose, redraw only the entries
+ 		 * that we need to */
+ 		if (pevent == NULL)
+ 		{
+ 			do_draw = True;
