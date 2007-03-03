@@ -1,3 +1,2 @@
-OPTS="${OPTS}  --disable-sparc --disable-sgi"                      &&
-CFLAGS="$CFLAGS -I/usr/X11R6/include"              &&
-default_build
+OPTS="$APLAY_OSS $APLAY_SPARC $APLAY_SGI $APLAY_OGGFLAC \
+      --disable-dependency-tracking $OPTS"  default_build

@@ -1,0 +1,370 @@
+diff -U10 -Naupr fvwm-2.5.21-09/fvwm/builtins.c fvwm-2.5.21-10/fvwm/builtins.c
+--- fvwm-2.5.21-09/fvwm/builtins.c	2007-03-03 13:20:16.000000000 +0100
++++ fvwm-2.5.21-10/fvwm/builtins.c	2007-03-03 13:20:47.000000000 +0100
+@@ -478,20 +478,35 @@ static void do_title_style(F_CMD_ARGS, B
+ 			if (decor->title_height != height ||
+ 			    decor->min_title_height != 0)
+ 			{
+ 				decor->title_height = height;
+ 				decor->min_title_height = 0;
+ 				decor->flags.has_title_height_changed = 1;
+ 			}
+ 			if (action)
+ 				action += next;
+ 		}
++		else if (!do_add && StrEquals(parm,"buttonwidth"))
++		{
++			int width = 0;
++			int next = 0;
++
++			sscanf(action, "%d%n", &width, &next);
++
++			if (decor->button_width != width)
++			{
++				decor->button_width = width;
++				decor->flags.has_changed = 1;
++			}
++			if (action)
++				action += next;
++		}
+ 		else if (!do_add && StrEquals(parm,"MinHeight"))
+ 		{
+ 			int height = 0;
+ 			int next = 0;
+ 
+ 			if (!action ||
+ 			    sscanf(action, "%d%n", &height, &next) <= 0 ||
+ 			    height < MIN_FONT_HEIGHT ||
+ 			    height > MAX_FONT_HEIGHT)
+ 			{
+diff -U10 -Naupr fvwm-2.5.21-09/fvwm/frame.c fvwm-2.5.21-10/fvwm/frame.c
+--- fvwm-2.5.21-09/fvwm/frame.c	2007-03-03 13:20:16.000000000 +0100
++++ fvwm-2.5.21-10/fvwm/frame.c	2007-03-03 13:20:47.000000000 +0100
+@@ -1363,21 +1363,28 @@ void frame_get_titlebar_dimensions(
+ 		tb_length = frame_g->height - b.total_size.height;
+ 	}
+ 	else
+ 	{
+ 		tb_length = frame_g->width - b.total_size.width;
+ 	}
+ 	/* find out the length of the title and the buttons */
+ 	tb_thick = fw->title_thickness;
+ 	nbuttons = fw->nr_left_buttons + fw->nr_right_buttons;
+ 	nbuttons_big = 0;
+-	b_length = tb_thick;
++	if (fw->decor->button_width == 0)
++	{
++		b_length = tb_thick;
++	}
++	else
++	{
++		b_length = fw->decor->button_width;
++	}
+ 	t_length = tb_length - nbuttons * b_length;
+ 	if (nbuttons > 0 && t_length < MIN_WINDOW_TITLE_LENGTH)
+ 	{
+ 		int diff = MIN_WINDOW_TITLE_LENGTH - t_length;
+ 		int pixels = diff / nbuttons;
+ 
+ 		b_length -= pixels;
+ 		t_length += nbuttons * pixels;
+ 		nbuttons_big = nbuttons - (MIN_WINDOW_TITLE_LENGTH - t_length);
+ 		t_length = MIN_WINDOW_TITLE_LENGTH;
+diff -U10 -Naupr fvwm-2.5.21-09/fvwm/frame.c~ fvwm-2.5.21-10/fvwm/frame.c~
+--- fvwm-2.5.21-09/fvwm/frame.c~	2007-03-03 13:20:16.000000000 +0100
++++ fvwm-2.5.21-10/fvwm/frame.c~	2007-03-03 13:20:40.000000000 +0100
+@@ -428,20 +428,22 @@ static void __frame_setup_window(
+ 	{
+ 		SendConfigureNotify(
+ 			fw, new_g.x, new_g.y, new_g.width, new_g.height, 0,
+ 			True);
+ 	}
+ 	/* get things updated */
+ 	XFlush(dpy);
+ 	/* inform the modules of the change */
+ 	BroadcastConfig(M_CONFIGURE_WINDOW,fw);
+ 
++	frame_make_rounded_corners(fw);
++
+ 	return;
+ }
+ 
+ static void frame_reparent_hide_windows(
+ 	Window w)
+ {
+ 	int i;
+ 
+ 	hide_wins.parent = w;
+ 	for (i = 0; i < 4 ; i++)
+@@ -1952,20 +1954,21 @@ void frame_free_move_resize_args(
+ 		FOCUS_SET(mra->w_with_focus);
+ 	}
+ 	if (mra->flags.do_update_shape)
+ 	{
+ 		/* unset shape */
+ 		FShapeCombineMask(
+ 			dpy, FW_W_FRAME(fw), FShapeBounding, 0, 0, None,
+ 			FShapeSet);
+ 	}
+ 	frame_setup_shape(fw, mra->end_g.width, mra->end_g.height, fw->wShaped);
++	frame_make_rounded_corners(fw);
+ 	if (mra->flags.do_restore_gravity)
+ 	{
+ 		mra->grav.client_grav = fw->hints.win_gravity;
+ 		frame_set_decor_gravities(
+ 			fw, &mra->grav,
+ 			(mra->flags.do_set_bit_gravity) ? 2 : 0);
+ 	}
+ 	else
+ 	{
+ 		frame_restore_client_gravities(fw);
+@@ -2073,20 +2076,224 @@ void frame_force_setup_window(
+ 
+ 	g.x = x;
+ 	g.y = y;
+ 	g.width = w;
+ 	g.height = h;
+ 	__frame_setup_window(fw, &g, do_send_configure_notify, True, False);
+ 
+ 	return;
+ }
+ 
++void draw_rounded_mask(Window win, int width, int height, Bool slightlyrounded, window_parts draw_parts, int col)
++{
++	Pixmap pm;
++	GC gc;
++    rectangle rect;
++	int w,h;
++	unsigned long valuemask;
++	int x;
++	int lstart, lend;
++	int l0[] = { 0, 1, 0, 1, 2, 3 };
++	int l1[] = { 1, 2, 1, 2, 3, 5 };
++	int l2[] = { 2, 1, 5, 3, 2, 1 };
++	int l3[] = { 1, 1, 1, 1, 1, 2 };
++
++	if (slightlyrounded)
++	{
++		lstart = 0;
++		lend = 2;
++	}
++	else
++	{
++		lstart = 2;
++		lend = 6;
++	}
++
++    XGetGeometry(
++        dpy, win, &JunkRoot, &rect.x, &rect.y,
++        &rect.width, &rect.height, &JunkBW, &JunkDepth);
++
++	w = rect.width;
++	h = rect.height;
++	pm = XCreatePixmap(dpy, win, width, height, 1);
++	gc = Scr.MonoGC;
++	XSetForeground(dpy, gc, !col);
++	XFillRectangle(dpy, pm, gc, 0, 0, w, h);
++	XSetForeground(dpy, gc, col);
++
++	/* Draw a rounded shape on the corners of the pixmap */
++	for (x = lstart; x < lend; x++)
++	{
++ 		if (draw_parts & PART_BORDER_NW)
++ 		{
++			XFillRectangle(dpy, pm, gc, 0, l0[x], l2[x], l3[x]);
++ 		}
++ 		if (draw_parts & PART_BORDER_NE)
++ 		{
++			XFillRectangle(dpy, pm, gc, w-l2[x], l0[x], l2[x], l3[x]);
++		}
++  		if (draw_parts & PART_BORDER_SW)
++ 		{
++			XFillRectangle(dpy, pm, gc, 0, h-l1[x], l2[x], l3[x]);
++		}
++ 		if (draw_parts & PART_BORDER_SE)
++ 		{
++			XFillRectangle(dpy, pm, gc, w-l2[x], h-l1[x], l2[x], l3[x]);
++		}
++	}
++
++	FShapeCombineMask(dpy, win, ShapeBounding, 0, 0, pm, col==1 ? ShapeSubtract : ShapeSet);
++
++	XFreePixmap(dpy, pm);
++}
++
++static void frame_draw_rounded_mask(FvwmWindow *fw, Window win, window_parts draw_parts, int col)
++{
++	draw_rounded_mask(win, fw->g.frame.width, fw->g.frame.height,
++		HAS_SLIGHTLY_ROUNDED_CORNERS(fw), IS_MAXIMIZED(fw)?0:draw_parts, col);
++}
++
++/* Returns a corner corrected for rotation of the titlebar (ie button 1 is always NW) */
++#define SWAP_CORNER(PART) corner = corner & (PART) ? corner ^ (PART) : corner
++static window_parts __get_corner(window_parts corner, FvwmWindow *fw)
++{
++	int dir;
++		
++	dir = GET_TITLE_DIR(fw);
++
++	/* Flip horizontally (relative to tb) if the titlebar is rotated */
++	if ((dir == DIR_N && IS_TOP_TITLE_ROTATED(fw))
++		|| (dir == DIR_S && !IS_BOTTOM_TITLE_ROTATED(fw))
++		|| (dir == DIR_W && IS_LEFT_TITLE_ROTATED_CW(fw))
++		|| (dir == DIR_E && !IS_RIGHT_TITLE_ROTATED_CW(fw)))
++	{
++		SWAP_CORNER(PART_BORDER_NE | PART_BORDER_NW);
++	}
++
++	/* Swap SE/SW so that shift left goes in a clockwise order */
++	SWAP_CORNER(PART_BORDER_SW | PART_BORDER_SE);
++
++	/* Rotate clockwise depending on dir */
++	corner <<= dir;
++	if (corner > PART_BORDER_SE)
++	{
++		corner = corner >> 4;
++	}
++	
++	/* Swap SE/SW back */
++	SWAP_CORNER(PART_BORDER_SW | PART_BORDER_SE);
++
++	return corner;
++}
++ 
++void frame_make_rounded_corners(FvwmWindow *fw)
++{
++	rectangle rect;
++	window_parts draw_parts;
++	window_parts mask;
++	int x;
++	FvwmWindow *left_button = 0;
++	FvwmWindow *right_button = 0;
++
++	if (!fw || !FShapesSupported)
++	{
++		return;
++	}
++  
++	window_parts corner_nw = __get_corner(PART_BORDER_NW, fw);
++	window_parts corner_ne = __get_corner(PART_BORDER_NE, fw);
++	window_parts corner_se = __get_corner(PART_BORDER_SE, fw);
++	window_parts corner_sw = __get_corner(PART_BORDER_SW, fw);
++ 
++	for (x = 9;x>=0;x--)
++	{
++		if (FW_W_BUTTON(fw, x) != None)
++		{
++			if (x%2 == 0)
++			{
++				left_button = FW_W_BUTTON(fw, x);
++			}
++			else
++			{
++				right_button = FW_W_BUTTON(fw, x);
++			}
++		}
++	}
++ 
++ 	mask = 0;
++ 	if (HAS_ROUNDED_CORNERS_TOP(fw))
++  	{
++ 		mask |= corner_ne | corner_nw;
++  	}
++ 	if (HAS_ROUNDED_CORNERS_BOTTOM(fw))
++  	{
++ 		mask |= corner_se | corner_sw;
++  	}
++ 
++	/* Draw mask on each corner of the window. This involves the frame, title,
++	 * buttons and parent wins depending on the window configuration */
++ 	rect = fw->g.frame;
++ 	frame_draw_rounded_mask(fw, FW_W_FRAME(fw), mask, 1);
++	if (HAS_TITLE(fw))
++	{
++		draw_parts = 0;
++		if (!left_button)
++		{
++			draw_parts |= corner_nw;
++		}
++		if (!right_button)
++		{
++			draw_parts |= corner_ne;
++		}
++		if (IS_SHADED(fw))
++		{
++			if (!left_button)
++			{
++				draw_parts |= corner_sw;
++			}
++			else
++			{
++				frame_draw_rounded_mask(fw, left_button, mask & (corner_nw|corner_sw), 0);
++			}
++			if (!right_button)
++			{
++				draw_parts |= corner_se;
++			}
++			else
++			{
++				frame_draw_rounded_mask(fw, right_button, mask & (corner_ne|corner_se), 0);
++			}
++		}
++		frame_draw_rounded_mask(fw, FW_W_TITLE(fw), mask & draw_parts, 0);
++  
++		if (!IS_SHADED(fw))
++		{
++			frame_draw_rounded_mask(fw, FW_W_PARENT(fw), mask & (corner_sw|corner_se), 0);
++  
++			if (left_button)
++			{
++				frame_draw_rounded_mask(fw, left_button, mask & corner_nw, 0);
++			}
++			if (right_button)
++			{
++				frame_draw_rounded_mask(fw, right_button, mask & corner_ne, 0);
++			}
++		}
++	}
++	else
++	{
++		frame_draw_rounded_mask(fw, FW_W_PARENT(fw), mask & PART_CORNERS, 0);
++	}
++  
++	XFlush(dpy);
++}
++
+ /****************************************************************************
+  *
+  * Sets up the shaped window borders
+  *
+  ****************************************************************************/
+ void frame_setup_shape(FvwmWindow *fw, int w, int h, int shape_mode)
+ {
+ 	XRectangle rect;
+ 	rectangle r;
+ 	size_borders b;
+diff -U10 -Naupr fvwm-2.5.21-09/fvwm/screen.h fvwm-2.5.21-10/fvwm/screen.h
+--- fvwm-2.5.21-09/fvwm/screen.h	2007-03-03 13:20:16.000000000 +0100
++++ fvwm-2.5.21-10/fvwm/screen.h	2007-03-03 13:20:47.000000000 +0100
+@@ -279,20 +279,21 @@ typedef struct
+ #define TB_HAS_MWM_DECOR_STICK(tb)    \
+   (!!((tb).flags.mwm_decor_flags & MWM_DECOR_STICK))
+ 
+ typedef struct FvwmDecor
+ {
+ #ifdef USEDECOR
+ 	char *tag;                    /* general style tag */
+ #endif
+ 	int title_height;           /* explicitly specified title bar height */
+ 	int min_title_height;
++	int button_width;
+ 	/* titlebar buttons */
+ 	TitleButton buttons[NUMBER_OF_TITLE_BUTTONS];
+ 	TitleButton titlebar;
+ 	struct BorderStyle
+ 	{
+ 		DecorFace active, inactive;
+ 	} BorderStyle;
+ #ifdef USEDECOR
+ 	struct FvwmDecor *next;       /* additional user-defined styles */
+ #endif
