@@ -1,4 +1,4 @@
-  local LL                                      &&
+  local FF FileName DB LCK ll                   &&
   persistent_add FB_PREFIX                      &&
   FB_PREFIX=${INSTALL_ROOT}/usr/firebird        &&
   OPTS="${OPTS} ${FB_SS}"                       &&
@@ -27,6 +27,33 @@ if [ $FB_CLIENT == n ]; then
 # prepare an install image
   cd gen                                        &&
   ./install/makeInstallImage.sh
+#
+# fix ownership and permissions
+  cd $SOURCE_DIRECTORY/gen/buildroot/$FB_PREFIX &&
+  chown -R root:root ./                         &&
+  chmod -R uga-w ./                             &&
+
+# Everyone may execute clients
+  chmod 0555 bin/*                              &&
+# Shell scripts changing security attributes are for root only
+  chmod 0500 bin/*.sh                           &&
+# Security database
+# Nobody besides firebird permitted to even read this file
+  chown firebird:firebird security*.fdb         &&
+  chmod 0600 security*.fdb                      &&
+# all database should be owned by firebird
+  for DB in `ls examples/empbuild/*.fdb`
+    do
+      chmod ug+w $DB                            &&
+      chown firebird:firebird $DB
+    done                                        &&
+# preserve some existing files
+  for FF in `ls security*.fdb`; do
+    if [ -f $FB_PREFIX/$FF ];then
+      message preserving file $FF               &&
+      bzip2 $FF
+    fi
+   done
 else
   cd gen                                        &&
   make includes                                 &&
