@@ -1,4 +1,3 @@
-invoke_gcc
 patch -p1 < $SCRIPT_DIRECTORY/xmovie-shared.patch  &&
 patch -p0 < $SCRIPT_DIRECTORY/xmovie-fixes.patch   &&
 

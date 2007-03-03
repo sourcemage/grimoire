@@ -1,4 +1,3 @@
-invoke_gcc
    if [ "$CVS" == "y" ]; then
           patch -p0 < $SCRIPT_DIRECTORY/fixinstall.diff &&
           ./gen

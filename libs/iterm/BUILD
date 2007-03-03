@@ -1,1 +1,1 @@
-invoke_gcc
+true
