@@ -1,12 +1,10 @@
 # Clean out the old alsa drivers. FIXME: Bad location for 2.6!
 rm  -f  ${TRACK_ROOT}/lib/modules/`get_kernel_version`/misc/snd*  &&
 
-if [ -e ${TRACK_ROOT}/proc/config.gz ] ; then
-    if [ `zgrep -c CONFIG_SOUND=m ${TRACK_ROOT}/proc/config.gz` = 1 ] ; then
-	modprobe -q soundcore
-    fi
-elif [ `grep -c CONFIG_SOUND=m ${TRACK_ROOT}/etc/sorcery/local/kernel.config` = 1 ] ; then
-    modprobe -q soundcore
+if [[ $(get_sorcery_kernel_config CONFIG_SOUND) == m ||
+`grep -c CONFIG_SOUND=m ${CONFIG_CACHE}/kernel.config` == 1 ]]
+then
+  modprobe -q soundcore
 fi  &&
 
 sedit  "s:/usr/bin/awk:${TRACK_ROOT}/bin/awk:"  utils/convert_isapnp_ids  &&
