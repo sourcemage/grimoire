@@ -1,6 +1,7 @@
-cd  abi                                 &&
-
-sedit "s/-pedantic -ansi//g" configure  &&
+if [ "$DEVEL" == "n" ]; then
+cd  abi     &&
+sedit "s/-pedantic -ansi//g" configure
+fi  &&
 
 if [ "$THREADS" == "y" ]; then
    OPTS="$OPTS --enable-threads"
