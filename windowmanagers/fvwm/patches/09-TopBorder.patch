@@ -1,0 +1,649 @@
+diff -U10 -Naupr fvwm-2.5.21-08/fvwm/fvwm.h fvwm-2.5.21-09/fvwm/fvwm.h
+--- fvwm-2.5.21-08/fvwm/fvwm.h	2007-03-03 13:20:06.000000000 +0100
++++ fvwm-2.5.21-09/fvwm/fvwm.h	2007-03-03 13:20:24.000000000 +0100
+@@ -268,20 +268,21 @@ typedef struct
+ #define WINDOWSHADE_ALWAYS_LAZY   1
+ #define WINDOWSHADE_BUSY          2
+ #define WINDOWSHADE_LAZY_MASK   0x3
+ 		unsigned windowshade_laziness : 2;
+ 		unsigned use_title_decor_rotation : 1;
+ 		unsigned has_border_under_title : 1;
+ 		unsigned has_fluxbox_handles : 1;
+ 		unsigned has_rounded_corners_top : 1;
+ 		unsigned has_rounded_corners_bottom : 1;
+ 		unsigned has_slightly_rounded_corners : 1;
++		unsigned has_no_top_border : 1;
+ 		focus_policy_t focus_policy;
+ 	} s;
+ } common_flags_t;
+ 
+ typedef struct
+ {
+ 	common_flags_t common;
+ #define CR_MOTION_METHOD_AUTO        0
+ #define CR_MOTION_METHOD_USE_GRAV    1
+ #define CR_MOTION_METHOD_STATIC_GRAV 2
+diff -U10 -Naupr fvwm-2.5.21-08/fvwm/fvwm.h~ fvwm-2.5.21-09/fvwm/fvwm.h~
+--- fvwm-2.5.21-08/fvwm/fvwm.h~	2007-03-03 13:19:57.000000000 +0100
++++ fvwm-2.5.21-09/fvwm/fvwm.h~	2007-03-03 13:20:16.000000000 +0100
+@@ -264,20 +264,24 @@ typedef struct
+ 		unsigned use_icon_position_hint : 1;
+ 		unsigned use_indexed_window_name : 1;
+ 		unsigned use_indexed_icon_name : 1;
+ #define WINDOWSHADE_LAZY          0
+ #define WINDOWSHADE_ALWAYS_LAZY   1
+ #define WINDOWSHADE_BUSY          2
+ #define WINDOWSHADE_LAZY_MASK   0x3
+ 		unsigned windowshade_laziness : 2;
+ 		unsigned use_title_decor_rotation : 1;
+ 		unsigned has_border_under_title : 1;
++		unsigned has_fluxbox_handles : 1;
++		unsigned has_rounded_corners_top : 1;
++		unsigned has_rounded_corners_bottom : 1;
++		unsigned has_slightly_rounded_corners : 1;
+ 		focus_policy_t focus_policy;
+ 	} s;
+ } common_flags_t;
+ 
+ typedef struct
+ {
+ 	common_flags_t common;
+ #define CR_MOTION_METHOD_AUTO        0
+ #define CR_MOTION_METHOD_USE_GRAV    1
+ #define CR_MOTION_METHOD_STATIC_GRAV 2
+@@ -519,20 +523,21 @@ typedef struct
+ 	unsigned do_save_under : 1;
+ 	unsigned do_start_iconic : 1;
+ 	unsigned do_start_lowered : 1;
+ 	unsigned has_border_width : 1;
+ 	unsigned has_color_back : 1;
+ 	unsigned has_color_fore : 1;
+ 	unsigned has_color_back_hi : 1;
+ 	unsigned has_color_fore_hi : 1;
+ 	unsigned has_decor : 1;
+ 	unsigned has_handle_width : 1;
++	unsigned has_corner_width : 1;
+ 	unsigned has_icon : 1;
+ 	unsigned has_icon_boxes : 1;
+ 	unsigned has_icon_size_limits : 1;
+ 	unsigned has_max_window_size : 1;
+ 	unsigned has_icon_background_padding : 1;
+ 	unsigned has_icon_background_relief : 1;
+ 	unsigned has_icon_title_relief : 1;
+ 	unsigned has_window_shade_steps : 1;
+ 	unsigned has_mini_icon : 1;
+ 	unsigned has_mwm_decor : 1;
+@@ -622,20 +627,21 @@ typedef struct window_style
+ 	int colorset;
+ 	int colorset_hi;
+ 	int border_colorset;
+ 	int border_colorset_hi;
+ 	int icon_title_colorset;
+ 	int icon_title_colorset_hi;
+ 	int icon_background_colorset;
+ 	short border_width;
+ 	/* resize handle width */
+ 	short handle_width;
++	short corner_width;
+ 	int layer;
+ 	int start_desk;
+ 	int start_page_x;
+ 	int start_page_y;
+ 	int start_screen;
+ 	int max_window_width;
+ 	int max_window_height;
+ 	int shade_anim_steps;
+ 	icon_boxes *icon_boxes;
+ 	float norm_placement_penalty;
+diff -U10 -Naupr fvwm-2.5.21-08/fvwm/geometry.c fvwm-2.5.21-09/fvwm/geometry.c
+--- fvwm-2.5.21-08/fvwm/geometry.c	2007-03-03 13:19:57.000000000 +0100
++++ fvwm-2.5.21-09/fvwm/geometry.c	2007-03-03 13:20:24.000000000 +0100
+@@ -473,69 +473,97 @@ void get_shaded_client_window_pos(
+ void get_window_borders(
+ 	const FvwmWindow *fw, size_borders *borders)
+ {
+ 	__get_window_borders(fw, borders, 0);
+ }
+ 
+ static void __get_window_borders(
+ 	const FvwmWindow *fw, size_borders *borders, Bool is_shaded)
+ {
+ 	int title_thickness;
++	int *title_border = NULL;
+ 	int bw;
+ 	
+ 	bw = HAS_FLUXBOX_HANDLES(fw) ? 1 : fw->boundary_width;
+ 	borders->top_left.width = bw;
+ 	borders->bottom_right.width = bw;
+ 	borders->top_left.height = bw;
+ 	borders->bottom_right.height = fw->boundary_width;
+ 
+ 	title_thickness = fw->title_thickness;
+ 	if (HAS_TITLE(fw) && HAS_BORDER_UNDER_TITLE(fw) && !is_shaded)
+ 	{
+ 		title_thickness += bw;
+ 	}
+ 	
+ 	switch (GET_TITLE_DIR(fw))
+ 	{
+ 	case DIR_N:
+-		borders->top_left.height += title_thickness;
++		title_border = &borders->top_left.height;
+ 		break;
+ 	case DIR_S:
+-		borders->bottom_right.height += title_thickness;
++		title_border = &borders->bottom_right.height;
+ 		break;
+ 	case DIR_W:
+-		borders->top_left.width += title_thickness;
++		title_border = &borders->top_left.width;
+ 		break;
+ 	case DIR_E:
+-		borders->bottom_right.width += title_thickness;
++		title_border = &borders->bottom_right.width;
+ 		break;
+ 	}
++
++	if (HAS_NO_TOP_BORDER(fw))
++	{
++		*title_border = 1;
++	}
++	*title_border += title_thickness;
++	
+ 	borders->total_size.width =
+ 		borders->top_left.width + borders->bottom_right.width;
+ 	borders->total_size.height =
+ 		borders->top_left.height + borders->bottom_right.height;
+ 
+ 	return;
+ }
+ 
+ /* returns the dimensions of the borders without the title */
+ void get_window_borders_no_title(
+ 	const FvwmWindow *fw, size_borders *borders)
+ {
+ 	int bw;
+ 
+ 	bw = HAS_FLUXBOX_HANDLES(fw) ? 1 : fw->boundary_width;
+ 
+ 	borders->top_left.width = bw;
+ 	borders->bottom_right.width = bw;
+ 	borders->top_left.height = bw;
+ 	borders->bottom_right.height = fw->boundary_width;
++	
++	if (HAS_NO_TOP_BORDER(fw))
++	{
++		switch (GET_TITLE_DIR(fw))
++		{
++		case DIR_N:
++			borders->top_left.height = 1;
++			break;
++		case DIR_S:
++			borders->bottom_right.height = 1;
++			break;
++		case DIR_W:
++			borders->top_left.width = 1;
++			break;
++		case DIR_E:
++			borders->bottom_right.width = 1;
++			break;
++		}
++	}
++
+ 	borders->total_size.width =
+ 		borders->top_left.width + borders->bottom_right.width;
+ 	borders->total_size.height =
+ 		borders->top_left.height + borders->bottom_right.height;
+ 
+ 	return;
+ }
+ 
+ void set_window_border_size(
+ 	FvwmWindow *fw, int used_width)
+diff -U10 -Naupr fvwm-2.5.21-08/fvwm/geometry.c~ fvwm-2.5.21-09/fvwm/geometry.c~
+--- fvwm-2.5.21-08/fvwm/geometry.c~	2007-03-03 13:19:57.000000000 +0100
++++ fvwm-2.5.21-09/fvwm/geometry.c~	2007-03-03 13:20:16.000000000 +0100
+@@ -473,30 +473,32 @@ void get_shaded_client_window_pos(
+ void get_window_borders(
+ 	const FvwmWindow *fw, size_borders *borders)
+ {
+ 	__get_window_borders(fw, borders, 0);
+ }
+ 
+ static void __get_window_borders(
+ 	const FvwmWindow *fw, size_borders *borders, Bool is_shaded)
+ {
+ 	int title_thickness;
++	int bw;
+ 	
+-	borders->top_left.width = fw->boundary_width;
+-	borders->bottom_right.width = fw->boundary_width;
+-	borders->top_left.height = fw->boundary_width;
++	bw = HAS_FLUXBOX_HANDLES(fw) ? 1 : fw->boundary_width;
++	borders->top_left.width = bw;
++	borders->bottom_right.width = bw;
++	borders->top_left.height = bw;
+ 	borders->bottom_right.height = fw->boundary_width;
+ 
+ 	title_thickness = fw->title_thickness;
+ 	if (HAS_TITLE(fw) && HAS_BORDER_UNDER_TITLE(fw) && !is_shaded)
+ 	{
+-		title_thickness += fw->boundary_width;
++		title_thickness += bw;
+ 	}
+ 	
+ 	switch (GET_TITLE_DIR(fw))
+ 	{
+ 	case DIR_N:
+ 		borders->top_left.height += title_thickness;
+ 		break;
+ 	case DIR_S:
+ 		borders->bottom_right.height += title_thickness;
+ 		break;
+@@ -512,23 +514,27 @@ static void __get_window_borders(
+ 	borders->total_size.height =
+ 		borders->top_left.height + borders->bottom_right.height;
+ 
+ 	return;
+ }
+ 
+ /* returns the dimensions of the borders without the title */
+ void get_window_borders_no_title(
+ 	const FvwmWindow *fw, size_borders *borders)
+ {
+-	borders->top_left.width = fw->boundary_width;
+-	borders->bottom_right.width = fw->boundary_width;
+-	borders->top_left.height = fw->boundary_width;
++	int bw;
++
++	bw = HAS_FLUXBOX_HANDLES(fw) ? 1 : fw->boundary_width;
++
++	borders->top_left.width = bw;
++	borders->bottom_right.width = bw;
++	borders->top_left.height = bw;
+ 	borders->bottom_right.height = fw->boundary_width;
+ 	borders->total_size.width =
+ 		borders->top_left.width + borders->bottom_right.width;
+ 	borders->total_size.height =
+ 		borders->top_left.height + borders->bottom_right.height;
+ 
+ 	return;
+ }
+ 
+ void set_window_border_size(
+diff -U10 -Naupr fvwm-2.5.21-08/fvwm/style.c fvwm-2.5.21-09/fvwm/style.c
+--- fvwm-2.5.21-08/fvwm/style.c	2007-03-03 13:20:06.000000000 +0100
++++ fvwm-2.5.21-09/fvwm/style.c	2007-03-03 13:20:24.000000000 +0100
+@@ -3885,20 +3885,26 @@ static Bool style_parse_one_style_option
+ 			S_SET_TITLE_DIR(SCF(*ps), DIR_W);
+ 			S_SET_TITLE_DIR(SCM(*ps), DIR_MAJOR_MASK);
+ 			S_SET_TITLE_DIR(SCC(*ps), DIR_MAJOR_MASK);
+ 		}
+ 		else if (StrEquals(token, "TitleAtRight"))
+ 		{
+ 			S_SET_TITLE_DIR(SCF(*ps), DIR_E);
+ 			S_SET_TITLE_DIR(SCM(*ps), DIR_MAJOR_MASK);
+ 			S_SET_TITLE_DIR(SCC(*ps), DIR_MAJOR_MASK);
+ 		}
++		else if (StrEquals(token, "TopBorder"))
++		{
++			S_SET_HAS_NO_TOP_BORDER(SCF(*ps), !on);
++			S_SET_HAS_NO_TOP_BORDER(SCM(*ps), 1);
++			S_SET_HAS_NO_TOP_BORDER(SCC(*ps), 1);
++		}
+ 		else if (StrEquals(token, "TopTitleRotated"))
+ 		{
+ 			S_SET_IS_TOP_TITLE_ROTATED(SCF(*ps), on);
+ 			S_SET_IS_TOP_TITLE_ROTATED(SCM(*ps), 1);
+ 			S_SET_IS_TOP_TITLE_ROTATED(SCC(*ps), 1);
+ 		}
+ 		else if (StrEquals(token, "TopTitleNotRotated"))
+ 		{
+ 			S_SET_IS_TOP_TITLE_ROTATED(SCF(*ps), !on);
+ 			S_SET_IS_TOP_TITLE_ROTATED(SCM(*ps), 1);
+@@ -4519,20 +4525,25 @@ void check_window_style_change(
+ 		|| S_HAS_SLIGHTLY_ROUNDED_CORNERS(SCC(*ret_style)))
+ 	{
+ 		flags->do_redecorate = True;
+ 	}
+ 	
+ 	if (S_HAS_BORDER_UNDER_TITLE(SCC(*ret_style)))
+ 	{
+ 		flags->do_redecorate = True;
+ 	}
+ 
++	if (S_HAS_NO_TOP_BORDER(SCC(*ret_style)))
++	{
++		flags->do_redecorate = True;
++	}
++
+ 	/* has_mwm_border
+ 	 * has_mwm_buttons */
+ 	if (S_HAS_MWM_BORDER(SCC(*ret_style)) ||
+ 	    S_HAS_MWM_BUTTONS(SCC(*ret_style)))
+ 	{
+ 		flags->do_redecorate = 1;
+ 	}
+ 
+ 	/* has_icon_font */
+ 	if (S_HAS_ICON_FONT(SCC(*ret_style)))
+diff -U10 -Naupr fvwm-2.5.21-08/fvwm/style.c~ fvwm-2.5.21-09/fvwm/style.c~
+--- fvwm-2.5.21-08/fvwm/style.c~	2007-03-03 13:19:57.000000000 +0100
++++ fvwm-2.5.21-09/fvwm/style.c~	2007-03-03 13:20:16.000000000 +0100
+@@ -3479,20 +3479,41 @@ static Bool style_parse_one_style_option
+ 			S_SET_IS_RIGHT_TITLE_ROTATED_CW(SCF(*ps), on);
+ 			S_SET_IS_RIGHT_TITLE_ROTATED_CW(SCM(*ps), 1);
+ 			S_SET_IS_RIGHT_TITLE_ROTATED_CW(SCC(*ps), 1);
+ 		}
+ 		else if (StrEquals(token, "RightTitleRotatedCCW"))
+ 		{
+ 			S_SET_IS_RIGHT_TITLE_ROTATED_CW(SCF(*ps), !on);
+ 			S_SET_IS_RIGHT_TITLE_ROTATED_CW(SCM(*ps), 1);
+ 			S_SET_IS_RIGHT_TITLE_ROTATED_CW(SCC(*ps), 1);
+ 		}
++		else if (StrEquals(token, "RoundedCorners"))
++		{
++			S_SET_HAS_ROUNDED_CORNERS_TOP(SCF(*ps), on);
++			S_SET_HAS_ROUNDED_CORNERS_TOP(SCM(*ps), 1);
++			S_SET_HAS_ROUNDED_CORNERS_TOP(SCC(*ps), 1);
++			S_SET_HAS_ROUNDED_CORNERS_BOTTOM(SCF(*ps), on);
++			S_SET_HAS_ROUNDED_CORNERS_BOTTOM(SCM(*ps), 1);
++			S_SET_HAS_ROUNDED_CORNERS_BOTTOM(SCC(*ps), 1);
++		}
++		else if (StrEquals(token, "RoundedCornersTop"))
++		{
++			S_SET_HAS_ROUNDED_CORNERS_TOP(SCF(*ps), on);
++			S_SET_HAS_ROUNDED_CORNERS_TOP(SCM(*ps), 1);
++			S_SET_HAS_ROUNDED_CORNERS_TOP(SCC(*ps), 1);
++		}
++		else if (StrEquals(token, "RoundedCornersBottom"))
++		{
++			S_SET_HAS_ROUNDED_CORNERS_BOTTOM(SCF(*ps), on);
++			S_SET_HAS_ROUNDED_CORNERS_BOTTOM(SCM(*ps), 1);
++			S_SET_HAS_ROUNDED_CORNERS_BOTTOM(SCC(*ps), 1);
++		}		
+ 		else
+ 		{
+ 			found = False;
+ 		}
+ 		break;
+ 
+ 	case 's':
+ 		if (StrEquals(token, "SMARTPLACEMENT"))
+ 		{
+ 			ps->flags.placement_mode |= PLACE_SMART;
+@@ -3613,20 +3634,26 @@ static Bool style_parse_one_style_option
+ 			S_SET_HAS_NO_STICKY_STIPPLED_TITLE(SCF(*ps), !on);
+ 			S_SET_HAS_NO_STICKY_STIPPLED_TITLE(SCM(*ps), 1);
+ 			S_SET_HAS_NO_STICKY_STIPPLED_TITLE(SCC(*ps), 1);
+ 		}
+ 		else if (StrEquals(token, "StickyStippledIconTitle"))
+ 		{
+ 			S_SET_HAS_NO_STICKY_STIPPLED_ICON_TITLE(SCF(*ps), !on);
+ 			S_SET_HAS_NO_STICKY_STIPPLED_ICON_TITLE(SCM(*ps), 1);
+ 			S_SET_HAS_NO_STICKY_STIPPLED_ICON_TITLE(SCC(*ps), 1);
+ 		}
++		else if (StrEquals(token, "SlightlyRoundedCorners"))
++		{
++			S_SET_HAS_SLIGHTLY_ROUNDED_CORNERS(SCF(*ps), on);
++			S_SET_HAS_SLIGHTLY_ROUNDED_CORNERS(SCM(*ps), 1);
++			S_SET_HAS_SLIGHTLY_ROUNDED_CORNERS(SCC(*ps), 1);
++		}
+ 		else if (StrEquals(token, "Slippery"))
+ 		{
+ 			S_SET_IS_STICKY_ACROSS_PAGES(SCF(*ps), !on);
+ 			S_SET_IS_STICKY_ACROSS_PAGES(SCM(*ps), 1);
+ 			S_SET_IS_STICKY_ACROSS_PAGES(SCC(*ps), 1);
+ 			S_SET_IS_STICKY_ACROSS_DESKS(SCF(*ps), !on);
+ 			S_SET_IS_STICKY_ACROSS_DESKS(SCM(*ps), 1);
+ 			S_SET_IS_STICKY_ACROSS_DESKS(SCC(*ps), 1);
+ 		}
+ 		else if (StrEquals(token, "STARTSONDESK"))
+@@ -4478,20 +4505,28 @@ void check_window_style_change(
+ 	if (S_USE_TITLE_DECOR_ROTATION(SCC(*ret_style)))
+ 	{
+ 		flags->do_update_rotated_title = 1;
+ 	}
+ 
+ 	/* has_fluxbox_handles */
+ 	if (S_HAS_FLUXBOX_HANDLES(SCC(*ret_style)))
+ 	{
+ 		flags->do_redecorate = True;
+ 	}
++
++	/* has_rounded_corners */
++	if (S_HAS_ROUNDED_CORNERS_TOP(SCC(*ret_style))
++		|| S_HAS_ROUNDED_CORNERS_BOTTOM(SCC(*ret_style))
++		|| S_HAS_SLIGHTLY_ROUNDED_CORNERS(SCC(*ret_style)))
++	{
++		flags->do_redecorate = True;
++	}
+ 	
+ 	if (S_HAS_BORDER_UNDER_TITLE(SCC(*ret_style)))
+ 	{
+ 		flags->do_redecorate = True;
+ 	}
+ 
+ 	/* has_mwm_border
+ 	 * has_mwm_buttons */
+ 	if (S_HAS_MWM_BORDER(SCC(*ret_style)) ||
+ 	    S_HAS_MWM_BUTTONS(SCC(*ret_style)))
+diff -U10 -Naupr fvwm-2.5.21-08/fvwm/style.h fvwm-2.5.21-09/fvwm/style.h
+--- fvwm-2.5.21-08/fvwm/style.h	2007-03-03 13:20:06.000000000 +0100
++++ fvwm-2.5.21-09/fvwm/style.h	2007-03-03 13:20:24.000000000 +0100
+@@ -354,20 +354,25 @@
+ #define S_SET_HAS_ROUNDED_CORNERS_TOP(c,x) \
+ 	((c).s.has_rounded_corners_top = !!(x))
+ #define S_HAS_ROUNDED_CORNERS_BOTTOM(c) \
+ 	((c).s.has_rounded_corners_bottom)
+ #define S_SET_HAS_ROUNDED_CORNERS_BOTTOM(c,x) \
+ 	((c).s.has_rounded_corners_bottom = !!(x))
+ #define S_HAS_SLIGHTLY_ROUNDED_CORNERS(c) \
+ 	((c).s.has_slightly_rounded_corners)
+ #define S_SET_HAS_SLIGHTLY_ROUNDED_CORNERS(c,x) \
+ 	((c).s.has_slightly_rounded_corners = !!(x))
++#define S_HAS_NO_TOP_BORDER(c) \
++	((c).s.has_no_top_border)
++#define S_SET_HAS_NO_TOP_BORDER(c,x) \
++	((c).s.has_no_top_border = !!(x))
++
+ #define S_DO_EWMH_MINI_ICON_OVERRIDE(c) \
+ 	((c).s.do_ewmh_mini_icon_override)
+ #define S_SET_DO_EWMH_MINI_ICON_OVERRIDE(c,x) \
+ 	((c).s.do_ewmh_mini_icon_override = !!(x))
+ #define S_DO_EWMH_DONATE_ICON(c) \
+ 	((c).s.do_ewmh_donate_icon)
+ #define S_SET_DO_EWMH_DONATE_ICON(c,x) \
+ 	((c).s.do_ewmh_donate_icon = !!(x))
+ #define S_DO_EWMH_DONATE_MINI_ICON(c) \
+ 	((c).s.do_ewmh_donate_mini_icon)
+diff -U10 -Naupr fvwm-2.5.21-08/fvwm/style.h~ fvwm-2.5.21-09/fvwm/style.h~
+--- fvwm-2.5.21-08/fvwm/style.h~	2007-03-03 13:19:57.000000000 +0100
++++ fvwm-2.5.21-09/fvwm/style.h~	2007-03-03 13:20:16.000000000 +0100
+@@ -12,20 +12,22 @@
+ #define SDO_START_LOWERED(sf) \
+ 	((sf)->do_start_lowered)
+ #define SHAS_BORDER_WIDTH(sf) \
+ 	((sf)->has_border_width)
+ #define SHAS_COLOR_BACK(sf) \
+ 	((sf)->has_color_back)
+ #define SHAS_COLOR_FORE(sf) \
+ 	((sf)->has_color_fore)
+ #define SHAS_HANDLE_WIDTH(sf) \
+ 	((sf)->has_handle_width)
++#define SHAS_CORNER_WIDTH(sf) \
++	((sf)->has_corner_width)
+ #define SHAS_ICON(sf) \
+ 	((sf)->has_icon)
+ #define SHAS_ICON_BOXES(sf) \
+ 	((sf)->has_icon_boxes)
+ #define SHAS_ICON_SIZE_LIMITS(sf) \
+ 	((sf)->has_icon_size_limits)
+ #define SHAS_ICON_BACKGROUND_PADDING(sf) \
+ 	((sf)->has_icon_background_padding)
+ #define SHAS_ICON_BACKGROUND_RELIEF(sf) \
+ 	((sf)->has_icon_background_relief)
+@@ -336,20 +338,36 @@
+ #define S_SET_WINDOWSHADE_LAZINESS(c,x) \
+ 	((c).s.windowshade_laziness = (x))
+ #define S_USE_TITLE_DECOR_ROTATION(c) \
+ 	((c).s.use_title_decor_rotation)
+ #define S_SET_USE_TITLE_DECOR_ROTATION(c,x) \
+ 	((c).s.use_title_decor_rotation = !!(x))
+ #define S_HAS_BORDER_UNDER_TITLE(c) \
+ 	((c).s.has_border_under_title)
+ #define S_SET_HAS_BORDER_UNDER_TITLE(c,x) \
+ 	((c).s.has_border_under_title = !!(x))
++#define S_HAS_FLUXBOX_HANDLES(c) \
++	((c).s.has_fluxbox_handles)
++#define S_SET_HAS_FLUXBOX_HANDLES(c,x) \
++	((c).s.has_fluxbox_handles = !!(x))
++#define S_HAS_ROUNDED_CORNERS_TOP(c) \
++	((c).s.has_rounded_corners_top)
++#define S_SET_HAS_ROUNDED_CORNERS_TOP(c,x) \
++	((c).s.has_rounded_corners_top = !!(x))
++#define S_HAS_ROUNDED_CORNERS_BOTTOM(c) \
++	((c).s.has_rounded_corners_bottom)
++#define S_SET_HAS_ROUNDED_CORNERS_BOTTOM(c,x) \
++	((c).s.has_rounded_corners_bottom = !!(x))
++#define S_HAS_SLIGHTLY_ROUNDED_CORNERS(c) \
++	((c).s.has_slightly_rounded_corners)
++#define S_SET_HAS_SLIGHTLY_ROUNDED_CORNERS(c,x) \
++	((c).s.has_slightly_rounded_corners = !!(x))
+ #define S_DO_EWMH_MINI_ICON_OVERRIDE(c) \
+ 	((c).s.do_ewmh_mini_icon_override)
+ #define S_SET_DO_EWMH_MINI_ICON_OVERRIDE(c,x) \
+ 	((c).s.do_ewmh_mini_icon_override = !!(x))
+ #define S_DO_EWMH_DONATE_ICON(c) \
+ 	((c).s.do_ewmh_donate_icon)
+ #define S_SET_DO_EWMH_DONATE_ICON(c,x) \
+ 	((c).s.do_ewmh_donate_icon = !!(x))
+ #define S_DO_EWMH_DONATE_MINI_ICON(c) \
+ 	((c).s.do_ewmh_donate_mini_icon)
+@@ -494,20 +512,24 @@
+ #define SGET_FLAGS_POINTER(s) \
+ 	(&((s).flags))
+ #define SGET_BORDER_WIDTH(s) \
+ 	((s).border_width)
+ #define SSET_BORDER_WIDTH(s,x) \
+ 	((s).border_width = (x))
+ #define SGET_HANDLE_WIDTH(s) \
+ 	((s).handle_width)
+ #define SSET_HANDLE_WIDTH(s,x) \
+ 	((s).handle_width = (x))
++#define SGET_CORNER_WIDTH(s) \
++	((s).corner_width)
++#define SSET_CORNER_WIDTH(s,x) \
++	((s).corner_width = (x))
+ #define SGET_LAYER(s) \
+ 	((s).layer)
+ #define SSET_LAYER(s,x) \
+ 	((s).layer = (x))
+ #define SGET_START_DESK(s) \
+ 	((s).start_desk)
+ #define SSET_START_DESK(s,x) \
+ 	((s).start_desk = (x))
+ #define SGET_START_PAGE_X(s) \
+ 	((s).start_page_x)
+diff -U10 -Naupr fvwm-2.5.21-08/fvwm/window_flags.h fvwm-2.5.21-09/fvwm/window_flags.h
+--- fvwm-2.5.21-08/fvwm/window_flags.h	2007-03-03 13:20:06.000000000 +0100
++++ fvwm-2.5.21-09/fvwm/window_flags.h	2007-03-03 13:20:24.000000000 +0100
+@@ -351,20 +351,26 @@
+ #define SET_HAS_ROUNDED_CORNERS_BOTTOM(fw,x) \
+ 	(fw)->flags.common.s.has_rounded_corners_bottom = !!(x)
+ #define SETM_HAS_ROUNDED_CORNERS_BOTTOM(fw,x) \
+ 	(fw)->flag_mask.common.s.has_rounded_corners_bottom = !!(x)
+ #define HAS_SLIGHTLY_ROUNDED_CORNERS(fw) \
+ 	((fw)->flags.common.s.has_slightly_rounded_corners)
+ #define SET_HAS_SLIGHTLY_ROUNDED_CORNERS_BOTTOM(fw,x) \
+ 	(fw)->flags.common.s.has_slightly_rounded_corners = !!(x)
+ #define SETM_HAS_SLIGHTLY_ROUNDED_CORNERS(fw,x) \
+ 	(fw)->flag_mask.common.s.has_slightly_rounded_corners = !!(x)
++#define HAS_NO_TOP_BORDER(fw) \
++	((fw)->flags.common.s.has_no_top_border)
++#define SET_HAS_NO_TOP_BORDER(fw,x) \
++	(fw)->flags.common.s.has_no_top_border = !!(x)
++#define SETM_HAS_NO_TOP_BORDER(fw,x) \
++	(fw)->flag_mask.common.s.has_no_top_border = !!(x)
+ 
+ /* access to the special flags of a window */
+ #define DO_REUSE_DESTROYED(fw) \
+ 	((fw)->flags.do_reuse_destroyed)
+ #define SET_DO_REUSE_DESTROYED(fw,x) \
+ 	(fw)->flags.do_reuse_destroyed = !!(x)
+ #define SETM_DO_REUSE_DESTROYED(fw,x) \
+ 	(fw)->flag_mask.do_reuse_destroyed = !!(x)
+ #define HAS_NO_BORDER(fw) \
+ 	((fw)->flags.common.has_no_border)
+diff -U10 -Naupr fvwm-2.5.21-08/fvwm/window_flags.h~ fvwm-2.5.21-09/fvwm/window_flags.h~
+--- fvwm-2.5.21-08/fvwm/window_flags.h~	2007-03-03 13:19:57.000000000 +0100
++++ fvwm-2.5.21-09/fvwm/window_flags.h~	2007-03-03 13:20:16.000000000 +0100
+@@ -309,38 +309,62 @@
+ #define SET_IS_RIGHT_TITLE_ROTATED_CW(fw,x) \
+ 	(fw)->flags.common.s.is_right_title_rotated_cw = !!(x)
+ #define SETM_IS_RIGHT_TITLE_ROTATED_CW(fw,x) \
+ 	(fw)->flag_mask.common.s.is_right_title_rotated_cw = !!(x)
+ #define IS_BOTTOM_TITLE_ROTATED(fw) \
+ 	((fw)->flags.common.s.is_bottom_title_rotated)
+ #define SET_IS_BOTTOM_TITLE_ROTATED(fw,x) \
+ 	(fw)->flags.common.s.is_bottom_title_rotated = !!(x)
+ #define SETM_IS_BOTTOM_TITLE_ROTATED(fw,x) \
+ 	(fw)->flag_mask.common.s.is_bottom_title_rotated = !!(x)
+-#define IS_BOTTOM_TITLE_ROTATED(fw) \
+-	((fw)->flags.common.s.is_bottom_title_rotated)
+-#define SET_IS_BOTTOM_TITLE_ROTATED(fw,x) \
+-	(fw)->flags.common.s.is_bottom_title_rotated = !!(x)
+-#define SETM_IS_BOTTOM_TITLE_ROTATED(fw,x) \
+-	(fw)->flag_mask.common.s.is_bottom_title_rotated = !!(x)
++#define IS_TOP_TITLE_ROTATED(fw) \
++	((fw)->flags.common.s.is_top_title_rotated)
++#define SET_IS_TOP_TITLE_ROTATED(fw,x) \
++	(fw)->flags.common.s.is_top_title_rotated = !!(x)
++#define SETM_IS_TOP_TITLE_ROTATED(fw,x) \
++	(fw)->flag_mask.common.s.is_top_title_rotated = !!(x)
+ #define USE_TITLE_DECOR_ROTATION(fw) \
+ 	((fw)->flags.common.s.use_title_decor_rotation)
+ #define SET_USE_TITLE_DECOR_ROTATION(fw,x) \
+ 	(fw)->flags.common.s.use_title_decor_rotation = !!(x)
+ #define SETM_USE_TITLE_DECOR_ROTATION(fw,x) \
+ 	(fw)->flag_mask.common.s.use_title_decor_rotation = !!(x)
+ #define HAS_BORDER_UNDER_TITLE(fw) \
+ 	((fw)->flags.common.s.has_border_under_title)
+ #define SET_HAS_BORDER_UNDER_TITLE(fw,x) \
+ 	(fw)->flags.common.s.has_border_under_title = !!(x)
+ #define SETM_HAS_BORDER_UNDER_TITLE(fw,x) \
+ 	(fw)->flag_mask.common.s.has_border_under_title = !!(x)
++#define HAS_FLUXBOX_HANDLES(fw) \
++	((fw)->flags.common.s.has_fluxbox_handles && (fw->flags.has_handles))
++#define SET_HAS_FLUXBOX_HANDLES(fw,x) \
++	(fw)->flags.common.s.has_fluxbox_handles = !!(x)
++#define SETM_HAS_FLUXBOX_HANDLES(fw,x) \
++	(fw)->flag_mask.common.s.has_fluxbox_handles = !!(x)
++#define HAS_ROUNDED_CORNERS_TOP(fw) \
++	((fw)->flags.common.s.has_rounded_corners_top)
++#define SET_HAS_ROUNDED_CORNERS_TOP(fw,x) \
++	(fw)->flags.common.s.has_rounded_corners_top = !!(x)
++#define SETM_HAS_ROUNDED_CORNERS_TOP(fw,x) \
++	(fw)->flag_mask.common.s.has_rounded_corners_top = !!(x)
++#define HAS_ROUNDED_CORNERS_BOTTOM(fw) \
++	((fw)->flags.common.s.has_rounded_corners_bottom)
++#define SET_HAS_ROUNDED_CORNERS_BOTTOM(fw,x) \
++	(fw)->flags.common.s.has_rounded_corners_bottom = !!(x)
++#define SETM_HAS_ROUNDED_CORNERS_BOTTOM(fw,x) \
++	(fw)->flag_mask.common.s.has_rounded_corners_bottom = !!(x)
++#define HAS_SLIGHTLY_ROUNDED_CORNERS(fw) \
++	((fw)->flags.common.s.has_slightly_rounded_corners)
++#define SET_HAS_SLIGHTLY_ROUNDED_CORNERS_BOTTOM(fw,x) \
++	(fw)->flags.common.s.has_slightly_rounded_corners = !!(x)
++#define SETM_HAS_SLIGHTLY_ROUNDED_CORNERS(fw,x) \
++	(fw)->flag_mask.common.s.has_slightly_rounded_corners = !!(x)
+ 
+ /* access to the special flags of a window */
+ #define DO_REUSE_DESTROYED(fw) \
+ 	((fw)->flags.do_reuse_destroyed)
+ #define SET_DO_REUSE_DESTROYED(fw,x) \
+ 	(fw)->flags.do_reuse_destroyed = !!(x)
+ #define SETM_DO_REUSE_DESTROYED(fw,x) \
+ 	(fw)->flag_mask.do_reuse_destroyed = !!(x)
+ #define HAS_NO_BORDER(fw) \
+ 	((fw)->flags.common.has_no_border)

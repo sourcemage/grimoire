@@ -1,0 +1,1470 @@
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/add_window.c fvwm-2.5.21-07/fvwm/add_window.c
+--- fvwm-2.5.21-06/fvwm/add_window.c	2007-03-03 13:19:10.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/add_window.c	2007-03-03 13:19:35.000000000 +0100
+@@ -1634,31 +1634,36 @@ void setup_wm_hints(FvwmWindow *fw)
+ 	set_focus_model(fw);
+ 
+ 	return;
+ }
+ 
+ void setup_title_geometry(
+ 	FvwmWindow *fw, window_style *pstyle)
+ {
+ 	int width;
+ 	int offset;
++	style_flags *sflags = &(pstyle->flags);
+ 
+ 	get_title_font_size_and_offset(
+ 		fw, S_TITLE_DIR(SCF(*pstyle)),
+ 		S_IS_LEFT_TITLE_ROTATED_CW(SCF(*pstyle)),
+ 		S_IS_RIGHT_TITLE_ROTATED_CW(SCF(*pstyle)),
+ 		S_IS_TOP_TITLE_ROTATED(SCF(*pstyle)),
+ 		S_IS_BOTTOM_TITLE_ROTATED(SCF(*pstyle)),
+ 		&width, &offset);
+ 	fw->title_thickness = width;
+ 	fw->title_text_offset = offset;
+ 	fw->corner_width = fw->title_thickness + fw->boundary_width;
++	if (SHAS_CORNER_WIDTH(sflags))
++	{
++		fw->corner_width = SGET_CORNER_WIDTH(*pstyle);
++	}
+ 	if (!HAS_TITLE(fw))
+ 	{
+ 		fw->title_thickness = 0;
+ 	}
+ 
+ 	return;
+ }
+ 
+ void setup_window_font(
+ 	FvwmWindow *fw, window_style *pstyle, Bool do_destroy)
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/add_window.c~ fvwm-2.5.21-07/fvwm/add_window.c~
+--- fvwm-2.5.21-06/fvwm/add_window.c~	2007-03-03 13:19:02.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/add_window.c~	2007-03-03 13:19:27.000000000 +0100
+@@ -628,20 +628,32 @@ static void destroy_window_font(FvwmWind
+ 	{
+ 		FlocaleUnloadFont(dpy, fw->title_font);
+ 	}
+ 	SET_WINDOW_FONT_LOADED(fw, 0);
+ 	/* Fall back to default font. There are some race conditions when a
+ 	 * window is destroyed and recaptured where an invalid font might be
+ 	 * accessed  otherwise. */
+ 	fw->title_font = Scr.DefaultFont;
+ 	SET_USING_DEFAULT_WINDOW_FONT(fw, 1);
+ 
++	if (IS_INACTIVE_WINDOW_FONT_LOADED(fw) && !USING_DEFAULT_INACTIVE_WINDOW_FONT(fw) &&
++	    fw->title_font != Scr.DefaultFont)
++	{
++		FlocaleUnloadFont(dpy, fw->title_font);
++	}
++	SET_INACTIVE_WINDOW_FONT_LOADED(fw, 0);
++	/* Fall back to default font. There are some race conditions when a
++	 * window is destroyed and recaptured where an invalid font might be
++	 * accessed  otherwise. */
++	fw->title_font = Scr.DefaultFont;
++	SET_USING_DEFAULT_INACTIVE_WINDOW_FONT(fw, 1);
++	
+ 	return;
+ }
+ 
+ static void destroy_icon_font(FvwmWindow *fw)
+ {
+ 	if (IS_ICON_FONT_LOADED(fw) && !USING_DEFAULT_ICON_FONT(fw) &&
+ 	    fw->icon_font != Scr.DefaultFont)
+ 	{
+ 		FlocaleUnloadFont(dpy, fw->icon_font);
+ 	}
+@@ -1669,20 +1681,39 @@ void setup_window_font(
+ 		}
+ 		else
+ 		{
+ 			/* no explicit font or failed to load, use default font
+ 			 * instead */
+ 			fw->title_font = Scr.DefaultFont;
+ 			SET_USING_DEFAULT_WINDOW_FONT(fw, 1);
+ 		}
+ 		SET_WINDOW_FONT_LOADED(fw, 1);
+ 	}
++	/* load inactive font */
++	if (!IS_INACTIVE_WINDOW_FONT_LOADED(fw))
++	{
++		if (S_HAS_INACTIVE_WINDOW_FONT(SCF(*pstyle)) &&
++		    SGET_INACTIVE_WINDOW_FONT(*pstyle) &&
++		    (fw->inactive_title_font =
++		     FlocaleLoadFont(dpy, SGET_INACTIVE_WINDOW_FONT(*pstyle), "FVWM")))
++		{
++			SET_USING_DEFAULT_INACTIVE_WINDOW_FONT(fw, 0);
++		}
++		else
++		{
++			/* no explicit font or failed to load, use active title font
++			 * instead */
++			fw->inactive_title_font = fw->title_font;
++			SET_USING_DEFAULT_INACTIVE_WINDOW_FONT(fw, 1);
++		}
++		SET_INACTIVE_WINDOW_FONT_LOADED(fw, 1);
++	}
+ 	setup_title_geometry(fw, pstyle);
+ 
+ 	return;
+ }
+ 
+ void setup_icon_font(
+ 	FvwmWindow *fw, window_style *pstyle, Bool do_destroy)
+ {
+ 	int height = 0;
+ 
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/borders.c fvwm-2.5.21-07/fvwm/borders.c
+--- fvwm-2.5.21-06/fvwm/borders.c	2007-03-03 13:19:10.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/borders.c	2007-03-03 13:19:35.000000000 +0100
+@@ -1377,20 +1377,38 @@ static void border_fill_pixmap_backgroun
+ 	{
+ 		XFreePixmap(dpy, shape);
+ 	}
+ 	if (alpha && alpha != bg->pixmap.alpha)
+ 	{
+ 		XFreePixmap(dpy, alpha);
+ 	}
+ 	return;
+ }
+ 
++static void border_fill_fluxbox_handle(
++	Pixmap dest_pix, rectangle *dest_g, common_decorations_type *cd, Bool corner)
++{
++	corner = False;
++	/* Main Color */
++	XFillRectangle(
++		dpy, dest_pix, corner ? cd->shadow_gc : cd->relief_gc, dest_g->x + 1, dest_g->y + 1,
++		dest_g->width - dest_g->x - 3, dest_g->height - dest_g->y - 2);
++	/* Right Shadow */
++	XFillRectangle(
++		dpy, dest_pix, cd->shadow_gc, dest_g->x + dest_g->width - 2, dest_g->y + 1,
++		1, dest_g->height - dest_g->y - 2);
++	/* Bottom Shadow */
++	XFillRectangle(
++		dpy, dest_pix, cd->shadow_gc, dest_g->x + 1, dest_g->height - 2,
++		dest_g->width - dest_g->x - 3, 1);
++}
++
+ /* create a root transparent colorset bg, we take in account a possible
+  * drawing rotation */
+ static Pixmap border_create_root_transparent_pixmap(
+ 	titlebar_descr *td, Window w, int width, int height, int cs)
+ {
+ 	int my_w, my_h;
+ 	Pixmap p;
+ 
+ 	if (!CSET_IS_TRANSPARENT_ROOT(cs))
+ 	{
+@@ -1592,26 +1610,42 @@ static void border_draw_one_border_part(
+ 		bg.pixmap.g.x = 0;
+ 		bg.pixmap.g.y = 0;
+ 	}
+ 	/* set the geometry for drawing the Tiled pixmap; maybe add the relief
+ 	 * as offset? */
+ 	pix_g.x = 0;
+ 	pix_g.y = 0;
+ 	pix_g.width = part_g.width;
+ 	pix_g.height = part_g.height;
+ 	border_fill_pixmap_background(p, &pix_g, &bg, cd);
++	if (HAS_FLUXBOX_HANDLES(fw) && (part & PART_BOTTOM))
++	{
++		pix_g.y = part_g.height - fw->boundary_width;
++		if (part != PART_BORDER_S)
++		{
++			pix_g.width++;
++		}
++		if (part == PART_BORDER_SE)
++		{
++			pix_g.x--;
++		}
++		if (fw->boundary_width > 2)
++		{
++			border_fill_fluxbox_handle(p, &pix_g, cd, !(part & PART_BORDER_S));
++		}
++	}
+ 	if (free_bg_pixmap && bg.pixmap.p)
+ 	{
+ 		XFreePixmap(dpy, bg.pixmap.p);
+ 	}
+ 	/* draw the relief over the background */
+-	if (!br->relief.is_flat)
++	if (!br->relief.is_flat && !HAS_FLUXBOX_HANDLES(fw))
+ 	{
+ 		border_draw_part_relief(br, frame_g, &part_g, p, is_inverted);
+ 		/* draw the handle marks */
+ 		if (br->marks.has_x_marks || br->marks.has_y_marks)
+ 		{
+ 			border_draw_part_marks(br, &part_g, part, p);
+ 		}
+ 	}
+ 	/* apply the pixmap and destroy it */
+ 	border_set_part_background(w, p);
+@@ -4121,20 +4155,23 @@ static window_parts border_get_titlebar_
+ 	rectangle *old_g, rectangle *new_g, Bool do_hilight,
+ 	titlebar_descr *ret_td)
+ {
+ 	window_parts draw_parts;
+ 	int i;
+ 	DecorFace *df;
+ 	int is_start = 0;
+ 	JustificationType just;
+ 	int lbl = 0;
+ 	int rbl = 0;
++	int bw;
++
++	bw = HAS_FLUXBOX_HANDLES(fw) ? 1 : fw->boundary_width;
+ 
+ 	ret_td->cd = cd;
+ 	ret_td->frame_g = *new_g;
+ 	if (old_g == NULL)
+ 	{
+ 		old_g = &fw->g.frame;
+ 	}
+ 	frame_get_titlebar_dimensions(fw, old_g, NULL, &ret_td->old_layout);
+ 	frame_get_titlebar_dimensions(fw, new_g, NULL, &ret_td->layout);
+ 
+@@ -4158,30 +4195,30 @@ static window_parts border_get_titlebar_
+ 		}
+ 	}
+ 	if (fw->title_text_rotation == ROTATION_270 ||
+ 	    fw->title_text_rotation == ROTATION_180)
+ 	{
+ 		ret_td->has_an_upsidedown_rotation = True;
+ 	}
+ 	/* geometry of the title bar title + buttons */
+ 	if (!ret_td->has_vt)
+ 	{
+-		ret_td->bar_g.width = new_g->width - 2 * fw->boundary_width;
++		ret_td->bar_g.width = new_g->width - 2 * bw;
+ 		ret_td->bar_g.height = ret_td->layout.title_g.height;
+-		ret_td->bar_g.x = fw->boundary_width;
++		ret_td->bar_g.x = bw;
+ 		ret_td->bar_g.y = ret_td->layout.title_g.y;
+ 	}
+ 	else
+ 	{
+ 		ret_td->bar_g.width = ret_td->layout.title_g.width;
+-		ret_td->bar_g.height = new_g->height - 2 * fw->boundary_width;
+-		ret_td->bar_g.y = fw->boundary_width;
++		ret_td->bar_g.height = new_g->height - 2 * bw;
++		ret_td->bar_g.y = bw;
+ 		ret_td->bar_g.x = ret_td->layout.title_g.x;
+ 	}
+ 
+ 	/* buttons geometries */
+ 	if (ret_td->has_vt)
+ 	{
+ 		ret_td->left_buttons_g.width = ret_td->bar_g.width;
+ 		ret_td->right_buttons_g.width = ret_td->bar_g.width;
+ 	}
+ 	else
+@@ -4219,54 +4256,54 @@ static window_parts border_get_titlebar_
+ 			}
+ 		}
+ 	}
+ 
+ 	if (ret_td->has_an_upsidedown_rotation)
+ 	{
+ 		if (ret_td->has_vt)
+ 		{
+ 			ret_td->left_buttons_g.height = rbl;
+ 			ret_td->right_buttons_g.height = lbl;
+-			ret_td->right_buttons_g.y = fw->boundary_width;
++			ret_td->right_buttons_g.y = bw;
+ 			ret_td->right_buttons_g.x = ret_td->bar_g.x;
+ 			ret_td->left_buttons_g.y = ret_td->layout.title_g.y +
+ 				ret_td->layout.title_g.height;
+ 			ret_td->left_buttons_g.x = ret_td->bar_g.x;
+ 		}
+ 		else
+ 		{
+ 			ret_td->left_buttons_g.width = rbl;
+ 			ret_td->right_buttons_g.width = lbl;
+-			ret_td->right_buttons_g.x = fw->boundary_width;
++			ret_td->right_buttons_g.x = bw;
+ 			ret_td->right_buttons_g.y = ret_td->bar_g.y;
+ 			ret_td->left_buttons_g.x = ret_td->layout.title_g.x +
+ 				ret_td->layout.title_g.width;
+ 			ret_td->left_buttons_g.y = ret_td->bar_g.y;
+ 		}
+ 	}
+ 	else
+ 	{
+ 		if (ret_td->has_vt)
+ 		{
+ 			ret_td->left_buttons_g.height = lbl;
+ 			ret_td->right_buttons_g.height = rbl;
+-			ret_td->left_buttons_g.y = fw->boundary_width;
++			ret_td->left_buttons_g.y = bw;
+ 			ret_td->left_buttons_g.x = ret_td->bar_g.x;
+ 			ret_td->right_buttons_g.y = ret_td->layout.title_g.y +
+ 				ret_td->layout.title_g.height;
+ 			ret_td->right_buttons_g.x = ret_td->bar_g.x;
+ 		}
+ 		else
+ 		{
+ 			ret_td->left_buttons_g.width = lbl;
+ 			ret_td->right_buttons_g.width = rbl;
+-			ret_td->left_buttons_g.x = fw->boundary_width;
++			ret_td->left_buttons_g.x = bw;
+ 			ret_td->left_buttons_g.y = ret_td->bar_g.y;
+ 			ret_td->right_buttons_g.x = ret_td->layout.title_g.x +
+ 				ret_td->layout.title_g.width;
+ 			ret_td->right_buttons_g.y = ret_td->bar_g.y;
+ 		}
+ 	}
+ 
+ 	/* initialise flags */
+ 	border_get_titlebar_descr_state(
+ 		fw, pressed_parts, pressed_button, clear_parts, do_hilight,
+@@ -4595,38 +4632,42 @@ int border_context_to_parts(
+ 	return PART_NONE;
+ }
+ 
+ void border_get_part_geometry(
+ 	FvwmWindow *fw, window_parts part, rectangle *sidebar_g,
+ 	rectangle *ret_g, Window *ret_w)
+ {
+ 	int bw;
+ 	Bool title;
+ 
+-	bw = fw->boundary_width;
++	bw = HAS_FLUXBOX_HANDLES(fw) ? 1 : fw->boundary_width;
+ 	/* ret_g->x and ret->y is just an offset relatively to the w,
+ 	 * maybe we can take the relief in account? */
+ 	switch (part)
+ 	{
+ 	case PART_BORDER_N:
+ 		ret_g->x = sidebar_g->x;
+ 		ret_g->y = 0;
+ 		*ret_w = FW_W_SIDE(fw, 0);
+ 		break;
+ 	case PART_BORDER_E:
+ 		ret_g->x = 2 * sidebar_g->x + sidebar_g->width - bw;
+ 		ret_g->y = sidebar_g->y;
+ 		*ret_w = FW_W_SIDE(fw, 1);
+ 		break;
+ 	case PART_BORDER_S:
+ 		ret_g->x = sidebar_g->x;
+ 		ret_g->y = 2 * sidebar_g->y + sidebar_g->height - bw;
++		if (HAS_FLUXBOX_HANDLES(fw))
++		{
++			ret_g->y = 2 * sidebar_g->y + sidebar_g->height - fw->boundary_width;
++		}
+ 		*ret_w = FW_W_SIDE(fw, 2);
+ 		break;
+ 	case PART_BORDER_W:
+ 		ret_g->x = 0;
+ 		ret_g->y = sidebar_g->y;
+ 		*ret_w = FW_W_SIDE(fw, 3);
+ 		break;
+ 	case PART_BORDER_NW:
+ 		ret_g->x = 0;
+ 		ret_g->y = 0;
+@@ -4647,23 +4688,28 @@ void border_get_part_geometry(
+ 		ret_g->y = sidebar_g->y + sidebar_g->height;
+ 		*ret_w = FW_W_CORNER(fw, 3);
+ 		break;
+ 	default:
+ 		break;
+ 	}
+ 
+ 	switch (part)
+ 	{
+ 	case PART_BORDER_N:
++		ret_g->height = bw;
+ 	case PART_BORDER_S:
+ 		ret_g->width = sidebar_g->width;
+ 		ret_g->height = bw;
++		if (HAS_FLUXBOX_HANDLES(fw))
++		{
++			ret_g->height = fw->boundary_width;
++		}
+ 		break;
+ 	case PART_BORDER_E:
+ 	case PART_BORDER_W:
+ 		ret_g->width = bw;
+ 		ret_g->height = sidebar_g->height;
+ 		break;
+ 	case PART_BORDER_NW:
+ 	case PART_BORDER_NE:
+ 	case PART_BORDER_SW:
+ 	case PART_BORDER_SE:
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/borders.c~ fvwm-2.5.21-07/fvwm/borders.c~
+--- fvwm-2.5.21-06/fvwm/borders.c~	2007-03-03 13:19:02.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/borders.c~	2007-03-03 13:19:27.000000000 +0100
+@@ -3516,31 +3516,32 @@ static void border_draw_title_stick_line
+ 				SWAP_ARGS(td->has_vt, right_w, 1),
+ 				tdd->sgc, tdd->rgc, 1, False, rotation);
+ 		}
+ 	}
+ 
+ 	return;
+ }
+ 
+ static void border_draw_title_mono(
+ 	FvwmWindow *fw, titlebar_descr *td, title_draw_descr *tdd,
+-	FlocaleWinString *fstr, Pixmap dest_pix)
++	FlocaleWinString *fstr, Pixmap dest_pix, Bool do_hilight)
+ {
+ 	int has_vt;
+ 
+ 	has_vt = HAS_VERTICAL_TITLE(fw);
+ 	XFillRectangle(
+ 		dpy, dest_pix, td->cd->relief_gc,
+ 		td->offset - 2, 0, td->length+4, fw->title_thickness);
+ 	if (fw->visible_name != (char *)NULL)
+ 	{
+-		FlocaleDrawString(dpy, fw->title_font, fstr, 0);
++		FlocaleDrawString(dpy, do_hilight ? fw->title_font :
++			fw->inactive_title_font, fstr, 0);
+ 	}
+ 	/* for mono, we clear an area in the title bar where the window
+ 	 * title goes, so that its more legible. For color, no need */
+ 	do_relieve_rectangle(
+ 		dpy, dest_pix, 0, 0,
+ 		SWAP_ARGS(has_vt, td->offset - 3,
+ 			  fw->title_thickness - 1),
+ 		tdd->rgc, tdd->sgc, td->cd->relief_width, False);
+ 	do_relieve_rectangle(
+ 		dpy, dest_pix,
+@@ -3590,21 +3591,21 @@ static void border_draw_title_relief(
+ 	default:
+ 		/* flat */
+ 		break;
+ 	}
+ 
+ 	return;
+ }
+ 
+ static void border_draw_title_deep(
+ 	FvwmWindow *fw, titlebar_descr *td, title_draw_descr *tdd,
+-	FlocaleWinString *fstr, Pixmap dest_pix, Window w)
++	FlocaleWinString *fstr, Pixmap dest_pix, Window w, Bool do_hilight)
+ {
+ 	DecorFace *df;
+ 	pixmap_background_type bg;
+ 
+ 	bg.flags.use_pixmap = 0;
+ 	for (df = tdd->df; df != NULL; df = df->next)
+ 	{
+ 		if (df->style.face_type == MultiPixmap)
+ 		{
+ 			border_mp_draw_mp_titlebar(
+@@ -3612,44 +3613,46 @@ static void border_draw_title_deep(
+ 		}
+ 		else
+ 		{
+ 			bg.pixel = df->u.back;
+ 			border_draw_decor_to_pixmap(
+ 				fw, dest_pix, w, &bg, &td->layout.title_g, df,
+ 				td, td->tbstate.tstate, True, tdd->is_toggled,
+ 				1);
+ 		}
+ 	}
+-	FlocaleDrawString(dpy, fw->title_font, &tdd->fstr, 0);
++	FlocaleDrawString(dpy, do_hilight ? fw->title_font :
++		fw->inactive_title_font, &tdd->fstr, 0);
+ 
+ 	return;
+ }
+ 
+ static void border_get_titlebar_draw_descr(
+ 	FvwmWindow *fw, titlebar_descr *td, title_draw_descr *tdd,
+-	Pixmap dest_pix)
++	Pixmap dest_pix, Bool do_hilight)
+ {
+ 	rectangle *title_g;
+ 
+ 	memset(tdd, 0, sizeof(*tdd));
+ 	/* prepare the gcs and variables */
+ 	if (td->tbstate.is_title_pressed)
+ 	{
+ 		tdd->rgc = td->cd->shadow_gc;
+ 		tdd->sgc = td->cd->relief_gc;
+ 	}
+ 	else
+ 	{
+ 		tdd->rgc = td->cd->relief_gc;
+ 		tdd->sgc = td->cd->shadow_gc;
+ 	}
+-	NewFontAndColor(fw->title_font, td->cd->fore_color, td->cd->back_color);
++	NewFontAndColor(do_hilight ? fw->title_font : fw->inactive_title_font,
++		td->cd->fore_color, td->cd->back_color);
+ 	title_g = &td->layout.title_g;
+ 	tdd->tstyle = &TB_STATE(
+ 		GetDecor(fw, titlebar))[td->tbstate.tstate].style;
+ 	tdd->df = &TB_STATE(GetDecor(fw, titlebar))[td->tbstate.tstate];
+ 
+ 	/* fetch the title string */
+ 	tdd->fstr.str = fw->visible_name;
+ 	tdd->fstr.win = dest_pix;
+ 	if (td->td_is_rotated)
+ 	{
+@@ -3673,29 +3676,29 @@ static void border_get_titlebar_draw_des
+ 	{
+ 		tdd->fstr.colorset = &Colorset[td->cd->cs];
+ 		tdd->fstr.flags.has_colorset = 1;
+ 	}
+ 	tdd->fstr.gc = Scr.TitleGC;
+ 
+ 	return;
+ }
+ 
+ static void border_set_title_pixmap(
+-	FvwmWindow *fw, titlebar_descr *td, Pixmap *dest_pix, Window w)
++	FvwmWindow *fw, titlebar_descr *td, Pixmap *dest_pix, Window w, Bool do_hilight)
+ {
+ 	pixmap_background_type bg;
+ 	title_draw_descr tdd;
+ 	FlocaleWinString fstr;
+ 	Bool free_bg_pixmap = False;
+ 	rectangle pix_g;
+ 
+-	border_get_titlebar_draw_descr(fw, td, &tdd, *dest_pix);
++	border_get_titlebar_draw_descr(fw, td, &tdd, *dest_pix, do_hilight);
+ 	/* prepare background, either from the window colour or from the
+ 	 * border style */
+ 	if (!DFS_USE_BORDER_STYLE(*tdd.tstyle))
+ 	{
+ 		/* fill with the button background colour */
+ 		bg.flags.use_pixmap = 0;
+ 		bg.pixel = td->cd->back_color;
+ 		pix_g.x = 0;
+ 		pix_g.y = 0;
+ 		pix_g.width = td->layout.title_g.width;
+@@ -3749,52 +3752,52 @@ static void border_set_title_pixmap(
+ 				td->layout.title_g.height,
+ 				Pdepth, Scr.BordersGC, td->draw_rotation);
+ 			XFreePixmap(dpy, *dest_pix);
+ 			*dest_pix = tmp;
+ 			border_rotate_titlebar_descr(fw, td);
+ 		}
+ 	}
+ 
+ 	if (Pdepth < 2)
+ 	{
+-		border_draw_title_mono(fw, td, &tdd, &fstr, *dest_pix);
++		border_draw_title_mono(fw, td, &tdd, &fstr, *dest_pix, do_hilight);
+ 	}
+ 	else
+ 	{
+-		border_draw_title_deep(fw, td, &tdd, &fstr, *dest_pix, w);
++		border_draw_title_deep(fw, td, &tdd, &fstr, *dest_pix, w, do_hilight);
+ 	}
+ 	border_draw_title_relief(fw, td, &tdd, *dest_pix);
+ 	border_draw_title_stick_lines(fw, td, &tdd, *dest_pix);
+ 
+ 	return;
+ }
+ 
+ static void border_draw_title(
+-	FvwmWindow *fw, titlebar_descr *td)
++	FvwmWindow *fw, titlebar_descr *td, Bool do_hilight)
+ {
+ 	Pixmap p;
+ 
+ 	if (td->layout.title_g.x < 0 || td->layout.title_g.y < 0)
+ 	{
+ 		return;
+ 	}
+ 	if (td->draw_rotation != ROTATION_0)
+ 	{
+ 		border_rotate_titlebar_descr(fw, td);
+ 	}
+ 	/* make a pixmap */
+ 	p = border_create_decor_pixmap(td->cd, &(td->layout.title_g));
+ 	/* set the background tile */
+ #if 0
+ 	fprintf(stderr,"drawing title\n");
+ #endif
+-	border_set_title_pixmap(fw, td, &p, FW_W_TITLE(fw));
++	border_set_title_pixmap(fw, td, &p, FW_W_TITLE(fw), do_hilight);
+ 	if (td->draw_rotation != ROTATION_0)
+ 	{
+ 		Pixmap tmp;
+ 
+ 		tmp = CreateRotatedPixmap(
+ 			dpy, p, td->layout.title_g.width,
+ 			td->layout.title_g.height, Pdepth, Scr.BordersGC,
+ 			td->draw_rotation);
+ 		XFreePixmap(dpy, p);
+ 		p = tmp;
+@@ -4269,23 +4272,23 @@ static window_parts border_get_titlebar_
+ 		fw, pressed_parts, pressed_button, clear_parts, do_hilight,
+ 		&(ret_td->tbstate));
+ 
+ 	/* get the title string length and position
+ 	 * This is not in "tdd" (titlebar_draw_descr), because these are needed
+ 	 * to draw the buttons with UseTitleStyle */
+ 	just = TB_JUSTIFICATION(GetDecor(fw, titlebar));
+ 	if (fw->visible_name != (char *)NULL)
+ 	{
+ 		ret_td->length = FlocaleTextWidth(
+-			fw->title_font, fw->visible_name,
+-			(ret_td->has_vt) ? -strlen(fw->visible_name) :
+-			strlen(fw->visible_name));
++			do_hilight ? fw->title_font : fw->inactive_title_font,
++			fw->visible_name, (ret_td->has_vt) ?
++			-strlen(fw->visible_name) : strlen(fw->visible_name));
+ 		if (ret_td->length > fw->title_length -
+ 		    2*MIN_WINDOW_TITLE_TEXT_OFFSET)
+ 		{
+ 			ret_td->length = fw->title_length -
+ 				2*MIN_WINDOW_TITLE_TEXT_OFFSET;
+ 			just = JUST_CENTER;
+ 		}
+ 		if (ret_td->length < 0)
+ 		{
+ 			ret_td->length = 0;
+@@ -4377,21 +4380,21 @@ static void border_draw_titlebar(
+ 		cd, fw, pressed_parts, pressed_button, force_draw_parts,
+ 		clear_parts, old_g, new_g, do_hilight, &td);
+ 	if ((draw_parts & PART_TITLE) != PART_NONE ||
+ 	    (draw_parts & PART_BUTTONS) != PART_NONE)
+ 	{
+ 		/* set up UseTitleStyle Colorset */
+ 		border_setup_use_title_style(fw, &td);
+ 	}
+ 	if ((draw_parts & PART_TITLE) != PART_NONE)
+ 	{
+-		border_draw_title(fw, &td);
++		border_draw_title(fw, &td, do_hilight);
+ 	}
+ 	if ((draw_parts & PART_BUTTONS) != PART_NONE)
+ 	{
+ 		border_draw_buttons(fw, &td);
+ 	}
+ 	border_free_bar_pixmaps(&(td.cd->dynamic_cd));
+ 
+ 	/* update the decor states */
+ 	fw->decor_state.parts_drawn |= draw_parts;
+ 	if (do_hilight)
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/fvwm.h fvwm-2.5.21-07/fvwm/fvwm.h
+--- fvwm-2.5.21-06/fvwm/fvwm.h	2007-03-03 13:19:10.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/fvwm.h	2007-03-03 13:19:35.000000000 +0100
+@@ -264,20 +264,21 @@ typedef struct
+ 		unsigned use_icon_position_hint : 1;
+ 		unsigned use_indexed_window_name : 1;
+ 		unsigned use_indexed_icon_name : 1;
+ #define WINDOWSHADE_LAZY          0
+ #define WINDOWSHADE_ALWAYS_LAZY   1
+ #define WINDOWSHADE_BUSY          2
+ #define WINDOWSHADE_LAZY_MASK   0x3
+ 		unsigned windowshade_laziness : 2;
+ 		unsigned use_title_decor_rotation : 1;
+ 		unsigned has_border_under_title : 1;
++		unsigned has_fluxbox_handles : 1;
+ 		focus_policy_t focus_policy;
+ 	} s;
+ } common_flags_t;
+ 
+ typedef struct
+ {
+ 	common_flags_t common;
+ #define CR_MOTION_METHOD_AUTO        0
+ #define CR_MOTION_METHOD_USE_GRAV    1
+ #define CR_MOTION_METHOD_STATIC_GRAV 2
+@@ -519,20 +520,21 @@ typedef struct
+ 	unsigned do_save_under : 1;
+ 	unsigned do_start_iconic : 1;
+ 	unsigned do_start_lowered : 1;
+ 	unsigned has_border_width : 1;
+ 	unsigned has_color_back : 1;
+ 	unsigned has_color_fore : 1;
+ 	unsigned has_color_back_hi : 1;
+ 	unsigned has_color_fore_hi : 1;
+ 	unsigned has_decor : 1;
+ 	unsigned has_handle_width : 1;
++	unsigned has_corner_width : 1;
+ 	unsigned has_icon : 1;
+ 	unsigned has_icon_boxes : 1;
+ 	unsigned has_icon_size_limits : 1;
+ 	unsigned has_max_window_size : 1;
+ 	unsigned has_icon_background_padding : 1;
+ 	unsigned has_icon_background_relief : 1;
+ 	unsigned has_icon_title_relief : 1;
+ 	unsigned has_window_shade_steps : 1;
+ 	unsigned has_mini_icon : 1;
+ 	unsigned has_mwm_decor : 1;
+@@ -622,20 +624,21 @@ typedef struct window_style
+ 	int colorset;
+ 	int colorset_hi;
+ 	int border_colorset;
+ 	int border_colorset_hi;
+ 	int icon_title_colorset;
+ 	int icon_title_colorset_hi;
+ 	int icon_background_colorset;
+ 	short border_width;
+ 	/* resize handle width */
+ 	short handle_width;
++	short corner_width;
+ 	int layer;
+ 	int start_desk;
+ 	int start_page_x;
+ 	int start_page_y;
+ 	int start_screen;
+ 	int max_window_width;
+ 	int max_window_height;
+ 	int shade_anim_steps;
+ 	icon_boxes *icon_boxes;
+ 	float norm_placement_penalty;
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/fvwm.h~ fvwm-2.5.21-07/fvwm/fvwm.h~
+--- fvwm-2.5.21-06/fvwm/fvwm.h~	2007-03-03 13:19:02.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/fvwm.h~	2007-03-03 13:19:27.000000000 +0100
+@@ -191,20 +191,21 @@ typedef struct
+ } ewmh_strut;
+ 
+ typedef struct
+ {
+ 	/* common flags (former flags in bits 0-12) */
+ 	unsigned is_sticky_across_pages : 1;
+ 	unsigned is_sticky_across_desks : 1;
+ 	unsigned has_icon_font : 1;
+ 	unsigned has_no_border : 1;
+ 	unsigned has_window_font : 1;
++	unsigned has_inactive_window_font : 1;
+ 	unsigned title_dir : 2;
+ 	unsigned user_states : 32;
+ 	/* static flags that do not change dynamically after the window has
+ 	 * been created */
+ 	struct
+ 	{
+ 		unsigned do_circulate_skip : 1;
+ 		unsigned do_circulate_skip_icon : 1;
+ 		unsigned do_circulate_skip_shaded : 1;
+ 		unsigned do_ewmh_donate_icon : 1;
+@@ -354,25 +355,27 @@ typedef struct
+ 	unsigned is_style_deleted : 1;
+ 	/* the window is a torn out fvwm menu */
+ 	unsigned is_tear_off_menu : 1;
+ 	/* is it a transient window? */
+ 	unsigned is_transient : 1;
+ 	unsigned is_window_drawn_once : 1;
+ 	/* To prevent double move in MoveViewport.*/
+ 	unsigned is_viewport_moved : 1;
+ 	unsigned is_window_being_moved_opaque : 1;
+ 	unsigned is_window_font_loaded : 1;
++	unsigned is_inactive_window_font_loaded : 1;
+ 	unsigned is_window_shaded : 1;
+ 	unsigned used_title_dir_for_shading : 1;
+ 	unsigned shaded_dir : 3;
+ 	unsigned using_default_icon_font : 1;
+ 	unsigned using_default_window_font : 1;
++	unsigned using_default_inactive_window_font : 1;
+ #define ICON_HINT_NEVER    0
+ #define ICON_HINT_ONCE     1
+ #define ICON_HINT_MULTIPLE 2
+ 	unsigned was_icon_hint_provided : 2;
+ 	unsigned was_icon_name_provided : 1;
+ 	unsigned was_never_drawn : 1;
+ 	unsigned has_ewmh_wm_name : 1;
+ 	unsigned has_ewmh_wm_icon_name : 1;
+ #define EWMH_NO_ICON     0 /* the application does not provide an ewmh icon */
+ #define EWMH_TRUE_ICON   1 /* the application does provide an ewmh icon */
+@@ -604,20 +607,21 @@ typedef struct window_style
+ #define ICON_RESIZE_TYPE_STRETCHED 0x1
+ #define ICON_RESIZE_TYPE_ADJUSTED  0x2
+ #define ICON_RESIZE_TYPE_SHRUNK    0x3
+ #define ICON_RESIZE_TYPE_MASK      0x3
+ 	unsigned icon_resize_type : 2;
+ 	unsigned char icon_background_padding;
+ 	signed char icon_background_relief;
+ 	signed char icon_title_relief;
+ 	char *icon_font;
+ 	char *window_font;
++	char *inactive_window_font;
+ 	char *fore_color_name;
+ 	char *back_color_name;
+ 	char *fore_color_name_hi;
+ 	char *back_color_name_hi;
+ 	int colorset;
+ 	int colorset_hi;
+ 	int border_colorset;
+ 	int border_colorset_hi;
+ 	int icon_title_colorset;
+ 	int icon_title_colorset_hi;
+@@ -731,20 +735,21 @@ typedef struct FvwmWindow
+ 
+ 	/* Note: if the type of this variable is changed, do update the
+ 	 * CONFIGARGSNEW macro in module_interface.c, libs/vpacket.h too! */
+ 	short boundary_width;
+ 	short unshaped_boundary_width;
+ 	short corner_width;
+ 	short visual_corner_width;
+ 
+ 	/* title font */
+ 	FlocaleFont *title_font;
++	FlocaleFont *inactive_title_font;
+ 	/* /Y coordinate to draw the title name */
+ 	short title_text_offset;
+ 	short title_length;
+ 	/* Note: if the type of this variable is changed, do update the
+ 	 * CONFIGARGSNEW macro in module_interface.c, libs/vpacket.h and too!
+ 	 */
+ 	short title_thickness;
+ 	rotation_t title_text_rotation;
+ 	struct
+ 	{
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/geometry.c fvwm-2.5.21-07/fvwm/geometry.c
+--- fvwm-2.5.21-06/fvwm/geometry.c	2007-03-03 13:19:02.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/geometry.c	2007-03-03 13:19:35.000000000 +0100
+@@ -473,30 +473,32 @@ void get_shaded_client_window_pos(
+ void get_window_borders(
+ 	const FvwmWindow *fw, size_borders *borders)
+ {
+ 	__get_window_borders(fw, borders, 0);
+ }
+ 
+ static void __get_window_borders(
+ 	const FvwmWindow *fw, size_borders *borders, Bool is_shaded)
+ {
+ 	int title_thickness;
++	int bw;
+ 	
+-	borders->top_left.width = fw->boundary_width;
+-	borders->bottom_right.width = fw->boundary_width;
+-	borders->top_left.height = fw->boundary_width;
++	bw = HAS_FLUXBOX_HANDLES(fw) ? 1 : fw->boundary_width;
++	borders->top_left.width = bw;
++	borders->bottom_right.width = bw;
++	borders->top_left.height = bw;
+ 	borders->bottom_right.height = fw->boundary_width;
+ 
+ 	title_thickness = fw->title_thickness;
+ 	if (HAS_TITLE(fw) && HAS_BORDER_UNDER_TITLE(fw) && !is_shaded)
+ 	{
+-		title_thickness += fw->boundary_width;
++		title_thickness += bw;
+ 	}
+ 	
+ 	switch (GET_TITLE_DIR(fw))
+ 	{
+ 	case DIR_N:
+ 		borders->top_left.height += title_thickness;
+ 		break;
+ 	case DIR_S:
+ 		borders->bottom_right.height += title_thickness;
+ 		break;
+@@ -512,23 +514,27 @@ static void __get_window_borders(
+ 	borders->total_size.height =
+ 		borders->top_left.height + borders->bottom_right.height;
+ 
+ 	return;
+ }
+ 
+ /* returns the dimensions of the borders without the title */
+ void get_window_borders_no_title(
+ 	const FvwmWindow *fw, size_borders *borders)
+ {
+-	borders->top_left.width = fw->boundary_width;
+-	borders->bottom_right.width = fw->boundary_width;
+-	borders->top_left.height = fw->boundary_width;
++	int bw;
++
++	bw = HAS_FLUXBOX_HANDLES(fw) ? 1 : fw->boundary_width;
++
++	borders->top_left.width = bw;
++	borders->bottom_right.width = bw;
++	borders->top_left.height = bw;
+ 	borders->bottom_right.height = fw->boundary_width;
+ 	borders->total_size.width =
+ 		borders->top_left.width + borders->bottom_right.width;
+ 	borders->total_size.height =
+ 		borders->top_left.height + borders->bottom_right.height;
+ 
+ 	return;
+ }
+ 
+ void set_window_border_size(
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/geometry.c~ fvwm-2.5.21-07/fvwm/geometry.c~
+--- fvwm-2.5.21-06/fvwm/geometry.c~	2007-03-03 13:19:02.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/geometry.c~	2007-03-03 13:19:27.000000000 +0100
+@@ -39,20 +39,23 @@
+ /* ---------------------------- local macros ------------------------------- */
+ 
+ /* ---------------------------- imports ------------------------------------ */
+ 
+ /* ---------------------------- included code files ------------------------ */
+ 
+ /* ---------------------------- local types -------------------------------- */
+ 
+ /* ---------------------------- forward declarations ----------------------- */
+ 
++static void __get_window_borders(
++	const FvwmWindow *fw, size_borders *borders, Bool is_shaded);
++
+ /* ---------------------------- local variables ---------------------------- */
+ 
+ /* ---------------------------- exported variables (globals) --------------- */
+ 
+ /* ---------------------------- local functions ---------------------------- */
+ 
+ /* ---------------------------- interface functions ------------------------ */
+ 
+ /* Removes decorations from the source rectangle and moves it according to the
+  * gravity specification. */
+@@ -336,21 +339,22 @@ void get_icon_corner(
+ void get_shaded_geometry(
+ 	FvwmWindow *fw, rectangle *small_g, rectangle *big_g)
+ {
+ 	size_borders b;
+ 	/* this variable is necessary so the function can be called with
+ 	 * small_g == big_g */
+ 	int big_width = big_g->width;
+ 	int big_height = big_g->height;
+ 	int d;
+ 
+-	get_window_borders(fw, &b);
++	__get_window_borders(fw, &b, 1);
++	
+ 	*small_g = *big_g;
+ 	d = 0;
+ 	switch (SHADED_DIR(fw))
+ 	{
+ 	case DIR_S:
+ 	case DIR_SW:
+ 	case DIR_SE:
+ 		small_g->y = big_g->y + big_height - b.total_size.height;
+ 		d = 1;
+ 		/* fall through */
+@@ -462,37 +466,52 @@ void get_shaded_client_window_pos(
+ 		break;
+ 	}
+ 
+ 	return;
+ }
+ 
+ /* returns the dimensions of the borders */
+ void get_window_borders(
+ 	const FvwmWindow *fw, size_borders *borders)
+ {
++	__get_window_borders(fw, borders, 0);
++}
++
++static void __get_window_borders(
++	const FvwmWindow *fw, size_borders *borders, Bool is_shaded)
++{
++	int title_thickness;
++	
+ 	borders->top_left.width = fw->boundary_width;
+ 	borders->bottom_right.width = fw->boundary_width;
+ 	borders->top_left.height = fw->boundary_width;
+ 	borders->bottom_right.height = fw->boundary_width;
++
++	title_thickness = fw->title_thickness;
++	if (HAS_TITLE(fw) && HAS_BORDER_UNDER_TITLE(fw) && !is_shaded)
++	{
++		title_thickness += fw->boundary_width;
++	}
++	
+ 	switch (GET_TITLE_DIR(fw))
+ 	{
+ 	case DIR_N:
+-		borders->top_left.height += fw->title_thickness;
++		borders->top_left.height += title_thickness;
+ 		break;
+ 	case DIR_S:
+-		borders->bottom_right.height += fw->title_thickness;
++		borders->bottom_right.height += title_thickness;
+ 		break;
+ 	case DIR_W:
+-		borders->top_left.width += fw->title_thickness;
++		borders->top_left.width += title_thickness;
+ 		break;
+ 	case DIR_E:
+-		borders->bottom_right.width += fw->title_thickness;
++		borders->bottom_right.width += title_thickness;
+ 		break;
+ 	}
+ 	borders->total_size.width =
+ 		borders->top_left.width + borders->bottom_right.width;
+ 	borders->total_size.height =
+ 		borders->top_left.height + borders->bottom_right.height;
+ 
+ 	return;
+ }
+ 
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/style.c fvwm-2.5.21-07/fvwm/style.c
+--- fvwm-2.5.21-06/fvwm/style.c	2007-03-03 13:19:10.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/style.c	2007-03-03 13:19:35.000000000 +0100
+@@ -513,20 +513,24 @@ static void merge_styles(
+ 		}
+ 	}
+ 	if (add_style->flags.has_border_width)
+ 	{
+ 		SSET_BORDER_WIDTH(*merged_style, SGET_BORDER_WIDTH(*add_style));
+ 	}
+ 	if (add_style->flags.has_handle_width)
+ 	{
+ 		SSET_HANDLE_WIDTH(*merged_style, SGET_HANDLE_WIDTH(*add_style));
+ 	}
++	if (add_style->flags.has_corner_width)
++	{
++		SSET_CORNER_WIDTH(*merged_style, SGET_CORNER_WIDTH(*add_style));
++	}
+ 	if (add_style->flags.has_icon_size_limits)
+ 	{
+ 		SSET_MIN_ICON_WIDTH(
+ 			*merged_style, SGET_MIN_ICON_WIDTH(*add_style));
+ 		SSET_MIN_ICON_HEIGHT(
+ 			*merged_style, SGET_MIN_ICON_HEIGHT(*add_style));
+ 		SSET_MAX_ICON_WIDTH(
+ 			*merged_style, SGET_MAX_ICON_WIDTH(*add_style));
+ 		SSET_MAX_ICON_HEIGHT(
+ 			*merged_style, SGET_MAX_ICON_HEIGHT(*add_style));
+@@ -2280,20 +2284,34 @@ static Bool style_parse_one_style_option
+ 					" color argument.");
+ 				break;
+ 			}
+ 			SAFEFREE(SGET_BACK_COLOR_NAME(*ps));
+ 			SSET_BACK_COLOR_NAME(*ps, token);
+ 			ps->flags.has_color_back = 1;
+ 			ps->flag_mask.has_color_back = 1;
+ 			ps->change_mask.has_color_back = 1;
+ 			break;
+ 		}
++		else if (StrEquals(token, "CornerWidth"))
++		{
++			if (GetIntegerArguments(rest, &rest, val, 1))
++			{
++				SSET_CORNER_WIDTH(*ps, (short)*val);
++				ps->flags.has_corner_width = 1;
++			}
++			else
++			{
++				ps->flags.has_corner_width = 0;
++			}
++			ps->flag_mask.has_corner_width = 1;
++			ps->change_mask.has_corner_width = 1;
++		}		
+ 		else if (StrEquals(token, "CirculateSkipIcon"))
+ 		{
+ 			S_SET_DO_CIRCULATE_SKIP_ICON(SCF(*ps), on);
+ 			S_SET_DO_CIRCULATE_SKIP_ICON(SCM(*ps), 1);
+ 			S_SET_DO_CIRCULATE_SKIP_ICON(SCC(*ps), 1);
+ 		}
+ 		else if (StrEquals(token, "CirculateSkipShaded"))
+ 		{
+ 			S_SET_DO_CIRCULATE_SKIP_SHADED(SCF(*ps), on);
+ 			S_SET_DO_CIRCULATE_SKIP_SHADED(SCM(*ps), 1);
+@@ -2496,20 +2514,26 @@ static Bool style_parse_one_style_option
+ 			S_SET_HAS_MWM_BUTTONS(SCF(*ps), !on);
+ 			S_SET_HAS_MWM_BUTTONS(SCM(*ps), 1);
+ 			S_SET_HAS_MWM_BUTTONS(SCC(*ps), 1);
+ 		}
+ 		else if (StrEquals(token, "FVWMBORDER"))
+ 		{
+ 			S_SET_HAS_MWM_BORDER(SCF(*ps), !on);
+ 			S_SET_HAS_MWM_BORDER(SCM(*ps), 1);
+ 			S_SET_HAS_MWM_BORDER(SCC(*ps), 1);
+ 		}
++		else if (StrEquals(token, "FluxboxHandles"))
++		{
++			S_SET_HAS_FLUXBOX_HANDLES(SCF(*ps), on);
++			S_SET_HAS_FLUXBOX_HANDLES(SCM(*ps), 1);
++			S_SET_HAS_FLUXBOX_HANDLES(SCC(*ps), 1);
++		}
+ 		else if (StrEquals(token, "FocusFollowsMouse"))
+ 		{
+ 			style_set_old_focus_policy(ps, 1);
+ 		}
+ 		else if (StrEquals(token, "FirmBorder"))
+ 		{
+ 			S_SET_HAS_DEPRESSABLE_BORDER(SCF(*ps), !on);
+ 			S_SET_HAS_DEPRESSABLE_BORDER(SCM(*ps), 1);
+ 			S_SET_HAS_DEPRESSABLE_BORDER(SCC(*ps), 1);
+ 		}
+@@ -4448,20 +4472,26 @@ void check_window_style_change(
+ 	if (S_TITLE_DIR(SCC(*ret_style)))
+ 	{
+ 		flags->do_update_title_dir = 1;
+ 	}
+ 
+ 	/* use_title_decor_rotation */
+ 	if (S_USE_TITLE_DECOR_ROTATION(SCC(*ret_style)))
+ 	{
+ 		flags->do_update_rotated_title = 1;
+ 	}
++
++	/* has_fluxbox_handles */
++	if (S_HAS_FLUXBOX_HANDLES(SCC(*ret_style)))
++	{
++		flags->do_redecorate = True;
++	}
+ 	
+ 	if (S_HAS_BORDER_UNDER_TITLE(SCC(*ret_style)))
+ 	{
+ 		flags->do_redecorate = True;
+ 	}
+ 
+ 	/* has_mwm_border
+ 	 * has_mwm_buttons */
+ 	if (S_HAS_MWM_BORDER(SCC(*ret_style)) ||
+ 	    S_HAS_MWM_BUTTONS(SCC(*ret_style)))
+@@ -4698,20 +4728,26 @@ void check_window_style_change(
+ 	    ret_style->change_mask.has_mwm_decor ||
+ 	    ret_style->change_mask.has_mwm_functions ||
+ 	    ret_style->change_mask.has_no_handles ||
+ 	    ret_style->change_mask.is_button_disabled)
+ 	{
+ 		flags->do_redecorate = 1;
+ 		flags->do_update_ewmh_allowed_actions = 1;
+ 		flags->do_update_modules_flags = 1;
+ 	}
+ 
++	/* has_corner_width */
++	if (ret_style->change_mask.has_corner_width)
++	{
++		flags->do_redecorate = True;
++	}
++
+ 	if (ret_style->change_mask.do_save_under ||
+ 	    ret_style->change_mask.use_backing_store ||
+ 	    ret_style->change_mask.use_parent_relative)
+ 	{
+ 		flags->do_update_frame_attributes = 1;
+ 	}
+ 
+ 	if (ret_style->change_mask.use_parent_relative &&
+ 	    ret_style->flags.use_parent_relative)
+ 	{
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/style.c~ fvwm-2.5.21-07/fvwm/style.c~
+--- fvwm-2.5.21-06/fvwm/style.c~	2007-03-03 13:19:02.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/style.c~	2007-03-03 13:19:27.000000000 +0100
+@@ -402,20 +402,36 @@ static void merge_styles(
+ 				*merged_style, (SGET_WINDOW_FONT(*add_style)) ?
+ 				safestrdup(SGET_WINDOW_FONT(*add_style)) :
+ 				NULL);
+ 		}
+ 		else
+ 		{
+ 			SSET_WINDOW_FONT(
+ 				*merged_style, SGET_WINDOW_FONT(*add_style));
+ 		}
+ 	}
++	if (S_HAS_INACTIVE_WINDOW_FONT(SCF(*add_style)))
++	{
++		if (do_free_src_and_alloc_copy)
++		{
++			SAFEFREE(SGET_INACTIVE_WINDOW_FONT(*merged_style));
++			SSET_INACTIVE_WINDOW_FONT(
++				*merged_style, (SGET_INACTIVE_WINDOW_FONT(*add_style)) ?
++				safestrdup(SGET_INACTIVE_WINDOW_FONT(*add_style)) :
++				NULL);
++		}
++		else
++		{
++			SSET_INACTIVE_WINDOW_FONT(
++				*merged_style, SGET_INACTIVE_WINDOW_FONT(*add_style));
++		}
++	}
+ 	if (add_style->flags.use_start_on_desk)
+ 	{
+ 		SSET_START_DESK(*merged_style, SGET_START_DESK(*add_style));
+ 		SSET_START_PAGE_X(
+ 			*merged_style, SGET_START_PAGE_X(*add_style));
+ 		SSET_START_PAGE_Y(
+ 			*merged_style, SGET_START_PAGE_Y(*add_style));
+ 	}
+ 	if (add_style->flags.use_start_on_screen)
+ 	{
+@@ -728,20 +744,24 @@ static void free_style_mask(window_style
+ 		SAFEFREE(SGET_DECOR_NAME(*style));
+ 	}
+ 	if (pmask->common.has_icon_font)
+ 	{
+ 		SAFEFREE(SGET_ICON_FONT(*style));
+ 	}
+ 	if (pmask->common.has_window_font)
+ 	{
+ 		SAFEFREE(SGET_WINDOW_FONT(*style));
+ 	}
++	if (pmask->common.has_inactive_window_font)
++	{
++		SAFEFREE(SGET_INACTIVE_WINDOW_FONT(*style));
++	}
+ 	if (pmask->has_icon)
+ 	{
+ 		SAFEFREE(SGET_ICON_NAME(*style));
+ 	}
+ 	if (pmask->has_mini_icon)
+ 	{
+ 		SAFEFREE(SGET_MINI_ICON_NAME(*style));
+ 	}
+ 	if (pmask->has_icon_boxes)
+ 	{
+@@ -2832,20 +2852,29 @@ static Bool style_parse_one_style_option
+ 			S_SET_DO_ICONIFY_WINDOW_GROUPS(SCF(*ps), !on);
+ 			S_SET_DO_ICONIFY_WINDOW_GROUPS(SCM(*ps), 1);
+ 			S_SET_DO_ICONIFY_WINDOW_GROUPS(SCC(*ps), 1);
+ 		}
+ 		else if (StrEquals(token, "Iconifiable"))
+ 		{
+ 			S_SET_IS_UNICONIFIABLE(SCF(*ps), !on);
+ 			S_SET_IS_UNICONIFIABLE(SCM(*ps), 1);
+ 			S_SET_IS_UNICONIFIABLE(SCC(*ps), 1);
+ 		}
++		else if (StrEquals(token, "InactiveFont"))
++		{
++			SAFEFREE(SGET_INACTIVE_WINDOW_FONT(*ps));
++			rest = GetNextToken(rest, &token);
++			SSET_INACTIVE_WINDOW_FONT(*ps, token);
++			S_SET_HAS_INACTIVE_WINDOW_FONT(SCF(*ps), (token != NULL));
++			S_SET_HAS_INACTIVE_WINDOW_FONT(SCM(*ps), 1);
++			S_SET_HAS_INACTIVE_WINDOW_FONT(SCC(*ps), 1);
++		}
+ 		else if (StrEquals(token, "IndexedWindowName"))
+ 		{
+ 			S_SET_USE_INDEXED_WINDOW_NAME(SCF(*ps), on);
+ 			S_SET_USE_INDEXED_WINDOW_NAME(SCM(*ps), 1);
+ 			S_SET_USE_INDEXED_WINDOW_NAME(SCC(*ps), 1);
+ 		}
+ 		else if (StrEquals(token, "IndexedIconName"))
+ 		{
+ 			S_SET_USE_INDEXED_ICON_NAME(SCF(*ps), on);
+ 			S_SET_USE_INDEXED_ICON_NAME(SCM(*ps), 1);
+@@ -4445,20 +4474,26 @@ void check_window_style_change(
+ 	{
+ 		flags->do_update_icon_font = 1;
+ 	}
+ 
+ 	/* has_window_font */
+ 	if (S_HAS_WINDOW_FONT(SCC(*ret_style)))
+ 	{
+ 		flags->do_update_window_font = 1;
+ 	}
+ 
++	/* has_inactive_window_font */
++	if (S_HAS_INACTIVE_WINDOW_FONT(SCC(*ret_style)))
++	{
++		flags->do_update_window_font = True;
++	}
++
+ 	/* has_stippled_title */
+ 	if (S_HAS_STIPPLED_TITLE(SCC(*ret_style)) ||
+ 	    S_HAS_NO_STICKY_STIPPLED_TITLE(SCC(*ret_style)) ||
+ 	    S_HAS_STIPPLED_ICON_TITLE(SCC(*ret_style)) ||
+ 	    S_HAS_NO_STICKY_STIPPLED_ICON_TITLE(SCC(*ret_style)))
+ 	{
+ 		flags->do_redraw_decoration = 1;
+ 	}
+ 
+ 	/* has_no_icon_title
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/style.h fvwm-2.5.21-07/fvwm/style.h
+--- fvwm-2.5.21-06/fvwm/style.h	2007-03-03 13:19:10.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/style.h	2007-03-03 13:19:35.000000000 +0100
+@@ -12,20 +12,22 @@
+ #define SDO_START_LOWERED(sf) \
+ 	((sf)->do_start_lowered)
+ #define SHAS_BORDER_WIDTH(sf) \
+ 	((sf)->has_border_width)
+ #define SHAS_COLOR_BACK(sf) \
+ 	((sf)->has_color_back)
+ #define SHAS_COLOR_FORE(sf) \
+ 	((sf)->has_color_fore)
+ #define SHAS_HANDLE_WIDTH(sf) \
+ 	((sf)->has_handle_width)
++#define SHAS_CORNER_WIDTH(sf) \
++	((sf)->has_corner_width)
+ #define SHAS_ICON(sf) \
+ 	((sf)->has_icon)
+ #define SHAS_ICON_BOXES(sf) \
+ 	((sf)->has_icon_boxes)
+ #define SHAS_ICON_SIZE_LIMITS(sf) \
+ 	((sf)->has_icon_size_limits)
+ #define SHAS_ICON_BACKGROUND_PADDING(sf) \
+ 	((sf)->has_icon_background_padding)
+ #define SHAS_ICON_BACKGROUND_RELIEF(sf) \
+ 	((sf)->has_icon_background_relief)
+@@ -336,20 +338,24 @@
+ #define S_SET_WINDOWSHADE_LAZINESS(c,x) \
+ 	((c).s.windowshade_laziness = (x))
+ #define S_USE_TITLE_DECOR_ROTATION(c) \
+ 	((c).s.use_title_decor_rotation)
+ #define S_SET_USE_TITLE_DECOR_ROTATION(c,x) \
+ 	((c).s.use_title_decor_rotation = !!(x))
+ #define S_HAS_BORDER_UNDER_TITLE(c) \
+ 	((c).s.has_border_under_title)
+ #define S_SET_HAS_BORDER_UNDER_TITLE(c,x) \
+ 	((c).s.has_border_under_title = !!(x))
++#define S_HAS_FLUXBOX_HANDLES(c) \
++	((c).s.has_fluxbox_handles)
++#define S_SET_HAS_FLUXBOX_HANDLES(c,x) \
++	((c).s.has_fluxbox_handles = !!(x))
+ #define S_DO_EWMH_MINI_ICON_OVERRIDE(c) \
+ 	((c).s.do_ewmh_mini_icon_override)
+ #define S_SET_DO_EWMH_MINI_ICON_OVERRIDE(c,x) \
+ 	((c).s.do_ewmh_mini_icon_override = !!(x))
+ #define S_DO_EWMH_DONATE_ICON(c) \
+ 	((c).s.do_ewmh_donate_icon)
+ #define S_SET_DO_EWMH_DONATE_ICON(c,x) \
+ 	((c).s.do_ewmh_donate_icon = !!(x))
+ #define S_DO_EWMH_DONATE_MINI_ICON(c) \
+ 	((c).s.do_ewmh_donate_mini_icon)
+@@ -494,20 +500,24 @@
+ #define SGET_FLAGS_POINTER(s) \
+ 	(&((s).flags))
+ #define SGET_BORDER_WIDTH(s) \
+ 	((s).border_width)
+ #define SSET_BORDER_WIDTH(s,x) \
+ 	((s).border_width = (x))
+ #define SGET_HANDLE_WIDTH(s) \
+ 	((s).handle_width)
+ #define SSET_HANDLE_WIDTH(s,x) \
+ 	((s).handle_width = (x))
++#define SGET_CORNER_WIDTH(s) \
++	((s).corner_width)
++#define SSET_CORNER_WIDTH(s,x) \
++	((s).corner_width = (x))
+ #define SGET_LAYER(s) \
+ 	((s).layer)
+ #define SSET_LAYER(s,x) \
+ 	((s).layer = (x))
+ #define SGET_START_DESK(s) \
+ 	((s).start_desk)
+ #define SSET_START_DESK(s,x) \
+ 	((s).start_desk = (x))
+ #define SGET_START_PAGE_X(s) \
+ 	((s).start_page_x)
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/style.h~ fvwm-2.5.21-07/fvwm/style.h~
+--- fvwm-2.5.21-06/fvwm/style.h~	2007-03-03 13:19:02.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/style.h~	2007-03-03 13:19:27.000000000 +0100
+@@ -252,20 +252,24 @@
+ #define S_SET_HAS_NO_STICKY_STIPPLED_TITLE(c,x) \
+ 	((c).s.has_no_sticky_stippled_title = !!(x))
+ #define S_HAS_STIPPLED_ICON_TITLE(c) \
+ 	((c).s.has_stippled_icon_title)
+ #define S_SET_HAS_STIPPLED_ICON_TITLE(c,x) \
+ 	((c).s.has_stippled_icon_title = !!(x))
+ #define S_HAS_WINDOW_FONT(c) \
+ 	((c).has_window_font)
+ #define S_SET_HAS_WINDOW_FONT(c,x) \
+ 	((c).has_window_font = !!(x))
++#define S_HAS_INACTIVE_WINDOW_FONT(c) \
++	((c).has_inactive_window_font)
++#define S_SET_HAS_INACTIVE_WINDOW_FONT(c,x) \
++	((c).has_inactive_window_font = !!(x))
+ #define S_ICON_OVERRIDE(c) \
+ 	((c).s.icon_override)
+ #define S_SET_ICON_OVERRIDE(c,x) \
+ 	((c).s.icon_override = (x))
+ #define S_IS_BOTTOM_TITLE_ROTATED(c) \
+ 	((c).s.is_bottom_title_rotated)
+ #define S_SET_IS_BOTTOM_TITLE_ROTATED(c,x) \
+ 	((c).s.is_bottom_title_rotated = !!(x))
+ #define S_IS_FIXED(c) \
+ 	((c).s.is_fixed)
+@@ -448,20 +452,24 @@
+ #define SSET_BACK_COLOR_NAME_HI(s,x) \
+ 	((s).back_color_name_hi = (x))
+ #define SGET_ICON_FONT(s) \
+ 	((s).icon_font)
+ #define SSET_ICON_FONT(s,x) \
+ 	((s).icon_font = (x))
+ #define SGET_WINDOW_FONT(s) \
+ 	((s).window_font)
+ #define SSET_WINDOW_FONT(s,x) \
+ 	((s).window_font = (x))
++#define SGET_INACTIVE_WINDOW_FONT(s) \
++	((s).inactive_window_font)
++#define SSET_INACTIVE_WINDOW_FONT(s,x) \
++	((s).inactive_window_font = (x))
+ #define SGET_COLORSET(s) \
+ 	((s).colorset)
+ #define SSET_COLORSET(s,x) \
+ 	((s).colorset = (x))
+ #define SSET_BORDER_COLORSET(s,x) \
+ 	((s).border_colorset = (x))
+ #define SGET_BORDER_COLORSET(s) \
+ 	((s).border_colorset)
+ #define SGET_COLORSET_HI(s) \
+ 	((s).colorset_hi)
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/window_flags.h fvwm-2.5.21-07/fvwm/window_flags.h
+--- fvwm-2.5.21-06/fvwm/window_flags.h	2007-03-03 13:19:10.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/window_flags.h	2007-03-03 13:19:35.000000000 +0100
+@@ -327,20 +327,26 @@
+ #define SET_USE_TITLE_DECOR_ROTATION(fw,x) \
+ 	(fw)->flags.common.s.use_title_decor_rotation = !!(x)
+ #define SETM_USE_TITLE_DECOR_ROTATION(fw,x) \
+ 	(fw)->flag_mask.common.s.use_title_decor_rotation = !!(x)
+ #define HAS_BORDER_UNDER_TITLE(fw) \
+ 	((fw)->flags.common.s.has_border_under_title)
+ #define SET_HAS_BORDER_UNDER_TITLE(fw,x) \
+ 	(fw)->flags.common.s.has_border_under_title = !!(x)
+ #define SETM_HAS_BORDER_UNDER_TITLE(fw,x) \
+ 	(fw)->flag_mask.common.s.has_border_under_title = !!(x)
++#define HAS_FLUXBOX_HANDLES(fw) \
++	((fw)->flags.common.s.has_fluxbox_handles && (fw->flags.has_handles))
++#define SET_HAS_FLUXBOX_HANDLES(fw,x) \
++	(fw)->flags.common.s.has_fluxbox_handles = !!(x)
++#define SETM_HAS_FLUXBOX_HANDLES(fw,x) \
++	(fw)->flag_mask.common.s.has_fluxbox_handles = !!(x)
+ 
+ /* access to the special flags of a window */
+ #define DO_REUSE_DESTROYED(fw) \
+ 	((fw)->flags.do_reuse_destroyed)
+ #define SET_DO_REUSE_DESTROYED(fw,x) \
+ 	(fw)->flags.do_reuse_destroyed = !!(x)
+ #define SETM_DO_REUSE_DESTROYED(fw,x) \
+ 	(fw)->flag_mask.do_reuse_destroyed = !!(x)
+ #define HAS_NO_BORDER(fw) \
+ 	((fw)->flags.common.has_no_border)
+diff -U10 -Naupr fvwm-2.5.21-06/fvwm/window_flags.h~ fvwm-2.5.21-07/fvwm/window_flags.h~
+--- fvwm-2.5.21-06/fvwm/window_flags.h~	2007-03-03 13:19:02.000000000 +0100
++++ fvwm-2.5.21-07/fvwm/window_flags.h~	2007-03-03 13:19:27.000000000 +0100
+@@ -573,20 +573,26 @@
+ #define SET_WINDOW_BORDER_DRAWN(fw,x) \
+ 	(fw)->flags.is_window_border_drawn = !!(x)
+ #define SETM_WINDOW_BORDER_DRAWN(fw,x) \
+ 	(fw)->flag_mask.is_window_border_drawn = !!(x)
+ #define IS_WINDOW_FONT_LOADED(fw) \
+ 	((fw)->flags.is_window_font_loaded)
+ #define SET_WINDOW_FONT_LOADED(fw,x) \
+ 	(fw)->flags.is_window_font_loaded = !!(x)
+ #define SETM_WINDOW_FONT_LOADED(fw,x) \
+ 	(fw)->flag_mask.is_window_font_loaded = !!(x)
++#define IS_INACTIVE_WINDOW_FONT_LOADED(fw) \
++	((fw)->flags.is_inactive_window_font_loaded)
++#define SET_INACTIVE_WINDOW_FONT_LOADED(fw,x) \
++	(fw)->flags.is_inactive_window_font_loaded = !!(x)
++#define SETM_INACTIVE_WINDOW_FONT_LOADED(fw,x) \
++	(fw)->flag_mask.is_inactive_window_font_loaded = !!(x)
+ #define CR_MOTION_METHOD(fw) \
+ 	((fw)->flags.cr_motion_method)
+ #define SET_CR_MOTION_METHOD(fw,x) \
+ 	(fw)->flags.cr_motion_method = ((x) & CR_MOTION_METHOD_MASK)
+ #define SETM_CR_MOTION_METHOD(fw,x) \
+ 	(fw)->flag_mask.cr_motion_method = ((x) ? CR_MOTION_METHOD_MASK : 0)
+ #define WAS_CR_MOTION_METHOD_DETECTED(fw) \
+ 	((fw)->flags.was_cr_motion_method_detected)
+ #define SET_CR_MOTION_METHOD_DETECTED(fw,x) \
+ 	(fw)->flags.was_cr_motion_method_detected = !!(x)
+@@ -615,20 +621,26 @@
+ #define SET_FORCE_NEXT_PN(fw,x) \
+ 	(fw)->flags.do_force_next_pn = !!(x)
+ #define SETM_FORCE_NEXT_PN(fw,x) \
+ 	(fw)->flag_mask.do_force_next_pn = !!(x)
+ #define USING_DEFAULT_WINDOW_FONT(fw) \
+ 	((fw)->flags.using_default_window_font)
+ #define SET_USING_DEFAULT_WINDOW_FONT(fw,x) \
+ 	(fw)->flags.using_default_window_font = !!(x)
+ #define SETM_USING_DEFAULT_WINDOW_FONT(fw,x) \
+ 	(fw)->flag_mask.using_default_window_font = !!(x)
++#define USING_DEFAULT_INACTIVE_WINDOW_FONT(fw) \
++	((fw)->flags.using_default_inactive_window_font)
++#define SET_USING_DEFAULT_INACTIVE_WINDOW_FONT(fw,x) \
++	(fw)->flags.using_default_inactive_window_font = !!(x)
++#define SETM_USING_DEFAULT_INACTIVE_WINDOW_FONT(fw,x) \
++	(fw)->flag_mask.using_default_inactive_window_font = !!(x)
+ #define USING_DEFAULT_ICON_FONT(fw) \
+ 	((fw)->flags.using_default_icon_font)
+ #define SET_USING_DEFAULT_ICON_FONT(fw,x) \
+ 	(fw)->flags.using_default_icon_font = !!(x)
+ #define SETM_USING_DEFAULT_ICON_FONT(fw,x) \
+ 	(fw)->flag_mask.using_default_icon_font = !!(x)
+ #define WAS_ICON_HINT_PROVIDED(fw) \
+ 	((fw)->flags.was_icon_hint_provided)
+ #define SET_WAS_ICON_HINT_PROVIDED(fw,x) \
+ 	(fw)->flags.was_icon_hint_provided = (x)
