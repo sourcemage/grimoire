@@ -4,8 +4,8 @@ sedit 's|\(docdir\w*=\w*[^/]*\)/docs|\1/share/doc/db|' dist/Makefile.in &&
 OPTS="$OPTS $DB_JSUP $TESTS"  &&
 
 if  [  "$DB_JSUP"  ==  "--enable-java"  ];  then
-  if  [  -f  $TRACK_ROOT/etc/profile.d/java.sh  ];  then
-    source  $TRACK_ROOT/etc/profile.d/java.sh
+  if  [  -f  $INSTALL_ROOT/etc/profile.d/java.sh  ];  then
+    source  $INSTALL_ROOT/etc/profile.d/java.sh
   else
     message  "${PROBLEM_COLOR}The provider ${SPELL_COLOR}JAVA${DEFAULT_COLOR}" \
              "${PROBLEM_COLOR} is not installed.${DEFAULT_COLOR}"             &&

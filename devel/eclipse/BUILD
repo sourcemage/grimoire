@@ -1,8 +1,8 @@
 #
 # Setup ANT_HOME
 #
-if  [  -f  $TRACK_ROOT/etc/profile.d/ant.sh  ];  then
-  .  $TRACK_ROOT/etc/profile.d/ant.sh
+if  [  -f  $INSTALL_ROOT/etc/profile.d/ant.sh  ];  then
+  .  $INSTALL_ROOT/etc/profile.d/ant.sh
 else
   #
   # ant must not be installed
@@ -18,8 +18,8 @@ fi  &&
 #
 # Setup JAVA_HOME
 #
-if  [  -f  $TRACK_ROOT/etc/profile.d/java.sh  ];  then
-  .  $TRACK_ROOT/etc/profile.d/java.sh
+if  [  -f  $INSTALL_ROOT/etc/profile.d/java.sh  ];  then
+  .  $INSTALL_ROOT/etc/profile.d/java.sh
 else
   #
   # JAVA must not be installed

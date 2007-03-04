@@ -1,4 +1,4 @@
 export QTDIR="" &&
-export PATH=${TRACK_ROOT}/usr/bin/qt4:$PATH  &&
+export PATH=${INSTALL_ROOT}/usr/bin/qt4:$PATH  &&
 default_build
 

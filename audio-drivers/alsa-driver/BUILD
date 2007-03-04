@@ -1,5 +1,5 @@
 # Clean out the old alsa drivers. FIXME: Bad location for 2.6!
-rm  -f  ${TRACK_ROOT}/lib/modules/`get_kernel_version`/misc/snd*  &&
+rm  -f  ${INSTALL_ROOT}/lib/modules/`get_kernel_version`/misc/snd*  &&
 
 if [[ $(get_sorcery_kernel_config CONFIG_SOUND) == m ||
 `grep -c CONFIG_SOUND=m ${CONFIG_CACHE}/kernel.config` == 1 ]]
