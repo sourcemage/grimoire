@@ -2,5 +2,5 @@
   
 set_ant_env  &&
   
-${JAVA_HOME}/bin/jar  -xf  src.jar  &&
+${JAVA_HOME}/bin/jar  -xf  junit-4.2-src.jar  &&
 ant
