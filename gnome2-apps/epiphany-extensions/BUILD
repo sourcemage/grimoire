@@ -21,6 +21,9 @@ fi                                             &&
 if [ "${EPIPHANY_AUTOSCROLL}" == "y" ]; then
    OPTS="${OPTS}auto-scroller,"
 fi                                             &&
+if [ "${EPIPHANY_CCLICENSEVIEW}" == "y" ]; then
+   OPTS="${OPTS}cc-license-viewer,"
+fi                                              &&
 if [ "${EPIPHANY_CERTS}" == "y" ]; then
    OPTS="${OPTS}certificates,"
 fi                                              &&
