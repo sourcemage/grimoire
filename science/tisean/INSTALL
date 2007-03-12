@@ -1,0 +1,32 @@
+cd "$SOURCE_DIRECTORY/.installbins" &&
+echo "installing programs with ts- prefix"
+echo '#!/bin/bash' > ../ts-alias &&
+echo '# prints out bash code to define TISEAN aliases' >> ../ts-alias &&
+echo 'echo alias \' >> ../ts-alias &&
+chmod +x ../ts-alias &&
+for i in *
+do
+  # just copy, we should already have permissions and such from install
+  cp -av "$i" "${INSTALL_ROOT}/usr/bin/ts-$i" &&
+  echo "$i=ts-$i \\" >> ../ts-alias &&
+  echo "adapting examples for $i" &&
+  for x in ../examples/*.gnu
+  do
+	 #perl -pi -e "s/^(.*'<.*) $i( |;|')/\$1 ts-$i\$2/g; s/^(!.*) $i( |;|$)/\$1 ts-$i\$2/g" $x
+	 sed -i \
+	 -e 's/\(.*'"'"'<.*\) '$i'\( \|;\|'"'"'\)/\1 ts-'$i'\2/g' \
+	 -e 's/^\(!.*\) '$i'\( \|;\|\$\)/\1 ts-'$i'\2/g' \
+	 $x
+  done
+done &&
+echo >> ../ts_alias &&
+cd "$SOURCE_DIRECTORY" &&
+cp -v ts-alias "$INSTALL_ROOT/usr/bin" &&
+echo "installing examples and docs" &&
+docdir="$INSTALL_ROOT"/usr/share/doc/tisean &&
+mkdir -pv "$docdir" &&
+cp -p -r examples README docs index.html "$docdir" &&
+cp -v $SCRIPT_DIRECTORY/README.local $docdir &&
+echo "fixing the doc perms" &&
+chmod -R a+r "$docdir" &&
+find "$docdir" -type d -exec chmod a+x '{}' \;

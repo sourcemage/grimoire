@@ -1,25 +1,28 @@
 depends appconfig &&
 depends perl-cgi  &&
 depends file-spec &&
-
-# DBD-mysql in turn depends on perl, mysql and DBI
-depends dbi              &&
-depends dbd-mysql        &&
-
-# Template-Toolkit depends on AppConfig which is required
 depends template-toolkit &&
+depends mime-base64 &&
+depends mime-tools &&
 
-depends data-showtable   &&
-depends date-parse       &&
+depends dbi              &&
 
-# optional utilities
-optional_depends patchutils       '' '' 'for interdiff (patch differencing)' &&
-# optional dependencies from perl-cpan grouped together
-optional_depends perl-gd          '' '' 'for charting'                       &&
-optional_depends gd-graph         '' '' 'for charting'                       &&
-optional_depends gd-text          '' '' 'for charting'                       &&
-optional_depends chart            '' '' 'for bug charting'                   &&
-optional_depends mime-tools       '' '' 'for contrib/bug_email.pl interface' &&
-optional_depends xml-parser-expat '' '' 'for bug data interchange'           &&
-optional_depends net-ldap         '' '' 'for LDAP authentication'            &&
-optional_depends patchreader      '' '' 'for convenient patch presentation'
+if [[ "$BUGZILLA_DATABASE" == "mysql" ]]; then
+  depends dbd-mysql
+elif [[ "$BUGZILLA_DATABASE" == "postgresql" ]]; then
+  depends dbd-pg
+fi &&
+
+if [[ "$BUGZILLA_CHARTING" == "y" ]]; then
+  depends perl-gd  &&
+  depends gd-graph &&
+  depends gd-text  &&
+  depends template-plugin-gd-image &&
+  depends chart    
+fi &&
+
+optional_depends imagemagick   '' '' 'to convert bmp attachments to png' &&
+optional_depends xml-twig      '' '' 'For importing bugs via the xml format also required for the "move bugs" feature' &&
+optional_depends net-ldap      '' '' 'for LDAP authentication'           &&
+optional_depends patchreader   '' '' 'for nice patch presentation'       &&
+optional_depends html-scrubber '' '' 'If you want additional HTML tags within product and group descriptions' 
