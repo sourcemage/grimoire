@@ -1,1 +1,1 @@
-source  $SECTION_DIRECTORY/PERL_BUILD
+default_build_perl
