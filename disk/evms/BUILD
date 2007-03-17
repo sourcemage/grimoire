@@ -1,5 +1,6 @@
 OPTS="--libdir=/lib
       --sbindir=/sbin
+      ${EVMS_OPTS}
       ${OPTS}
 " &&
 
