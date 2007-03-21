@@ -1,0 +1,1 @@
+scons  PREFIX=/usr  DESTDIR="$INSTALL_ROOT"
