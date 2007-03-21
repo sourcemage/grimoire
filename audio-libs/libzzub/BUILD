@@ -9,4 +9,11 @@ then
 fi  &&
 
 scons  configure  $OPTS  PREFIX=/usr  DESTDIR="$INSTALL_ROOT"  &&
-scons
+scons                                                          &&
+
+if  is_depends_enabled  $SPELL  python
+then
+  cd  src/pyzzub        &&
+  default_build_python  &&
+  cd  ../..
+fi
