@@ -26,7 +26,7 @@ if [ $FB_CLIENT == n ]; then
   make                                          &&
 # prepare an install image
   cd gen                                        &&
-  ./install/makeInstallImage.sh
+  ./install/makeInstallImage.sh                 &&
 #
 # fix ownership and permissions
   cd $SOURCE_DIRECTORY/gen/buildroot/$FB_PREFIX &&
