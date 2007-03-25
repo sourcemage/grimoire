@@ -12,7 +12,6 @@ fi  &&
              --disable-static                        \
              --disable-debug                         \
              --enable-pp                             \
-	     --enable-swscaler                       \
              --enable-gpl                            \
              $OPTS                         &&
 make
