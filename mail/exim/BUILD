@@ -59,6 +59,12 @@ then
   LOOKUP_LIBS="$LOOKUP_LIBS  -lmysqlclient"
 fi  &&
 
+if  [[  "$EXIM_SQLITE"  ==  "y"  ]]
+then
+  echo  "LOOKUP_SQLITE=yes"                      >>  Local/Makefile  &&
+  LOOKUP_LIBS="$LOOKUP_LIBS  -lsqlite3"
+fi  &&
+
 if  [[  "$EXIM_PGSQL"  ==  "y"  ]]
 then
   echo  "LOOKUP_PGSQL=yes"  >>  Local/Makefile  &&
