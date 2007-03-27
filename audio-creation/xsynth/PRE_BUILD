@@ -1,0 +1,28 @@
+default_pre_build        &&
+cd  "$SOURCE_DIRECTORY"  &&
+
+# fix X11 lib path
+if  check_if_xorg_modular_libs
+then
+  sed -i  "s|/usr/X11R6|\"$INSTALL_ROOT/usr\"|"  \
+          Makefile
+else
+  sed -i  "s|/usr|\"$INSTALL_ROOT/usr\"|"  \
+          Makefile
+fi  &&
+
+# fix broken linking
+sed -i  "s|-lm|-lm -ldl -lpthread -lXau -lXdmcp|"  Makefile  &&
+
+# insert own compiler flags
+sed -i  "s|-m486 -O3 -ffast-math -fforce-mem -fomit-frame-pointer|$CFLAGS|"  \
+        Makefile                                                             &&
+
+# fix M_PI usage
+sed -i  "s|PI|M_PI|g"  *.c  &&
+
+# define custom sample rate
+if (( XSYNTH_RATE > 0 && XSYNTH_RATE != 44100 ))
+then
+  sed -i  "s|44100|$XSYNTH_RATE|"  synth.h
+fi
