@@ -1,23 +1,22 @@
-#LDFLAGS="$LDFLAGS -lc"
-# disableing what we don't have available
-OPTS="--without-vpopmail                        \
-      --without-sia                             \
-      --without-bsdauth                         \
-      --with-ioloop=$DOVECOT_IOLOOP             \
-      $DOVECOT_OPTS                             \
-      $OPTS"                                    &&
-default_build                                   &&
-pushd dovecot-sieve-1.0.1                       &&
-OPTS="--with-dovecot=.."                        &&
-default_build                                   &&
-popd
-# when the dspam plugin will get updated to work in
-# a multiuser environment this will be usefull
-#pushd src/plugins/dspam                         
-#gcc -fPIC -shared -Wall  -I../../ -I../../lib    \
-#   -I../../../ -I../../lib-storage              \
-#   -I../../lib-mail  -I../../lib-imap           \
-#   -I../../imap/ -DHAVE_CONFIG_H dspam.c        \
-#   -o lib_dspam.so                              
-#popd
+if [[ "${DOVECOT_SSL:-none}" == 'none' ]]; then
+  OPTS="$OPTS --without-ssl"
+fi &&
 
+if [[ "$DOVECOT_EXT_LDA" == 'y' ]]; then
+  OPTS="$OPTS --without-deliver"
+else
+  OPTS="$OPTS --with-deliver"
+fi &&
+
+default_build &&
+
+if [[ "$DOVECOT_EXT_LDA" == 'y' ]]; then
+  pushd dovecot-sieve-* &&
+  ./configure \
+    --prefix=$INSTALL_ROOT/usr \
+    --sysconfdir=$INSTALL_ROOT/etc \
+    --localstatedir=$INSTALL_ROOT/var \
+    --with-dovecot=.. &&
+  make &&
+  popd
+fi
