@@ -24,6 +24,4 @@ esac  &&
 # no need for $INSTALL_ROOT here
 OPTS="$OPTS --with-logdir=/var/log" &&
 
-aclocal &&
-./autogen.sh &&
 default_build
