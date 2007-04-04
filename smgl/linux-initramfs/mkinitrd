@@ -74,6 +74,12 @@ EOF
 	fi
 }
 
+function linuxrc_pre_kinit()
+{
+	[ -x /etc/linux-initramfs/pre_kinit.sh ] && 
+	. /etc/linux-initramfs/pre_kinit.sh
+}
+
 function linuxrc_post()
 {
 	cat <<-EOF
@@ -97,12 +103,32 @@ function dir_parts()
 	cat <<-EOF
 slink /sbin bin 0755 0 0
 dir /bin 0755 0 0
+slink /usr/sbin bin 0755 0 0
+dir /usr/bin 0755 0 0
 dir /lib 0755 0 0
 dir /proc 0755 0 0
 dir /sys 0755 0 0
 dir /etc 0755 0 0
 dir /modules 0755 0 0
 EOF
+}
+
+function user_parts()
+{
+	local file
+	[ -f /etc/linux-initramfs/add-files.lst ] &&
+	for file in `cat /etc/linux-initramfs/add-files.lst`
+	do
+		if [[ -f $file ]]
+		then
+			local mode=$(stat -c %a $file)
+			local O=$(stat -c %o $file)
+			local G=$(stat -c %g $file)
+			cat <<-EOF
+			file $file $file $mode $O $G
+			EOF
+		fi
+	done
 }
 
 function dev_parts()
@@ -687,12 +713,14 @@ fill_modules
 	module_parts
 	klibc_parts
 	raid_parts
-	lvm_parts	
+	lvm_parts
+	user_parts	
 ) > /tmp/initrd.lst
 (
 	linuxrc_pre
 	linuxrc_raid
 	linuxrc_lvm
+	linuxrc_pre_kinit
 	linuxrc_post
 ) > /tmp/linuxrc
 if ! [[ -x /lib/modules/$KVERSION/build/usr/gen_init_cpio ]]
