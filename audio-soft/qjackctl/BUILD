@@ -1,2 +1,1 @@
-OPTS="$QJCTL_TRAY $OPTS"  &&
-default_build
+OPTS="$QJCTL_TRAY $OPTS"  default_build
