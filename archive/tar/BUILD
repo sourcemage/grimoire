@@ -9,5 +9,5 @@ OPTS="$OPTS --build=${BUILD}"
             --mandir=${INSTALL_ROOT}/usr/share/man   \
            --infodir=${INSTALL_ROOT}/usr/share/info  \
                      $OPTS                 &&
-make DESTDIR=$INSTALL_ROOT
+make
 
