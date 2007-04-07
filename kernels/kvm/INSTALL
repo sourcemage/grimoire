@@ -1,0 +1,11 @@
+# install kernel modules
+local kinstalldir="${INSTALL_ROOT}/lib/modules/$(get_kernel_version)/kernel/drivers/kvm"
+mkdir -p "$kinstalldir" &&
+for kmod in kernel/*.ko
+do
+  install -v -o root -g root -m 644 $kmod $kinstalldir
+done &&
+depmod -a $(get_kernel_version) &&
+make -C qemu DESTDIR=${INSTALL_ROOT} install &&
+make -C user DESTDIR=${INSTALL_ROOT} install &&
+install -v -o root -g root -m 755 user/kvmctl ${INSTALL_ROOT}/sbin
