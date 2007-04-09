@@ -1,8 +1,7 @@
 
-
 ./configure  --build=$BUILD                     \
              --prefix=/usr                      \
              --sysconfdir=/etc                  \
              --localstatedir=/var               \
-             $XCHAT_OPTS $OPTS                    &&
+             $XCHAT_OPTS --disable-textfe $OPTS   &&
 make                                           
