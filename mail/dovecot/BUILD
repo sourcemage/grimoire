@@ -1,5 +1,10 @@
 #LDFLAGS="$LDFLAGS -lc"
 # disableing what we don't have available
+if [[ $DOVECOT_EXT_LDA == y ]]; then
+OPTS="--with-deliver $OPTS"
+else
+OPTS="--without-deliver $OPTS"
+fi                                              &&
 OPTS="--without-vpopmail                        \
       --without-sia                             \
       --without-bsdauth                         \
@@ -7,10 +12,12 @@ OPTS="--without-vpopmail                        \
       $DOVECOT_OPTS                             \
       $OPTS"                                    &&
 default_build                                   &&
-pushd dovecot-sieve-1.0.1                       &&
+if [[ $DOVECOT_EXT_LDA == y ]]; then
+pushd dovecot-sieve-*                           &&
 OPTS="--with-dovecot=.."                        &&
 default_build                                   &&
 popd
+fi
 # when the dspam plugin will get updated to work in
 # a multiuser environment this will be usefull
 #pushd src/plugins/dspam                         
