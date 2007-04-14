@@ -15,6 +15,13 @@ if grep -q softmmu <<< "$QEMU_ARCHS"; then
     list_remove CFLAGS $BASH_REMATCH &&
     CFLAGS="$CFLAGS -march=pentium-mmx"
   fi &&
+
+  # -march=prescott was added after 
+  if [[ "$CFLAGS" =~ -march=prescott ]]; then
+    message "${MESSAGE_COLOR}Reducing your $BASH_REMATCH to pentium-mmx.${DEFAULT_COLOR}" &&
+    list_remove CFLAGS $BASH_REMATCH &&
+    CFLAGS="$CFLAGS -march=pentium-mmx"
+  fi &&
   if [[ "$CFLAGS" =~ -march=athlon[^[:space:]]* ]]; then
     message "${MESSAGE_COLOR}Reducing your $BASH_REMATCH to k6-3.${DEFAULT_COLOR}" &&
     list_remove CFLAGS $BASH_REMATCH &&

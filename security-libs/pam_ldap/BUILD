@@ -5,5 +5,5 @@ if  !  [[ -x configure  ]]; then
   automake  --add-missing            &&
   autoconf
 fi  &&
-OPTS="$OPTS --libdir=\"$INSTALL_ROOT/lib\"" &&
+OPTS="$OPTS --libdir=$INSTALL_ROOT/lib" &&
 default_build
