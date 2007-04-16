@@ -11,10 +11,6 @@ if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
   CXXFLAGS=${CXXFLAGS//-ffast-math/}
 fi  &&
 
-# apparently with some archspecs gcc fails to build with -Os but works with -O2
-# see bug 13330 for more details
-CFLAGS=${CFLAGS/-Os/-O2}
-
 # store CFLAGS and LDFLAGS persistently so they can be read by the other
 # split spells later, see bug #10087
 GCC_CFLAGS="$CFLAGS"                   &&
