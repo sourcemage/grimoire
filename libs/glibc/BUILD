@@ -6,9 +6,14 @@ if [ "$GLIBC_NOLIB64" = "y" ]; then
   sedit "s/264/2/" sysdeps/unix/sysv/linux/x86_64/ldd-rewrite.sed
 fi                                                              &&
 
+
+# this causes configure to be run again where it fails for some people on PIII and for me on Alpha
+# the error is about no working grep found...
+if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
 # install x86_64 libraries to lib instead of lib64
 sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure    &&
-sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure.in &&
+sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure.in
+fi &&
 
 #
 # bug#5570 ccache sometimes has trouble correctly recognising minor differences 
@@ -20,15 +25,25 @@ export  CCACHE_RECACHE=true  &&
 # End ccache fix
 #
 
+local ADDONS
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
-  OPTS="$OPTS  --enable-add-ons=nptl  \
-               --with-tls             \
+  ADDONS="nptl"
+  OPTS="$OPTS  --with-tls             \
                --enable-kernel=2.6"
 else
-  OPTS="$OPTS  --enable-add-ons=linuxthreads  \
-               --without-__thread \
+  ADDONS="linuxthreads"
+  OPTS="$OPTS  --without-__thread     \
                --enable-kernel=2.4"
 fi  &&
+
+#
+# Enable IDN?
+#
+if  [  "$GLIBC_USEIDN" = "y"  ];  then
+  ADDONS="$ADDONS libidn"
+fi  &&
+
+OPTS="$OPTS --enable-add-ons=${ADDONS/ /,}"
 
 #
 # Fixes Bug #8595
@@ -45,15 +60,16 @@ unset  LD_LIBRARY_PATH  &&
 
 #
 # Setup sanitised glibc-kernel-headers for the glibc compile
+# ...as well as other arch-dependend specialties
 #
 persistent_add  GLIBC_ARCH  &&
-if    [[  $(uname  -m)  =  *86_64    ]];  then
-  GLIBC_ARCH=x86_64
-elif  [[  $(uname  -m)  =  ppc       ]];  then
+if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
+  GLIBC_ARCH=x86_64    
+elif [[ ${SMGL_COMPAT_ARCHS[1]} == ppc ]]; then
   GLIBC_ARCH=ppc
-elif  [[  $(uname  -m)  =  *86       ]];  then
+elif [[ ${SMGL_COMPAT_ARCHS[1]} == ia32 ]]; then
   GLIBC_ARCH=i386
-elif  [[  $(uname  -m)  =  *sparc64  ]];  then
+elif [[ ${SMGL_COMPAT_ARCHS[0]} == 64 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
   #
   # If we're not compiling for 64-bit SPARC then we need to use the sparc
   # headers, not sparc64
@@ -81,7 +97,7 @@ elif  [[  $(uname  -m)  =  *sparc64  ]];  then
   export HOST="sparcv9-unknown-linux-gnu"       &&
   [  "$BUILD"  =  "sparc-unknown-linux-gnu"  ]  &&  
   export BUILD="sparcv9-unknown-linux-gnu"
-elif  [[  $(uname  -m)  =  *sparc    ]];  then
+elif [[ ${SMGL_COMPAT_ARCHS[0]} == 32 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
   GLIBC_ARCH=sparc  &&
   #
   # Fixes from Gentoo's 2.3.3.20040420-r2 ebuild
@@ -89,7 +105,18 @@ elif  [[  $(uname  -m)  =  *sparc    ]];  then
   sedit  "s:CPPFLAGS += -DHAVE_INITFINI:CPPFLAGS += -DHAVE_INITFINI -fno-pie -fno-PIE:"  csu/Makefile
   export    CFLAGS="${CFLAGS/-fcall-used-g7/}"
   export    CFLAGS="$CFLAGS  -fcall-used-g6"
-fi  &&
+elif [[ ${SMGL_COMPAT_ARCHS[1]} == alpha ]]; then
+  # This is a first attempt to get alpha going, being paranoid about any CFLAGS,
+  # not without reason: -Os/-O breaks compile in strange ways:
+  #  either an elf/ld.so that segfaults (build failing at sunrpc) or
+  #  internal compiler error(s) in intl/
+  # glibc knows itself what flags to choose
+  export CFLAGS="" &&
+  GLIBC_ARCH=alpha
+else
+  message "Glibc spell doesn't know your architecture!" &&
+  false
+fi &&
 
 # set the asm headers to point to the correct architecture
 cd  $GLIBC_HEADERS_DIR/include  &&
