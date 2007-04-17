@@ -1,35 +1,24 @@
-if [ -f /etc/profile.d/GNUstep.sh ];
+make_single                  &&
+default_build                &&
+if [[ "$GMEMO" == "y" ]];
 then
-    . /etc/profile.d/GNUstep.sh
-else
-    message "${ERROR_COLOR}Unable to find /etc/profile.d/GNUstep.sh"  &&
-    message "Rebuild gnustep-make${DEFAULT_COLOR}"                    &&
-    return 1
-fi                                                                    &&
+    pushd Bundles/Emoticon   &&
+    default_build            &&
+    popd
+fi                           &&
 
-make_single
-make                                                                  
-
-if [ "$GMEMO" == "y" ];
+if [[ "$GMFAC" == "y" ]];
 then
-    cd Bundles/Emoticon                                               &&
-    make                                                              &&
-    cd ../../
-fi                                                                    &&
+    pushd Bundles/Face       &&
+    default_build            &&
+    popd
+fi                           &&
 
-if [ "$GMFAC" == "y" ];
+
+if [[ "$GMPGP" == "y" ]];
 then
-    cd Bundles/Face                                                   &&
-    make                                                              &&
-    cd ../../
-fi                                                                    &&
-
-
-if [ "$GMPGP" == "y" ];
-then
-    cd Bundles/PGP                                                    &&
-    make                                                              &&
-    cd ../../
-fi                                                                    &&
-
+    pushd Bundles/PGP        &&
+    default_build            &&
+    popd
+fi                           &&
 make_normal
