@@ -1,0 +1,34 @@
+#!/bin/bash
+# this is an example of a suspend2 resume in the initrd
+cat <<-EOF
+if ! [ -f /proc/cmdline ]
+then
+	mount -t proc proc /proc
+fi
+for arg in \`cat /proc/cmdline\`
+do
+	case "\$arg" in
+		resume=*)
+			eval \$arg
+		;;
+		ip=*)
+			eval \$arg
+			/bin/ipconfig \$ip
+		;;
+		nfsroot=*)
+			eval \$arg
+		;;
+		*)
+		;;
+	esac
+done
+if ! [ -z "\$resume" ]
+then
+	/bin/resume \$resume
+fi
+if ! [ -z "\$nfsroot" ]
+then
+	/bin/nfsmount "\$nfsroot" /root
+	/bin/run-init /root /sbin/init "\$@"
+fi
+EOF
