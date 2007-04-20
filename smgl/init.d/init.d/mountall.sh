@@ -92,6 +92,11 @@ start()
   mount    -a  -t tmpfs
   evaluate_retval
 
+  # bug 7311 - if proc was mounted, list it in mtab; awk is /usr friendly
+  if awk 'BEGIN{proc=1} /\/proc/{proc=0} END{exit proc}' /proc/mounts; then
+    builtin echo 'none /proc proc rw 0 0' >> /etc/mtab
+  fi
+
 #As per FHS sm bug #10509
   echo "Cleaning out /var/run..."
   [ -d /var/run ] && recursive_rm /var/run/*
