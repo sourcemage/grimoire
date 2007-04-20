@@ -1,20 +1,10 @@
-local myopts=""
-
-if [ -f /etc/profile.d/GNUstep.sh ];
-then
-    . /etc/profile.d/GNUstep.sh
-else
-    message "${ERROR_COLOR}Unable to find /etc/profile.d/GNUstep.sh"      &&
-    message "Rebuild gnustep-make${DEFAULT_COLOR}"                        &&
-    return 1
-fi                                                                        &&
-
 make_single
-if [ "$APPK" == "n" ];
+if [[ "$APPK" == "n" ]];
 then
-    message "Building StepTalk without AppKit extensions${DEFAULT_COLOR}" &&
-    make appkit=no
+  OPTS="appkit=no"
+  message "Building StepTalk without AppKit extensions"  &&
+  default_build $OPTS
 else
-    make
-fi                                                                        &&
+  default_build
+fi                                                       &&
 make_normal
