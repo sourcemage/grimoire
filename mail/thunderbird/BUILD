@@ -7,6 +7,12 @@ export  MOZ_THUNDERBIRD="1"   &&
 export  CFLAGS="${CFLAGS//-O3/-O2}"      &&
 export  CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
+#
+# -ffast-math breaks plugins
+#
+CFLAGS="${CFLAGS//-ffast-math/}"      &&
+CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
+
 if  echo $LDFLAGS | grep  -q  '\-s'; then
   OPTS="$OPTS  --enable-strip"
 fi  &&
