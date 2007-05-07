@@ -10,11 +10,9 @@ function  fhs_mkdir()
 }
 
 #
-# That is ugly, but we need to ensure minimal accounts that usually are copied
-# from iso. At least in theory (for chroots), we should create everything via spells.
 # Root account is always needed, bin user/group is provided by iso and an unknown
-# number of spells need it. Perhaps one should make a smgl-system-accounts spell and
-# remove all create_(account|group) from here?
+# number of spells need it.
+# Note: We assume that the currently active system has existing /etc/passwd.
 #
 create_account root &&
 create_account bin  &&
@@ -29,6 +27,17 @@ do
 done  &&
 
 fhs_mkdir /tmp 1777  &&
+
+#
+# For a chroot, we need minimal passwd files with root account once we enter it.
+# without existing passwd, not even `useradd root` will work!
+#
+if ! [[ -e "$INSTALL_ROOT/etc/passwd" ]]; then
+  echo 'root:!:0:0:root:/root:/bin/bash' > "$INSTALL_ROOT/etc/passwd"
+fi &&
+if ! [[ -e "$INSTALL_ROOT/etc/group" ]]; then
+  echo 'root:!:0:' > "$INSTALL_ROOT/etc/group"
+fi &&
 
 #
 # http://www.pathname.com/fhs/2.2/fhs-6.1.html
