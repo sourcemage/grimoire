@@ -16,7 +16,7 @@ sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure.in
 fi &&
 
 #
-# bug#5570 ccache sometimes has trouble correctly recognising minor differences 
+# bug#5570 ccache sometimes has trouble correctly recognising minor differences
 # in configurations and doesn't force recompile when it should. This stops it from
 # using the old cache entries.
 #
@@ -54,7 +54,7 @@ export  CFLAGS="${CFLAGS/-ffast-math/}"  &&
 export  CC=gcc                           &&
 
 #
-# LD_LIBRARY_PATH includes $PWD bug 
+# LD_LIBRARY_PATH includes $PWD bug
 #
 unset  LD_LIBRARY_PATH  &&
 
@@ -64,7 +64,7 @@ unset  LD_LIBRARY_PATH  &&
 #
 persistent_add  GLIBC_ARCH  &&
 if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
-  GLIBC_ARCH=x86_64    
+  GLIBC_ARCH=x86_64
 elif [[ ${SMGL_COMPAT_ARCHS[1]} == ppc ]]; then
   GLIBC_ARCH=ppc
 elif [[ ${SMGL_COMPAT_ARCHS[1]} == ia32 ]]; then
@@ -93,9 +93,9 @@ elif [[ ${SMGL_COMPAT_ARCHS[0]} == 64 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; th
 
   # Setup the HOST properly to insure "sparcv9"
   # This passes -mcpu=ultrasparc -Wa,-Av9a to the compiler
-  [  "$HOST"  =  "sparc-unknown-linux-gnu"  ]   &&  
+  [  "$HOST"  =  "sparc-unknown-linux-gnu"  ]   &&
   export HOST="sparcv9-unknown-linux-gnu"       &&
-  [  "$BUILD"  =  "sparc-unknown-linux-gnu"  ]  &&  
+  [  "$BUILD"  =  "sparc-unknown-linux-gnu"  ]  &&
   export BUILD="sparcv9-unknown-linux-gnu"
 elif [[ ${SMGL_COMPAT_ARCHS[0]} == 32 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
   GLIBC_ARCH=sparc  &&
