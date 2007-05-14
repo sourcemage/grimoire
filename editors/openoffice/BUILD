@@ -1,45 +1,38 @@
-if [ "$OPENOFFICE_VERSION" == "stable" ]; then
-optimize
-fi
+OPTS="$OPENOFFICE_ODK                                         \
+      $OPENOFFICE_QA                                          \
+      --disable-epm                                           \
+      --disable-ldap                                          \
+      --disable-mozilla                                       \
+      --without-gpc                                           \
+      --without-myspell-dicts                                 \
+      --with-system-alloc="system"                            \
+      --with-system-stdlibs                                   \
+      --with-lang=${LANGUAGE}                                 \
+      --with-dict=${DICTIONARY}                               \
+      $OPTS"                                                  &&
 
+#
+# If not using Xorg modular, then we have a 'normal' X install
+#
+if  !  check_if_xorg_modular_server;  then
+  OPTS="--with-system-xrender-headers  \
+        $OPTS"
+fi  &&
 
-### configure
-	cd $SOURCE_DIRECTORY/config_office/               &&
-	export CXXFLAGS="${CXXFLAGS} -I/usr/X11R6/include -I/usr/include/nspr -I/usr/include/nss"       &&
-export CFLAGS="${CFLAGS} -I/usr/include/nspr -I/usr/include/nss" &&
-if [ "$OPENOFFICE_VERSION" == "stable" ]; then
-optimize
-fi
-if [ "$OPENOFFICE_EPM" == "internal" ]; then
-OPTS="${OPTS} --enable-epm --with-epm=internal"
-fi
-if [ "$OPENOFFICE_EPM" == "none" ]; then
-OPTS="${OPTS} --disable-epm"
-fi
-if [ "$OPENOFFICE_VERSION" == "devel" ]; then
-OPTS="${OPTS} --with-build-version=Built_by_Source_Mage"
-fi
-echo OPTS=$OPTS &&
-	./configure                                       \
-		--with-lang=${LANGUAGE}                   \
-		--with-dict=${DICTIONARY}                  \
-		--prefix=${INSTALL_ROOT}/usr              \
-		--sysconfdir=${INSTALL_ROOT}/etc          \
-		--localstatedir=${INSTALL_ROOT}/var       \
-                --mandir=${INSTALL_ROOT}/usr/share/man    \
-                --infodir=${INSTALL_ROOT}/usr/share/info  \
-                --disable-mozilla                         \
-		$OPENOFFICE_OPTS $OPTS                    &&
+if  [[  "$(get_spell_provider  $SPELL  JAVA)"  ==  "gcj"  ]];  then
+  OPTS="--with-java=gij  \
+        $OPTS"
+fi  &&
 
-	cd $SOURCE_DIRECTORY &&
-  ./bootstrap                                                                       &&
-  tcsh -c "source LinuxIntelEnv.Set && \
-           env && \
-           dmake" &&
-if [ "$OPENOFFICE_VERSION" == "stable" ]; then
-  cd $SOURCE_DIRECTORY/instsetoo/unxlngi4.pro/01/normal	                            &&
-  sedit "s:oo_home=OpenOffice.org${VERSION}:oo_home=openoffice:" install                 &&
-  chmod +x install
-else
-echo "build done"
-fi
+cd  $SOURCE_DIRECTORY/config_office                  &&
+./configure --prefix=${INSTALL_ROOT}/usr             \
+        --sysconfdir=${INSTALL_ROOT}/etc             \
+     --localstatedir=${INSTALL_ROOT}/var             \
+            --mandir=${INSTALL_ROOT}/usr/share/man   \
+           --infodir=${INSTALL_ROOT}/usr/share/info  \
+                     $OPTS                           &&
+
+cd  $SOURCE_DIRECTORY       &&
+source  LinuxX86Env.Set.sh  &&
+./bootstrap                 &&
+dmake
