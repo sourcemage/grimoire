@@ -1,2 +1,4 @@
 cd ${SOURCE_DIRECTORY}/doc &&
-make
+make_single                &&
+make                       &&
+make_normal
