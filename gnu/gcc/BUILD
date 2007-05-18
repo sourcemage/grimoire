@@ -5,6 +5,12 @@ if [[ "$GCC_NOLIB64" == 'y' ]]; then
   sedit "s/lib64/lib/" gcc/config/i386/t-linux64           
 fi                                                        &&
 
+if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
+       "$ARCHITECTURE"  ==  "pentium-m"  ]];  then
+  CFLAGS=${CFLAGS//-ffast-math/}
+  CXXFLAGS=${CXXFLAGS//-ffast-math/}
+fi  &&
+
 # store CFLAGS and LDFLAGS persistently so they can be read by the other
 # split spells later, see bug #10087
 GCC_CFLAGS="$CFLAGS"                   &&

@@ -5,6 +5,11 @@ persistent_read  gcc  GCC_MULTILIB  GCC_MULTILIB
 persistent_read  gcc  GCC_CFLAGS   CFLAGS   &&
 persistent_read  gcc  GCC_LDFLAGS  LDFLAGS  &&
 
+# when updating this spell please check if this is still necessary:
+if [ "$GCJ_AWT" = "y" ]; then
+	CFLAGS="$CFLAGS -I${INSTALL_ROOT}/usr/include/freetype2"
+fi                                                         &&
+
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h             &&
 
 cd $SOURCE_DIRECTORY.bld                                   &&

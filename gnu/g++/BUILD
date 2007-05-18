@@ -6,6 +6,11 @@ persistent_read  gcc  GCC_NOLIB64   GCC_NOLIB64
 persistent_read  gcc  GCC_CFLAGS   CFLAGS   &&
 persistent_read  gcc  GCC_LDFLAGS  LDFLAGS  &&
 
+if  [[  "$ARCHITECTURE"  ==  "pentium4"  ||
+        "$ARCHITECTURE"  ==  "pentium-m"  ]];  then
+  CXXFLAGS=${CXXFLAGS//-ffast-math/}
+fi  &&
+
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h             &&
 
 if [[ "$GCC_NOLIB64" == 'y' ]]; then
