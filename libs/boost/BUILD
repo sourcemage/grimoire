@@ -9,10 +9,10 @@ else
     BLIST="${BLIST}${SEP}${BL}"
   done
 fi                                                &&
-if ! list_find "$BOOST_LIBS" "python"  &&
-   ! list_find "$BOOST_OPTS1" "python" ; then
-   BLIST="$BLIST --without-python"
-fi
+#if ! list_find "$BOOST_LIBS" "python"  &&
+#   ! list_find "$BOOST_OPTS1" "python" ; then
+#   BLIST="$BLIST --without-python"
+#fi
 OPTS="$OPTS $BLIST"                               &&
 CXXFLAGS="$CXXFLAGS"                              \
 bjam -q                                           \

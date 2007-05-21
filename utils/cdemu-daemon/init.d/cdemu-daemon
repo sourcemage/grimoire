@@ -1,0 +1,38 @@
+#!/bin/bash
+
+PROGRAM=/usr/bin/cdemud
+ARGS=""
+RUNLEVEL=3
+NEEDS="+remote_fs"
+
+. /etc/init.d/smgl_init
+. /etc/sysconfig/cdemu-daemon
+
+start() {
+	# Load module
+	echo -n $"    Inserting kernel module: "
+	/sbin/modprobe cdemu param_devices=$DEVICES >/dev/null 2>&1
+	evaluate_retval
+
+	# Loop until nodes get created...
+	echo -n $"    Waiting for nodes to get created: "
+	until [ -c "/dev/cdemu_ctl$(($DEVICES - 1))" ];  do
+		echo -n ""
+	done
+
+	evaluate_retval
+
+	# Audio backend arguments for daemon
+	if [ -n "$AUDIO_BACKEND" ]; then
+		DAEMON_ARGS="$DAEMON_ARGS --audio=$AUDIO_BACKEND"
+	fi
+	if [ -n "$AUDIO_DEVICE" ]; then
+		DAEMON_ARGS="$DAEMON_ARGS --audio-device=$AUDIO_DEVICE"
+	fi
+
+	# Start daemon
+	echo -n $"    Starting daemon: "
+	loadproc  $PROGRAM  $DAEMON_ARGS
+	evaluate_retval
+}
+

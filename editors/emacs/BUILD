@@ -2,6 +2,12 @@
 #  sedit  's:${COPYDESTS} ${infodir}:${COPYDESTS}:'  Makefile.in  &&
   # Fixes Bug #2938
   export  LDFLAGS="${LDFLAGS/-z combreloc/}"  &&
+
+#
+# Fails to link if using -Wl,-O1
+#
+export LDFLAGS="${LDFLAGS//-Wl,-O1/}"  &&
+
 if [ "$CVS" == "y" ]; then
   # Crashes with -03
   export  CFLAGS="${CFLAGS//-O3/-O2}"      &&

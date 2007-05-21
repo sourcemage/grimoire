@@ -1,10 +1,26 @@
 default_pre_build          &&
 cd $SOURCE_DIRECTORY 	   &&
+
+# apply patches
+if [ $QT_VER = stable ];then
+patch -p0 < $SPELL_DIRECTORY/Qt-4.2.3-UTF-8-fix.diff
+fi &&
+
+# add better optimisation flags
+# -O2 gives segmentation fault in moc when building tools
+sed -i   "s|-O2|${CFLAGS/-O3/-O2}|" mkspecs/common/g++.conf      \
+                                     mkspecs/linux-cxx/qmake.conf &&
+
 # remove big direcotries
-if [ $QT_DOC = n ];then
-rm -r doc demos examples   &&
-sed -i "/+= demos/D;/htmldocs/D" projects.pro
+if [[ $QT_DOC = n ]];then
+rm -r doc                  &&
+sed -i "/htmldocs/D" projects.pro
 fi                         &&
+if [[ x${QT_DEBUG} != "x-debug" ]];then
+  sed -i "/-g/d" mkspecs/common/g++.conf      \
+                 mkspecs/linux-cxx/qmake.conf
+fi                          &&
+# fix use of firebird
 sed -i "s/-lgds/-lfbclient/" config.tests/unix/ibase/ibase.pro \
-  src/sql/drivers/drivers.pri  src/plugins/sqldrivers/ibase/ibase.pro
-#patch  -p0 < $SPELL_DIRECTORY/xxx.diff
+                             src/sql/drivers/drivers.pri  \
+                             src/plugins/sqldrivers/ibase/ibase.pro
