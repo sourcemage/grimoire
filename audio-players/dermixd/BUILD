@@ -11,4 +11,8 @@ then
 else
   DMD_BUILD=gnu-oss
 fi &&
-make $DMD_BUILD
+MAKE_OPT= &&
+if list_find "$OPTS" --enable-sndfile; then
+  MAKE_OPT="$MAKE_OPT SNDFILE=yes"
+fi &&
+make $MAKE_OPT $DMD_BUILD
