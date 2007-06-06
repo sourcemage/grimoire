@@ -1,0 +1,80 @@
+#!/bin/bash
+
+. /etc/sysconfig/zaptel
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+
+. /etc/init.d/smgl_init
+
+required_executable /sbin/ztcfg
+required_executable /sbin/modprobe
+
+start()
+{
+	echo "Loading zaptel" 
+	modprobe zaptel >& /dev/null
+	evaluate_retval
+	
+	echo "Loading zaptel hardware modules"
+	for x in ${MODULES}; do 
+		if modprobe ${x} >& /dev/null; then
+			echo -n " ${x}"
+		fi
+	done
+	
+	echo
+	echo "Running ztcfg" 
+	/sbin/ztcfg >& /dev/null 
+	evaluate_retval
+
+        RVAL=$?
+        [ ${RVAL} -eq 0 ] && touch /var/lock/subsys/zaptel
+ }
+
+stop()
+{
+    echo "Unloading zaptel hardware drivers"
+	for x in ${MODULES}; do 
+		if rmmod ${x} >& /dev/null; then
+			echo -n " ${x}"
+		fi
+	done
+	
+	echo
+	echo "Removing zaptel module" 
+	rmmod zaptel >& /dev/null 
+	evaluate_retval
+
+        RVAL=$?
+        [ ${RVAL} -eq 0 ] && rm -f /var/lock/subsys/zaptel
+}
+
+restart()
+{
+	run_func stop
+	run_func start
+}
+
+reload()
+{
+	echo "Reloading ztcfg"
+	/sbin/ztcfg >& /dev/null
+	evaluate_retval
+}
+
+
+status() 
+{
+	if [[ -f /var/lock/subsys/zaptel ]]; then
+		echo "Zaptel driver loaded"
+	else
+		echo "Zaptel driver not loaded"
+	fi
+}
+
+
+usage()
+{
+	echo "$0 {start|stop|restart|status|reload}"
+}
