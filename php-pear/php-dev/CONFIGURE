@@ -1,35 +1,32 @@
-function configure_set_bool() {
-  if [ -z "$1" ] || [ -z "$2" ]; then
-    return
-  fi
+config_query_option  PHP4_SAFE      "Enable PHP safe mode?"             n  \
+                     "--enable-safe-mode"                                  \
+                     "--disable-safe-mode"                                 &&
 
-  local OPTION=$1
-  local PROMPT="$2"
-  local HINT=${3:-y}
+config_query_option  PHP4_FTP       "Enable FTP support?"               y  \
+                     "--enable-ftp"                                        \
+                     "--disable-ftp"                                       &&
 
-  if ! grep -q "$OPTION=" $SPELL_CONFIG; then
-    local VALUE="$OPTION=n"
-    query "$PROMPT" $HINT && VALUE="$OPTION=y"
-    echo "$VALUE" >> $SPELL_CONFIG
-  fi
-}
+config_query_option  PHP4_CALENDAR  "Enable calendar support?"          y  \
+                     "--enable-calendar"                                   \
+                     "--disable-calendar"                                  &&
 
-if  !  grep  -q  CONFIGURED  $SPELL_CONFIG;  then
+config_query_option  PHP4_PCRE      "Enable perl regular expressions?"  y  \
+                     "--with-pcre-regex"                                   \
+                     "--without-pcre-regex"                                &&
 
-  configure_set_bool php_SAFEMODE "Enable PHP safe mode?" n
+config_query_option  PHP4_PCNTL     "Enable experimental pcntl support (CLI/CGI only)" n \
+                     "--enable-pcntl"                                      \
+                     "--disable-pcntl"                                     &&
 
-  if    query  "Do you want imap support?"  n
-  then  echo   'OPTS="$OPTS --with-imap"'  >>  $SPELL_CONFIG
-        if  spell_ok  openssl
-        then  echo  'OPTS="$OPTS  --with-imap-ssl"'  >>  $SPELL_CONFIG
-        fi
-        depends  imap
-  fi
+# needs --enable-force-cgi-redirect in BUILD
+config_query_option  PHP4_FCGI      'Enable FastCGI module?'            y  \
+                     '--enable-fastcgi'                                    \
+                     '--disable-fastcgi'                                   &&
 
-  if    query  "Do you require mail support?"  n
-  then  depends  MAIL-TRANSPORT-AGENT
-  fi
-  
-  echo  'CONFIGURED=y'  >>  $SPELL_CONFIG
+config_query_list    PHP4_APACHE    'Which Apache module to build?'        \
+                     none  handler filter  &&
 
-fi
+config_query PHP5_X11LIBS "Would you like to use libxpm? (Requires X11-libs)" n &&
+
+config_query_list    PHP5_GD  "Which GD library to use?"      \
+                     none internal external

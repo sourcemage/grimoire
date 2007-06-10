@@ -1,56 +1,85 @@
-(
-  if `httpd -v | grep -q "Apache/2\."`; then
-    message "${MESSAGE_COLOR}Configuring for Apache 2.x${DEFAULT_COLOR}" &&
-    OPTS="$OPTS --with-apxs2"
-  else
-    message "${MESSAGE_COLOR}Configuring for Apache 1.x${DEFAULT_COLOR}" &&
-    OPTS="$OPTS --with-apxs"
-  fi &&
+#
+# Append options from CONFIGURE to OPTS
+#
+OPTS="$OPTS           \
+      $PHP4_SAFE      \
+      $PHP4_CALENDAR  \
+      $PHP4_PCRE      \
+      $PHP4_PCNTL     \
+      $PHP4_FTP       \
+      $PHP4_FCGI      \
+"  &&
 
-  if [ "$php_SAFEMODE" == "y" ]; then
-    OPTS="$OPTS --enable-safe-mode"
-  fi &&
-
-  ./buildconf                          &&
-  ./configure                          \
-    --prefix=/usr                      \
-    --sysconfdir=/etc                  \
-    --with-exec-dir=/usr/bin           \
-    --with-config-file-path=/etc       \
-    --enable-cli                       \
-    --disable-static                   \
-    --disable-debug                    \
-    --disable-rpath                    \
-    --enable-inline-optimization       \
-    --enable-pic                       \
-    --enable-bcmath                    \
-    --enable-magic-quotes              \
-    --enable-sysvsem                   \
-    --enable-sysvshm                   \
-    --enable-force-cgi-redirect        \
-    --enable-yp                        \
-    --enable-ftp                       \
-    --enable-wddx                      \
-    --enable-filepro                   \
-    --enable-dbase                     \
-    --enable-sockets                   \
-    --enable-calendar                  \
-    --with-iconv-dir=/usr              \
-    --with-xmlrpc                      \
-    --with-regex=system                \
-    --with-versioning                  \
-    --with-mod_charset                 \
-    --with-pear                        \
-    --with-layout=GNU                  \
-    --with-zlib                        \
-    --with-x-includes=/usr/X11/include \
-    --with-x-libraries=/usr/X11/lib    \
-    $OPTS                              &&
-  make                                 &&
-  prepare_install                      &&
-  make    install                      &&
-  if         ! [ -e /etc/php.ini ]; then
-    cp php.ini-dist /etc/php.ini
+#
+# Setup SSL IMAP if wanted
+#
+if  echo  $OPTS  |  grep  -q  --  --with-imap;  then
+  if  spell_ok  openssl;  then
+    OPTS="$OPTS  --with-imap-ssl"
   fi
+fi  &&
 
-) > $C_FIFO 2>&1
+case "$PHP4_APACHE" in
+  handler)
+    if  httpd  -v  |  grep  -q  "Apache/2\.";  then
+      message  "${MESSAGE_COLOR}Configuring for Apache 2.x${DEFAULT_COLOR}"  &&
+      OPTS="$OPTS  --with-apxs2"
+    else
+      message  "${MESSAGE_COLOR}Configuring for Apache 1.x${DEFAULT_COLOR}"  &&
+      OPTS="$OPTS  --with-apxs"
+    fi
+    ;;
+  filter)
+    OPTS="$OPTS --with-apxs2filter"
+    ;;
+esac  &&
+
+#Check for xorg or xserver and pass location of xpm
+if [ "$PHP5_X11LIBS" == "y" ]; then
+   if check_if_xorg_modular_libs; then
+       OPTS="$OPTS --with-xpm-dir=/usr"
+   else
+       OPTS="$OPTS --with-xpm-dir=/usr/X11R6/lib"
+   fi
+fi &&
+
+#check to see if internal GD requested
+if [ "$PHP5_GD" == "internal" ]; then
+       OPTS="--with-gd --enable-gd-native-ttf $OPTS"
+fi &&
+
+./configure      --prefix=${INSTALL_ROOT}/usr      \
+             --sysconfdir=${INSTALL_ROOT}/etc      \
+                 --mandir=${INSTALL_ROOT}/usr/share/man \
+          --with-exec-dir=${INSTALL_ROOT}/usr/bin  \
+  --with-config-file-path=${INSTALL_ROOT}/etc      \
+                 --enable-cli                      \
+                --disable-static                   \
+                --disable-debug                    \
+                --disable-rpath                    \
+          --enable-inline-optimization             \
+                 --enable-pic                      \
+                 --enable-bcmath                   \
+           --enable-magic-quotes                   \
+                 --enable-sysvsem                  \
+                 --enable-sysvshm                  \
+       --enable-force-cgi-redirect                 \
+                 --enable-wddx                     \
+                 --enable-filepro                  \
+                 --enable-dbase                    \
+                 --enable-sockets                  \
+                   --with-iconv                    \
+                   --with-versioning               \
+                   --with-mod_charset              \
+                   --with-pear                     \
+                 --enable-pdo                      \
+            --with-layout=GNU                      \
+                          $OPTS                    &&
+make                                               &&
+
+# safety precaution against earlier PHP installations removing httpd.conf
+# we can remove this sedit after a couple of ISOs (today's 2003-11-05)
+if  [  -f  $INSTALL_LOGS/$SPELL-*  ]
+   then  sedit 's|.*/httpd\.conf.*||g'  $INSTALL_LOGS/$SPELL-*
+fi
+
