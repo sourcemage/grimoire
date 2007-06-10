@@ -1,0 +1,34 @@
+# php builds snapshots from cvs every two hours on the even half hour
+# 0830, 1030, 1230 ... and makes that part of the name of the filename
+function getSnapshotTime() {
+  local hour=$(date -u +%H)
+  local minutes=$(date -u +%M)
+
+  dec_hour() {
+    hour=${hour#0}
+    ((hour--))
+    if [[ ${#hour} == 1 ]]; then
+      hour=0$hour
+    fi
+  }
+
+  if [[ $hour == 00 ]] && (( $minutes < 30)); then
+    hour=23
+  fi
+
+  # wierd return codes, yes
+  if (( ${hour#0} % 2 )); then
+    # odd hour
+    dec_hour
+  else
+    # even hour
+    if (( $minutes < 30 )); then
+      dec_hour; dec_hour
+    fi
+  fi
+  echo ${hour}30
+}
+
+# for a good test try the following; first change the header to take arguments
+#for i in 00 01 09 10 23; do for j in 05 29 30 31; do 
+#getSnapshotTime $i $j; echo --------; done; done
