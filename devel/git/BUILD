@@ -4,6 +4,4 @@
 
 make configure &&
 
-./configure --prefix="${INSTALL_ROOT}/usr" $OPTS  &&
-
-make all
+default_build

@@ -50,6 +50,7 @@ fi &&
 
 ./configure      --prefix=${INSTALL_ROOT}/usr      \
              --sysconfdir=${INSTALL_ROOT}/etc      \
+                 --mandir=${INSTALL_ROOT}/usr/share/man \
           --with-exec-dir=${INSTALL_ROOT}/usr/bin  \
   --with-config-file-path=${INSTALL_ROOT}/etc      \
                  --enable-cli                      \
