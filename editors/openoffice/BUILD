@@ -24,6 +24,9 @@ if  [[  "$(get_spell_provider  $SPELL  JAVA)"  ==  "gcj"  ]];  then
         $OPTS"
 fi  &&
 
+source  $INSTALL_ROOT/etc/profile.d/java.sh  &&
+source  $INSTALL_ROOT/etc/profile.d/ant.sh   &&
+
 cd  $SOURCE_DIRECTORY/config_office                  &&
 ./configure --prefix=${INSTALL_ROOT}/usr             \
         --sysconfdir=${INSTALL_ROOT}/etc             \
