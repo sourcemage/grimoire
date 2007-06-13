@@ -12,9 +12,17 @@ start()
   echo "Starting postmaster..."
   cd "$DBPATH" &&
   if  [[  -z  "$PORT"  ]];  then
-    su -l "$USER" -s /bin/sh -c "pg_ctl start -D '$DBPATH' -l '$LOGFILE'"
+    if  [[ "$LOGFILE" = 'syslog' ]];  then
+      su -l "$USER" -s /bin/sh -c "pg_ctl start -D '$DBPATH'"
+    else
+      su -l "$USER" -s /bin/sh -c "pg_ctl start -D '$DBPATH' -l '$LOGFILE'"
+    fi
   else
-    su -l "$USER" -s /bin/sh -c "pg_ctl start -D '$DBPATH' -l '$LOGFILE' -o \"-i -p '$PORT'\""
+    if  [[ "$LOGFILE" = 'syslog' ]];  then
+      su -l "$USER" -s /bin/sh -c "pg_ctl start -D '$DBPATH' -o \"-i -p '$PORT'\""
+    else
+      su -l "$USER" -s /bin/sh -c "pg_ctl start -D '$DBPATH' -l '$LOGFILE' -o \"-i -p '$PORT'\""
+    fi
   fi
   evaluate_retval
 }
@@ -31,5 +39,9 @@ restart()
 {
   echo "Restarting postmaster..."
   cd "$DBPATH" &&
-  su -l "$USER" -s /bin/sh -c "pg_ctl restart -D '$DBPATH' -l '$LOGFILE'"
+  if  [[ "$LOGFILE" = 'syslog' ]];  then
+    su -l "$USER" -s /bin/sh -c "pg_ctl restart -D '$DBPATH'"
+  else
+    su -l "$USER" -s /bin/sh -c "pg_ctl restart -D '$DBPATH' -l '$LOGFILE'"
+  fi
 }
