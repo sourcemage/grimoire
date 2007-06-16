@@ -1,3 +1,7 @@
+if [[ -f /etc/profile.d/qt.sh ]]; then
+  . /etc/profile.d/qt.sh
+fi                                       &&
+
 sedit  's/$(dir @qt_includes@)/\/usr/'  python/Makefile.am  &&
 
 OPTS="--with-smoke=kde  \
