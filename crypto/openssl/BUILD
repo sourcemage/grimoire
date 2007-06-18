@@ -9,6 +9,9 @@ fi  &&
 
 sedit  "s/-O3//"                    Makefile                &&
 sedit  "s/-m486//"                  Makefile                &&
+if [[ $CFLAGS == ${CFLAGS/-O/} ]]; then
+  CFLAGS="$CFLAGS -O"; # bug 13855
+fi &&
 sedit  "s/^CFLAG=/CFLAG=$CFLAGS /"  Makefile                &&
 sedit  "s/chmod 644\(.*pkgconfig\)/chmod 755\1/"  Makefile  &&
 
