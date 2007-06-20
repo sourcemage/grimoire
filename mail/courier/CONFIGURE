@@ -1,102 +1,109 @@
-config_query_list  COURIER_IPV6                                                                                                                                                                                                                           \
-                   "Attempt to install support for IPv6?  (If you choose Yes and IPv6 is not detected, the install will fail.  If you choose Courier and IPV6 is not detected, the install will continue and Courier will not install support for it.) "  \
-                   Courier                                                                                                                                                                                                                                \
-                   Yes                                                                                                                                                                                                                                    \
-                   No                                                                                                                                                                                                                                     &&
-case  ${COURIER_IPV6}  in
-    Yes)  COURIER_OPTS="${COURIER_OPTS}  --with-ipv6"
-          ;;
-     No)  COURIER_OPTS="${COURIER_OPTS}  --without-ipv6"
-          ;;
-esac
+config_query_option COURIER_OPTS \
+  "Are you running Courier on a network with access to a DNS server?" \
+  y \
+  "--with-tcpddns" \
+  "--without-tcpddns" &&
 
-config_query_list  COURIER_DBLIB                                              \
-                   "Which database library do you want to use with Courier?"  \
-                   gdbm                                                       \
-                   db                                                         &&
+config_query_option COURIER_OPTS \
+  "Compile IPv6 support?" \
+  y \
+  "--with-ipv6" \
+  "--without-ipv6" &&
 
-config_query_option  COURIER_OPTS                                                         \
-                     "Are you running Courier on a network with access to a DNS server?"  \
-                     y                                                                    \
-                     "--with-tcpddns"                                                     \
-                     "--without-tcpddns"                                                  &&
+config_query_list COURIER_DBLIB \
+  "Which database library do you want to use with Courier?" \
+  gdbm \
+  db &&
 
-config_query_option  COURIER_OPTS                                                                                                                                                                                                    \
-                     "Do you wish to enable the automatic syncing of the mail queue?  This may increase performance, but will reduce reliability unless the queue is installed on a reliable disk array or a network file server. "  \
-                     y                                                                                                                                                                                                               \
-                     "--with-explicitsync"                                                                                                                                                                                           \
-                     "--without-explicitsync"                                                                                                                                                                                        &&
+config_query_option COURIER_OPTS \
+  "Enable automatic syncing of the mail queue? Disabling this may increase performance, but will reduce reliability and worsen mail queue corruption in the event op system failure." \
+  y \
+  "--with-explicitsync" \
+  "--without-explicitsync" &&
 
-config_query_option  COURIER_OPTS                                                   \
-                     "Do you also wish to sync the mail queue's parent directory?"  \
-                     n                                                              \
-                     "--with-dirsync"                                               \
-                     "--without-dirsync"                                            &&
+config_query_option COURIER_OPTS \
+  "Also sync the directory containing each file synced? Some believe this necessary for adequate file syncing on ext2." \
+  n \
+  "--with-dirsync" \
+  "--without-dirsync" &&
 
-config_query_option  COURIER_OPTS                                                                                                                                                                                                           \
-                     "Normally, in addition to accepting mail that's addressed to <user@domain.com>, Courier can accept mail that's addressed to <user-xxx@domain.com>, for arbitrary values of xxx.  Do you wish to enable this feature?"  \
-                     n                                                                                                                                                                                                                      \
-                     "--enable-local-extensions"                                                                                                                                                                                            \
-                     "--disable-local-extensions"                                                                                                                                                                                           &&
+config_query_option COURIER_OPTS \
+  "Support accepting mail addressed to <user-xxx@domain.com>, for arbitrary values of xxx, as mail for <user@domain.com>?" \
+  y \
+  "--enable-local-extensions" \
+  "--disable-local-extensions" &&
 
-config_query_option  COURIER_OPTS                                                                                              \
-                     "Do you wish for Courier to be paranoid when negotiating specific ESMTP extensions with remote servers?"  \
-                     n                                                                                                         \
-                     "--with-paranoid-smtpext"                                                                                 \
-                     "--without-paranoid-smtpext"                                                                              &&
+config_query_option COURIER_OPTS \
+  "Do you wish for Courier to be paranoid when negotiating courier specific ESMTP extensions with remote servers?" \
+  n \
+  "--with-paranoid-smtpext" \
+  "--without-paranoid-smtpext" &&
 
-config_query  COURIER_IMAP  "Do you want to install and configure the IMAP portion of Courier? "  y  &&
-if  [  "${COURIER_IMAP}"  ==  "y"  ];  then
-    COURIER_OPTS="${COURIER_OPTS}  --enable-utf7-folder-encoding"                                                                  &&
+config_query COURIER_WEBMAIL \
+  "Do you want to install and configure the webmail portion of Courier?" \
+  y &&
 
-    config_query_option  COURIER_IMAPBUGS                                                                                          \
-                         "Do you want to enable workarounds for some IMAP clients that have a buggy implementation of IMAP4rev1?"  \
-                         n                                                                                                         \
-                         "--enable-workarounds-for-imap-client-bugs"                                                               \
-                         "--disable-workarounds-for-imap-client-bugs"                                                              &&
+if [ "${COURIER_WEBMAIL}" == "y" ]; then
+  config_query_list COURIER_SSLWEBMAIL \
+    "Would you like to enable SSL for the Webmail server?" \
+    yes \
+    login_only \
+    no &&
 
-    config_query_option  COURIER_OPTS                                                                     \
-                         "Do you to disable the automatic renaming of the IMAP Sent folder every month?"  \
-                         n                                                                                \
-                         "--enable-autorenamesent"                                                        \
-                         "--disable-autorenamesent"                                                       &&
+  case "${COURIER_SSLWEBMAIL}" in
+    yes)        COURIER_OPTS="$COURIER_OPTS --enable-https=auto"
+                ;;
+    login_only) COURIER_OPTS="$COURIER_OPTS --enable-https=login"
+                ;;
+    no)         COURIER_OPTS="$COURIER_OPTS --disable-https"
+                ;;
+  esac &&
 
-    config_query_option  COURIER_TRASHQUOTA                                                  \
-                         "Do you wish to include the Trash folder in the IMAP quota usage?"  \
-                         n                                                                   \
-                         "--with-trashquota"                                                 \
-                         "--without-trashquota"
-else
-    COURIER_OPTS="${COURIER_OPTS}  --disable-utf7-folder-encoding"
-fi                                                                                                                                 &&
+  config_query_option COURIER_OPTS \
+    "Do you want to enable spell checking in Courier's webmail? " \
+    y \
+    "--with-ispell" \
+    "--without-ispell" &&
 
-config_query  COURIER_WEBMAIL  "Do you want to install and configure the webmail portion of Courier? "  y  &&
-if  [  "${COURIER_WEBMAIL}"  ==  "y"  ];  then
-    config_query_list  COURIER_SSLWEBMAIL                                        \
-                       "Would you like to enable SSL for the Webmail server? "   \
-                       yes                                                       \
-                       courier_default                                           \
-                       login_only                                                \
-                       user_decides_via_url                                      \
-                       no                                                        &&
+  if list_find "$COURIER_OPTS" "--with-ispell"; then
+    config_query_list COURIER_SPELLCHECKER \
+      "Which spell checker do you want to use?" \
+      aspell \
+      ispell
+  fi &&
 
-    config_query_option  COURIER_SPELLCHECK                                                \
-                         "Do you want to enable spell checking in Courier's webmail? "  y  \
-                         ""                                                                \
-                         "--without-ispell"                                                &&
+  config_query_option COURIER_OPTS \
+    "Enable automatic monthly renaming of the IMAP Sent folder?" \
+    y \
+    "--enable-autorenamesent" \
+    "--disable-autorenamesent"
+fi &&
 
-    if  [  "${COURIER_SPELLCHECK}"  ==  "y"  ]
-    then
-        config_query_list  COURIER_SPLCHECKER                         \
-                           "Which spell checker do you want to use?"  \
-                           aspell                                     \
-                           ispell
-    fi
-fi                                                                                                                                    &&
+config_query COURIER_FAXES \
+  "Do you want to use courier fax support?" \
+  n &&
 
-config_query_option  COURIER_OPTS                                                                                                     \
-                     "Include the ability to search and sort messages in character sets other than the default ISO-8859-1/US-ASCII?"  \
-                     n                                                                                                                \
-                     "--enable-unicode"                                                                                               \
-                     "--disable-unicode"
+config_query_option COURIER_OPTS \
+  "Enable workarounds for IMAP clients that have a buggy implementation of IMAP4rev1?" \
+  n \
+  "--enable-workarounds-for-imap-client-bugs" \
+  "--disable-workarounds-for-imap-client-bugs" &&
+
+config_query_option COURIER_OPTS \
+  "Include the Trash folder in the IMAP quota usage?" \
+  n \
+  "--with-trashquota" \
+  "--without-trashquota" &&
+
+config_query_option COURIER_OPTS \
+  "Enable sorting/searching in character sets other than ISO-8859-1/US-ASCII? (IMAP Only)" \
+  n \
+  "--enable-unicode" \
+  "--disable-unicode" &&
+
+config_query_option COURIER_OPTS \
+  "Do you want to want to use utf7 folder encoding? (IMAP only)" \
+  y \
+  "--enable-utf7-folder-encoding" \
+  "--disable-utf7-folder-encoding"
 
