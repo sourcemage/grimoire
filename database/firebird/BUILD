@@ -1,14 +1,16 @@
-  local FF FileName DB LCK ll                   &&
+  local FF FileName DB LCK LL                   &&
   persistent_add FB_PREFIX                      &&
   FB_PREFIX=${INSTALL_ROOT}/usr/firebird        &&
   OPTS="${OPTS} ${FB_SS}"                       &&
+if [ $$FB_VER != 2.1 ];then
   if spell_ok icu; then
     ICU_FLAGS=`icu-config --ldflags-libsonly`   &&
     LDFLAGS="$LDFLAGS $ICU_FLAGS"
   fi                                            &&
   if spell_ok libedit; then
     LDFLAGS="$LDFLAGS -ledit"
-  fi                                            &&
+  fi
+fi                                            &&
 # prepare optional language support
   for LL in $FB_GPRE; do
     if [ $LL != none ]; then

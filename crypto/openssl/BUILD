@@ -9,8 +9,8 @@ fi  &&
 
 sedit  "s/-O3//"                    Makefile                &&
 sedit  "s/-m486//"                  Makefile                &&
-if [[ $CFLAGS == ${CFLAGS/-O/} ]]; then
-  CFLAGS="$CFLAGS -O"; # bug 13855
+if [[ ${SMGL_COMPAT_ARCHS[1]} != alpha ]] && [[ $CFLAGS == ${CFLAGS/-O/} ]]; then
+  CFLAGS="$CFLAGS -O"; # bug 13855, but not for alpha
 fi &&
 sedit  "s/^CFLAG=/CFLAG=$CFLAGS /"  Makefile                &&
 sedit  "s/chmod 644\(.*pkgconfig\)/chmod 755\1/"  Makefile  &&
