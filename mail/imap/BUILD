@@ -1,5 +1,5 @@
 if  [  "$IMAP_MAILSUBDIR"  ==  "y"  ];  then
-  patch  -p1  <  $SCRIPT_DIRECTORY/mailsubdir.patch
+  patch  -p0  <  $SCRIPT_DIRECTORY/mailsubdir.patch
 fi  &&
 
 if  [  "$IMAP_SSL"  ==  "y"  ];  then
