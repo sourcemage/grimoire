@@ -6,6 +6,10 @@ fi
 
 cd  $SPELL-$VERSION/src                 &&
 
+# Kerberos Security Advisories
+patch -p1 < $SCRIPT_DIRECTORY/MITKRB5-SA-2007-004.txt &&
+patch -p1 < $SCRIPT_DIRECTORY/MITKRB5-SA-2007-005.txt &&
+
 ./configure  --enable-dns-for-kdc       \
              --enable-dns-for-realm     \
              --infodir=/usr/share/info  \
