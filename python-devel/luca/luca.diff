@@ -1,0 +1,282 @@
+diff -uNr luca-1.01/luca/model.py luca-1.01.cp/luca/model.py
+--- luca-1.01/luca/model.py	2007-06-03 00:12:47.000000000 +0200
++++ luca-1.01.cp/luca/model.py	2007-06-27 15:56:17.000000000 +0200
+@@ -80,6 +80,7 @@
+ 	@classmethod
+ 	def createTable(cls, *args, **kw):
+ 		super(stdjournals, cls).createTable(*args, **kw)
++		hub.commit()
+ 		# it MUST have a id=1 empty row for journals with no standard journal
+ 		try:
+ 			stdjournals.get(1)
+@@ -95,6 +96,7 @@
+ 	@classmethod
+ 	def createTable(cls, *args, **kw):
+ 		super(costcenters, cls).createTable(*args, **kw)
++		hub.commit()
+ 		# it MUST have a id=1 empty row for journals with no cost center
+ 		try:
+ 			costcenters.get(1)
+@@ -110,6 +112,7 @@
+ 	@classmethod
+ 	def createTable(cls, *args, **kw):
+ 		super(classes, cls).createTable(*args, **kw)
++		hub.commit()
+ 		# it MUST have one and only one row
+ 		if classes.select().count() == 0:
+ 			# empty table, let's populate it
+@@ -178,9 +181,9 @@
+ 	stdjournal = ForeignKey('stdjournals', notNone=True, notNull=True)
+ 	costcenter = ForeignKey('costcenters', notNone=True, notNull=True)
+ 
+-	day = DateCol(notNone=True)
++	tday = DateCol(notNone=True)
+ 	description = UnicodeCol(notNone=True)
+-	value = DecimalCol(size=16, precision=0, notNone=True) # x100 scaled
++	tvalue = DecimalCol(size=16, precision=0, notNone=True) # x100 scaled
+ 
+ 	transa = IntCol(notNone=False)  # Transaction ID: relates entry to other systems
+ 	cancelled = IntCol(notNone=True, default=0)
+@@ -188,13 +191,13 @@
+ 	hash = UnicodeCol(length=240, notNone=True) # 40 x 6
+ 
+ 	h = DatabaseIndex('hash', unique=True)
+-	a = DatabaseIndex('org', 'day')
++	a = DatabaseIndex('org', 'tday')
+ 	b = DatabaseIndex('transa')
+ 
+ def journal_hash(row):
+ 	s = u"luca001 %d %d %d %d %d %s %s %.2f %f" % \
+ 		(row["org"], row["batch"], row["account"], row["stdjournal"], row["costcenter"], 
+-		 row["description"], row["day"], row["value"], time.time())
++		 row["description"], row["tday"], row["tvalue"], time.time())
+ 	return md5.md5(s.encode("utf-8")).hexdigest()
+ 
+ class cmos(SQLObject):
+@@ -216,6 +219,7 @@
+ 	@classmethod
+ 	def createTable(cls, *args, **kw):
+ 		super(cmos, cls).createTable(*args, **kw)
++		hub.commit()
+ 		# it MUST have one and only one row
+ 		try:
+ 			cmos.get(1)
+@@ -267,9 +271,10 @@
+     """
+ 
+     user_name = UnicodeCol( length=96, alternateID=True, alternateMethodName="by_user_name" )  # 16 x 6
+-    email_address = UnicodeCol( length=255, alternateID=True, alternateMethodName="by_email_address" ) 
++    email_address = UnicodeCol( length=250, alternateID=True, 
++alternateMethodName="by_email_address" ) 
+     display_name = UnicodeCol( )
+-    password = UnicodeCol( length=240 )
++    passwrd = UnicodeCol( length=240 )
+     created = DateTimeCol( default=datetime.now )
+     lite = IntCol(notNone=True, default=0)
+     locale = UnicodeCol(notNone=True, default=".,Y/m/d")
+@@ -295,21 +300,23 @@
+         hash = identity.encrypt_password(cleartext_password)
+         self._SO_set_password(hash)
+         
+-    def set_password_raw( self, password ):
++    def set_password_raw( self, passwrd ):
+         "Saves the password as-is to the database."
+-        self._SO_set_password(password) #pragma: no cover
++        self._SO_set_password(passwrd) #pragma: no cover
+ 
+     @classmethod
+     def createTable(cls, *args, **kw):
+ 	super(xuser, cls).createTable(*args, **kw)
++	hub.commit()
+ 	try:
+ 		adm = xuser.by_user_name("admin")
+ 	except SQLObjectNotFound:
+ 		adm = xuser(user_name="admin", email_address="root@localhost", 
+-				display_name="Administrator", password="admin")
++				display_name="Administrator", passwrd="admin")
+ 
+ 	xgroup.createTable(ifNotExists=True)
+ 	user_group.createTable(ifNotExists=True)
++	hub.commit()
+ 	try:
+ 		gadm = xgroup.by_group_name("admin")
+ 	except SQLObjectNotFound:
+@@ -317,16 +324,21 @@
+ 
+ 	xpermission.createTable(ifNotExists=True)
+ 	group_permission.createTable(ifNotExists=True)
++	hub.commit()
+ 	try:
+ 		perm = xpermission.by_permission_name("*")
+ 	except SQLObjectNotFound:
+ 		perm = xpermission(permission_name="*", description="g0d")
+ 
++	hub.commit()
+ 	if gadm not in adm.groups:
+ 		adm.addXgroup(gadm)
++
++	hub.commit()
+ 	if perm not in gadm.permissions:
+ 		perm.addXgroup(gadm)
+ 
++	hub.commit()
+ 	for module in modules:
+ 		for function_point in function_points:
+ 			name = module+"."+function_point
+@@ -357,6 +369,7 @@
+     permission_name = UnicodeCol(length=50, alternateID=True, alternateMethodName="by_permission_name")
+     description = UnicodeCol()
+     
++    hub.commit()
+     groups = RelatedJoin( "xgroup",
+                         intermediateTable="group_permission",
+                          joinColumn="permission_id", 
+@@ -388,6 +401,7 @@
+  	visit_key= StringCol( length=40, alternateID=True, alternateMethodName="by_visit_key" ) 
+  	created= DateTimeCol( default=datetime.now ) 
+  	expiry= DateTimeCol() 
++	hub.commit()
+ 
+ 	def lookup_visit( cls, visit_key ): #pragma: no cover
+ 		try: 
+diff -uNr luca-1.01/luca/simple_table.py luca-1.01.cp/luca/simple_table.py
+--- luca-1.01/luca/simple_table.py	2007-06-03 20:07:52.000000000 +0200
++++ luca-1.01.cp/luca/simple_table.py	2007-06-27 12:38:27.000000000 +0200
+@@ -18,11 +18,11 @@
+ #    validators = {"id": validators.Int(if_invalid=0), 
+ #      		"user_name": validators.UnicodeString(if_invalid=u""),
+ # 	         "email_address": validators.UnicodeString(if_invalid=u""),
+-# 	         "password": validators.UnicodeString(if_invalid=u""),
++# 	         "passwrd": validators.UnicodeString(if_invalid=u""),
+ # 		 "display_name": validators.UnicodeString(if_invalid=u"")}
+ #	 				 
+     def setup(self):
+-#   	    self.emptyrow_read = {"id": 0, "user_name": "", "email_address": "", "password": "", "display_name": ""}
++#   	    self.emptyrow_read = {"id": 0, "user_name": "", "email_address": "", "passwrd": "", "display_name": ""}
+ #	    self.empty_intermediate = self.emptyrow_read
+ #   	    self.emptyrow_write = self.emptyrow_read
+ #
+@@ -836,7 +836,7 @@
+ 	''' Creates a human-readable message about which data was changed '''
+ 	s = ""
+ 	for k in old.keys():
+-		if old[k] != new[k] and k != "password":
++		if old[k] != new[k] and k != "passwrd":
+ 			s += u'| %s: "%s" -> "%s" ' % (k.upper(), unicode(old[k]), unicode(new[k]))
+ 	return s	
+ 
+diff -uNr luca-1.01/luca/sys_users.py luca-1.01.cp/luca/sys_users.py
+--- luca-1.01/luca/sys_users.py	2007-06-03 00:12:47.000000000 +0200
++++ luca-1.01.cp/luca/sys_users.py	2007-06-27 12:41:33.000000000 +0200
+@@ -19,7 +19,7 @@
+     validators = {"id": validators.Int(if_invalid=0), 
+         	  "user_name": validators.UnicodeString(if_invalid=u""),
+ 	          "email_address": validators.UnicodeString(if_invalid=u""),
+-	          "password": validators.UnicodeString(if_invalid=u""),
++	          "passwrd": validators.UnicodeString(if_invalid=u""),
+ 		  "display_name": validators.UnicodeString(if_invalid=u""),
+ 		  "thousand_separator": validators.Int(if_invalid=0),
+ 		  "decimal_separator": validators.Int(if_invalid=0),
+@@ -31,7 +31,7 @@
+ 	# special ACL that is accepted as valid permission
+ 	self.vips = ["ADMIN"]
+ 
+-    	self.emptyrow_read = {"id": 0, "user_name": "", "email_address": "", "password": "", \
++    	self.emptyrow_read = {"id": 0, "user_name": "", "email_address": "", "passwrd": "", \
+ 			      "display_name": "", "locale": u".,Y/m/d", "lite": 0}
+ 	self.emptyrow_write = self.emptyrow_read
+ 	self.empty_intermediate = self.emptyrow_read
+@@ -39,7 +39,7 @@
+ 	# data for automated tests
+ 	self.sample_data = [{},{},{},{}]
+ 	self.invalid_data = [("user_name", ""), ("display_name", ""), ("email_address", "")]
+-	self.invalid_compound_new = [ dict(password="") ]
++	self.invalid_compound_new = [ dict(passwrd="") ]
+ 	self.unique_cols = ["user_name", "email_address"]
+ 	self.foreign_keys = []
+ 	self.test_order = 9
+@@ -98,7 +98,7 @@
+ 
+ 
+     def test__verify_excuse(self, col, orig, fetched, orig_row, fetched_row): #pragma: no cover
+-	return col == "locale" or (col == "password" and fetched == u"")
++	return col == "locale" or (col == "passwrd" and fetched == u"")
+ 
+     def row_name(self, d_row):
+ 	name = ""
+@@ -116,7 +116,7 @@
+ 		err = "E-mail address must not be empty"
+ 	    elif not d["display_name"]:
+ 		err = "User name must not be empty"
+-	    elif d["id"] <= 0 and not d["password"]:
++	    elif d["id"] <= 0 and not d["passwrd"]:
+ 		err = "New user must have a password"
+ 	    elif len(d["email_address"].encode("utf-8")) > 240: #pragma: no cover
+ 		# paranoid - MySQL's varchar(240) will swallow up to 720 bytes
+@@ -134,14 +134,14 @@
+ 	    return err
+ 
+     # def intermediate_to_row_ext(self, intermediate, row):
+-    #    if not row["password"] and row["id"] > 0:
+-    #        del row["password"]
++    #    if not row["passwrd"] and row["id"] > 0:
++    #        del row["passwrd"]
+ 
+     def data_legend(self, d):
+ 	    return d["user_name"]
+ 
+     def intermediate_to_form_ext(self, intermediate, form_data):
+-	form_data["password"] = ""
++	form_data["passwrd"] = ""
+ 	if form_data["id"] <= 0:
+ 		# copies default locale settings from administrator, so configure the admin
+ 		# as the defaults you like!
+@@ -162,7 +162,7 @@
+     def form_to_intermediate_ext(self, form_data, intermediate):
+    	intermediate["user_name"] = intermediate["user_name"][:16].strip()
+ 	intermediate["email_address"] = intermediate["email_address"][:100].strip()
+-	intermediate["password"] = intermediate["password"][:40].strip()
++	intermediate["passwrd"] = intermediate["passwrd"][:40].strip()
+ 	intermediate["display_name"] = intermediate["display_name"][:40].strip()
+ 	try:
+ 		intermediate["locale"] = self.thousand_separators_rev[form_data["thousand_separator"]] + self.decimal_separators_rev[form_data["decimal_separator"]] + self.date_formats_rev[form_data["date_format"]]
+diff -uNr luca-1.01/luca/templates/login.kid luca-1.01.cp/luca/templates/login.kid
+--- luca-1.01/luca/templates/login.kid	2007-01-07 03:25:10.000000000 +0100
++++ luca-1.01.cp/luca/templates/login.kid	2007-06-27 12:51:57.000000000 +0200
+@@ -88,10 +88,10 @@
+                 </tr>
+                 <tr>
+                     <td class="label">
+-                        <label for="password">Password:</label>
++                        <label for="passwrd">Password:</label>
+                     </td>
+                     <td class="field">
+-                        <input type="password" id="password" name="password"/>
++                        <input type="passwrd" id="passwrd" name="passwrd"/>
+                     </td>
+                 </tr>
+                 <tr>
+diff -uNr luca-1.01/luca/templates/sys_users.kid luca-1.01.cp/luca/templates/sys_users.kid
+--- luca-1.01/luca/templates/sys_users.kid	2007-03-01 03:25:36.000000000 +0100
++++ luca-1.01.cp/luca/templates/sys_users.kid	2007-06-27 12:54:37.000000000 +0200
+@@ -29,7 +29,7 @@
+ 		<tr><td>Nickname</td><td><input name="user_name" type="text" value="" size="16" maxlength="16"/></td></tr>
+ 		<tr><td>User name</td><td><input name="display_name" type="text" value="" size="30" maxlength="40"/></td></tr>
+ 		<tr><td>E-mail</td><td><input name="email_address" type="text" value="" size="40" maxlength="100"/></td></tr>
+-		<tr><td>Password</td><td><input name="password" type="text" value="" size="16" maxlength="16"/> (fill only if you want to change)</td></tr>
++		<tr><td>Password</td><td><input name="passwrd" type="text" value="" size="16" maxlength="16"/> (fill only if you want to change)</td></tr>
+ 
+ 		<tr><td>Thousand separator</td>
+ 		<td>
+diff -uNr luca-1.01/luca/templates/sys_users_lite_form.kid luca-1.01.cp/luca/templates/sys_users_lite_form.kid
+--- luca-1.01/luca/templates/sys_users_lite_form.kid	2007-01-27 21:31:00.000000000 +0100
++++ luca-1.01.cp/luca/templates/sys_users_lite_form.kid	2007-06-27 12:55:19.000000000 +0200
+@@ -16,7 +16,7 @@
+ 			<tr><td>Nickname</td><td><input name="user_name" type="text" value="${user_name}" size="16" maxlength="16"/></td></tr>
+ 			<tr><td>User name</td><td><input name="display_name" type="text" value="${display_name}" size="30" maxlength="40"/></td></tr>
+ 			<tr><td>E-mail</td><td><input name="email_address" type="text" value="${email_address}" size="40" maxlength="250"/></td></tr>
+-			<tr><td>Password</td><td><input name="password" type="text" value="${password}" size="16" maxlength="16"/> (fill only if you want to change)</td></tr>
++			<tr><td>Password</td><td><input name="passwrd" type="text" value="${passwrd}" size="16" maxlength="16"/> (fill only if you want to change)</td></tr>
+ 		<tr><td>Thousand separator</td>
+ 		<td>
+ 			<select name="thousand_separator">
