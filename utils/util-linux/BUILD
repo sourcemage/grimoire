@@ -3,8 +3,8 @@ OPTS="$OPTS --build=${BUILD}" &
 
 create_group tty &&
 patch -p1 < $SCRIPT_DIRECTORY/util-linux-2.12p-cramfs-1.patch &&
-patch -p1 < $SCRIPT_DIRECTORY/glibc-fix.patch
-patch -p1 < $SCRIPT_DIRECTORY/glibc-umount2.patch
+patch -p1 < $SCRIPT_DIRECTORY/glibc-fix.patch &&
+patch -p1 < $SCRIPT_DIRECTORY/glibc-umount2.patch &&
 
 sedit  "s/HAVE_SLN=no/HAVE_SLN=yes/"            MCONFIG  &&
 sedit  "s/# ADD_RAW=yes/ADD_RAW=yes/"           MCONFIG  &&
