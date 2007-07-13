@@ -12,6 +12,6 @@ cp -f $SCRIPT_DIRECTORY/config.layout $SOURCE_DIRECTORY &&
       --localstatedir=$INSTALL_ROOT/var            \
              --mandir=$INSTALL_ROOT/usr/share/man  \
       --enable-layout=SMGL                         \
-     --enable-modules=most                         \
+          --enable-so                              \
                       $OPTS                        &&
 make
