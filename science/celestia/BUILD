@@ -4,5 +4,10 @@ OPTS="$CELESTIA_XINERAMA                                            \
       --with-included-gettext                                       \
       --disable-debug                                               \
       $OPTS"                                                        &&
+#
+# Little mungery because celestia configure strangely fails to expand
+# ${prefix} for the data root
+#
+OPTS+=" --datarootdir=/usr/share --datadir=/usr/share " &&
 
 default_build
