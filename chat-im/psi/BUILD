@@ -1,9 +1,10 @@
   if [ "$DEVEL" == "y" ]; then
-     sed -i -e "s:bin/qmake:bin/qt4/qmake:g" $SOURCE_DIRECTORY/configure
+     QTDIR=/usr    &&
+     PATH=$QTDIR/bin/qt4:$PATH
   else
-  if [ -d /usr/lib/kde3 ];then
-    export KDEDIR=/usr/lib/kde3
-  fi   
+   if [ -d /usr/lib/kde3 ];then
+     export KDEDIR=/usr/lib/kde3
+   fi   
   fi                                                        &&
   export QTDIR=/usr                                         &&
   ./configure --prefix=/usr $OPTS                           &&
