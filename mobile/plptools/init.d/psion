@@ -1,0 +1,107 @@
+#!/bin/bash
+PROGRAM=/usr/sbin/ncpd
+NAME="PSION SUPPORT"
+RUNLEVEL=3
+#
+# psion        Starts ncpd/plpnfsd.
+#
+# chkconfig: 2345 45 10
+# description: This facility enables connectivity to a Psion series 5.
+
+# Source function library.
+. /etc/init.d/smgl_init
+
+[ -f /usr/sbin/ncpd ] || exit 0
+[ -f /usr/sbin/plpnfsd ] || exit 0
+[ -f /usr/sbin/plpprintd ] || exit 0
+[ -f /etc/sysconfig/psion ] || exit 0
+. /etc/sysconfig/psion
+
+start() {
+	echo "Starting Psion support ..."
+	RETVAL=0
+	if test "$START_NCPD" = "yes" ; then
+		echo -n "  ncpd: "
+		daemon /usr/sbin/ncpd $NCPD_ARGS
+		RETVAL=$?
+		echo
+	fi
+	if [ $RETVAL -eq 0 ] ; then
+		if test "$START_PLPNFSD" = "yes" ; then
+			echo -n "  plpnfsd: "
+			daemon /usr/sbin/plpnfsd $PLPNFSD_ARGS
+			RETVAL=$?
+			echo
+		fi
+		if test "$START_PLPPRINTD" = "yes" ; then
+			echo -n "  plpprintd: "
+			daemon /usr/sbin/plpprintd $PLPPRINTD_ARGS
+			RETVAL=$?
+			echo
+		fi
+	fi
+	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/psion
+	return $RETVAL
+}
+
+stop() {
+	echo "Stopping Psion support ..."
+	RETVAL=0
+	if test "$START_PLPNFSD" = "yes" ; then
+		echo -n "  plpnfsd: "
+		killproc plpnfsd -HUP
+		WAIT=5
+		while test $WAIT -gt 0 ; do
+			test -z "`pidofproc plpnfsd`" && break;
+			sleep 1 # allow plpnfsd flushing it's cache
+			WAIT=`expr $WAIT - 1`
+		done
+		test -z "`pidofproc plpnfsd`" || killproc plpnfsd
+		echo
+	fi
+	if test "$START_PLPPRINTD" = "yes" ; then
+		echo -n "  plpprintd: "
+		killproc plpprintd
+		echo
+	fi
+	if test "$START_NCPD" = "yes" ; then
+		echo -n "  ncpd: "
+		killproc ncpd
+		RETVAL=$?
+		echo
+	fi
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/psion
+	return $RETVAL
+}
+
+restart() {
+	stop
+	start
+}
+
+# See how we were called.
+case "$1" in
+  start)
+  	start
+	;;
+  stop)
+  	stop
+	;;
+  status)
+	status ncpd
+	status plpnfsd
+	status plpprintd
+	;;
+  restart|reload)
+  	restart
+	;;
+  condrestart)
+  	test -f /var/lock/subsys/psion && restart || :
+	;;
+  *)
+	echo "Usage: psion {start|stop|status|restart|reload|condrestart}"
+	exit 1
+esac
+
+exit $?
+
