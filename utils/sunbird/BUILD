@@ -7,10 +7,12 @@ export MOZILLA_OFFICIAL=1               &&
 OPTS="--with-pthreads                                                \
       --with-default-mozilla-five-home=$INSTALL_ROOT/usr/lib/$SPELL  \
       --enable-application=calendar                                  \
+      --enable-extensions=default                                    \
       --disable-system-cairo                                         \
       --disable-updater                                              \
       --disable-installer                                            \
       --disable-tests                                                \
+      --disable-xpfe-components                                      \
       $OPTS"                                                         &&
 
 make_single    &&
