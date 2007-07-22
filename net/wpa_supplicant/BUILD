@@ -1,3 +1,7 @@
+if [[ "${WPA_RELEASE}" == "devel" ]]; then
+   cd  "$SOURCE_DIRECTORY/wpa_supplicant"    
+fi  &&
+
 # Create .config file for make (this is here instead of PRE_BUILD because
 # OPTS isn't available there, and this is equivalent to running ./configure
 # anyway).
