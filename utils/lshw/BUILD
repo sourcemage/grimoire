@@ -1,3 +1,5 @@
+# fix an install problem with 'install -s'
+sed -i "s/-s$//" src/Makefile &&
 make  &&
 
 #
