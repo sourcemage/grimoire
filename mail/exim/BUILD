@@ -147,6 +147,11 @@ then
   echo  "AUTH_PLAINTEXT=yes"  >>  Local/Makefile
 fi  &&
 
+if  list_find  "$OPTS"  '--enable-dovecot-auth'
+then
+  echo  'AUTH_DOVECOT=yes'  >>  Local/Makefile
+fi  &&
+
 if  [[  "$EXIM_SPA"  ==  "y"  ]]
 then
   echo  "AUTH_SPA=yes"  >>  Local/Makefile
