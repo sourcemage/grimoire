@@ -29,66 +29,56 @@ chgrp  -R  exim  $INSTALL_ROOT/var/spool/mail  &&
 
 mkdir  -p  Local  &&
 
-if  [[  "$EXIM_XFREE86"  ==  "y"  ]]
-then
+if  list_find  "$OPTS"  '--enable-x11-monitor';  then
   cp  src/EDITME           Local/Makefile     &&
   cp  exim_monitor/EDITME  Local/eximon.conf
 else
    grep  -v  "EXIM_MONITOR="  src/EDITME  >  Local/Makefile
 fi  &&
 
-if  [[  "$EXIM_TCPWRAPPERS"  ==  "y"  ]]
-then
+if  list_find  "$OPTS"  '--enable-tcp-wrappers-access';  then
   echo  "USE_TCP_WRAPPERS=yes"  >> Local/Makefile  &&
   EXTRALIBS="$EXTRALIBS  -lwrap"
 fi  &&
 
-if  [[  "$EXIM_LINUXPAM"  ==  "y"  ]]
-then
+if  list_find  "$OPTS"  '--enable-linux-pam-auth';  then
   echo  "SUPPORT_PAM=yes"  >>  Local/Makefile  &&
-  if  spell_ok  tcp_wrappers
-  then  EXTRALIBS="$EXTRALIBS  -lpam -ldl -lwrap"
-  else  EXTRALIBS="$EXTRALIBS  -lpam -ldl"
+  if  list_find  "$OPTS"  '--enable-tcp-wrappers-access';  then
+    EXTRALIBS="$EXTRALIBS  -lpam -ldl -lwrap"
+  else
+    EXTRALIBS="$EXTRALIBS  -lpam -ldl"
   fi
 fi  &&
 
-if  [[  "$EXIM_MYSQL"  ==  "y"  ]]
-then
+if  list_find  "$OPTS"  '--enable-mysql-lookup';  then
   echo  "LOOKUP_MYSQL=yes"                      >>  Local/Makefile  &&
   echo  "LOOKUP_INCLUDE=-I /usr/include/mysql"  >>  Local/Makefile  &&
   LOOKUP_LIBS="$LOOKUP_LIBS  -lmysqlclient"
 fi  &&
 
-if  [[  "$EXIM_SQLITE"  ==  "y"  ]]
-then
+if  list_find  "$OPTS"  '--enable-sqlite-lookup';  then
   echo  "LOOKUP_SQLITE=yes"                      >>  Local/Makefile  &&
   LOOKUP_LIBS="$LOOKUP_LIBS  -lsqlite3"
 fi  &&
 
-if  [[  "$EXIM_PGSQL"  ==  "y"  ]]
-then
+if  list_find  "$OPTS"  '--enable-postgresql-lookup';  then
   echo  "LOOKUP_PGSQL=yes"  >>  Local/Makefile  &&
   LOOKUP_LIBS="$LOOKUP_LIBS  -lpq"
 fi  &&
 
-if  [[  "$EXIM_OPENLDAP"  ==  "y"  ]]
-then
+if  list_find  "$OPTS"  '--enable-openldap-lookup';  then
   echo  "LOOKUP_LDAP=yes"            >>  Local/Makefile  &&
   echo  "LDAP_LIB_TYPE=OPENLDAP2"    >>  Local/Makefile  &&
   LOOKUP_LIBS="$LOOKUP_LIBS  -lldap -llber"
 fi  &&
 
-if  [[  "$EXIM_OPENSSL"  ==  "y"  ]]
-then
-  echo  "SUPPORT_TLS=yes"          >>  Local/Makefile  &&
-  echo  "TLS_LIBS=-lssl -lcrypto" >> Local/Makefile
-fi  &&
-
-if  [[  "$EXIM_GNUTLS"  ==  "y"  ]]
-then
+if    [[  "$EXIM_TLS"  ==  "gnutls"  ]];  then
   echo  "SUPPORT_TLS=yes"                    >>  Local/Makefile  &&
   echo  "USE_GNUTLS=yes"                     >>  Local/Makefile  &&
   echo  "TLS_LIBS=-lgnutls -ltasn1 -lgcrypt" >> Local/Makefile
+elif  [[  "$EXIM_TLS"  ==  "openssl"  ]];  then
+  echo  "SUPPORT_TLS=yes"          >>  Local/Makefile  &&
+  echo  "TLS_LIBS=-lssl -lcrypto" >> Local/Makefile
 fi  &&
 
 if  [[  "$EXIM_MAILDIR"  ==  "y"  ]]
@@ -136,8 +126,7 @@ then
   echo  "AUTH_CRAM_MD5=yes"  >>  Local/Makefile
 fi  &&
 
-if  [[  "$EXIM_SASL"  ==  "y"  ]]
-then
+if  list_find  "$OPTS"  '--enable-cyrus-sasl-auth';  then
   echo  "AUTH_CYRUS_SASL=yes"  >>  Local/Makefile  &&
   echo  "AUTH_LIBS=-lsasl2"    >>  Local/Makefile
 fi  &&
@@ -147,8 +136,7 @@ then
   echo  "AUTH_PLAINTEXT=yes"  >>  Local/Makefile
 fi  &&
 
-if  list_find  "$OPTS"  '--enable-dovecot-auth'
-then
+if  list_find  "$OPTS"  '--enable-dovecot-auth';  then
   echo  'AUTH_DOVECOT=yes'  >>  Local/Makefile
 fi  &&
 
@@ -157,8 +145,7 @@ then
   echo  "AUTH_SPA=yes"  >>  Local/Makefile
 fi  &&
 
-if  [[  "$EXIM_READLINE"  ==  "y"  ]]
-then
+if  list_find  "$OPTS"  '--enable-readline-testing';  then
   echo  "USE_READLINE=yes"  >>  Local/Makefile  &&
   EXTRALIBS="$EXTRALIBS  -ldl"
 fi  &&
