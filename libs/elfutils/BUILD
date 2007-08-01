@@ -2,4 +2,5 @@
 #  We could write wrappers for all of the possible binaries
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST} --build=${BUILD}"
 OPTS="$OPTS --program-suffix=.elfutils" &&
+disable_pic &&
 default_build
