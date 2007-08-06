@@ -26,8 +26,8 @@ export  CCACHE_RECACHE=true  &&
 #
 
 local ADDONS
-ADDONS="nptl"                &&
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
+  ADDONS="nptl"                &&
   #
   # Enable IDN?
   #
@@ -38,7 +38,7 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   OPTS="$OPTS  --with-tls             \
                --enable-kernel=2.6"
 else
-  ADDONS="linuxthreads"
+  ADDONS="linuxthreads"        &&
   OPTS="$OPTS  --without-__thread     \
                --enable-kernel=2.4"
 fi  &&
