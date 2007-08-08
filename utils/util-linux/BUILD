@@ -11,8 +11,4 @@ disable_pic  &&
             --mandir=${TRACK_ROOT}/usr/share/man   \
            --infodir=${TRACK_ROOT}/usr/share/info  \
                      $OPTS                 &&
-make &&
-
-if    spell_ok      util-linux-crypto
-  then  dispel  --nosustain  util-linux-crypto
-fi
+make 
