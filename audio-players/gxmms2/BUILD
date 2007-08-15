@@ -1,3 +1,4 @@
+cd gxmms2*  &&
 if [[ "$GXMMS2_APP" == "y" ]]
 then
   make gxmms2
