@@ -1,53 +1,66 @@
 depends  db    &&
 depends  gawk  &&
 
-if  [  "$EXIM_HCCRON"  ==  "y"  ]; then
+if    [[  "$EXIM_CRON"  ==  "hc-cron"  ]]; then
   depends  hc-cron
-fi  &&
-
-if  [  "$EXIM_FCRON"  ==  "y"  ]; then
+elif  [[  "$EXIM_CRON"  ==  "fcron"    ]];  then
   depends  fcron
 fi  &&
 
-if  [  "$EXIM_XFREE86"  ==  "y"  ]; then
-  depends  X11-LIBS
-fi  &&
-
-if  [  "$EXIM_TCPWRAPPERS"  ==  "y"  ]; then
-  depends  tcp_wrappers
-fi  &&
-
-if  [  "$EXIM_MYSQL"  ==  "y"  ]; then
-  depends  mysql
-fi  &&
-
-if  [  "$EXIM_SQLITE"  ==  "y"  ]; then
-  depends  sqlite
-fi  &&
-
-
-if  [  "$EXIM_PGSQL"  ==  "y"  ];  then
-  depends  postgresql
-fi  &&
-
-if  [ "$EXIM_LINUXPAM"  ==  "y"  ]; then
-  depends  linux-pam
-fi  &&
-
-if  [ "$EXIM_OPENLDAP"  ==  "y"  ]; then
-  depends  openldap
-fi  &&
-
-if  [ "$EXIM_OPENSSL"  ==  "y"  ]; then
+if    [[  "$EXIM_TLS"  ==  "y"   ]]; then
+  depends  gnutls     &&
+  depends  libgcrypt  &&
+  depends  libtasn1
+elif  [[  "$EXIM_TLS"  ==  "openssl"  ]];  then
   depends  openssl
 fi  &&
 
-if  [ "$EXIM_GNUTLS"  ==  "y"  ]; then
-  depends  gnutls  &&
-  depends  libgcrypt  &&
-  depends  libtasn1
-fi  &&
+optional_depends  cyrus-sasl                       \
+                  '--enable-cyrus-sasl-auth'       \
+                  '--disable-cyrus-sasl-auth'      \
+                  'for Cyrus SASL authentication'  &&
 
-if  [  "$EXIM_SASL"  ==  "y"  ]; then
-  depends  cyrus-sasl
-fi
+optional_depends  dovecot                                 \
+                  '--enable-dovecot-auth'                 \
+                  '--disable-dovecot-auth'                \
+                  'for Dovecot POP3/IMAP authentication'  &&
+
+optional_depends  linux-pam                                            \
+                  '--enable-linux-pam-auth'                            \
+                  '--disable-linux-pam-auth'                           \
+                  'for Linux Pluggable Authentication Module support'  &&
+
+optional_depends  mysql                                \
+                  '--enable-mysql-lookup'              \
+                  '--disable-mysql-lookup'             \
+                  'for MySQL-based SQL lookup tables'  &&
+
+optional_depends  openldap                      \
+                  '--enable-openldap-lookup'    \
+                  '--disable-openldap-lookup'   \
+                  'for OpenLDAP lookup tables'  &&
+
+optional_depends  postgresql                                \
+                  '--enable-postgresql-lookup'              \
+                  '--disable-postgresql-lookup'             \
+                  'for PostgreSQL-based SQL lookup tables'  &&
+
+optional_depends  readline                      \
+                  '--enable-readline-testing'   \
+                  '--disable-readline-testing'  \
+                  'for read data testing'       &&
+
+optional_depends  sqlite                                \
+                  '--enable-sqlite-lookup'              \
+                  '--disable-sqlite-lookup'             \
+                  'for sqlite-based SQL lookup tables'  &&
+
+optional_depends  tcp_wrappers                      \
+                  '--enable-tcp-wrappers-access'    \
+                  '--disable-tcp-wrappers-access'   \
+                  'for TCP wrapper access control'  &&
+
+optional_depends  X11-LIBS                 \
+                  '--enable-x11-monitor'   \
+                  '--disable-x11-monitor'  \
+                  'for X monitor'

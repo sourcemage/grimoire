@@ -6,6 +6,7 @@ OPTS="$OPTS           \
       $PHP4_CALENDAR  \
       $PHP4_PCRE      \
       $PHP4_PCNTL     \
+      $PHP5_MBSTRING  \
       $PHP4_FTP       \
       $PHP4_FCGI      \
 "  &&

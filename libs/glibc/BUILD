@@ -27,6 +27,7 @@ export  CCACHE_RECACHE=true  &&
 
 local ADDONS
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
+  ADDONS="nptl"                &&
   #
   # Enable IDN?
   #
@@ -34,16 +35,15 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
     ADDONS="$ADDONS libidn"
   fi  &&
 
-  ADDONS="nptl"
   OPTS="$OPTS  --with-tls             \
                --enable-kernel=2.6"
 else
-  ADDONS="linuxthreads"
+  ADDONS="linuxthreads"        &&
   OPTS="$OPTS  --without-__thread     \
                --enable-kernel=2.4"
 fi  &&
 
-OPTS="$OPTS --enable-add-ons=${ADDONS/ /,}"
+OPTS="$OPTS --enable-add-ons=${ADDONS/ /,}"  &&
 
 #
 # Fixes Bug #8595
