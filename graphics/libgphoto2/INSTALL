@@ -2,13 +2,15 @@ default_install  &&
 cd  doc  &&
 make  install-man  &&
 
-local CAMERALIST              &&
-CAMERALIST=$INSTALL_ROOT/usr/lib/libgphoto2/print-camera-list  &&
+local CAMERALIST   &&
+CAMERALIST=$TRACK_ROOT/usr/lib/libgphoto2/print-camera-list  &&
 # Installs fdi files for use with HAL 
 if spell_ok hal; then
-    local FDI=${INSTALL_ROOT}/usr/share/hal/fdi/information/10freedesktop/10-camera-libgphoto2.fdi  &&
-    $CAMERALIST hal-fdi >$FDI
-fi
+    message "\nInstalling hal fdi data"  &&
+    local FDI=${INSTALL_ROOT}/usr/share/hal/fdi/information/10freedesktop   &&
+    mkdir -p $FDI  &&
+    $CAMERALIST hal-fdi >$FDI/10-camera-libgphoto2.fdi
+fi                 &&
 
 # Produce a udev rules file for all the cameras
 if spell_ok udev; then
@@ -19,30 +21,8 @@ if spell_ok udev; then
   local RULE_DIR="$INSTALL_ROOT/etc/udev/rules.d"
 
   message "\nInstalling udev rules file in $RULE_DIR/$RULE\n"
-#  echo -e "ACTION==\"add\", SUBSYSTEM==\"usb_device\", \
-#PROGRAM=\"/bin/sh -c 'K=%k; K=\$\${K#usbdev}; printf bus/usb/%%03i/%%03i \$\${K%%%%.*} \$\${K#*.}'\", \
-#NAME=\"%c\", MODE=\"0644\"\n \
-#\n\
-#SUBSYSTEM!=\"usb_device\", ACTION!=\"add\", GOTO=\"gphoto_rules_end\"\n" > $TMP_RULE
-
-$CAMERALIST udev-rules $GP_RUN > $TMP_RULE  &&
-#  $INSTALL_ROOT/usr/lib/libgphoto2/print-camera-list usb-usermap usbcam > $MAP
-
-#  local PRODUCT
-#  local VENDOR
-#  while read LINE; do
-#	if echo $LINE | grep -q "^#"; then
-#		echo $LINE >> $TMP_RULE
-#	else
-#                PRODUCT=$(echo $LINE | cut -f3 -d' ')
-#                VENDOR=$(echo $LINE | cut -f4 -d' ')
-#                echo "SYSFS{idVendor}==\"${PRODUCT#0x}\", SYSFS{idProduct}==\"${VENDOR#0x}\", GROUP=\"video\", MODE=\"660\"" >> $TMP_RULE
-#	fi
-#  done  < $MAP
-
-#  echo -e "\nLABEL=\"gphoto_rules_end\"" >> $TMP_RULE
-  
-  install -m 644 $TMP_RULE $RULE_DIR
+  $CAMERALIST udev-rules script $GP_RUN > $TMP_RULE  &&
+  install -m 644 $TMP_RULE $RULE_DIR          &&
   rm -f $TMP_RULE $MAP
 else
     # Else we fallback on the old method using hotplug stuff
