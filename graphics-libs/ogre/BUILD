@@ -1,2 +1,2 @@
-OPTS="$OGRE_DOUBLE OPTS"   &&
+OPTS="$OGRE_DOUBLE $OPTS"   &&
 default_build
