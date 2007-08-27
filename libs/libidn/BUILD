@@ -1,0 +1,3 @@
+default_build  &&
+cd $SOURCE_DIRECTORY  &&
+patch -p0 < $SCRIPT_DIRECTORY/idn-int.h.patch
