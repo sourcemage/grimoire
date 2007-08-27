@@ -7,5 +7,9 @@
               --mandir=${TRACK_ROOT}/usr/share/man   \
              --infodir=${TRACK_ROOT}/usr/share/info  \
                        $OPTS                 &&
-  make DESTDIR=$INSTALL_ROOT
+if ! is_depends_enabled texinfo;  then
+ message "texinfo is DISabled"
+ sedit 's/lib\ doc\ src/lib\ src/' Makefile
+fi                                           &&
 
+make DESTDIR=$INSTALL_ROOT

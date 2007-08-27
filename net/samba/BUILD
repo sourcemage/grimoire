@@ -7,7 +7,7 @@ OPTS="--with-swatdir=/usr/share/swat  \
       $SAMBA_QUOTA                    \
       $OPTS"                          &&
 
-pushd  source  &&
+cd  source  &&
 make_single    &&
 default_build  &&
 
