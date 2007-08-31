@@ -1,39 +1,37 @@
-depends  -sub THREAD  boost  &&
-depends  libpng              &&
-
-optional_depends  jpeg                      \
-                  '--enable-jpeg'           \
-                  '--disable-jpeg'          \
-                  'for JPEG image support'  &&
-
-optional_depends  libxml2                \
-                  '--enable-xml'         \
-                  '--disable-xml'        \
-                  'Enable XML support?'  &&
-
-optional_depends  kdebase                    \
-                  '--enable-klash'           \
-                  '--disable-klash'          \
-                  'Build konqueror plugin?'  &&
-
-optional_depends  NS-PLUGIN-COMPATIBLE           \
-                  '--enable-plugin'              \
-                  '--disable-plugin'             \
-                  'for Netscape/Mozilla plugin'  &&
-
+depends  boost                                                    &&
+sub_depends boost THREAD                                          &&
+sub_depends boost DATE_TIME                                       &&
+depends  g++                                                      &&
+depends  libpng                                                   &&
+depends  jpeg                                                     &&
+depends  libxml2                                                  &&
+depends  curl                                                     &&
+# only recommnedde renderer is ogl... the other
+# one is agg which we don't have a spell yet for and doesn't
+# have the same performance under certain conditions
+depends  OPENGL  '--enable-renderer=ogl'                          &&
+if [[ $GNASH_MEDIA == "gstreamer" ]]; then
+  depends  $GNASH_MEDIA '--enable-media=GST'
+elif [[ $GNASH_MEDIA == "libmad" ]]; then
+  depends  $GNASH_MEDIA '--enable-media=mad}'
+elif [[ $GNASH_MEDIA == "ffmpeg" ]]; then
+  depends  LIBAVCODEC '--enable-media=ffmpeg'
+fi                                                                &&
+# There's no --enable/--disable sound option
+depends  $GNASH_SOUND                                             &&
+# no longer needed to build
+suggest_depends  NS-PLUGIN-COMPATIBLE                             \
+                  ''                                              \
+                  ''                                              \
+                  'Suggested to run the plugin from a browser'    &&
 if   [[ "${GNASH_GUI}" == "GTK" ]]; then
   depends  atk                                                    &&
   depends  cairo                                                  &&
-  depends  GTK2      '--enable-gui=GTK --enable-renderer=opengl'  &&
+  depends  GTK2      '--enable-gui=gtk'                           &&
   depends  gtkglext  '--enable-glext'                             &&
   depends  pango
-elif [[ "${GNASH_GUI}" == "SDL" ]]; then
-  depends  OPENGL                                            &&
-  depends  sdl  '--enable-gui=SDL --enable-renderer=opengl --disable-glext'
-fi  &&
-
-if   [[ "${GNASH_SOUND}" == "GST" ]]; then
-  depends  gstreamer  '--enable-sound=gst'
-elif [[ "${GNASH_SOUND}" == "SDL" ]]; then
-  depends  sdl  '--enable-sound=SDL'
+elif [[ "${GNASH_GUI}" == "KDE" ]]; then
+  depends  kdebase '--enable-gui=kde'                             &&
+  depends  kdelibs '--enable-kparts'
 fi
+
