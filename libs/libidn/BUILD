@@ -1,3 +1,3 @@
 default_build  &&
 cd $SOURCE_DIRECTORY  &&
-patch -p0 < $SCRIPT_DIRECTORY/idn-int.h.patch
+sedit "s/include_next/include/g" lib/idn-int.h
