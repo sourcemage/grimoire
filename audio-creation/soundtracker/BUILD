@@ -1,2 +1,2 @@
-OPTS="$OPTS --disable-alsa"
+OPTS="$OPTS"
 default_build
