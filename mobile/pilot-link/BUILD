@@ -1,9 +1,4 @@
-if [[ "${PILOTLINK_THREAD}" == "y" ]]; then
-   OPTS="--enable-threads ${OPTS}"
-fi                                                &&
-
-OPTS="--disable-debug --enable-conduits ${OPTS}"  &&
-
+OPTS="$PL_OPTS $OPTS"
 make_single                                       &&
 default_build                                     &&
 make_normal
