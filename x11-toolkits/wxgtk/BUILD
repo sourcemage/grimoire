@@ -8,7 +8,7 @@ OPTS="$OPTS
   --enable-unicode
   --with-gtk=2
 " &&
-if ! list_find WX_CONTRIB "xrc" || ! list_find WXGTK_OPTS "xrc"
+if list_find "$WX_CONTRIB" "xrc" || list_find "$WXGTK_OPTS" "xrc"
 then
   OPTS="--enable-xrc $OPTS"	
 fi  &&
