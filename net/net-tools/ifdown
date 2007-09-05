@@ -15,8 +15,18 @@ exists_in_text()
   return 1
 }
 
+_set_bridge()
+{
+  for port in "$@"
+  do
+	  brctl delif $DEV $port
+	  ifconfig $port 0.0.0.0 down
+  done
+}
+
 _do_device_down()
 {
+  [[ -n "$BRIDGE_PORTS" ]] && _set_bridge $BRIDGE_PORTS
   if [[ "$MODE" =~ ^dynamic ]]; then
     echo "Stopping dhcpcd on $DEV ..."
     dhcpcd -k $DEV &&
@@ -24,6 +34,7 @@ _do_device_down()
   fi
   echo "Shutting down network interface $DEV ..."
   ifconfig $DEV 0.0.0.0 down
+  [[ -n "$BRIDGE_PORTS" ]] && brctl delbr $DEV
 }
 
 _do_route_down()
