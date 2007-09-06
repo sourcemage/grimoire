@@ -46,9 +46,6 @@
 #---------------------------------------------------------------------#
 #
 # ------------------------- ChangeLog ------------------------------- #
-# 2007-09-04 David Brown <dmlb2000@gmail.com>
-#    - Added BRIDGE_PORTS variable to netconf
-#
 # 2007-01-17 Juuso Alasuutari <iuso@sourcemage.org>
 #    - Removed DEVICE_MAC feature (bug #13401).
 #    - Version 1.8.1.
@@ -809,7 +806,6 @@ function check_devdir() {
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot<br>
 ## @Global    NEEDS: specifies on which device this device depends
-## @Global    BRIDGE_PORTS: specifies the interfaces which we bridge around
 #---
 function loadnetdev() {
   if [ -z "$1" ]; then
@@ -822,7 +818,7 @@ function loadnetdev() {
   unset MODULE MODE IP BROADCAST NETMASK GATEWAY POINTOPOINT MTU \
               WIFI_NWID WIFI_ESSID WIFI_RATE WIFI_MODE WIFI_SECMODE \
               WIFI_KEY WIFI_KEY1 WIFI_KEY2 WIFI_KEY3 WIFI_KEY4 WIFI_DEFAULTKEY \
-              MAC CUSTOM UP_ON_BOOT NEEDS BRIDGE_PORTS
+              MAC CUSTOM UP_ON_BOOT NEEDS
 
   devname=$(get_basename $1 .dev)
 
@@ -1480,29 +1476,6 @@ function cfg_needs_dev() {
     fi
 }
 
-#--- cfg_bridge_ports()
-##
-## This sets the name of the interfaces to bridge around
-## Useful for things like Virtualization or multiple interfaces
-##
-## @Global    BRIDGE_PORTS: specifies the interfaces we bridge around
-## @External  dialog
-#---
-function cfg_bridge_ports() {
-    COMMAND=`$DIALOG --backtitle "$BACKTITLE"                   \
-                     --stdout                                   \
-                     --title "Configure bridge ports"    \
-                     --ok-label       "$BTN_ACCEPT"             \
-                     --cancel-label   "$BTN_CANCEL"             \
-                     --inputbox                                 \
-                     "Enter the names of the interfaces you would like to bridge around (ex. \"eth0 eth1\")" \
-                     0 0 ${BRIDGE_PORTS}`
-
-    if [ $? -eq 0 ]; then
-        BRIDGE_PORTS="${COMMAND}"
-    fi
-}
-
 
 #--- cfg_custom()
 ##
@@ -1655,7 +1628,6 @@ function confirm_save() {
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
 ## @Global    NEEDS: specifies on which device this device depends.
-## @Global    BRIDGE_PORTS: specifies the interfaces which we bridge around.
 ## @External  cat, date
 #---
 function save_new() {
@@ -1724,9 +1696,6 @@ EOF
     if [ ! -z "$NEEDS" ]; then
     echo "NEEDS='${NEEDS}'" >> $1
   fi
-  if [ ! -z "$BRIDGE_PORTS" ]; then
-    echo "BRIDGE_PORTS=${BRIDGE_PORTS}" >> $1
-  fi
 }
 
 #--- save_update()
@@ -1764,7 +1733,6 @@ EOF
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
 ## @Global    NEEDS: specifies on which device this device depends.
-## @Global    BRIDGE_PORTS: specifies the interfaces we bridge around.
 ## @External  date
 #---
 function save_update() {
@@ -1862,12 +1830,6 @@ function save_update() {
     sed -i '/^NEEDS=.*/d' $1
   fi
 
-  if [ ! -z "${BRIDGE_PORTS}" ]; then
-    cat_or_sedit "^BRIDGE_PORTS=.*" "BRIDGE_PORTS='${BRIDGE_PORTS}'" $1
-  else
-    sed -i '/^BRIDGE_PORTS=.*/d' $1
-  fi
-
   # removing leftovers from older netconf versions
   sed -i '/^WIFI=.*/d' $1
   sed -i '/^WIFI_ADVANCED=.*/d' $1
@@ -1952,7 +1914,6 @@ function add_device() {
 ## @Global    CUSTOM: any custom options.<br>
 ## @Global    UP_ON_BOOT: 'no' if device should not be brought up on boot.<br>
 ## @Global    NEEDS: specifies on which device this device depends.
-## @Global    BRIDGE_PORTS: specifies the interfaces we bridge around.
 ## @External  dialog
 #---
 function cfg_device() {
@@ -2007,7 +1968,6 @@ function cfg_device() {
                        "CUSTOM"  "Custom options"                        \
                        "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
                        "NEEDS" "${NEEDS}"                                \
-                       "BRIDGE_PORTS" "${BRIDGE_PORTS}"                  \
                        "Remove" "Remove this network device"             \
                        "Save" "Save this device file"`
     ;;
@@ -2029,7 +1989,6 @@ function cfg_device() {
                        "CUSTOM"  "Custom options"                        \
                        "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
                        "NEEDS" "${NEEDS}"                                \
-                       "BRIDGE_PORTS" "${BRIDGE_PORTS}"                  \
                        "Remove" "Remove this network device"             \
                        "Save" "Save this device file"`
     ;;
@@ -2055,7 +2014,6 @@ function cfg_device() {
                        "CUSTOM"  "Custom options"                        \
                        "UP_ON_BOOT" "${UP_ON_BOOT}"                      \
                        "NEEDS" "${NEEDS}"                                \
-                       "BRIDGE_PORTS" "${BRIDGE_PORTS}"                  \
                        "Remove" "Remove this network device"             \
                        "Save" "Save this device file"`
     ;;
@@ -2080,7 +2038,6 @@ function cfg_device() {
       'CUSTOM')      cfg_custom          ;;
       'UP_ON_BOOT')  toggle_boot         ;;
       'NEEDS')       cfg_needs_dev       ;;
-      'BRIDGE_PORTS')cfg_bridge_ports    ;;
       'Remove')      remove_device "$1"  ;;
       'Save')        confirm_save "$1"   ;;
     esac
