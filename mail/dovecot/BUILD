@@ -5,7 +5,10 @@ OPTS="--with-deliver $OPTS"
 else
 OPTS="--without-deliver $OPTS"
 fi                                              &&
+# desired to have dev headers installed else it's hard
+# to have external plugins built
 OPTS="--without-vpopmail                        \
+      --enable-header-install                   \
       --without-sia                             \
       --without-bsdauth                         \
       --with-ioloop=$DOVECOT_IOLOOP             \

@@ -33,6 +33,23 @@ _set_wlan()
   IWC="$IWC $*"
 }
 
+_set_bridge()
+{
+  # if the bridge doesn't exist add it
+  if ! brctl show | grep $DEV
+  then
+    brctl addbr $DEV
+  fi
+  for port in "$@"
+  do
+    if ! brctl show $DEV | grep $port
+    then
+      brctl addif $DEV $port
+    fi &&
+    ifconfig $port 0.0.0.0 promisc up
+  done
+}
+
 _do_device_up()
 {
     # collect settings for iwconfig
@@ -48,6 +65,7 @@ _do_device_up()
     [[ -n "$WIFI_DEFAULTKEY" ]] && _set_wlan key "[$WIFI_DEFAULTKEY]"
     [[ -n "$WIFI_SECMODE" ]] && _set_wlan key $WIFI_SECMODE
     [[ -n "$WIFI_KEY" ]] && _set_wlan key $WIFI_KEY
+    [[ -n "$BRIDGE_PORTS" ]] && _set_bridge $BRIDGE_PORTS
 
     # make sure the wifi settings are applied if any of them are present
     [[ -n "$IWC" ]] && iwconfig $DEV commit && sleep 2
