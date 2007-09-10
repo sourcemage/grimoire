@@ -30,6 +30,8 @@ REMOVE_OLD_INITRD=${REMOVE_OLD_INITRD:=false}
 MODULES=${MODULES:=}
 KVERSION=$(uname -r)
 INITRD_FILE=${INITRD_FILE:=/boot/initrd.img-$KVERSION}
+CPIO_TMP_ROOT=$(mktemp -d -p ${TMP_DIR:-/tmp})
+
 
 function usage()
 {
@@ -103,6 +105,7 @@ function dir_parts()
 	cat <<-EOF
 slink /sbin bin 0755 0 0
 dir /bin 0755 0 0
+dir /usr 0755 0 0
 slink /usr/sbin bin 0755 0 0
 dir /usr/bin 0755 0 0
 dir /lib 0755 0 0
@@ -635,6 +638,41 @@ function fill_modules()
 	fill_root_filesystem
 }
 
+function gen_cpio_root()
+{
+	local line args
+	while read line
+	do
+		args=($line)
+		case ${args[0]} in
+			slink)
+				ln -s ${args[2]} ${CPIO_TMP_ROOT}/${args[1]}
+			;;
+			file)
+				cat ${args[2]} > ${CPIO_TMP_ROOT}/${args[1]}
+				chmod ${args[3]} ${CPIO_TMP_ROOT}/${args[1]}
+			;;
+			dir)
+				mkdir ${CPIO_TMP_ROOT}/${args[1]}
+				chmod ${args[2]} ${CPIO_TMP_ROOT}/${args[1]}
+			;;
+			nod)
+				mknod ${CPIO_TMP_ROOT}/${args[1]} ${args[5]} ${args[6]} ${args[7]}
+				chmod ${args[2]} ${CPIO_TMP_ROOT}/${args[1]}
+
+			;;
+		esac
+	done
+}
+
+function gen_cpio_image()
+{
+	pushd $CPIO_TMP_ROOT > /dev/null 2>&1
+	find . | cpio --quiet -H newc -o | gzip -9c > $INITRD_FILE
+	popd > /dev/null 2>&1
+	rm -rf $CPIO_TMP_ROOT
+}
+
 function check_raid()
 {
 	if [[ -f /etc/mdadm.conf && -x /sbin/mdadm.static ]]
@@ -660,6 +698,10 @@ do
 	case $1 in
 		-v|--version)
 			echo "Source Mage GNU/Linux mkinitrd v0.1"
+			usage
+			exit 0
+		;;
+		-h|--help)
 			usage
 			exit 0
 		;;
@@ -707,6 +749,13 @@ check_raid
 check_lvm
 fill_modules
 (
+	linuxrc_pre
+	linuxrc_raid
+	linuxrc_lvm
+	linuxrc_pre_kinit
+	linuxrc_post
+) > /tmp/linuxrc
+(
 	default_parts
 	dev_parts
 	dir_parts
@@ -715,27 +764,14 @@ fill_modules
 	raid_parts
 	lvm_parts
 	user_parts	
-) > /tmp/initrd.lst
-(
-	linuxrc_pre
-	linuxrc_raid
-	linuxrc_lvm
-	linuxrc_pre_kinit
-	linuxrc_post
-) > /tmp/linuxrc
-if ! [[ -x /lib/modules/$KVERSION/build/usr/gen_init_cpio ]]
-then
-  echo "Bah!!! can't find the gen_init_cpio file is your kernel built?"
-  usage
-  exit -1
-fi &&
+) | gen_cpio_root
 if [[ -f $INITRD_FILE && ! $REMOVE_OLD_INITRD ]]
 then
 	echo "Refusing to blow away original initrd"
 	usage
 	exit -1
-fi &&
-/lib/modules/$KVERSION/build/usr/gen_init_cpio /tmp/initrd.lst | gzip -c > $INITRD_FILE
+fi && 
+gen_cpio_image
 
 #---------------------------------------------------------------------
 ##=back
