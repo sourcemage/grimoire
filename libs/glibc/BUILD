@@ -100,7 +100,7 @@ elif [[ ${SMGL_COMPAT_ARCHS[1]} == alpha ]]; then
   #  either an elf/ld.so that segfaults (build failing at sunrpc) or
   #  internal compiler error(s) in intl/
   # glibc knows itself what flags to choose
-  export CFLAGS="" &&
+  export CFLAGS=""
 fi &&
 
 # CPPFLAGS setting is needed so the check for cpp works on boxes that don't
