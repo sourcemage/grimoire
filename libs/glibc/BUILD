@@ -68,10 +68,7 @@ if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
   # headers, not sparc64
   #
   if  echo  "$CFLAGS"  |  grep  -q  --  "-m64";  then
-    GLIBC_ARCH=sparc64  &&
     export  CC=gcc64
-  else
-    GLIBC_ARCH=sparc
   fi  &&
 
   #
@@ -91,7 +88,6 @@ if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
   [  "$BUILD"  =  "sparc-unknown-linux-gnu"  ]  &&  
   export BUILD="sparcv9-unknown-linux-gnu"
 elif [[ ${SMGL_COMPAT_ARCHS[0]} == 32 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
-  GLIBC_ARCH=sparc  &&
   #
   # Fixes from Gentoo's 2.3.3.20040420-r2 ebuild
   #
@@ -105,7 +101,6 @@ elif [[ ${SMGL_COMPAT_ARCHS[1]} == alpha ]]; then
   #  internal compiler error(s) in intl/
   # glibc knows itself what flags to choose
   export CFLAGS="" &&
-  GLIBC_ARCH=alpha
 fi &&
 
 # CPPFLAGS setting is needed so the check for cpp works on boxes that don't
