@@ -73,10 +73,18 @@ function create_account() {
 
   debug "libgrimoire" "create_account() - $1, UID=$ACCOUNT_UID, GID=$PRIMARY_GID:$PRIMARY_GNAME, HOME=$HOME_DIR, SHELL=$USER_SHELL, SECONDARY_GIDS=$4"
 
+  # selinux/pam doesn't like it when LD_PRELOAD is set during group/user
+  # manipulations. These files aren't tracked anyway so this won't matter.
+
+  LD_PRELOAD_BAK="$LD_PRELOAD"
+  unset LD_PRELOAD
   groupadd -g $PRIMARY_GID -f $PRIMARY_GNAME
 
   # check for adding user problems and try to notify user.
   useradd -u $ACCOUNT_UID -g $PRIMARY_GNAME $SECONDARY_GIDS -d "$HOME_DIR" -s "$USER_SHELL" $1
+  LD_PRELOAD="$LD_PRELOAD_BAK"
+  unset LD_PRELOAD_BAK
+
   local USERADD_RETURN=$?
   debug "libgrimoire.create_account()" "useradd return code was: $USERADD_RETURN"
 
@@ -117,7 +125,15 @@ function create_group() {
 
   debug "libgrimoire" "create_group() - $1, GID=$GROUP_UID "
 
+  # selinux/pam doesn't like it when you are doing user/group manipulations
+  # with LD_PRELOAD set. the files changed aren't tracked anyway so this
+  # shouldn't matter
+
+  LD_PRELOAD_BAK="$LD_PRELOAD"
+  unset LD_PRELOAD
   groupadd -g $GROUP_GID $1  > /dev/null 2>&1
+  LD_PRELOAD="$LD_PRELOAD_BAK"
+  unset LD_PRELOAD_BAK
 
   local GROUPADD_RETURN=$?
   debug "libgrimoire.create_group()" "groupadd return code was: $GROUPADD_RETURN"

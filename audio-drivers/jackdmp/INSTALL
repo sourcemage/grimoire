@@ -1,6 +1,34 @@
+#
+# libs & daemon
+#
 make  DESTDIR="$INSTALL_ROOT"  install  &&
 
+#
+# symlink
+#
 if [[ $JACKDMP_SYMLINK == y ]]
 then
+  message "${MESSAGE_COLOR}Installing symlink$DEFAULT_COLOR"             &&
   ln -s  "$INSTALL_ROOT/usr/bin/jackdmp"  "$INSTALL_ROOT/usr/bin/jackd"
-fi
+fi  &&
+
+#
+# headers
+#
+message "${MESSAGE_COLOR}Installing headers$DEFAULT_COLOR"  &&
+cd  "$SOURCE_DIRECTORY/src/common"                          &&
+mkdir -p  "$INSTALL_ROOT/usr/include/jack"                  &&
+local  file  HEADERS="intclient jack ringbuffer statistics  \
+                      thread transport types"               &&
+for file in $HEADERS
+do
+  cp  "$file.h"  "$INSTALL_ROOT/usr/include/jack/"
+done  &&
+
+#
+# pkgconfig file
+#
+message "${MESSAGE_COLOR}Installing pkgconfig file$DEFAULT_COLOR"  &&
+mkdir -p  "$INSTALL_ROOT/usr/lib/pkgconfig"                        &&
+cp  "$SCRIPT_DIRECTORY/jack.pc"                                    \
+    "$INSTALL_ROOT/usr/lib/pkgconfig/"

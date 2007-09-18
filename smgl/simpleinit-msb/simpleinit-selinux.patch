@@ -1,0 +1,109 @@
+--- a/login-utils/simpleinit.c	2007-09-14 23:44:34.726342737 +0000
++++ b/login-utils/simpleinit.c	2007-09-14 23:44:18.000000000 +0000
+@@ -218,6 +218,8 @@
+ #include <sys/ioctl.h>
+ #include <dirent.h>
+ #include <termios.h>
++#include <sys/mount.h>
++#include <sys/mman.h>
+ #include <utmp.h>
+ #include <sched.h>
+ #include <time.h>
+@@ -271,6 +273,7 @@
+ struct initline inittab[NUMCMD];
+ int numcmd;
+ int stopped = 0;	/* are we stopped */
++int no_selinux = 1;     /* disabled by default */
+ static char boot_prog[PATH_SIZE] = _PATH_RC;
+ static char init_root[PATH_SIZE] = "\0";
+ static char script_prefix[PATH_SIZE] = "\0";
+@@ -332,6 +335,8 @@
+ pid_t mywait (int *status);
+ int run_command (const char *file, const char *name, pid_t pid,struct script_struct* waiting_script);
+ void ystrncat(char* dest,const char* src,ssize_t n);
++int security_load_policy(void *data, size_t len);
++int load_policy(void);
+ 
+ /* like strcat, but dest will never contain more than n characters after
+ the call (i.e. a 0-terminator will be found among the first n characters,
+@@ -441,7 +446,14 @@
+ 	}
+ 
+   open_initctl_fifo();
+-	
++
++	if (!no_selinux) {
++		if (load_policy() != 0) {
++			err( _("Failed to load SELinux policy.\n"));
++			exit(1);
++		}
++	}
++
+ 	if (userspace){
+ 	  pid_t mypid=getpid();
+ 	  int fd;
+@@ -538,6 +550,64 @@
+ 
+ #define MAXTRIES 3 /* number of tries allowed when giving the password */
+ 
++int security_load_policy(void *data, size_t len) {
++	int fd, ret;
++	fd = open("/selinux/load", O_RDWR);
++	if (fd < 0)
++		return -1;
++	ret = write(fd, data, len);
++	close(fd);
++	if (ret < 0)
++		return -1;
++	return 0;
++}
++
++int load_policy(void) {
++	int ret;
++	int fd;
++	void *map;
++	struct stat sb;
++	ret = mount("none", "/selinux", "selinuxfs", 0, 0);
++	if (ret < 0) {
++		char txt[256];
++		sprintf(txt, "SELinux: failed to mount /selinux (errno=%d)\n", errno);
++		err( _(txt));
++		return ret;
++	}
++	
++	fd = open("/etc/selinux/policy.bin", O_RDONLY);
++	if (fd < 0) {
++		char txt[256];
++		sprintf(txt, "SELinux: couldn't find /etc/selinux/policy.bin (errno=%d)\n", errno);
++		err( _(txt));
++		return -1;
++	}
++	
++	ret = fstat(fd, &sb);
++	if (ret < 0) {
++		char txt[256];
++		sprintf(txt, "Can't stat /etc/selinux/policy.bin (errno=%d)\n", errno);
++		err( _(txt));
++		close(fd);
++		return ret;
++	}
++	map = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
++	if (map == MAP_FAILED) {
++		char txt[256];
++		sprintf(txt, "Can't map /etc/selinux/policy.bin (errno=%d\n", errno);
++		err( _(txt));
++		close(fd);
++		return -1;
++	}
++	ret = security_load_policy(map, sb.st_size);
++	if (ret < 0) {
++		err( _("security_load_policy failed\n"));
++	}
++	close(fd);
++	return ret;
++}
++
++
+ /*
+  * run boot script(s). The environment is passed to the script(s), so the RC
+  * environment variable can be used to decide what to do.
