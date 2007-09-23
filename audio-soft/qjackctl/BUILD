@@ -1,3 +1,3 @@
-PATH="$INSTALL_ROOT/usr/bin/qt4:$PATH"     \
-OPTS="$QJCTL_TRAY $QJCTL_JACK_MIDI $OPTS"  \
+OPTS="$QJCTL_TRAY $QJCTL_JACK_MIDI $OPTS      \
+      --with-qt=${INSTALL_ROOT}/usr/bin/qt4"  \
 default_build
