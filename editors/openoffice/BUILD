@@ -35,7 +35,16 @@ cd  $SOURCE_DIRECTORY/config_office                  &&
            --infodir=${INSTALL_ROOT}/usr/share/info  \
                      $OPTS                           &&
 
-cd  $SOURCE_DIRECTORY       &&
-source  LinuxX86Env.Set.sh  &&
+cd  $SOURCE_DIRECTORY  &&
+
+if    [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "ia32"    ]];  then
+  source  LinuxX86Env.Set.sh
+elif  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64"  ]];  then
+  source  LinuxX86-64Env.Set.sh
+else
+  echo  "Platform not supported yet."  &&
+  return  1
+fi  &&
+
 ./bootstrap                 &&
 dmake
