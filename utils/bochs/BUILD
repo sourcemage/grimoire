@@ -1,10 +1,27 @@
-OPTS="$OPTS --enable-all-optimizations    \
-            --enable-fpu                  \
-            --with-x11                    \
-            --enable-ne2000               \
-            --enable-cdrom=yes            \
-            --enable-icache               \
-            --enable-repeat-speedups      \
-            $RFB $SB16 $TERM $APIC $SMP $IPS"  &&
+OPTS="--with-x11                        \
+      --enable-cdrom=yes                \
+      --enable-vbe                      \
+      --enable-pci                      \
+      --enable-usb                      \
+      --enable-cpu-level=6              \
+      --enable-x86-64                   \
+      --enable-vme                      \
+      --enable-fpu                      \
+      --enable-mmx                      \
+      --enable-3dnow                    \
+      --enable-sse=4                    \
+      --enable-disasm                   \
+      --enable-idle-hack                \
+      --enable-all-optimizations        \
+      --enable-repeat-speedups          \
+      --enable-icache                   \
+      --enable-plugins                  \
+      --enable-save-restore             \
+      --enable-compressed-hd            \
+      --enable-pnic                     \
+      --enable-ne2000                   \
+      --disable-docbook                 \
+      $RFB $SB16 $TERM $APIC $SMP $IPS  \
+      $OPTS"                            &&
 
-default_build
+CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" default_build

@@ -1,12 +1,15 @@
 make_normal                              &&
-default_install                          &&
+make install                             &&
+if is_depends_enabled $SPELL python; then
+  make python_install
+fi &&
 
 if  [[  "$SAMBA_CIFS"  ==  "y"  ]];  then
   install  -m  755  client/mount.cifs              \
                     $INSTALL_ROOT/sbin/mount.cifs
 fi  &&
 
-popd  &&
+cd ..  &&
 
 mkdir  -p  $INSTALL_ROOT/usr/share/samba/codepages    &&
 mkdir  -p  $INSTALL_ROOT/var/{spool,cache,log}/samba  &&
@@ -55,18 +58,17 @@ if  [[  "$SAMBA_SUID"  =  "y"  ]];  then
     chmod  u+s  ${INSTALL_ROOT}/sbin/mount.cifs \
 	    ${INSTALL_ROOT}/usr/sbin/umount.cifs
   fi
-fi
+fi  &&
 
 # Setup the symlink for CUPS:
 if  spell_ok  cups;  then
   if  !  [  -e  ${INSTALL_ROOT}/usr/lib/cups/backend/smb  ];  then
     ln  -s  ${INSTALL_ROOT}/usr/bin/smbspool  ${INSTALL_ROOT}/usr/lib/cups/backend/smb
   fi
-fi
+fi  &&
 
 if [[ $SAMBA_VSCAN == 'y' ]] ; then
         cd $SOURCE_DIRECTORY/examples/VFS/$SPELL-vscan-$VSCAN_VERSION &&
         make install &&
         cd $SOURCE_DIRECTORY
 fi
-

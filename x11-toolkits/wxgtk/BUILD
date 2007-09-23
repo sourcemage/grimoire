@@ -3,14 +3,17 @@ OPTS="$OPTS
   --disable-debug
   --disable-monolithic
   --enable-shared
-  --with-opengl
   --with-libiconv-prefix=$INSTALL_ROOT/usr
   --enable-geometry
-  --enable-xrc
   --enable-unicode
   --with-gtk=2
 " &&
+if list_find "$WX_CONTRIB" "xrc"
+then
+  OPTS="--enable-xrc $OPTS"	
+fi  &&
 default_build &&
 for COMPONENT in $WX_CONTRIB; do
+  if [[ "$COMPONENT" == "xrc" ]]; then continue; fi &&
   make -C contrib/src/$COMPONENT
 done
