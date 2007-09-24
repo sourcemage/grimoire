@@ -1,13 +1,52 @@
            SPELL=glibc
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
-         VERSION=2.4
- HEADERS_VERSION=2.6.12.0
+         VERSION=2.6.1
+ HEADERS_VERSION=2.6.22.6
           SOURCE=$SPELL-$VERSION.tar.bz2
          SOURCE2=$SOURCE.sig
-         SOURCE3=linux-libc-headers-$HEADERS_VERSION.tar.bz2
+case "${SMGL_COMPAT_ARCHS[1]}" in
+  ia32)
+      GLIBC_ARCH=i386
+         SOURCE3=linux-headers-${HEADERS_VERSION}-i386.tar.bz2
+    SOURCE3_HASH=sha512:e328abe55c7d3c239ec3dbede78ce405a662d3159382a2cb3db8dbf5b7783d230a237d44c23280171893c9213b55c4f9bf8963f193fc50158803078e3875ecef
+  ;;
+  x86_64)
+      GLIBC_ARCH=x86_64
+	 SOURCE3=linux-headers-${HEADERS_VERSION}-x86_64.tar.bz2
+    SOURCE3_HASH=sha512:1d032b35eee2593896cdffd779ed3f695f5abb552c83f96fcabec46d5977b649db0741690be5dd40d712779b0f3816c6e04e7840991dad4e0a6881adee097852 
+  ;;
+  ppc)
+      GLIBC_ARCH=ppc
+	 SOURCE3=linux-headers-${HEADERS_VERSION}-powerpc.tar.bz2
+    SOURCE3_HASH=sha512:06c5ff0fdbe39367df6538000358058fb6a804bc3711ad621fd825fa2887b2cb13b6992c32fe64da3381402b681b9ac526ac2b7eb2320966fcb9a6f6b1830737 
+  ;;
+  alpha)
+      GLIBC_ARCH=alpha
+         SOURCE3=linux-headers-${HEADERS_VERSION}-alpha.tar.bz2
+    SOURCE3_HASH=sha512:a462e6ee9c446a71181e189d36b430fbdbf7070f2499d06e234b50f91ec3f0172a3428ecd37e7dad85bb153bfc985cea39e33785b7cffa9ac371a579412e6361
+  ;;
+  sparc)
+    if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]]
+    then
+      GLIBC_ARCH=sparc
+         SOURCE3=linux-headers-${HEADERS_VERSION}-sparc64.tar.bz2
+    SOURCE3_HASH=sha512:45665ceb4c8622615c3e9bbcbe57e8f9bd96d1cfd7d50aa7269ca8be9f6400c35feddc4b93251e56a7e0d5fbb48cf1b1e0f81bd9ca2853dc154cd38c1bd5ebe8
+    else
+      GLIBC_ARCH=sparc64
+         SOURCE3=linux-headers-${HEADERS_VERSION}-sparc.tar.bz2
+    SOURCE3_HASH=sha512:264bf8f30dcfd72b8fcdb8e9486c8ffe59ec20bbb5f7379b9e300510d761128f636f2d6945ba97f7672fae878a0976e0dabf500a0c53702d67bf7790562a9484 
+    fi
+  ;;
+  *)
+      GLIBC_ARCH=UNKNOWN
+         SOURCE3=UNKNOWN
+         message "${PROBLEM_COLOR}You have an unknown architecture, you should file a bug for this${DEFAULT_COLOR}"
+         return -1
+  ;;
+esac
    SOURCE_URL[0]=$GNU_URL/$SPELL/$SOURCE
   SOURCE2_URL[0]=${SOURCE_URL[0]}.sig
-  SOURCE3_URL[0]=http://ep09.pld-linux.org/~mmazur/linux-libc-headers/$SOURCE3
+  SOURCE3_URL[0]=http://dmlb2000.homelinux.org/pub/kernel-headers/$SOURCE3
   if [ "$GLIBC_USEIDN" = "y" ]; then
          SOURCE4=$SPELL-libidn-$VERSION.tar.bz2
          SOURCE5=$SOURCE4.sig
@@ -18,8 +57,6 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   fi
       SOURCE_GPG=gnu.gpg:$SOURCE.sig:UPSTREAM_KEY
   SOURCE2_IGNORE=signature
-    SOURCE3_HASH=sha512:e7ee7a09880d19dea3d2c0d498631ee9d269738e7acdeba0a346da3b8bd0629628582973de33e6ac0c913e8c691806a50e07d520d6f6d078b76a3e74b9b61fd7
-      PATCHLEVEL=1
 else
          VERSION=2.3.6
  HEADERS_VERSION=2.4.24

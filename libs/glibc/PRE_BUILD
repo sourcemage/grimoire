@@ -4,7 +4,7 @@ default_pre_build  &&
 # Set GLIBC_HEADERS_DIR for use later
 #
 persistent_add  GLIBC_HEADERS_DIR                                        &&
-GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/linux-libc-headers-$HEADERS_VERSION  &&
+GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/linux-headers-${HEADERS_VERSION}-${GLIBC_ARCH}  &&
 
 #
 # Set GLIBC_LIBIDN_DIR for use later; the variable was needlessly persistent
@@ -31,11 +31,7 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   # Unpack glibc-kernel-headers
   #
   unpack_file 3                         &&
-  cd  $GLIBC_HEADERS_DIR                              &&
-  patch  -p1  <  $SCRIPT_DIRECTORY/config.h.patch     &&
-  cd  $GLIBC_HEADERS_DIR/include                      &&
-  # fix the agpgart.h header, this is needed for at least xorg 6.9.0
-  sedit  '53i#include <asm/types.h>'  linux/agpgart.h &&
+  cd  $GLIBC_HEADERS_DIR/usr/include                  &&
   chmod  -R  +r  *                                    &&
   find  .  -type  d  -exec  chmod  +x  '{}'  ';'
 else
@@ -47,8 +43,8 @@ else
   #
   # Unpack glibc-kernel-headers
   #
-  mkdir  -p  $GLIBC_HEADERS_DIR/include             &&
-  cd  $GLIBC_HEADERS_DIR/include                    &&
+  mkdir  -p  $GLIBC_HEADERS_DIR/usr/include         &&
+  cd  $GLIBC_HEADERS_DIR/usr/include                &&
   unpack_file 5
 fi  &&
 
@@ -58,6 +54,7 @@ fi  &&
 cd  $SOURCE_DIRECTORY                               &&
 patch  -p1  <  $SCRIPT_DIRECTORY/glibcshared.patch  &&
 patch  -p0  <  $SCRIPT_DIRECTORY/Makefile.patch     &&
+patch  -p1  <  $SCRIPT_DIRECTORY/as-test-x.patch &&
 
 # disabled libgd detection/building memusagestat for now until a better
 # fix has been found, bug #8277
