@@ -22,8 +22,10 @@
 
 FORCE_RAID=${FORCE_RAID:=false}
 FORCE_LVM=${FORCE_LVM:=false}
+FORCE_CRYPTO=${FORCE_CRYPTO:=false}
 USE_RAID=${USE_RAID:=false}
 USE_LVM=${USE_LVM:=false}
+USE_CRYPTO=${USE_CRYPTO:=false}
 BREAK_ON_MISSING=${BREAK_ON_MISSING:=true}
 REMOVE_OLD_INITRD=${REMOVE_OLD_INITRD:=false}
 
@@ -51,6 +53,22 @@ do
 /bin/insmod \$module
 done
 EOF
+}
+
+function linuxrc_crypto()
+{
+	if $USE_CRYPTO || $FORCE_CRYPTO
+	then
+		cat <<-EOF
+/bin/mount -t proc proc /proc
+/bin/dmsetup mknodes
+cat /crypttab |
+while read line
+do
+eval "/bin/cryptsetup luksOpen \$line" < /dev/console > /dev/console 2>&1
+done
+EOF
+	fi
 }
 
 function linuxrc_raid()
@@ -567,6 +585,13 @@ EOF
 	fi
 }
 
+function crypto_parts()
+{
+	echo "file /crypttab /etc/crypttab 0644 0 0"
+	echo "file /bin/cryptsetup /usr/sbin/cryptsetup.static 0755 0 0"
+	echo "file /bin/dmsetup /sbin/dmsetup.static 0755 0 0"
+}
+
 function rec_fill_modules()
 {
 	local dep_modules
@@ -632,6 +657,15 @@ function fill_modules()
 	then
 		rec_fill_modules dm-mod
 	fi
+	if $USE_CRYPTO || $FORCE_CRYPTO
+	then
+		rec_fill_modules dm-mod
+		rec_fill_modules sha256
+		rec_fill_modules sha512
+		rec_fill_modules aes-i586
+		rec_fill_modules aes
+		rec_fill_modules dm-crypt
+	fi
 	fill_root_driver
 	fill_root_filesystem
 }
@@ -691,6 +725,16 @@ function check_lvm()
 	fi
 }
 
+function check_crypto()
+{
+	if [[ -f /etc/crypttab && -x /usr/sbin/cryptsetup.static && -x /sbin/dmsetup.static ]]
+	then
+		USE_CRYPTO=true
+	else
+		USE_CRYPTO=false
+	fi
+}
+
 while [[ $1 ]]
 do
 	case $1 in
@@ -709,11 +753,17 @@ do
 		--enable-lvm)
 			FORCE_LVM=true
 		;;
+		--enable-crypto)
+			FORCE_CRYPTO=true
+		;;
 		--disable-raid)
 			FORCE_RAID=false
 		;;
 		--disable-lvm)
 			FORCE_LVM=false
+		;;
+		--disable-crypto)
+			FORCE_CRYPTO=false
 		;;
 		-f|--force)
 			REMOVE_OLD_INITRD=true
@@ -745,11 +795,13 @@ done
 depmod -a $KVERSION
 check_raid
 check_lvm
+check_crypto
 fill_modules
 (
 	linuxrc_pre
 	linuxrc_raid
 	linuxrc_lvm
+	linuxrc_crypto
 	linuxrc_pre_kinit
 	linuxrc_post
 ) > /tmp/linuxrc
@@ -760,6 +812,7 @@ fill_modules
 	module_parts
 	klibc_parts
 	raid_parts
+	crypto_parts
 	lvm_parts
 	user_parts	
 ) | gen_cpio_root
