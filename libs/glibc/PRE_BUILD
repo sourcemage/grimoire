@@ -1,12 +1,6 @@
 default_pre_build  &&
 
 #
-# Set GLIBC_HEADERS_DIR for use later
-#
-persistent_add  GLIBC_HEADERS_DIR                                        &&
-GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/linux-libc-headers-$HEADERS_VERSION  &&
-
-#
 # Set GLIBC_LIBIDN_DIR for use later; the variable was needlessly persistent
 #
 persistent_remove  GLIBC_LIBIDN_DIR                                      &&
@@ -14,11 +8,6 @@ local GLIBC_LIBIDN_DIR=$SOURCE_DIRECTORY/glibc-libidn-$VERSION           &&
 
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   cd      $SOURCE_DIRECTORY                           &&
-  # fix for upstream bug http://sourceware.org/bugzilla/show_bug.cgi?id=2429
-  patch  -p1  <  $SCRIPT_DIRECTORY/nisplus_fix.diff                      &&
-  # fix for upstream bug https://bugzilla.samba.org/show_bug.cgi?id=3678
-  patch  -p1  <  $SCRIPT_DIRECTORY/glibc-2.4-iconv_open.patch            &&
-
   if [ "$GLIBC_USEIDN" = "y" ]; then
     #
     # Unpack glibc-libidn
@@ -30,12 +19,14 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   #
   # Unpack glibc-kernel-headers
   #
+  #
+  # Set GLIBC_HEADERS_DIR for use later
+  #
+  persistent_add  GLIBC_HEADERS_DIR                        &&
+  GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.bz2}  &&
+
   unpack_file 3                         &&
-  cd  $GLIBC_HEADERS_DIR                              &&
-  patch  -p1  <  $SCRIPT_DIRECTORY/config.h.patch     &&
-  cd  $GLIBC_HEADERS_DIR/include                      &&
-  # fix the agpgart.h header, this is needed for at least xorg 6.9.0
-  sedit  '53i#include <asm/types.h>'  linux/agpgart.h &&
+  cd  $GLIBC_HEADERS_DIR/usr/include                  &&
   chmod  -R  +r  *                                    &&
   find  .  -type  d  -exec  chmod  +x  '{}'  ';'
 else
@@ -47,8 +38,13 @@ else
   #
   # Unpack glibc-kernel-headers
   #
-  mkdir  -p  $GLIBC_HEADERS_DIR/include             &&
-  cd  $GLIBC_HEADERS_DIR/include                    &&
+  #
+  # Set GLIBC_HEADERS_DIR for use later
+  #
+  persistent_add  GLIBC_HEADERS_DIR                   &&
+  GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/kernel-headers  &&
+  mkdir  -p  $GLIBC_HEADERS_DIR/usr/include         &&
+  cd  $GLIBC_HEADERS_DIR/usr/include                &&
   unpack_file 5
 fi  &&
 
@@ -56,9 +52,8 @@ fi  &&
 # Now fixup the normal glibc
 #
 cd  $SOURCE_DIRECTORY                               &&
-patch  -p1  <  $SCRIPT_DIRECTORY/glibcshared.patch  &&
 patch  -p0  <  $SCRIPT_DIRECTORY/Makefile.patch     &&
-patch  -p1  <  $SCRIPT_DIRECTORY/as-test-x.patch    &&
+patch  -p1  <  $SCRIPT_DIRECTORY/as-test-x.patch &&
 
 # disabled libgd detection/building memusagestat for now until a better
 # fix has been found, bug #8277

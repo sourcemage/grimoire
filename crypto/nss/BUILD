@@ -17,6 +17,8 @@ fi &&
 
 echo "INCLUDES += -I${ROOT}/usr/include/nspr" >> $SOURCE_DIRECTORY/mozilla/security/coreconf/headers.mk  &&
 
+make_single                                     &&
+
 cd $SOURCE_DIRECTORY/mozilla/security/coreconf  &&
 make $MAKE_OPTS                                 &&
 
