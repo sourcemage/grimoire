@@ -68,12 +68,42 @@ scanlvm()
   fi
 }
 
+start_cryptfs()
+{
+  if optional_executable /usr/sbin/cryptsetup && [ -f /etc/crypttab ]
+  then
+    echo "Attempting to open luks encrypted partitions"
+    grep -v '^#' /etc/crypttab |
+    grep -v '^$'               |
+    while read line
+    do
+      parts=( $line )
+      echo "Opening ${parts[0]} as ${parts[1]}"
+      if cryptsetup isLuks ${parts[0]}
+      then
+        if [[ -b /dev/mapper/${parts[1]} ]]
+        then
+	  builtin echo "Device already exists maybe its open already"
+        else
+          cryptsetup luksOpen ${parts[0]} ${parts[1]} < /dev/console > /dev/console 2>&1
+        fi
+      else
+        builtin echo "Error device ${parts[0]} isn't a luks partition"
+	return 1
+      fi
+    done
+  fi
+}
+
 start()
 {
   required_executable /bin/mount
   required_executable /sbin/fsck
 
   scanlvm
+  evaluate_retval
+  
+  start_cryptfs
   evaluate_retval
 
   checkfs
