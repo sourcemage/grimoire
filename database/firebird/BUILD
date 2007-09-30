@@ -48,14 +48,7 @@ if [ $FB_CLIENT == n ]; then
     do
       chmod ug+w $DB                            &&
       chown firebird:firebird $DB
-    done                                        &&
-# preserve some existing files
-  for FF in `ls security*.fdb`; do
-    if [ -f $FB_PREFIX/$FF ];then
-      message preserving file $FF               &&
-      bzip2 $FF
-    fi
-   done
+    done
 else
   cd gen                                        &&
   make includes                                 &&
