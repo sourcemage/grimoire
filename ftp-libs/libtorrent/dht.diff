@@ -1,0 +1,5112 @@
+Index: libtorrent/scripts/checks.m4
+===================================================================
+--- libtorrent/scripts/checks.m4	(revision 975)
++++ libtorrent/scripts/checks.m4	(working copy)
+@@ -289,7 +289,27 @@
+     ])
+ ])
+ 
++AC_DEFUN([TORRENT_CHECK_TR1], [
++  AC_LANG_PUSH(C++)
++  AC_MSG_CHECKING(for TR1 support)
+ 
++  AC_COMPILE_IFELSE(
++    [[#include <tr1/unordered_map>
++      class Foo;
++      typedef std::tr1::unordered_map<Foo*, int> Bar;
++    ]],
++    [
++      AC_MSG_RESULT(yes)
++      AC_DEFINE(HAVE_TR1, 1, Define to 1 if your C++ library supports the extensions from Technical Report 1)
++    ],
++    [
++      AC_MSG_RESULT(no)
++    ]
++  )
++
++  AC_LANG_POP(C++)
++])
++
+ AC_DEFUN([TORRENT_WITH_FASTCGI], [
+   AC_ARG_WITH(fastcgi,
+     [  --with-fastcgi=PATH      Enable FastCGI RPC support. (DO NOT USE)],
+Index: libtorrent/scripts/common.m4
+===================================================================
+--- libtorrent/scripts/common.m4	(revision 975)
++++ libtorrent/scripts/common.m4	(working copy)
+@@ -239,3 +239,18 @@
+         fi
+     ])
+ ])
++
++AC_DEFUN([TORRENT_ENABLE_TR1], [
++  AC_ARG_ENABLE(std_tr1,
++    [  --disable-std_tr1       disable check for support for TR1 [[default=enable]]],
++    [
++      if test "$enableval" = "yes"; then
++        TORRENT_CHECK_TR1()
++      else
++        AC_MSG_CHECKING(for TR1 support)
++        AC_MSG_RESULT(disabled)
++      fi
++    ],[
++        TORRENT_CHECK_TR1()
++    ])
++])
+Index: libtorrent/src/dht/dht_tracker.h
+===================================================================
+--- libtorrent/src/dht/dht_tracker.h	(revision 0)
++++ libtorrent/src/dht/dht_tracker.h	(revision 0)
+@@ -0,0 +1,84 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#ifndef LIBTORRENT_DHT_TORRENT_H
++#define LIBTORRENT_DHT_TORRENT_H
++
++#include "globals.h"
++
++#include <vector>
++#include <rak/socket_address.h>
++
++#include "download/download_info.h"  // for SocketAddressCompact
++
++namespace torrent {
++
++class Object;
++
++// Container for peers tracked in a torrent.
++
++class DhtTracker : private std::vector<SocketAddressCompact> {
++public:
++  typedef std::vector<SocketAddressCompact>  base_type;
++
++  // Maximum number of peers we return for a GET_PEERS query (default value). 
++  // Needs to be small enough so that a packet with a payload of num_peers*6 bytes 
++  // does not need fragmentation. Value chosen so that the size is approximately
++  // equal to a FIND_NODE reply (8*26 bytes).
++  static const unsigned int max_peers = 32;
++
++  // Maximum number of peers we keep track of. For torrents with more peers,
++  // replace random peers with new announces to avoid excessively large peer
++  // tables for active torrents.
++  static const unsigned int max_size = 128;
++
++  using base_type::empty;
++  using base_type::size;
++
++  void                add_peer(const rak::socket_address* sa);
++  std::string         get_peers(unsigned int maxPeers = max_peers);
++
++  // Remove old announces from the tracker that have not reannounced for
++  // more than the given number of prune calls.
++  void                prune(uint32_t maxAge);
++
++private:
++  std::vector<uint32_t>  m_lastSeen;
++};
++
++}
++
++#endif
+Index: libtorrent/src/dht/dht_bucket.cc
+===================================================================
+--- libtorrent/src/dht/dht_bucket.cc	(revision 0)
++++ libtorrent/src/dht/dht_bucket.cc	(revision 0)
+@@ -0,0 +1,191 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#include "config.h"
++
++#include "torrent/exceptions.h"
++
++#include "dht_bucket.h"
++#include "dht_node.h"
++
++namespace torrent {
++
++DhtBucket::DhtBucket(const HashString& begin, const HashString& end) :
++  m_parent(NULL),
++  m_child(NULL),
++
++  m_lastChanged(cachedTime.seconds()),
++
++  m_good(0),
++  m_bad(0),
++
++  m_begin(begin),
++  m_end(end) {
++
++  reserve(num_nodes);
++}
++
++void
++DhtBucket::add_node(DhtNode* n) {
++  push_back(n);
++  touch();
++
++  if (n->is_good())
++    m_good++;
++  else if (n->is_bad())
++    m_bad++;
++}
++
++void
++DhtBucket::remove_node(DhtNode* n) {
++  iterator itr = std::find_if(begin(), end(), std::bind2nd(std::equal_to<DhtNode*>(), n));
++  if (itr == end())
++    throw internal_error("DhtBucket::remove_node called for node not in bucket.");
++
++  erase(itr);
++
++  if (n->is_good())
++    m_good--;
++  else if (n->is_bad())
++    m_bad--;
++}
++
++void
++DhtBucket::count() {
++  m_good = std::count_if(begin(), end(), std::mem_fun(&DhtNode::is_good));
++  m_bad = std::count_if(begin(), end(), std::mem_fun(&DhtNode::is_bad));
++}
++
++// Called every 15 minutes for housekeeping.
++void
++DhtBucket::update() {
++  // For now we only update the counts after some nodes have become bad
++  // due to prolonged inactivity.
++  count();
++}
++
++DhtBucket::iterator
++DhtBucket::find_replacement_candidate(bool onlyOldest) {
++  iterator oldest = end();
++  unsigned int oldestTime = std::numeric_limits<unsigned int>::max();
++
++  for (iterator itr = begin(); itr != end(); ++itr) {
++    if ((*itr)->is_bad() && !onlyOldest)
++      return itr;
++
++    if ((*itr)->last_seen() < oldestTime) {
++      oldestTime = (*itr)->last_seen();
++      oldest = itr;
++    }
++  }
++
++  return oldest;
++}
++
++void
++DhtBucket::get_mid_point(HashString* middle) const {
++  *middle = m_end;
++
++  for (unsigned int i=0; i<m_begin.size(); i++)
++    if (m_begin[i] != m_end[i]) {
++      (*middle)[i] = ((uint8_t)m_begin[i] + (uint8_t)m_end[i]) / 2;
++      break;
++    }
++}
++
++void
++DhtBucket::get_random_id(HashString* rand_id) const {
++
++  // Generate a random ID between m_begin and m_end.
++  // Since m_end - m_begin = 2^n - 1, we can do a bitwise AND operation.
++  for (unsigned int i=0; i<(*rand_id).size(); i++)
++    (*rand_id)[i] = m_begin[i] + (random() & (m_end[i] - m_begin[i]));
++
++#ifdef USE_EXTRA_DEBUG
++  if (!is_in_range(*rand_id))
++    throw internal_error("DhtBucket::get_random_id generated an out-of-range ID.");
++#endif
++}
++
++DhtBucket*
++DhtBucket::split(const HashString& id) {
++  HashString mid_range;
++  get_mid_point(&mid_range);
++
++  DhtBucket* other = new DhtBucket(m_begin, mid_range);
++
++  // Set m_begin = mid_range + 1
++  int carry = 1;
++  for (unsigned int i = mid_range.size(); i>0; i--) {
++    unsigned int sum = (uint8_t)mid_range[i-1] + carry;
++    m_begin[i-1] = (uint8_t)sum;
++    carry = sum >> 8;
++  }
++
++  // Move nodes over to other bucket if they fall in its range, then
++  // delete them from this one.
++  iterator split = std::partition(begin(), end(), std::bind2nd(std::mem_fun(&DhtNode::is_in_range), this));
++  other->insert(other->end(), split, end());
++  std::for_each(other->begin(), other->end(), std::bind2nd(std::mem_fun(&DhtNode::set_bucket), other));
++  erase(split, end());
++
++  other->set_time(m_lastChanged);
++  other->count();
++
++  count();
++
++  // Maintain child (adjacent narrower bucket) and parent (adjacent wider bucket)
++  // so that given router ID is in child.
++  if (other->is_in_range(id)) {
++    // Make other become our new child.
++    m_child = other;
++    other->m_parent = this;
++
++  } else {
++    // We become other's child, other becomes our parent's child.
++    if (parent()) {
++      parent()->m_child = other;
++      other->m_parent = parent();
++    }
++
++    m_parent = other;
++    other->m_child = this;
++  }
++
++  return other;
++}
++
++}
+Index: libtorrent/src/dht/dht_bucket.h
+===================================================================
+--- libtorrent/src/dht/dht_bucket.h	(revision 0)
++++ libtorrent/src/dht/dht_bucket.h	(revision 0)
+@@ -0,0 +1,183 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#ifndef LIBTORRENT_DHT_BUCKET_H
++#define LIBTORRENT_DHT_BUCKET_H
++
++#include <list>
++
++#include "globals.h"
++
++#include "torrent/hash_string.h"
++
++namespace torrent {
++
++class DhtNode;
++
++// A container holding a small number of nodes that fall in a given binary
++// partition of the 160-bit ID space (i.e. the range ID1..ID2 where ID2-ID1+1 is
++// a power of 2.)
++class DhtBucket : private std::vector<DhtNode*> {
++public:
++  static const unsigned int num_nodes = 8;
++
++  typedef std::vector<DhtNode*>      base_type;
++
++  using base_type::const_iterator;
++  using base_type::iterator;
++
++  using base_type::begin;
++  using base_type::end;
++  using base_type::size;
++  using base_type::empty;
++
++  DhtBucket(const HashString& begin, const HashString& end);
++
++  // Add new node. Does NOT set node's bucket automatically (to allow adding a
++  // node to multiple buckets, with only one "main" bucket.)
++  void                add_node(DhtNode* n);
++
++  void                remove_node(DhtNode* n);
++
++  // Bucket's ID range functions.
++  const HashString&   id_range_begin() const                  { return m_begin; }
++  HashString&         id_range_begin()                        { return m_begin; }
++  const HashString&   id_range_end() const                    { return m_end; }
++  HashString&         id_range_end()                          { return m_end; }
++
++  bool                is_in_range(const HashString& id) const { return m_begin <= id && id <= m_end; }
++
++  // Find middle or random ID in bucket.
++  void                get_mid_point(HashString* middle) const;
++  void                get_random_id(HashString* rand_id) const;
++
++  // Node counts and bucket stats.
++  bool                is_full() const                         { return size() >= num_nodes; }
++  bool                has_space() const                       { return !is_full() || num_bad() > 0; }
++  unsigned int        num_good() const                        { return m_good; }
++  unsigned int        num_bad() const                         { return m_bad; }
++
++  unsigned int        age() const                             { return cachedTime.seconds() - m_lastChanged; }
++  void                touch()                                 { m_lastChanged = cachedTime.seconds(); }
++  void                set_time(int time)                      { m_lastChanged = time; }
++
++  // Called every 15 minutes after updating nodes.
++  void                update();
++
++  // Return candidate for replacement (a bad node or the oldest node); may
++  // return end() unless has_space() is true.
++  iterator            find_replacement_candidate(bool onlyOldest = false);
++
++  // Split the bucket in two and redistribute nodes. Returned bucket is the
++  // lower half, "this" bucket keeps the upper half.   Sets parent/child so
++  // that the bucket the given ID falls in is the child.
++  DhtBucket*          split(const HashString& id);
++
++  // Parent and child buckets.  Parent is the adjacent bucket with double the
++  // ID width, child the adjacent bucket with half the width (except the very
++  // last child which has the same width.)
++  DhtBucket*          parent() const                          { return m_parent; }
++  DhtBucket*          child() const                           { return m_child; }
++
++  // Called by the DhtNode on its bucket to update good/bad node counts.
++  void                node_now_good(bool was_bad);
++  void                node_now_bad(bool was_good);
++
++private:
++  void                count();
++
++  DhtBucket*          m_parent;
++  DhtBucket*          m_child;
++  
++  unsigned int        m_lastChanged;
++
++  unsigned int        m_good;
++  unsigned int        m_bad;
++
++  // These are 40 bytes together, so might as well put them last.
++  HashString          m_begin;
++  HashString          m_end;
++};
++
++// Helper class to recursively follow a chain of buckets.  It first recurses
++// into the bucket's children since they are by definition closer to the bucket,
++// then continues with the bucket's parents.
++class DhtBucketChain {
++public:
++  DhtBucketChain(const DhtBucket* b) : m_restart(b), m_cur(b) { }
++
++  const DhtBucket*          bucket()                          { return m_cur; }
++  const DhtBucket*          next();
++
++private:
++  const DhtBucket*          m_restart;
++  const DhtBucket*          m_cur;
++};
++
++inline void
++DhtBucket::node_now_good(bool was_bad) {
++  m_bad -= was_bad;
++  m_good++;
++}
++
++inline void
++DhtBucket::node_now_bad(bool was_good) {
++  m_good -= was_good;
++  m_bad++;
++}
++
++inline const DhtBucket*
++DhtBucketChain::next() {
++  // m_restart is clear when we're done recursing into the children and
++  // follow the parents instead.
++  if (m_restart == NULL) {
++    m_cur = m_cur->parent();
++
++  } else {
++    m_cur = m_cur->child();
++
++    if (!m_cur) {
++      m_cur = m_restart->parent();
++      m_restart = NULL;
++    }
++  }
++
++  return m_cur;
++}
++
++}
++
++#endif
+Index: libtorrent/src/dht/dht_router.cc
+===================================================================
+--- libtorrent/src/dht/dht_router.cc	(revision 0)
++++ libtorrent/src/dht/dht_router.cc	(revision 0)
+@@ -0,0 +1,646 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#include "config.h"
++#include "globals.h"
++
++#include <sstream>
++#include <rak/functional.h>
++#include <rak/string_manip.h>
++
++#include "torrent/dht_manager.h"
++#include "torrent/exceptions.h"
++#include "utils/sha1.h"
++#include "manager.h"
++
++#include "dht_bucket.h"
++#include "dht_router.h"
++#include "dht_tracker.h"
++#include "dht_transaction.h"
++
++namespace torrent {
++
++HashString DhtRouter::zero_id;
++
++DhtRouter::DhtRouter(const Object& cache, const rak::socket_address* sa) :
++  DhtNode(zero_id, sa),  // actual ID is set later
++  m_server(this),
++  m_contacts(NULL),
++  m_numRefresh(0),
++  m_curToken(random()),
++  m_prevToken(random()) {
++
++  HashString ones_id;
++
++  zero_id.clear();
++  ones_id.clear(0xFF);
++
++  if (cache.has_key("self_id")) {
++    assign(cache.get_key_string("self_id").c_str());
++
++  } else {
++    long buffer[size_data];
++
++    for (long* itr = buffer; itr != buffer + size_data; ++itr)
++      *itr = random();
++
++    Sha1 sha;
++    sha.init();
++    sha.update(buffer, sizeof(buffer));
++    sha.final_c(data());
++  }
++
++  set_bucket(new DhtBucket(zero_id, ones_id));
++  m_routingTable.insert(std::make_pair(bucket()->id_range_end(), bucket()));
++
++  if (cache.has_key("nodes")) {
++    Object::map_type nodes = cache.get_key_map("nodes");
++
++    for (Object::map_type::const_iterator itr = nodes.begin(); itr != nodes.end(); ++itr) {
++      if (itr->first.length() != HashString::size_data)
++        throw bencode_error("Loading cache: Invalid node hash.");
++
++      add_node_to_bucket(m_nodes.insert(new DhtNode(itr->first, itr->second)));
++    }
++  }
++
++  if (m_nodes.size() < num_bootstrap_complete)
++    m_contacts = new std::list<rak::socket_address>;
++}
++
++DhtRouter::~DhtRouter() {
++  stop();
++  std::for_each(m_routingTable.begin(), m_routingTable.end(), rak::on(rak::mem_ref(&DhtBucketList::value_type::second), rak::call_delete<DhtBucket>()));
++  std::for_each(m_trackers.begin(), m_trackers.end(), rak::on(rak::mem_ref(&DhtTrackerList::value_type::second), rak::call_delete<DhtTracker>()));
++  std::for_each(m_nodes.begin(), m_nodes.end(), rak::on(rak::mem_ref(&DhtNodeList::value_type::second), rak::call_delete<DhtNode>()));
++}
++
++void
++DhtRouter::start(int port) {
++  m_server.start(port);
++
++  // Set timeout slot and schedule it to be called immediately for initial bootstrapping if necessary.
++  m_taskTimeout.set_slot(rak::mem_fn(this, &DhtRouter::receive_timeout_bootstrap));
++  priority_queue_insert(&taskScheduler, &m_taskTimeout, (cachedTime + rak::timer::from_seconds(1)).round_seconds());
++}
++
++void
++DhtRouter::stop() {
++  priority_queue_erase(&taskScheduler, &m_taskTimeout);
++  m_server.stop();
++}
++
++// Start a DHT get_peers and announce_peer request.
++void
++DhtRouter::announce(DownloadInfo* info, TrackerDht* tracker) {
++  m_server.announce(*find_bucket(info->hash())->second, info->hash(), tracker);
++}
++
++// Cancel any running requests from the given tracker.
++// If info is not NULL, only cancel those requests.
++void
++DhtRouter::cancel_announce(DownloadInfo* info, const TrackerDht* tracker) {
++  m_server.cancel_announce(info, tracker);
++}
++
++DhtTracker*
++DhtRouter::get_tracker(const HashString& hash, bool create) {
++  DhtTrackerList::accessor itr = m_trackers.find(hash);
++
++  if (itr == m_trackers.end()) {
++    if (!create)
++      return NULL;
++
++    std::pair<DhtTrackerList::accessor, bool> res = m_trackers.insert(std::make_pair(hash, new DhtTracker()));
++
++    if (!res.second)
++      throw internal_error("DhtRouter::get_tracker did not actually insert tracker.");
++
++    return res.first.tracker();
++  }
++
++  return itr.tracker();
++}
++
++bool
++DhtRouter::want_node(const HashString& id) {
++  // We don't want to add ourself.  Also, too many broken implementations
++  // advertise an ID of 0, which causes collisions, so reject that.
++  if (id == this->id() || id == zero_id)
++    return false;
++
++  // We are always interested in more nodes for our own bucket (causing it
++  // to be split if full); in other buckets only if there's space.
++  DhtBucket* b = find_bucket(id)->second;
++  return b == bucket() || b->has_space();
++}
++
++DhtNode*
++DhtRouter::get_node(const HashString& id) {
++  DhtNodeList::accessor itr = m_nodes.find(&id);
++
++  if (itr == m_nodes.end()) {
++    if (id == this->id())
++      return this;
++    else
++      return NULL;
++  }
++
++  return itr.node();
++}
++
++DhtRouter::DhtBucketList::iterator
++DhtRouter::find_bucket(const HashString& id) {
++  DhtBucketList::iterator itr = m_routingTable.upper_bound(id);
++
++#ifdef USE_EXTRA_DEBUG
++  if (itr == m_routingTable.end())
++    throw internal_error("DHT Buckets not covering entire ID space.");
++
++  if (!itr->second->is_in_range(id))
++    throw internal_error("DhtRouter::find_bucket, m_routingTable.upper_bound did not find correct bucket.");
++#endif
++
++  return itr;
++}
++
++void
++DhtRouter::contact(const rak::socket_address* sa, bool external) {
++  // For non-external nodes, e.g. those from an explict add_node command
++  // or found via the BT PORT message, contact them immediately if possible.
++  if (!external) {
++    if (is_active())
++      m_server.ping(zero_id, sa);
++
++  } else {
++    // Externally obtained nodes are added to the contact list, but only if
++    // we're still bootstrapping. We don't contact external nodes after that.
++    if (m_contacts != NULL)
++      m_contacts->push_back(*sa); 
++  }
++}
++
++// Received a query from the given node. If it has previously replied
++// to one of our queries, consider it alive and update the bucket mtime,
++// otherwise if we could use it in a bucket, try contacting it.
++DhtNode*
++DhtRouter::node_queried(const HashString& id, const rak::socket_address* sa) {
++  DhtNode* node = get_node(id);
++
++  if (node == NULL) {
++    if (want_node(id))
++      m_server.ping(id, sa);
++
++    return NULL;
++  }
++
++  // If we know the ID but the address is different, don't set the original node
++  // active, but neither use this new address to prevent rogue nodes from polluting
++  // our routing table with fake source addresses.
++  if (node->address()->sa_inet()->address_n() != sa->sa_inet()->address_n())
++    return NULL;
++
++  node->queried();
++  if (node->is_good())
++    node->bucket()->touch();
++
++  return node;
++}
++
++// Received a reply from a node we queried.
++// Check that it matches the information we have, set that it has replied
++// and update the bucket mtime.
++DhtNode*
++DhtRouter::node_replied(const HashString& id, const rak::socket_address* sa) {
++  DhtNode* node = get_node(id);
++
++  if (node == NULL) {
++    // New node, create it. It's a good node (it replied!) so add it to a bucket.
++    if (id == this->id() || id == zero_id)
++      return NULL;
++
++    node = m_nodes.insert(new DhtNode(id, sa));
++
++    if (!add_node_to_bucket(node))   // deletes the node if it fails
++      return NULL;
++  }
++
++  if (node->address()->sa_inet()->address_n() != sa->sa_inet()->address_n())
++    return NULL;
++
++  node->replied();
++  node->bucket()->touch();
++
++  return node;
++}
++
++// A node has not replied to one of our queries.
++DhtNode*
++DhtRouter::node_inactive(const HashString& id, const rak::socket_address* sa) {
++  DhtNodeList::accessor itr = m_nodes.find(&id);
++
++  // If not found add it to some blacklist so we won't try contacting it again immediately?
++  if (itr == m_nodes.end())
++    return NULL;
++
++  // Check source address. Normally node_inactive is called if we DON'T receive a reply,
++  // however it can also be called if a node replied with an malformed response packet,
++  // so check that the address matches so that a rogue node cannot cause other nodes
++  // to be considered bad by sending malformed packets.
++  if (itr.node()->address()->sa_inet()->address_n() != sa->sa_inet()->address_n())
++    return NULL;
++
++  itr.node()->inactive();
++
++  // Old node age normally implies no replies for many consecutive queries, however
++  // after loading the node cache after a day or more we want to give each node a few
++  // chances to reply again instead of removing all nodes instantly.
++  if (itr.node()->is_bad() && itr.node()->age() >= timeout_remove_node) {
++    delete_node(itr);
++    return NULL;
++  }
++
++  return itr.node();
++}
++
++// We sent a query to the given node ID, but received a reply from a different
++// node ID, that means the address of the original ID is invalid now.
++void
++DhtRouter::node_invalid(const HashString& id) {
++  DhtNode* node = get_node(id);
++
++  if (node == NULL || node == this)
++    return;
++
++  delete_node(m_nodes.find(&node->id()));
++}
++
++char*
++DhtRouter::store_closest_nodes(const HashString& id, char* buffer, char* bufferEnd) {
++  DhtBucketChain chain(find_bucket(id)->second);
++
++  do {
++    for (DhtBucket::const_iterator itr = chain.bucket()->begin(); itr != chain.bucket()->end(); ++itr) {
++      if (!(*itr)->is_bad()) {
++        buffer = (*itr)->store_compact(buffer);
++
++        if (buffer > bufferEnd)
++          throw internal_error("DhtRouter::store_closest_nodes wrote past buffer end.");
++
++        if (buffer == bufferEnd)
++          break;
++      }
++    }
++  } while (buffer != bufferEnd && chain.next());
++
++  return buffer;
++}
++
++Object*
++DhtRouter::store_cache(Object* container) const {
++  container->insert_key("self_id", str());
++
++  // Insert all nodes.
++  Object& nodes = container->insert_key("nodes", Object(Object::TYPE_MAP));
++  for (DhtNodeList::const_accessor itr = m_nodes.begin(); itr != m_nodes.end(); ++itr) {
++    if (!itr.node()->is_bad())
++      itr.node()->store_cache(&nodes.insert_key(itr.id().str(), Object(Object::TYPE_MAP)));
++  }
++
++  return container;
++}
++
++DhtManager::statistics_type
++DhtRouter::get_statistics() const {
++  DhtManager::statistics_type stats(*m_server.upload_throttle()->rate(), *m_server.download_throttle()->rate());
++
++  if (!m_server.is_active())
++    stats.cycle = 0;
++  else if (m_numRefresh < 2)  // still bootstrapping
++    stats.cycle = 1;
++  else
++    stats.cycle = m_numRefresh;
++
++  stats.queries_received = m_server.queries_received();
++  stats.queries_sent = m_server.queries_sent();
++  stats.replies_received = m_server.replies_received();
++
++  stats.num_nodes = m_nodes.size();
++  stats.num_buckets = m_routingTable.size();
++
++  stats.num_peers = 0;
++  stats.max_peers = 0;
++  stats.num_trackers = m_trackers.size();
++
++  for (DhtTrackerList::const_accessor itr = m_trackers.begin(); itr != m_trackers.end(); ++itr) {
++    unsigned int peers = itr.tracker()->size();
++    stats.num_peers += peers;
++    stats.max_peers = std::max(peers, stats.max_peers);
++  }
++
++  return stats;
++}
++
++void
++DhtRouter::receive_timeout_bootstrap() {
++  // If we're still bootstrapping, restart the process every 60 seconds until
++  // we have enough nodes in our routing table. After we have 32 nodes, we switch
++  // to a less aggressive non-bootstrap mode of collecting nodes that contact us
++  // and through doing normal torrent announces.
++  if (m_nodes.size() < num_bootstrap_complete) {
++    if (m_contacts == NULL)
++      throw internal_error("DhtRouter::receive_timeout_bootstrap called without contact list.");
++
++    if (!m_nodes.empty() || !m_contacts->empty())
++      bootstrap();
++
++    // Retry in 60 seconds.
++    priority_queue_insert(&taskScheduler, &m_taskTimeout, (cachedTime + rak::timer::from_seconds(timeout_bootstrap_retry)).round_seconds());
++    m_numRefresh = 1;  // still bootstrapping
++
++  } else {
++    // We won't be needing external contacts after this.
++    if (m_contacts != NULL) {
++      delete m_contacts;
++      m_contacts = NULL;
++    }
++
++    m_taskTimeout.set_slot(rak::mem_fn(this, &DhtRouter::receive_timeout));
++
++    if (!m_numRefresh) {
++      // If we're still in the startup, do the usual refreshing too.
++      receive_timeout();
++
++    } else {
++      // Otherwise just set the 15 minute timer.
++      priority_queue_insert(&taskScheduler, &m_taskTimeout, (cachedTime + rak::timer::from_seconds(timeout_update)).round_seconds());
++    }
++
++    m_numRefresh = 2;
++  }
++}
++
++void
++DhtRouter::receive_timeout() {
++  priority_queue_insert(&taskScheduler, &m_taskTimeout, (cachedTime + rak::timer::from_seconds(timeout_update)).round_seconds());
++
++  m_prevToken = m_curToken;
++  m_curToken = random();
++
++  // Do some periodic accounting, refreshing buckets and marking
++  // bad nodes.
++
++  // Update nodes.
++  for (DhtNodeList::accessor itr = m_nodes.begin(); itr != m_nodes.end(); ++itr) {
++    if (!itr.node()->bucket())
++      throw internal_error("DhtRouter::receive_timeout has node without bucket.");
++
++    itr.node()->update();
++
++    // Try contacting nodes we haven't received anything from for a while.
++    // Don't contact repeatedly unresponsive nodes; we keep them in case they
++    // do send a query, until we find a better node. However, give it a last
++    // chance just before deleting it.
++    if (itr.node()->is_questionable() && (!itr.node()->is_bad() || itr.node()->age() >= timeout_remove_node))
++      m_server.ping(itr.node()->id(), itr.node()->address());
++  }
++
++  // If bucket isn't full yet or hasn't received replies/queries from
++  // its nodes for a while, try to find new nodes now.
++  for (DhtBucketList::const_iterator itr = m_routingTable.begin(); itr != m_routingTable.end(); ++itr) {
++    itr->second->update();
++
++    if (!itr->second->is_full() || itr->second->age() > timeout_bucket_bootstrap)
++      bootstrap_bucket(itr->second);
++  }
++
++  // Remove old peers and empty torrents from the tracker.
++  for (DhtTrackerList::accessor itr = m_trackers.begin(); itr != m_trackers.end(); ) {
++    itr.tracker()->prune(timeout_peer_announce);
++
++    if (itr.tracker()->empty()) {
++      delete itr.tracker();
++      m_trackers.erase(itr++);
++
++    } else {
++      ++itr;
++    }
++  }
++
++  m_server.update();
++
++  m_numRefresh++;
++}
++
++void
++DhtRouter::generate_token(const rak::socket_address* sa, int token, char buffer[20]) {
++  Sha1 sha;
++  uint32_t key = sa->sa_inet()->address_n();
++
++  sha.init();
++  sha.update(&token, sizeof(token));
++  sha.update(&key, 4);
++  sha.final_c(buffer);
++}
++
++std::string
++DhtRouter::make_token(const rak::socket_address* sa) {
++  char token[20];
++
++  generate_token(sa, m_curToken, token);
++
++  return std::string(token, size_token);
++}
++
++bool
++DhtRouter::token_valid(const std::string& token, const rak::socket_address* sa) {
++  if (token.length() != size_token)
++    return false;
++
++  // Compare given token to the reference token.
++  char reference[20];
++
++  // First try current token.
++  generate_token(sa, m_curToken, reference);
++
++  if (std::memcmp(reference, token.c_str(), size_token) == 0)
++    return true;
++
++  // If token recently changed, some clients may be using the older one.
++  // That way a token is valid for 15-30 minutes, instead of 0-15.
++  generate_token(sa, m_prevToken, reference);
++
++  return std::memcmp(reference, token.c_str(), size_token) == 0;
++}
++
++DhtNode*
++DhtRouter::find_node(const rak::socket_address* sa) {
++  for (DhtNodeList::accessor itr = m_nodes.begin(); itr != m_nodes.end(); ++itr)
++    if (itr.node()->address()->sa_inet()->address_n() == sa->sa_inet()->address_n())
++      return itr.node();
++
++  return NULL;
++}
++
++DhtRouter::DhtBucketList::iterator
++DhtRouter::split_bucket(const DhtBucketList::iterator& itr, DhtNode* node) {
++  // Split bucket. Current bucket keeps the upper half thus keeping the
++  // map key valid, new bucket is the lower half of the original bucket.
++  DhtBucket* newBucket = itr->second->split(id());
++
++  // If our bucket has a child now (the new bucket), move ourself into it.
++  if (bucket()->child() != NULL)
++    set_bucket(bucket()->child());
++
++  if (!bucket()->is_in_range(id()))
++    throw internal_error("DhtRouter::split_bucket router ID ended up in wrong bucket.");
++
++  // Insert new bucket with iterator hint = just before current bucket.
++  DhtBucketList::iterator other = m_routingTable.insert(itr, std::make_pair(newBucket->id_range_end(), newBucket));
++
++  // Check that the bucket we're not adding the node to isn't empty.
++  if (other->second->is_in_range(node->id())) {
++    if (itr->second->empty())
++      bootstrap_bucket(itr->second);
++
++  } else {
++    if (other->second->empty())
++      bootstrap_bucket(other->second);
++
++    other = itr;
++  }
++
++  return other;
++}
++
++bool
++DhtRouter::add_node_to_bucket(DhtNode* node) {
++  DhtBucketList::iterator itr = find_bucket(node->id());
++
++  while (itr->second->is_full()) {
++    // Bucket is full. If there are any bad nodes, remove the oldest.
++    DhtBucket::iterator nodeItr = itr->second->find_replacement_candidate();
++    if (nodeItr == itr->second->end())
++      throw internal_error("DhtBucket::find_candidate returned no node.");
++
++    if ((*nodeItr)->is_bad()) {
++      delete_node(m_nodes.find(&(*nodeItr)->id()));
++
++    } else {
++      // Bucket is full of good nodes; if our own ID falls in
++      // range then split the bucket else discard new node.
++      if (itr->second != bucket()) {
++        delete_node(m_nodes.find(&node->id()));
++        return false;
++      }
++
++      itr = split_bucket(itr, node);
++    }
++  }
++
++  itr->second->add_node(node);
++  node->set_bucket(itr->second);
++  return true;
++}
++
++void
++DhtRouter::delete_node(const DhtNodeList::accessor& itr) {
++  if (itr == m_nodes.end())
++    throw internal_error("DhtRouter::delete_node called with invalid iterator.");
++
++  if (itr.node()->bucket() != NULL)
++    itr.node()->bucket()->remove_node(itr.node());
++
++  delete itr.node();
++
++  m_nodes.erase(itr);
++}
++
++void
++DhtRouter::bootstrap() {
++  // Contact up to 8 nodes from the contact list.
++  for (int count = 0; count < 8 && !m_contacts->empty(); count++) {
++    if (!find_node(&m_contacts->back()))
++      m_server.ping(zero_id, &m_contacts->back());
++
++    m_contacts->pop_back();
++  }
++
++  // Abort unless we already found some nodes for a search.
++  if (m_nodes.empty())
++    return;
++
++  bootstrap_bucket(bucket());
++
++  // Aggressively ping all questionable nodes in our own bucket to weed
++  // out bad nodes as early as possible and make room for fresh nodes.
++  for (DhtBucket::iterator itr = bucket()->begin(); itr != bucket()->end(); ++itr)
++    if (!(*itr)->is_good())
++      m_server.ping((*itr)->id(), (*itr)->address());
++
++  // Also bootstrap a random bucket, if there are others.
++  if (m_routingTable.size() < 2)
++    return;
++
++  DhtBucketList::iterator itr = m_routingTable.begin();
++  std::advance(itr, random() % m_routingTable.size());
++
++  if (itr->second != bucket() && itr != m_routingTable.end())
++    bootstrap_bucket(itr->second);
++}
++
++void
++DhtRouter::bootstrap_bucket(const DhtBucket* bucket) {
++  if (!m_server.is_active())
++    return;
++
++  // Do a search for a random ID, or the ID adjacent to our
++  // own when bootstrapping our own bucket. We don't search for
++  // our own exact ID to avoid receiving only our own node info
++  // instead of closest nodes, from nodes that know us already.
++  HashString contactId;
++
++  if (bucket == this->bucket()) {
++    contactId = id();
++    contactId[contactId.size() - 1] ^= 1;
++  } else {
++    bucket->get_random_id(&contactId);
++  }
++
++  m_server.find_node(*bucket, contactId);
++}
++
++}
+Index: libtorrent/src/dht/dht_router.h
+===================================================================
+--- libtorrent/src/dht/dht_router.h	(revision 0)
++++ libtorrent/src/dht/dht_router.h	(revision 0)
+@@ -0,0 +1,174 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#ifndef LIBTORRENT_DHT_ROUTER_H
++#define LIBTORRENT_DHT_ROUTER_H
++
++#include <rak/priority_queue_default.h>
++#include <rak/socket_address.h>
++
++#include "torrent/dht_manager.h"
++#include "torrent/hash_string.h"
++#include "torrent/object.h"
++
++#include "dht_node.h"
++#include "dht_hash_map.h"
++#include "dht_server.h"
++
++namespace torrent {
++
++class DhtBucket;
++class DhtTracker;
++class TrackerDht;
++
++// Main DHT class, maintains the routing table of known nodes and talks to the
++// DhtServer object that handles the actual communication.
++
++class DhtRouter : public DhtNode {
++public:
++  // How many bytes to return and verify from the 20-byte SHA token.
++  static const unsigned int size_token = 8;
++
++  static const unsigned int timeout_bootstrap_retry  =          60;  // Retry initial bootstrapping every minute.
++  static const unsigned int timeout_update           =     15 * 60;  // Regular housekeeping updates every 15 minutes.
++  static const unsigned int timeout_bucket_bootstrap =     15 * 60;  // Bootstrap idle buckets after 15 minutes.
++  static const unsigned int timeout_remove_node      = 4 * 60 * 60;  // Remove unresponsive nodes after 4 hours.
++  static const unsigned int timeout_peer_announce    =     30 * 60;  // Remove peers which haven't reannounced for 30 minutes.
++
++  // A node ID of all zero.
++  static HashString zero_id;
++
++  DhtRouter(const Object& cache, const rak::socket_address* sa);
++  ~DhtRouter();
++
++  // Start and stop the router. This starts/stops the UDP server as well.
++  void                start(int port);
++  void                stop();
++
++  bool                is_active()                        { return m_server.is_active(); }
++
++  // Find peers for given download and announce ourselves.
++  void                announce(DownloadInfo* info, TrackerDht* tracker);
++
++  // Cancel any pending transactions related to the given download (or all if NULL).
++  void                cancel_announce(DownloadInfo* info, const TrackerDht* tracker);
++
++  // Retrieve tracked torrent for the hash.
++  // Returns NULL if not tracking the torrent unless create is true.
++  DhtTracker*         get_tracker(const HashString& hash, bool create);
++
++  // Check if we are interested in inserting a new node of the given ID
++  // into our table (i.e. if we have space or bad nodes in the corresponding bucket).
++  bool                want_node(const HashString& id);
++
++  // Contact the given node, or add it to the list of potential contacts
++  // if it was obtained externally from a .torrent file for example.
++  void                contact(const rak::socket_address* sa, bool external);
++
++  // Retrieve node of given ID in constant time. Return NULL if not found, unless
++  // it's our own ID in which case it returns the DhtRouter object.
++  DhtNode*            get_node(const HashString& id);
++
++  // Search for node with given address in O(n), disregarding the port.
++  DhtNode*            find_node(const rak::socket_address* sa);
++
++  // Whenever a node queries us, replies, or is confirmed inactive (no reply) or
++  // invalid (reply with wrong ID), we need to update its status.
++  DhtNode*            node_queried(const HashString& id, const rak::socket_address* sa);
++  DhtNode*            node_replied(const HashString& id, const rak::socket_address* sa);
++  DhtNode*            node_inactive(const HashString& id, const rak::socket_address* sa);
++  void                node_invalid(const HashString& id);
++
++  // Store compact node information (26 bytes) for nodes closest to the
++  // given ID in the given buffer, return new buffer end.
++  char*               store_closest_nodes(const HashString& id, char* buffer, char* bufferEnd);
++
++  // Store DHT cache in the given container.
++  Object*             store_cache(Object* container) const;
++
++  // Create and verify a token. Tokens are valid between 15-30 minutes from creation.
++  std::string         make_token(const rak::socket_address* sa);
++  bool                token_valid(const std::string& token, const rak::socket_address* sa);
++
++  DhtManager::statistics_type get_statistics() const;
++  void                reset_statistics()                 { m_server.reset_statistics(); }
++
++  DhtServer*          server()                           { return &m_server; }
++  DhtTrackerList*     trackers()                         { return &m_trackers; }
++
++private:
++  // Number of nodes we need to consider the bootstrap process complete.
++  static const unsigned int num_bootstrap_complete = 32;
++
++  typedef std::map<const HashString, DhtBucket*> DhtBucketList;
++
++  DhtBucketList::iterator find_bucket(const HashString& id);
++
++  bool                add_node_to_bucket(DhtNode* node);
++  void                delete_node(const DhtNodeList::accessor& itr);
++
++  DhtBucketList::iterator split_bucket(const DhtBucketList::iterator& itr, DhtNode* node);
++
++  void                bootstrap();
++  void                bootstrap_bucket(const DhtBucket* bucket);
++
++  void                receive_timeout();
++  void                receive_timeout_bootstrap();
++
++  // buffer needs to hold an SHA1 hash (20 bytes), not just the token (8 bytes)
++  void                generate_token(const rak::socket_address* sa, int token, char buffer[20]);
++
++  rak::priority_item  m_taskTimeout;
++
++  DhtServer           m_server;
++  DhtNodeList         m_nodes;
++  DhtBucketList       m_routingTable;
++  DhtTrackerList      m_trackers;
++
++  std::list<rak::socket_address>* m_contacts;
++
++  int                 m_numRefresh;
++
++  bool                m_networkUp;
++
++  // Secret keys used for generating announce tokens.
++  int                 m_curToken;
++  int                 m_prevToken;
++};
++
++}
++
++#endif
+Index: libtorrent/src/dht/dht_hash_map.h
+===================================================================
+--- libtorrent/src/dht/dht_hash_map.h	(revision 0)
++++ libtorrent/src/dht/dht_hash_map.h	(revision 0)
+@@ -0,0 +1,168 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#ifndef LIBTORRENT_DHT_HASH_MAP_H
++#define LIBTORRENT_DHT_HASH_MAP_H
++
++#include "config.h"
++
++#if HAVE_TR1
++#include <tr1/unordered_map>
++#else
++#include <map>
++#endif
++
++#include "torrent/hash_string.h"
++
++#include "dht_node.h"
++#include "dht_tracker.h"
++
++namespace torrent {
++
++#if HAVE_TR1
++// Hash functions for HashString keys, and dereferencing HashString pointers.
++// We use the last n bits of the 160-bit ID hash, since in sub-buckets the
++// first few bits are all identical.
++struct hashstring_ptr_hash : public std::unary_function<const HashString*, size_t> {
++  size_t operator () (const HashString* n) const 
++  { return *(size_t*)(n->data() + n->size() - sizeof(size_t)); }
++};
++
++struct hashstring_hash : public std::unary_function<HashString, size_t> {
++  size_t operator () (const HashString& n) const 
++  { return *(size_t*)(n.data() + n.size() - sizeof(size_t)); }
++};
++
++// Compare HashString pointers by dereferencing them.
++struct hashstring_ptr_equal : public std::binary_function<const HashString*, const HashString*, bool> {
++  size_t operator () (const HashString* one, const HashString* two) const 
++  { return *one == *two; }
++};
++
++class DhtNodeList : public std::tr1::unordered_map<const HashString*, DhtNode*, hashstring_ptr_hash, hashstring_ptr_equal> {
++public:
++  typedef std::tr1::unordered_map<const HashString*, DhtNode*, hashstring_ptr_hash, hashstring_ptr_equal> base_type;
++
++  // Define accessor iterator with more convenient access to the key and
++  // element values.  Allows changing the map definition more easily if needed.
++  template<typename T>
++  struct accessor_wrapper : public T {
++    accessor_wrapper(const T& itr) : T(itr) { }
++
++    const HashString&    id() const    { return *(**this).first; }
++    DhtNode*             node() const  { return (**this).second; }
++  };
++
++  typedef accessor_wrapper<const_iterator>  const_accessor;
++  typedef accessor_wrapper<iterator>        accessor;
++
++  DhtNode*            insert(DhtNode* n);
++
++};
++
++class DhtTrackerList : public std::tr1::unordered_map<HashString, DhtTracker*, hashstring_hash> {
++public:
++  typedef std::tr1::unordered_map<HashString, DhtTracker*, hashstring_hash> base_type;
++
++  template<typename T>
++  struct accessor_wrapper : public T {
++    accessor_wrapper(const T& itr) : T(itr) { }
++
++    const HashString&    id() const       { return (**this).first; }
++    DhtTracker*          tracker() const  { return (**this).second; }
++  };
++
++  typedef accessor_wrapper<const_iterator>  const_accessor;
++  typedef accessor_wrapper<iterator>        accessor;
++
++};
++
++#else
++
++// Compare HashString pointers by dereferencing them.
++struct hashstring_ptr_less : public std::binary_function<const HashString*, const HashString*, bool> {
++  size_t operator () (const HashString* one, const HashString* two) const 
++  { return *one < *two; }
++};
++
++class DhtNodeList : public std::map<const HashString*, DhtNode*, hashstring_ptr_less> {
++public:
++  typedef std::map<const HashString*, DhtNode*, hashstring_ptr_less> base_type;
++
++  // Define accessor iterator with more convenient access to the key and
++  // element values.  Allows changing the map definition more easily if needed.
++  template<typename T>
++  struct accessor_wrapper : public T {
++    accessor_wrapper(const T& itr) : T(itr) { }
++
++    const HashString&    id() const    { return *(**this).first; }
++    DhtNode*             node() const  { return (**this).second; }
++  };
++
++  typedef accessor_wrapper<const_iterator>  const_accessor;
++  typedef accessor_wrapper<iterator>        accessor;
++
++  DhtNode*            insert(DhtNode* n);
++
++};
++
++class DhtTrackerList : public std::map<HashString, DhtTracker*> {
++public:
++  typedef std::map<HashString, DhtTracker*> base_type;
++
++  template<typename T>
++  struct accessor_wrapper : public T {
++    accessor_wrapper(const T& itr) : T(itr) { }
++
++    const HashString&    id() const       { return (**this).first; }
++    DhtTracker*          tracker() const  { return (**this).second; }
++  };
++
++  typedef accessor_wrapper<const_iterator>  const_accessor;
++  typedef accessor_wrapper<iterator>        accessor;
++
++};
++#endif // HAVE_TR1
++
++inline
++DhtNode* DhtNodeList::insert(DhtNode* n) {
++  base_type::insert(std::make_pair<const HashString*, DhtNode*>(n, n));
++  return n;
++}
++
++}
++
++#endif
+Index: libtorrent/src/dht/dht_transaction.cc
+===================================================================
+--- libtorrent/src/dht/dht_transaction.cc	(revision 0)
++++ libtorrent/src/dht/dht_transaction.cc	(revision 0)
+@@ -0,0 +1,287 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#include "config.h"
++
++#include "torrent/exceptions.h"
++#include "torrent/object_stream.h"
++#include "tracker/tracker_dht.h"
++
++#include "dht_bucket.h"
++#include "dht_transaction.h"
++
++namespace torrent {
++
++DhtSearch::DhtSearch(const HashString& target, const DhtBucket& contacts)
++  : base_type(dht_compare_closer(target)),
++    m_pending(0),
++    m_contacted(0),
++    m_replied(0),
++    m_concurrency(3),
++    m_restart(false),
++    m_started(false),
++    m_next(end()) {
++
++  add_contacts(contacts);
++}
++
++DhtSearch::~DhtSearch() {
++  // Make sure transactions were destructed first. Since it is the destruction
++  // of a transaction that triggers this destructor, that should always be the 
++  // case.
++  if (m_pending)
++    throw internal_error("DhtSearch::~DhtSearch called with pending transactions.");
++
++  if (m_concurrency != 3)
++    throw internal_error("DhtSearch::~DhtSearch with invalid concurrency limit.");
++
++  for (accessor itr = begin(); itr != end(); ++itr)
++    delete itr.node();
++}
++
++bool
++DhtSearch::add_contact(const HashString& id, const rak::socket_address* sa) {
++  DhtNode* n = new DhtNode(id, sa);
++  bool added = insert(std::make_pair(n, this)).second;
++
++  if (!added)
++    delete n;
++  else
++    m_restart = true;
++
++  return added;
++}
++
++void
++DhtSearch::add_contacts(const DhtBucket& contacts) {
++  DhtBucketChain chain(&contacts);
++
++  // Add max_contacts=18 closest nodes, and fill up so we also have at least 8 good nodes.
++  int needClosest = max_contacts - size();
++  int needGood = DhtBucket::num_nodes;
++
++  for (DhtBucket::const_iterator itr = chain.bucket()->begin(); needClosest > 0 || needGood > 0; ++itr) {
++    while (itr == chain.bucket()->end()) {
++      if (!chain.next())
++        return;
++
++      itr = chain.bucket()->begin();
++    }
++
++    if ((!(*itr)->is_bad() || needClosest > 0) && add_contact((*itr)->id(), (*itr)->address())) {
++      needGood -= !(*itr)->is_bad();
++      needClosest--;
++    }
++  }
++}
++
++// Check if a node has been contacted yet.  This is the case if it is not currently
++// being contacted, nor has it been found to be good or bad.
++bool
++DhtSearch::node_uncontacted(const DhtNode* node) const {
++  return !node->is_active() && !node->is_good() && !node->is_bad();
++}
++
++// After more contacts have been added, discard least closest nodes
++// except if node has a transaction pending.
++void
++DhtSearch::trim(bool final) {
++
++  // We keep:
++  // - the max_contacts=18 closest good or unknown nodes and all nodes closer
++  //   than them (to see if further searches find closer ones)
++  // - for announces, also the 8 closest good nodes (i.e. nodes that have
++  //   replied) to have at least that many for the actual announce
++  // - any node that currently has transactions pending
++  //
++  // However, after exhausting all search nodes, we only keep good nodes.
++  //
++  // For our purposes, the node status is as follows:
++  // node is bad (contacted but hasn't replied) if is_bad()
++  // node is good (contacted and replied) if is_good()
++  // node is currently being contacted if is_active()
++  // node is new and unknown otherwise
++
++  int needClosest = final ? 0 : max_contacts;
++  int needGood = is_announce() ? DhtBucket::num_nodes : 0;
++
++  // We're done if we can't find any more nodes to contact.
++  m_next = end();
++
++  accessor itr = base_type::begin();
++  while (itr != end()) {
++    // If we have all we need, delete current node unless it is
++    // currently being contacted.
++    if (!itr.node()->is_active() && needClosest <= 0 && (!itr.node()->is_good() || needGood <= 0)) {
++      delete itr.node();
++      erase(itr++);
++      continue;
++    }
++
++    // Otherwise adjust needed counts appropriately.
++    needClosest--;
++    needGood -= itr.node()->is_good();
++
++    // Remember the first uncontacted node as the closest one to contact next.
++    if (m_next == end() && node_uncontacted(itr.node()))
++      m_next = const_accessor(itr);
++
++    ++itr;
++  }
++
++  m_restart = false;
++}
++
++DhtSearch::const_accessor
++DhtSearch::get_contact() {
++  if (m_pending >= m_concurrency)
++    return end();
++
++  if (m_restart)
++    trim(false);
++
++  const_accessor ret = m_next;
++  if (ret == end())
++    return ret;
++
++  set_node_active(ret, true);
++  m_pending++;
++  m_contacted++;
++
++  // Find next node to contact: any node we haven't contacted yet.
++  while (++m_next != end()) {
++    if (node_uncontacted(m_next.node()))
++      break;
++  }
++
++  return ret;
++}
++
++void
++DhtSearch::node_status(const_accessor& n, bool success) {
++  if (n == end() || !n.node()->is_active())
++    throw internal_error("DhtSearch::node_status called for invalid/inactive node.");
++
++  if (success) {
++    n.node()->set_good();
++    m_replied++;
++
++  } else {
++    n.node()->set_bad();
++  }
++
++  m_pending--;
++  set_node_active(n, false);
++}
++
++DhtSearch::const_accessor
++DhtAnnounce::start_announce() {
++  trim(true);
++
++  if (empty())
++    return end();
++
++  if (!complete() || m_next != end() || size() > DhtBucket::num_nodes)
++    throw internal_error("DhtSearch::start_announce called in inconsistent state.");
++
++  m_contacted = m_pending = size();
++  m_replied = 0;
++
++  for (const_accessor itr(begin()); itr != end(); ++itr)
++    set_node_active(itr, true);
++
++  return const_accessor(begin());
++}
++
++void
++DhtTransactionPacket::build_buffer(const Object& data) {
++  char buffer[1500];  // If the message would exceed an Ethernet frame, something went very wrong.
++  object_buffer_t result = object_write_bencode_c(object_write_to_buffer, NULL, std::make_pair(buffer, buffer + sizeof(buffer)), &data);
++
++  m_length = result.second - buffer;
++  m_data = new char[m_length];
++  memcpy(m_data, buffer, m_length);
++}
++
++DhtTransaction::DhtTransaction(int quick_timeout, int timeout, const HashString& id, const rak::socket_address* sa)
++  : m_hasQuickTimeout(quick_timeout > 0),
++    m_id(id),
++    m_sa(*sa),
++    m_timeout(cachedTime.seconds() + timeout),
++    m_quickTimeout(cachedTime.seconds() + quick_timeout),
++    m_retry(3),
++    m_packet(NULL) {
++
++}
++
++DhtTransaction::~DhtTransaction() {
++  if (m_packet != NULL)
++    m_packet->set_failed();
++}
++
++void
++DhtTransactionSearch::set_stalled() {
++  if (!m_hasQuickTimeout)
++    throw internal_error("DhtTransactionSearch::set_stalled called on already stalled transaction.");
++
++  m_hasQuickTimeout = false;
++  m_search->m_concurrency++;
++}
++
++void
++DhtTransactionSearch::complete(bool success) {
++  if (m_node == m_search->end())
++    throw internal_error("DhtTransactionSearch::complete called multiple times.");
++
++  if (m_node.search() != m_search)
++    throw internal_error("DhtTransactionSearch::complete called for node from wrong search.");
++
++  if (!m_hasQuickTimeout)
++    m_search->m_concurrency--;
++
++  m_search->node_status(m_node, success);
++  m_node = m_search->end();
++}
++
++DhtTransactionSearch::~DhtTransactionSearch() {
++  if (m_node != m_search->end())
++    complete(false);
++
++  if (m_search->complete())
++    delete m_search;
++}
++
++}
+Index: libtorrent/src/dht/dht_node.cc
+===================================================================
+--- libtorrent/src/dht/dht_node.cc	(revision 0)
++++ libtorrent/src/dht/dht_node.cc	(revision 0)
+@@ -0,0 +1,89 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#include "config.h"
++#include "globals.h"
++
++#include "torrent/exceptions.h"
++#include "torrent/object.h"
++
++#include "dht_node.h"
++
++namespace torrent {
++
++DhtNode::DhtNode(const HashString& id, const rak::socket_address* sa) :
++  HashString(id),
++  m_socketAddress(*sa),
++  m_lastSeen(0),
++  m_recentlyActive(false),
++  m_recentlyInactive(0),
++  m_bucket(NULL) {
++
++  if (sa->family() != rak::socket_address::af_inet)
++    throw resource_error("Address not af_inet");
++}
++
++DhtNode::DhtNode(const std::string& id, const Object& cache) :
++  HashString(*HashString::cast_from(id.c_str())),
++  m_recentlyActive(false),
++  m_recentlyInactive(0),
++  m_bucket(NULL) {
++
++  rak::socket_address_inet* sa = m_socketAddress.sa_inet();
++  sa->set_family();
++  sa->set_address_h(cache.get_key_value("i"));
++  sa->set_port(cache.get_key_value("p"));
++  m_lastSeen = cache.get_key_value("t");
++  update();
++}
++
++char*
++DhtNode::store_compact(char* buffer) const {
++  HashString::cast_from(buffer)->assign(data());
++  *(uint32_t*) (buffer+20) = address()->sa_inet()->address_n();
++  *(uint16_t*) (buffer+24) = address()->sa_inet()->port_n();
++  return buffer+26;
++}
++
++Object*
++DhtNode::store_cache(Object* container) const {
++  container->insert_key("i", m_socketAddress.sa_inet()->address_h());
++  container->insert_key("p", m_socketAddress.sa_inet()->port());
++  container->insert_key("t", m_lastSeen);
++  return container;
++}
++
++}
+Index: libtorrent/src/dht/dht_server.cc
+===================================================================
+--- libtorrent/src/dht/dht_server.cc	(revision 0)
++++ libtorrent/src/dht/dht_server.cc	(revision 0)
+@@ -0,0 +1,912 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#include "config.h"
++#include "globals.h"
++
++#include <algorithm>
++#include <sstream>
++#include <rak/error_number.h>
++#include <rak/string_manip.h>
++
++#include "net/throttle_manager.h"
++#include "torrent/exceptions.h"
++#include "torrent/connection_manager.h"
++#include "torrent/object.h"
++#include "torrent/object_stream.h"
++#include "torrent/poll.h"
++#include "tracker/tracker_dht.h"
++
++#include "dht_bucket.h"
++#include "dht_router.h"
++#include "dht_transaction.h"
++
++#include "manager.h"
++
++namespace torrent {
++
++const char* DhtServer::queries[] = {
++  "ping",
++  "find_node",
++  "get_peers",
++  "announce_peer",
++};
++
++// Error in DHT protocol, avoids std::string ctor from communication_error
++class dht_error : public network_error {
++public:
++  dht_error(int code, const char* message) : m_message(message), m_code(code) {}
++
++  virtual int          code() const throw()   { return m_code; }
++  virtual const char*  what() const throw()   { return m_message; }
++
++private:
++  const char*  m_message;
++  int          m_code;
++};
++
++DhtServer::DhtServer(DhtRouter* router) :
++  m_router(router),
++
++  m_uploadThrottle(60),
++  m_downloadThrottle(60),
++
++  m_networkUp(false) {
++
++  get_fd().clear();
++  reset_statistics();
++
++  // Reserve a socket for the DHT server, even though we don't
++  // actually open it until the server is started, which may not
++  // happen until the first non-private torrent is started.
++  manager->connection_manager()->inc_socket_count();
++}
++
++DhtServer::~DhtServer() {
++  stop();
++
++  std::for_each(m_highQueue.begin(), m_highQueue.end(), rak::call_delete<DhtTransactionPacket>());
++  std::for_each(m_lowQueue.begin(), m_lowQueue.end(), rak::call_delete<DhtTransactionPacket>());
++
++  manager->connection_manager()->dec_socket_count();
++}
++
++void
++DhtServer::start(int port) {
++  try {
++    if (!get_fd().open_datagram() || !get_fd().set_nonblock())
++      throw resource_error("Could not allocate datagram socket.");
++
++    if (!get_fd().set_reuse_address(true))
++      throw resource_error("Could not set listening port to reuse address.");
++
++    rak::socket_address sa = *m_router->address();
++    sa.set_port(port);
++
++    if (!get_fd().bind(sa))
++      throw resource_error("Could not bind datagram socket.");
++
++  } catch (...) {
++    get_fd().close();
++    get_fd().clear();
++    throw;
++  }
++
++  m_taskTimeout.set_slot(rak::mem_fn(this, &DhtServer::receive_timeout));
++
++  m_uploadThrottle.set_list_iterator(manager->upload_throttle()->throttle_list()->end());
++  m_uploadThrottle.slot_activate(rak::make_mem_fun(reinterpret_cast<SocketBase*>(this), &SocketBase::receive_throttle_up_activate));
++
++  m_downloadThrottle.set_list_iterator(manager->download_throttle()->throttle_list()->end());
++  manager->download_throttle()->throttle_list()->insert(&m_downloadThrottle);
++
++  manager->poll()->open(this);
++  manager->poll()->insert_read(this);
++  manager->poll()->insert_error(this);
++}
++
++void
++DhtServer::stop() {
++  if (!is_active())
++    return;
++
++  clear_transactions();
++
++  priority_queue_erase(&taskScheduler, &m_taskTimeout);
++
++  manager->upload_throttle()->throttle_list()->erase(&m_uploadThrottle);
++  manager->download_throttle()->throttle_list()->erase(&m_downloadThrottle);
++
++  manager->poll()->remove_read(this);
++  manager->poll()->remove_write(this);
++  manager->poll()->remove_error(this);
++  manager->poll()->close(this);
++
++  get_fd().close();
++  get_fd().clear();
++
++  m_networkUp = false;
++}
++
++void
++DhtServer::reset_statistics() { 
++  m_queriesReceived = 0;
++  m_queriesSent = 0;
++  m_repliesReceived = 0;
++
++  m_uploadThrottle.rate()->set_total(0);
++  m_downloadThrottle.rate()->set_total(0);
++}
++
++// Ping a node whose ID we know.
++void
++DhtServer::ping(const HashString& id, const rak::socket_address* sa) {
++  // No point pinging a node that we're already contacting otherwise.
++  transaction_itr itr = m_transactions.lower_bound(DhtTransaction::key(sa, 0));
++  if (itr == m_transactions.end() || (itr->first >> 32 != DhtTransaction::key(sa, 0) >> 32))
++    add_transaction(new DhtTransactionPing(id, sa), packet_prio_low);
++}
++
++// Contact nodes in given bucket and ask for their nodes closest to target.
++void
++DhtServer::find_node(const DhtBucket& contacts, const HashString& target) {
++  DhtSearch* search = new DhtSearch(target, contacts);
++
++  DhtSearch::const_accessor n;
++  while ((n = search->get_contact()) != search->end())
++    add_transaction(new DhtTransactionFindNode(n), packet_prio_low);
++
++  // This shouldn't happen, it means we had no contactable nodes at all.
++  if (!search->start()) {
++    delete search;
++    return;
++  }
++
++}
++
++void
++DhtServer::announce(const DhtBucket& contacts, const HashString& infoHash, TrackerDht* tracker) {
++  DhtAnnounce* announce = new DhtAnnounce(infoHash, tracker, contacts);
++
++  DhtSearch::const_accessor n;
++  while ((n = announce->get_contact()) != announce->end())
++    add_transaction(new DhtTransactionFindNode(n), packet_prio_high);
++
++  // This can only happen if all nodes we know are bad.
++  if (!announce->start()) {
++    tracker->receive_failed("No DHT nodes available for peer search.");
++    delete announce;
++    return;
++  }
++
++  tracker->receive_status(announce->num_replied(), announce->num_contacted(), "Searching");
++}
++
++void
++DhtServer::cancel_announce(DownloadInfo* info, const TrackerDht* tracker) {
++  transaction_itr itr = m_transactions.begin();
++
++  while (itr != m_transactions.end()) {
++    if (itr->second->is_search() && itr->second->as_search()->search()->is_announce()) {
++      DhtAnnounce* announce = reinterpret_cast<DhtAnnounce*>(itr->second->as_search()->search());
++
++      if ((!info || announce->target() == info->hash()) && (!tracker || announce->tracker() == tracker)) {
++        itr = cancel_transaction(itr);
++        continue;  // itr has been incremented already
++      }
++    }
++
++    ++itr;
++  }
++}
++
++void
++DhtServer::update() {
++  // Reset this every 15 minutes. It'll get set back to true if we receive
++  // any valid packets. This allows detecting when the entire network goes
++  // down, and prevents all nodes from getting removed as unresponsive.
++  m_networkUp = false;
++}
++
++void
++DhtServer::process_query(const Object& transactionId, const HashString& id, const rak::socket_address* sa, Object& request) {
++  m_queriesReceived++;
++  m_networkUp = true;
++
++  std::string& query = request.get_key_string("q");
++
++  Object& arg = request.get_key("a");
++
++  // Construct reply.
++  Object reply(Object::TYPE_MAP);
++
++  if (query == "find_node")
++    create_find_node_response(arg, reply);
++
++  else if (query == "get_peers")
++    create_get_peers_response(arg, sa, reply);
++
++  else if (query == "announce_peer")
++    create_announce_peer_response(arg, sa, reply);
++
++  else if (query != "ping")
++    throw dht_error(dht_error_bad_method, "Unknown query type.");
++
++  m_router->node_queried(id, sa);
++
++  create_response(transactionId, sa, reply);
++}
++
++void
++DhtServer::create_find_node_response(const Object& arg, Object& reply) {
++  const std::string& target = arg.get_key_string("target");
++
++  if (target.length() < HashString::size_data)
++    throw dht_error(dht_error_protocol, "target string too short");
++
++  char compact[26*8];
++  char* end = m_router->store_closest_nodes(*HashString::cast_from(target), compact, compact + 26*8);
++
++  if (end == compact)
++    throw dht_error(dht_error_generic, "No nodes");
++
++  reply.insert_key("nodes", std::string(compact, end));
++}
++
++void
++DhtServer::create_get_peers_response(const Object& arg, const rak::socket_address* sa, Object& reply) {
++  reply.insert_key("token", m_router->make_token(sa));
++
++  const std::string& info_hash_str = arg.get_key_string("info_hash");
++
++  if (info_hash_str.length() < HashString::size_data)
++    throw dht_error(dht_error_protocol, "info hash too short");
++
++  const HashString* info_hash = HashString::cast_from(info_hash_str);
++
++  DhtTracker* tracker = m_router->get_tracker(*info_hash, false);
++
++  // If we're not tracking or have no peers, send closest nodes.
++  if (!tracker || tracker->empty()) {
++    char compact[26*8];
++    char* end = m_router->store_closest_nodes(*info_hash, compact, compact + 26*8);
++
++    if (end == compact)
++      throw dht_error(dht_error_generic, "No peers nor nodes");
++
++    reply.insert_key("nodes", std::string(compact, end));
++
++  } else {
++    Object& values = reply.insert_key("values", Object(Object::TYPE_LIST));
++    values.insert_back(tracker->get_peers());
++  }
++}
++
++void
++DhtServer::create_announce_peer_response(const Object& arg, const rak::socket_address* sa, Object& reply) {
++  const std::string& info_hash_str = arg.get_key_string("info_hash");
++
++  if (info_hash_str.length() < HashString::size_data)
++    throw dht_error(dht_error_protocol, "info hash too short");
++
++  const HashString* info_hash = HashString::cast_from(info_hash_str);
++
++  if (!m_router->token_valid(arg.get_key_string("token"), sa))
++    throw dht_error(dht_error_protocol, "Token invalid.");
++
++  DhtTracker* tracker = m_router->get_tracker(*info_hash, true);
++  rak::socket_address peer = *sa;
++  peer.set_port(arg.get_key_value("port"));
++  tracker->add_peer(&peer);
++}
++
++void
++DhtServer::process_response(int transactionId, const HashString& id, const rak::socket_address* sa, Object& request) {
++  transaction_itr itr = m_transactions.find(DhtTransaction::key(sa, transactionId));
++
++  // Response to a transaction we don't have in our table. At this point it's
++  // impossible to tell whether it used to be a valid transaction but timed out
++  // or the node did not return the ID we sent it. Best we can do is ignore the
++  // reply.
++  if (itr == m_transactions.end())
++    return;
++
++  m_repliesReceived++;
++  m_networkUp = true;
++
++  const Object& response = request.get_key("r");
++
++  // If we contact a node but the reply ID or key (address) don't match, ignore the reply
++  // to prevent interference from rogue nodes.
++  // (But ignore the port for comparison purposes since it may be changed by NAT.)
++  DhtTransaction* transaction = itr->second;
++  if (DhtTransaction::key(sa, transactionId) != transaction->key(transactionId) || (id != transaction->id() && transaction->id() != *m_router && transaction->id() != m_router->zero_id))
++    return;
++
++  switch (transaction->type()) {
++    case DhtTransaction::DHT_FIND_NODE:
++      parse_find_node_reply(transaction->as_find_node(), response.get_key_string("nodes"));
++      break;
++
++    case DhtTransaction::DHT_GET_PEERS:
++      parse_get_peers_reply(transaction->as_get_peers(), response);
++      break;
++
++    // Nothing to do for DHT_PING and DHT_ANNOUNCE_PEER
++    default:
++      break;
++  }
++
++  // Mark node responsive only if all processing was successful, without errors.
++  m_router->node_replied(id, sa);
++
++  delete itr->second;
++  m_transactions.erase(itr);
++}
++
++void
++DhtServer::process_error(int transactionId, const rak::socket_address* sa, Object& request) {
++  transaction_itr itr = m_transactions.find(DhtTransaction::key(sa, transactionId));
++
++  if (itr == m_transactions.end())
++    return;
++
++  m_repliesReceived++;
++  m_networkUp = true;
++
++  // Don't mark node as good (because it replied) or bad (because it returned an error).
++  // If it consistently returns errors for valid queries it's probably broken.  But a
++  // few error messages are acceptable. So we do nothing and pretend the query never happened.
++
++  cancel_transaction(itr);
++}
++
++void
++DhtServer::parse_node_info(node_info_list& l, const std::string& n) {
++  if (sizeof(const compact_node_info) != 26)
++    throw internal_error("DhtServer::parse_node_info(...) bad struct size.");
++
++  std::copy(reinterpret_cast<const compact_node_info*>(n.c_str()),
++            reinterpret_cast<const compact_node_info*>(n.c_str() + n.size() - n.size() % sizeof(compact_node_info)),
++            std::back_inserter(l));
++}
++
++void
++DhtServer::parse_find_node_reply(DhtTransactionSearch* transaction, const std::string& nodes) {
++  DhtSearch* search = transaction->search();
++
++  transaction->complete(true);
++
++  node_info_list l;
++  parse_node_info(l, nodes);
++
++  for (node_info_list::iterator itr = l.begin(); itr != l.end(); ++itr) {
++    if (itr->id() != m_router->id()) {
++      rak::socket_address sa = itr->address();
++      search->add_contact(itr->id(), &sa);
++    }
++  }
++
++  find_node_next(transaction);
++}
++
++void
++DhtServer::parse_get_peers_reply(DhtTransactionGetPeers* transaction, const Object& response) {
++  DhtAnnounce* announce = transaction->announce();
++
++  transaction->complete(true);
++
++  if (response.has_key_list("values"))
++    announce->tracker()->receive_peers((*response.get_key_list("values").begin()).as_string());
++
++  if (response.has_key_string("token"))
++    add_transaction(new DhtTransactionAnnounce(transaction->id(), transaction->address(), announce->target(), response.get_key_string("token")), packet_prio_low);
++
++  announce->tracker()->receive_status(announce->num_replied(), announce->num_contacted(), "Announcing");
++
++  if (!announce->complete())
++    return;
++
++  DhtTracker* torrent = m_router->get_tracker(transaction->announce()->target(), false);
++  if (torrent != NULL)
++    announce->tracker()->receive_peers(torrent->get_peers());
++
++  announce->tracker()->receive_success();
++}
++
++void
++DhtServer::find_node_next(DhtTransactionSearch* transaction) {
++  DhtSearch::const_accessor node;
++  while ((node = transaction->search()->get_contact()) != transaction->search()->end()) {
++    int prio = packet_prio_low;
++    if (transaction->search()->is_announce())
++      prio = packet_prio_high;
++
++    add_transaction(new DhtTransactionFindNode(node), prio);
++  }
++
++  if (transaction->search()->is_announce())
++    reinterpret_cast<DhtAnnounce*>(transaction->search())->tracker()->receive_status(transaction->search()->num_replied(), transaction->search()->num_contacted(), "Searching");
++
++  if (!transaction->search()->complete())
++    return;
++
++  if (!transaction->search()->is_announce())
++    return;
++
++  // We have found the 8 closest nodes to the info hash. Retrieve peers
++  // from them and announce to them.
++  DhtAnnounce* announce = transaction->as_get_peers()->announce();
++
++  for (node = announce->start_announce(); node != announce->end(); ++node)
++    add_transaction(new DhtTransactionGetPeers(node), packet_prio_high);
++
++  if (announce->complete())
++    return announce->tracker()->receive_failed("DHT search unsuccessful.");
++
++  announce->tracker()->receive_status(announce->num_replied(), announce->num_contacted(), "Announcing");
++}
++
++void
++DhtServer::add_packet(DhtTransactionPacket* packet, int priority) {
++  switch (priority) {
++    // High priority packets are for important queries, and quite small.
++    // They're added to front of high priority queue and thus will be the
++    // next packets sent.
++    case packet_prio_high:
++      m_highQueue.push_front(packet);
++      break;
++
++    // Low priority query packets are added to the back of the high priority
++    // queue and will be sent when all high priority packets have been transmitted.
++    case packet_prio_low:
++      m_highQueue.push_back(packet);
++      break;
++
++    // Reply packets will be processed after all of our own packets have been send.
++    case packet_prio_reply:
++      m_lowQueue.push_back(packet);
++      break;
++
++    default:
++      throw internal_error("DhtServer::add_packet called with invalid priority.");
++  }
++}
++
++void
++DhtServer::create_query(transaction_itr itr, int tID, const rak::socket_address* sa, int priority) {
++  if (itr->second->id() == m_router->id()) {
++    delete itr->second;
++    m_transactions.erase(itr);
++    return;   // Don't send to ourself.
++  }
++
++  Object query(Object::TYPE_MAP);
++
++  Object q(Object::TYPE_MAP);
++  q.insert_key("id", m_router->str());
++
++  DhtTransaction* transaction = itr->second;
++  switch (transaction->type()) {
++    case DhtTransaction::DHT_PING:
++      // nothing to do
++      break;
++
++    case DhtTransaction::DHT_FIND_NODE:
++      q.insert_key("target", transaction->as_find_node()->search()->target().str());
++      break;
++
++    case DhtTransaction::DHT_GET_PEERS:
++      q.insert_key("info_hash", transaction->as_get_peers()->announce()->target().str());
++      break;
++
++    case DhtTransaction::DHT_ANNOUNCE_PEER:
++      q.insert_key("info_hash", transaction->as_announce()->info_hash().str());
++      q.insert_key("port", manager->connection_manager()->listen_port());
++      q.insert_key("token", transaction->as_announce()->token());
++      break;
++  }
++
++  char trans_id = tID;
++  query.insert_key("t", std::string(&trans_id, 1));
++  query.insert_key("y", "q");
++  query.insert_key("q", queries[transaction->type()]);
++  query.insert_key("a", q);
++  query.insert_key("v", PEER_VERSION);
++
++  DhtTransactionPacket* packet = new DhtTransactionPacket(transaction->address(), query, tID, transaction);
++  transaction->set_packet(packet);
++  add_packet(packet, priority);
++
++  m_queriesSent++;
++}
++
++void
++DhtServer::create_response(const Object& transactionId, const rak::socket_address* sa, Object& r) {
++  Object reply(Object::TYPE_MAP);
++  r.insert_key("id", m_router->str());
++
++  reply.insert_key("t", transactionId);
++  reply.insert_key("y", "r");
++  reply.insert_key("r", r);
++  reply.insert_key("v", PEER_VERSION);
++
++  add_packet(new DhtTransactionPacket(sa, reply), packet_prio_reply);
++}
++
++void
++DhtServer::create_error(const Object& transactionId, const rak::socket_address* sa, int num, const std::string& msg) {
++  Object error(Object::TYPE_MAP);
++
++  error.insert_key("t", transactionId);
++  error.insert_key("y", "e");
++  error.insert_key("v", PEER_VERSION);
++
++  Object& e = error.insert_key("e", Object(Object::TYPE_LIST));
++  e.insert_back(num);
++  e.insert_back(msg);
++
++  add_packet(new DhtTransactionPacket(sa, error), packet_prio_reply);
++}
++
++int
++DhtServer::add_transaction(DhtTransaction* transaction, int priority) {
++  // Try random transaction ID. This is to make it less likely that we reuse
++  // a transaction ID from an earlier transaction which timed out and we forgot
++  // about it, so that if the node replies after the timeout it's less likely
++  // that we match the reply to the wrong transaction.
++  //
++  // If there's an existing transaction with the random ID we search for the next
++  // unused one. Since normally only one or two transactions will be active per
++  // node, a collision is extremely unlikely, and a linear search for the first
++  // open one is the most efficient.
++  unsigned int rnd = (uint8_t)random();
++  unsigned int id = rnd;
++
++  transaction_itr insertItr = m_transactions.lower_bound(transaction->key(rnd));
++
++  // If key matches, keep trying successive IDs.
++  while (insertItr != m_transactions.end() && insertItr->first == transaction->key(id)) {
++    ++insertItr;
++    id = (uint8_t)(id + 1);
++
++    // Give up after trying all possible IDs. This should never happen.
++    if (id == rnd) {
++      delete transaction;
++      return -1;
++    }
++
++    // Transaction ID wrapped around, reset iterator.
++    if (id == 0)
++      insertItr = m_transactions.lower_bound(transaction->key(id));
++  }
++
++  // We know where to insert it, so pass that as hint.
++  insertItr = m_transactions.insert(insertItr, std::make_pair(transaction->key(id), transaction));
++
++  create_query(insertItr, id, transaction->address(), priority);
++
++  start_write();
++
++  return id;
++}
++
++// Transaction received no reply and timed out. Mark node as bad and remove
++// transaction (except if it was only the quick timeout).
++DhtServer::transaction_itr
++DhtServer::failed_transaction(transaction_itr itr, bool quick) {
++  DhtTransaction* transaction = itr->second;
++
++  // If it was a known node, remember that it didn't reply, unless the transaction
++  // is only stalled (had quick timeout, but not full timeout).  Also if the
++  // transaction still has an associated packet, the packet never got sent due to
++  // throttling, so don't blame the remote node for not replying.
++  // Finally, if we haven't received anything whatsoever so far, assume the entire
++  // network is down and so we can't blame the node either.
++  if (!quick && m_networkUp && transaction->packet() == NULL && transaction->id() != *m_router)
++    m_router->node_inactive(transaction->id(), transaction->address());
++
++  switch (transaction->type()) {
++    case DhtTransaction::DHT_FIND_NODE:
++      if (quick)
++        transaction->as_find_node()->set_stalled();
++      else
++        transaction->as_find_node()->complete(false);
++
++      find_node_next(transaction->as_find_node());
++      break;
++
++    case DhtTransaction::DHT_GET_PEERS:
++      DhtAnnounce* announce;
++      announce = transaction->as_get_peers()->announce();
++      transaction->as_get_peers()->complete(false);
++      if (announce->complete())
++        announce->tracker()->receive_success();
++      break;
++
++    // Nothing to for DHT_PING and DHT_ANNOUNCE_PEER
++    default:
++      break;
++  }
++
++  if (quick) {
++    return ++itr;         // don't actually delete the transaction until the final timeout
++
++  } else {
++    delete itr->second;
++    m_transactions.erase(itr++);
++    return itr;
++  }
++}
++
++// Cancel transaction before the timeout (i.e. we aren't sure if the node is bad yet).
++DhtServer::transaction_itr
++DhtServer::cancel_transaction(transaction_itr itr) {
++  DhtTransaction* transaction = itr->second;
++
++  // If this was the last transaction of an announce search, notify tracker.
++  if (transaction->is_search() && transaction->as_search()->search()->is_announce()) {
++    transaction->as_search()->complete(false);
++
++    DhtAnnounce* announce = reinterpret_cast<DhtAnnounce*>(transaction->as_search()->search());
++    if (announce->complete()) {
++      // If we got no peers, it's a failure if the announces all failed as well.
++      // We don't want no peers to be a failure in general since it may just be
++      // a dead torrent.
++      if (announce->num_replied() == 0 && !announce->tracker()->has_peers())
++        announce->tracker()->receive_failed("Announce failed");
++      else
++        announce->tracker()->receive_success();
++    }
++  }
++
++  delete itr->second;
++  m_transactions.erase(itr++);
++  return itr;
++}
++
++void
++DhtServer::clear_transactions() {
++  std::for_each(m_transactions.begin(), m_transactions.end(),
++                rak::on(rak::mem_ref(&transaction_map::value_type::second), 
++                        rak::call_delete<DhtTransaction>()));
++  m_transactions.clear();
++}
++
++void
++DhtServer::event_read() {
++  uint32_t total = 0;
++  std::istringstream sstream;
++
++  sstream.imbue(std::locale::classic());
++
++  while (true) {
++    rak::socket_address sa;
++    int type = '?';
++    const Object* transactionId = NULL;
++    const HashString* nodeId = NULL;
++
++    try {
++      char buffer[2048];
++      int32_t read = read_datagram(buffer, sizeof(buffer), &sa);
++
++      if (read < 0)
++        break;
++
++      total += read;
++      sstream.str(std::string(buffer, read));
++
++      Object request;
++      sstream >> request;
++
++      // Could throw dht_error with more descriptive error messages but
++      // we can't return an error unless the packet is valid and we have the
++      // transaction ID anyway. Searching the routing table for the source
++      // address to find the node is too expensive, so just ignore the packet.
++      if (sstream.fail() || !request.is_map() || !request.has_key("t") || !request.has_key_string("y"))
++        continue;
++
++      // Read the items required for proper error handling first.
++      transactionId = &request.get_key("t");
++      if (request.get_key_string("y").length() == 1)
++        type = request.get_key_string("y")[0];
++
++      // Queries and replies have node ID in different dictionaries.
++      if (type == 'r' || type == 'q') {
++        const std::string& nodeIdStr = request.get_key(type == 'q' ? "a" : "r").get_key_string("id");
++
++        if (nodeIdStr.length() < HashString::size_data)
++          throw dht_error(dht_error_protocol, "id value too short");
++
++        nodeId = HashString::cast_from(nodeIdStr);
++      }
++
++      // Sanity check the returned transaction ID.
++      if ((type == 'r' || type == 'e') && 
++          (!transactionId->is_string() || transactionId->as_string().length() != 1))
++        throw dht_error(dht_error_protocol, "Invalid transaction ID type/length.");
++
++      switch (type) {
++        case 'q':
++          process_query(*transactionId, *nodeId, &sa, request);
++          break;
++
++        case 'r':
++          process_response(((unsigned char*)transactionId->as_string().c_str())[0], *nodeId, &sa, request);
++          break;
++
++        case 'e':
++          process_error(((unsigned char*)transactionId->as_string().c_str())[0], &sa, request);
++          break;
++
++        default:
++          throw dht_error(dht_error_bad_method, "Unknown message type.");
++      }
++
++    } catch (bencode_error& e) {
++      if (type == 'q' && transactionId != NULL)
++        create_error(*transactionId, &sa, dht_error_protocol, std::string("Malformed packet: ") + e.what());
++      else if ((type == 'r' || type == 'e') && nodeId != NULL)
++        m_router->node_inactive(*nodeId, &sa);
++
++    } catch (dht_error& e) {
++      // If node was querying us, reply with error packet, otherwise mark the node as "query failed",
++      // so that if it repeatedly sends malformed replies we will drop it instead of propagating it
++      // to other nodes.
++      if (type == 'q' && transactionId != NULL)
++        create_error(*transactionId, &sa, e.code(), e.what());
++      else if ((type == 'r' || type == 'e') && nodeId != NULL)
++        m_router->node_inactive(*nodeId, &sa);
++
++    } catch (network_error& e) {
++
++    }
++  }
++
++  manager->download_throttle()->throttle_list()->node_used_unthrottled(total);
++  start_write();
++}
++
++bool
++DhtServer::process_queue(packet_queue& queue, uint32_t* quota) {
++  uint32_t used = 0;
++
++  while (!queue.empty()) {
++    DhtTransactionPacket* packet = queue.front();
++
++    // Make sure its transaction hasn't timed out yet, if it has/had one
++    // and don't bother sending non-transaction packets after more than
++    // 15 seconds in the queue.
++    if (packet->has_failed() || packet->age() > 15) {
++      delete packet;
++      queue.pop_front();
++      continue;
++    }
++
++    if (packet->length() > *quota) {
++      manager->upload_throttle()->throttle_list()->node_used(&m_uploadThrottle, used);
++      return false;
++    }
++
++    queue.pop_front();
++
++    try {
++      int written = write_datagram(packet->c_str(), packet->length(), packet->address());
++
++      if (written == -1)
++        throw network_error();
++
++      used += written;
++      *quota -= written;
++
++      if ((unsigned int)written != packet->length())
++        throw network_error();
++
++    } catch (network_error& e) {
++      // Couldn't write packet, maybe something wrong with node address or routing, so mark node as bad.
++      if (packet->has_transaction()) {
++        transaction_itr itr = m_transactions.find(packet->transaction()->key(packet->id()));
++        if (itr == m_transactions.end())
++          throw internal_error("DhtServer::process_queue could not find transaction.");
++
++        failed_transaction(itr, false);
++      }
++    }
++
++    if (packet->has_transaction())
++      packet->transaction()->set_packet(NULL);
++
++    delete packet;
++  }
++
++  manager->upload_throttle()->throttle_list()->node_used(&m_uploadThrottle, used);
++  return true;
++}
++
++void
++DhtServer::event_write() {
++  if (m_highQueue.empty() && m_lowQueue.empty())
++    throw internal_error("DhtServer::event_write called but both write queues are empty.");
++
++  if (!manager->upload_throttle()->throttle_list()->is_throttled(&m_uploadThrottle))
++    throw internal_error("DhtServer::event_write called while not in throttle list.");
++
++  uint32_t quota = manager->upload_throttle()->throttle_list()->node_quota(&m_uploadThrottle);
++
++  if (quota == 0 || !process_queue(m_highQueue, &quota) || !process_queue(m_lowQueue, &quota)) {
++    manager->poll()->remove_write(this);
++    manager->upload_throttle()->throttle_list()->node_deactivate(&m_uploadThrottle);
++
++  } else if (m_highQueue.empty() && m_lowQueue.empty()) {
++    manager->poll()->remove_write(this);
++    manager->upload_throttle()->throttle_list()->erase(&m_uploadThrottle);
++  }
++}
++
++void
++DhtServer::event_error() {
++}
++
++void
++DhtServer::start_write() {
++  if ((!m_highQueue.empty() || !m_lowQueue.empty()) && !manager->upload_throttle()->throttle_list()->is_throttled(&m_uploadThrottle)) {
++    manager->upload_throttle()->throttle_list()->insert(&m_uploadThrottle);
++    manager->poll()->insert_write(this);
++  }
++
++  if (!m_taskTimeout.is_queued() && !m_transactions.empty())
++    priority_queue_insert(&taskScheduler, &m_taskTimeout, (cachedTime + rak::timer::from_seconds(5)).round_seconds());
++}
++
++void
++DhtServer::receive_timeout() {
++  transaction_itr itr = m_transactions.begin();
++  while (itr != m_transactions.end()) {
++    if (itr->second->has_quick_timeout() && itr->second->quick_timeout() < cachedTime.seconds()) {
++      itr = failed_transaction(itr, true);
++
++    } else if (itr->second->timeout() < cachedTime.seconds()) {
++      itr = failed_transaction(itr, false);
++
++    } else {
++      ++itr;
++    }
++  }
++
++  start_write();
++}
++
++}
+Index: libtorrent/src/dht/Makefile.am
+===================================================================
+--- libtorrent/src/dht/Makefile.am	(revision 0)
++++ libtorrent/src/dht/Makefile.am	(revision 0)
+@@ -0,0 +1,19 @@
++noinst_LTLIBRARIES = libsub_dht.la
++
++libsub_dht_la_SOURCES = \
++	dht_bucket.cc \
++	dht_bucket.h \
++	dht_hash_map.h \
++	dht_node.cc \
++	dht_node.h \
++	dht_router.cc \
++	dht_router.h \
++	dht_server.cc \
++	dht_server.h \
++	dht_size_list.h \
++	dht_tracker.cc \
++	dht_tracker.h \
++	dht_transaction.cc \
++	dht_transaction.h
++
++INCLUDES = -I$(srcdir) -I$(srcdir)/.. -I$(top_srcdir)
+Index: libtorrent/src/dht/dht_transaction.h
+===================================================================
+--- libtorrent/src/dht/dht_transaction.h	(revision 0)
++++ libtorrent/src/dht/dht_transaction.h	(revision 0)
+@@ -0,0 +1,363 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#ifndef LIBTORRENT_DHT_TRANSACTION_H
++#define LIBTORRENT_DHT_TRANSACTION_H
++
++#include <map>
++
++#include <rak/socket_address.h>
++
++#include "dht/dht_node.h"
++#include "torrent/hash_string.h"
++
++namespace torrent {
++
++class DhtBucket;
++class TrackerDht;
++
++class DhtSearch;
++class DhtTransactionSearch;
++
++class DhtTransaction;
++class DhtTransactionPing;
++class DhtTransactionFindNode;
++class DhtTransactionGetPeers;
++class DhtTransactionAnnounce;
++
++// DhtSearch implements the DHT search algorithm and holds search data
++// that needs to be persistent across multiple find_node transactions.
++//
++// DhtAnnounce is a derived class used for searches that will eventually
++// lead to an announce to the closest nodes.
++
++
++// Compare predicate for ID closeness.
++struct dht_compare_closer : public std::binary_function<const DhtNode*, const DhtNode*, bool> {
++  dht_compare_closer(const HashString& target) : m_target(target) { }
++
++  bool operator () (const DhtNode* one, const DhtNode* two) const;
++
++  const HashString&               target() const   { return m_target; }
++
++  HashString m_target;
++};
++
++// DhtSearch contains a list of nodes sorted by closeness to the given target,
++// and returns what nodes to contact with up to three concurrent transactions pending.
++// The map element is the DhtSearch object itself to allow the returned accessors
++// to know which search a given node belongs to.
++class DhtSearch : protected std::map<DhtNode*, DhtSearch*, dht_compare_closer> {
++  friend class DhtTransactionSearch;
++
++public:
++  typedef std::map<DhtNode*, DhtSearch*, dht_compare_closer> base_type;
++
++  // Number of closest potential contact nodes to keep.
++  static const unsigned int max_contacts = 18;
++
++  DhtSearch(const HashString& target, const DhtBucket& contacts);
++  virtual ~DhtSearch();
++
++  // Wrapper for iterators, allowing more convenient access to the key
++  // and element values, which also makes it easier to change the container
++  // without having to modify much code using iterators.
++  template <typename T>
++  struct accessor_wrapper : public T {
++    accessor_wrapper() { }
++    accessor_wrapper(const T& itr) : T(itr) { }
++
++    DhtNode*                        node() const     { return (**this).first; }
++    DhtSearch*                      search() const   { return (**this).second; }
++  };
++
++  typedef accessor_wrapper<base_type::const_iterator>  const_accessor;
++  typedef accessor_wrapper<base_type::iterator>        accessor;
++
++  // Add a potential node to contact for the search.
++  bool                 add_contact(const HashString& id, const rak::socket_address* sa);
++  void                 add_contacts(const DhtBucket& contacts);
++
++  // Return next node to contact. Up to concurrent_searches nodes are returned,
++  // and end() after that. Don't advance the accessor to get further contacts!
++  const_accessor       get_contact();
++
++  // Search statistics.
++  int                  num_contacted()                   { return m_contacted; }
++  int                  num_replied()                     { return m_replied; }
++
++  bool                 start()                           { m_started = true; return m_pending; }
++  bool                 complete() const                  { return m_started && !m_pending; }
++
++  const HashString&    target() const                    { return key_comp().target(); }
++
++  virtual bool         is_announce() const               { return false; }
++
++  // Expose the otherwise private end() function but return an accessor,
++  // to allow code checking whether get_contact returned a valid accessor.
++  const_accessor       end() const                       { return base_type::end(); }
++
++  // Used by the sorting/comparison predicate to see which node is closer.
++  static bool          is_closer(const HashString& one, const HashString& two, const HashString& target);
++
++protected:
++  void                 trim(bool final);
++  void                 node_status(const_accessor& n, bool success);
++  void                 set_node_active(const_accessor& n, bool active);
++
++  // Statistics about contacted nodes.
++  unsigned int         m_pending;
++  unsigned int         m_contacted;
++  unsigned int         m_replied;
++  unsigned int         m_concurrency;
++
++  bool                 m_restart;  // If true, trim nodes and reset m_next on the following get_contact call.
++  bool                 m_started;
++
++  // Next node to return in get_contact, is end() if we have no more contactable nodes.
++  const_accessor       m_next;
++
++private:
++  DhtSearch(const DhtSearch& s);
++
++  bool                 node_uncontacted(const DhtNode* node) const;
++};
++
++class DhtAnnounce : public DhtSearch {
++public:
++  DhtAnnounce(const HashString& infoHash, TrackerDht* tracker, const DhtBucket& contacts)
++    : DhtSearch(infoHash, contacts),
++      m_tracker(tracker) { }
++
++  TrackerDht*          tracker() const                   { return m_tracker; }
++
++  // Start announce and return final set of nodes in get_contact() calls.
++  // This resets DhtSearch's completed() function, which now
++  // counts announces instead.
++  const_accessor       start_announce();
++
++  virtual bool         is_announce() const               { return true; }
++
++private:
++  TrackerDht*          m_tracker;
++};
++
++// Class holding transaction data to be transmitted.
++class DhtTransactionPacket {
++public:
++  // transaction packet
++  DhtTransactionPacket(const rak::socket_address* s, const Object& d, unsigned int id, DhtTransaction* t)
++    : m_sa(*s), m_id(id), m_transaction(t) { build_buffer(d); };
++
++  // non-transaction packet
++  DhtTransactionPacket(const rak::socket_address* s, const Object& d)
++    : m_sa(*s), m_id(-cachedTime.seconds()), m_transaction(NULL) { build_buffer(d); };
++
++  ~DhtTransactionPacket()                               { delete[] m_data; }
++
++  bool                        has_transaction() const   { return m_id >= -1; }
++  bool                        has_failed() const        { return m_id == -1; }
++  void                        set_failed()              { m_id = -1; }
++
++  const rak::socket_address*  address() const           { return &m_sa; }
++  rak::socket_address*        address()                 { return &m_sa; }
++
++  const char*                 c_str() const             { return m_data; }
++  size_t                      length() const            { return m_length; }
++
++  int                         id() const                { return m_id; }
++  int                         age() const               { return has_transaction() ? 0 : cachedTime.seconds() + m_id; }
++  const DhtTransaction*       transaction() const       { return m_transaction; }
++  DhtTransaction*             transaction()             { return m_transaction; }
++
++private:
++  void                        build_buffer(const Object& data);
++
++  rak::socket_address   m_sa;
++  char*                 m_data;
++  size_t                m_length;
++  int                   m_id;
++  DhtTransaction*       m_transaction;
++};
++
++// DHT Transaction classes. DhtTransaction and DhtTransactionSearch
++// are not directly usable with no public constructor, since type()
++// is a pure virtual function.
++class DhtTransaction {
++public:
++  virtual ~DhtTransaction();
++
++  typedef enum {
++    DHT_PING,
++    DHT_FIND_NODE,
++    DHT_GET_PEERS,
++    DHT_ANNOUNCE_PEER,
++  } transaction_type;
++
++  virtual transaction_type    type() = 0;
++  virtual bool                is_search()          { return false; }
++
++  // Key to uniquely identify a transaction with given per-node transaction id.
++  uint64_t                    key(int id) const    { return key(&m_sa, id); }
++  static uint64_t             key(const rak::socket_address* sa, int id) { return ((uint64_t)sa->sa_inet()->address_n() << 32) + id; }
++
++  // Node ID and address.
++  const HashString&           id()                 { return m_id; }
++  const rak::socket_address*  address()            { return &m_sa; }
++
++  int                         timeout()            { return m_timeout; }
++  int                         quick_timeout()      { return m_quickTimeout; }
++  bool                        has_quick_timeout()  { return m_hasQuickTimeout; }
++
++  int                         dec_retry()          { return m_retry--; }
++  int                         retry()              { return m_retry; }
++
++  DhtTransactionPacket*       packet()             { return m_packet; }
++  void                        set_packet(DhtTransactionPacket* p) { m_packet = p; }
++
++  // These could (should?) check that the type matches. Or use dynamic cast.
++  DhtTransactionSearch*       as_search()          { return reinterpret_cast<DhtTransactionSearch*>(this); }
++  DhtTransactionPing*         as_ping()            { return reinterpret_cast<DhtTransactionPing*>(this); }
++  DhtTransactionFindNode*     as_find_node()       { return reinterpret_cast<DhtTransactionFindNode*>(this); }
++  DhtTransactionGetPeers*     as_get_peers()       { return reinterpret_cast<DhtTransactionGetPeers*>(this); }
++  DhtTransactionAnnounce*     as_announce()        { return reinterpret_cast<DhtTransactionAnnounce*>(this); }
++
++protected:
++  DhtTransaction(int quick_timeout, int timeout, const HashString& id, const rak::socket_address* sa);
++
++  bool                 m_hasQuickTimeout;
++
++private:
++  DhtTransaction(const DhtTransaction& t);
++
++  HashString             m_id;
++  rak::socket_address    m_sa;
++  int                    m_timeout;
++  int                    m_quickTimeout;
++  int                    m_retry;
++  DhtTransactionPacket*  m_packet;
++};
++
++class DhtTransactionSearch : public DhtTransaction {
++public:
++  virtual ~DhtTransactionSearch();
++
++  virtual bool               is_search()                  { return true; }
++
++  DhtSearch::const_accessor  node()                       { return m_node; }
++  DhtSearch*                 search()                     { return m_search; }
++
++  void                       set_stalled();
++
++  void                       complete(bool success);
++
++protected: 
++  DhtTransactionSearch(int quick_timeout, int timeout, DhtSearch::const_accessor& node)
++    : DhtTransaction(quick_timeout, timeout, node.node()->id(), node.node()->address()),
++      m_node(node),
++      m_search(node.search()) { if (!m_hasQuickTimeout) m_search->m_concurrency++; }
++
++private:
++  DhtSearch::const_accessor  m_node; 
++  DhtSearch*                 m_search;
++};
++
++// Actual transaction classes.
++class DhtTransactionPing : public DhtTransaction {
++public:
++  DhtTransactionPing(const HashString& id, const rak::socket_address* sa) 
++    : DhtTransaction(-1, 30, id, sa) { }
++
++  virtual transaction_type    type()                     { return DHT_PING; }
++};
++
++class DhtTransactionFindNode : public DhtTransactionSearch {
++public:
++  DhtTransactionFindNode(DhtSearch::const_accessor& node)
++    : DhtTransactionSearch(4, 30, node) { }
++
++  virtual transaction_type    type()                     { return DHT_FIND_NODE; }
++};
++
++class DhtTransactionGetPeers : public DhtTransactionSearch {
++public:
++  DhtTransactionGetPeers(DhtSearch::const_accessor& node)
++    : DhtTransactionSearch(-1, 30, node) { }
++
++  virtual transaction_type    type()                     { return DHT_GET_PEERS; }
++
++  DhtAnnounce*                announce()                 { return reinterpret_cast<DhtAnnounce*>(search()); }
++};
++
++class DhtTransactionAnnounce : public DhtTransaction {
++public:
++  DhtTransactionAnnounce(const HashString& id, const rak::socket_address* sa, const HashString& infoHash, const std::string& token)
++    : DhtTransaction(-1, 30, id, sa),
++      m_infoHash(infoHash),
++      m_token(token) { }
++
++  virtual transaction_type    type()                     { return DHT_ANNOUNCE_PEER; }
++
++  const HashString&           info_hash()                { return m_infoHash; }
++  const std::string&          token()                    { return m_token; }
++
++private:
++  HashString           m_infoHash;
++  std::string          m_token;
++};
++
++inline bool
++DhtSearch::is_closer(const HashString& one, const HashString& two, const HashString& target) {
++  for (unsigned int i=0; i<one.size(); i++)
++    if (one[i] != two[i])
++      return (uint8_t)(one[i] ^ target[i]) < (uint8_t)(two[i] ^ target[i]);
++
++  return false;
++}
++
++inline void
++DhtSearch::set_node_active(const_accessor& n, bool active) {
++  n.node()->m_lastSeen = active;
++}
++
++inline bool
++dht_compare_closer::operator () (const DhtNode* one, const DhtNode* two) const {
++  return DhtSearch::is_closer(*one, *two, m_target);
++}
++
++}
++
++#endif
+Index: libtorrent/src/dht/dht_node.h
+===================================================================
+--- libtorrent/src/dht/dht_node.h	(revision 0)
++++ libtorrent/src/dht/dht_node.h	(revision 0)
+@@ -0,0 +1,136 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#ifndef LIBTORRENT_DHT_NODE_H
++#define LIBTORRENT_DHT_NODE_H
++
++#include "globals.h"
++
++#include <rak/socket_address.h>
++
++#include "torrent/hash_string.h"
++
++#include "dht_bucket.h"
++
++namespace torrent {
++
++class DhtBucket;
++
++class DhtNode : public HashString {
++  friend class DhtSearch;
++
++public:
++  // A node is considered bad if it failed to reply to this many queries.
++  static const unsigned int max_failed_replies = 5;
++
++  DhtNode(const HashString& id, const rak::socket_address* sa);
++  DhtNode(const std::string& id, const Object& cache);
++
++  const HashString&           id() const                 { return *this; }
++  const rak::socket_address*  address() const            { return &m_socketAddress; }
++  void                        set_address(const rak::socket_address* sa) { m_socketAddress = *sa; }
++
++  // For determining node quality.
++  unsigned int                last_seen() const          { return m_lastSeen; }
++  unsigned int                age() const                { return cachedTime.seconds() - m_lastSeen; }
++  bool                        is_good() const            { return m_recentlyActive; }
++  bool                        is_questionable() const    { return !m_recentlyActive; }
++  bool                        is_bad() const             { return m_recentlyInactive >= max_failed_replies; };
++  bool                        is_active() const          { return m_lastSeen; }
++
++  // Update is called once every 15 minutes.
++  void                        update()                   { m_recentlyActive = age() < 15 * 60; }
++                                                         
++  // Called when node replies to us, queries us, or fails to reply.
++  void                        replied()                  { set_good(); }
++  void                        queried()                  { if (m_lastSeen) set_good(); }
++  void                        inactive();
++
++  DhtBucket*                  bucket() const             { return m_bucket; }
++  DhtBucket*                  set_bucket(DhtBucket* b)   { m_bucket = b; return b; }
++
++  bool                        is_in_range(const DhtBucket* b) { return b->is_in_range(*this); }
++
++  // Store compact node information (26 bytes address, port and ID) in the given
++  // buffer and return pointer to end of stored information.
++  char*                       store_compact(char* buffer) const;
++
++  // Store node cache in the given container object and return it.
++  Object*                     store_cache(Object* container) const;
++
++private:
++  DhtNode();
++
++  void                        set_good();
++  void                        set_bad();
++
++  rak::socket_address m_socketAddress;
++  unsigned int        m_lastSeen;
++  bool                m_recentlyActive;
++  unsigned int        m_recentlyInactive;
++  DhtBucket*          m_bucket;
++};
++
++inline void
++DhtNode::set_good() {
++  if (m_bucket != NULL && !is_good())
++    m_bucket->node_now_good(is_bad());
++
++  m_lastSeen = cachedTime.seconds();
++  m_recentlyInactive = 0;
++  m_recentlyActive = true;
++}
++
++inline void
++DhtNode::set_bad() {
++  if (m_bucket != NULL && !is_bad())
++    m_bucket->node_now_bad(is_good());
++
++  m_recentlyInactive = max_failed_replies;
++  m_recentlyActive = false;
++}
++
++inline void
++DhtNode::inactive() {
++  if (m_recentlyInactive + 1 == max_failed_replies)
++    set_bad();
++  else 
++    m_recentlyInactive++;
++}
++
++}
++
++#endif
+Index: libtorrent/src/dht/dht_server.h
+===================================================================
+--- libtorrent/src/dht/dht_server.h	(revision 0)
++++ libtorrent/src/dht/dht_server.h	(revision 0)
+@@ -0,0 +1,186 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#ifndef LIBTORRENT_DHT_SERVER_H
++#define LIBTORRENT_DHT_SERVER_H
++
++#include <map>
++#include <deque>
++#include <rak/priority_queue_default.h>
++#include <rak/socket_address.h>
++
++#include "net/socket_datagram.h"
++#include "net/throttle_node.h"
++#include "download/download_info.h"  // for SocketAddressCompact
++#include "torrent/hash_string.h"
++
++namespace torrent {
++
++class DhtBucket;
++class DhtNode;
++class DhtRouter;
++
++class DownloadInfo;
++class TrackerDht;
++
++class DhtTransaction;
++class DhtTransactionPacket;
++class DhtTransactionSearch;
++class DhtTransactionGetPeers;
++
++// UDP server that handles the DHT node communications.
++
++class DhtServer : public SocketDatagram {
++public:
++  DhtServer(DhtRouter* self);
++  ~DhtServer();
++
++  void                start(int port);
++  void                stop();
++  bool                is_active() const                  { return get_fd().is_valid(); }
++
++  unsigned int        queries_received() const           { return m_queriesReceived; }
++  unsigned int        queries_sent() const               { return m_queriesSent; }
++  unsigned int        replies_received() const           { return m_repliesReceived; }
++  void                reset_statistics();
++
++  // Contact a node to see if it replies. Set id=0 if unknown.
++  void                ping(const HashString& id, const rak::socket_address* sa);
++
++  // Do a find_node search with the given contacts as starting point for the
++  // search.
++  void                find_node(const DhtBucket& contacts, const HashString& target);
++
++  // Do DHT announce, starting with the given contacts.
++  void                announce(const DhtBucket& contacts, const HashString& infoHash, TrackerDht* tracker);
++
++  // Cancel given announce for given tracker, or all matching announces if info/tracker NULL.
++  void                cancel_announce(DownloadInfo* info, const TrackerDht* tracker);
++
++  // Called every 15 minutes.
++  void                update();
++
++  ThrottleNode*       upload_throttle()                          { return &m_uploadThrottle; }
++  const ThrottleNode* upload_throttle() const                    { return &m_uploadThrottle; }
++  ThrottleNode*       download_throttle()                        { return &m_downloadThrottle; }
++  const ThrottleNode* download_throttle() const                  { return &m_downloadThrottle; }
++
++  virtual void        event_read();
++  virtual void        event_write();
++  virtual void        event_error();
++
++private:
++  // DHT error codes.
++  static const int dht_error_generic    = 201;
++  static const int dht_error_server     = 202;
++  static const int dht_error_protocol   = 203;
++  static const int dht_error_bad_method = 204;
++
++  typedef std::deque<DhtTransactionPacket*> packet_queue;
++
++  struct compact_node_info {
++    char                 _id[20];
++    SocketAddressCompact _addr;
++
++    HashString&          id()          { return *HashString::cast_from(_id); }
++    rak::socket_address  address()     { return rak::socket_address(_addr); }
++  } __attribute__ ((packed));
++  typedef std::list<compact_node_info> node_info_list;
++
++  // Pending transactions (using DhtTransaction::key as key).
++  typedef std::map<uint64_t, DhtTransaction*> transaction_map;
++  typedef transaction_map::iterator transaction_itr;
++
++  // DHT transaction names for given transaction type.
++  static const char* queries[];
++
++  // Priorities for the outgoing packets.
++  static const int packet_prio_high  = 2;  // For important queries we send (announces).
++  static const int packet_prio_low   = 1;  // For (relatively) unimportant queries we send.
++  static const int packet_prio_reply = 0;  // For replies to peer queries.
++
++  void                start_write();
++
++  void                process_query(const Object& transaction, const HashString& id, const rak::socket_address* sa, Object& req);
++  void                process_response(int transaction, const HashString& id, const rak::socket_address* sa, Object& req);
++  void                process_error(int transaction, const rak::socket_address* sa, Object& req);
++
++  void                parse_node_info(node_info_list& l, const std::string& n);
++  void                parse_find_node_reply(DhtTransactionSearch* t, const std::string& nodes);
++  void                parse_get_peers_reply(DhtTransactionGetPeers* t, const Object& res);
++
++  void                find_node_next(DhtTransactionSearch* t);
++
++  void                add_packet(DhtTransactionPacket* packet, int priority);
++  void                create_query(transaction_itr itr, int tID, const rak::socket_address* sa, int priority);
++  void                create_response(const Object& transaction, const rak::socket_address* sa, Object& r);
++  void                create_error(const Object& transaction, const rak::socket_address* sa, int num, const std::string& msg);
++
++  void                create_find_node_response(const Object& arg, Object& reply);
++  void                create_get_peers_response(const Object& arg, const rak::socket_address* sa, Object& reply);
++  void                create_announce_peer_response(const Object& arg, const rak::socket_address* sa, Object& reply);
++
++  int                 add_transaction(DhtTransaction* t, int priority);
++
++  // These methods return the iterator after the given one or end()
++  transaction_itr     failed_transaction(transaction_itr itr, bool quick);
++  transaction_itr     cancel_transaction(transaction_itr itr);
++
++  void                clear_transactions();
++
++  bool                process_queue(packet_queue& queue, uint32_t* quota);
++  void                receive_timeout();
++
++  DhtRouter*          m_router;
++  packet_queue        m_highQueue;
++  packet_queue        m_lowQueue;
++  transaction_map     m_transactions;
++
++  rak::priority_item  m_taskTimeout;
++
++  ThrottleNode        m_uploadThrottle;
++  ThrottleNode        m_downloadThrottle;
++
++  unsigned int        m_queriesReceived;
++  unsigned int        m_queriesSent;
++  unsigned int        m_repliesReceived;
++
++  bool                m_networkUp;
++};
++
++}
++
++#endif
+Index: libtorrent/src/dht/dht_tracker.cc
+===================================================================
+--- libtorrent/src/dht/dht_tracker.cc	(revision 0)
++++ libtorrent/src/dht/dht_tracker.cc	(revision 0)
+@@ -0,0 +1,129 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#include "config.h"
++
++#include "torrent/object.h"
++
++#include "dht_tracker.h"
++
++namespace torrent {
++
++void
++DhtTracker::add_peer(const rak::socket_address* sa) {
++  // Should check that sa is an INET address.
++  SocketAddressCompact compact(sa->sa_inet()->address_n(), sa->sa_inet()->port_n());
++
++  unsigned int oldest = 0;
++  uint32_t minSeen = ~uint32_t();
++
++  // Check if peer exists. If not, find oldest peer.
++  for (unsigned int i = 0; i < size(); i++) {
++    if ((*this)[i].addr == compact.addr) {
++      (*this)[i].port = compact.port;
++      m_lastSeen[i] = cachedTime.seconds();
++      return;
++
++    } else if (m_lastSeen[i] < minSeen) {
++      minSeen = m_lastSeen[i];
++      oldest = i;
++    }
++  }
++
++  // If peer doesn't exist, append to list if the table is not full.
++  if (size() < max_size) {
++    push_back(compact);
++    m_lastSeen.push_back(cachedTime.seconds());
++
++  // Peer doesn't exist and table is full: replace oldest peer.
++  } else {
++    (*this)[oldest] = compact;
++    m_lastSeen[oldest] = cachedTime.seconds();
++  }
++}
++
++// Return compact info (6 bytes) for up to 30 peers, returning different
++// peers for each call if there are more.
++std::string
++DhtTracker::get_peers(unsigned int maxPeers) {
++  iterator first;
++  iterator last;
++
++  // If we have more than max_peers, randomly return block of peers.
++  // The peers in overlapping blocks get picked twice as often, but
++  // that's better than returning fewer peers.
++  if (size() > maxPeers) {
++    unsigned int blocks = (size() + maxPeers - 1) / maxPeers;
++
++    first = begin() + (random() % blocks) * (size() - maxPeers) / (blocks - 1);
++    last = first + maxPeers;
++
++  } else {
++    first = begin();
++    last = end();
++  }
++
++  return std::string(first->c_str(), last->c_str());
++}
++
++// Remove old announces.
++void
++DhtTracker::prune(uint32_t maxAge) {
++  uint32_t minSeen = cachedTime.seconds() - maxAge;
++  unsigned int i;
++
++  for (i = 0; i < size(); i++)
++    if (m_lastSeen[i] <= minSeen)
++      break;
++
++  if (i == size())
++    return;  // No old peers found.
++
++  unsigned int index = i;
++
++  for (i++; i < size(); i++) {
++    if (m_lastSeen[i] > minSeen) {
++      m_lastSeen[index] = m_lastSeen[i];
++      (*this)[index] = (*this)[i];
++      index++;
++    }
++  }
++
++  resize(index);
++  m_lastSeen.resize(index);
++}
++
++}
+Index: libtorrent/src/net/throttle_node.h
+===================================================================
+--- libtorrent/src/net/throttle_node.h	(revision 975)
++++ libtorrent/src/net/throttle_node.h	(working copy)
+@@ -45,13 +45,13 @@
+ 
+ namespace torrent {
+ 
+-class PeerConnectionBase;
++class SocketBase;
+ 
+ class ThrottleNode {
+ public:
+   typedef ThrottleList::iterator                  iterator;
+   typedef ThrottleList::const_iterator            const_iterator;
+-  typedef rak::mem_fun0<PeerConnectionBase, void> SlotActivate;
++  typedef rak::mem_fun0<SocketBase, void>         SlotActivate;
+ 
+   ThrottleNode(uint32_t rateSpan) : m_rate(rateSpan)  { clear_quota(); }
+ 
+Index: libtorrent/src/net/socket_base.cc
+===================================================================
+--- libtorrent/src/net/socket_base.cc	(revision 975)
++++ libtorrent/src/net/socket_base.cc	(working copy)
+@@ -41,6 +41,8 @@
+ #include <sys/socket.h>
+ 
+ #include "torrent/exceptions.h"
++#include "torrent/poll.h"
++#include "manager.h"
+ #include "socket_base.h"
+ 
+ namespace torrent {
+@@ -72,4 +74,14 @@
+   return r == 1;
+ }
+ 
++void
++SocketBase::receive_throttle_down_activate() {
++  manager->poll()->insert_read(this);
++}
++
++void
++SocketBase::receive_throttle_up_activate() {
++  manager->poll()->insert_write(this);
++}
++
+ } // namespace torrent
+Index: libtorrent/src/net/socket_base.h
+===================================================================
+--- libtorrent/src/net/socket_base.h	(revision 975)
++++ libtorrent/src/net/socket_base.h	(working copy)
+@@ -60,6 +60,9 @@
+   bool                read_oob(void* buffer);
+   bool                write_oob(const void* buffer);
+ 
++  void                receive_throttle_down_activate();
++  void                receive_throttle_up_activate();
++
+ protected:
+   // Disable copying
+   SocketBase(const SocketBase&);
+Index: libtorrent/src/tracker/tracker_control.cc
+===================================================================
+--- libtorrent/src/tracker/tracker_control.cc	(revision 975)
++++ libtorrent/src/tracker/tracker_control.cc	(working copy)
+@@ -43,6 +43,7 @@
+ #include "net/address_list.h"
+ #include "torrent/exceptions.h"
+ #include "tracker_control.h"
++#include "tracker_dht.h"
+ #include "tracker_http.h"
+ #include "tracker_udp.h"
+ 
+@@ -73,6 +74,9 @@
+   else if (std::strncmp("udp://", url.c_str(), 6) == 0)
+     t = new TrackerUdp(m_info, url);
+ 
++  else if (std::strncmp("dht://", url.c_str(), 6) == 0)
++    t = new TrackerDht(m_info, url);
++
+   else
+     // TODO: Error message here?... not really...
+     return;
+@@ -101,7 +105,7 @@
+   m_tries = -1;
+   m_state = s;
+ 
+-  m_itr = m_list.find_enabled(m_itr);
++  m_itr = m_list.find_usable(m_itr);
+ 
+   if (m_itr != m_list.end())
+     m_itr->second->send_state(m_state,
+Index: libtorrent/src/tracker/tracker_dht.h
+===================================================================
+--- libtorrent/src/tracker/tracker_dht.h	(revision 0)
++++ libtorrent/src/tracker/tracker_dht.h	(revision 0)
+@@ -0,0 +1,72 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#ifndef LIBTORRENT_TRACKER_TRACKER_DHT_H
++#define LIBTORRENT_TRACKER_TRACKER_DHT_H
++
++#include "net/address_list.h"
++#include "torrent/object.h"
++#include "tracker_base.h"
++
++namespace torrent {
++
++class TrackerDht : public TrackerBase {
++public:
++  TrackerDht(DownloadInfo* info, const std::string& url);
++  ~TrackerDht();
++  
++  virtual bool        is_busy() const;
++  virtual bool        is_usable() const;
++
++  virtual void        send_state(DownloadInfo::State state, uint64_t down, uint64_t up, uint64_t left);
++  virtual void        close();
++
++  virtual Type        type() const;
++
++  bool                has_peers() const                { return !m_peers.empty(); }
++
++  void                receive_peers(const std::string& peers);
++  void                receive_success();
++  void                receive_failed(const std::string& msg);
++  void                receive_status(int replied, int contacted, const char* stage);
++
++private:
++  AddressList  m_peers;
++};
++
++}
++
++#endif
+Index: libtorrent/src/tracker/tracker_container.cc
+===================================================================
+--- libtorrent/src/tracker/tracker_container.cc	(revision 975)
++++ libtorrent/src/tracker/tracker_container.cc	(working copy)
+@@ -47,10 +47,13 @@
+ 
+ namespace torrent {
+ 
++struct tracker_usable_t : public std::unary_function<TrackerContainer::value_type, bool> {
++  bool operator () (const TrackerContainer::value_type& value) const { return value.second->is_usable(); }
++};
++
+ bool
+-TrackerContainer::has_enabled() const {
+-  return std::find_if(begin(), end(),
+-		      rak::on(rak::mem_ref(&value_type::second), std::mem_fun(&TrackerBase::is_enabled)))
++TrackerContainer::has_usable() const {
++  return std::find_if(begin(), end(), tracker_usable_t())
+     != end();
+ }
+ 
+@@ -99,8 +102,8 @@
+ }
+ 
+ TrackerContainer::iterator
+-TrackerContainer::find_enabled(iterator itr) {
+-  while (itr != end() && !itr->second->is_enabled())
++TrackerContainer::find_usable(iterator itr) {
++  while (itr != end() && !tracker_usable_t()(*itr))
+     ++itr;
+ 
+   return itr;
+Index: libtorrent/src/tracker/tracker_container.h
+===================================================================
+--- libtorrent/src/tracker/tracker_container.h	(revision 975)
++++ libtorrent/src/tracker/tracker_container.h	(working copy)
+@@ -72,7 +72,7 @@
+ 
+   ~TrackerContainer() { clear(); }
+ 
+-  bool                has_enabled() const;
++  bool                has_usable() const;
+ 
+   void                randomize();
+   void                clear();
+@@ -82,7 +82,7 @@
+   iterator            promote(iterator itr);
+ 
+   iterator            find(TrackerBase* tb);
+-  iterator            find_enabled(iterator itr);
++  iterator            find_usable(iterator itr);
+   const_iterator      find_enabled(const_iterator itr) const;
+ 
+   iterator            begin_group(int group);
+Index: libtorrent/src/tracker/tracker_udp.cc
+===================================================================
+--- libtorrent/src/tracker/tracker_udp.cc	(revision 975)
++++ libtorrent/src/tracker/tracker_udp.cc	(working copy)
+@@ -36,9 +36,6 @@
+ 
+ #include "config.h"
+ 
+-#include <sigc++/bind.h>
+-#include <torrent/connection_manager.h>
+-
+ #include "net/address_list.h"
+ #include "torrent/exceptions.h"
+ #include "torrent/connection_manager.h"
+@@ -64,7 +61,7 @@
+ 
+   close();
+ }
+-  
++ 
+ bool
+ TrackerUdp::is_busy() const {
+   return get_fd().is_valid();
+@@ -91,7 +88,7 @@
+   m_sendUp = up;
+   m_sendLeft = left;
+ 
+-  m_slotResolver = manager->connection_manager()->resolver()(hostname, PF_INET, SOCK_DGRAM,
++  m_slotResolver = manager->connection_manager()->resolver()(hostname, (int)rak::socket_address::pf_inet, SOCK_DGRAM,
+                                                              sigc::mem_fun(this, &TrackerUdp::start_announce));
+ }
+ 
+Index: libtorrent/src/tracker/Makefile.am
+===================================================================
+--- libtorrent/src/tracker/Makefile.am	(revision 975)
++++ libtorrent/src/tracker/Makefile.am	(working copy)
+@@ -4,6 +4,8 @@
+ 	tracker_base.h \
+ 	tracker_control.cc \
+ 	tracker_control.h \
++	tracker_dht.cc \
++	tracker_dht.h \
+ 	tracker_http.cc \
+ 	tracker_http.h \
+ 	tracker_container.cc \
+Index: libtorrent/src/tracker/tracker_base.h
+===================================================================
+--- libtorrent/src/tracker/tracker_base.h	(revision 975)
++++ libtorrent/src/tracker/tracker_base.h	(working copy)
+@@ -58,7 +58,8 @@
+   typedef enum {
+     TRACKER_NONE,
+     TRACKER_HTTP,
+-    TRACKER_UDP
++    TRACKER_UDP,
++    TRACKER_DHT
+   } Type;
+ 
+   TrackerBase(DownloadInfo* info, const std::string& url) :
+@@ -69,6 +70,7 @@
+ 
+   virtual bool        is_busy() const = 0;
+   bool                is_enabled() const                    { return m_enabled; }
++  virtual bool        is_usable() const                     { return m_enabled; }
+ 
+   void                enable(bool state)                    { m_enabled = state; }
+ 
+@@ -81,6 +83,8 @@
+   const std::string&  url() const                           { return m_url; }
+   void                set_url(const std::string& url)       { m_url = url; }
+ 
++  const std::string&  status() const                        { return m_status; }
++
+   const std::string&  tracker_id() const                    { return m_trackerId; }
+   void                set_tracker_id(const std::string& id) { m_trackerId = id; }
+ 
+@@ -106,6 +110,7 @@
+ 
+   DownloadInfo*       m_info;
+   std::string         m_url;
++  std::string         m_status;
+ 
+   std::string         m_trackerId;
+ 
+Index: libtorrent/src/tracker/tracker_dht.cc
+===================================================================
+--- libtorrent/src/tracker/tracker_dht.cc	(revision 0)
++++ libtorrent/src/tracker/tracker_dht.cc	(revision 0)
+@@ -0,0 +1,151 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#include "config.h"
++
++#include <sstream>
++
++#include "dht/dht_router.h"
++#include "torrent/connection_manager.h"
++#include "torrent/dht_manager.h"
++#include "torrent/exceptions.h"
++
++#include "tracker_dht.h"
++#include "tracker_http.h"
++
++#include "globals.h"
++#include "manager.h"
++
++namespace torrent {
++
++TrackerDht::TrackerDht(DownloadInfo* info, const std::string& url) :
++  TrackerBase(info, url) {
++
++  if (!manager->dht_manager()->is_valid())
++    throw internal_error("Trying to add DHT tracker with no DHT manager.");
++}
++
++TrackerDht::~TrackerDht() {
++  if (is_busy())
++    manager->dht_manager()->router()->cancel_announce(NULL, this);
++}
++
++bool
++TrackerDht::is_busy() const {
++  return !m_status.empty();
++}
++
++bool
++TrackerDht::is_usable() const {
++  return m_enabled && manager->dht_manager()->is_active();
++}
++
++void
++TrackerDht::send_state(DownloadInfo::State state, uint64_t down, uint64_t up, uint64_t left) {
++  if (m_info == NULL)
++    throw internal_error("TrackerDht::send_state(...) does not have a valid m_info.");
++
++  if (is_busy()) {
++    manager->dht_manager()->router()->cancel_announce(m_info, this);
++
++    if (is_busy())
++      throw internal_error("TrackerDht::send_state cancel_announce did not cancel announce.");
++  }
++
++  if (state == DownloadInfo::STOPPED)
++    return;
++
++  m_status = "[Initializing]";
++
++  if (!manager->dht_manager()->is_active())
++    return receive_failed("DHT server not active.");
++
++  manager->dht_manager()->router()->announce(m_info, this);
++
++  set_normal_interval(20 * 60);
++  set_min_interval(0);
++}
++
++void
++TrackerDht::close() {
++  if (is_busy())
++    manager->dht_manager()->router()->cancel_announce(m_info, this);
++}
++
++TrackerDht::Type
++TrackerDht::type() const {
++  return TRACKER_DHT;
++}
++
++void
++TrackerDht::receive_peers(const std::string& peers) {
++  if (!is_busy())
++    throw internal_error("TrackerDht::receive_peers called while not busy.");
++
++  m_peers.parse_address_compact(peers);
++}
++
++void
++TrackerDht::receive_success() {
++  if (!is_busy())
++    throw internal_error("TrackerDht::receive_success called while not busy.");
++
++  m_status.clear();
++  m_slotSuccess(this, &m_peers);
++  m_peers.clear();
++}
++
++void
++TrackerDht::receive_failed(const std::string& msg) {
++  if (!is_busy())
++    throw internal_error("TrackerDht::receive_failed called while not busy.");
++
++  m_status.clear();
++  m_slotFailed(this, msg);
++  m_peers.clear();
++}
++
++void
++TrackerDht::receive_status(int replied, int contacted, const char* stage) {
++  if (!is_busy())
++    throw internal_error("TrackerDht::receive_status called while not busy.");
++
++  std::stringstream s;
++  s << "[" << stage << ": " << replied << "/" << contacted << " nodes replied]";
++  m_status = s.str();
++}
++
++}
+Index: libtorrent/src/torrent/tracker.cc
+===================================================================
+--- libtorrent/src/torrent/tracker.cc	(revision 975)
++++ libtorrent/src/torrent/tracker.cc	(working copy)
+@@ -46,6 +46,11 @@
+   return m_tracker.second->is_enabled();
+ }
+ 
++bool
++Tracker::is_usable() const {
++  return m_tracker.second->is_usable();
++}
++
+ void
+ Tracker::enable() {
+   m_tracker.second->enable(true);
+@@ -67,6 +72,11 @@
+ }
+ 
+ const std::string&
++Tracker::status() const {
++  return m_tracker.second->status();
++}
++
++const std::string&
+ Tracker::tracker_id() const {
+   return m_tracker.second->tracker_id();
+ }
+Index: libtorrent/src/torrent/torrent.cc
+===================================================================
+--- libtorrent/src/torrent/torrent.cc	(revision 975)
++++ libtorrent/src/torrent/torrent.cc	(working copy)
+@@ -165,6 +165,11 @@
+   return manager->connection_manager();
+ }
+ 
++DhtManager*
++dht_manager() {
++  return manager->dht_manager();
++}
++
+ uint32_t
+ total_handshakes() {
+   return manager->handshake_manager()->size();
+Index: libtorrent/src/torrent/tracker.h
+===================================================================
+--- libtorrent/src/torrent/tracker.h	(revision 975)
++++ libtorrent/src/torrent/tracker.h	(working copy)
+@@ -58,6 +58,7 @@
+   Tracker(value_type v) : m_tracker(v) {}
+   
+   bool                is_enabled() const;
++  bool                is_usable() const;
+   bool                is_open() const;
+ 
+   void                enable();
+@@ -65,6 +66,7 @@
+ 
+   uint32_t            group() const { return m_tracker.first; }
+   const std::string&  url() const;
++  const std::string&  status() const;
+ 
+   // The "tracker id" string returned by the tracker.
+   const std::string&  tracker_id() const;
+Index: libtorrent/src/torrent/torrent.h
+===================================================================
+--- libtorrent/src/torrent/torrent.h	(revision 975)
++++ libtorrent/src/torrent/torrent.h	(working copy)
+@@ -65,6 +65,7 @@
+ ChunkManager*       chunk_manager() LIBTORRENT_EXPORT;
+ ClientList*         client_list() LIBTORRENT_EXPORT;
+ ConnectionManager*  connection_manager() LIBTORRENT_EXPORT;
++DhtManager*         dht_manager() LIBTORRENT_EXPORT;
+ 
+ uint32_t            total_handshakes() LIBTORRENT_EXPORT;
+ 
+Index: libtorrent/src/torrent/peer/peer_info.h
+===================================================================
+--- libtorrent/src/torrent/peer/peer_info.h	(revision 975)
++++ libtorrent/src/torrent/peer/peer_info.h	(working copy)
+@@ -80,6 +80,7 @@
+   uint32_t            last_connection() const               { return m_lastConnection; }
+   void                set_last_connection(uint32_t tvsec)   { m_lastConnection = tvsec; }
+ 
++  bool                supports_dht() const                  { return m_options[7] & 0x01; }
+   bool                supports_extensions() const           { return m_options[5] & 0x10; }
+ 
+   // Internal to libTorrent:
+Index: libtorrent/src/torrent/dht_manager.cc
+===================================================================
+--- libtorrent/src/torrent/dht_manager.cc	(revision 0)
++++ libtorrent/src/torrent/dht_manager.cc	(revision 0)
+@@ -0,0 +1,119 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#include "config.h"
++
++#include <rak/address_info.h>
++#include <rak/socket_address.h>
++
++#include <torrent/exceptions.h>
++
++#include "manager.h"
++
++#include "dht/dht_router.h"
++#include "dht/dht_server.h"
++#include "dht_manager.h"
++#include "net/throttle_manager.h"
++
++namespace torrent {
++
++DhtManager::~DhtManager() {
++  stop();
++  delete m_router;
++}
++
++void
++DhtManager::initialize(const Object& dhtCache) {
++  if (m_router != NULL)
++    throw internal_error("DhtManager::initialize called with DHT already active.");
++
++  m_router = new DhtRouter(dhtCache, rak::socket_address::cast_from(manager->connection_manager()->bind_address()));
++}
++
++void
++DhtManager::start(port_type port) {
++  if (m_router == NULL)
++    throw internal_error("DhtManager::start called without initializing first.");
++
++  m_router->start(port);
++}
++
++
++void
++DhtManager::stop() {
++  if (m_router != NULL)
++    m_router->stop();
++}
++
++bool
++DhtManager::is_active() const {
++  return m_router != NULL && m_router->is_active();
++}
++
++void
++DhtManager::add_node(const sockaddr* addr, int port, bool external) {
++  if (m_router == NULL)
++    return;
++
++  rak::socket_address sa = *rak::socket_address::cast_from(addr);
++
++  if (sa.family() != rak::socket_address::af_inet)
++    return;
++
++
++  sa.set_port(port);
++  m_router->contact(&sa, external);
++}
++
++Object*
++DhtManager::store_cache(Object* container) const {
++  if (m_router == NULL)
++    throw internal_error("DhtManager::store_cache called but DHT not initialized.");
++
++  return m_router->store_cache(container);
++}
++
++DhtManager::statistics_type
++DhtManager::get_statistics() const {
++  return m_router->get_statistics();
++}
++
++void
++DhtManager::reset_statistics() {
++  m_router->reset_statistics();
++}
++
++}
+Index: libtorrent/src/torrent/dht_manager.h
+===================================================================
+--- libtorrent/src/torrent/dht_manager.h	(revision 0)
++++ libtorrent/src/torrent/dht_manager.h	(revision 0)
+@@ -0,0 +1,125 @@
++// libTorrent - BitTorrent library
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++// Add some helpfull words here.
++
++#ifndef LIBTORRENT_DHT_MANAGER_H
++#define LIBTORRENT_DHT_MANAGER_H
++
++#include <torrent/common.h>
++#include <torrent/connection_manager.h>
++
++namespace torrent {
++
++class ThrottleList;
++
++class LIBTORRENT_EXPORT DhtManager {
++public:
++  typedef ConnectionManager::port_type          port_type;
++
++  struct statistics_type {
++    // Cycle; 0=inactive, 1=initial bootstrapping, 2 and up=normal operation
++    unsigned int       cycle;
++
++    // UDP transfer rates.
++    const Rate&        up_rate;
++    const Rate&        down_rate;
++
++    // DHT query statistics.
++    unsigned int       queries_received;
++    unsigned int       queries_sent;
++    unsigned int       replies_received;
++
++    // DHT node info.
++    unsigned int       num_nodes;
++    unsigned int       num_buckets;
++
++    // DHT tracker info.
++    unsigned int       num_peers;
++    unsigned int       max_peers;
++    unsigned int       num_trackers;
++
++    statistics_type(const Rate& up, const Rate& down) : up_rate(up), down_rate(down) { }
++  };
++
++  DhtManager() : m_router(NULL), m_portSent(0), m_canReceive(true) { };
++  ~DhtManager();
++
++  void                initialize(const Object& dhtCache);
++
++  void                start(port_type port);
++  void                stop();
++
++  // Store DHT cache in the given container and return the container.
++  Object*             store_cache(Object* container) const;
++
++  bool                is_valid() const                        { return m_router; }
++  bool                is_active() const;
++
++  port_type           port() const                            { return m_port; }
++
++  bool                can_receive_queries() const             { return m_canReceive; }
++
++  // Call this after sending the port to a client, so the router knows
++  // that it should be getting requests.
++  void                port_sent()                             { m_portSent++; }
++
++  // Add a node by address, e.g. from a torrent file (external = true), or from
++  // explicit add_node commands or the BT PORT message (external = false).
++  void                add_node(const sockaddr* addr, int port, bool external);
++
++  statistics_type     get_statistics() const;
++  void                reset_statistics();
++
++  // To be called if upon examining the statistics, the client decides that
++  // we can't receive outside requests and therefore shouldn't advertise our
++  // UDP port after the BT handshake.
++  void                set_can_receive(bool can)               { m_canReceive = can; }
++
++  // Internal libTorrent use only
++  DhtRouter*          router()                                { return m_router; }
++
++private:
++  DhtRouter*          m_router;
++  port_type           m_port;
++
++  int                 m_portSent;
++  bool                m_canReceive;
++};
++
++}
++
++#endif
+Index: libtorrent/src/torrent/hash_string.h
+===================================================================
+--- libtorrent/src/torrent/hash_string.h	(revision 975)
++++ libtorrent/src/torrent/hash_string.h	(working copy)
+@@ -83,6 +83,10 @@
+ 
+   const value_type*   c_str() const                     { return m_data; }
+ 
++  std::string         str() const                       { return std::string(m_data, size_data); }
++
++  void                clear(int v = 0)                  { std::memset(data(), v, size()); }
++
+   void                assign(const value_type* src)     { std::memcpy(data(), src, size()); }
+ 
+   bool                equal_to(const char* hash) const     { return std::memcmp(m_data, hash, size()) == 0; }
+@@ -93,6 +97,8 @@
+   static const HashString* cast_from(const char* src)        { return (const HashString*)src; }
+   static const HashString* cast_from(const std::string& src) { return (const HashString*)src.c_str(); }
+ 
++  static HashString*  cast_from(char* src)                   { return (HashString*)src; }
++
+ private:
+   char                m_data[size_data];
+ };
+@@ -103,10 +109,20 @@
+ }
+ 
+ inline bool
++operator != (const HashString& one, const HashString& two) {
++  return std::memcmp(one.begin(), two.begin(), HashString::size_data) != 0;
++}
++
++inline bool
+ operator < (const HashString& one, const HashString& two) {
+   return std::memcmp(one.begin(), two.begin(), HashString::size_data) < 0;
+ }
+ 
++inline bool
++operator <= (const HashString& one, const HashString& two) {
++  return std::memcmp(one.begin(), two.begin(), HashString::size_data) <= 0;
+ }
+ 
++}
++
+ #endif
+Index: libtorrent/src/torrent/Makefile.am
+===================================================================
+--- libtorrent/src/torrent/Makefile.am	(revision 975)
++++ libtorrent/src/torrent/Makefile.am	(working copy)
+@@ -12,6 +12,8 @@
+ 	common.h \
+ 	connection_manager.cc \
+ 	connection_manager.h \
++	dht_manager.cc \
++	dht_manager.h \
+ 	download.cc \
+ 	download.h \
+ 	error.cc \
+@@ -54,6 +56,7 @@
+ 	chunk_manager.h \
+ 	common.h \
+ 	connection_manager.h \
++	dht_manager.h \
+ 	download.h \
+ 	error.h \
+ 	exceptions.h \
+Index: libtorrent/src/torrent/common.h
+===================================================================
+--- libtorrent/src/torrent/common.h	(revision 975)
++++ libtorrent/src/torrent/common.h	(working copy)
+@@ -67,6 +67,8 @@
+ class ClientList;
+ class ConnectionList;
+ class ConnectionManager;
++class DhtManager;
++class DhtRouter;
+ class Download;
+ class DownloadMain;
+ class DownloadWrapper;
+Index: libtorrent/src/manager.cc
+===================================================================
+--- libtorrent/src/manager.cc	(revision 975)
++++ libtorrent/src/manager.cc	(working copy)
+@@ -50,6 +50,7 @@
+ 
+ #include "torrent/chunk_manager.h"
+ #include "torrent/connection_manager.h"
++#include "torrent/dht_manager.h"
+ #include "torrent/data/file_manager.h"
+ #include "torrent/peer/client_list.h"
+ 
+@@ -70,6 +71,7 @@
+   m_chunkManager(new ChunkManager),
+   m_clientList(new ClientList),
+   m_connectionManager(new ConnectionManager),
++  m_dhtManager(new DhtManager),
+ 
+   m_poll(NULL),
+ 
+@@ -99,6 +101,7 @@
+   delete m_hashQueue;
+ 
+   delete m_resourceManager;
++  delete m_dhtManager;
+   delete m_connectionManager;
+   delete m_chunkManager;
+ 
+Index: libtorrent/src/manager.h
+===================================================================
+--- libtorrent/src/manager.h	(revision 975)
++++ libtorrent/src/manager.h	(working copy)
+@@ -58,6 +58,7 @@
+ class ChunkManager;
+ class ConnectionManager;
+ class ThrottleManager;
++class DhtManager;
+ 
+ typedef std::list<std::string> EncodingList;
+ 
+@@ -75,6 +76,7 @@
+   ChunkManager*       chunk_manager()                           { return m_chunkManager; }
+   ClientList*         client_list()                             { return m_clientList; }
+   ConnectionManager*  connection_manager()                      { return m_connectionManager; }
++  DhtManager*         dht_manager()                             { return m_dhtManager; }
+   
+   Poll*               poll()                                    { return m_poll; }
+   void                set_poll(Poll* p)                         { m_poll = p; }
+@@ -99,6 +101,7 @@
+   ChunkManager*       m_chunkManager;
+   ClientList*         m_clientList;
+   ConnectionManager*  m_connectionManager;
++  DhtManager*         m_dhtManager;
+   Poll*               m_poll;
+ 
+   EncodingList        m_encodingList;
+Index: libtorrent/src/protocol/protocol_base.h
+===================================================================
+--- libtorrent/src/protocol/protocol_base.h	(revision 975)
++++ libtorrent/src/protocol/protocol_base.h	(working copy)
+@@ -62,6 +62,7 @@
+     REQUEST,
+     PIECE,
+     CANCEL,
++    PORT,
+ 
+     EXTENSION_PROTOCOL = 20,
+ 
+@@ -108,6 +109,7 @@
+   void                write_request(const Piece& p);
+   void                write_cancel(const Piece& p);
+   void                write_piece(const Piece& p);
++  void                write_port(uint16_t port);
+   void                write_extension(uint8_t id, uint32_t length);
+ 
+   static const size_type sizeof_keepalive    = 4;
+@@ -122,6 +124,8 @@
+   static const size_type sizeof_cancel_body  = 12;
+   static const size_type sizeof_piece        = 13;
+   static const size_type sizeof_piece_body   = 8;
++  static const size_type sizeof_port         = 7;
++  static const size_type sizeof_port_body    = 2;
+   static const size_type sizeof_extension    = 6;
+   static const size_type sizeof_extension_body=1;
+ 
+@@ -133,12 +137,14 @@
+   bool                can_write_request() const               { return m_buffer.reserved_left() >= sizeof_request; }
+   bool                can_write_cancel() const                { return m_buffer.reserved_left() >= sizeof_cancel; }
+   bool                can_write_piece() const                 { return m_buffer.reserved_left() >= sizeof_piece; }
++  bool                can_write_port() const                  { return m_buffer.reserved_left() >= sizeof_port; }
+   bool                can_write_extension() const             { return m_buffer.reserved_left() >= sizeof_extension; }
+ 
+   bool                can_read_have_body() const              { return m_buffer.remaining() >= sizeof_have_body; }
+   bool                can_read_request_body() const           { return m_buffer.remaining() >= sizeof_request_body; }
+   bool                can_read_cancel_body() const            { return m_buffer.remaining() >= sizeof_request_body; }
+   bool                can_read_piece_body() const             { return m_buffer.remaining() >= sizeof_piece_body; }
++  bool                can_read_port_body() const              { return m_buffer.remaining() >= sizeof_port_body; }
+   bool                can_read_extension_body() const         { return m_buffer.remaining() >= sizeof_extension_body; }
+ 
+ protected:
+@@ -223,6 +229,13 @@
+ }
+ 
+ inline void
++ProtocolBase::write_port(uint16_t port) {
++  m_buffer.write_32(3);
++  write_command(PORT);
++  m_buffer.write_16(port);
++}
++
++inline void
+ ProtocolBase::write_extension(uint8_t id, uint32_t length) {
+   m_buffer.write_32(2 + length);
+   write_command(EXTENSION_PROTOCOL);
+Index: libtorrent/src/protocol/peer_connection_base.cc
+===================================================================
+--- libtorrent/src/protocol/peer_connection_base.cc	(revision 975)
++++ libtorrent/src/protocol/peer_connection_base.cc	(working copy)
+@@ -51,6 +51,7 @@
+ #include "download/download_main.h"
+ #include "net/socket_base.h"
+ #include "torrent/connection_manager.h"
++#include "torrent/dht_manager.h"
+ #include "torrent/peer/peer_info.h"
+ 
+ #include "extensions.h"
+@@ -118,10 +119,10 @@
+   m_peerChunks.bitfield()->swap(*bitfield);
+ 
+   m_peerChunks.upload_throttle()->set_list_iterator(m_download->upload_throttle()->end());
+-  m_peerChunks.upload_throttle()->slot_activate(rak::make_mem_fun(this, &PeerConnectionBase::receive_throttle_up_activate));
++  m_peerChunks.upload_throttle()->slot_activate(rak::make_mem_fun(static_cast<SocketBase*>(this), &SocketBase::receive_throttle_up_activate));
+ 
+   m_peerChunks.download_throttle()->set_list_iterator(m_download->download_throttle()->end());
+-  m_peerChunks.download_throttle()->slot_activate(rak::make_mem_fun(this, &PeerConnectionBase::receive_throttle_down_activate));
++  m_peerChunks.download_throttle()->slot_activate(rak::make_mem_fun(static_cast<SocketBase*>(this), &SocketBase::receive_throttle_down_activate));
+ 
+   download_queue()->set_delegator(m_download->delegator());
+   download_queue()->set_peer_chunks(&m_peerChunks);
+@@ -323,16 +324,6 @@
+ }
+ 
+ void
+-PeerConnectionBase::receive_throttle_down_activate() {
+-  manager->poll()->insert_read(this);
+-}
+-
+-void
+-PeerConnectionBase::receive_throttle_up_activate() {
+-  manager->poll()->insert_write(this);
+-}
+-
+-void
+ PeerConnectionBase::event_error() {
+   m_download->connection_list()->erase(this, 0);
+ }
+Index: libtorrent/src/protocol/peer_connection_base.h
+===================================================================
+--- libtorrent/src/protocol/peer_connection_base.h	(revision 975)
++++ libtorrent/src/protocol/peer_connection_base.h	(working copy)
+@@ -140,9 +140,6 @@
+ 
+   void                load_up_chunk();
+ 
+-  void                receive_throttle_down_activate();
+-  void                receive_throttle_up_activate();
+-
+   void                read_request_piece(const Piece& p);
+   void                read_cancel_piece(const Piece& p);
+ 
+Index: libtorrent/src/protocol/peer_connection_leech.cc
+===================================================================
+--- libtorrent/src/protocol/peer_connection_leech.cc	(revision 975)
++++ libtorrent/src/protocol/peer_connection_leech.cc	(working copy)
+@@ -45,6 +45,8 @@
+ #include "download/chunk_statistics.h"
+ #include "download/download_info.h"
+ #include "download/download_main.h"
++#include "torrent/dht_manager.h"
++#include "torrent/peer/peer_info.h"
+ 
+ #include "extensions.h"
+ #include "peer_connection_leech.h"
+@@ -275,6 +277,13 @@
+     read_cancel_piece(m_down->read_request());
+     return true;
+ 
++  case ProtocolBase::PORT:
++    if (!m_down->can_read_port_body())
++      break;
++
++    manager->dht_manager()->add_node(m_peerInfo->socket_address(), m_down->buffer()->read_16(), false);
++    return true;
++
+   case ProtocolBase::EXTENSION_PROTOCOL:
+     if (!m_down->can_read_extension_body())
+       break;
+Index: libtorrent/src/protocol/peer_connection_seed.cc
+===================================================================
+--- libtorrent/src/protocol/peer_connection_seed.cc	(revision 975)
++++ libtorrent/src/protocol/peer_connection_seed.cc	(working copy)
+@@ -43,6 +43,8 @@
+ #include "download/chunk_statistics.h"
+ #include "download/download_info.h"
+ #include "download/download_main.h"
++#include "torrent/dht_manager.h"
++#include "torrent/peer/peer_info.h"
+ 
+ #include "extensions.h"
+ #include "peer_connection_seed.h"
+@@ -175,6 +177,13 @@
+     read_cancel_piece(m_down->read_request());
+     return true;
+ 
++  case ProtocolBase::PORT:
++    if (!m_down->can_read_port_body())
++      break;
++
++    manager->dht_manager()->add_node(m_peerInfo->socket_address(), m_down->buffer()->read_16(), false);
++    return true;
++
+   case ProtocolBase::EXTENSION_PROTOCOL:
+     if (!m_down->can_read_extension_body())
+       break;
+Index: libtorrent/src/protocol/handshake.cc
+===================================================================
+--- libtorrent/src/protocol/handshake.cc	(revision 975)
++++ libtorrent/src/protocol/handshake.cc	(working copy)
+@@ -38,6 +38,7 @@
+ 
+ #include "download/download_info.h"
+ #include "download/download_main.h"
++#include "torrent/dht_manager.h"
+ #include "net/throttle_list.h"
+ #include "net/throttle_manager.h"
+ #include "torrent/exceptions.h"
+@@ -522,18 +523,19 @@
+ 
+   // The download is just starting so we're not sending any
+   // bitfield.
+-  if (m_download->file_list()->bitfield()->is_all_unset())
+-    prepare_keepalive();
+-  else
++  if (m_download->file_list()->bitfield()->is_all_unset()) {
++    prepare_post_handshake(true);
++
++  } else {
+     prepare_bitfield();
+ 
+-  m_state = BITFIELD;
++    // Give some extra time for reading/writing the bitfield.
++    priority_queue_erase(&taskScheduler, &m_taskTimeout);
++    priority_queue_insert(&taskScheduler, &m_taskTimeout, (cachedTime + rak::timer::from_seconds(120)).round_seconds());
++  }
++
+   manager->poll()->insert_write(this);
+ 
+-  // Give some extra time for reading/writing the bitfield.
+-  priority_queue_erase(&taskScheduler, &m_taskTimeout);
+-  priority_queue_insert(&taskScheduler, &m_taskTimeout, (cachedTime + rak::timer::from_seconds(120)).round_seconds());
+-
+   return false;
+ }
+ 
+@@ -731,6 +733,7 @@
+         goto restart;
+ 
+     case BITFIELD:
++    case POST_HANDSHAKE:
+       read_bitfield();
+       break;
+ 
+@@ -864,8 +867,12 @@
+     if (!m_writeBuffer.remaining())
+       throw internal_error("event_write called with empty write buffer.");
+ 
+-    if (m_writeBuffer.consume(write_unthrottled(m_writeBuffer.position(), m_writeBuffer.remaining())))
+-      manager->poll()->remove_write(this);
++    if (m_writeBuffer.consume(write_stream_throws(m_writeBuffer.position(), m_writeBuffer.remaining()))) {
++      if (m_state == POST_HANDSHAKE)
++        write_done();
++      else
++        manager->poll()->remove_write(this);
++    }
+ 
+   } catch (handshake_succeeded& e) {
+     m_manager->receive_succeeded(this);
+@@ -948,6 +955,8 @@
+   m_writeBuffer.write_range(m_protocol, m_protocol + 19);
+ 
+   std::memset(m_writeBuffer.end(), 0, 8);
++  if (manager->dht_manager()->is_active())
++    *(m_writeBuffer.end()+7) |= 0x01;	// DHT support, enable PORT message
+   m_writeBuffer.move_end(8);
+ 
+   m_writeBuffer.write_range(m_download->info()->hash().c_str(), m_download->info()->hash().c_str() + 20);
+@@ -990,20 +999,50 @@
+     m_encryption.info()->encrypt(m_writeBuffer.end() - 5, 5);
+ 
+   m_writePos = 0;
++
++  m_state = BITFIELD;
+ }
+ 
+ void
+-Handshake::prepare_keepalive() {
+-  m_writeBuffer.write_32(0);
++Handshake::prepare_post_handshake(bool must_write) {
++  m_state = POST_HANDSHAKE;
+ 
+-  if (m_encryption.info()->is_encrypted())
+-    m_encryption.info()->encrypt(m_writeBuffer.end() - 4, 4);
++  // Send PORT message for DHT if enabled and peer supports it.
++  if (m_peerInfo->supports_dht() && manager->dht_manager()->is_active() && manager->dht_manager()->can_receive_queries()) {
++    m_writeBuffer.write_32(3);
++    m_writeBuffer.write_8(protocol_port);
++    m_writeBuffer.write_16(manager->dht_manager()->port());
++    manager->dht_manager()->port_sent();
++    if (m_encryption.info()->is_encrypted())
++      m_encryption.info()->encrypt(m_writeBuffer.end() - 7, 7);
+ 
+-  // Skip writting the bitfield.
+-  m_writePos = m_download->file_list()->bitfield()->size_bytes();
++    must_write = false;
++  }
++
++  // Send a keep-alive if we still must send something.
++  if (must_write) {
++    m_writeBuffer.write_32(0);
++
++    if (m_encryption.info()->is_encrypted())
++      m_encryption.info()->encrypt(m_writeBuffer.end() - 4, 4);
++  }
++
++  if (!m_writeBuffer.remaining())
++    write_done();
+ }
+ 
+ void
++Handshake::write_done() {
++  m_writeDone = true;
++  manager->poll()->remove_write(this);
++
++  // Ok to just check m_readDone as the call in event_read() won't
++  // set it before the call.
++  if (m_readDone)
++    throw handshake_succeeded();
++}
++
++void
+ Handshake::write_extension_handshake() {
+   if (m_extensions->is_default())
+     m_extensions = new ProtocolExtension;
+@@ -1059,15 +1098,8 @@
+     }
+   }
+ 
+-  if (m_writePos == bitfield->size_bytes()) {
+-    m_writeDone = true;
+-    manager->poll()->remove_write(this);
+-
+-    // Ok to just check m_readDone as the call in event_read() won't
+-    // set it before the call.
+-    if (m_readDone)
+-      throw handshake_succeeded();
+-  }
++  if (m_writePos == bitfield->size_bytes())
++    prepare_post_handshake(false);
+ }
+ 
+ void
+Index: libtorrent/src/protocol/handshake.h
+===================================================================
+--- libtorrent/src/protocol/handshake.h	(revision 975)
++++ libtorrent/src/protocol/handshake.h	(working copy)
+@@ -74,6 +74,7 @@
+     INACTIVE,
+     CONNECTING,
+     BITFIELD,
++    POST_HANDSHAKE,
+ 
+     PROXY_CONNECT,
+     PROXY_DONE,
+@@ -130,6 +131,7 @@
+   void operator = (const Handshake&);
+   
+   void                read_done();
++  void                write_done();
+ 
+   bool                fill_read_buffer(int size);
+ 
+@@ -151,7 +153,7 @@
+   void                prepare_handshake();
+   void                prepare_peer_info();
+   void                prepare_bitfield();
+-  void                prepare_keepalive();
++  void                prepare_post_handshake(bool must_write);
+ 
+   void                write_extension_handshake();
+   void                write_bitfield();
+Index: libtorrent/src/download/download_constructor.cc
+===================================================================
+--- libtorrent/src/download/download_constructor.cc	(revision 975)
++++ libtorrent/src/download/download_constructor.cc	(working copy)
+@@ -42,6 +42,7 @@
+ #include <rak/string_manip.h>
+ 
+ #include "download/download_wrapper.h"
++#include "torrent/dht_manager.h"
+ #include "torrent/exceptions.h"
+ #include "torrent/object.h"
+ #include "torrent/data/file.h"
+@@ -50,6 +51,8 @@
+ 
+ #include "download_constructor.h"
+ 
++#include "manager.h"
++
+ namespace torrent {
+ 
+ struct download_constructor_is_single_path {
+@@ -167,9 +170,16 @@
+   else if (b.has_key("announce"))
+     add_tracker_single(b.get_key("announce"), 0);
+ 
+-  else
++  else if (!manager->dht_manager()->is_valid() || m_download->info()->is_private())
+     throw bencode_error("Could not find any trackers");
+ 
++  if (manager->dht_manager()->is_valid() && !m_download->info()->is_private())
++    tracker->insert(tracker->group_size(), "dht://");
++
++  if (manager->dht_manager()->is_valid() && b.has_key_list("nodes"))
++    std::for_each(b.get_key_list("nodes").begin(), b.get_key_list("nodes").end(),
++                  rak::make_mem_fun(this, &DownloadConstructor::add_dht_node));
++
+   tracker->randomize();
+ }
+ 
+@@ -191,6 +201,35 @@
+   m_download->main()->tracker_manager()->insert(group, rak::trim_classic(b.as_string()));
+ }
+ 
++struct call_add_node_t {
++  call_add_node_t(int port) : m_port(port) { }
++
++  void operator() (const sockaddr* sa, int err) {
++    if (sa != NULL)
++      manager->dht_manager()->add_node(sa, m_port, true);
++  }
++
++  int m_port;
++};
++
++void
++DownloadConstructor::add_dht_node(const Object& b) {
++  if (!b.is_list() || b.as_list().size() < 2)
++    return;
++
++  Object::list_type::const_iterator el = b.as_list().begin();
++
++  if (!el->is_string())
++    return;
++
++  const std::string& host = el->as_string();
++
++  if (!(++el)->is_value())
++    return;
++
++  manager->connection_manager()->resolver()(host.c_str(), (int)rak::socket_address::pf_inet, SOCK_DGRAM, call_add_node_t(el->as_value()));
++}
++
+ bool
+ DownloadConstructor::is_valid_path_element(const Object& b) {
+   return
+Index: libtorrent/src/download/download_constructor.h
+===================================================================
+--- libtorrent/src/download/download_constructor.h	(revision 975)
++++ libtorrent/src/download/download_constructor.h	(working copy)
+@@ -67,6 +67,7 @@
+ 
+   void                add_tracker_group(const Object& b);
+   void                add_tracker_single(const Object& b, int group);
++  void                add_dht_node(const Object& b);
+ 
+   static bool         is_valid_path_element(const Object& b);
+   static bool         is_invalid_path_element(const Object& b) { return !is_valid_path_element(b); }
+Index: libtorrent/src/Makefile.am
+===================================================================
+--- libtorrent/src/Makefile.am	(revision 975)
++++ libtorrent/src/Makefile.am	(working copy)
+@@ -1,6 +1,7 @@
+ SUBDIRS = \
+ 	torrent \
+ 	data \
++	dht \
+ 	download \
+ 	net \
+ 	protocol \
+@@ -15,6 +16,7 @@
+ 	$(top_srcdir)/src/torrent/data/libsub_torrentdata.la \
+ 	$(top_srcdir)/src/torrent/peer/libsub_torrentpeer.la \
+ 	$(top_srcdir)/src/data/libsub_data.la \
++	$(top_srcdir)/src/dht/libsub_dht.la \
+ 	$(top_srcdir)/src/download/libsub_download.la \
+ 	$(top_srcdir)/src/net/libsub_net.la \
+ 	$(top_srcdir)/src/protocol/libsub_protocol.la \
+Index: libtorrent/configure.ac
+===================================================================
+--- libtorrent/configure.ac	(revision 975)
++++ libtorrent/configure.ac	(working copy)
+@@ -2,6 +2,7 @@
+ 
+ dnl Find a better way to do this
+ AC_DEFINE(PEER_NAME, "-lt0B80-", Identifier that is part of the default peer id)
++AC_DEFINE(PEER_VERSION, "lt\x0B\x80", 4 byte client and version identifier for DHT)
+ 
+ LIBTORRENT_CURRENT=10
+ LIBTORRENT_REVISION=8
+@@ -32,6 +33,7 @@
+ TORRENT_ENABLE_DEBUG
+ TORRENT_ENABLE_EXTRA_DEBUG
+ TORRENT_ENABLE_WERROR
++TORRENT_ENABLE_TR1
+ 
+ TORRENT_DISABLE_IPV6
+ 
+@@ -104,6 +106,7 @@
+ 	src/torrent/peer/Makefile
+ 	src/torrent/data/Makefile
+ 	src/data/Makefile
++	src/dht/Makefile
+ 	src/download/Makefile
+ 	src/net/Makefile
+ 	src/protocol/Makefile
