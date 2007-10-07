@@ -1,0 +1,45 @@
+diff -Nur wxGTK-2.4.2/src/gtk/menu.cpp wxGTK-2.4.2-patched/src/gtk/menu.cpp
+--- wxGTK-2.4.2/src/gtk/menu.cpp    2003-09-21 05:31:57.000000000 -0600
++++ wxGTK-2.4.2-patched/src/gtk/menu.cpp    2004-03-31 22:37:42.422032816 -0700
+@@ -30,13 +30,13 @@
+ #ifdef __WXGTK20__
+     #include <glib-object.h>
+ 
+-    #define gtk_accel_group_attach(g, o) _gtk_accel_group_attach((g), (o))
+-    #define gtk_accel_group_detach(g, o) _gtk_accel_group_detach((g), (o))
++    #define gtk_accel_group_attach(g, o) gtk_window_add_accel_group((o), (g))
++    #define gtk_accel_group_detach(g, o) gtk_window_remove_accel_group((o), (g))
+     #define gtk_menu_ensure_uline_accel_group(m) gtk_menu_get_accel_group(m)
+ 
+-    #define ACCEL_OBJECT        GObject
++    #define ACCEL_OBJECT        GtkWindow
+     #define ACCEL_OBJECTS(a)    (a)->acceleratables
+-    #define ACCEL_OBJ_CAST(obj) G_OBJECT(obj)
++    #define ACCEL_OBJ_CAST(obj) ((GtkWindow*) obj)
+ #else // GTK+ 1.x
+     #define ACCEL_OBJECT        GtkObject
+     #define ACCEL_OBJECTS(a)    (a)->attach_objects
+diff -Nur wxGTK-2.4.2/src/gtk/settings.cpp wxGTK-2.4.2-patched/src/gtk/settings.cpp
+--- wxGTK-2.4.2/src/gtk/settings.cpp    2003-09-21 05:31:57.000000000 -0600
++++ wxGTK-2.4.2-patched/src/gtk/settings.cpp    2004-03-31 23:03:41.888957808 -0700
+@@ -340,9 +340,17 @@
+                 }  
+                 else  
+                 {  
+-                    const gchar *font_name =
+-                        _gtk_rc_context_get_default_font_name(gtk_settings_get_default());
+-                    g_systemFont = new wxFont(wxString::FromAscii(font_name));
++                    GtkSettings *settings = gtk_settings_get_default();
++                    gchar *font_name = NULL;
++                    g_object_get ( settings,
++                                   "gtk-font-name", 
++                                   &font_name,
++                                   NULL);
++                    if (!font_name)
++                        g_systemFont = new wxFont( 12, wxSWISS, wxNORMAL, wxNORMAL );
++                    else
++                        g_systemFont = new wxFont(wxString::FromAscii(font_name));
++                    g_free (font_name);
+                 }  
+                 gtk_widget_destroy( widget );
+ #else
