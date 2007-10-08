@@ -22,8 +22,10 @@
 
 FORCE_RAID=${FORCE_RAID:=false}
 FORCE_LVM=${FORCE_LVM:=false}
+FORCE_CRYPTO=${FORCE_CRYPTO:=false}
 USE_RAID=${USE_RAID:=false}
 USE_LVM=${USE_LVM:=false}
+USE_CRYPTO=${USE_CRYPTO:=false}
 BREAK_ON_MISSING=${BREAK_ON_MISSING:=true}
 REMOVE_OLD_INITRD=${REMOVE_OLD_INITRD:=false}
 
@@ -48,9 +50,25 @@ function linuxrc_pre()
 
 for module in \`cat /modules.lst\`
 do
-/sbin/insmod \$module
+/bin/insmod \$module
 done
 EOF
+}
+
+function linuxrc_crypto()
+{
+	if $USE_CRYPTO || $FORCE_CRYPTO
+	then
+		cat <<-EOF
+/bin/mount -t proc proc /proc
+/bin/dmsetup mknodes
+cat /crypttab |
+while read line
+do
+eval "/bin/cryptsetup luksOpen \$line" < /dev/console > /dev/console 2>&1
+done
+EOF
+	fi
 }
 
 function linuxrc_raid()
@@ -58,7 +76,7 @@ function linuxrc_raid()
 	if $USE_RAID || $FORCE_RAID
 	then
 	cat <<-EOF
-/sbin/mdadm --assemble --scan
+/bin/mdadm --assemble --scan
 EOF
 	fi
 }
@@ -68,10 +86,10 @@ function linuxrc_lvm()
 	if $USE_LVM || $FORCE_LVM
 	then
 	cat <<-EOF
-/sbin/mount -t proc proc /proc
-/sbin/dmsetup mknodes
-/sbin/vgscan --ignorelockingfailure --mknodes
-/sbin/vgchange -ay --ignorelockingfailure
+/bin/mount -t proc proc /proc
+/bin/dmsetup mknodes
+/bin/vgscan --ignorelockingfailure --mknodes
+/bin/vgchange -ay --ignorelockingfailure
 EOF
 	fi
 }
@@ -95,18 +113,16 @@ function default_parts()
 dir /dev 0755 0 0
 nod /dev/console 0600 0 0 c 5 1
 dir /root 0700 0 0
-slink /init linuxrc 0755 0 0
 file /linuxrc /tmp/linuxrc 0755 0 0
+link /init /linuxrc 0755 0 0
 EOF
 }
 
 function dir_parts()
 {
 	cat <<-EOF
-slink /sbin bin 0755 0 0
 dir /bin 0755 0 0
 dir /usr 0755 0 0
-slink /usr/sbin bin 0755 0 0
 dir /usr/bin 0755 0 0
 dir /lib 0755 0 0
 dir /proc 0755 0 0
@@ -539,7 +555,7 @@ function raid_parts()
 	if $USE_RAID || $FORCE_RAID
 	then
 	cat <<-EOF
-file /sbin/mdadm /sbin/mdadm.static 0755 0 0
+file /bin/mdadm /sbin/mdadm.static 0755 0 0
 file /etc/mdadm.conf /etc/mdadm.conf 0644 0 0
 EOF
 	fi
@@ -552,7 +568,7 @@ function lvm_parts()
 	cat <<-EOF
 dir /etc/lvm 0755 0 0
 file /etc/lvm/lvm.conf /etc/lvm/lvm.conf 0644 0 0
-file /sbin/lvm /usr/sbin/lvm.static 0755 0 0
+file /bin/lvm /usr/sbin/lvm.static 0755 0 0
 EOF
 	local link
 	for link in lvs pvs vgs vgck lvconvert lvdisplay pvchange pvcreate \
@@ -563,9 +579,19 @@ EOF
 		vgremove vgconvert vgcfgbackup lvreduce lvrename lvremove \
 		lvresize vgdisplay 
 	do
-		echo "slink /sbin/$link lvm 0755 0 0"
+		echo "link /bin/$link /bin/lvm 0755 0 0"
 	done
-	echo "file /sbin/dmsetup /sbin/dmsetup.static 0755 0 0"
+	echo "file /bin/dmsetup /sbin/dmsetup.static 0755 0 0"
+	fi
+}
+
+function crypto_parts()
+{
+	if $USE_CRYPTO || $FORCE_CRYPTO
+	then
+	echo "file /crypttab /etc/crypttab 0644 0 0"
+	echo "file /bin/cryptsetup /usr/sbin/cryptsetup.static 0755 0 0"
+	echo "file /bin/dmsetup /sbin/dmsetup.static 0755 0 0"
 	fi
 }
 
@@ -634,6 +660,14 @@ function fill_modules()
 	then
 		rec_fill_modules dm-mod
 	fi
+	if $USE_CRYPTO || $FORCE_CRYPTO
+	then
+		rec_fill_modules sha256
+		rec_fill_modules sha512
+		rec_fill_modules aes-i586
+		rec_fill_modules aes
+		rec_fill_modules dm-crypt
+	fi
 	fill_root_driver
 	fill_root_filesystem
 }
@@ -645,8 +679,8 @@ function gen_cpio_root()
 	do
 		args=($line)
 		case ${args[0]} in
-			slink)
-				ln -s ${args[2]} ${CPIO_TMP_ROOT}/${args[1]}
+			link)
+				ln ${CPIO_TMP_ROOT}/${args[2]} ${CPIO_TMP_ROOT}/${args[1]}
 			;;
 			file)
 				cat ${args[2]} > ${CPIO_TMP_ROOT}/${args[1]}
@@ -668,7 +702,7 @@ function gen_cpio_root()
 function gen_cpio_image()
 {
 	pushd $CPIO_TMP_ROOT > /dev/null 2>&1
-	find . | cpio --quiet -H newc -o | gzip -9c > $INITRD_FILE
+	find . | cpio --quiet -H newc -o | gzip -c > $INITRD_FILE
 	popd > /dev/null 2>&1
 	rm -rf $CPIO_TMP_ROOT
 }
@@ -693,6 +727,16 @@ function check_lvm()
 	fi
 }
 
+function check_crypto()
+{
+	if [[ -f /etc/crypttab && -x /usr/sbin/cryptsetup.static && -x /sbin/dmsetup.static ]]
+	then
+		USE_CRYPTO=true
+	else
+		USE_CRYPTO=false
+	fi
+}
+
 while [[ $1 ]]
 do
 	case $1 in
@@ -711,11 +755,17 @@ do
 		--enable-lvm)
 			FORCE_LVM=true
 		;;
+		--enable-crypto)
+			FORCE_CRYPTO=true
+		;;
 		--disable-raid)
 			FORCE_RAID=false
 		;;
 		--disable-lvm)
 			FORCE_LVM=false
+		;;
+		--disable-crypto)
+			FORCE_CRYPTO=false
 		;;
 		-f|--force)
 			REMOVE_OLD_INITRD=true
@@ -747,11 +797,13 @@ done
 depmod -a $KVERSION
 check_raid
 check_lvm
+check_crypto
 fill_modules
 (
 	linuxrc_pre
 	linuxrc_raid
 	linuxrc_lvm
+	linuxrc_crypto
 	linuxrc_pre_kinit
 	linuxrc_post
 ) > /tmp/linuxrc
@@ -762,6 +814,7 @@ fill_modules
 	module_parts
 	klibc_parts
 	raid_parts
+	crypto_parts
 	lvm_parts
 	user_parts	
 ) | gen_cpio_root

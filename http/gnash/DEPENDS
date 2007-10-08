@@ -6,14 +6,15 @@ depends  libpng                                                   &&
 depends  jpeg                                                     &&
 depends  libxml2                                                  &&
 depends  curl                                                     &&
-# only recommnedde renderer is ogl... the other
-# one is agg which we don't have a spell yet for and doesn't
-# have the same performance under certain conditions
-depends  OPENGL  '--enable-renderer=ogl'                          &&
+if [[ $GNASH_RENDERER == "opengl" ]]; then
+  depends  OPENGL  '--enable-renderer=ogl'
+else
+  depends  agg  '--enable-renderer=agg'
+fi                                                                &&
 if [[ $GNASH_MEDIA == "gstreamer" ]]; then
   depends  $GNASH_MEDIA '--enable-media=GST'
 elif [[ $GNASH_MEDIA == "libmad" ]]; then
-  depends  $GNASH_MEDIA '--enable-media=mad}'
+  depends  $GNASH_MEDIA '--enable-media=mad --enable-mad'
 elif [[ $GNASH_MEDIA == "ffmpeg" ]]; then
   depends  LIBAVCODEC '--enable-media=ffmpeg'
 fi                                                                &&
@@ -32,6 +33,7 @@ if   [[ "${GNASH_GUI}" == "GTK" ]]; then
   depends  pango
 elif [[ "${GNASH_GUI}" == "KDE" ]]; then
   depends  kdebase '--enable-gui=kde'                             &&
-  depends  kdelibs '--enable-kparts'
+  depends  kdelibs '--enable-kparts'                              &&
+  depends  qt-x11  "--with-qt-incl=${INSTALL_ROOT}/usr/include/qt --with-qt-lib=${INSTALL_ROOT}/usr/lib"
 fi
 

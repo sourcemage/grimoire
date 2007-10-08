@@ -1,3 +1,4 @@
+make_single                                                  &&
 cd  lib/Xaw3d                                                &&
 ln  -s  ..  X11                                              &&
 perl  -i  -pe  's/#  (EXTRA_INCLUDES = -I.)/$1/'  Imakefile  &&
