@@ -529,3 +529,116 @@ function build_qt3_or_4()
   qmake   &&
   make
 }
+
+#-------------------------------------------------------------------------
+## Print the version of the running kernel.
+#-------------------------------------------------------------------------
+function get_running_kernel_version()
+{
+  # Try the proc interface first because it returns the version of the
+  # running kernel even when unamechange is invoked.
+  [[ -f /proc/sys/kernel/osrelease ]] && cat /proc/sys/kernel/osrelease ||
+    uname -r
+}
+
+#-------------------------------------------------------------------------
+## Print the version of the installed linux spell or, lacking that, "-1".
+## This is just a wrapper for 'installed_version linux' with the exception
+## that this will always print something and not return false.
+#-------------------------------------------------------------------------
+function get_sorcery_kernel_version()
+{
+  installed_version linux || echo "-1"
+}
+
+#-------------------------------------------------------------------------
+## Print the version of the kernel defined in USE_KERNEL_VERSION or, 
+## lacking that, the version of either the installed linux spell or the 
+## running kernel.
+#-------------------------------------------------------------------------
+function get_kernel_version()
+{
+  if [[ $USE_KERNEL_VERSION ]]
+  then
+    echo "$USE_KERNEL_VERSION"
+  else
+    installed_version linux || get_running_kernel_version
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Print the kernel config status of the running kernel for the option 
+## defined in $1.
+## If a configure file is found print the requested config status (if
+## any) and return 0, otherwise return 1.
+#-----------------------------------------------------------------------
+function get_running_kernel_config()
+{
+  if [[ -f /proc/config.gz ]]
+  then
+    zgrep "^$1=" /proc/config.gz | cut -d= -f2
+  else
+    local KVER="$(get_running_kernel_version)"
+    if [[ -f "/boot/config-$KVER" ]]
+    then
+      grep "^$1=" "/boot/config-$KVER" | cut -d= -f2
+    elif [[ -f "/usr/src/linux-$KVER/.config" ]]
+    then
+      grep "^$1=" "/usr/src/linux-$KVER/.config" | cut -d= -f2
+    else
+      return 1
+    fi
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Print the kernel config status of the installed linux spell for the 
+## option defined in $1.
+## If the linux spell is installed and a configure file is found print
+## the requested config status (if any) and return 0, otherwise return
+## 1.
+#-----------------------------------------------------------------------
+function get_sorcery_kernel_config()
+{
+  local KVER="$(installed_version linux)"
+  if [[ $KVER ]]
+  then
+    if [[ -f "/boot/config-$KVER" ]]
+    then
+      grep "^$1=" "/boot/config-$KVER" | cut -d= -f2
+    elif [[ -f "/usr/src/linux-$KVER/.config" ]]
+    then
+      grep "^$1=" "/usr/src/linux-$KVER/.config" | cut -d= -f2
+    else
+      return 1
+    fi
+  else
+    return 1
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Print the kernel config status for the option defined in $1 from the
+## kernel defined in USE_KERNEL_VERSION or, lacking that, from either
+## the installed linux spell or the running kernel.
+## If a configure file is found print the requested config status (if
+## any) and return 0, otherwise return 1.
+#-----------------------------------------------------------------------
+function get_kernel_config()
+{
+  if [[ $USE_KERNEL_VERSION ]]
+  then
+    if [[ -f "/boot/config-$USE_KERNEL_VERSION" ]]
+    then
+      grep "^$1=" "/boot/config-$USE_KERNEL_VERSION" | cut -d= -f2
+    elif [[ -f "/usr/src/linux-$USE_KERNEL_VERSION/.config" ]]
+    then
+      grep "^$1=" "/usr/src/linux-$USE_KERNEL_VERSION/.config" | cut -d= -f2
+    else
+      return 1
+    fi
+  else
+    get_sorcery_kernel_config "$1" || get_running_kernel_config "$1"
+  fi
+}
+
