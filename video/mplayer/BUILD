@@ -7,7 +7,7 @@ disable_pic                 &&
 OPTS="$MPLAYER_OPTS $OPTS"  &&
 
 CFLAGS= ./configure  --prefix=${INSTALL_ROOT}/usr    \
-             --confdir=${INSTALL_ROOT}/etc/mplayer   \
+             --confdir=${TRACK_ROOT}/etc/mplayer   \
              --mandir=${INSTALL_ROOT}/usr/share/man  \
              $OPTS          &&
 
