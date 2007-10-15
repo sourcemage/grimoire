@@ -1,9 +1,4 @@
-if [ "$ROOT_FILTER" == "y" ]; then
-  OPTS="$OPTS --enable-root-filter"
-fi  &&
-if [ "$ENV_CHECK" == "n" ]; then
-  OPTS="$OPTS --disable-env-check"
-fi  &&
+OPTS="${GRINGOTTS_ENV_CHECK} ${GRINGOTTS_ROOT_FILTER} ${GRINGOTTS_ATTACH_LIMIT} ${OPTS}"
 
 make_single    &&
 default_build  &&
