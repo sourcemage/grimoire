@@ -1,0 +1,66 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          vbesave
+# Required-Start:    $local_fs $remote_fs
+# Required-Stop:     $local_fs $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+### END INIT INFO
+
+# Adding smgl stuff..
+PROGRAM=/usr/sbin/vbetool
+RUNLEVEL=3
+. /etc/init.d/smgl_init
+
+test -f /usr/share/acpi-support/power-funcs || exit 0
+
+test -x /usr/sbin/vbetool || exit 0
+set -e
+
+test -f /etc/default/rcS && . /etc/default/rcS
+test -f /etc/default/acpi-support && . /etc/default/acpi-support
+test -f /usr/share/acpi-support/device-funcs && . /usr/share/acpi-support/device-funcs
+
+# Changing to support smgl init way to do things...
+
+function start() {
+	if laptop-detect > /dev/null; then
+		LAPTOP=true;
+	fi
+
+	if [ x$LAPTOP != xtrue ]; then
+		exit 0;
+	fi
+
+        DeviceConfig
+	echo "Saving VESA state..."
+	if [ "$SAVE_VBE_STATE" = "true" ]; then
+	    if [ "$VERBOSE" = no ]; then 
+		if ! $PROGRAM vbestate save > $VBESTATE 2>/dev/null; then
+			echo "$?"
+		fi
+	    else
+		if ! $PROGRAM vbestate save > $VBESTATE ; then
+			echo "$?"
+		fi
+	    fi
+	    echo "VESA state saved..."
+        fi
+	echo "Done..."
+}
+
+function stop ()
+{
+	echo "Unsupported..."
+}
+
+function restart ()
+{
+	echo "Unsupported..."
+}
+
+function force-reload ()
+{
+	echo "Unsupported..."
+}
