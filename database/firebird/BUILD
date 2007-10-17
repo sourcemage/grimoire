@@ -20,6 +20,10 @@ fi                                            &&
   OPTS="${OPTS} ${FB_STAT}"                     &&
   LDFLAGS="$LDFLAGS -lpthread"                  &&
 
+#strip -O3 from optimisations, gcc-4.2.2 problem
+  CFLAGS="${CFLAGS/-O3/-O2}"                    &&
+  CXXFLAGS="${CXXFLAGS/-O3/-O2}"                &&
+
   ./configure 				\
 	--prefix=$FB_PREFIX 		\
 	$OPTS					&&
