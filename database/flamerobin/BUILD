@@ -1,3 +1,4 @@
+chmod u+x configure          &&
 OPTS="--enable-shared $OPTS" &&
 mkdir release       &&
 cd release          &&
