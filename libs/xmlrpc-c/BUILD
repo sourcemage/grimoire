@@ -20,7 +20,7 @@ then
 fi &&
 if [ "$BUNICODE" == "n" ];
 then
-    MYCONF="$MYCONF --disable-cplusplus " &&
+    MYCONF="$MYCONF --disable-unicode " &&
     message "${MESSAGE_COLOR}Disabled unicode support build${DEFAULT_COLOR}"
 fi &&
 if [ "$ABFORK" == "y" ];
