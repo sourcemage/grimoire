@@ -24,7 +24,7 @@ if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
   case "$VERSION" in
     2.[024]*)
       echo "making deps for a 2.4 kernel"  &&
-      make dep    &&
+      make dep    
     ;;
   esac &&
   make $EXTRA_MAKE_OPTIONS $IMAGE_TARGET &&
