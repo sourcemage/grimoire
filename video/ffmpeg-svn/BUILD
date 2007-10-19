@@ -2,7 +2,7 @@ CFLAGS="${CFLAGS/-funroll-loops/} -O3"
 disable_pic  &&
 
 if [ $FFAMR != none ];then
-  OPTS="--enable-$FFAMR $OPTS"
+  OPTS="--enable-lib$FFAMR $FFMPEG_SWSCALE $OPTS"
 fi  &&
 
 ./configure  --prefix=${INSTALL_ROOT}/usr            \
