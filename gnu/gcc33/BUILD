@@ -11,9 +11,10 @@ CXXFLAGS=${CFLAGS/pentium-m/pentium3}    &&
 cd $SOURCE_DIRECTORY.bld                                  &&
 $SOURCE_DIRECTORY/configure                               \
              --host=$HOST                                 \
-           --prefix=${INSTALL_ROOT}/opt/gcc33             \
-          --infodir=${INSTALL_ROOT}/opt/gcc33/share/info  \
-           --mandir=${INSTALL_ROOT}/opt/gcc33/share/man   \
+           --prefix=${INSTALL_ROOT}/usr                   \
+          --infodir=${INSTALL_ROOT}/usr/share/info        \
+           --mandir=${INSTALL_ROOT}/usr/share/man         \
+        --program-suffix=-${VERSION%.*}                   \
    --enable-threads=posix                                 \
  --enable-languages=c,c++                                 \
        $GCC_MULTILIB $OPTS                                &&
@@ -25,4 +26,5 @@ sedit 's|\(CFLAGS_FOR_TARGET.*\)\$(CFLAGS)|\1$(CFLAGS:k8=athlon-xp)|g' Makefile 
 sedit 's|\(CXXFLAGS_FOR_TARGET.*\)\$(CXXFLAGS)|\1$(CXXFLAGS:k8=athlon-xp)|g' Makefile &&
 sedit 's|march=k8|march=athlon-xp|g' libiberty/Makefile libiberty/testsuite/Makefile &&
 
-make  bootstrap
+make  bootstrap &&
+make  DESTDIR=$SOURCE_DIRECTORY.install install-no-fixedincludes
