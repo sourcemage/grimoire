@@ -1,13 +1,20 @@
 #
-# Bug #10647, also fixed in devel Sorcery
+#  Bug #10647, also fixed in devel Sorcery
 #
-cd  $SOURCE_DIRECTORY.bld  &&
+cd  $SOURCE_DIRECTORY.install  &&
+local libdir=lib
+[[ -d usr/lib64 ]] && libdir=lib64
 
-make -C gcc lang.install-common lang.install-man  &&
-install -c gcc/cc1plus ${INSTALL_ROOT}/usr/libexec/gcc/$HOST/$VERSION/  &&
-make -C $HOST/libstdc++-v3/ install  &&
-
-# specs file stuff
-local SPECSDIR=${INSTALL_ROOT}/usr/lib/gcc/$HOST/$VERSION  &&
-mkdir -p $SPECSDIR/specs-local                             &&
-cp $SCRIPT_DIRECTORY/specs_g++ $SPECSDIR/specs-local
+for file in usr/bin \
+            usr/lib/gcc \
+            usr/include \
+            usr/$libdir \
+            usr/libexec/gcc \
+            usr/share
+do
+	local dir=$(dirname $file)
+	local dest=$file
+	[[ -e /$dir ]] || mkdir -p /$dir
+	[[ -d /$file ]] && dest=$dir
+	cp -va $file /$dest
+done

@@ -25,10 +25,19 @@ $SOURCE_DIRECTORY/configure                                \
              --infodir=${INSTALL_ROOT}/usr/share/info      \
              --mandir=${INSTALL_ROOT}/usr/share/man        \
              --enable-threads=posix                        \
+             --program-suffix=-${VERSION%.*}               \
              --with-system-zlib                            \
              --enable-languages=c++                        \
              $GCC_MULTILIB                                 \
              $OPTS                                         &&
 
 make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
-     profiledbootstrap
+     profiledbootstrap &&
+make -C gcc DESTDIR=$SOURCE_DIRECTORY.install lang.install-common lang.install-man  &&
+install -c gcc/cc1plus $SOURCE_DIRECTORY.install/usr/libexec/gcc/$HOST/$VERSION/  &&
+make -C $HOST/libstdc++-v3/ DESTDIR=$SOURCE_DIRECTORY.install install  &&
+
+# specs file stuff
+local SPECSDIR=$SOURCE_DIRECTORY.install/usr/lib/gcc/$HOST/$VERSION  &&
+mkdir -p $SPECSDIR/specs-local                             &&
+cp $SCRIPT_DIRECTORY/specs_g++ $SPECSDIR/specs-local
