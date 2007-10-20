@@ -24,8 +24,24 @@ $SOURCE_DIRECTORY/configure                                \
              --infodir=${INSTALL_ROOT}/usr/share/info      \
              --mandir=${INSTALL_ROOT}/usr/share/man        \
              --enable-threads=posix                        \
+             --program-suffix=-${VERSION%.*}               \
              --with-system-zlib                            \
              $GCC_MULTILIB $OPTS                          &&
 
 make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
-     profiledbootstrap
+     profiledbootstrap &&
+make DESTDIR=$SOURCE_DIRECTORY.install install-no-fixedincludes &&
+
+# set up specs file handling
+local SPECSDIR=$SOURCE_DIRECTORY.install/usr/lib/gcc/$HOST/$VERSION         &&
+mkdir -p $SPECSDIR/specs-local                                    &&
+cp  gcc/specs  $SPECSDIR/specs-local/specs-gcc                    &&
+if [[ $HOST == x86_64-* && $GCC_NOLIB64 == n ]]
+then
+  # make sure the linker gets compiled in as a /lib64 one
+  sed -i 's#/lib/ld-linux-x86-64.so.2#/lib64/ld-linux-x86-64.so.2#' $SPECSDIR/specs-local/specs-gcc
+fi &&
+# make sure installwatch tracks it, the cat alone doesn't do that
+touch  $SPECSDIR/specs                                            &&
+cat  $SPECSDIR/specs-local/* > $SPECSDIR/specs
+
