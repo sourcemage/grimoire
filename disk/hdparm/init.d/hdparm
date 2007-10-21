@@ -9,6 +9,7 @@ RUNLEVEL=1
 
 start()
 {
+	echo "Starting hdparm..."
 	# SCSI/SATA
 	for drive in sd{a..z}; do
 		if [[ -b "/dev/$drive" ]]; then
@@ -19,14 +20,18 @@ start()
 	# PATA
 	for drive in hd{a..z}; do
 		if [[ -b "/dev/$drive" ]]; then
-			if [[ "$(cat /proc/ide/$drive/media)" == "cdrom" ]];
+			if [[ -f /proc/ide/$drive/media ]];
 			then
-				$PROGRAM $common_params $pata_cdrom_params $pata_params "/dev/$drive"
-			else
-				$PROGRAM $common_params $disk_params $pata_disk_params $pata_params "/dev/$drive"
+				if [[ "$(cat /proc/ide/$drive/media)" == "cdrom" ]];
+				then
+					$PROGRAM $common_params $pata_cdrom_params $pata_params "/dev/$drive"
+				else
+					$PROGRAM $common_params $disk_params $pata_disk_params $pata_params "/dev/$drive"
+				fi
 			fi
 		fi
 	done
+	evaluate_retval
 }
 
 stop()

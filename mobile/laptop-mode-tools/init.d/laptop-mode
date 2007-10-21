@@ -1,0 +1,70 @@
+#!/bin/sh
+#
+# chkconfig: - 20 90
+# description: Starts and stops "laptop-mode" - tweaks system behavior
+#              to extend battery life.
+#
+# config:  /etc/laptop-mode/laptop-mode.conf
+
+PROGRAM=/usr/sbin/laptop_mode
+RUNLEVEL=3
+NEEDS="+local_fs"
+
+. /etc/init.d/smgl_init
+
+test -f /usr/sbin/laptop_mode || exit 0
+
+#. /lib/lsb/init-functions
+
+# Enable laptop mode when the system is booted when running on battery.
+
+TEMPFILE=`mktemp`
+echo "Failed to start laptop mode" > $TEMPFILE
+
+
+trap "cat $TEMPFILE; rm $TEMPFILE; exit 10" HUP INT ABRT QUIT SEGV TERM
+set -e
+
+function start() {
+    touch /var/run/laptop-mode-enabled
+    $PROGRAM auto > $TEMPFILE
+    cat $TEMPFILE
+}
+
+function restart() {
+    # Full restart: first stop laptop mode completely (to restore default mount options etc.)
+    rm -f /var/run/laptop-mode-enabled
+    $PROGRAM stop > $TEMPFILE
+    cat $TEMPFILE
+    
+    # Now remove files containing stored status, re-enable, and start it up again.
+    rm -f /var/run/laptop-mode-*
+    touch /var/run/laptop-mode-enabled
+    $PROGRAM auto force > $TEMPFILE
+    cat $TEMPFILE
+}
+
+function reload() {
+    # Full restart: first stop laptop mode completely (to restore default mount options etc.)
+    rm -f /var/run/laptop-mode-enabled
+    $PROGRAM stop > $TEMPFILE
+    cat $TEMPFILE
+    
+    # Now remove files containing stored status, re-enable, and start it up again.
+    rm -f /var/run/laptop-mode-*
+    touch /var/run/laptop-mode-enabled
+    $PROGRAM auto force > $TEMPFILE
+    cat $TEMPFILE
+}
+
+function stop() {
+    rm -f /var/run/laptop-mode-enabled
+    $PROGRAM stop > $TEMPFILE
+    cat $TEMPFILE
+}
+
+function status() {
+    echo "Laptop mode status:"
+    echo
+    $PROGRAM status
+}
