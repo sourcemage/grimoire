@@ -1,5 +1,3 @@
-echo ${SGML_COMPAT_ARCHS}
-
 MOZILLA_HOME=$INSTALL_ROOT/usr/lib/xulrunner    &&
 
 #
