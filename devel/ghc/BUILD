@@ -8,7 +8,7 @@ if [[ $SOURCE2 != "" ]] ; then
   cd ghc-bin &&
   ./configure &&
   if [ "$(uname -m)" == x86_64 ]; then
-    echo 'SplitObjs=NO' > ../$SPELL-$VERSION/mk/build.mk
+    echo 'SplitObjs = NO' >> ../$SPELL-$VERSION/mk/build.mk
   fi   &&
   make in-place &&
   GHC_DIR=$PWD/bin/$ARCH-unknown-linux/ghc &&
