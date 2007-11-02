@@ -1,8 +1,4 @@
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
-# touch the man pages so make doesn't try to rebuild them
-  touch *.5 *.8  &&
-
-patch -p1 < $SPELL_DIRECTORY/mk.diff  &&
 make_single                           &&
 
 if [ $OLD_TOO == y ] ; then
@@ -20,4 +16,4 @@ fi  &&
              --prefix=${TRACK_ROOT}/               \
              --mandir=${TRACK_ROOT}/usr/share/man  \
              $OPTS                                   &&
-make   DESTDIR=$INSTALL_ROOT
+make   DESTDIR=$INSTALL_ROOT MANS=
