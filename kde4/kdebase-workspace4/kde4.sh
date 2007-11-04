@@ -1,8 +1,8 @@
 #!/bin/sh
+if [ $USER != root ];then
 # setup KDE4 environment for SMGL
-source /etc/profile.d/qt.sh
 
-export PATH=$QTDIR/bin/qt4:$PATH
+export PATH=/usr/bin/qt4:$PATH
 export KDEDIR=/opt
 export KDEDIRS=$KDEDIR
 export KDE_DATA_DIRS=$KDEDIR/share
@@ -22,7 +22,7 @@ export KDEVARTMP=/var/tmp/kde4cache-$USER
 
 # Ensure that they exist
 mkdir -p $KDEDIR $KDETMP $KDEVARTMP
-
+fi
 
 
 
