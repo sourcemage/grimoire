@@ -1,5 +1,5 @@
 #!/bin/sh
-if [ $USER != root ];then
+if [ "$USER" != "root" ];then
 # setup KDE4 environment for SMGL
 
 export PATH=/usr/bin/qt4:$PATH

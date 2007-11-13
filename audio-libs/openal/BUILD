@@ -1,4 +1,6 @@
-if [[ $OPENAL_VERSION != release ]]; then
-cd linux
+if [[ $OPENAL_VERSION == snapshot ]]; then
+  cd linux
+elif [[ $OPENAL_VERSION == scm ]]; then
+  cd OpenAL-Sample
 fi  &&
 default_build
