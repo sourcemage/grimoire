@@ -1,15 +1,14 @@
 create_account fcron
 
-EDITOR=`which ${EDITOR%% *} 2> /dev/null` ||
-EDITOR=`which nano`
+local editor
+editor=`which ${EDITOR%% *} 2> /dev/null` ||
+editor=`which nano`
 
-sedit "s/-O2/$CFLAGS/" configure
-
-./configure  --prefix=/usr          \
-             --with-answer-all=no   \
-	     --sysconfdir=/etc      \
-             --with-editor=$EDITOR  \
-             --bindir=/bin          \
-             --sbindir=/sbin        \
-             $OPTS                  &&
-make
+OPTS="--with-answer-all=no \
+      --with-editor=$editor \
+      --localstatedir=$INSTALL_ROOT/var \
+      --with-piddir=$INSTALL_ROOT/var/run \
+      --with-fifodir=$INSTALL_ROOT/var/run \
+      --with-spooldir=$INSTALL_ROOT/var/spool/fcron \
+      $OPTS"  &&
+default_build
