@@ -8,10 +8,10 @@ OPTS="$QT_DEBUG   \
       $QT_EXCEPT  \
       $QT_PCH     \
       $QT_QT3     \
-      $QT_DEMO    \
-      $QT_EXAMPLE \
-      $QT_TOOLS   \
-      $QT_TRANS   \
+      $QT_DEMO demos   \
+      $QT_EXAMPLE examples \
+      $QT_TOOLS tools  \
+      $QT_TRANS translations  \
       $OPTS"      &&
 if [[ x${QT_DEBUG} == "x" ]];then
   OPTS="-no-separate-debug-info ${OPTS}"
