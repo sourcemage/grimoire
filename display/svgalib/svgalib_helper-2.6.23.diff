@@ -1,0 +1,72 @@
+diff -u -r svgalib-1.9.25.orig/kernel/svgalib_helper/kernel26compat.h svgalib-1.9.25.mod/kernel/svgalib_helper/kernel26compat.h
+--- svgalib-1.9.25.orig/kernel/svgalib_helper/kernel26compat.h	2007-11-10 20:03:01.000000000 -0600
++++ svgalib-1.9.25.mod/kernel/svgalib_helper/kernel26compat.h	2007-11-10 20:16:58.000000000 -0600
+@@ -31,6 +31,7 @@
+ #else /* Kernel 2.6 */
+ 
+ #define NO_TASK
++#include <linux/fs.h>
+ 
+ # ifndef KERNEL_2_6
+ #  define KERNEL_2_6
+@@ -77,7 +78,8 @@
+ }
+ static inline int devfs_unregister_chrdev (unsigned int major,const char *name)
+ {
+-    return unregister_chrdev (major, name);
++    unregister_chrdev (major, name);
++    return 0;
+ }
+ #endif
+ 
+diff -u -r svgalib-1.9.25.orig/kernel/svgalib_helper/main.c svgalib-1.9.25.mod/kernel/svgalib_helper/main.c
+--- svgalib-1.9.25.orig/kernel/svgalib_helper/main.c	2007-11-10 20:03:01.000000000 -0600
++++ svgalib-1.9.25.mod/kernel/svgalib_helper/main.c	2007-11-10 20:13:07.000000000 -0600
+@@ -1,5 +1,7 @@
+-#include <linux/config.h>
+-
++#ifndef AUTOCONF_INCLUDED
++#  include <linux/config.h>
++#endif
++ 
+ #if defined (CONFIG_MODVERSIONS) && !defined (MODVERSIONS)
+ # define MODVERSIONS
+ #endif
+@@ -17,7 +19,9 @@
+ #include <linux/ioport.h>
+ #include <linux/interrupt.h>
+ #include <linux/pci.h>
+-#include <linux/devfs_fs_kernel.h>
++#ifndef AUTOCONF_INCLUDED
++#  include <linux/devfs_fs_kernel.h>
++#endif 
+ #include <linux/mm.h>
+ #include <linux/thread_info.h>
+ #include <linux/smp.h>
+@@ -98,7 +102,7 @@
+ static volatile int vsync=0;
+ static wait_queue_head_t vsync_wait;
+ 
+-static irqreturn_t vsync_interrupt(int irq, void *dev_id, struct pt_regs *regs)
++static irqreturn_t vsync_interrupt(int irq, void *dev_id)
+ {
+     struct sh_pci_device *dev = (struct sh_pci_device *)dev_id;
+ 
+@@ -355,7 +359,7 @@
+                 vsync=1;
+                 i=0;
+                 while(irqs[i]!=-1)
+-                    request_irq(irqs[i++], vsync_interrupt, SA_SHIRQ, "svgalib_helper", sdev_id);
++                    request_irq(irqs[i++], vsync_interrupt, IRQF_SHARED, "svgalib_helper", sdev_id);
+                 vga_enable_vsync((void *)sdev_id);
+ 				wait_event_interruptible(vsync_wait, !vsync);
+                 i=0;
+@@ -443,7 +447,7 @@
+ 		int i=sh_pci_devs[minor]->dev->irq;
+ 		sh_pci_devs[minor]->opencount++;
+ 		if(sh_pci_devs[minor]->opencount==1 && i!=0 && i!=-1 && i!=255)
+-			request_irq(i, vsync_interrupt, SA_SHIRQ, "svgalib_helper", sh_pci_devs[minor]);
++			request_irq(i, vsync_interrupt, IRQF_SHARED, "svgalib_helper", sh_pci_devs[minor]);
+ 	}
+ 
+ #ifndef KERNEL_2_6

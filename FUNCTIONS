@@ -465,9 +465,9 @@ function check_if_xorg_modular_server()
 #  CALL THIS BEFORE YOU DO THE INSTALLING. You can see the postfix spell for an example.
 declare -f note_config_files &>/dev/null ||
 function note_config_files() {
-if check_if_modified "$1"; then 
-  mark_file_modified "$1" 
-fi
+  if check_if_modified "$1"; then 
+    mark_file_modified "$1" 
+  fi
 }
 
 # Functions for default_build and default_install for waf based build systems
@@ -476,36 +476,34 @@ fi
 # and waf is fast without it as well
 
 function waf_build(){
-./waf configure                               \
+  ./waf configure                             \
                 --nocache                     \
                 --prefix=${INSTALL_ROOT}/usr  \
                 $OPTS                         &&
-./waf build
+  ./waf build
 }
 
 function waf_install(){
-./waf install
+  ./waf install
 }
 
 # spells in several  sections now need cmake or qt4
-# 
 cmake_build() {
-cd $SOURCE_DIRECTORY  &&
-mkdir -p build        &&
-cd build              &&
-cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr ../  $OPTS &&
-make
+  cd $SOURCE_DIRECTORY  &&
+  mkdir -p build        &&
+  cd build              &&
+  cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr ../  $OPTS &&
+  make
 }
 
 qt4_build() {
-QTDIR=/usr
-PATH=$QTDIR/bin/qt4:$PATH
-cmake_build
+  [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
+  PATH="$QTDIR/bin/qt4:$PATH"
+  cmake_build
 }
 
-
 # check whether the QT provider is qt4
-
 function check_if_qt4_provider()
 {
   if  [[  "$(get_spell_provider  ${1:-$SPELL}  QT)"  ==  "qt4"  ]]
@@ -516,19 +514,31 @@ function check_if_qt4_provider()
 }
 
 
-
 # build using qt3 or qt4
 # some spells an adapt the build process to either qt3 or qt4
 function build_qt3_or_4()
 {
-  QTDIR=$INSTALL_ROOT/usr
+  [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
   if check_if_qt4_provider
   then
-    PATH=$QTDIR/bin/qt4:$PATH
+    PATH="$QTDIR/bin/qt4:$PATH"
   fi      &&
   qmake   &&
   make
 }
+
+# cmake flags use : which is an internal sorcery delimiter.
+# In order to facilitate the passing of depends flags, use % instead and call
+# this function at the start of BUILD. Don't use it anywhere else.
+# Example: 
+# DEPENDS: depends kdelibs4 -DCRUFT%BOOL=FALSE; ...
+# BUILD: prepare_cmake_flags; ...
+function prepare_cmake_flags()
+{
+  OPTS="${OPTS//%/:}"
+}
+
 
 #-------------------------------------------------------------------------
 ## Print the version of the running kernel.
