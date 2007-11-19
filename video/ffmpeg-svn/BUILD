@@ -5,6 +5,8 @@ disable_pic  &&
 #  OPTS="--enable-lib$FFAMR $FFMPEG_SWSCALE $OPTS"
 #fi  &&
 
+OPTS="$FFMPEG_SWSCALE $OPTS"  &&
+
 ./configure  --prefix=${INSTALL_ROOT}/usr            \
              --mandir=${INSTALL_ROOT}/usr/share/man  \
              --enable-shared                         \
