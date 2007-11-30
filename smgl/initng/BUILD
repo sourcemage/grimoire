@@ -3,4 +3,6 @@ cd ${SOURCE_DIRECTORY}     &&
 mkdir build                &&
 cd build                   &&
 cmake ..                   &&
-make_single
+make_single                &&
+make                       &&
+make_normal
