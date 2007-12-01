@@ -1,3 +1,3 @@
-export CPPFLAGS="-I/usr/include/freetype2" &&
-OPTS=echo "$OPTS --data-dir=${INSTALL_ROOT}/usr/share --enable-xft=yes"
+export CPPFLAGS="-I/usr/include/freetype2"                           &&
+OPTS="--with-data-dir=${INSTALL_ROOT}/usr/share --enable-xft $OPTS"  &&
 default_build
