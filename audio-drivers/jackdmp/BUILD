@@ -1,2 +1,2 @@
-cd  src/linux  &&
+cd  ${_SRCDIR}linux  &&
 make
