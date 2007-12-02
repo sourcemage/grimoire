@@ -3,7 +3,7 @@ echo  "This is the version: $VERSION"  &&
 
 # ppc kernels does not support stripping. This apply to both 2.4 kernels and
 # 2.6 kernels.
-
+persistent_add IMAGE_TARGET
 case "${KERNEL_ARCH}" in
   sparc*)
     IMAGE_TARGET=vmlinux
@@ -16,7 +16,12 @@ case "${KERNEL_ARCH}" in
     IMAGE_TARGET=zImage
     ;;
   *)
-    IMAGE_TARGET=bzImage
+    if grep CONFIG_XEN=y ./.config
+    then
+      IMAGE_TARGET=vmlinuz
+    else
+      IMAGE_TARGET=bzImage
+    fi
     ;;
 esac &&
 

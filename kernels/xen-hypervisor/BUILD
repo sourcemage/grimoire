@@ -2,7 +2,7 @@ unset LDFLAGS
 unset CFLAGS
 if [[ "$XEN_TARGET_X86_PAE" == "y" ]]
 then
-  make XEN_TARGET_X86_PAE=y xen
+  make XEN_TARGET_X86_PAE=y -C xen
 else
-  make xen
+  make -C xen
 fi
