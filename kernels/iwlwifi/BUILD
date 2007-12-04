@@ -1,3 +1,5 @@
+KVER=$(get_kernel_version)
 make_single  &&
-make KVER=$(get_kernel_version) || make KVER=$(get_kernel_version)  &&
+make KVER=$KVER KSRC=$INSTALL_ROOT/lib/modules/$KVER/source ||
+make KVER=$KVER KSRC=$INSTALL_ROOT/lib/modules/$KVER/source
 make_normal
