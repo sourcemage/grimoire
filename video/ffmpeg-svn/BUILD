@@ -1,9 +1,11 @@
 CFLAGS="${CFLAGS/-funroll-loops/} -O3"
 disable_pic  &&
 
-if [ $FFAMR != none ];then
-  OPTS="--enable-$FFAMR $OPTS"
-fi  &&
+#if [ $FFAMR != none ];then
+#  OPTS="--enable-lib$FFAMR $FFMPEG_SWSCALE $OPTS"
+#fi  &&
+
+OPTS="$FFMPEG_SWSCALE $OPTS"  &&
 
 ./configure  --prefix=${INSTALL_ROOT}/usr            \
              --mandir=${INSTALL_ROOT}/usr/share/man  \

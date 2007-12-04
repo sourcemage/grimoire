@@ -1,0 +1,282 @@
+diff -Naur laptop-mode-tools-1.34.orig/etc/init.d/laptop-mode laptop-mode-tools-1.34/etc/init.d/laptop-mode
+--- laptop-mode-tools-1.34.orig/etc/init.d/laptop-mode	2007-10-17 20:43:21.952504025 -0700
++++ laptop-mode-tools-1.34/etc/init.d/laptop-mode	2007-10-17 21:01:13.801986666 -0700
+@@ -6,9 +6,15 @@
+ #
+ # config:  /etc/laptop-mode/laptop-mode.conf
+ 
++PROGRAM=/usr/sbin/laptop_mode
++RUNLEVEL=3
++NEEDS="+local_fs"
++
++. /etc/init.d/smgl_init
++
+ test -f /usr/sbin/laptop_mode || exit 0
+ 
+-. /lib/lsb/init-functions
++#. /lib/lsb/init-functions
+ 
+ # Enable laptop mode when the system is booted when running on battery.
+ 
+@@ -16,44 +22,62 @@
+ echo "Failed to start laptop mode" > $TEMPFILE
+ 
+ 
+-trap "log_failure_msg $( cat $TEMPFILE ) ; rm $TEMPFILE; exit 10" HUP INT ABRT QUIT SEGV TERM
++trap "cat $TEMPFILE; rm $TEMPFILE; exit 10" HUP INT ABRT QUIT SEGV TERM
+ set -e
+ 
+-case $1 in
+-  start)
++function start() {
+     touch /var/run/laptop-mode-enabled
+-    /usr/sbin/laptop_mode auto > $TEMPFILE
+-    log_success_msg $( cat $TEMPFILE )
+-    ;;
++    $PROGRAM auto > $TEMPFILE
++    cat $TEMPFILE
++}
+ 
+-  restart|reload|force-reload)
++function restart() {
+     # Full restart: first stop laptop mode completely (to restore default mount options etc.)
+     rm -f /var/run/laptop-mode-enabled
+-    /usr/sbin/laptop_mode stop > $TEMPFILE
+-    log_success_msg $( cat $TEMPFILE )
++    $PROGRAM stop > $TEMPFILE
++    cat $TEMPFILE
+     
+     # Now remove files containing stored status, re-enable, and start it up again.
+     rm -f /var/run/laptop-mode-*
+     touch /var/run/laptop-mode-enabled
+-    /usr/sbin/laptop_mode auto force > $TEMPFILE
+-    log_success_msg $( cat $TEMPFILE )
+-    ;;
++    $PROGRAM auto force > $TEMPFILE
++    cat $TEMPFILE
++}
+ 
+-  stop)
++function reload() {
++    # Full restart: first stop laptop mode completely (to restore default mount options etc.)
+     rm -f /var/run/laptop-mode-enabled
+-    /usr/sbin/laptop_mode stop > $TEMPFILE
+-    log_success_msg $( cat $TEMPFILE )    
+-    ;;
++    $PROGRAM stop > $TEMPFILE
++    cat $TEMPFILE
++    
++    # Now remove files containing stored status, re-enable, and start it up again.
++    rm -f /var/run/laptop-mode-*
++    touch /var/run/laptop-mode-enabled
++    $PROGRAM auto force > $TEMPFILE
++    cat $TEMPFILE
++}
+ 
+-  status)
++function force-reload() {
++    # Full restart: first stop laptop mode completely (to restore default mount options etc.)
++    rm -f /var/run/laptop-mode-enabled
++    $PROGRAM stop > $TEMPFILE
++    cat $TEMPFILE
++    
++    # Now remove files containing stored status, re-enable, and start it up again.
++    rm -f /var/run/laptop-mode-*
++    touch /var/run/laptop-mode-enabled
++    $PROGRAM auto force > $TEMPFILE
++    cat $TEMPFILE
++}
++
++function stop() {
++    rm -f /var/run/laptop-mode-enabled
++    $PROGRAM stop > $TEMPFILE
++    cat $TEMPFILE
++}
++
++function status() {
+     echo "Laptop mode status:"
+     echo
+-    /usr/sbin/laptop_mode status
+-    ;;
+-    
+-  *)
+-    echo "Usage: $0 {stop|start|restart|reload|force-reload|status}" >&2
+-    exit 2
+-    ;;
+-esac
+-exit 0
++    $PROGRAM status
++}
+diff -Naur laptop-mode-tools-1.34.orig/install.sh laptop-mode-tools-1.34/install.sh
+--- laptop-mode-tools-1.34.orig/install.sh	2007-10-17 20:43:21.952504025 -0700
++++ laptop-mode-tools-1.34/install.sh	2007-10-17 21:01:13.802986513 -0700
+@@ -2,43 +2,9 @@
+ 
+ # If your distribution puts this in other locations, please adjust the values of
+ # these variables before installing!
+-# INIT_D=/etc/init.d
+-MAN_D=/usr/local/man/man8
+-
+-if [ "$INIT_D" == "" ] ; then
+-	# Try non-link directories first, then try links. This helps if one of
+-	# the locations is linked to another, which is the case on some distros.
+-	if [ -d /etc/rc.d/init.d -a ! -L /etc/rc.d/init.d ] ; then
+-		INIT_D=/etc/rc.d/init.d
+-	elif [ -d /etc/rc.d -a ! -L /etc/rc.d -a ! -d /etc/rc.d/init.d ] ; then
+-		INIT_D=/etc/rc.d
+-	elif [ -d /etc/init.d -a ! -L /etc/init.d ] ; then
+-		INIT_D=/etc/init.d
+-	elif [ -d /etc/rc.d/init.d ] ; then
+-		INIT_D=/etc/rc.d/init.d
+-	elif [ -d /etc/rc.d ] ; then
+-		INIT_D=/etc/rc.d
+-	elif [ -d /etc/init.d ] ; then
+-		INIT_D=/etc/init.d
+-	else
+-		echo "Cannot determine location of init scripts. Please modify install.sh."
+-		exit 31
+-	fi
+-fi
+-
+-if ( which invoke-rc.d > /dev/null ) ; then
+-	# Debian uses invoke-rc.d
+-	RCPROG=invoke-rc.d
+-	INITSCRIPT=laptop-mode
+-elif ( which service > /dev/null ) ; then
+-	# RedHat uses service
+-	RCPROG=service
+-	INITSCRIPT=laptop-mode
+-else
+-	# Any other -- we start it ourselves.
+-	RCPROG=
+-	INITSCRIPT=$INIT_D/laptop-mode
+-fi
++MAN_D=/usr/share/man/man8
++RCPROG="/sbin/telinit run"
++INITSCRIPT=laptop-mode
+ 
+ if [ "`whoami`" != "root" ] ; then
+ 	echo "You need to be root to install the laptop mode tools."
+@@ -49,9 +15,6 @@
+ 	echo "Warning: the kernel you are running does not support laptop mode."
+ fi
+ 
+-echo 'Stopping existing laptop mode service (if any).'
+-$RCPROG $INITSCRIPT stop
+-
+ INSTALL="install -o root -g root"
+ 
+ mkdir -p /etc/laptop-mode /etc/laptop-mode/batt-start /etc/laptop-mode/batt-stop /etc/laptop-mode/lm-ac-start /etc/laptop-mode/lm-ac-stop /etc/laptop-mode/nolm-ac-start /etc/laptop-mode/nolm-ac-stop /usr/lib/laptop-mode-tools/modules /etc/laptop-mode/conf.d /etc/laptop-mode/modules
+@@ -147,7 +110,6 @@
+ 		echo "$0: Failed to install ACPI event file in /etc/acpi/events. Installation failed."
+ 		exit 14
+ 	fi
+-	killall -HUP acpid
+ 	echo "Installed ACPI support."
+ 	ACPI_DONE=1
+ fi
+@@ -202,31 +164,6 @@
+ 	echo "Install either acpid, apmd, pbbuttonsd or pmud (depending on what your laptop supports) and reinstall."
+ fi
+ 
+-if [ -d $INIT_D ] ; then
+-  if ( ! $INSTALL -m 700 etc/init.d/laptop-mode $INIT_D ) ; then
+-    echo "$0: failed to install init script in $INIT_D. Installation failed."
+-    exit 16
+-  fi
+-  if [ -f /etc/rcS.d/S99laptop_mode ] ; then    
+-    # Old symlink.
+-    rm $RCS_D/S99laptop-mode
+-  fi
+-  if ( which update-rc.d > /dev/null ) ; then
+-    if ( ! update-rc.d laptop-mode defaults ) ; then
+-      echo "$0: update-rc.d failed, laptop mode will not be initialized at bootup."
+-      exit 17
+-    fi
+-  elif ( which chkconfig > /dev/null ) ; then
+-    if ( ! chkconfig laptop-mode on ) ; then
+-      echo "$0: chkconfig failed, laptop mode will not be initialized at bootup."
+-      exit 30
+-    fi
+-  fi
+-else
+-  echo "Directory $INIT_D not found: not installing script to initialize"
+-  echo "laptop mode at boot time."
+-fi
+-
+ if ( ! mkdir -p $MAN_D ) ; then
+   echo "$0: Could not create directory $MAN_D. Installation failed."
+   exit 22
+@@ -236,9 +173,4 @@
+   exit 23
+ fi
+ 
+-if ( ! $RCPROG $INITSCRIPT start ) ; then
+-	echo "$0: Could not start laptop mode init script /etc/init.d/laptop-mode."
+-	exit 24
+-fi
+-
+ echo "Installation complete."
+diff -Naur laptop-mode-tools-1.34.orig/usr/sbin/laptop_mode laptop-mode-tools-1.34/usr/sbin/laptop_mode
+--- laptop-mode-tools-1.34.orig/usr/sbin/laptop_mode	2007-10-17 20:43:21.952504025 -0700
++++ laptop-mode-tools-1.34/usr/sbin/laptop_mode	2007-10-17 21:02:29.838386836 -0700
+@@ -374,18 +374,20 @@
+ 
+ #############################################################################
+ 
+-KLEVEL="$(uname -r |
+-			 {
+-				 IFS='.-' read a b c
+-				 echo $a.$b
+-			 }
+-)"
+-KMINOR="$(uname -r |
+-			{
+-				IFS='.-' read a b c d
+-				echo $c
+-			}
+-)"
++#KLEVEL="$(uname -r |
++#			 {
++#				 IFS='.-' read a b c
++#				 echo $a.$b
++#			 }
++#)"
++KLEVEL=`uname -r | sed 's/^\([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/'`
++#KMINOR="$(uname -r |
++#			{
++#				IFS='.-' read a b c d
++#				echo $c
++#			}
++#)"
++KMINOR=`uname -r | sed 's/^[0-9][0-9]*\.[0-9][0-9]*\.\(.*\)/\1/'`
+ 
+ case "$KLEVEL" in
+ 	"2.4" ) ;;
+@@ -787,7 +789,7 @@
+ if [ -f /var/run/laptop-mode-state ] ; then
+ 	read WAS_ACTIVE WAS_ON_AC WAS_ACTIVATE_WITH_POSSIBLE_DATA_LOSS < /var/run/laptop-mode-state
+ 	if [ "$WAS_ON_AC" != "" ] ; then
+-		if [ "$WAS_ACTIVE" -eq "$ACTIVATE" -a "$WAS_ON_AC" -eq "$ON_AC" -a "$WAS_ACTIVATE_WITH_POSSIBLE_DATA_LOSS" -eq "$ACTIVATE_WITH_POSSIBLE_DATA_LOSS" -a "$FORCE" -eq 0 ] ; then
++		if [ "$WAS_ACTIVE" = "$ACTIVATE" -a "$WAS_ON_AC" = "$ON_AC" -a "$WAS_ACTIVATE_WITH_POSSIBLE_DATA_LOSS" = "$ACTIVATE_WITH_POSSIBLE_DATA_LOSS" -a "$FORCE" = 0 ] ; then
+ 			echo -n "$STATE, "
+ 			if [ "$WAS_ACTIVE" -eq 1 ] ; then
+ 				echo -n "active [unchanged]"
+@@ -1153,7 +1155,7 @@
+ 				# Retrieve original non-laptop mode mount options and restore them.
+ 				# If the file that stores them doesn't exist, then laptop mode
+ 				# has never been started.
+-				if [ "$WAS_ACTIVE" -ne 0 -a -f /var/run/laptop-mode-nolm-mountopts ] ; then						
++				if [ "$WAS_ACTIVE" != 0 -a -f /var/run/laptop-mode-nolm-mountopts ] ; then						
+ 					SAVED_OPTS=`grep "^$DEV " /var/run/laptop-mode-nolm-mountopts`
+ 					SAVED_OPTS=${SAVED_OPTS#* } # trim device name
+ 				
+@@ -1593,7 +1595,7 @@
+ # Finally, call laptop-mode-tools modules. The modules can use the settings
+ # from the INI files, but they may NOT assume the settings actually exist,
+ # as no defaults have been given for them.
+-for SCRIPT in /usr/lib/laptop-mode-tools/modules/* /usr/local/lib/laptop-mode-tools/modules/* /etc/laptop-mode/modules/*; do
++for SCRIPT in /usr/lib/laptop-mode-tools/modules/* /etc/laptop-mode/modules/*; do
+ 	if [ -e "$SCRIPT" ] ; then
+ 		"$SCRIPT" >> $OUTPUT
+ 	else

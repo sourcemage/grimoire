@@ -1,0 +1,3085 @@
+--- acpi-support-0.103.orig/toshbright.sh
++++ acpi-support-0.103/toshbright.sh
+@@ -1,5 +1,7 @@
+ #!/bin/sh
+ 
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ BRIGHTNESS=$(( `grep brightness: /proc/acpi/toshiba/lcd | cut -d: -f2` + 0 ))
+ MAXBRIGHT=$(( `grep brightness_levels: /proc/acpi/toshiba/lcd | cut -d: -f2` - 1 ))
+ 
+--- acpi-support-0.103.orig/acpi-support
++++ acpi-support-0.103/acpi-support
+@@ -64,9 +64,15 @@
+ # machines
+ RESTART_IRDA=false
+ 
+-# Switch to laptop-mode on battery power - off by default as it causes odd
+-# hangs on some machines
+-ENABLE_LAPTOP_MODE=false
++# Add to this list network interfaces that you don't want to be stopped
++# during suspend (in fact any network interface whose name starts with
++# a prefix given in this list is skipped)
++SKIP_INTERFACES="dummy qemu"
+ 
+-# Spindown time on battery
+-SPINDOWN_TIME=12
+\ No newline at end of file
++# Note: to enable "laptop mode" (to spin down your hard drive for longer
++# periods of time), install the laptop-mode-tools package and configure
++# it in /etc/laptop-mode/laptop-mode.conf. 
++#
++# (Note to upgraders: earlier versions of the acpi-support package contained 
++# an option to enable/disable laptop mode. This option has never actually
++# worked, and for that reason it has been removed.)
+--- acpi-support-0.103.orig/acpi_fakekey.c
++++ acpi-support-0.103/acpi_fakekey.c
+@@ -19,15 +19,14 @@
+                 fd = open(filename, O_RDWR);
+                 ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(key_bitmask)), key_bitmask);
+ 
+-		for (j = 0; j < BTN_MISC; j++) {
++		/* We assume that anything that has an alphabetic key in the
++		   QWERTYUIOP range in it is the main keyboard. */
++		for (j = KEY_Q; j <= KEY_P; j++) {
+ 			if (TestBit(j, key_bitmask))
+-				break;
++				return fd;
+ 		}
+ 
+-                if (j < BTN_MISC) {
+-                        return fd;
+-                }
+-		close (fd);
++                close (fd);
+         }
+         return 0;
+ }
+--- acpi-support-0.103.orig/asus-touchpad.sh
++++ acpi-support-0.103/asus-touchpad.sh
+@@ -1,7 +1,9 @@
+ #!/bin/sh
+ 
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ # get the current state of the touchpad
+-TPSTATUS=`synclient -l | grep TouchpadOff | awk '{print $3}'`
++TPSTATUS=`synclient -l | awk '/TouchpadOff/ {print $3}'`
+ 
+ # if getting the status failed, exit
+ test -z $TPSTATUS && exit 1
+--- acpi-support-0.103.orig/suspend.d/50-time.sh
++++ acpi-support-0.103/suspend.d/50-time.sh
+@@ -0,0 +1,4 @@
++#!/bin/sh
++
++# Save the time to the hardware clock
++invoke-rc.d hwclock.sh stop
+--- acpi-support-0.103.orig/suspend.d/81-video-pci-state.sh
++++ acpi-support-0.103/suspend.d/81-video-pci-state.sh
+@@ -0,0 +1,11 @@
++#!/bin/sh
++
++# Save video PCI state?
++if [ x$SAVE_VIDEO_PCI_STATE = xtrue ]; then
++  for x in /sys/bus/pci/devices/*; do
++    if [ `cat $x/class` = "0x030000" ]; then
++        cat $x/config >/var/run/vga-pci-`basename $x`;
++    fi
++  done
++fi
++
+--- acpi-support-0.103.orig/suspend.d/80-video-vesa-state.sh
++++ acpi-support-0.103/suspend.d/80-video-vesa-state.sh
+@@ -3,10 +3,14 @@
+ if [ x$SAVE_VBE_STATE = "xtrue" ]; then
+   # Check if we're in a VESA mode - if so, we need to do things more
+   # awkwardly. Otherwise, just use the state from boot.
+-  VBEMODE=`vbetool vbemode get`;
+-  if [ $VBEMODE != "3" ]; then
+-    vbetool vbemode set 3;
+-    vbetool vbestate save >$VBESTATE;
++  VBEMODE=$(vbetool vbemode get || echo FAILED);
++  if ( echo "$VBEMODE" | grep -q FAILED ); then
++ 	echo "vbetool returned an error while requesting the vbe mode."
++  else
++    if [ "$VBEMODE" != "3" ]; then
++      vbetool vbemode set 3;
++      vbetool vbestate save >$VBESTATE;
++    fi
+   fi
+ fi
+ 
+--- acpi-support-0.103.orig/suspend.d/55-down-interfaces.sh
++++ acpi-support-0.103/suspend.d/55-down-interfaces.sh
+@@ -5,12 +5,38 @@
+ # Get rid of any currently running dhclients
+ killall dhclient dhclient3 2>/dev/null
+ 
+-# Find the currently running network interfaces...
++# First do all network interfaces that were brought up by ifupdown. These are
++# the only interfaces that we bring up on resume (the other ones are probably
++# managed by other tools, such as NetworkManager, and will be brought up
++# automatically).
++IFUP_INTERFACES="`cat /etc/network/run/ifstate | sed 's/=.*//'`"
++
++must_control_interface()
++{
++  # Always skip lo
++  test "$1" = "lo" && return 1
++  for i in $SKIP_INTERFACES; do
++      # Skip if listed in $SKIP_INTERFACES
++      echo "$1" | grep -q "^$i" && return 1
++  done
++  return 0
++}
++
++
++# Shut down the interfaces (except lo, which can and should be kept up)
++for x in $IFUP_INTERFACES; do
++    if must_control_interface $x ; then
++      ifdown $x
++    fi
++done
++
++# Find the remaining running network interfaces...
+ INTERFACES=`/sbin/ifconfig | awk '/^[^ ]+/ {print $1}'`
+ 
+-# And shut them down
++# And shut them down (except lo, which can and should be kept up)
+ for x in $INTERFACES; do
+-    ifdown $x;
+-    ifconfig $x down;
++    if must_control_interface $x ; then
++      ifconfig $x down
++    fi
+ done
+ 
+--- acpi-support-0.103.orig/suspend.d/10-thinkpad-standby-led.sh
++++ acpi-support-0.103/suspend.d/10-thinkpad-standby-led.sh
+@@ -1,3 +1,4 @@
+ #!/bin/sh
++
+ . /usr/share/acpi-support/state-funcs
+ setLEDThinkpadSuspending 1
+--- acpi-support-0.103.orig/suspend.d/90-framebuffer-stop.sh
++++ acpi-support-0.103/suspend.d/90-framebuffer-stop.sh
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/bin/sh
+ 
+ # Make sure the backlight goes off
+ if [ x$USE_DPMS = "xtrue" ]; then
+--- acpi-support-0.103.orig/ibm-wireless.sh
++++ acpi-support-0.103/ibm-wireless.sh
+@@ -1,4 +1,7 @@
+ #!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ # Find and toggle wireless of bluetooth devices on ThinkPads
+ 
+ . /usr/share/acpi-support/state-funcs
+--- acpi-support-0.103.orig/volupbtn.sh
++++ acpi-support-0.103/volupbtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_VOLUMEUP
+--- acpi-support-0.103.orig/resume.sh
++++ acpi-support-0.103/resume.sh
+@@ -1,8 +1,10 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/state-funcs || exit 0
+ 
+ # Source from /etc/acpi/resume.d/
+ for SCRIPT in /etc/acpi/resume.d/*.sh; do
+     if [ -x $SCRIPT ]; then
+ 	. $SCRIPT
+     fi
+-done
+\ No newline at end of file
++done
+--- acpi-support-0.103.orig/hibernatebtn.sh
++++ acpi-support-0.103/hibernatebtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_SUSPEND 
+--- acpi-support-0.103.orig/wireless.sh
++++ acpi-support-0.103/wireless.sh
+@@ -3,4 +3,4 @@
+ 
+ . /usr/share/acpi-support/state-funcs
+ 
+-toggleWirelessStates;
++toggleAllWirelessStates;
+--- acpi-support-0.103.orig/hibernate.sh
++++ acpi-support-0.103/hibernate.sh
+@@ -1,4 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
+ 
+ . /etc/default/acpi-support
+ . /usr/share/acpi-support/power-funcs
+@@ -27,18 +29,14 @@
+ 
+ echo -n $HIBERNATE_MODE >/sys/power/disk
+ 
+-if [ -x /sbin/s2disk ]; then
+-    DEVICE="/dev/disk/by-uuid/`awk -F= '{print $3}' </etc/initramfs-tools/conf.d/resume`"
+-    if [ -f /etc/usplash.conf ]; then
+-	. /etc/usplash.conf
+-	/sbin/s2disk -x "$xres" -y "$yres" $DEVICE
+-    else
+-	/sbin/s2disk $DEVICE
+-    fi
++if [ -x /usr/sbin/s2disk ]; then
++    /usr/sbin/s2disk
+ else
+     echo -n "disk" >/sys/power/state
+ fi
+ 
+-$LAPTOP_MODE stop
++# Hard drives normally forget their power settings over suspend; restore them
++# now.
++invoke-rc.d laptop-mode restart
+ 
+ . /etc/acpi/resume.sh
+--- acpi-support-0.103.orig/Makefile
++++ acpi-support-0.103/Makefile
+@@ -2,7 +2,6 @@
+ 
+ acpi_fakekey: acpi_fakekey.c
+ 	gcc -g -Wall -o acpi_fakekey acpi_fakekey.c
+-	strip acpi_fakekey
+ 
+ # Keep this manually generated so that it doesn't build-dep on
+ # 'linux-headers' and stays predictable.
+--- acpi-support-0.103.orig/lib/state-funcs
++++ acpi-support-0.103/lib/state-funcs
+@@ -1,4 +1,3 @@
+-#!/bin/sh
+ # Paul Sladen, 2006-03-28, 2007-03-26
+ # Library functions to check/change status of wireless
+ 
+--- acpi-support-0.103.orig/lib/power-funcs
++++ acpi-support-0.103/lib/power-funcs
+@@ -20,7 +20,7 @@
+ 
+ getXconsole() {
+ 	console=`fgconsole`;
+-	displaynum=`ps ax | grep -m1 -e '[X] .* vt'$console | sed -re 's!.*/X .*:([0-9]+).*!\1!'`
++	displaynum=`COLUMNS="" ps ax | grep -e 'X .* vt'$console | grep -v grep | sed -re 's!.*/X .*:([0-9]+).*!\1!'`
+ 	if [ x"$displaynum" != x"" ]; then
+ 		export DISPLAY=":$displaynum"	
+ 		getXuser
+@@ -53,7 +53,6 @@
+         fi
+ }
+ 
+-LAPTOP_MODE='/usr/sbin/laptop_mode'
+ HDPARM='/sbin/hdparm -q'
+ 
+ LIDSTATE='/var/lib/acpi-support/lidstate'
+--- acpi-support-0.103.orig/lib/IBM.config
++++ acpi-support-0.103/lib/IBM.config
+@@ -67,6 +67,10 @@
+ 	1866*|1867*|1869*)
+ 		ACPI_SLEEP=true;
+ 	;;
++	# X60s
++	1702*|1704*)
++		SAVE_VBE_STATE=false;
++	;;
+ 	# Z60m (Intel graphics) 'ThinkPad Z60m'
+ 	2529*)	
+ 		ACPI_SLEEP=true;
+@@ -76,7 +80,7 @@
+ 	case "$bios_version" in
+ 		# BIOS version for "ThinkPad R40 model 2722, 2723, 2724, 2897"
+ 		1PET53WW*)
+-			APCI_SLEEP=true
++			ACPI_SLEEP=true
+ 		;;
+ 	esac
+ 	;;
+--- acpi-support-0.103.orig/power.sh
++++ acpi-support-0.103/power.sh
+@@ -1,60 +1,26 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
+ 
+ . /etc/default/acpi-support
+ . /usr/share/acpi-support/power-funcs
+ 
+-function laptop_mode_enable {
+-    $LAPTOP_MODE start
+-    
+-    for x in /sys/bus/ide/devices/*/block; do 
+-	drive=$(basename $(readlink $x));
+-	$HDPARM -S $SPINDOWN_TIME /dev/$drive 2>/dev/null
+-	$HDPARM -B 1 /dev/$drive 2>/dev/null
+-    done
+-    
+-    for x in /sys/bus/scsi/devices/*/block; do 
+-	drive=$(basename $(readlink $x));
+-	$HDPARM -S $SPINDOWN_TIME /dev/$drive 2>/dev/null
+-	$HDPARM -B 1 /dev/$drive 2>/dev/null
+-    done
+-}
+-
+-function laptop_mode_disable {
+-    for x in /sys/bus/ide/devices/*/block; do 
+-	drive=$(basename $(readlink $x));
+-	$HDPARM -S 0 /dev/$drive 2>/dev/null
+-	$HDPARM -B 255 /dev/$drive 2>/dev/null
+-    done
+-    for x in /sys/bus/scsi/devices/*/block; do 
+-	drive=$(basename $(readlink $x));
+-	$HDPARM -S 0 /dev/$drive 2>/dev/null
+-	$HDPARM -B 255 /dev/$drive 2>/dev/null
+-    done
+-    $LAPTOP_MODE stop
+-}
+-
+ getState;
+ 
+ checkStateChanged;
+ 
+-shopt -s nullglob
+-
+ for x in /proc/acpi/ac_adapter/*; do
+-    grep -q off-line $x/state
++    if [ -d "$x" ] ; then    
++	    grep -q off-line $x/state
+ 
+-    if [ $? = 0 ] && [ x$1 != xstop ]; then	
+-	for SCRIPT in /etc/acpi/battery.d/*.sh; do
+-	    . $SCRIPT
+-	done
+-	if [ x$ENABLE_LAPTOP_MODE = xtrue ]; then
+-	    (sleep 5 && laptop_mode_enable)&
+-	fi
+-    else
+-	for SCRIPT in /etc/acpi/ac.d/*.sh; do
+-	    . $SCRIPT
+-	done
+-	if [ x$ENABLE_LAPTOP_MODE = xtrue ]; then
+-	    (sleep 5 && laptop_mode_disable)&
+-	fi
++	    if [ $? = 0 ] && [ x$1 != xstop ]; then	
++		for SCRIPT in /etc/acpi/battery.d/*.sh; do
++		    . $SCRIPT
++		done
++	    else
++		for SCRIPT in /etc/acpi/ac.d/*.sh; do
++		    . $SCRIPT
++		done
++	    fi
+     fi
+-done
+\ No newline at end of file
++done
+--- acpi-support-0.103.orig/mediabtn.sh
++++ acpi-support-0.103/mediabtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_MEDIA
+--- acpi-support-0.103.orig/panabright.sh
++++ acpi-support-0.103/panabright.sh
+@@ -1,7 +1,8 @@
+ #!/bin/sh
+ 
+-# default span value
++test -f /usr/share/acpi-support/power-funcs || exit 0
+ 
++# default span value
+ SPAN=1
+ 
+ # check power state
+--- acpi-support-0.103.orig/thinkpad_acpi.modprobe
++++ acpi-support-0.103/thinkpad_acpi.modprobe
+@@ -1 +1,34 @@
++# The thinkpad_acpi module can be configured to generate ACPI events for certain
++# hotkey (Fn+*) presses. This often happens in addition to the usual function,
++# e.g. bluetooth hotkey (Fn+F5) off means: no acpi event, but bluetooth still
++# switches on and off.
++
++# bits   -- hotkey: usual function
++# 0x0001 -- Fn+F1 : -
++# 0x0002 -- Fn+F2 : lock screen
++# 0x0004 -- Fn+F3 : blank screen
++# 0x0008 -- Fn+F4 : suspend to ram
++# 0x0010 -- Fn+F5 : switch bluetooth
++# 0x0020 -- Fn+F6 : -
++# 0x0040 -- Fn+F7 : switch display
++# 0x0080 -- Fn+F8 : toggle display expansion
++# 0x0100 -- Fn+F9 : eject from dock
++# 0x0200 -- Fn+F10: -
++# 0x0400 -- Fn+F11: -
++# 0x0800 -- Fn+F12: hibernate
++# 0x1000 -- Fn+Backspace
++# 0x2000 -- Fn+Ins
++# 0x4000 -- Fn+Del
++# 0x8000 -- Fn+Pos1 / Fn+Home: brightness up
++
++# examples:
++# 0xffff -- enable all possible hot keys
++# 0xffef -- enable all except Fn+F5
++# 0xff9f -- enable all except Fn+F6 and Fn+F7 (default)
++# 0x080c -- enable only Fn+F3, Fn+F4 and Fn+F12
++# 0x0000 -- disable all possible hot keys
++
++# We pass a bit more in case there are more buttons. :-)
++
+ options thinkpad_acpi hotkey=enable,0xffff8f experimental=1
++
+--- acpi-support-0.103.orig/tosh-wireless.sh
++++ acpi-support-0.103/tosh-wireless.sh
+@@ -1,4 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
+ 
+ . /usr/share/acpi-support/state-funcs
+ 
+--- acpi-support-0.103.orig/webbtn.sh
++++ acpi-support-0.103/webbtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_WWW
+--- acpi-support-0.103.orig/thinkpad-lockorbattery.sh
++++ acpi-support-0.103/thinkpad-lockorbattery.sh
+@@ -1,5 +1,7 @@
+ #!/bin/sh
+ 
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ # Lenovo are great.  They have changed the function of the Fn-F3
+ # combination on the LenovoPads from KEY_LOCK => KEY_BATTERY.
+ # Unfortunately they didn't bother to change the DMI strings
+--- acpi-support-0.103.orig/prepare.sh
++++ acpi-support-0.103/prepare.sh
+@@ -1,7 +1,7 @@
+-#!/bin/bash
++#!/bin/sh
+ 
+ for SCRIPT in /etc/acpi/suspend.d/*.sh; do
+     if [ -x $SCRIPT ]; then
+ 	. $SCRIPT
+     fi
+-done
+\ No newline at end of file
++done
+--- acpi-support-0.103.orig/vbesave
++++ acpi-support-0.103/vbesave
+@@ -1,5 +1,15 @@
+ #!/bin/sh
+ 
++### BEGIN INIT INFO
++# Provides:          vbesave
++# Required-Start:    $local_fs $remote_fs
++# Required-Stop:     $local_fs $remote_fs
++# Default-Start:     2 3 4 5
++# Default-Stop:      0 1 6
++### END INIT INFO
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ test -x /usr/sbin/vbetool || exit 0
+ set -e
+ 
+@@ -36,6 +46,9 @@
+ 	    log_end_msg 0
+         fi
+         ;;
++ stop|restart|force-reload)
++	# Doesn't make sense (and shut up lintian)
++	;;
+  *)
+         exit 0
+         ;;
+--- acpi-support-0.103.orig/ejectbtn.sh
++++ acpi-support-0.103/ejectbtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_EJECTCD
+--- acpi-support-0.103.orig/stopbtn.sh
++++ acpi-support-0.103/stopbtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_STOPCD
+--- acpi-support-0.103.orig/playbtn.sh
++++ acpi-support-0.103/playbtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_PLAYPAUSE
+--- acpi-support-0.103.orig/sonybright.sh
++++ acpi-support-0.103/sonybright.sh
+@@ -1,4 +1,8 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
++modprobe sony-laptop
+ 
+ BRIGHTNESS=$(cat /sys/class/backlight/sony/actual_brightness)
+ 
+@@ -14,13 +18,13 @@
+       [ -x /usr/bin/spicctrl ] && /usr/bin/spicctrl -b 0   
+    fi
+    # Recent nvidia Sonys have ACPI methods that do nothing. Thanks, Sony.
+-   [ -x /usr/bin/smartdimmer ] && smartdimmer -d 2>/dev/null
++   [ -x /usr/bin/nvclock ] && nvclock -S -10 2>/dev/null
+ elif [ "x$1" = "xup" ]; then
+    if [ "x$BRIGHTNESS" != "x8" ]; then
+       BRIGHTNESS=$(( $BRIGHTNESS + 1 ))
+       echo $BRIGHTNESS > /sys/class/backlight/sony/brightness
+    fi
+-   [ -x /usr/bin/smartdimmer ] && smartdimmer -i 2>/dev/null
++   [ -x /usr/bin/nvclock ] && nvclock -S +10 2>/dev/null
+ else
+    echo >&2 Unknown argument $1
+ fi
+--- acpi-support-0.103.orig/batterybtn.sh
++++ acpi-support-0.103/batterybtn.sh
+@@ -1,5 +1,7 @@
+ #!/bin/sh
+ 
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ 
+ acpi_fakekey $KEY_BATTERY
+--- acpi-support-0.103.orig/sleep.sh
++++ acpi-support-0.103/sleep.sh
+@@ -1,4 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
+ 
+ . /etc/default/acpi-support
+ . /usr/share/acpi-support/power-funcs
+--- acpi-support-0.103.orig/lid.sh
++++ acpi-support-0.103/lid.sh
+@@ -1,4 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
+ 
+ . /usr/share/acpi-support/power-funcs
+ . /usr/share/acpi-support/policy-funcs
+@@ -6,23 +8,26 @@
+ 
+ [ -x /etc/acpi/local/lid.sh.pre ] && /etc/acpi/local/lid.sh.pre
+ 
+-if [ `CheckPolicy` == 0 ]; then exit; fi
++if [ `CheckPolicy` = 0 ]; then exit; fi
+ 
+ grep -q closed /proc/acpi/button/lid/*/state
+ if [ $? = 0 ]
+ then
+     for x in /tmp/.X11-unix/*; do
+ 	displaynum=`echo $x | sed s#/tmp/.X11-unix/X##`
+-	getXuser;
++	getXconsole;
+ 	if [ x"$XAUTHORITY" != x"" ]; then
+ 	    export DISPLAY=":$displaynum"	    
+ 	    . /usr/share/acpi-support/screenblank
+ 	fi
+     done
+ else
++    if [ x$RADEON_LIGHT = xtrue ]; then
++	[ -x /usr/sbin/radeontool ] && radeontool light on
++    fi
+     for x in /tmp/.X11-unix/*; do
+ 	displaynum=`echo $x | sed s#/tmp/.X11-unix/X##`
+-	getXuser;
++	getXconsole;
+ 	if [ x"$XAUTHORITY" != x"" ]; then
+ 	    export DISPLAY=":$displaynum"
+ 	    grep -q off-line /proc/acpi/ac_adapter/*/state
+@@ -32,13 +37,16 @@
+ 		    su $user -c "xscreensaver-command -unthrottle"
+ 		fi
+ 	    fi
+-	    if [ x$RADEON_LIGHT = xtrue ]; then
+-		[ -x /usr/sbin/radeontool ] && radeontool light on
+-	    fi
+ 	    if [ `pidof xscreensaver` ]; then
+ 		su $user -c "xscreensaver-command -deactivate"
+ 	    fi
+ 	    su $user -c "xset dpms force on"
++	    
++	    # Press LEFT SHIFT. On some laptops / in some configurations forcing
++	    # the DPMS on is not enough, X needs to be convinced to unblank the
++	    # screen. The left shift key is probably the most harmless key we
++	    # could press. :-)
++	    acpi_fakekey 42
+ 	fi
+     done
+ fi
+--- acpi-support-0.103.orig/mailbtn.sh
++++ acpi-support-0.103/mailbtn.sh
+@@ -1,4 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
+ 
+ . /etc/default/acpi-support
+ . /usr/share/acpi-support/power-funcs
+--- acpi-support-0.103.orig/lockbtn.sh
++++ acpi-support-0.103/lockbtn.sh
+@@ -1,5 +1,7 @@
+ #!/bin/sh
+ 
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ 
+ acpi_fakekey $KEY_COFFEE
+--- acpi-support-0.103.orig/nextbtn.sh
++++ acpi-support-0.103/nextbtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_NEXTSONG
+--- acpi-support-0.103.orig/voldownbtn.sh
++++ acpi-support-0.103/voldownbtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_VOLUMEDOWN
+--- acpi-support-0.103.orig/resume.d/49-915-resolution-set.sh
++++ acpi-support-0.103/resume.d/49-915-resolution-set.sh
+@@ -0,0 +1,8 @@
++#!/bin/sh
++
++if [ -x /usr/sbin/915resolution ]; then
++    . /etc/default/915resolution
++    if [ "$MODE" != "" ] && [ "$XRESO" != "" ] && [ "$YRESO" != "" ]; then
++	/etc/init.d/915resolution start;
++    fi
++fi
+--- acpi-support-0.103.orig/resume.d/50-time.sh
++++ acpi-support-0.103/resume.d/50-time.sh
+@@ -1,5 +1,4 @@
+ #!/bin/sh
+ 
+ # Reset the time
+-hwclock --hctosys
+-
++invoke-rc.d hwclock.sh start
+--- acpi-support-0.103.orig/resume.d/11-video-pci-restore.sh
++++ acpi-support-0.103/resume.d/11-video-pci-restore.sh
+@@ -0,0 +1,11 @@
++#!/bin/sh
++
++# Restore video PCI state
++if [ x$SAVE_VIDEO_PCI_STATE = xtrue ]; then
++  for x in /sys/bus/pci/devices/*; do
++    if [ -f /var/run/vga-pci-`basename $x` ]; then
++        cat /var/run/vga-pci-`basename $x` >$x/config;
++    fi
++  done
++fi
++
+--- acpi-support-0.103.orig/resume.d/72-acpi-pain.sh
++++ acpi-support-0.103/resume.d/72-acpi-pain.sh
+@@ -33,3 +33,6 @@
+ modprobe acpi_sbs
+ /etc/acpi/power.sh
+ 
++# Force monitoring processes to reopen their /proc/acpi files after modules
++# have been replaced.
++killall -s HUP ksysguardd
+--- acpi-support-0.103.orig/resume.d/17-video-restore.sh
++++ acpi-support-0.103/resume.d/17-video-restore.sh
+@@ -10,12 +10,4 @@
+   fi
+ fi
+ 
+-# Restore video PCI state
+-if [ x$SAVE_VIDEO_PCI_STATE = xtrue ]; then
+-  for x in /sys/bus/pci/devices/*; do
+-    if [ -f /var/run/vga-pci-`basename $x` ]; then
+-        cat /var/run/vga-pci-`basename $x` >$x/config;
+-    fi
+-  done
+-fi
+ 
+--- acpi-support-0.103.orig/resume.d/62-ifup.sh
++++ acpi-support-0.103/resume.d/62-ifup.sh
+@@ -1,8 +1,19 @@
+ #!/bin/sh
+ 
+-# Bring up the interfaces (this should probably be left up to some policy
+-# manager, but at the moment we just bring back whatever we ifdowned)
+-for x in $INTERFACES; do
+-    ifup $x &
++# Bring up the interfaces. This should probably be left up to some policy
++# manager, but at the moment we just bring back all the ifupdown-managed
++# interfaces that were up at suspend time.
++for x in $IFUP_INTERFACES; do
++    if must_control_interface $x ; then
++      ifup $x &
++    fi
+ done
+ 
++# Kick network-manager to bring up its interfaces. (It won't do this
++# automatically.)
++invoke-rc.d --quiet network-manager restart
++
++# Kick ifplugd to check its interfaces. (Not sure if this is necessary, but it
++# can't hurt either.)
++invoke-rc.d --quiet ifplugd restart
++
+--- acpi-support-0.103.orig/ChangeLog
++++ acpi-support-0.103/ChangeLog
+@@ -0,0 +1,839 @@
++acpi-support (0.103) gutsy; urgency=low
++
++  * Replace call to 'thinkpad-keys-update' with "thinkpad-keys --update"
++  * Remove wireless-related comment gruff from 'thinkpad-cmos' event.
++
++ -- Paul Sladen <sladen@ubuntu.com>  Tue, 18 Sep 2007 20:09:02 +0300
++
++acpi-support (0.102) gutsy; urgency=low
++
++  * Poke thinkpad-keys on CMOS notification 
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat, 15 Sep 2007 22:13:42 +0100
++
++acpi-support (0.101) gutsy; urgency=low
++
++  * Switch Thinkpad to using ACPI events for magic keys so that
++    'thinkpad-keys' can go away and save us all from the new Lenovopad
++    slow NVRAM.
++  - See 'hotkey-setup' for remapping and initial module loading + setup.
++  * Extend mask used in 'thinkpad_acpi.modprobe'.
++  * Replace 'bin/bash' with 'bin/sh' in a couple of files.
++
++ -- Paul Sladen <sladen@ubuntu.com>  Thu, 13 Sep 2007 19:15:14 +0300
++
++acpi-support (0.100) gutsy; urgency=low
++
++  * send events on ACPI brightness presses
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sun, 09 Sep 2007 18:02:20 +0100
++
++acpi-support (0.99) gutsy; urgency=low
++
++  * prepare.sh: Fix missing space in executability test (thanks, Sitsofe
++    Wheeler and TJ; LP: #136453).
++
++ -- Colin Watson <cjwatson@ubuntu.com>  Sat, 01 Sep 2007 17:32:01 +0100
++
++acpi-support (0.98) gutsy; urgency=low
++
++  * Add support for the video toggle hotkey
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 31 Aug 2007 05:02:08 +0100
++
++acpi-support (0.97) gutsy; urgency=low
++
++  * Improve X display finding
++  * Switch Thinkpad wireless hotkey control back to firmware for now
++  * Improve Toshiba wireless handling
++  * Check fragment scripts are executable
++  * Improve Panasonic support
++  * Improve state saving/restoring over suspend/resume
++  * Add Asus brightness key support
++  * Alter some dependencies to recommends
++  * Fix init script to check state on boot
++  * Depend on the appropriate shlibdeps
++  * Add a postrm to tidy up the init scripts
++  * We no longer need to stop mysql
++  * Tidy up scripts so a few errors aren't produced
++  * Update sony brightness script to handle sony-laptop 
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 31 Aug 2007 04:19:36 +0100
++
++acpi-support (0.96ubuntu1) gutsy; urgency=low
++
++  * Build packages for lpia as well.
++
++ -- Adam Conrad <adconrad@ubuntu.com>  Wed, 15 Aug 2007 23:48:51 +1000
++
++acpi-support (0.96) gutsy; urgency=low
++
++  * ibm-acpi has been renamed to thinkpad-acpi. Rename options file accordingly.
++    LP: #119052. Thanks to Benjamin Pineau <ben.pineau@gmail.com> for the patch.
++
++ -- Reinhard Tartler <siretart@tauware.de>  Sun, 15 Jul 2007 18:55:10 +0200
++
++acpi-support (0.95) feisty; urgency=low
++
++  * Clean up issues with toggling multiple wireless cards.
++    - Move variable initiation into loop inside 'wireless.sh'
++    - Move contents of 'wireless.sh' into lib/state-funcs:toggleAllWirelessState()
++    - Update '{ibm,tosh,asus}-wireless.sh' to use state-funcs
++    (Closes: LP #96107)
++    (Thanks to Nicolò Chieffo for assistance and testing)
++  * Remove spurious 'echo HERE' from lib/state-funcs.  D'oh.
++  
++ -- Paul Sladen <paul@katu>  Mon, 26 Mar 2007 01:06:58 +0100
++
++acpi-support (0.94) feisty; urgency=low
++
++  * Save and restore values that the kernel does not preserve across
++    suspend/resume and hibernate/resume:
++    - /sys/class/net/eth*/device/rf_kill
++    (Closes: LP #37010)
++    - /proc/acpi/ibm/bluetooth
++    (Closes: LP #37175)
++    - /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
++    (Closes: LP #68191)
++  * White list Lenovo ThinkPad Z60m as working suspend.
++    (Closes: LP #57144)
++  
++ -- Paul Sladen <sladen@ubuntu.com>  Thu, 22 Mar 2007 03:57:36 +0000
++
++acpi-support (0.93) feisty; urgency=low
++
++  * Change 'wireless.sh' to use 'device/rf_kill' for wireless devices (if
++    available) in preference to 'device/power/state' which was been
++    removed by the upstream kernel developers.
++    (Closes: LP #42820)
++  * Teach 'lib/state-funcs:isAnyWirelessPoweredOn()' to also check
++    'device/rf_kill' if it's available.
++    (Closes: LP #42820)
++  * Change 'ibm-wireless.sh' to rotate wireless and bluetooth states
++    through the sequence: both, bluetooth only, wireless only, neither.
++    (Closes: LP #24680)
++  * Correct inverted logic in 'isAnyWirelessPoweredOn()'.
++    (Closes: LP #66083)
++  * Change script shebangs to use '/bin/sh' instead of '/bin/bash'.
++  
++ -- Paul Sladen <sladen@ubuntu.com>  Wed, 21 Mar 2007 04:55:27 +0000
++
++acpi-support (0.92) feisty; urgency=low
++
++  * Add 'events/sony-eject' for Sony Vaio TX3.
++    (Closes: LP #55388)
++
++ -- Paul Sladen <sladen@ubuntu.com>  Sun, 18 Mar 2007 23:09:38 +0000
++
++acpi-support (0.91build1) feisty; urgency=low
++
++  * Rebuild for changes in the amd64 toolchain.
++
++ -- Matthias Klose <doko@ubuntu.com>  Mon,  5 Mar 2007 01:12:40 +0000
++
++acpi-support (0.91) feisty; urgency=low
++
++  * Identical to 0.90, revert the sync from Debian
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Wed,  8 Nov 2006 17:33:04 +0000
++
++acpi-support (0.90) edgy; urgency=low
++
++  * Explicitly switch the screen back to text mode if it was that way 
++    before resume
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sun, 15 Oct 2006 18:09:03 +0100
++
++acpi-support (0.89) edgy; urgency=low
++
++  * Add support for high-res uswsusp
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 15 Sep 2006 21:43:54 +0100
++
++acpi-support (0.88) edgy; urgency=low
++
++  * Change defaults
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 15 Sep 2006 17:48:05 +0100
++
++acpi-support (0.87) edgy; urgency=low
++
++  * Add support for using uswsusp
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 24 Aug 2006 01:03:30 +0100
++
++acpi-support (0.86) edgy; urgency=low
++
++  * Remove stop links from rc0 and rc6
++
++ -- Scott James Remnant <scott@ubuntu.com>  Thu, 20 Jul 2006 23:03:51 +0100
++
++acpi-support (0.85) dapper-updates; urgency=low
++
++  * Don't unload nsc-ircc on suspend
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon, 19 Jun 2006 10:38:09 +0100
++
++acpi-support (0.84) dapper; urgency=low
++
++  * Whitelist another laptop (Ubuntu #44781)
++    - Hewlett-Packard Pavilion ZV6000
++  * Add whitelist for bizarre old laptop (Closes: Ubuntu #38174)
++
++ -- Daniel Silverstone <daniel.silverstone@ubuntu.com>  Tue, 23 May 2006 14:02:34 +0100
++
++acpi-support (0.83) dapper; urgency=low
++
++  * Whitelist laptops (Ubuntu #44781) (Closes: Ubuntu #44909)
++  * Fix use of 'pidof' so that it won't bork if multiple processes exist
++    with the same name and to not spawn extra subshells.  Also do a
++    more specific 'dcop' call and _only_ if 'dcopserver' is actually running.
++  * Increase the 'acpilock' back up from 5 -> 10 seconds that got dropped,
++    may help with (Ubuntu #43519).
++  * Save the 'dmidecode' bios-version as we can identify ThinkPads with blank
++    product-names.
++  * Add entry for ThinkPad R40 with BIOS version "1PET62WW" (Tony Whitmore)
++
++ -- Paul Sladen <ubuntu@paul.sladen.org>  Mon, 22 May 2006 19:06:40 +0100
++
++acpi-support (0.82) dapper; urgency=low
++
++  * Add more whitelisted laptops
++  * Add battery.d and ac.d (Closes: Ubuntu #44996)
++  * Use pccardctl rather than cardctl (Closes: Ubuntu #44164)
++  * Only call xscreensaver if it's running
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 16 May 2006 13:06:24 +0100
++
++acpi-support (0.81) dapper; urgency=low
++
++  * Whitelist Dell Inspiron XPS Gen2
++  (Closes: Ubuntu #44732)
++
++ -- Paul Sladen <ubuntu@paul.sladen.org>  Mon, 15 May 2006 00:42:08 +0100
++
++acpi-support (0.80) dapper; urgency=low
++
++  * Add support for the toshiba battery button and add a generic
++    batterybtn.sh action script
++
++ -- Daniel Silverstone <daniel.silverstone@ubuntu.com>  Wed, 10 May 2006 12:09:25 +0100
++
++acpi-support (0.79) dapper; urgency=low
++
++  * Reorder some checks in order to avoid deadlocks in KDE
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sun,  7 May 2006 14:51:20 +0100
++
++acpi-support (0.78) dapper; urgency=low
++
++  * Fix Sony brightness handling so minimum brightness doesn't "stick"
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat,  6 May 2006 00:57:38 +0100
++
++acpi-support (0.77) dapper; urgency=low
++
++  * Call smartdimmer even if the Sony acpi brightness value is mad
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri,  5 May 2006 23:59:16 +0100
++
++acpi-support (0.76) dapper; urgency=low
++
++  * Only save VBE state on laptops - desktops should have a runnable 
++    BIOS
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Wed,  3 May 2006 21:32:13 +0100
++
++acpi-support (0.75) dapper; urgency=low
++
++  * Default to saving VBE state on boot
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sun, 30 Apr 2006 19:24:51 +0100
++
++acpi-support (0.74) dapper; urgency=low
++
++  * Whitelist Asus A5E [Malone: #37303]
++    Closes: launchpad #37303
++
++ -- Paul Sladen <ubuntu@paul.sladen.org>  Sun, 30 Apr 2006 02:22:39 +0200
++
++acpi-support (0.73) dapper; urgency=low
++
++  * Fix mis-named interface-down script 
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon, 24 Apr 2006 21:05:43 +0100
++
++acpi-support (0.72) dapper; urgency=low
++
++  * Re-disable laptop-mode by default, to work around LP#12483
++    - Has the pleasant side effect of making the comment match the code
++
++ -- Matt Zimmerman <mdz@ubuntu.com>  Sat, 22 Apr 2006 05:34:12 -0700
++
++acpi-support (0.71) dapper; urgency=low
++
++  * Split resume.sh and prepare.sh up to make it easier to add appropriate hooks
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 21 Apr 2006 16:13:19 +0100
++
++acpi-support (0.70) dapper; urgency=low
++
++  * Drop call to ifrename which is not only not installed by default, but
++    conflicts with udev so can't be installed. 
++
++ -- Scott James Remnant <scott@ubuntu.com>  Tue, 18 Apr 2006 09:22:00 +0100
++
++acpi-support (0.69) dapper; urgency=low
++
++  * Add whitelist for Sony VGN-S260
++    Closes: launchpad #32186
++  * Apply patch to unload netconsole if it's present.
++    Closes: launchpad #33885
++
++ -- Daniel Silverstone <daniel.silverstone@ubuntu.com>  Thu, 13 Apr 2006 10:52:29 +0100
++
++acpi-support (0.68) dapper; urgency=low
++
++  * Bring up only those interfaces we downed, and do it all at once now
++    that ifup doesn't block on the state file each time. 
++
++ -- Scott James Remnant <scott@ubuntu.com>  Thu,  6 Apr 2006 06:32:41 +0100
++
++acpi-support (0.67) dapper; urgency=low
++
++  * ...and fix lib/state-funcs:isAnyWirelessPoweredOn() so that it
++    doesn't have eth1 hard-coded as a wireless device.  Oops.
++
++ -- Paul Sladen <ubuntu@paul.sladen.org>  Wed, 29 Mar 2006 13:56:09 +0100
++
++acpi-support (0.66) dapper; urgency=low
++
++  * Cache result of 'dmidecode -s *' so that they can be access without
++    privileges when checking 'pmi capabilities'.  [Malone: #36573]
++
++ -- Paul Sladen <ubuntu@paul.sladen.org>  Tue, 28 Mar 2006 20:19:48 +0100
++
++acpi-support (0.65) dapper; urgency=low
++
++  * Whitelist Compaq Evo N600c has working SLEEP [Malone: #36838]
++  * Whitelist Sony VGN-FJ1S has working SLEEP [Malone: #29890]
++  * Add support for '/etc/acpi/start.d/*.sh' to be run on startup
++  * Synchronise the Asus Wireless LED on start and resume [Malone: #22795]
++  * Execute {suspend,resume}.d/*.sh at different times depending on
++    whether they match [01]*.sh, [2-7]*.sh, [89]*.sh
++  * Flash the ThinkPad Moon LED while hibernating/suspending.
++
++ -- Paul Sladen <ubuntu@paul.sladen.org>  Tue, 28 Mar 2006 17:20:48 +0100
++
++acpi-support (0.64) dapper; urgency=low
++
++  * Add support for Asus A6U Touchpad toggle [Malone #31063].
++
++ -- Paul Sladen <ubuntu@paul.sladen.org>  Sat, 25 Mar 2006 22:38:36 +0000
++
++acpi-support (0.63) dapper; urgency=low
++
++  * Set KEY_BATTERY=236 on the basis that this is going to be assigned upstream.
++
++ -- Paul Sladen <ubuntu@paul.sladen.org>  Sat, 25 Mar 2006 19:37:16 +0000
++
++acpi-support (0.62) dapper; urgency=low
++
++  * And the rest 
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 23 Mar 2006 21:49:11 +0000
++
++acpi-support (0.61) dapper; urgency=low
++
++  * Use modprobe -r rather than rmmod [Malone #36172] 
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 23 Mar 2006 16:36:49 +0000
++
++acpi-support (0.60) dapper; urgency=low
++
++  * Trim trailing spaces from the end of dmidecode strings before looking
++    for the appropriate '.config' file.  [Malone #34536]
++  * Add correct handling for new Lenovo ThinkPads that have changed the
++    action of Fn-F3 from KEY_LOCK => KEY_BATTERY.  [Malone #35395]
++  * Add Lenovo ThinkPad handling of Fn-F8 to toggle the Touchpad
++    on newer models or do-nothing on normal ThinkPads [Malone #35395]
++  * Append 'aliased-keys' onto 'key-constants' for unassigned keycodes.
++   - Nota Bene: KEY_BATTERY will need updating when assigned upstream.
++  * Fix handling of hexadecimal numbers when generating 'key-constants'.
++
++ -- Paul Sladen <ubuntu@paul.sladen.org>  Tue, 21 Mar 2006 15:05:02 +0000
++
++acpi-support (0.59) dapper; urgency=low
++
++  * Disable USB module unloading - the kernel seems to manage it better 
++    now
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat, 18 Feb 2006 14:25:11 +0000
++
++acpi-support (0.58) dapper; urgency=low
++
++  * Pull in missing policy-funcs in sleep.sh
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 16 Feb 2006 13:33:51 +0000
++
++acpi-support (0.57) dapper; urgency=low
++
++  * Re-enable laptop-mode
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 16 Feb 2006 00:37:52 +0000
++
++acpi-support (0.56) dapper; urgency=low
++
++  * Re-enable hard drive power saving
++  * Disable laptop-mode before starting hibernate
++  * Fix PCI state saving for PCI devices
++  * Remove recommends on xscreensaver
++  * Fix policy checking - don't run certain scripts if a desktop policy
++    manager is running
++  * Unload ndiswrapper after taking down its interface
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 16 Feb 2006 00:29:29 +0000
++
++acpi-support (0.55) dapper; urgency=low
++
++  * Change asus-lock and tosh-lock to invoke lockbtn.sh which in turn will
++    create a KEY_COFFEE event.
++    This needs a kernel fix before it will be of much use in the general case.
++  * Add tosh-www to run webbtn.sh
++  * Add tosh-mail to run mailbtn.sh
++  * Add tosh-ibutton to run mediabtn.sh
++
++ -- Daniel Silverstone <daniel.silverstone@ubuntu.com>  Wed, 15 Feb 2006 17:35:19 +0000
++
++acpi-support (0.54) dapper; urgency=low
++
++  * Fix acpi_fakekey
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon, 13 Feb 2006 18:40:46 +0000
++
++acpi-support (0.53) dapper; urgency=low
++
++  * Transition model-specific sleep and hibernate buttons to use
++    keycodes rather than executing scripts directly
++  * Don't directly execute the sleep script if g-p-m or klaptopdaemon
++    are running - they should define policy
++  * Change to using symbolic constants rather than numbers (patch from
++    Paul Sladen <ubuntu@paul.sladen.org>
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon,  6 Feb 2006 14:55:50 +0000
++
++acpi-support (0.52) dapper; urgency=low
++
++  * Stop using uinput - fake keyboard input directly
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 27 Jan 2006 04:29:18 +0000
++
++acpi-support (0.51) dapper; urgency=low
++
++  * Switch on brightness support in ibm-acpi
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 24 Jan 2006 03:25:23 +0000
++
++acpi-support (0.50) dapper; urgency=low
++
++  * Load uinput module on boot (Ubuntu #21566)
++  * Fix power.sh conditionals (Ubuntu #21567)
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 27 Dec 2005 14:55:55 +0000
++
++acpi-support (0.49) dapper; urgency=low
++
++  * Use uinput rather than hacky X stuff to fake keypresses
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat, 24 Dec 2005 20:33:38 +0000
++
++acpi-support (0.48) dapper; urgency=low
++
++  * Only depend on vbetool on i386 and amd64
++  * Fix reference to SCREEN_LOCK - should have been LOCK_SCREEN
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat, 24 Dec 2005 18:56:01 +0000
++
++acpi-support (0.47) dapper; urgency=low
++
++  * Freeze the framebuffer around sleep/resume
++  * Check SCREEN_LOCK on lid close (Ubuntu #20007)
++  * Work with newer dmidecodes (Ubuntu #19879)
++  * Use laptop-mode-tools rather than laptop-mode (Ubuntu #19572)
++  * Remove extra radeontool call (Ubuntu #18208)
++  * Add radeontool and smartdimmer to depends
++  * Add support for saving/restoring video PCI state (Ubuntu #17972)
++  * Fix the permissions on /var/lib/acpi-support/powerstate (Ubuntu #17606)
++  * Reenable spindown timings on SATA drives (Ubuntu #17230)
++  * Poke alsa to improve sound recovery
++  * Kill dhclient while suspending - otherwise it blocks ifdown
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 29 Nov 2005 18:25:31 +0000
++
++acpi-support (0.46) breezy; urgency=low
++
++  * Add some extra machines to the whitelists
++  * Depend on powermgmt-base
++  * Disable restarting irda services by default
++  * Disable laptop-mode by default
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Wed, 12 Oct 2005 12:50:11 +0100
++
++acpi-support (0.45) breezy; urgency=low
++
++  * Remove sneaky new dependencies on radeontool and smartdimmer.  We're too
++    close to release to start poking the hardware in interesting new ways by
++    default
++
++ -- Matt Zimmerman <mdz@ubuntu.com>  Tue,  4 Oct 2005 17:35:54 -0700
++
++acpi-support (0.44) breezy; urgency=low
++
++  * Fix whitelisting
++  * Fix resume when suspended for longer than the xscreensaver timeout
++  * Disable attempts to use hdparm on SATA drives - we don't have the 
++    kernel support.
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue,  4 Oct 2005 16:44:01 +0100
++
++acpi-support (0.43) breezy; urgency=low
++
++  * Fix Radeon backlight tweak support
++  * Fix lid closing screen locking
++  * Fix check for ac adapters
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue,  4 Oct 2005 05:07:58 +0100
++
++acpi-support (0.42) breezy; urgency=low
++
++  * Fix missing fi statement in init script
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon,  3 Oct 2005 02:03:21 +0100
++
++acpi-support (0.41) breezy; urgency=low
++
++  * Make sure that xscreensaver-command -lock is always called
++  * Use smartdimmer on Sonys if it's available. Nnngh.
++  * Add support for resetting IDE drives more enthusiastically
++  * Add support for using radeontool on some awkward machines
++  * Unload/reload fan and thermal modules on resume to increase the
++    chances of them working
++  * Unload/reload ibm-acpi if it's loaded (#14791)
++  * Fix lid.sh (#16802)
++  * Unify init script/power.sh, and make sure power.sh is called on
++    resume (#14833)
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon,  3 Oct 2005 00:48:57 +0100
++
++acpi-support (0.40) breezy; urgency=low
++
++  * Add a large set of whitelisted laptops
++  * Export DISPLAY before trying to call apps (closes: #16555)
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat,  1 Oct 2005 18:01:54 +0100
++
++acpi-support (0.39) breezy; urgency=low
++
++  * Fix up a couple of bugs in the display handling code
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 30 Sep 2005 04:25:58 +0100
++
++acpi-support (0.38) breezy; urgency=low
++
++  * Add support for leaving some modules loaded
++  * Run X commands on all displays, not just :0
++  * Run hotkey commands on the foremost console
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 30 Sep 2005 03:40:32 +0100
++
++acpi-support (0.37) breezy; urgency=low
++
++  * Add support for custom suspend and resume scripts
++  * Add Toshiba brightness restoration over suspend/resume
++    (Both provided by Daniel Silverstone)
++  * Run 855resolution on resume if it's configured (closes: #16271)
++  * Revert to using xscreensaver
++  * Stop services before unloading modules (closes: #16008)
++  * Fix syntax error in asus-wireless.sh
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 27 Sep 2005 01:48:39 +0100
++
++acpi-support (0.36) breezy; urgency=low
++
++  * Change Panasonic brightness on button down, not button release
++  * Fix quoting in vbesave init script
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 23 Sep 2005 11:58:37 +0100
++
++acpi-support (0.35) breezy; urgency=low
++
++  * Fix for occasionally picking the wrong user
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Wed, 21 Sep 2005 00:07:08 +0100
++
++acpi-support (0.34) breezy; urgency=low
++
++  The "I do not wish to discuss it" release
++
++  * Add workaround for prodding fans back into life on resume
++  * Add sick evil code for doing sick evil things to sick evil 
++    screensavers
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 20 Sep 2005 03:15:46 +0100
++
++acpi-support (0.33) breezy; urgency=low
++
++  * Remove hdparm -B calls in the init scripts
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 15 Sep 2005 21:16:54 +0100
++
++acpi-support (0.32) breezy; urgency=low
++
++  * Add correct quoting to check for running PowerManager
++  * Remove PowerManager checking from lid script
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 15 Sep 2005 15:55:12 +0100
++
++acpi-support (0.31) breezy; urgency=low
++
++  * Don't mess with hdparm -B; it triggers a bug elsewhere which causes
++    the system to hang on some laptops
++
++ -- Matt Zimmerman <mdz@ubuntu.com>  Wed, 14 Sep 2005 15:28:21 -0700
++
++acpi-support (0.30) breezy; urgency=low
++
++  * Remove hardcoded /dev/hda from the init script
++  * Unload irda modules on suspend - they don't tend to survive
++  * Make sure that we power the screen back on on lid open
++  * Don't unload/reload input modules - it seems to break things
++  * Background xscreensaver locking
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri,  2 Sep 2005 17:47:17 +0100
++
++acpi-support (0.29) breezy; urgency=low
++
++  * Deal more nicely with running IRDA, otherwise the kernel tends to 
++    oops
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu,  1 Sep 2005 18:09:14 +0100
++
++acpi-support (0.28) breezy; urgency=low
++
++  * If power-manager is running, let it determine policy rather than 
++    running scripts blindly. Ignore this for machine-specific hotkeys.
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 30 Aug 2005 18:13:40 +0100
++
++acpi-support (0.27) breezy; urgency=low
++
++  * Use "..." rather than ":" in init script messages, for consistency with
++    other scripts
++
++ -- Matt Zimmerman <mdz@ubuntu.com>  Mon, 29 Aug 2005 15:51:25 -0700
++
++acpi-support (0.26) breezy; urgency=low
++
++  * Fix power.sh so that it actually works (Ubuntu #14241)
++  * Add support for Sony brightness control (Ubuntu #14188)
++  * Include scripts for Asus volume control (Ubuntu #14164)
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Sun, 28 Aug 2005 17:33:14 +0100
++
++acpi-support (0.25) breezy; urgency=low
++
++  * Depend on xset (Ubuntu #13997) 
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 25 Aug 2005 10:12:35 +0100
++
++acpi-support (0.24) breezy; urgency=low
++
++  * Add another missing build-depend DANIEL WHY DO YOU HATE ME SO
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 25 Aug 2005 01:34:14 +0100
++
++acpi-support (0.23) breezy; urgency=low
++
++  * Add missing build-depends
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 25 Aug 2005 01:20:28 +0100
++
++acpi-support (0.22) breezy; urgency=low
++
++  [ Thom May ]
++  * Import into bzr.
++  * Notify NetworkManager on suspend and resume, and Recommend:
++    network-manager
++
++  [ Matthew Garrett ]
++  * Add support for sending key events to userspace
++  * Add scripts for various media events
++  * Let the BIOS handle video hotkey events on Thinkpads
++  * Add ACPI events for Toshiba media buttons
++  * Don't change VTs on lid close
++  * Remove gratuitous sleep statements
++  * Improve the ability to guess the user and home directory
++  * Add more support for Panasonic and Asus machines
++  * Improve Asus and Thinkpad wireless control scripts
++  * Support SATA disks
++  * Eject PCMCIA cards at a more appropriate time, and handle
++    ndiswrapper
++  * Support Toshiba bluetooth switching
++
++ -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon, 22 Aug 2005 21:55:51 +0100
++
++acpi-support (0.21) hoary; urgency=low
++
++  * Ensure we only return one match from grep.
++  * Run /etc/acpi/local/lid.sh.post if it exists.
++  * sleep for one second, then nuke the acpi lock
++
++ -- Thom May <thom@ubuntu.com>  Fri,  1 Apr 2005 11:37:06 +0100
++
++acpi-support (0.20) hoary; urgency=low
++
++  * Ifrename on resume so our interfaces are called the same. (Ubuntu: #7480)
++  * call xscreensaver-command -deactivate so we get a dialog rather than a
++    blank screen when we resume. (Ubuntu: #7717)
++  * Don't clobber LIDSTATE when we mean POWERSTATE (Ubuntu: #8258)
++  * Background the acpid lock removal
++
++ -- Thom May <thom@ubuntu.com>  Thu, 17 Mar 2005 17:39:22 +0000
++
++acpi-support (0.19.1) hoary; urgency=low
++
++  * Ensure that we only attempt to save vbe state if ACPI_SLEEP is enabled
++
++ -- Thom May <thom@ubuntu.com>  Mon,  7 Mar 2005 12:49:28 +0000
++
++acpi-support (0.19) hoary; urgency=low
++
++  * Add ia64 to the list of supported architectures
++
++ -- Thom May <thom@ubuntu.com>  Wed,  2 Mar 2005 23:19:57 +0000
++
++acpi-support (0.18) hoary; urgency=low
++
++  * Fix vbesave init script (Ubuntu: #6907)
++
++ -- Thom May <thom@ubuntu.com>  Fri, 25 Feb 2005 11:03:48 +0000
++
++acpi-support (0.17) hoary; urgency=low
++
++  * Use acpid locking functionality finally (Hi, Martijn!)
++  * vbestate:
++    - Test for existence of vbetool
++    - LSBifiy
++    - Convert to a true init script
++    - quieten
++  * Check whether package has been removed but not purged in init script
++
++ -- Thom May <thom@ubuntu.com>  Wed, 23 Feb 2005 15:07:51 +0000
++
++acpi-support (0.16) hoary; urgency=low
++
++  * Fix dumb typos
++
++ -- Thom May <thom@debian.org>  Mon, 24 Jan 2005 17:30:48 +0000
++
++acpi-support (0.15) hoary; urgency=low
++
++  * Install ibm_acpi.modprobe and tosh_acpi.modprobe by default
++
++ -- Thom May <thom@planetarytramp.net>  Sat, 22 Jan 2005 16:18:09 +0000
++
++acpi-support (0.14) hoary; urgency=low
++
++  * Run vbesave at the top of rc2, rather than in rcS, so we can still boot to
++    single user
++
++ -- Thom May <thom@planetarytramp.net>  Mon, 17 Jan 2005 17:26:37 +0000
++
++acpi-support (0.13) hoary; urgency=low
++
++  * Update toshiba scripts to handle both possible BIOS values
++  * Fix == bashisms. (Ubuntu #5566)
++  * Fix up ASUS event scripts. (Ubuntu #5510)
++
++ -- Thom May <thom@planetarytramp.net>  Fri, 14 Jan 2005 12:31:29 +0000
++
++acpi-support (0.12) hoary; urgency=low
++
++  * Depend on vbetool on i386 only
++
++ -- Thom May <thom@planetarytramp.net>  Fri, 14 Jan 2005 10:48:37 +0000
++
++acpi-support (0.11) hoary; urgency=low
++
++  * Add Toshiba, Asus and Panasonic event scripts
++  * Add Toshiba modprobe config and README
++  * All Tosh stuff courtesy of Daniel Silverstone
++
++ -- Thom May <thom@planetarytramp.net>  Thu, 13 Jan 2005 16:08:48 +0000
++
++acpi-support (0.10) hoary; urgency=low
++
++  * Matthew Garrett:
++        - /etc/defaults/acpi-support: new
++        - hotplug events for IBM laptops
++        - lots more
++
++ -- Thom May <thom@planetarytramp.net>  Thu, 13 Jan 2005 12:27:47 +0000
++
++acpi-support (0.9) warty; urgency=low
++
++  * Add stop target to the init script, disable hdparm advanced power
++    management therein. (Warty #1914)
++
++ -- Thom May <thom@canonical.com>  Tue,  5 Oct 2004 21:18:52 +0100
++
++acpi-support (0.8) warty; urgency=low
++
++  * Explicitly add /usr/bin/X11 to path. (Warty #1549)
++
++ -- Thom May <thom@canonical.com>  Fri, 24 Sep 2004 12:08:20 +0100
++
++acpi-support (0.7) warty; urgency=low
++
++  * Added versioned depend on lsb-base
++
++ -- Nathaniel McCallum <npmccallum@canonical.com>  Fri,  3 Sep 2004 14:45:32 -0400
++
++acpi-support (0.6) warty; urgency=low
++
++  * Load after acpid. (Warty #992)
++
++ -- Thom May <thom@planetarytramp.net>  Fri,  3 Sep 2004 18:39:52 +0100
++
++acpi-support (0.5) warty; urgency=low
++
++  * debian/init.d: pretty initscript
++
++ -- Nathaniel McCallum <npmccallum@canonical.com>  Thu,  2 Sep 2004 13:16:21 -0400
++
++acpi-support (0.4) warty; urgency=low
++
++  * use a subdirectory of /var/lib (Closes Warty #842)
++  * don't hardcode names so that suckful HP boxes might work. (Closes Warty
++    #841)
++
++ -- Thom May <thom@planetarytramp.net>  Tue, 31 Aug 2004 15:27:13 +0100
++
++acpi-support (0.3) warty; urgency=low
++
++  * Apparently, acpid needs a good kick when we change the events.
++
++ -- Thom May <thom@planetarytramp.net>  Thu, 19 Aug 2004 18:38:55 +0100
++
++acpi-support (0.2) warty; urgency=low
++
++  * use a safer state file to maintain state across lid open/close 
++
++ -- Thom May <thom@planetarytramp.net>  Thu, 19 Aug 2004 17:43:38 +0100
++
++acpi-support (0.1) warty; urgency=low
++
++  * First upload.
++  * delimit a basic collection of safe acpi events
++
++ -- Thom May <thom@planetarytramp.net>  Thu, 19 Aug 2004 15:33:01 +0100
+--- acpi-support-0.103.orig/debian/watch
++++ acpi-support-0.103/debian/watch
+@@ -0,0 +1,2 @@
++version=2
++http://archive.ubuntu.com/ubuntu/pool/main/a/acpi-support/acpi-support_(.*).tar.gz
+--- acpi-support-0.103.orig/debian/rules
++++ acpi-support-0.103/debian/rules
+@@ -1,26 +1,34 @@
+-#! /usr/bin/make -f 
++#!/usr/bin/make -f
+ 
+ DEB_HOST_ARCH := $(shell dpkg-architecture -qDEB_HOST_ARCH)
+ ifeq ($(DEB_HOST_ARCH),i386)
+-arch-depends := -V'arch:Depends=vbetool, radeontool, toshset, smartdimmer'
++arch-depends := -V'arch:Depends=vbetool, toshset'
+ endif
+ ifeq ($(DEB_HOST_ARCH),amd64)
+ arch-depends := -V'arch:Depends=vbetool'
+ endif
+ 
+-clean: 
++clean:
+ 	make clean
+ 	dh_testdir
+ 	dh_clean
++	rm -f resume.d/13-915-resolution-set.sh
++	# Remove unwanted files from orig.tar.gz
++	rm -f suspend.d/80-video-pci-state.sh # Renamed in 81-...
++	rm -f resume.d/13-855-resolution-set.sh
++	rm -f resume.d/49-855-resolution-set.sh
++	rm -f toshiba_acpi.modprobe README.toshiba
++	rm -f acpi-support_0.90-2.diff.gz
+ 
+-build: 
++build:
+ 	make
+ 
+-install: 
++install:
+ 	dh_testdir
+ 	dh_testroot
+ 	dh_clean -k
+ 	dh_installdirs
++	ln -sf 49-915-resolution-set.sh resume.d/13-915-resolution-set.sh
+ 	for file in lib/*; do\
+ 		install -m 644 "$$file" debian/acpi-support/usr/share/acpi-support/;\
+ 	done
+@@ -40,7 +48,6 @@
+ 		install -m 755 $$file debian/acpi-support/etc/acpi/;\
+ 	done
+ 	install -m 644 acpi-support debian/acpi-support/etc/default/;
+-	install -m 644 toshiba_acpi.modprobe debian/acpi-support/etc/modprobe.d/; 
+ 	install -m 644 thinkpad_acpi.modprobe debian/acpi-support/etc/modprobe.d/;
+ 	install -m 755 vbesave debian/acpi-support/etc/init.d/vbesave
+ 	install -m 755 acpi_fakekey debian/acpi-support/usr/bin/acpi_fakekey
+@@ -52,11 +59,14 @@
+ 	dh_testdir
+ 	dh_testroot
+ 	dh_installdocs
+-	dh_installchangelogs
++	dh_installchangelogs ChangeLog
++	dh_installman
+ 	dh_installinit -- start 99 2 3 4 5 . stop 20 1 .
++	dh_strip
+ 	dh_compress
+ 	dh_fixperms
+ 	dh_installdeb
++	dh_shlibdeps
+ 	dh_gencontrol -- $(arch-depends)
+ 	dh_md5sums
+ 	dh_builddeb
+--- acpi-support-0.103.orig/debian/compat
++++ acpi-support-0.103/debian/compat
+@@ -1 +1 @@
+-4
++5
+--- acpi-support-0.103.orig/debian/acpi_fakekey.1
++++ acpi-support-0.103/debian/acpi_fakekey.1
+@@ -0,0 +1,21 @@
++.Dd 2007-01-22
++.Dt acpi_fakekeya 1
++.Os "Debian GNU/Linux"
++.Sh NAME
++.Nm acpi_fakekey
++.Nd acpi event wrapper
++.Sh SYNOPSIS
++.Nm acpi_fakekey
++.Op KEYNUMBER
++.Sh DESCRIPTION
++.Nm
++gets the key numbers for specific events generated as output by
++scripts in /etc/acpi/ and writes them to the correct input FIFO in /dev/input/eventx.
++.Sh OPTIONS
++No options used by this program.
++.Sh SEE ALSO
++.Xr acpid 8
++.Xr acpi_listen 8
++.Sh AUTHOR
++This manual page was written by Nico Golde <nico@ngolde.de>
++for the Debian GNU/Linux system (but may be used by others).
+--- acpi-support-0.103.orig/debian/manpages
++++ acpi-support-0.103/debian/manpages
+@@ -0,0 +1 @@
++debian/acpi_fakekey.1
+--- acpi-support-0.103.orig/debian/README.devel
++++ acpi-support-0.103/debian/README.devel
+@@ -0,0 +1,14 @@
++How to maintain acpi-support
++----------------------------
++
++Since this package is a Ubuntu package it comes with a debian dir in the
++upstream tarball. 
++
++We repackage the .tar.gz without that directory but we keep a copy of debian/changelog
++in ChangeLog.
++
++The svn-upgrade is called on the .tar.gz with the debian directory so that
++we can detect any relevant changes in the postinst and such. It would be
++great if svn-upgrade proposed to ignore some files (like debian/changelog
++to avoid some expected conflicts).
++
+--- acpi-support-0.103.orig/debian/init.d
++++ acpi-support-0.103/debian/init.d
+@@ -1,7 +1,17 @@
+-#!/bin/bash
++#!/bin/sh
+ # INIT script to check whether we're on batteries, and so start with laptop 
+ # mode etc enabled.
+ 
++### BEGIN INIT INFO
++# Provides:          acpi-support
++# Required-Start:    $local_fs $remote_fs
++# Required-Stop:     $local_fs $remote_fs
++# Default-Start:     2 3 4 5
++# Default-Stop:      0 1 6
++### END INIT INFO
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ # BUGS: unless we start *really* late, we have no way of throttling 
+ # xscreensaver, since it won't be there to command.
+ . /usr/share/acpi-support/power-funcs
+@@ -11,23 +21,30 @@
+ 
+ test -d /var/lib/acpi-support || exit 0
+ 
+-shopt -s nullglob
+-
+ case "$1" in
+   start)
+     log_begin_msg "Checking battery state..."
+-    /etc/acpi/power.sh
++    if [ x"`echo /proc/acpi/ac_adapter/*`" != x"/proc/acpi/ac_adapter/*" ]; then 
++	/etc/acpi/power.sh
++    fi
+     # Source everything in /etc/acpi/start.d/
+     for SCRIPT in /etc/acpi/start.d/*.sh; do
+-	. $SCRIPT
++	if [ -f "$SCRIPT" ] ; then
++  	  . $SCRIPT
++  	fi
+     done
+     log_end_msg 0
+     ;;
+   stop)
+     log_begin_msg "Disabling power management..."
+-    /etc/acpi/power.sh stop
++    if [ x"`echo /proc/acpi/ac_adapter/*`" != x"/proc/acpi/ac_adapter/*" ]; then
++	/etc/acpi/power.sh stop
++    fi
+     log_end_msg 0
+     ;;
++  restart|force-reload)
++    # Doesn't make sense for that package
++    ;;
+   *)
+   ;;
+ esac
+--- acpi-support-0.103.orig/debian/postrm
++++ acpi-support-0.103/debian/postrm
+@@ -4,4 +4,5 @@
+ 
+ if [ "$1" = "purge" ] ; then
+         update-rc.d vbesave remove >/dev/null || exit $?
+-fi
+\ No newline at end of file
++fi
++
+--- acpi-support-0.103.orig/debian/docs
++++ acpi-support-0.103/debian/docs
+@@ -1,2 +1 @@
+ README
+-README.toshiba
+--- acpi-support-0.103.orig/debian/copyright
++++ acpi-support-0.103/debian/copyright
+@@ -1,4 +1,7 @@
+-This package written and debianised by Thom May <thom@canonical.com> based on work by Matthew Garrett <mjg59@srcf.ucam.org>
++This package written and debianised for Ubuntu by Thom May
++<thom@canonical.com> based on work by Matthew Garrett
++<mjg59@srcf.ucam.org>. It was downloaded from
++http://archive.ubuntu.com/ubuntu/pool/main/a/acpi-support/
+ 
+ Copyright (C) 2004 Canonical Ltd.
+  Authors: Matthew Garrett, Thom May
+@@ -15,7 +18,7 @@
+ 
+ You should have received a copy of the GNU General Public License along with
+ acpi-support; see the file COPYING.  If not, write to the Free Software
+-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
++Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
+ 
+ On Debian systems, a copy of the GNU General Public License is available in
+ /usr/share/common-licenses/GPL as part of the base-files package.
+--- acpi-support-0.103.orig/debian/README.Debian
++++ acpi-support-0.103/debian/README.Debian
+@@ -0,0 +1,22 @@
++
++Handling of obsolete configuration files/scripts
++------------------------------------------------
++
++Since dpkg doesn't not remove conffiles that are no more provided by the
++current version of the package, we have sometimes to disable them manually
++so that they don't create troubles.
++
++The postinst of this package will thus rename some of those files by
++adding a ".obsolete" extension. If you find out such files in
++/etc/acpi/{events,suspend.d,resume.d}, you can safely remove them.
++
++This renaming is required because otherwise they would be actively used
++while they are no more supposed to be there.
++
++You can use the following command to find out the files that could have
++been renamed by the postinst script:
++$ dpkg -s acpi-support | grep obsolete$
++
++(If you have none, it's not a bug, it's just that you installed acpi-support
++after the last removal, or that you purged it to reinstall it properly from
++scratch).
+--- acpi-support-0.103.orig/debian/postinst
++++ acpi-support-0.103/debian/postinst
+@@ -1,43 +1,32 @@
+-#!/bin/bash
++#!/bin/sh
+ 
+ case "$1" in
+         configure)
++		# Clean up old config files
++		if dpkg --compare-versions "$2" lt "0.95-1"; then
++		    # One conffile got renamed
++		    if [ -e /etc/acpi/suspend.d/80-video-pci-state.sh ]; then
++			mv -f /etc/acpi/suspend.d/80-video-pci-state.sh /etc/acpi/suspend.d/81-video-pci-state.sh
++		    fi
++		    # Other are obsolete and needs to be moved out of the way
++		    # The admin can safely remove them himself
++		    [ -e /etc/acpi/resume.d/49-855-resolution-set.sh ] && mv -f /etc/acpi/resume.d/49-855-resolution-set.sh /etc/acpi/resume.d/49-855-resolution-set.sh.obsolete
++		    [ -e /etc/acpi/resume.d/13-855-resolution-set.sh ] && mv -f /etc/acpi/resume.d/13-855-resolution-set.sh /etc/acpi/resume.d/13-855-resolution-set.sh.obsolete
++		    # This one should be deleted
++		    rm -f /etc/modprobe.d/toshiba_acpi.modprobe
++		fi
++		
+                 invoke-rc.d acpid restart>/dev/null
+                 ;;
+         *)
+                 ;;
+ esac
+ 
+-#fix up old packages.
+-if [ -L /etc/rc2.d/S20acpi-support ]; then
+-# we're probably using defaults, so let's blow us away.
+-        update-rc.d -f acpi-support remove
+-fi
+-
+-if [ ! -L /etc/rc1.d/K20acpi-support -a -L /etc/rc2.d/S99acpi-support ]; then
+-        update-rc.d -f acpi-support remove
+-fi
+-
+ # Remove shutdown and reboot links; this init script does not need them.
+ if dpkg --compare-versions "$2" lt "0.86"; then
+ 	rm -f /etc/rc0.d/K20acpi-support /etc/rc6.d/K20acpi-support
+ fi
+ 
+-if dpkg --compare-versions "$2" lt 0.14; then
+-        if [ -L /etc/rcS.d/S52vbesave ];then
+-                update-rc.d -f vbesave remove >/dev/null
+-        fi
+-fi
+-
+-if dpkg --compare-versions "$2" lt 0.47; then
+-    if [ -f /var/lib/acpi-support/powerstate ]; then
+-	chmod 644 /var/lib/acpi-support/powerstate;
+-    fi
+-    if [ -f /var/lib/acpi-support/lidstate ]; then
+-	chmod 644 /var/lib/acpi-support/lidstate;
+-    fi
+-fi
+-
+ if [ -x "/etc/init.d/vbesave" ]; then
+         update-rc.d vbesave start 05 2 3 4 5 . >/dev/null
+ fi
+--- acpi-support-0.103.orig/debian/control
++++ acpi-support-0.103/debian/control
+@@ -1,17 +1,27 @@
+ Source: acpi-support
+ Section: admin
+ Priority: optional
+-Maintainer: Ubuntu Core developers <ubuntu-devel-discuss@lists.ubuntu.com>
+-XSBC-Original-Maintainer: Matthew Garrett <mjg59@srcf.ucam.org> 
+-Build-Depends: debhelper (>=4.1.16)
+-Standards-Version: 3.6.1.0
++Maintainer: Bart Samwel <bart@samwel.tk>
++Uploaders: Loic Minier <lool@dooz.org>, Raphael Hertzog <hertzog@debian.org>
++Build-Depends: debhelper (>= 5), libx11-dev, x11proto-xext-dev, libxtst-dev, x11proto-core-dev
++Vcs-Svn: svn://svn.debian.org/collab-maint/deb-maint/acpi-support/trunk
++Vcs-Browser: http://svn.debian.org/wsvn/collab-maint/deb-maint/acpi-support/trunk/
++Standards-Version: 3.7.2
+ 
+ Package: acpi-support
+ Architecture: i386 amd64 ia64 lpia
+-Depends: xset, laptop-mode-tools, acpid (>= 1.0.4-1ubuntu4), hdparm, lsb-base (>= 1.3-9ubuntu3), ${arch:Depends}, finger, powermgmt-base, laptop-detect, dmidecode (>= 2.7-1), ${shlibs:Depends}
+-Recommends: toshset, smartdimmer, radeontool
++Depends: ${shlibs:Depends}, x11-xserver-utils, acpid (>= 1.0.4), hdparm, lsb-base (>= 1.3-9), ${arch:Depends}, finger, powermgmt-base, laptop-detect, dmidecode (>= 2.7-1), radeontool, nvclock
+ Conflicts: uswsusp (<= 0.2)
+-Description: a collection of useful events for acpi
+- The scripts included in acpi-support include events for lid closure
+- and loss and gain of ac power. These are the only events that can be 
+- supported with any level of safety cross platform.
++Suggests: laptop-mode-tools
++Description: scripts for handling many ACPI events
++ This package contains scripts to react to various ACPI events. It only
++ includes scripts for events that can be supported with some level of
++ safety cross platform.
++ .
++ It is able to:
++  * Detect loss and gain of AC power, lid closure, and the press of a
++    number of specific buttons (on Asus, IBM, Lenovo, Panasonic, Sony
++    and Toshiba laptops).
++  * Suspend, hibernate and resume the computer, with workarounds for 
++    hardware that needs it.
++  * On some laptops, set screen brightness.
+--- acpi-support-0.103.orig/debian/changelog
++++ acpi-support-0.103/debian/changelog
+@@ -1,839 +1,218 @@
+-acpi-support (0.103) gutsy; urgency=low
++acpi-support (0.103-1) unstable; urgency=low
+ 
+-  * Replace call to 'thinkpad-keys-update' with "thinkpad-keys --update"
+-  * Remove wireless-related comment gruff from 'thinkpad-cmos' event.
+-
+- -- Paul Sladen <sladen@ubuntu.com>  Tue, 18 Sep 2007 20:09:02 +0300
+-
+-acpi-support (0.102) gutsy; urgency=low
+-
+-  * Poke thinkpad-keys on CMOS notification 
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat, 15 Sep 2007 22:13:42 +0100
+-
+-acpi-support (0.101) gutsy; urgency=low
+-
+-  * Switch Thinkpad to using ACPI events for magic keys so that
+-    'thinkpad-keys' can go away and save us all from the new Lenovopad
+-    slow NVRAM.
+-  - See 'hotkey-setup' for remapping and initial module loading + setup.
+-  * Extend mask used in 'thinkpad_acpi.modprobe'.
+-  * Replace 'bin/bash' with 'bin/sh' in a couple of files.
+-
+- -- Paul Sladen <sladen@ubuntu.com>  Thu, 13 Sep 2007 19:15:14 +0300
+-
+-acpi-support (0.100) gutsy; urgency=low
+-
+-  * send events on ACPI brightness presses
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sun, 09 Sep 2007 18:02:20 +0100
+-
+-acpi-support (0.99) gutsy; urgency=low
+-
+-  * prepare.sh: Fix missing space in executability test (thanks, Sitsofe
+-    Wheeler and TJ; LP: #136453).
+-
+- -- Colin Watson <cjwatson@ubuntu.com>  Sat, 01 Sep 2007 17:32:01 +0100
+-
+-acpi-support (0.98) gutsy; urgency=low
+-
+-  * Add support for the video toggle hotkey
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 31 Aug 2007 05:02:08 +0100
+-
+-acpi-support (0.97) gutsy; urgency=low
+-
+-  * Improve X display finding
+-  * Switch Thinkpad wireless hotkey control back to firmware for now
+-  * Improve Toshiba wireless handling
+-  * Check fragment scripts are executable
+-  * Improve Panasonic support
+-  * Improve state saving/restoring over suspend/resume
+-  * Add Asus brightness key support
+-  * Alter some dependencies to recommends
+-  * Fix init script to check state on boot
+-  * Depend on the appropriate shlibdeps
+-  * Add a postrm to tidy up the init scripts
+-  * We no longer need to stop mysql
+-  * Tidy up scripts so a few errors aren't produced
+-  * Update sony brightness script to handle sony-laptop 
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 31 Aug 2007 04:19:36 +0100
+-
+-acpi-support (0.96ubuntu1) gutsy; urgency=low
+-
+-  * Build packages for lpia as well.
+-
+- -- Adam Conrad <adconrad@ubuntu.com>  Wed, 15 Aug 2007 23:48:51 +1000
+-
+-acpi-support (0.96) gutsy; urgency=low
+-
+-  * ibm-acpi has been renamed to thinkpad-acpi. Rename options file accordingly.
+-    LP: #119052. Thanks to Benjamin Pineau <ben.pineau@gmail.com> for the patch.
+-
+- -- Reinhard Tartler <siretart@tauware.de>  Sun, 15 Jul 2007 18:55:10 +0200
+-
+-acpi-support (0.95) feisty; urgency=low
+-
+-  * Clean up issues with toggling multiple wireless cards.
+-    - Move variable initiation into loop inside 'wireless.sh'
+-    - Move contents of 'wireless.sh' into lib/state-funcs:toggleAllWirelessState()
+-    - Update '{ibm,tosh,asus}-wireless.sh' to use state-funcs
+-    (Closes: LP #96107)
+-    (Thanks to Nicolò Chieffo for assistance and testing)
+-  * Remove spurious 'echo HERE' from lib/state-funcs.  D'oh.
+-  
+- -- Paul Sladen <paul@katu>  Mon, 26 Mar 2007 01:06:58 +0100
+-
+-acpi-support (0.94) feisty; urgency=low
+-
+-  * Save and restore values that the kernel does not preserve across
+-    suspend/resume and hibernate/resume:
+-    - /sys/class/net/eth*/device/rf_kill
+-    (Closes: LP #37010)
+-    - /proc/acpi/ibm/bluetooth
+-    (Closes: LP #37175)
+-    - /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+-    (Closes: LP #68191)
+-  * White list Lenovo ThinkPad Z60m as working suspend.
+-    (Closes: LP #57144)
++  * New upstream version 0.96 (from Ubuntu Gutsy):
++    * ibm-acpi has been renamed to thinkpad-acpi. Rename options file
++      accordingly. (Closes: #434845)
++  * New upstream version 0.96-ubuntu1 (from Ubuntu Gutsy):
++    * Build packages for lpia as well.
++  * New upstream version 0.97 (from Ubuntu Gutsy):
++    * Improve X display finding
++    * Switch Thinkpad wireless hotkey control back to firmware for now
++    * Improve Toshiba wireless handling
++    * Check fragment scripts are executable
++    * Improve Panasonic support
++    * Improve state saving/restoring over suspend/resume
++    * Add Asus brightness key support
++    * Alter some dependencies to recommends
++    * Fix init script to check state on boot
++    * Depend on the appropriate shlibdeps
++    * Add a postrm to tidy up the init scripts
++    * We no longer need to stop mysql
++    * Tidy up scripts so a few errors aren't produced
++    * Update sony brightness script to handle sony-laptop  
++  * New upstream version 0.98 (from Ubuntu Gutsy):
++     * Add support for the video toggle hotkey
++  * New upstream version 0.99 (from Ubuntu Gutsy):
++    * prepare.sh: Fix missing space in executability test.
++  * New upstream version 0.100 (from Ubuntu Gutsy):
++    * send events on ACPI brightness presses
++  * New upstream version 0.101 (from Ubuntu Gutsy):
++    * Switch Thinkpad to using ACPI events for magic keys so that
++      'thinkpad-keys' can go away and save us all from the new Lenovopad
++      slow NVRAM.
++    - See 'hotkey-setup' for remapping and initial module loading + setup.
++    * Extend mask used in 'thinkpad_acpi.modprobe'.
++  * New upstream version 0.102 (from Ubuntu Gutsy):
++    * Poke thinkpad-keys on CMOS notification 
++  * New upstream version 0.103 (from Ubuntu Gutsy):
++    * Replace call to 'thinkpad-keys-update' with "thinkpad-keys --update"
++    * Remove wireless-related comment gruff from 'thinkpad-cmos' event.  
++  * Use nvclock instead of smartdimmer for setting LCD brightness on Sony
++    laptops. (Closes: #430491)
++  * Call the correct function in wireless.sh to toglle wireless states.
++    (Closes: #430895)
++  * Correctly detect keyboard event device in acpi_fakekey. (Closes: #433771)
++  * Add LSB dependency info to acpi-support and vbesave init scripts.
++    (Closes: #432020)
++  * Fix a problem in power-funcs (getXconsole function), which didn't work when
++    COLUMNS was set. (Closes: #437141)
++  * Press LEFT SHIFT (using acpi_fakekey) after unblanking the screen when the
++    lid is opened. (Closes: #374069)
++  * Fix path to backlight control file for sony laptops, from upstream version
++    0.97. (Closes: #424004)
++  * Honor DEB_BUILD_OPTIONS=nostrip. (Closes: #436370)
++  * Document thinkpad_acpi options in thinkpad_acpi.modprobe. (Closes: #438430)
++  * Send SIGHUP to ksysguardd on resume so that it reopens its files in
++    /proc/acpi. (Closes: #421017)
++  * Correct directory existence check in power.sh. (Closes: #430494)
++  * Perform error checking for vbetool. (Closes: #445213)
++  * Reduced dependency on xbase-clients to x11-xserver-utils. (Closes: #438665)
+   
+- -- Paul Sladen <sladen@ubuntu.com>  Thu, 22 Mar 2007 03:57:36 +0000
+-
+-acpi-support (0.93) feisty; urgency=low
+-
+-  * Change 'wireless.sh' to use 'device/rf_kill' for wireless devices (if
+-    available) in preference to 'device/power/state' which was been
+-    removed by the upstream kernel developers.
+-    (Closes: LP #42820)
+-  * Teach 'lib/state-funcs:isAnyWirelessPoweredOn()' to also check
+-    'device/rf_kill' if it's available.
+-    (Closes: LP #42820)
+-  * Change 'ibm-wireless.sh' to rotate wireless and bluetooth states
+-    through the sequence: both, bluetooth only, wireless only, neither.
+-    (Closes: LP #24680)
+-  * Correct inverted logic in 'isAnyWirelessPoweredOn()'.
+-    (Closes: LP #66083)
+-  * Change script shebangs to use '/bin/sh' instead of '/bin/bash'.
+-  
+- -- Paul Sladen <sladen@ubuntu.com>  Wed, 21 Mar 2007 04:55:27 +0000
+-
+-acpi-support (0.92) feisty; urgency=low
+-
+-  * Add 'events/sony-eject' for Sony Vaio TX3.
+-    (Closes: LP #55388)
+-
+- -- Paul Sladen <sladen@ubuntu.com>  Sun, 18 Mar 2007 23:09:38 +0000
+-
+-acpi-support (0.91build1) feisty; urgency=low
+-
+-  * Rebuild for changes in the amd64 toolchain.
+-
+- -- Matthias Klose <doko@ubuntu.com>  Mon,  5 Mar 2007 01:12:40 +0000
+-
+-acpi-support (0.91) feisty; urgency=low
+-
+-  * Identical to 0.90, revert the sync from Debian
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Wed,  8 Nov 2006 17:33:04 +0000
+-
+-acpi-support (0.90) edgy; urgency=low
+-
+-  * Explicitly switch the screen back to text mode if it was that way 
+-    before resume
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sun, 15 Oct 2006 18:09:03 +0100
+-
+-acpi-support (0.89) edgy; urgency=low
+-
+-  * Add support for high-res uswsusp
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 15 Sep 2006 21:43:54 +0100
+-
+-acpi-support (0.88) edgy; urgency=low
+-
+-  * Change defaults
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 15 Sep 2006 17:48:05 +0100
+-
+-acpi-support (0.87) edgy; urgency=low
+-
+-  * Add support for using uswsusp
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 24 Aug 2006 01:03:30 +0100
+-
+-acpi-support (0.86) edgy; urgency=low
+-
+-  * Remove stop links from rc0 and rc6
+-
+- -- Scott James Remnant <scott@ubuntu.com>  Thu, 20 Jul 2006 23:03:51 +0100
+-
+-acpi-support (0.85) dapper-updates; urgency=low
+-
+-  * Don't unload nsc-ircc on suspend
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon, 19 Jun 2006 10:38:09 +0100
+-
+-acpi-support (0.84) dapper; urgency=low
+-
+-  * Whitelist another laptop (Ubuntu #44781)
+-    - Hewlett-Packard Pavilion ZV6000
+-  * Add whitelist for bizarre old laptop (Closes: Ubuntu #38174)
+-
+- -- Daniel Silverstone <daniel.silverstone@ubuntu.com>  Tue, 23 May 2006 14:02:34 +0100
+-
+-acpi-support (0.83) dapper; urgency=low
+-
+-  * Whitelist laptops (Ubuntu #44781) (Closes: Ubuntu #44909)
+-  * Fix use of 'pidof' so that it won't bork if multiple processes exist
+-    with the same name and to not spawn extra subshells.  Also do a
+-    more specific 'dcop' call and _only_ if 'dcopserver' is actually running.
+-  * Increase the 'acpilock' back up from 5 -> 10 seconds that got dropped,
+-    may help with (Ubuntu #43519).
+-  * Save the 'dmidecode' bios-version as we can identify ThinkPads with blank
+-    product-names.
+-  * Add entry for ThinkPad R40 with BIOS version "1PET62WW" (Tony Whitmore)
+-
+- -- Paul Sladen <ubuntu@paul.sladen.org>  Mon, 22 May 2006 19:06:40 +0100
+-
+-acpi-support (0.82) dapper; urgency=low
+-
+-  * Add more whitelisted laptops
+-  * Add battery.d and ac.d (Closes: Ubuntu #44996)
+-  * Use pccardctl rather than cardctl (Closes: Ubuntu #44164)
+-  * Only call xscreensaver if it's running
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 16 May 2006 13:06:24 +0100
+-
+-acpi-support (0.81) dapper; urgency=low
+-
+-  * Whitelist Dell Inspiron XPS Gen2
+-  (Closes: Ubuntu #44732)
+-
+- -- Paul Sladen <ubuntu@paul.sladen.org>  Mon, 15 May 2006 00:42:08 +0100
+-
+-acpi-support (0.80) dapper; urgency=low
+-
+-  * Add support for the toshiba battery button and add a generic
+-    batterybtn.sh action script
+-
+- -- Daniel Silverstone <daniel.silverstone@ubuntu.com>  Wed, 10 May 2006 12:09:25 +0100
+-
+-acpi-support (0.79) dapper; urgency=low
+-
+-  * Reorder some checks in order to avoid deadlocks in KDE
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sun,  7 May 2006 14:51:20 +0100
+-
+-acpi-support (0.78) dapper; urgency=low
+-
+-  * Fix Sony brightness handling so minimum brightness doesn't "stick"
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat,  6 May 2006 00:57:38 +0100
+-
+-acpi-support (0.77) dapper; urgency=low
+-
+-  * Call smartdimmer even if the Sony acpi brightness value is mad
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri,  5 May 2006 23:59:16 +0100
+-
+-acpi-support (0.76) dapper; urgency=low
+-
+-  * Only save VBE state on laptops - desktops should have a runnable 
+-    BIOS
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Wed,  3 May 2006 21:32:13 +0100
+-
+-acpi-support (0.75) dapper; urgency=low
+-
+-  * Default to saving VBE state on boot
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sun, 30 Apr 2006 19:24:51 +0100
+-
+-acpi-support (0.74) dapper; urgency=low
+-
+-  * Whitelist Asus A5E [Malone: #37303]
+-    Closes: launchpad #37303
+-
+- -- Paul Sladen <ubuntu@paul.sladen.org>  Sun, 30 Apr 2006 02:22:39 +0200
+-
+-acpi-support (0.73) dapper; urgency=low
+-
+-  * Fix mis-named interface-down script 
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon, 24 Apr 2006 21:05:43 +0100
+-
+-acpi-support (0.72) dapper; urgency=low
+-
+-  * Re-disable laptop-mode by default, to work around LP#12483
+-    - Has the pleasant side effect of making the comment match the code
+-
+- -- Matt Zimmerman <mdz@ubuntu.com>  Sat, 22 Apr 2006 05:34:12 -0700
+-
+-acpi-support (0.71) dapper; urgency=low
+-
+-  * Split resume.sh and prepare.sh up to make it easier to add appropriate hooks
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 21 Apr 2006 16:13:19 +0100
+-
+-acpi-support (0.70) dapper; urgency=low
+-
+-  * Drop call to ifrename which is not only not installed by default, but
+-    conflicts with udev so can't be installed. 
+-
+- -- Scott James Remnant <scott@ubuntu.com>  Tue, 18 Apr 2006 09:22:00 +0100
+-
+-acpi-support (0.69) dapper; urgency=low
+-
+-  * Add whitelist for Sony VGN-S260
+-    Closes: launchpad #32186
+-  * Apply patch to unload netconsole if it's present.
+-    Closes: launchpad #33885
+-
+- -- Daniel Silverstone <daniel.silverstone@ubuntu.com>  Thu, 13 Apr 2006 10:52:29 +0100
+-
+-acpi-support (0.68) dapper; urgency=low
+-
+-  * Bring up only those interfaces we downed, and do it all at once now
+-    that ifup doesn't block on the state file each time. 
+-
+- -- Scott James Remnant <scott@ubuntu.com>  Thu,  6 Apr 2006 06:32:41 +0100
+-
+-acpi-support (0.67) dapper; urgency=low
+-
+-  * ...and fix lib/state-funcs:isAnyWirelessPoweredOn() so that it
+-    doesn't have eth1 hard-coded as a wireless device.  Oops.
+-
+- -- Paul Sladen <ubuntu@paul.sladen.org>  Wed, 29 Mar 2006 13:56:09 +0100
+-
+-acpi-support (0.66) dapper; urgency=low
+-
+-  * Cache result of 'dmidecode -s *' so that they can be access without
+-    privileges when checking 'pmi capabilities'.  [Malone: #36573]
+-
+- -- Paul Sladen <ubuntu@paul.sladen.org>  Tue, 28 Mar 2006 20:19:48 +0100
+-
+-acpi-support (0.65) dapper; urgency=low
+-
+-  * Whitelist Compaq Evo N600c has working SLEEP [Malone: #36838]
+-  * Whitelist Sony VGN-FJ1S has working SLEEP [Malone: #29890]
+-  * Add support for '/etc/acpi/start.d/*.sh' to be run on startup
+-  * Synchronise the Asus Wireless LED on start and resume [Malone: #22795]
+-  * Execute {suspend,resume}.d/*.sh at different times depending on
+-    whether they match [01]*.sh, [2-7]*.sh, [89]*.sh
+-  * Flash the ThinkPad Moon LED while hibernating/suspending.
+-
+- -- Paul Sladen <ubuntu@paul.sladen.org>  Tue, 28 Mar 2006 17:20:48 +0100
+-
+-acpi-support (0.64) dapper; urgency=low
+-
+-  * Add support for Asus A6U Touchpad toggle [Malone #31063].
+-
+- -- Paul Sladen <ubuntu@paul.sladen.org>  Sat, 25 Mar 2006 22:38:36 +0000
+-
+-acpi-support (0.63) dapper; urgency=low
+-
+-  * Set KEY_BATTERY=236 on the basis that this is going to be assigned upstream.
+-
+- -- Paul Sladen <ubuntu@paul.sladen.org>  Sat, 25 Mar 2006 19:37:16 +0000
+-
+-acpi-support (0.62) dapper; urgency=low
+-
+-  * And the rest 
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 23 Mar 2006 21:49:11 +0000
+-
+-acpi-support (0.61) dapper; urgency=low
+-
+-  * Use modprobe -r rather than rmmod [Malone #36172] 
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 23 Mar 2006 16:36:49 +0000
+-
+-acpi-support (0.60) dapper; urgency=low
+-
+-  * Trim trailing spaces from the end of dmidecode strings before looking
+-    for the appropriate '.config' file.  [Malone #34536]
+-  * Add correct handling for new Lenovo ThinkPads that have changed the
+-    action of Fn-F3 from KEY_LOCK => KEY_BATTERY.  [Malone #35395]
+-  * Add Lenovo ThinkPad handling of Fn-F8 to toggle the Touchpad
+-    on newer models or do-nothing on normal ThinkPads [Malone #35395]
+-  * Append 'aliased-keys' onto 'key-constants' for unassigned keycodes.
+-   - Nota Bene: KEY_BATTERY will need updating when assigned upstream.
+-  * Fix handling of hexadecimal numbers when generating 'key-constants'.
+-
+- -- Paul Sladen <ubuntu@paul.sladen.org>  Tue, 21 Mar 2006 15:05:02 +0000
+-
+-acpi-support (0.59) dapper; urgency=low
+-
+-  * Disable USB module unloading - the kernel seems to manage it better 
+-    now
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat, 18 Feb 2006 14:25:11 +0000
+-
+-acpi-support (0.58) dapper; urgency=low
+-
+-  * Pull in missing policy-funcs in sleep.sh
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 16 Feb 2006 13:33:51 +0000
+-
+-acpi-support (0.57) dapper; urgency=low
+-
+-  * Re-enable laptop-mode
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 16 Feb 2006 00:37:52 +0000
+-
+-acpi-support (0.56) dapper; urgency=low
+-
+-  * Re-enable hard drive power saving
+-  * Disable laptop-mode before starting hibernate
+-  * Fix PCI state saving for PCI devices
+-  * Remove recommends on xscreensaver
+-  * Fix policy checking - don't run certain scripts if a desktop policy
+-    manager is running
+-  * Unload ndiswrapper after taking down its interface
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 16 Feb 2006 00:29:29 +0000
+-
+-acpi-support (0.55) dapper; urgency=low
+-
+-  * Change asus-lock and tosh-lock to invoke lockbtn.sh which in turn will
+-    create a KEY_COFFEE event.
+-    This needs a kernel fix before it will be of much use in the general case.
+-  * Add tosh-www to run webbtn.sh
+-  * Add tosh-mail to run mailbtn.sh
+-  * Add tosh-ibutton to run mediabtn.sh
+-
+- -- Daniel Silverstone <daniel.silverstone@ubuntu.com>  Wed, 15 Feb 2006 17:35:19 +0000
+-
+-acpi-support (0.54) dapper; urgency=low
+-
+-  * Fix acpi_fakekey
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon, 13 Feb 2006 18:40:46 +0000
+-
+-acpi-support (0.53) dapper; urgency=low
+-
+-  * Transition model-specific sleep and hibernate buttons to use
+-    keycodes rather than executing scripts directly
+-  * Don't directly execute the sleep script if g-p-m or klaptopdaemon
+-    are running - they should define policy
+-  * Change to using symbolic constants rather than numbers (patch from
+-    Paul Sladen <ubuntu@paul.sladen.org>
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon,  6 Feb 2006 14:55:50 +0000
+-
+-acpi-support (0.52) dapper; urgency=low
+-
+-  * Stop using uinput - fake keyboard input directly
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 27 Jan 2006 04:29:18 +0000
+-
+-acpi-support (0.51) dapper; urgency=low
+-
+-  * Switch on brightness support in ibm-acpi
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 24 Jan 2006 03:25:23 +0000
+-
+-acpi-support (0.50) dapper; urgency=low
+-
+-  * Load uinput module on boot (Ubuntu #21566)
+-  * Fix power.sh conditionals (Ubuntu #21567)
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 27 Dec 2005 14:55:55 +0000
+-
+-acpi-support (0.49) dapper; urgency=low
+-
+-  * Use uinput rather than hacky X stuff to fake keypresses
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat, 24 Dec 2005 20:33:38 +0000
+-
+-acpi-support (0.48) dapper; urgency=low
+-
+-  * Only depend on vbetool on i386 and amd64
+-  * Fix reference to SCREEN_LOCK - should have been LOCK_SCREEN
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat, 24 Dec 2005 18:56:01 +0000
+-
+-acpi-support (0.47) dapper; urgency=low
+-
+-  * Freeze the framebuffer around sleep/resume
+-  * Check SCREEN_LOCK on lid close (Ubuntu #20007)
+-  * Work with newer dmidecodes (Ubuntu #19879)
+-  * Use laptop-mode-tools rather than laptop-mode (Ubuntu #19572)
+-  * Remove extra radeontool call (Ubuntu #18208)
+-  * Add radeontool and smartdimmer to depends
+-  * Add support for saving/restoring video PCI state (Ubuntu #17972)
+-  * Fix the permissions on /var/lib/acpi-support/powerstate (Ubuntu #17606)
+-  * Reenable spindown timings on SATA drives (Ubuntu #17230)
+-  * Poke alsa to improve sound recovery
+-  * Kill dhclient while suspending - otherwise it blocks ifdown
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 29 Nov 2005 18:25:31 +0000
+-
+-acpi-support (0.46) breezy; urgency=low
+-
+-  * Add some extra machines to the whitelists
+-  * Depend on powermgmt-base
+-  * Disable restarting irda services by default
+-  * Disable laptop-mode by default
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Wed, 12 Oct 2005 12:50:11 +0100
+-
+-acpi-support (0.45) breezy; urgency=low
+-
+-  * Remove sneaky new dependencies on radeontool and smartdimmer.  We're too
+-    close to release to start poking the hardware in interesting new ways by
+-    default
+-
+- -- Matt Zimmerman <mdz@ubuntu.com>  Tue,  4 Oct 2005 17:35:54 -0700
+-
+-acpi-support (0.44) breezy; urgency=low
+-
+-  * Fix whitelisting
+-  * Fix resume when suspended for longer than the xscreensaver timeout
+-  * Disable attempts to use hdparm on SATA drives - we don't have the 
+-    kernel support.
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue,  4 Oct 2005 16:44:01 +0100
+-
+-acpi-support (0.43) breezy; urgency=low
+-
+-  * Fix Radeon backlight tweak support
+-  * Fix lid closing screen locking
+-  * Fix check for ac adapters
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue,  4 Oct 2005 05:07:58 +0100
+-
+-acpi-support (0.42) breezy; urgency=low
+-
+-  * Fix missing fi statement in init script
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon,  3 Oct 2005 02:03:21 +0100
+-
+-acpi-support (0.41) breezy; urgency=low
+-
+-  * Make sure that xscreensaver-command -lock is always called
+-  * Use smartdimmer on Sonys if it's available. Nnngh.
+-  * Add support for resetting IDE drives more enthusiastically
+-  * Add support for using radeontool on some awkward machines
+-  * Unload/reload fan and thermal modules on resume to increase the
+-    chances of them working
+-  * Unload/reload ibm-acpi if it's loaded (#14791)
+-  * Fix lid.sh (#16802)
+-  * Unify init script/power.sh, and make sure power.sh is called on
+-    resume (#14833)
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon,  3 Oct 2005 00:48:57 +0100
+-
+-acpi-support (0.40) breezy; urgency=low
+-
+-  * Add a large set of whitelisted laptops
+-  * Export DISPLAY before trying to call apps (closes: #16555)
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sat,  1 Oct 2005 18:01:54 +0100
+-
+-acpi-support (0.39) breezy; urgency=low
+-
+-  * Fix up a couple of bugs in the display handling code
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 30 Sep 2005 04:25:58 +0100
+-
+-acpi-support (0.38) breezy; urgency=low
+-
+-  * Add support for leaving some modules loaded
+-  * Run X commands on all displays, not just :0
+-  * Run hotkey commands on the foremost console
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 30 Sep 2005 03:40:32 +0100
+-
+-acpi-support (0.37) breezy; urgency=low
+-
+-  * Add support for custom suspend and resume scripts
+-  * Add Toshiba brightness restoration over suspend/resume
+-    (Both provided by Daniel Silverstone)
+-  * Run 855resolution on resume if it's configured (closes: #16271)
+-  * Revert to using xscreensaver
+-  * Stop services before unloading modules (closes: #16008)
+-  * Fix syntax error in asus-wireless.sh
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 27 Sep 2005 01:48:39 +0100
+-
+-acpi-support (0.36) breezy; urgency=low
+-
+-  * Change Panasonic brightness on button down, not button release
+-  * Fix quoting in vbesave init script
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri, 23 Sep 2005 11:58:37 +0100
+-
+-acpi-support (0.35) breezy; urgency=low
+-
+-  * Fix for occasionally picking the wrong user
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Wed, 21 Sep 2005 00:07:08 +0100
+-
+-acpi-support (0.34) breezy; urgency=low
+-
+-  The "I do not wish to discuss it" release
+-
+-  * Add workaround for prodding fans back into life on resume
+-  * Add sick evil code for doing sick evil things to sick evil 
+-    screensavers
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 20 Sep 2005 03:15:46 +0100
+-
+-acpi-support (0.33) breezy; urgency=low
+-
+-  * Remove hdparm -B calls in the init scripts
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 15 Sep 2005 21:16:54 +0100
+-
+-acpi-support (0.32) breezy; urgency=low
+-
+-  * Add correct quoting to check for running PowerManager
+-  * Remove PowerManager checking from lid script
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 15 Sep 2005 15:55:12 +0100
+-
+-acpi-support (0.31) breezy; urgency=low
+-
+-  * Don't mess with hdparm -B; it triggers a bug elsewhere which causes
+-    the system to hang on some laptops
+-
+- -- Matt Zimmerman <mdz@ubuntu.com>  Wed, 14 Sep 2005 15:28:21 -0700
+-
+-acpi-support (0.30) breezy; urgency=low
+-
+-  * Remove hardcoded /dev/hda from the init script
+-  * Unload irda modules on suspend - they don't tend to survive
+-  * Make sure that we power the screen back on on lid open
+-  * Don't unload/reload input modules - it seems to break things
+-  * Background xscreensaver locking
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Fri,  2 Sep 2005 17:47:17 +0100
+-
+-acpi-support (0.29) breezy; urgency=low
+-
+-  * Deal more nicely with running IRDA, otherwise the kernel tends to 
+-    oops
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu,  1 Sep 2005 18:09:14 +0100
+-
+-acpi-support (0.28) breezy; urgency=low
+-
+-  * If power-manager is running, let it determine policy rather than 
+-    running scripts blindly. Ignore this for machine-specific hotkeys.
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Tue, 30 Aug 2005 18:13:40 +0100
+-
+-acpi-support (0.27) breezy; urgency=low
+-
+-  * Use "..." rather than ":" in init script messages, for consistency with
+-    other scripts
+-
+- -- Matt Zimmerman <mdz@ubuntu.com>  Mon, 29 Aug 2005 15:51:25 -0700
+-
+-acpi-support (0.26) breezy; urgency=low
+-
+-  * Fix power.sh so that it actually works (Ubuntu #14241)
+-  * Add support for Sony brightness control (Ubuntu #14188)
+-  * Include scripts for Asus volume control (Ubuntu #14164)
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Sun, 28 Aug 2005 17:33:14 +0100
+-
+-acpi-support (0.25) breezy; urgency=low
+-
+-  * Depend on xset (Ubuntu #13997) 
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 25 Aug 2005 10:12:35 +0100
+-
+-acpi-support (0.24) breezy; urgency=low
+-
+-  * Add another missing build-depend DANIEL WHY DO YOU HATE ME SO
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 25 Aug 2005 01:34:14 +0100
+-
+-acpi-support (0.23) breezy; urgency=low
+-
+-  * Add missing build-depends
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Thu, 25 Aug 2005 01:20:28 +0100
+-
+-acpi-support (0.22) breezy; urgency=low
+-
+-  [ Thom May ]
+-  * Import into bzr.
+-  * Notify NetworkManager on suspend and resume, and Recommend:
+-    network-manager
+-
+-  [ Matthew Garrett ]
+-  * Add support for sending key events to userspace
+-  * Add scripts for various media events
+-  * Let the BIOS handle video hotkey events on Thinkpads
+-  * Add ACPI events for Toshiba media buttons
+-  * Don't change VTs on lid close
+-  * Remove gratuitous sleep statements
+-  * Improve the ability to guess the user and home directory
+-  * Add more support for Panasonic and Asus machines
+-  * Improve Asus and Thinkpad wireless control scripts
+-  * Support SATA disks
+-  * Eject PCMCIA cards at a more appropriate time, and handle
+-    ndiswrapper
+-  * Support Toshiba bluetooth switching
+-
+- -- Matthew Garrett <mjg59@srcf.ucam.org>  Mon, 22 Aug 2005 21:55:51 +0100
+-
+-acpi-support (0.21) hoary; urgency=low
+-
+-  * Ensure we only return one match from grep.
+-  * Run /etc/acpi/local/lid.sh.post if it exists.
+-  * sleep for one second, then nuke the acpi lock
+-
+- -- Thom May <thom@ubuntu.com>  Fri,  1 Apr 2005 11:37:06 +0100
+-
+-acpi-support (0.20) hoary; urgency=low
+-
+-  * Ifrename on resume so our interfaces are called the same. (Ubuntu: #7480)
+-  * call xscreensaver-command -deactivate so we get a dialog rather than a
+-    blank screen when we resume. (Ubuntu: #7717)
+-  * Don't clobber LIDSTATE when we mean POWERSTATE (Ubuntu: #8258)
+-  * Background the acpid lock removal
+-
+- -- Thom May <thom@ubuntu.com>  Thu, 17 Mar 2005 17:39:22 +0000
+-
+-acpi-support (0.19.1) hoary; urgency=low
+-
+-  * Ensure that we only attempt to save vbe state if ACPI_SLEEP is enabled
+-
+- -- Thom May <thom@ubuntu.com>  Mon,  7 Mar 2005 12:49:28 +0000
+-
+-acpi-support (0.19) hoary; urgency=low
+-
+-  * Add ia64 to the list of supported architectures
+-
+- -- Thom May <thom@ubuntu.com>  Wed,  2 Mar 2005 23:19:57 +0000
+-
+-acpi-support (0.18) hoary; urgency=low
+-
+-  * Fix vbesave init script (Ubuntu: #6907)
+-
+- -- Thom May <thom@ubuntu.com>  Fri, 25 Feb 2005 11:03:48 +0000
+-
+-acpi-support (0.17) hoary; urgency=low
+-
+-  * Use acpid locking functionality finally (Hi, Martijn!)
+-  * vbestate:
+-    - Test for existence of vbetool
+-    - LSBifiy
+-    - Convert to a true init script
+-    - quieten
+-  * Check whether package has been removed but not purged in init script
+-
+- -- Thom May <thom@ubuntu.com>  Wed, 23 Feb 2005 15:07:51 +0000
+-
+-acpi-support (0.16) hoary; urgency=low
+-
+-  * Fix dumb typos
+-
+- -- Thom May <thom@debian.org>  Mon, 24 Jan 2005 17:30:48 +0000
+-
+-acpi-support (0.15) hoary; urgency=low
+-
+-  * Install ibm_acpi.modprobe and tosh_acpi.modprobe by default
+-
+- -- Thom May <thom@planetarytramp.net>  Sat, 22 Jan 2005 16:18:09 +0000
+-
+-acpi-support (0.14) hoary; urgency=low
+-
+-  * Run vbesave at the top of rc2, rather than in rcS, so we can still boot to
+-    single user
+-
+- -- Thom May <thom@planetarytramp.net>  Mon, 17 Jan 2005 17:26:37 +0000
+-
+-acpi-support (0.13) hoary; urgency=low
+-
+-  * Update toshiba scripts to handle both possible BIOS values
+-  * Fix == bashisms. (Ubuntu #5566)
+-  * Fix up ASUS event scripts. (Ubuntu #5510)
+-
+- -- Thom May <thom@planetarytramp.net>  Fri, 14 Jan 2005 12:31:29 +0000
+-
+-acpi-support (0.12) hoary; urgency=low
+-
+-  * Depend on vbetool on i386 only
+-
+- -- Thom May <thom@planetarytramp.net>  Fri, 14 Jan 2005 10:48:37 +0000
+-
+-acpi-support (0.11) hoary; urgency=low
+-
+-  * Add Toshiba, Asus and Panasonic event scripts
+-  * Add Toshiba modprobe config and README
+-  * All Tosh stuff courtesy of Daniel Silverstone
+-
+- -- Thom May <thom@planetarytramp.net>  Thu, 13 Jan 2005 16:08:48 +0000
+-
+-acpi-support (0.10) hoary; urgency=low
+-
+-  * Matthew Garrett:
+-        - /etc/defaults/acpi-support: new
+-        - hotplug events for IBM laptops
+-        - lots more
+-
+- -- Thom May <thom@planetarytramp.net>  Thu, 13 Jan 2005 12:27:47 +0000
+-
+-acpi-support (0.9) warty; urgency=low
+-
+-  * Add stop target to the init script, disable hdparm advanced power
+-    management therein. (Warty #1914)
+-
+- -- Thom May <thom@canonical.com>  Tue,  5 Oct 2004 21:18:52 +0100
+-
+-acpi-support (0.8) warty; urgency=low
+-
+-  * Explicitly add /usr/bin/X11 to path. (Warty #1549)
+-
+- -- Thom May <thom@canonical.com>  Fri, 24 Sep 2004 12:08:20 +0100
+-
+-acpi-support (0.7) warty; urgency=low
+-
+-  * Added versioned depend on lsb-base
+-
+- -- Nathaniel McCallum <npmccallum@canonical.com>  Fri,  3 Sep 2004 14:45:32 -0400
+-
+-acpi-support (0.6) warty; urgency=low
+-
+-  * Load after acpid. (Warty #992)
+-
+- -- Thom May <thom@planetarytramp.net>  Fri,  3 Sep 2004 18:39:52 +0100
+-
+-acpi-support (0.5) warty; urgency=low
+-
+-  * debian/init.d: pretty initscript
+-
+- -- Nathaniel McCallum <npmccallum@canonical.com>  Thu,  2 Sep 2004 13:16:21 -0400
+-
+-acpi-support (0.4) warty; urgency=low
+-
+-  * use a subdirectory of /var/lib (Closes Warty #842)
+-  * don't hardcode names so that suckful HP boxes might work. (Closes Warty
+-    #841)
+-
+- -- Thom May <thom@planetarytramp.net>  Tue, 31 Aug 2004 15:27:13 +0100
+-
+-acpi-support (0.3) warty; urgency=low
+-
+-  * Apparently, acpid needs a good kick when we change the events.
+-
+- -- Thom May <thom@planetarytramp.net>  Thu, 19 Aug 2004 18:38:55 +0100
+-
+-acpi-support (0.2) warty; urgency=low
+-
+-  * use a safer state file to maintain state across lid open/close 
+-
+- -- Thom May <thom@planetarytramp.net>  Thu, 19 Aug 2004 17:43:38 +0100
++ -- Bart Samwel <bart@samwel.tk>  Sun, 07 Oct 2007 11:15:00 +0200
+ 
+-acpi-support (0.1) warty; urgency=low
++acpi-support (0.95-2) unstable; urgency=low
+ 
+-  * First upload.
+-  * delimit a basic collection of safe acpi events
++  * Remove spurious file acpi-support_0.90-2.diff.gz added in the repository
++    during last merge (it's still in the orig.tar.gz though).
++  * Add a new SKIP_INTERFACES variables in /etc/default/acpi-support and use
++    it to define network interfaces that are not tied to hardware to avoid
++    shutting them down during suspend.
++  * Properly remove files that have been removed in the SVN in the clean
++    target. This is required because the files are still present in the
++    .orig.tar.gz file (otherwise autobuilder builds will have the unwanted
++    files).
++  * Add XS-Vcs-* fields in debian/control.
++
++ -- Raphael Hertzog <hertzog@debian.org>  Fri, 15 Jun 2007 21:34:42 +0200
++
++acpi-support (0.95-1) unstable; urgency=low
++
++  [ Bart Samwel ]
++  * New upstream versions (from Ubuntu Feisty and Gutsy).
++    * 0.95: Clean up issues with toggling multiple wireless cards.
++      - Move variable initiation into loop inside 'wireless.sh'
++      - Move contents of 'wireless.sh' into lib/state-funcs:toggleAllWirelessState()
++      - Update '{ibm,tosh,asus}-wireless.sh' to use state-funcs
++    * 0.95: Remove spurious 'echo HERE' from lib/state-funcs.  D'oh.
++    * 0.94: Save and restore values that the kernel does not preserve across
++      suspend/resume and hibernate/resume:
++      - /sys/class/net/eth*/device/rf_kill
++      - /proc/acpi/ibm/bluetooth
++      - /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
++    * 0.94: White list Lenovo ThinkPad Z60m as working suspend.
++    * 0.93: Change 'wireless.sh' to use 'device/rf_kill' for wireless
++      devices (if available) in preference to 'device/power/state' which
++      has been removed by the upstream kernel developers.
++    * 0.93: Teach 'lib/state-funcs:isAnyWirelessPoweredOn( )' to also check
++      'device/rf_kill' if it's available.
++    * 0.93: Change 'ibm-wireless.sh' to rotate wireless and bluetooth states
++    * 0.93: Correct inverted logic in 'isAnyWirelessPoweredOn()'.
++    * 0.93: Change script shebangs to use '/bin/sh' instead of '/bin/bash'.
++    * 0.92: Add 'events/sony-eject' for Sony Vaio TX3.
++  * Stop pretending to control laptop-mode-tools, which
++    only works (and badly too) in the upstream Ubuntu version. The lmt
++    package provides its own acpi bindings. Add reference in config file
++    to laptop-mode-tools as a replacement for the current non-working
++    configuration option. (Closes: #425800)
++  * Change Recommends of laptop-mode-tools to Suggests. This should prevent
++    automatic enabling of laptop mode for unsuspecting users, it should not
++    be installed by default.
++  * Check that acpi-support is still installed in script configuration files.
++    (Closes: #424752)
++  * Change order of PCI video state restoration so that it is always the last
++    to be saved and the first to be restored. (Closes: #396897)
++  * Only use ifup/ifdown for interfaces listed by /etc/network/run/ifstate.
++    For other interfaces that are up, use "ifconfig down" to force them down,
++    and restart network-manager and ifplugd after resume to bring them back up.
++    (Closes: #373659)
++  * Do not ifup/down "lo" and "dummy..." interfaces over suspend.
++    (Closes: #427128)
++  * Removed bash dependencies. (Note that this may break custom scripts in
++    /etc/acpi that contain bashisms, as the scripts are sourced, not just
++    executed.) (Closes: #407510)
++  * Instead of only restoring the hardware clock on resume, stop and start the
++    hwclock.sh service over suspend. (Closes: #389537)
++  * Move radeontool call out of loop in lid.sh. (Mentioned in bug 391498, but
++    does not solve the bug.)
++  * Potential fix for "sometimes lid.sh doesn't work" bug. (Part of bug 391498,
++    but not enough to close it.)
++  * Bump up Debhelper compatibility level to 5.
++  * Remove useless use of grep in asus-touchpad.sh.
++
++  [ Raphael Hertzog ]
++  * Mark Bart as Maintainer.
++  * Put myself in Uploaders instead.
++  * Sponsor upload for Bart. Change version to 0.95-1.
++  * Manually remove (or move out of the way) old scripts in postint. Concerns:
++    - /etc/acpi/suspend.d/80-video-pci-state.sh
++    - /etc/acpi/resume.d/49-855-resolution-set.sh
++    - /etc/acpi/resume.d/13-855-resolution-set.sh
++    - /etc/modprobe.d/toshiba_acpi.modprobe
++  * Documents policy for handling obsolete configuration files in
++    README.Debian.
++
++ -- Raphael Hertzog <hertzog@debian.org>  Thu, 14 Jun 2007 21:52:16 +0200
++
++acpi-support (0.90-4) unstable; urgency=low
++
++  * Change logic of isAnyWirelessPoweredOn() to only succeed if one wireless
++    device with support for reporting a "state" in sysfs is turned on;
++    closes: #410402.
++  * Add myself as uploader.
++  * Install new manpage for acpi_fakekey, thanks Nico Golde; closes: #383365.
++  * Call dh_strip to drop the ELF comment section of acpi_fakekey.
++  * Depend on radeontool on all arches.
++
++ -- Loic Minier <lool@dooz.org>  Sun, 11 Feb 2007 19:48:22 +0100
++
++acpi-support (0.90-3) unstable; urgency=low
++
++  * Disable VESA BIOS Extensions (VBE) state saving / restoring for X60s
++    Thinkpads (models 1702*, 1704*); closes: 407188.
++
++ -- Loic Minier <lool@dooz.org>  Fri, 19 Jan 2007 22:57:56 +0100
++
++acpi-support (0.90-2) unstable; urgency=low
++
++  * Invoke /usr/sbin/s2disk instead of /sbin/s2disk; thanks Jan Luebbe.
++  * Don't pass any arguments to s2disk as it doesn't support these in newer
++    uswsusp versions.
++  * Fix "APCI" instead of "ACPI" typo in IBM.config; thanks Joshua Kwan;
++    closes: #389511.
++
++ -- Loic Minier <lool@dooz.org>  Sun, 22 Oct 2006 19:15:00 +0200
++
++acpi-support (0.90-1) unstable; urgency=low
++
++  * New upstream versions (from Ubuntu Edgy).
++    * 0.90: Explicitly switch the screen back to text mode if it was that way
++            before resume.
++    * 0.89: Add support for high-res uswsusp
++    * 0.88: Change defaults
++    * 0.87: Add support for using uswsusp
++  * Conflict with uswsusp <= 0.2 as well.
++
++ -- Loic Minier <lool@dooz.org>  Sat, 21 Oct 2006 12:59:06 +0200
++
++acpi-support (0.86-1) unstable; urgency=low
++
++  * New upstream version (from Ubuntu Edgy).
++    * 0.86: Remove stop links from rc0 and rc6
++    * 0.85: Don't unload nsc-ircc on suspend
++  * Add ${shlibs:Depends} and call to dh_shlibdeps. Closes: #383449
++  * 855resolution is no more in Debian, replaced by 915resolution. 
++    Closes: #381210
++  * Improved description, thanks to Clément Stenac. Closes: #383691
++  * Removed README.toshiba which doesn't apply to Debian (or which doesn't
++    apply any more, the toshiba_acpi option indicated doesn't exist in
++    2.6.17.7). Closes: #383326
++
++ -- Raphael Hertzog <hertzog@debian.org>  Sun, 20 Aug 2006 10:43:59 +0200
++
++acpi-support (0.84-1) unstable; urgency=low
++
++  * New upstream version.
++  * Put laptop-mode-tools in Recommends instead of Depends to not force the
++    user to use it: it can be painful to have to wait for the disk to spin up
++    and the gain is not always worth it with recent (very small) hard-disks.
++  * Add upstream changelog.
++
++ -- Raphael Hertzog <hertzog@debian.org>  Fri, 16 Jun 2006 17:51:06 +0200
++
++acpi-support (0.80-1) unstable; urgency=low
++
++  * Initial release.
++  * Add a watch file.
++  * Little fixes for lintian compliancy.
+ 
+- -- Thom May <thom@planetarytramp.net>  Thu, 19 Aug 2004 15:33:01 +0100
++ -- Raphael Hertzog <hertzog@debian.org>  Mon, 15 May 2006 00:02:44 +0000
+--- acpi-support-0.103.orig/screenblank.sh
++++ acpi-support-0.103/screenblank.sh
+@@ -1,4 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
+ 
+ . /etc/default/acpi-support
+ . /usr/share/acpi-support/power-funcs
+--- acpi-support-0.103.orig/mutebtn.sh
++++ acpi-support-0.103/mutebtn.sh
+@@ -1,3 +1,6 @@
+ #!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_MUTE
+--- acpi-support-0.103.orig/sleepbtn.sh
++++ acpi-support-0.103/sleepbtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_SLEEP 
+--- acpi-support-0.103.orig/prevbtn.sh
++++ acpi-support-0.103/prevbtn.sh
+@@ -1,3 +1,6 @@
+-#!/bin/bash
++#!/bin/sh
++
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/key-constants
+ acpi_fakekey $KEY_PREVIOUSSONG
+--- acpi-support-0.103.orig/asus-wireless.sh
++++ acpi-support-0.103/asus-wireless.sh
+@@ -1,6 +1,8 @@
+ #!/bin/sh
+ # Find and toggle wireless devices on Asus laptops
+ 
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ . /usr/share/acpi-support/state-funcs
+ 
+ toggleAllWirelessStates;
+--- acpi-support-0.103.orig/thinkpad-stretchortouchpad.sh
++++ acpi-support-0.103/thinkpad-stretchortouchpad.sh
+@@ -1,5 +1,7 @@
+ #!/bin/sh
+ 
++test -f /usr/share/acpi-support/power-funcs || exit 0
++
+ # Lenovo rock.  They have changed the function of the Fn-F8
+ # combination on the LenovoPads from stretching the display (in
+ # hardware/BIOS) to toggling the touchpad on and off.

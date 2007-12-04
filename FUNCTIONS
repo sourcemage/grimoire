@@ -465,9 +465,9 @@ function check_if_xorg_modular_server()
 #  CALL THIS BEFORE YOU DO THE INSTALLING. You can see the postfix spell for an example.
 declare -f note_config_files &>/dev/null ||
 function note_config_files() {
-if check_if_modified "$1"; then 
-  mark_file_modified "$1" 
-fi
+  if check_if_modified "$1"; then 
+    mark_file_modified "$1" 
+  fi
 }
 
 # Functions for default_build and default_install for waf based build systems
@@ -476,36 +476,34 @@ fi
 # and waf is fast without it as well
 
 function waf_build(){
-./waf configure                               \
+  ./waf configure                             \
                 --nocache                     \
                 --prefix=${INSTALL_ROOT}/usr  \
                 $OPTS                         &&
-./waf build
+  ./waf build
 }
 
 function waf_install(){
-./waf install
+  ./waf install
 }
 
 # spells in several  sections now need cmake or qt4
-# 
 cmake_build() {
-cd $SOURCE_DIRECTORY  &&
-mkdir -p build        &&
-cd build              &&
-cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr ../  $OPTS &&
-make
+  cd $SOURCE_DIRECTORY  &&
+  mkdir -p build        &&
+  cd build              &&
+  cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr ../  $OPTS &&
+  make
 }
 
 qt4_build() {
-QTDIR=/usr
-PATH=$QTDIR/bin/qt4:$PATH
-cmake_build
+  [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
+  PATH="$QTDIR/bin/qt4:$PATH"
+  cmake_build
 }
 
-
 # check whether the QT provider is qt4
-
 function check_if_qt4_provider()
 {
   if  [[  "$(get_spell_provider  ${1:-$SPELL}  QT)"  ==  "qt4"  ]]
@@ -516,16 +514,141 @@ function check_if_qt4_provider()
 }
 
 
-
 # build using qt3 or qt4
 # some spells an adapt the build process to either qt3 or qt4
 function build_qt3_or_4()
 {
-  QTDIR=$INSTALL_ROOT/usr
+  [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
   if check_if_qt4_provider
   then
-    PATH=$QTDIR/bin/qt4:$PATH
+    PATH="$QTDIR/bin/qt4:$PATH"
   fi      &&
   qmake   &&
   make
 }
+
+# cmake flags use : which is an internal sorcery delimiter.
+# In order to facilitate the passing of depends flags, use % instead and call
+# this function at the start of BUILD. Don't use it anywhere else.
+# Example: 
+# DEPENDS: depends kdelibs4 -DCRUFT%BOOL=FALSE; ...
+# BUILD: prepare_cmake_flags; ...
+function prepare_cmake_flags()
+{
+  OPTS="${OPTS//%/:}"
+}
+
+
+#-------------------------------------------------------------------------
+## Print the version of the running kernel.
+#-------------------------------------------------------------------------
+function get_running_kernel_version()
+{
+  # Try the proc interface first because it returns the version of the
+  # running kernel even when unamechange is invoked.
+  [[ -f /proc/sys/kernel/osrelease ]] && cat /proc/sys/kernel/osrelease ||
+    uname -r
+}
+
+#-------------------------------------------------------------------------
+## Print the version of the installed linux spell or, lacking that, "-1".
+## This is just a wrapper for 'installed_version linux' with the exception
+## that this will always print something and not return false.
+#-------------------------------------------------------------------------
+function get_sorcery_kernel_version()
+{
+  installed_version linux || echo "-1"
+}
+
+#-------------------------------------------------------------------------
+## Print the version of the kernel defined in USE_KERNEL_VERSION or, 
+## lacking that, the version of either the installed linux spell or the 
+## running kernel.
+#-------------------------------------------------------------------------
+function get_kernel_version()
+{
+  if [[ $USE_KERNEL_VERSION ]]
+  then
+    echo "$USE_KERNEL_VERSION"
+  else
+    installed_version linux || get_running_kernel_version
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Print the kernel config status of the running kernel for the option 
+## defined in $1.
+## If a configure file is found print the requested config status (if
+## any) and return 0, otherwise return 1.
+#-----------------------------------------------------------------------
+function get_running_kernel_config()
+{
+  if [[ -f /proc/config.gz ]]
+  then
+    zgrep "^$1=" /proc/config.gz | cut -d= -f2
+  else
+    local KVER="$(get_running_kernel_version)"
+    if [[ -f "/boot/config-$KVER" ]]
+    then
+      grep "^$1=" "/boot/config-$KVER" | cut -d= -f2
+    elif [[ -f "/usr/src/linux-$KVER/.config" ]]
+    then
+      grep "^$1=" "/usr/src/linux-$KVER/.config" | cut -d= -f2
+    else
+      return 1
+    fi
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Print the kernel config status of the installed linux spell for the 
+## option defined in $1.
+## If the linux spell is installed and a configure file is found print
+## the requested config status (if any) and return 0, otherwise return
+## 1.
+#-----------------------------------------------------------------------
+function get_sorcery_kernel_config()
+{
+  local KVER="$(installed_version linux)"
+  if [[ $KVER ]]
+  then
+    if [[ -f "/boot/config-$KVER" ]]
+    then
+      grep "^$1=" "/boot/config-$KVER" | cut -d= -f2
+    elif [[ -f "/usr/src/linux-$KVER/.config" ]]
+    then
+      grep "^$1=" "/usr/src/linux-$KVER/.config" | cut -d= -f2
+    else
+      return 1
+    fi
+  else
+    return 1
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Print the kernel config status for the option defined in $1 from the
+## kernel defined in USE_KERNEL_VERSION or, lacking that, from either
+## the installed linux spell or the running kernel.
+## If a configure file is found print the requested config status (if
+## any) and return 0, otherwise return 1.
+#-----------------------------------------------------------------------
+function get_kernel_config()
+{
+  if [[ $USE_KERNEL_VERSION ]]
+  then
+    if [[ -f "/boot/config-$USE_KERNEL_VERSION" ]]
+    then
+      grep "^$1=" "/boot/config-$USE_KERNEL_VERSION" | cut -d= -f2
+    elif [[ -f "/usr/src/linux-$USE_KERNEL_VERSION/.config" ]]
+    then
+      grep "^$1=" "/usr/src/linux-$USE_KERNEL_VERSION/.config" | cut -d= -f2
+    else
+      return 1
+    fi
+  else
+    get_sorcery_kernel_config "$1" || get_running_kernel_config "$1"
+  fi
+}
+

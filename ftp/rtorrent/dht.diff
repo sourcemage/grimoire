@@ -1,0 +1,707 @@
+Index: rtorrent/doc/rtorrent.rc
+===================================================================
+--- rtorrent/doc/rtorrent.rc	(revision 975)
++++ rtorrent/doc/rtorrent.rc	(working copy)
+@@ -74,6 +74,17 @@
+ #
+ # encryption = allow_incoming,enable_retry,prefer_plaintext
+ 
++# Enable DHT support for trackerless torrents or when all trackers are down.
++# May be set to "disable" (completely disable DHT), "off" (do not start DHT),
++# "auto" (start and stop DHT as needed), or "on" (start DHT immediately).
++# The default is "off". For DHT to work, a session directory must be defined.
++# 
++# dht = auto
++
++# UDP port to use for DHT. 
++# 
++# dht_port = 6881
++
+ # Enable peer exchange (for torrents not marked private)
+ #
+ # peer_exchange = yes
+Index: rtorrent/doc/rtorrent.1.xml
+===================================================================
+--- rtorrent/doc/rtorrent.1.xml	(revision 975)
++++ rtorrent/doc/rtorrent.1.xml	(working copy)
+@@ -1,4 +1,5 @@
+-<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
++<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN"
++  "http://oasis-open.org/docbook/xml/4.1/docbookx.dtd">
+ 
+ <refentry id="rtorrent">
+ 
+@@ -705,7 +706,39 @@
+         </para></listitem>
+       </varlistentry>
+ 
++       <varlistentry>
++        <term>dht = <replaceable>disabled|off|auto|on</replaceable></term>
++        <listitem><para>
++Support for querying the distributed hash table (DHT) to find peers for trackerless
++torrents or when all trackers are down. Set to <emphasis>disable</emphasis> to completely
++disable DHT, <emphasis>off</emphasis> (default) to enable DHT but to not start the
++DHT server, <emphasis>auto</emphasis> to automatically start and stop the DHT server
++as needed or <emphasis>on</emphasis> for permanently keeping the DHT server running.
++When set to automatic, the DHT server will start up when the first non-private torrent
++is started, and will stop 15-30 minutes after the last non-private torrent is
++stopped (or when rTorrent quits). For DHT to work, a session directory must be set (for
++saving the DHT cache).
++        </para></listitem>
++      </varlistentry>
++
+       <varlistentry>
++        <term>dht_port = <replaceable>number</replaceable></term>
++        <listitem><para>
++Set the UDP listen port for DHT. Defaults to 6881.
++        </para></listitem>
++      </varlistentry>
++
++      <varlistentry>
++        <term>dht_add_node = <replaceable>host[:port]</replaceable></term>
++        <listitem><para>
++Not intended for use in the configuration file but as one-time option in the
++client or on the command line to bootstrap an empty DHT node table. Contacts 
++the given node and attempts to bootstrap from it if it replies.
++The port is optional, with port 6881 being used by default.
++        </para></listitem>
++      </varlistentry>
++
++      <varlistentry>
+         <term>http_capath = <replaceable>path</replaceable></term>
+         <term>http_cacert = <replaceable>filename</replaceable></term>
+         <listitem><para>
+Index: rtorrent/src/core/download_list.cc
+===================================================================
+--- rtorrent/src/core/download_list.cc	(revision 975)
++++ rtorrent/src/core/download_list.cc	(working copy)
+@@ -55,6 +55,7 @@
+ #include "globals.h"
+ #include "manager.h"
+ 
++#include "dht_manager.h"
+ #include "download.h"
+ #include "download_list.h"
+ #include "download_store.h"
+@@ -94,6 +95,8 @@
+ void
+ DownloadList::session_save() {
+   std::for_each(begin(), end(), std::bind1st(std::mem_fun(&DownloadStore::save), control->core()->download_store()));
++
++  control->dht_manager()->save_dht_cache();
+ }
+ 
+ DownloadList::iterator
+@@ -388,6 +391,9 @@
+       torrent::resume_save_progress(*download->download(), download->download()->bencode()->get_key("libtorrent_resume"), true);
+     }
+ 
++    // If the DHT server is set to auto, start it now.
++    control->dht_manager()->auto_start();
++
+     // Update the priority to ensure it has the correct
+     // seeding/unfinished modifiers.
+     download->set_priority(download->priority());
+Index: rtorrent/src/core/dht_manager.cc
+===================================================================
+--- rtorrent/src/core/dht_manager.cc	(revision 0)
++++ rtorrent/src/core/dht_manager.cc	(revision 0)
+@@ -0,0 +1,302 @@
++// rTorrent - BitTorrent client
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#include "config.h"
++
++#include <fstream>
++#include <sstream>
++#include <torrent/object.h>
++#include <torrent/dht_manager.h>
++#include <torrent/object_stream.h>
++#include <torrent/rate.h>
++
++#include "rpc/parse_commands.h"
++
++#include "globals.h"
++
++#include "control.h"
++#include "dht_manager.h"
++#include "download.h"
++#include "download_store.h"
++#include "manager.h"
++
++namespace core {
++
++const char* DhtManager::dht_settings[dht_settings_num] = { "disable", "off", "auto", "on" };
++
++DhtManager::~DhtManager() {
++  priority_queue_erase(&taskScheduler, &m_updateTimeout);
++  priority_queue_erase(&taskScheduler, &m_stopTimeout);
++}
++
++void
++DhtManager::load_dht_cache() {
++  if (m_start == dht_disable || !control->core()->download_store()->is_enabled())
++    return;
++
++  torrent::Object cache(torrent::Object::TYPE_MAP);
++  std::fstream cache_file((control->core()->download_store()->path() + "rtorrent.dht_cache").c_str(), std::ios::in | std::ios::binary);
++
++  if (cache_file.is_open()) {
++    cache_file >> cache;
++
++    if (cache_file.fail())
++      throw torrent::input_error("Invalid DHT cache.");
++  }
++
++  try {
++    torrent::dht_manager()->initialize(cache);
++
++    if (m_start == dht_on)
++      start_dht();
++
++  } catch (torrent::local_error& e) {
++   control->core()->push_log((std::string("DHT error: ") + e.what()).c_str());
++  }
++}
++
++void
++DhtManager::start_dht() {
++  priority_queue_erase(&taskScheduler, &m_stopTimeout);
++
++  if (torrent::dht_manager()->is_active() || !torrent::dht_manager()->is_valid())
++    return;
++
++  int port = rpc::call_command_value("get_dht_port");
++  if (port <= 0)
++    return;
++
++  char msg[128];
++  snprintf(msg, sizeof(msg), "Starting DHT server on port %d.", port);
++  control->core()->push_log(msg);
++
++  try {
++    torrent::dht_manager()->start(port);
++
++    m_updateTimeout.set_slot(rak::mem_fn(this, &DhtManager::update));
++    priority_queue_insert(&taskScheduler, &m_updateTimeout, (cachedTime + rak::timer::from_seconds(60)).round_seconds());
++
++    m_dhtPrevCycle = 0;
++    m_dhtPrevQueriesSent = 0;
++    m_dhtPrevRepliesReceived = 0;
++    m_dhtPrevQueriesReceived = 0;
++    m_dhtPrevBytesUp = 0;
++    m_dhtPrevBytesDown = 0;
++
++  } catch (torrent::local_error& e) {
++    control->core()->push_log((std::string("DHT error: ") + e.what()).c_str());
++    m_start = dht_off;
++  }
++}
++
++void
++DhtManager::stop_dht() {
++  priority_queue_erase(&taskScheduler, &m_updateTimeout);
++  priority_queue_erase(&taskScheduler, &m_stopTimeout);
++  if (m_stopTimeout.is_queued())
++    priority_queue_erase(&taskScheduler, &m_stopTimeout);
++
++  if (torrent::dht_manager()->is_active()) {
++    log_statistics(true);
++    control->core()->push_log("Stopping DHT server.");
++    torrent::dht_manager()->stop();
++  }
++}
++
++void
++DhtManager::save_dht_cache() {
++  if (!control->core()->download_store()->is_enabled() || !torrent::dht_manager()->is_active())
++    return;
++
++  std::string filename = control->core()->download_store()->path() + "rtorrent.dht_cache";
++  std::string filename_tmp = filename + ".new";
++  std::fstream cache_file(filename_tmp.c_str(), std::ios::out | std::ios::trunc);
++
++  if (!cache_file.is_open())
++    return;
++
++  torrent::Object cache(torrent::Object::TYPE_MAP);
++  cache_file << *torrent::dht_manager()->store_cache(&cache);
++
++  if (!cache_file.good())
++    return;
++
++  cache_file.close();
++
++  ::rename(filename_tmp.c_str(), filename.c_str());
++}
++
++void
++DhtManager::set_start(const std::string& arg) {
++  int i;
++  for (i = 0; i < dht_settings_num; i++) {
++    if (arg == dht_settings[i]) {
++      m_start = i;
++      break;
++    }
++  }
++
++  if (i == dht_settings_num)
++    throw torrent::input_error("Invalid argument.");
++
++  if (m_start == dht_off)
++    stop_dht();
++  else if (m_start == dht_on)
++    start_dht();
++}
++
++void
++DhtManager::update() {
++  if (!torrent::dht_manager()->is_active())
++    throw torrent::internal_error("DhtManager::update called with DHT inactive.");
++
++  if (m_start == dht_auto && !m_stopTimeout.is_queued()) {
++    DownloadList::const_iterator itr = std::find_if(control->core()->download_list()->begin(), control->core()->download_list()->end(), std::mem_fun(&Download::is_active));
++    if (itr == control->core()->download_list()->end()) {
++      m_stopTimeout.set_slot(rak::mem_fn(this, &DhtManager::stop_dht));
++      priority_queue_insert(&taskScheduler, &m_stopTimeout, (cachedTime + rak::timer::from_seconds(15 * 60)).round_seconds());
++    }
++  }
++
++  // While bootstrapping (log_statistics returns true), check every minute if it completed, otherwise update every 15 minutes.
++  if (log_statistics(false))
++    priority_queue_insert(&taskScheduler, &m_updateTimeout, (cachedTime + rak::timer::from_seconds(60)).round_seconds());
++  else
++    priority_queue_insert(&taskScheduler, &m_updateTimeout, (cachedTime + rak::timer::from_seconds(15 * 60)).round_seconds());
++}
++
++bool
++DhtManager::log_statistics(bool force) {
++  torrent::DhtManager::statistics_type stats = torrent::dht_manager()->get_statistics();
++
++  // Check for firewall problems.
++
++  if (stats.cycle > 2 && stats.queries_sent - m_dhtPrevQueriesSent > 100 && stats.queries_received == m_dhtPrevQueriesReceived) {
++    // We should have had clients ping us at least but have received
++    // nothing, that means the UDP port is probably unreachable.
++    if (torrent::dht_manager()->can_receive_queries())
++      control->core()->push_log("Warning: DHT port appears to be unreachable, no queries received.");
++
++    torrent::dht_manager()->set_can_receive(false);
++  }
++
++  if (stats.queries_sent - m_dhtPrevQueriesSent > stats.num_nodes * 2 + 20 && stats.replies_received == m_dhtPrevRepliesReceived) {
++    // No replies to over 20 queries plus two per node we have. Probably firewalled.
++    if (!m_warned)
++      control->core()->push_log("Warning: DHT port appears to be firewalled, no replies received.");
++
++    m_warned = true;
++    return false;
++  }
++
++  m_warned = false;
++
++  if (stats.queries_received > m_dhtPrevQueriesReceived)
++    torrent::dht_manager()->set_can_receive(true);
++
++  // Nothing to log while bootstrapping, but check again every minute.
++  if (stats.cycle <= 1) {
++    m_dhtPrevCycle = stats.cycle;
++    return true;
++  }
++
++  // If bootstrap completed between now and the previous check, notify user.
++  if (m_dhtPrevCycle == 1) {
++    char buffer[128];
++    snprintf(buffer, sizeof(buffer), "DHT bootstrap complete, have %d nodes in %d buckets.", stats.num_nodes, stats.num_buckets);
++    control->core()->get_log_complete().push_front(buffer);
++    m_dhtPrevCycle = stats.cycle;
++    return false;
++  };
++
++  // Standard DHT statistics on first real cycle, and every 8th cycle
++  // afterwards (i.e. every 2 hours), or when forced.
++  if ((force && stats.cycle != m_dhtPrevCycle) || stats.cycle == 3 || stats.cycle > m_dhtPrevCycle + 7) {
++    char buffer[256];
++    snprintf(buffer, sizeof(buffer), 
++             "DHT statistics: %d queries in, %d queries out, %d replies received, %lld bytes read, %lld bytes sent, "
++             "%d known nodes in %d buckets, %d peers (highest: %d) tracked in %d torrents.",
++             stats.queries_received - m_dhtPrevQueriesReceived,
++             stats.queries_sent - m_dhtPrevQueriesSent,
++             stats.replies_received - m_dhtPrevRepliesReceived,
++             stats.down_rate.total() - m_dhtPrevBytesDown,
++             stats.up_rate.total() - m_dhtPrevBytesUp,
++             stats.num_nodes,
++             stats.num_buckets,
++             stats.num_peers,
++             stats.max_peers,
++             stats.num_trackers);
++
++    control->core()->get_log_complete().push_front(buffer);
++
++    m_dhtPrevCycle = stats.cycle;
++    m_dhtPrevQueriesSent = stats.queries_sent;
++    m_dhtPrevRepliesReceived = stats.replies_received;
++    m_dhtPrevQueriesReceived = stats.queries_received;
++    m_dhtPrevBytesUp = stats.up_rate.total();
++    m_dhtPrevBytesDown = stats.down_rate.total();
++  }
++
++ return false;
++}
++
++torrent::Object
++DhtManager::dht_statistics() {
++  torrent::Object dhtStats(torrent::Object::TYPE_MAP);
++
++  dhtStats.insert_key("dht",              dht_settings[m_start]);
++  dhtStats.insert_key("active",           torrent::dht_manager()->is_active());
++
++  if (torrent::dht_manager()->is_active()) {
++    torrent::DhtManager::statistics_type stats = torrent::dht_manager()->get_statistics();
++
++    dhtStats.insert_key("cycle",            stats.cycle);
++    dhtStats.insert_key("queries_received", stats.queries_received);
++    dhtStats.insert_key("queries_sent",     stats.queries_sent);
++    dhtStats.insert_key("replies_received", stats.replies_received);
++    dhtStats.insert_key("bytes_read",       stats.down_rate.total());
++    dhtStats.insert_key("bytes_written",    stats.up_rate.total());
++    dhtStats.insert_key("nodes",            stats.num_nodes);
++    dhtStats.insert_key("buckets",          stats.num_buckets);
++    dhtStats.insert_key("peers",            stats.num_peers);
++    dhtStats.insert_key("peers_max",        stats.max_peers);
++    dhtStats.insert_key("torrents",         stats.num_trackers);
++  }
++
++  return dhtStats;
++}
++
++}
+Index: rtorrent/src/core/dht_manager.h
+===================================================================
+--- rtorrent/src/core/dht_manager.h	(revision 0)
++++ rtorrent/src/core/dht_manager.h	(revision 0)
+@@ -0,0 +1,89 @@
++// rTorrent - BitTorrent client
++// Copyright (C) 2005-2007, Jari Sundell
++//
++// This program is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 2 of the License, or
++// (at your option) any later version.
++// 
++// This program is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++// 
++// You should have received a copy of the GNU General Public License
++// along with this program; if not, write to the Free Software
++// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++//
++// In addition, as a special exception, the copyright holders give
++// permission to link the code of portions of this program with the
++// OpenSSL library under certain conditions as described in each
++// individual source file, and distribute linked combinations
++// including the two.
++//
++// You must obey the GNU General Public License in all respects for
++// all of the code used other than OpenSSL.  If you modify file(s)
++// with this exception, you may extend this exception to your version
++// of the file(s), but you are not obligated to do so.  If you do not
++// wish to do so, delete this exception statement from your version.
++// If you delete this exception statement from all source files in the
++// program, then also delete it here.
++//
++// Contact:  Jari Sundell <jaris@ifi.uio.no>
++//
++//           Skomakerveien 33
++//           3185 Skoppum, NORWAY
++
++#ifndef RTORRENT_CORE_DHT_MANAGER_H
++#define RTORRENT_CORE_DHT_MANAGER_H
++
++#include <rak/priority_queue_default.h>
++
++#include <torrent/object.h>
++
++namespace core {
++
++class DhtManager {
++public:
++  DhtManager() : m_warned(false), m_start(dht_off) { }
++  ~DhtManager();
++
++  void                load_dht_cache();
++  void                save_dht_cache();
++  torrent::Object     dht_statistics();
++
++  void                start_dht();
++  void                stop_dht();
++  void                auto_start()                 { if (m_start == dht_auto) start_dht(); }
++
++  void                set_start(const std::string& arg);
++
++private:
++  static const int    dht_disable = 0;
++  static const int    dht_off     = 1;
++  static const int    dht_auto    = 2;
++  static const int    dht_on      = 3;
++
++  static const int    dht_settings_num = 4;
++  static const char*  dht_settings[dht_settings_num];
++
++  void                update();
++  bool                log_statistics(bool force);
++
++  unsigned int        m_dhtPrevCycle;
++  unsigned int        m_dhtPrevQueriesSent;
++  unsigned int        m_dhtPrevRepliesReceived;
++  unsigned int        m_dhtPrevQueriesReceived;
++  uint64_t            m_dhtPrevBytesUp;
++  uint64_t            m_dhtPrevBytesDown;
++
++  rak::priority_item  m_updateTimeout;
++  rak::priority_item  m_stopTimeout;
++  bool                m_warned;
++
++  int                 m_start;
++};
++
++}
++
++#endif
+Index: rtorrent/src/core/manager.cc
+===================================================================
+--- rtorrent/src/core/manager.cc	(revision 975)
++++ rtorrent/src/core/manager.cc	(working copy)
+@@ -242,6 +242,9 @@
+ 
+   m_downloadList->clear();
+ 
++  // When we implement asynchronous DNS lookups, we need to cancel them
++  // here before the torrent::* objects are deleted.
++
+   torrent::cleanup();
+   CurlStack::global_cleanup();
+ 
+Index: rtorrent/src/core/Makefile.am
+===================================================================
+--- rtorrent/src/core/Makefile.am	(revision 975)
++++ rtorrent/src/core/Makefile.am	(working copy)
+@@ -5,6 +5,8 @@
+ 	curl_get.h \
+ 	curl_stack.cc \
+ 	curl_stack.h \
++	dht_manager.cc \
++	dht_manager.h \
+ 	download.cc \
+ 	download.h \
+ 	download_factory.cc \
+Index: rtorrent/src/control.cc
+===================================================================
+--- rtorrent/src/control.cc	(revision 975)
++++ rtorrent/src/control.cc	(working copy)
+@@ -44,6 +44,7 @@
+ #include "core/download_store.h"
+ #include "core/view_manager.h"
+ #include "core/scheduler.h"
++#include "core/dht_manager.h"
+ 
+ #include "display/canvas.h"
+ #include "display/window.h"
+@@ -75,6 +76,7 @@
+   m_core        = new core::Manager();
+   m_viewManager = new core::ViewManager(m_core->download_list());
+   m_scheduler   = new core::Scheduler(m_core->download_list());
++  m_dhtManager  = new core::DhtManager();
+ 
+   m_inputStdin->slot_pressed(sigc::mem_fun(m_input, &input::Manager::pressed));
+ 
+@@ -95,6 +97,7 @@
+   delete m_display;
+   delete m_core;
+   delete m_scheduler;
++  delete m_dhtManager;
+ }
+ 
+ void
+Index: rtorrent/src/display/utils.cc
+===================================================================
+--- rtorrent/src/display/utils.cc	(revision 975)
++++ rtorrent/src/display/utils.cc	(working copy)
+@@ -191,8 +191,8 @@
+   } else if (d->tracker_list()->is_busy() && d->tracker_list()->focus() < d->tracker_list()->size()) {
+     torrent::TrackerList* tl = d->tracker_list();
+ 
+-    first = print_buffer(first, last, "Tracker[%i:%i]: Connecting to %s",
+-                         tl->get(tl->focus()).group(), tl->focus(), tl->get(tl->focus()).url().c_str());
++    first = print_buffer(first, last, "Tracker[%i:%i]: Connecting to %s %s",
++                         tl->get(tl->focus()).group(), tl->focus(), tl->get(tl->focus()).url().c_str(), tl->get(tl->focus()).status().c_str());
+ 
+   } else if (!d->message().empty()) {
+     first = print_buffer(first, last, "%s", d->message().c_str());
+Index: rtorrent/src/display/window_tracker_list.cc
+===================================================================
+--- rtorrent/src/display/window_tracker_list.cc	(revision 975)
++++ rtorrent/src/display/window_tracker_list.cc	(working copy)
+@@ -91,7 +91,7 @@
+     m_canvas->print(4, pos++, "Id: %s Focus: %s Enabled: %s Open: %s S/L: %u/%u",
+                     rak::copy_escape_html(tracker.tracker_id()).c_str(),
+                     range.first == tl->focus() ? "yes" : " no",
+-                    tracker.is_enabled() ? "yes" : " no",
++                    tracker.is_usable() ? "yes" : tracker.is_enabled() ? "off" : " no",
+                     tracker.is_open() ? "yes" : " no",
+                     tracker.scrape_complete(),
+                     tracker.scrape_incomplete());
+Index: rtorrent/src/control.h
+===================================================================
+--- rtorrent/src/control.h	(revision 975)
++++ rtorrent/src/control.h	(working copy)
+@@ -51,6 +51,7 @@
+   class Manager;
+   class ViewManager;
+   class Scheduler;
++  class DhtManager;
+ }
+ 
+ namespace display {
+@@ -89,6 +90,7 @@
+   core::Manager*      core()                        { return m_core; }
+   core::ViewManager*  view_manager()                { return m_viewManager; }
+   core::Scheduler*    scheduler()                   { return m_scheduler; }
++  core::DhtManager*   dht_manager()                 { return m_dhtManager; }
+ 
+   torrent::Poll*      poll();
+ 
+@@ -118,6 +120,7 @@
+   core::Manager*      m_core;
+   core::ViewManager*  m_viewManager;
+   core::Scheduler*    m_scheduler;
++  core::DhtManager*   m_dhtManager;
+ 
+   ui::Root*           m_ui;
+   display::Manager*   m_display;
+Index: rtorrent/src/main.cc
+===================================================================
+--- rtorrent/src/main.cc	(revision 975)
++++ rtorrent/src/main.cc	(working copy)
+@@ -49,6 +49,7 @@
+ #include <execinfo.h>
+ #endif
+ 
++#include "core/dht_manager.h"
+ #include "core/download.h"
+ #include "core/download_factory.h"
+ #include "core/download_store.h"
+@@ -244,6 +245,7 @@
+ 
+     // Load session torrents and perform scheduled tasks to ensure
+     // session torrents are loaded before arg torrents.
++    control->dht_manager()->load_dht_cache();
+     load_session_torrents(control);
+     rak::priority_queue_perform(&taskScheduler, cachedTime);
+ 
+Index: rtorrent/src/command_network.cc
+===================================================================
+--- rtorrent/src/command_network.cc	(revision 975)
++++ rtorrent/src/command_network.cc	(working copy)
+@@ -41,10 +41,12 @@
+ #include <rak/file_stat.h>
+ #include <rak/path.h>
+ #include <torrent/connection_manager.h>
++#include <torrent/dht_manager.h>
+ #include <torrent/tracker.h>
+ #include <torrent/tracker_list.h>
+ #include <torrent/torrent.h>
+ 
++#include "core/dht_manager.h"
+ #include "core/download.h"
+ #include "core/manager.h"
+ #include "rpc/scgi.h"
+@@ -119,7 +121,42 @@
+ void apply_hash_interval(int arg)                { torrent::set_hash_interval(arg * 1000); }
+ void apply_encoding_list(const std::string& arg) { torrent::encoding_list()->push_back(arg); }
+ 
++struct call_add_node_t {
++  call_add_node_t(int port) : m_port(port) { }
++
++  void operator() (const sockaddr* sa, int err) {
++    if (sa == NULL)
++      control->core()->push_log("Could not resolve host.");
++    else
++      torrent::dht_manager()->add_node(sa, m_port, false);
++  }
++
++  int m_port;
++};
++
+ void
++apply_dht_add_node(const std::string& arg) {
++  if (!torrent::dht_manager()->is_valid())
++    throw torrent::input_error("DHT not enabled.");
++
++  int port, ret;
++  char dummy;
++  char host[1024];
++
++  ret = std::sscanf(arg.c_str(), "%1023[^:]:%i%c", host, &port, &dummy);
++
++  if (ret == 1)
++    port = 6881;
++  else if (ret != 2)
++    throw torrent::input_error("Could not parse host.");
++
++  if (port < 1 || port > 65535)
++    throw torrent::input_error("Invalid port number.");
++
++  torrent::connection_manager()->resolver()(host, (int)rak::socket_address::pf_inet, SOCK_DGRAM, call_add_node_t(port));
++}
++
++void
+ apply_enable_trackers(int64_t arg) {
+   for (core::Manager::DListItr itr = control->core()->download_list()->begin(), last = control->core()->download_list()->end(); itr != last; ++itr) {
+     torrent::TrackerList tl = (*itr)->download()->tracker_list();
+@@ -324,6 +361,11 @@
+   ADD_COMMAND_VALUE_UN("enable_trackers",       std::ptr_fun(&apply_enable_trackers));
+   ADD_COMMAND_STRING_UN("encoding_list",        std::ptr_fun(&apply_encoding_list));
+ 
++  ADD_VARIABLE_VALUE("dht_port", 6881);
++  ADD_COMMAND_STRING_UN("dht",                  rak::make_mem_fun(control->dht_manager(), &core::DhtManager::set_start));
++  ADD_COMMAND_STRING_UN("dht_add_node",         std::ptr_fun(&apply_dht_add_node));
++  ADD_COMMAND_VOID("dht_statistics",            rak::make_mem_fun(control->dht_manager(), &core::DhtManager::dht_statistics));
++
+   ADD_VARIABLE_BOOL("peer_exchange", false);
+ 

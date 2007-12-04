@@ -1,0 +1,41 @@
+if [[ $(get_kernel_config CONFIG_IEEE80211) == "y" ||
+      $(get_kernel_config CONFIG_IEEE80211) == "m" ]]
+  then
+  message "${MESSAGE_COLOR}Kernel $(get_kernel_version) already has"  \
+          "the subsystem built in, cannot build external ieee80211"   \
+          "stack.${DEFAULT_COLOR}"                                    &&
+  return 1
+fi  &&
+
+if [[ $(get_kernel_config CONFIG_CRYPTO_ARC4) != "y" &&
+      $(get_kernel_config CONFIG_CRYPTO_ARC4) != "m" &&
+      $(get_kernel_config CONFIG_CRC32) != "y"       &&
+      $(get_kernel_config CONFIG_CRC32) != "m"       ]]
+  then
+  message "${PROBLEM_COLOR}You don't have the right crypto support"    \
+          "built in the kernel, CONFIG_CRYPTO_ARC4 and CONFIG_CRC32."  \
+          "These are needed for WEP key support.${DEFAULT_COLOR}"      &&
+  if ! query "Continue anyway?"; then
+    return 1
+  fi
+fi  &&
+
+if [[ $(get_kernel_config CONFIG_CRYPTO_MICHAEL_MIC) != "y" &&
+      $(get_kernel_config CONFIG_CRYPTO_MICHAEL_MIC) != "m" &&
+      $(get_kernel_config CONFIG_CRYPTO_AES_586) != "y"     &&
+      $(get_kernel_config CONFIG_CRYPTO_AES_586) != "m"     ]]
+  then
+  message "${PROBLEM_COLOR}You don't have the right crypto support"  \
+          "built in the kernel, CONFIG_CRYPTO_AES_586 and"           \
+          "CONFIG_MICHAEL_MIC. These are needed for WPA"             \
+          "support.${DEFAULT_COLOR}"                                 &&
+  if ! query "Continue anyway?"; then
+    return 1
+  fi
+fi  &&
+
+default_pre_build  &&
+
+# Modules already built in BUILD
+sedit  's/install: check_path modules/install: check_path/'  \
+       $SOURCE_DIRECTORY/Makefile

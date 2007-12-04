@@ -1,0 +1,16 @@
+# up_trigger stuff using old faad api
+
+local OLD_SPELL_VERSION=""
+if spell_ok  $SPELL; then
+  OLD_SPELL_VERSION="$(installed_version $SPELL)"
+  if [[ $OLD_SPELL_VERSION != $VERSION ]] && [[ $VERSION == 2.6.1 ]]; then
+    message "This is a possibly incompatible update of faad2..."
+    message "Figuring out what spells need to be recast, this may take a while."
+    for each in $(show_up_depends $SPELL); do
+      if gaze install $each | xargs readelf -s 2> /dev/null |
+         grep -q faacDec; then
+           up_trigger $each cast_self
+      fi
+    done
+  fi
+fi

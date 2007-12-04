@@ -8,4 +8,6 @@ LDFLAGS="$LDFLAGS -lm"                                     &&
                    --infodir=${TRACK_ROOT}/usr/share/info  \
              $OPTS                                         &&
 sedit  "s/src doc contrib/src contrib/"  Makefile          &&
-make
+make_single  &&
+make         &&
+make_normal

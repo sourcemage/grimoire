@@ -1,0 +1,446 @@
+diff -ur wxGTK-2.4.2/contrib/include/wx/fl/controlbar.h wxGTK-2.4.2-fixed/contrib/include/wx/fl/controlbar.h
+--- wxGTK-2.4.2/contrib/include/wx/fl/controlbar.h	2003-09-21 07:32:10.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/include/wx/fl/controlbar.h	2003-11-10 16:54:25.840115752 -0500
+@@ -825,7 +825,8 @@
+ };
+ 
+ // FIXME: this array definition compiles but probably doesn't do what was intended (GD)
+-WXFL_DEFINE_ARRAY_LONG(float, cbArrayFloat);
++//WXFL_DEFINE_ARRAY_LONG(float, cbArrayFloat);
++WXFL_DEFINE_ARRAY_LONG(long, cbArrayFloat);
+ 
+ /*
+ Helper class used internally by the wxFrameLayout class.
+diff -ur wxGTK-2.4.2/contrib/src/canvas/canvas.cpp wxGTK-2.4.2-fixed/contrib/src/canvas/canvas.cpp
+--- wxGTK-2.4.2/contrib/src/canvas/canvas.cpp	2003-09-21 07:32:40.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/canvas/canvas.cpp	2003-11-10 16:43:15.910960464 -0500
+@@ -325,7 +325,7 @@
+ 
+         if ( rightu - leftu < 2*recold.width && bottomu - topu < 2*recold.height)
+         {
+-            dc.Blit(leftu,topu,rightu - leftu,bottomu - topu,&dcm,leftu,topu,wxCOPY,FALSE);
++            dc.Blit((int)leftu,(int)topu,(int)(rightu - leftu),(int)(bottomu - topu),&dcm,(int)leftu,(int)topu,wxCOPY,FALSE);
+         }
+         else
+         {
+@@ -1280,7 +1280,7 @@
+     int pw=m_pen.GetWidth();
+     m_pen.SetWidth(m_admin->LogicalToDeviceXRel(pw));
+     dc->SetPen( m_pen );
+-    dc->DrawLine( x1, y1, x2, y2 );
++    dc->DrawLine( (int)x1, (int)y1, (int)x2, (int)y2 );
+ 
+     dc->DestroyClippingRegion();
+     m_pen.SetWidth(pw);
+@@ -1467,7 +1467,7 @@
+     else
+     {
+         dc->SetClippingRegion( clip_x, clip_y, clip_width, clip_height );
+-        dc->DrawBitmap( bmp, x, y, TRUE );
++        dc->DrawBitmap( bmp, (int)x, (int)y, TRUE );
+         dc->DestroyClippingRegion();
+     }
+ }
+@@ -2548,14 +2548,14 @@
+     double dmvx = m_virtm_maxX - m_virtm_minX;
+     double dmvy = m_virtm_maxY - m_virtm_minY;
+ 
+-    SetScrollbar(wxHORIZONTAL,(m_virt_minX-m_virtm_minX)/dmvx *1000,dvx/dmvx *1000,1000,FALSE);
++    SetScrollbar(wxHORIZONTAL,(int)((m_virt_minX-m_virtm_minX)/dmvx *1000),(int)(dvx/dmvx *1000),1000,FALSE);
+     if (m_yaxis)
+     {
+-        SetScrollbar(wxVERTICAL,(m_virtm_maxY-m_virt_maxY)/dmvy *1000,dvy/dmvy *1000,1000,FALSE);
++        SetScrollbar(wxVERTICAL,(int)((m_virtm_maxY-m_virt_maxY)/dmvy *1000),(int)(dvy/dmvy *1000),1000,FALSE);
+     }
+     else
+     {
+-        SetScrollbar(wxVERTICAL,(m_virt_minY-m_virtm_minY)/dmvy *1000,dvy/dmvy *1000,1000,FALSE);
++        SetScrollbar(wxVERTICAL,(int)((m_virt_minY-m_virtm_minY)/dmvy *1000),(int)(dvy/dmvy *1000),1000,FALSE);
+     }
+ 
+     m_scrolled=TRUE;
+@@ -2628,13 +2628,13 @@
+         {
+           double x=m_virtm_minX+event.GetPosition()/1000.0*(m_virtm_maxX-m_virtm_minX);
+           x=LogicalToDeviceXRel(x-m_virt_minX);
+-          ScrollWindow(-x, 0, (const wxRect *) NULL);
++          ScrollWindow((int)-x, 0, (const wxRect *) NULL);
+         }
+         else
+         {
+           double y=m_virtm_minY+event.GetPosition()/1000.0*(m_virtm_maxY-m_virtm_minY);
+           y=LogicalToDeviceYRel(y-m_virt_minY);
+-          ScrollWindow(0, -y, (const wxRect *) NULL);
++          ScrollWindow(0, (int)-y, (const wxRect *) NULL);
+         }
+     }
+     else if (event.GetEventType()==wxEVT_SCROLLWIN_PAGEUP)
+@@ -2642,12 +2642,12 @@
+         if (event.GetOrientation()==wxHORIZONTAL)
+         {
+           double x=GetBufferWidth();
+-          ScrollWindow(x, 0, (const wxRect *) NULL);
++          ScrollWindow((int)x, 0, (const wxRect *) NULL);
+         }
+         else
+         {
+           double y=GetBufferHeight();
+-          ScrollWindow(0, y, (const wxRect *) NULL);
++          ScrollWindow(0, (int)y, (const wxRect *) NULL);
+         }
+     }
+     else if (event.GetEventType()==wxEVT_SCROLLWIN_PAGEDOWN)
+@@ -2655,12 +2655,12 @@
+         if (event.GetOrientation()==wxHORIZONTAL)
+         {
+           double x=-GetBufferWidth();
+-          ScrollWindow(x, 0, (const wxRect *) NULL);
++          ScrollWindow((int)x, 0, (const wxRect *) NULL);
+         }
+         else
+         {
+           double y=-GetBufferHeight();
+-          ScrollWindow(0, y, (const wxRect *) NULL);
++          ScrollWindow(0, (int)y, (const wxRect *) NULL);
+         }
+     }
+     else if (event.GetEventType()==wxEVT_SCROLLWIN_LINEUP)
+@@ -2668,12 +2668,12 @@
+         if (event.GetOrientation()==wxHORIZONTAL)
+         {
+           int x=GetBufferWidth()/10;
+-          ScrollWindow(x, 0, (const wxRect *) NULL);
++          ScrollWindow((int)x, 0, (const wxRect *) NULL);
+         }
+         else
+         {
+           int y=GetBufferHeight()/10;
+-          ScrollWindow(0, y, (const wxRect *) NULL);
++          ScrollWindow(0, (int)y, (const wxRect *) NULL);
+         }
+     }
+     else if (event.GetEventType()==wxEVT_SCROLLWIN_LINEDOWN)
+@@ -2681,12 +2681,12 @@
+         if (event.GetOrientation()==wxHORIZONTAL)
+         {
+           int x=-GetBufferWidth()/10;
+-          ScrollWindow(x, 0, (const wxRect *) NULL);
++          ScrollWindow((int)x, 0, (const wxRect *) NULL);
+         }
+         else
+         {
+           int y=-GetBufferHeight()/10;
+-          ScrollWindow(0, y, (const wxRect *) NULL);
++          ScrollWindow(0, (int)y, (const wxRect *) NULL);
+         }
+     }
+ 
+@@ -2700,28 +2700,28 @@
+         case WXK_PRIOR:
+             {
+               double y=GetBufferHeight();
+-              ScrollWindow(0, y, (const wxRect *) NULL);
++              ScrollWindow(0, (int)y, (const wxRect *) NULL);
+             }
+             break;
+         case WXK_PAGEDOWN:
+         case WXK_NEXT:
+             {
+               double y=-GetBufferHeight();
+-              ScrollWindow(0, y, (const wxRect *) NULL);
++              ScrollWindow(0, (int)y, (const wxRect *) NULL);
+             }
+             break;
+         case WXK_HOME:
+             {
+                 double y=m_virtm_minY;
+                 y=LogicalToDeviceYRel(y-m_virt_minY);
+-                ScrollWindow(0, -y, (const wxRect *) NULL);
++                ScrollWindow(0, (int)-y, (const wxRect *) NULL);
+             }
+             break;
+         case WXK_END:
+             {
+                 double y=m_virtm_minY+(m_virtm_maxY-m_virtm_minY);
+                 y=LogicalToDeviceYRel(y-m_virt_minY);
+-                ScrollWindow(0, -y, (const wxRect *) NULL);
++                ScrollWindow(0, (int)-y, (const wxRect *) NULL);
+             }
+             break;
+         case WXK_UP:
+diff -ur wxGTK-2.4.2/contrib/src/fl/controlbar.cpp wxGTK-2.4.2-fixed/contrib/src/fl/controlbar.cpp
+--- wxGTK-2.4.2/contrib/src/fl/controlbar.cpp	2003-09-21 07:32:40.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/fl/controlbar.cpp	2003-11-10 20:24:24.019901312 -0500
+@@ -2675,8 +2679,8 @@
+         {
+             if ( !pCur->IsFixed() )
+             {
+-                ratios.Add( 0.0 );
+-                ratios[ ratios.GetCount() - 1 ] = pCur->mLenRatio; 
++                ratios.Add( (long)0.0 );
++                ratios[ ratios.GetCount() - 1 ] = (long)pCur->mLenRatio; 
+             }
+ 
+             pCur = pCur->mpNext;
+diff -ur wxGTK-2.4.2/contrib/src/mmedia/sndcpcm.cpp wxGTK-2.4.2-fixed/contrib/src/mmedia/sndcpcm.cpp
+--- wxGTK-2.4.2/contrib/src/mmedia/sndcpcm.cpp	2003-09-21 07:32:44.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/mmedia/sndcpcm.cpp	2003-11-10 21:25:18.066401808 -0500
+@@ -51,7 +51,7 @@
+ // -----------------------------------------------------------------------
+ 
+ #define DEFINE_CONV(name, input_type, output_type, convert) \
+-static void Convert_##name##(const void *buf_in, void *buf_out, wxUint32 len) \
++static void Convert_##name(const void *buf_in, void *buf_out, wxUint32 len) \
+ {\
+   register input_type src; \
+   register const input_type *t_buf_in = (input_type *)buf_in; \
+diff -ur wxGTK-2.4.2/contrib/src/mmedia/vidxanm.cpp wxGTK-2.4.2-fixed/contrib/src/mmedia/vidxanm.cpp
+--- wxGTK-2.4.2/contrib/src/mmedia/vidxanm.cpp	2003-09-21 07:32:46.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/mmedia/vidxanm.cpp	2003-11-10 22:21:10.604738512 -0500
+@@ -465,11 +465,13 @@
+     // Get current display
+ #ifdef __WXGTK__
+     m_internal->xanim_dpy = gdk_display;
+-    GtkPizza *pizza = GTK_PIZZA( m_video_output->m_wxwindow );
+-    GdkWindow *window = pizza->bin_window;
++    // GtkPizza *pizza = GTK_PIZZA( m_video_output->m_wxwindow ); // unused
++    // GdkWindow *window = pizza->bin_window; // unused
+     
+-    m_internal->xanim_window =
+-        ((GdkWindowPrivate *)window)->xwindow;
++    /* I think this is what you want.  Not to sure. */
++    /* m_internal->xanim_window =
++        ((GdkWindowPrivate *)window)->xwindow; */
++    m_internal->xanim_window = gdk_x11_get_default_root_xwindow();
+ #endif
+     // Get the XANIM atom
+     m_internal->xanim_atom = XInternAtom(m_internal->xanim_dpy,
+@@ -477,7 +479,7 @@
+     
+     // Build the command
+     xanim_command.Printf(wxT("xanim -Zr +Ze +Sr +f +W%d +f +q "
+-			     "+Av70 %s %s"), m_internal->xanim_window,
++			     "+Av70 %s %s"), (int)m_internal->xanim_window,
+ 			 (xanim_chg_size) ? _T("") : _T(""),
+ 			 WXSTRINGCAST m_filename);
+     
+diff -ur wxGTK-2.4.2/contrib/src/ogl/composit.cpp wxGTK-2.4.2-fixed/contrib/src/ogl/composit.cpp
+--- wxGTK-2.4.2/contrib/src/ogl/composit.cpp	2003-09-21 07:32:46.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/ogl/composit.cpp	2003-11-10 14:17:19.286169776 -0500
+@@ -1182,8 +1182,8 @@
+   double maxX, maxY;
+ 
+   GetBoundingBoxMax(&maxX, &maxY);
+-  double x, y;
+-  int direction;
++  double x = 0.0, y = 0.0;
++  int direction = 0;
+ /*
+   if (m_leftSide)
+   {
+diff -ur wxGTK-2.4.2/contrib/src/ogl/drawn.cpp wxGTK-2.4.2-fixed/contrib/src/ogl/drawn.cpp
+--- wxGTK-2.4.2/contrib/src/ogl/drawn.cpp	2003-09-21 07:32:47.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/ogl/drawn.cpp	2003-11-10 20:55:51.544953888 -0500
+@@ -430,7 +431,7 @@
+     {
+       // Check for overriding this operation for outline
+       // colour
+-      if (m_image->m_outlineColours.Member((wxObject *)m_gdiIndex))
++      if (m_image->m_outlineColours.Member((wxObject *)(long)m_gdiIndex))
+       {
+         if (m_image->m_outlinePen)
+           dc.SetPen(* m_image->m_outlinePen);
+@@ -451,7 +452,7 @@
+     {
+       // Check for overriding this operation for outline or fill
+       // colour
+-      if (m_image->m_outlineColours.Member((wxObject *)m_gdiIndex))
++      if (m_image->m_outlineColours.Member((wxObject *)(long)m_gdiIndex))
+       {
+         // Need to construct a brush to match the outline pen's colour
+         if (m_image->m_outlinePen)
+@@ -461,7 +462,7 @@
+             dc.SetBrush(* br);
+         }
+       }
+-      else if (m_image->m_fillColours.Member((wxObject *)m_gdiIndex))
++      else if (m_image->m_fillColours.Member((wxObject *)(long)m_gdiIndex))
+       {
+         if (m_image->m_fillBrush)
+         {
+@@ -1828,7 +1833,9 @@
+ bool wxPseudoMetaFile::LoadFromMetaFile(const wxString& filename, double *rwidth, double *rheight)
+ {
+   if (!wxFileExists(filename))
+-    return NULL;
++    // Are you kidding me!?!?  bool function returns NULL!?!?
++    // return NULL;
++    return FALSE;
+ 
+   wxXMetaFile *metaFile = new wxXMetaFile;
+ 
+@@ -2441,7 +2449,7 @@
+ 
+     if (isOutline)
+     {
+-        m_outlineColours.Append((wxObject*) (n - 1));
++        m_outlineColours.Append((wxObject*) (long)(n - 1));
+     }
+ }
+ 
+@@ -2456,7 +2464,7 @@
+ 
+     if (isFill)
+     {
+-        m_fillColours.Append((wxObject*) (n - 1));
++        m_fillColours.Append((wxObject*) (long)(n - 1));
+     }
+ }
+ 
+diff -ur wxGTK-2.4.2/contrib/src/ogl/lines.cpp wxGTK-2.4.2-fixed/contrib/src/ogl/lines.cpp
+--- wxGTK-2.4.2/contrib/src/ogl/lines.cpp	2003-09-21 07:32:47.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/ogl/lines.cpp	2003-11-10 14:21:33.562513896 -0500
+@@ -601,7 +601,7 @@
+   double positionOnLineX, positionOnLineY;
+ 
+   // Position of start point of line, at the end of which we draw the arrow.
+-  double startPositionX, startPositionY;
++  double startPositionX = 0.0, startPositionY = 0.0;
+ 
+   switch (arrow->GetPosition())
+   {
+diff -ur wxGTK-2.4.2/contrib/src/stc/scintilla/src/Editor.cxx wxGTK-2.4.2-fixed/contrib/src/stc/scintilla/src/Editor.cxx
+--- wxGTK-2.4.2/contrib/src/stc/scintilla/src/Editor.cxx	2003-09-21 07:32:48.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/stc/scintilla/src/Editor.cxx	2003-11-10 15:14:25.429316848 -0500
+@@ -1695,10 +1695,10 @@
+ 					          (ll->styles[numCharsInLine] == static_cast<char>(styleByte & styleMask));
+ 					allSame = allSame &&
+ 					          (ll->indicators[numCharsInLine] == static_cast<char>(styleByte & ~styleMask));
+-					if (vstyle.styles[ll->styles[numCharsInLine]].caseForce == Style::caseUpper)
++					if (vstyle.styles[(int)ll->styles[numCharsInLine]].caseForce == Style::caseUpper)
+ 						allSame = allSame &&
+ 						          (ll->chars[numCharsInLine] == static_cast<char>(toupper(chDoc)));
+-					else if (vstyle.styles[ll->styles[numCharsInLine]].caseForce == Style::caseLower)
++					else if (vstyle.styles[(int)ll->styles[numCharsInLine]].caseForce == Style::caseLower)
+ 						allSame = allSame &&
+ 						          (ll->chars[numCharsInLine] == static_cast<char>(tolower(chDoc)));
+ 					else
+@@ -1739,9 +1739,9 @@
+ 				ll->chars[numCharsInLine] = chDoc;
+ 				ll->styles[numCharsInLine] = static_cast<char>(styleByte & styleMask);
+ 				ll->indicators[numCharsInLine] = static_cast<char>(styleByte & ~styleMask);
+-				if (vstyle.styles[ll->styles[numCharsInLine]].caseForce == Style::caseUpper)
++				if (vstyle.styles[(int)ll->styles[numCharsInLine]].caseForce == Style::caseUpper)
+ 					ll->chars[numCharsInLine] = static_cast<char>(toupper(chDoc));
+-				else if (vstyle.styles[ll->styles[numCharsInLine]].caseForce == Style::caseLower)
++				else if (vstyle.styles[(int)ll->styles[numCharsInLine]].caseForce == Style::caseLower)
+ 					ll->chars[numCharsInLine] = static_cast<char>(tolower(chDoc));
+ 				numCharsInLine++;
+ 			}
+@@ -1768,7 +1768,7 @@
+ 			if ((ll->styles[charInLine] != ll->styles[charInLine + 1]) ||
+ 			        isControl || isControlNext) {
+ 				ll->positions[startseg] = 0;
+-				if (vstyle.styles[ll->styles[charInLine]].visible) {
++				if (vstyle.styles[(int)ll->styles[charInLine]].visible) {
+ 					if (isControl) {
+ 						if (ll->chars[charInLine] == '\t') {
+ 							ll->positions[charInLine + 1] = ((((startsegx + 2) /
+@@ -1788,10 +1788,10 @@
+ 						if ((lenSeg == 1) && (' ' == ll->chars[startseg])) {
+ 							lastSegItalics = false;
+ 							// Over half the segments are single characters and of these about half are space characters.
+-							ll->positions[charInLine + 1] = vstyle.styles[ll->styles[charInLine]].spaceWidth;
++							ll->positions[charInLine + 1] = vstyle.styles[(int)ll->styles[charInLine]].spaceWidth;
+ 						} else {
+-							lastSegItalics = vstyle.styles[ll->styles[charInLine]].italic;
+-							surface->MeasureWidths(vstyle.styles[ll->styles[charInLine]].font, ll->chars + startseg,
++							lastSegItalics = vstyle.styles[(int)ll->styles[charInLine]].italic;
++							surface->MeasureWidths(vstyle.styles[(int)ll->styles[charInLine]].font, ll->chars + startseg,
+ 							                       lenSeg, ll->positions + startseg + 1);
+ 						}
+ 					}
+@@ -4537,7 +4537,7 @@
+ }
+ 
+ bool Editor::PositionIsHotspot(int position) {
+-	return vs.styles[pdoc->StyleAt(position)].hotspot;
++	return vs.styles[(int)pdoc->StyleAt(position)].hotspot;
+ }
+ 
+ bool Editor::PointIsHotspot(Point pt) {
+diff -ur wxGTK-2.4.2/contrib/src/stc/scintilla/src/PropSet.cxx wxGTK-2.4.2-fixed/contrib/src/stc/scintilla/src/PropSet.cxx
+--- wxGTK-2.4.2/contrib/src/stc/scintilla/src/PropSet.cxx	2003-09-21 07:32:49.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/stc/scintilla/src/PropSet.cxx	2003-11-10 15:18:08.784361720 -0500
+@@ -422,11 +422,11 @@
+ 	for (int i=0;i<256; i++) {
+ 		wordSeparator[i] = false;
+ 	}
+-	wordSeparator['\r'] = true;
+-	wordSeparator['\n'] = true;
++	wordSeparator[(int)'\r'] = true;
++	wordSeparator[(int)'\n'] = true;
+ 	if (!onlyLineEnds) {
+-		wordSeparator[' '] = true;
+-		wordSeparator['\t'] = true;
++		wordSeparator[(int)' '] = true;
++		wordSeparator[(int)'\t'] = true;
+ 	}
+ 	for (int j = 0; wordlist[j]; j++) {
+ 		int curr = static_cast<unsigned char>(wordlist[j]);
+@@ -539,7 +539,7 @@
+ 			j++;
+ 		}
+ 	}
+-	j = starts['^'];
++	j = starts[(int)'^'];
+ 	if (j >= 0) {
+ 		while (words[j][0] == '^') {
+ 			const char *a = words[j] + 1;
+diff -ur wxGTK-2.4.2/contrib/src/stc/scintilla/src/RESearch.cxx wxGTK-2.4.2-fixed/contrib/src/stc/scintilla/src/RESearch.cxx
+--- wxGTK-2.4.2/contrib/src/stc/scintilla/src/RESearch.cxx	2003-09-21 07:32:49.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/stc/scintilla/src/RESearch.cxx	2003-11-10 15:18:44.884873608 -0500
+@@ -764,10 +764,10 @@
+ 				return NOTFOUND;
+ 			break;
+ 		case BOT:
+-			bopat[*ap++] = lp;
++			bopat[(int)*ap++] = lp;
+ 			break;
+ 		case EOT:
+-			eopat[*ap++] = lp;
++			eopat[(int)*ap++] = lp;
+ 			break;
+  		case BOW:
+ 			if (lp!=bol && iswordc(ci.CharAt(lp-1)) || !iswordc(ci.CharAt(lp)))
+diff -ur wxGTK-2.4.2/contrib/src/svg/dcsvg.cpp wxGTK-2.4.2-fixed/contrib/src/svg/dcsvg.cpp
+--- wxGTK-2.4.2/contrib/src/svg/dcsvg.cpp	2003-09-21 07:32:54.000000000 -0400
++++ wxGTK-2.4.2-fixed/contrib/src/svg/dcsvg.cpp	2003-11-10 14:11:29.309374336 -0500
+@@ -233,13 +233,13 @@
+ 
+     // wxT("upper left") and wxT("upper right")
+     CalcBoundingBox(x, y);
+-    CalcBoundingBox(x + w*cos(rad), y - h*sin(rad));
++    CalcBoundingBox(x + w*(int)cos(rad), y - h*(int)sin(rad));
+ 
+     // wxT("bottom left") and wxT("bottom right")
+     x += (wxCoord)(h*sin(rad));
+     y += (wxCoord)(h*cos(rad));
+     CalcBoundingBox(x, y);
+-    CalcBoundingBox(x + h*sin(rad), y + h*cos(rad));
++    CalcBoundingBox(x + h*(int)sin(rad), y + h*(int)cos(rad));
+ 
+     if (m_backgroundMode == wxSOLID)
+     {
+diff -ur wxGTK-2.4.2/src/gtk/dnd.cpp wxGTK-2.4.2-fixed/src/gtk/dnd.cpp
+--- wxGTK-2.4.2/src/gtk/dnd.cpp	2003-09-21 07:31:57.000000000 -0400
++++ wxGTK-2.4.2-fixed/src/gtk/dnd.cpp	2003-11-10 12:11:14.265227768 -0500
+@@ -449,7 +449,7 @@
+     GList *child = m_dragContext->targets;
+     while (child)
+     {
+-        GdkAtom formatAtom = (GdkAtom) GPOINTER_TO_INT(child->data);
++        GdkAtom formatAtom = (GdkAtom) child->data;
+         wxDataFormat format( formatAtom );
+ 
+ #ifdef __WXDEBUG__

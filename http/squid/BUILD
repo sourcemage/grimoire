@@ -8,9 +8,11 @@ SQUID_AUTH_DIGEST='' &&
 SQUID_AUTH_NTLM='' &&
 
 ./configure                                          \
-  --prefix=/usr                                      \
-  --sysconfdir=/etc/squid                            \
-  --localstatedir=/var/cache/squid                   \
+  --prefix=${INSTALL_ROOT}/usr                       \
+  --sysconfdir=${INSTALL_ROOT}/etc/squid             \
+  --localstatedir=${INSTALL_ROOT}/var/cache/squid    \
+  --mandir=${INSTALL_ROOT}/usr/share/man             \
+  --infodir=${INSTALL_ROOT}/usr/share/info           \
   --enable-async-io                                  \
   --enable-snmp                                      \
   --enable-removal-policies                          \

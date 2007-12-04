@@ -20,6 +20,10 @@ fi                                            &&
   OPTS="${OPTS} ${FB_STAT}"                     &&
   LDFLAGS="$LDFLAGS -lpthread"                  &&
 
+#strip -O3 from optimisations, gcc-4.2.2 problem
+  CFLAGS="${CFLAGS/-O3/-O2}"                    &&
+  CXXFLAGS="${CXXFLAGS/-O3/-O2}"                &&
+
   ./configure 				\
 	--prefix=$FB_PREFIX 		\
 	$OPTS					&&
@@ -48,14 +52,7 @@ if [ $FB_CLIENT == n ]; then
     do
       chmod ug+w $DB                            &&
       chown firebird:firebird $DB
-    done                                        &&
-# preserve some existing files
-  for FF in `ls security*.fdb`; do
-    if [ -f $FB_PREFIX/$FF ];then
-      message preserving file $FF               &&
-      bzip2 $FF
-    fi
-   done
+    done
 else
   cd gen                                        &&
   make includes                                 &&

@@ -1,2 +1,2 @@
-OPTS="$OPTS --bindir=/bin --sbindir=/sbin"  &&
+OPTS="$OPTS --bindir=$INSTALL_ROOT/bin --sbindir=$INSTALL_ROOT/sbin"  &&
 default_build
