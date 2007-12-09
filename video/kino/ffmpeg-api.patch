@@ -1,0 +1,29 @@
+--- src/frame.cc.orig	2007-12-09 16:43:25.000000000 +0100
++++ src/frame.cc	2007-12-09 16:44:27.000000000 +0100
+@@ -1309,8 +1309,12 @@
+ 		if ( avformatEncoder )
+ 		{
+ 			avformatEncoder->oformat = guess_format( "dv", NULL, NULL );
+-			av_new_stream( avformatEncoder, 0 );
+-			AVCodecContext *avcodecEncoder = avformatEncoder->streams[0]->codec;
++      AVStream* vst = av_new_stream( avformatEncoder, 0 );
++      vst->codec->codec_type = CODEC_TYPE_VIDEO;
++      vst->codec->codec_id = CODEC_ID_DVVIDEO;
++      vst->codec->bit_rate = 25000000;
++      vst->start_time = 0;
++      AVCodecContext *avcodecEncoder = vst->codec;
+ 			avcodecEncoder->width = FRAME_MAX_WIDTH;
+ 			avcodecEncoder->height = isPAL ? 576 : 480;
+ 			if ( isPAL )
+@@ -1446,7 +1450,11 @@
+ 				isEncoderHeaderWritten = true;
+ 			}
+ 			av_write_frame( avformatEncoder, &avpacketEncoder );
++#if LIBAVFORMAT_VERSION_INT >= ((52<<16)+(0<<8)+0)
++        url_close_buf( avformatEncoder->pb );
++#else
+ 			url_close_buf( &avformatEncoder->pb );
++#endif
+ 
+ 			// Update this frame's metadata
+ 			ExtractHeader();
