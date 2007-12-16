@@ -1,3 +1,3 @@
 OPTS="--disable-debug --disable-warnings ${OPTS}"   &&
-default_build
+default_kde3_build
 
