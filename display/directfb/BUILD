@@ -1,7 +1,3 @@
-if  [[  -f  /usr/include/linux/fusion.h  ]];  then
-  OPTS="$OPTS --enable-multi"
-fi  &&
-
 OPTS="--with-inputdrivers=$inputdrivers         \
       --with-gfxdrivers=$gfxdrivers             \
       $DFB_DEBUG $DFB_NETWORK $DFB_VOODOO       \
