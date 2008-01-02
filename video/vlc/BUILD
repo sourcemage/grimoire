@@ -10,9 +10,9 @@ export OPTS="$OPTS --disable-dependency-tracking --enable-release"  &&
 if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
   OPTS="$OPTS MOZILLA_CONFIG=${INSTALL_ROOT}/usr/lib/firefox/firefox-config XPIDL=${INSTALL_ROOT}/usr/lib/firefox/ XPIDL_INCL=-I${INSTALL_ROOT}/usr/share/idl/firefox"  &&
   CPPFLAGS="$CPPFLAGS -I${INSTALL_ROOT}/usr/include/nspr"
-elif test "$(get_spell_provider $SPELL GECKO)" = iceweasel; then
-  OPTS="$OPTS MOZILLA_CONFIG=${INSTALL_ROOT}/usr/bin/iceweasel-config XPIDL=${INSTALL_ROOT}/usr/lib/iceweasel/xpidl XPIDL\
-_INCL=-I${INSTALL_ROOT}/usr/share/idl/iceweasel"  &&
+elif test "$(get_spell_provider $SPELL GECKO)" = icecat; then
+  OPTS="$OPTS MOZILLA_CONFIG=${INSTALL_ROOT}/usr/bin/icecat-config XPIDL=${INSTALL_ROOT}/usr/lib/icecat/xpidl XPIDL\
+_INCL=-I${INSTALL_ROOT}/usr/share/idl/icecat"  &&
   CPPFLAGS="$CPPFLAGS -I${INSTALL_ROOT}/usr/include/nspr"
 elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
   OPTS="$OPTS MOZILLA_CONFIG=${INSTALL_ROOT}/usr/bin/seamonkey-config XPIDL=${INSTALL_ROOT}/usr/lib/seamonkey/xpidl XPIDL_INCL=-I${INSTALL_ROOT}/usr/share/idl/seamonkey"  &&
