@@ -1,6 +1,5 @@
 export OPT="$CFLAGS"
 export OPTS="$OPTS --enable-shared --enable-unicode"
-#sedit "s/\['ndbm'\]/\['ndbm', 'gdbm_compat'\]/g" setup.py &&
 
 # The following file from kdebindings has a syntax error that
 # makes Python compilation fail
