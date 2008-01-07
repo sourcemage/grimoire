@@ -1,1 +1,1 @@
-perl install.pl
+true
