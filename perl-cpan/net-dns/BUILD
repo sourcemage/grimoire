@@ -1,1 +1,1 @@
-no | default_build_perl
+echo n | default_build_perl
