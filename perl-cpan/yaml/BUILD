@@ -1,1 +1,1 @@
-echo y| source  $SECTION_DIRECTORY/PERL_BUILD
+yes | default_build_perl
