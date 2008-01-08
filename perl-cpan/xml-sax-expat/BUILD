@@ -1,5 +1,1 @@
-export  PERL_MM_USE_DEFAULT=1  &&
-make_single                    &&
-perl    Makefile.PL            &&
-make                           &&
-make_normal
+PERL_MM_USE_DEFAULT=1 | default_build_perl

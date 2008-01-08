@@ -1,0 +1,140 @@
+SVN commit 745967 by thiago:
+
+Compile with Qt 4.4
+
+
+ M  +1 -1      kdecore/config/kconfiggroup.cpp  
+ M  +1 -1      solid/solid/devicemanager.cpp  
+
+
+--- trunk/KDE/kdelibs/kdecore/config/kconfiggroup.cpp #745966:745967
+@@ -626,7 +626,7 @@
+ 
+     // detach (QExplicitlySharedDataPointer takes care of deleting the old d if necessary)
+     // ### temporary solution until QExplicitlySharedDataPointer has detach()
+-    d = new KConfigGroupPrivate(d, config()->isGroupImmutable(group), group);
++    d = new KConfigGroupPrivate(d.data(), config()->isGroupImmutable(group), group);
+ }
+ 
+ QString KConfigGroup::name() const
+--- trunk/KDE/kdelibs/solid/solid/devicemanager.cpp #745966:745967
+@@ -197,7 +197,7 @@
+ Solid::DevicePrivate *Solid::DeviceManagerPrivate::findRegisteredDevice(const QString &udi)
+ {
+     if (udi.isEmpty()) {
+-        return m_nullDevice;
++        return m_nullDevice.data();
+     } else if (m_devicesMap.contains(udi)) {
+         return m_devicesMap[udi];
+     } else {
+SVN commit 745966 by thiago:
+
+Compile with Qt 4.4
+
+
+ M  +14 -14    path.cpp  
+
+
+--- trunk/KDE/kdelibs/phonon/path.cpp #745965:745966
+@@ -125,7 +125,7 @@
+         << QObjectPair(newEffectBackend, rightNode);
+ 
+     if (d->executeTransaction(disconnections, connections)) {
+-        newEffect->k_ptr->addDestructionHandler(d);
++        newEffect->k_ptr->addDestructionHandler(d.data());
+         d->effects.insert(insertIndex, newEffect);
+         return true;
+     } else {
+@@ -181,19 +181,19 @@
+         sink->k_ptr->addInputPath(*this);
+         if (d->sinkNode) {
+             d->sinkNode->k_ptr->removeInputPath(*this);
+-            d->sinkNode->k_ptr->removeDestructionHandler(d);
++            d->sinkNode->k_ptr->removeDestructionHandler(d.data());
+         }
+         d->sinkNode = sink;
+-        d->sinkNode->k_ptr->addDestructionHandler(d);
++        d->sinkNode->k_ptr->addDestructionHandler(d.data());
+ 
+         //everything went well: let's update the path and the sink node
+         source->k_ptr->addOutputPath(*this);
+         if (d->sourceNode) {
+             d->sourceNode->k_ptr->removeOutputPath(*this);
+-            d->sourceNode->k_ptr->removeDestructionHandler(d);
++            d->sourceNode->k_ptr->removeDestructionHandler(d.data());
+         }
+         d->sourceNode = source;
+-        d->sourceNode->k_ptr->addDestructionHandler(d);
++        d->sourceNode->k_ptr->addDestructionHandler(d.data());
+         return true;
+     } else {
+         return false;
+@@ -225,22 +225,22 @@
+     }
+ 
+     if (d->executeTransaction(disco, QList<QObjectPair>())) {
+-        //everything went well, let's remove the reference 
++        //everything went well, let's remove the reference
+         //to the paths from the source and sink
+         if (d->sourceNode) {
+             d->sourceNode->k_ptr->removeOutputPath(*this);
+-            d->sourceNode->k_ptr->removeDestructionHandler(d);
++            d->sourceNode->k_ptr->removeDestructionHandler(d.data());
+         }
+         d->sourceNode = 0;
+ 
+         foreach(Effect *e, d->effects) {
+-            e->k_ptr->removeDestructionHandler(d);
++            e->k_ptr->removeDestructionHandler(d.data());
+         }
+         d->effects.clear();
+ 
+         if (d->sinkNode) {
+             d->sinkNode->k_ptr->removeInputPath(*this);
+-            d->sinkNode->k_ptr->removeDestructionHandler(d);
++            d->sinkNode->k_ptr->removeDestructionHandler(d.data());
+         }
+         d->sinkNode = 0;
+         return true;
+@@ -265,21 +265,21 @@
+         return false;
+ 
+     ConnectionTransaction transaction(backend, nodesForTransaction);
+-    if (!transaction) 
++    if (!transaction)
+         return false;
+ 
+     QList<QObjectPair>::const_iterator it = disconnections.begin();
+     for(;it != disconnections.end();++it) {
+         const QObjectPair &pair = *it;
+         if (!backend->disconnectNodes(pair.first, pair.second)) {
+-            
++
+             //Error: a disconnection failed
+             QList<QObjectPair>::const_iterator it2 = disconnections.begin();
+             for(; it2 != it; ++it2) {
+                 const QObjectPair &pair = *it2;
+                 bool success = backend->connectNodes(pair.first, pair.second);
+                 Q_ASSERT(success); //a failure here means it is impossible to reestablish the connection
+-                Q_UNUSED(success);                 
++                Q_UNUSED(success);
+             }
+             return false;
+         }
+@@ -294,14 +294,14 @@
+                 const QObjectPair &pair = *it2;
+                 bool success = backend->disconnectNodes(pair.first, pair.second);
+                 Q_ASSERT(success); //a failure here means it is impossible to reestablish the connection
+-                Q_UNUSED(success);                 
++                Q_UNUSED(success);
+             }
+ 
+             //and now let's reconnect the nodes that were disconnected: rollback
+             foreach(const QObjectPair &pair, disconnections) {
+                 bool success = backend->connectNodes(pair.first, pair.second);
+                 Q_ASSERT(success); //a failure here means it is impossible to reestablish the connection
+-                Q_UNUSED(success);                 
++                Q_UNUSED(success);
+             }
+ 
+             return false;
