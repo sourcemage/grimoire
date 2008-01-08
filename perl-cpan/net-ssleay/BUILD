@@ -1,3 +1,3 @@
-DEFINE="-DPERL5" &&
+OPTS="DEFINE='-DPERL5'" &&
 
 default_build_perl
