@@ -15,4 +15,7 @@ MAKE_OPT= &&
 if list_find "$OPTS" --enable-sndfile; then
   MAKE_OPT="$MAKE_OPT SNDFILE=yes"
 fi &&
+if list_find "$OPTS" --enable-vorbis; then
+  MAKE_OPT="$MAKE_OPT VORBISFILE=yes"
+fi &&
 make $MAKE_OPT $DMD_BUILD
