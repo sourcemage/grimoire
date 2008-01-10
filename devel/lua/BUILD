@@ -1,1 +1,1 @@
-make  linux
+make linux
