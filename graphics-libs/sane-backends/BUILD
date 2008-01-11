@@ -21,4 +21,7 @@ if [[ $SANE_LOCAL == none ]];then
 else
 export BACKENDS=$SANE_LOCAL
 fi &&
+
+OPTS="$OPTS --with-docdir=$INSTALL_ROOT/usr/share/doc/sane-backends" &&
+
 default_build
