@@ -16,6 +16,4 @@ OPTS="$AUDACITY_LADSPA $AUDACITY_PORTMIXER $AUDACITY_PORTAUDIO $OPTS" &&
              --with-lib-preference=system                \
              $OPTS                                       &&
 
-make_single &&
-make &&
-make_normal
+make
