@@ -1,3 +1,2 @@
-  cd   glib        &&
-  ruby extconf.rb  &&
-  make             
+cd   glib        &&
+default_build
