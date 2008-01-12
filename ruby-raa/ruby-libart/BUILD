@@ -1,3 +1,2 @@
-  cd   libart      &&
-  ruby extconf.rb  &&
-  make             
+cd   libart      &&
+default_build
