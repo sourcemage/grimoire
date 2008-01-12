@@ -1,3 +1,2 @@
-  cd   libglade    &&
-  ruby extconf.rb  &&
-  make             
+cd   libglade    &&
+default_build
