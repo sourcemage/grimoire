@@ -1,3 +1,2 @@
 cd   gtkglext    &&
-ruby extconf.rb  &&
-make
+default_build
