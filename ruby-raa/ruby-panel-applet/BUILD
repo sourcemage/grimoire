@@ -1,3 +1,2 @@
-  cd panel-applet  &&
-  ruby extconf.rb  &&
-  make             
+cd panel-applet  &&
+default_build
