@@ -1,3 +1,3 @@
-  cd   gconf       &&
-  ruby extconf.rb  &&
-  make             
+cd   gconf       &&
+default_build
+
