@@ -1,3 +1,2 @@
-  cd gtksourceview &&
-  ruby extconf.rb  &&
-  make             
+cd gtksourceview &&
+default_build
