@@ -1,3 +1,2 @@
 cd   rsvg        &&
-ruby extconf.rb  &&
-make             
+default_build
