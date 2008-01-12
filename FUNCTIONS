@@ -695,4 +695,35 @@ function default_kde3_build() {
 
 }
 
+#---
+## Default configure
+#---
 
+function default_build_configure() {
+  # this is here so that config_query_option can be used without
+  # extra junk
+  local up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")     &&
+  local up_spell_name=$(echo $SPELL | tr "-" "_")         &&
+  local tempopts="${up_spell_name}_OPTS"                  &&
+  OPTS="${!tempopts} $OPTS"                               &&
+  OPTS="$OPTS --build=${BUILD}"                           &&
+  #If these switches are used, they _may_ stop distcc and ccache from working
+  # for some spells (bug 3798)
+  #  We could write wrappers for all of the possible binaries
+  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+
+  ./configure --prefix=${INSTALL_ROOT}/usr                 \
+          --sysconfdir=${INSTALL_ROOT}/etc                 \
+       --localstatedir=${INSTALL_ROOT}/var                 \
+              --mandir=${INSTALL_ROOT}/usr/share/man       \
+             --infodir=${INSTALL_ROOT}/usr/share/info      \
+                       $OPTS
+}
+
+#---
+## Default make
+#---
+
+function default_build_make(){
+  make
+}
