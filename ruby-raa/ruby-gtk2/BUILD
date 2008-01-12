@@ -1,3 +1,2 @@
-  cd   gtk         &&
-  ruby extconf.rb  &&
-  make             
+cd   gtk         &&
+default_build
