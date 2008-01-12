@@ -10,9 +10,19 @@ function default_build_ruby() {
     ruby install.rb setup
   elif [[ -e ./extconf.rb ]]; then
     ruby extconf.rb  $OPTS &&
-    make
+    default_build_make
   elif [[ -e ./Makefile ]]; then
-    make
+    default_build_make
+  elif [[ -x ./configure.rb ]]; then
+    up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")           &&
+    OPTS="$(eval echo \$${up_spell_name}_OPTS) $OPTS"       &&
+    ./configure.rb --prefix=${INSTALL_ROOT}/usr             \
+                   --mandir=${INSTALL_ROOT}/usr/share/man   \
+                   $OPTS                                    &&
+    default_build_make
+  elif [[ -x ./configure ]]; then
+    default_build_configure &&
+    default_build_make
   elif [[ -e ./Rakefile ]]; then
     rake $OPTS
   fi
@@ -22,9 +32,9 @@ function default_build_ruby() {
 #-------------------------------------------------------------------------
 function default_install_ruby() {
   if [[ -e $SOURCE_DIRECTORY/setup.rb ]]; then
-    ruby setup.rb install --prefix=${INSTALL_ROOT}/usr
+    ruby setup.rb install
   elif [[ -e $SOURCE_DIRECTORY/install.rb ]]; then
-    ruby install.rb install --prefix=${INSTALL_ROOT}/usr
+    ruby install.rb install
   elif [[ -e $SOURCE_DIRECTORY/extconf.rb ]] ||
        [[ -e ./Makefile ]]
        then
