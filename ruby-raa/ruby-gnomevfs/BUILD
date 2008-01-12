@@ -1,3 +1,2 @@
-  cd   gnomevfs    &&
-  ruby extconf.rb  &&
-  make             
+cd   gnomevfs    &&
+default_build
