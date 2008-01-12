@@ -1,3 +1,2 @@
-  cd   gtkhtml2    &&
-  ruby extconf.rb  &&
-  make             
+cd   gtkhtml2    &&
+default_build
