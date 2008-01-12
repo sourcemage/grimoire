@@ -1,3 +1,2 @@
-  cd   libgda      &&
-  ruby extconf.rb  &&
-  make             
+cd   libgda      &&
+default_build
