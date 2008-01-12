@@ -1,3 +1,2 @@
-  cd   gnome       &&
-  ruby extconf.rb  &&
-  make             
+cd   gnome       &&
+default_build
