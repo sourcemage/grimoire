@@ -1,3 +1,2 @@
-  cd   pango       &&
-  ruby extconf.rb  &&
-  make             
+cd   pango       &&
+default_build
