@@ -1,3 +1,2 @@
-  cd   gnomecanvas  &&
-  ruby extconf.rb   &&
-  make              
+cd   gnomecanvas  &&
+default_build
