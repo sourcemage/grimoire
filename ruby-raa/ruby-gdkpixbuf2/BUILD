@@ -1,3 +1,2 @@
 cd   gdkpixbuf   &&
-ruby extconf.rb  &&
-make
+default_build
