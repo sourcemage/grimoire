@@ -1,3 +1,2 @@
 cd   gnomeprint  &&
-ruby extconf.rb  &&
-make             
+default_build
