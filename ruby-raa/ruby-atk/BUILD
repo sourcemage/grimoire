@@ -1,3 +1,2 @@
-  cd atk           &&
-  ruby extconf.rb  &&
-  make             
+cd atk           &&
+default_build_ruby
