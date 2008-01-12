@@ -1,3 +1,2 @@
 cd   gstreamer   &&
-ruby extconf.rb  &&
-make
+default_build
