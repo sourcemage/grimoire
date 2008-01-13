@@ -1,2 +1,0 @@
-ruby extconf.rb  &&
-make
