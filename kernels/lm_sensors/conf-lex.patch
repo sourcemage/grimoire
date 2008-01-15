@@ -1,0 +1,205 @@
+--- lib/conf-lex.l.orig	2008-01-14 13:01:27.000000000 +0500
++++ lib/conf-lex.l	2008-01-14 13:42:10.000000000 +0500
+@@ -48,38 +48,36 @@
+ 
+ %}
+ 
+- /* Scanner for configuration files */
++/* Scanner for configuration files */
+ 
+ %option nodefault
+ %option noyywrap
+ %option nounput
+ 
+- /* All states are exclusive */
++/* All states are exclusive */
+ 
+ %x MIDDLE
+ %x STRING
+ %x ERR
+ 
+- /* Any whitespace-like character */
++/* Any whitespace-like character */
+ 
+ BLANK		[ \f\t\v]
+ 
+ IDCHAR		[[:alnum:]_]
+ 
+- /* Note: `10', `10.4' and `.4' are valid, `10.' is not */
++/* Note: `10', `10.4' and `.4' are valid, `10.' is not */
+ 
+ FLOAT   [[:digit:]]*\.?[[:digit:]]+
+ 
+- /* Only positive whole numbers are recognized here */
++/* Only positive whole numbers are recognized here */
+ 
+ NUM	0|([1-9][[:digit:]]*)
+ 
+ 
+ %%
+ 
+- /*
+-  * STATE: INITIAL
+-  */
++    /* STATE: INITIAL */
+ 
+ <INITIAL>{
+ 
+@@ -93,7 +91,7 @@
+ 		  sensors_yylineno++;
+ 		}
+ 
+- /* comments */
++    /* comments */
+ 
+ #.*		; /* eat the rest of the line after comment char */
+ 
+@@ -101,12 +99,12 @@
+ 		  sensors_yylineno++;
+ 		}
+ 
+- /*
+-  * Keywords must be followed by whitespace - eat that too.
+-  * If there isn't trailing whitespace, we still need to
+-  * accept it as lexically correct (even though the parser
+-  * will reject it anyway.)
+-  */
++    /*
++     * Keywords must be followed by whitespace - eat that too.
++     * If there isn't trailing whitespace, we still need to
++     * accept it as lexically correct (even though the parser
++     * will reject it anyway.)
++     */
+ 
+ label{BLANK}*	{
+ 		  sensors_yylval.line = sensors_yylineno;
+@@ -144,7 +142,7 @@
+ 		  return IGNORE;
+ 		}
+ 
+- /* Anything else at the beginning of a line is an error */
++    /* Anything else at the beginning of a line is an error */
+ 
+ [a-z]+		|
+ .		{
+@@ -154,9 +152,9 @@
+ 		}
+ }
+ 
+- /*
+-  * STATE: ERROR
+-  */
++    /*
++     * STATE: ERROR
++     */
+ 
+ <ERR>{
+ 
+@@ -169,9 +167,9 @@
+ 		}
+ }
+ 
+- /*
+-  * STATE: MIDDLE
+-  */
++    /*
++     * STATE: MIDDLE
++     */
+ 
+ <MIDDLE>{
+ 
+@@ -192,7 +190,7 @@
+ 		  sensors_yylineno++;
+ 		}
+ 
+- /* comments */
++    /* comments */
+ 
+ #.*		; /* eat the rest of the line after comment char */
+ 
+@@ -202,14 +200,14 @@
+ 		  return EOL;
+ 		}
+ 
+- /* A number */
++    /* A number */
+ 
+ {FLOAT}		{
+ 		  sensors_yylval.value = atof(sensors_yytext);
+ 		  return FLOAT;
+ 		}
+ 
+- /* Some operators */
++    /* Some operators */
+ 
+ "+"		return '+';
+ "-"		return '-';
+@@ -222,14 +220,14 @@
+ "^"		return '^';
+ "`"		return '`';
+ 
+- /* Quoted string */
++    /* Quoted string */
+ 
+ \"		{
+ 		  buffer_malloc();
+ 		  BEGIN(STRING);
+ 		}
+ 
+- /* A normal, unquoted identifier */
++    /* A normal, unquoted identifier */
+ 
+ {IDCHAR}+	{
+ 		  sensors_yylval.name = strdup(sensors_yytext);
+@@ -240,7 +238,7 @@
+ 		  return NAME;
+ 		}
+ 
+- /* anything else is bogus */
++    /* anything else is bogus */
+ 
+ .		|
+ [[:digit:]]*\.	|
+@@ -250,13 +248,13 @@
+ 		}
+ }
+ 
+- /*
+-  * STATE: STRING
+-  */
++    /*
++     * STATE: STRING
++     */
+ 
+ <STRING>{
+ 
+- /* Oops, newline or EOF while in a string is not good */
++    /* Oops, newline or EOF while in a string is not good */
+ 
+ \n		|
+ \\\n		{
+@@ -277,7 +275,7 @@
+ 		  return ERROR;
+ 		}
+ 
+- /* At the end */
++    /* At the end */
+ 
+ \"\"		{
+ 		  buffer_add_char("\0");
+@@ -307,13 +305,13 @@
+ \\t		buffer_add_char("\t");
+ \\v		buffer_add_char("\v");
+ 
+- /* Other escapes: just copy the character behind the slash */
++    /* Other escapes: just copy the character behind the slash */
+ 
+ \\.		{
+ 		  buffer_add_char(&sensors_yytext[1]);
+ 		}
+ 
+- /* Anything else (including a bare '\' which may be followed by EOF) */
++    /* Anything else (including a bare '\' which may be followed by EOF) */
+ 
+ \\		|
+ [^\\\n\"]+	{
