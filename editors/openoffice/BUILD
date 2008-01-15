@@ -1,6 +1,6 @@
 OPTS="$OPENOFFICE_ODK                                         \
       $OPENOFFICE_QA                                          \
-      --disable-epm                                           \
+      --with-package-format=native                            \
       --disable-ldap                                          \
       --disable-mozilla                                       \
       --without-gpc                                           \
@@ -19,10 +19,11 @@ if  !  check_if_xorg_modular_server;  then
         $OPTS"
 fi  &&
 
-if  [[  "$(get_spell_provider  $SPELL  JAVA)"  ==  "gcj"  ]];  then
-  OPTS="--with-java=gij  \
-        $OPTS"
-fi  &&
+# if  [[  "$(get_spell_provider  $SPELL  JAVA)"  ==  "gcj"  ]];  then
+#   OPTS="--with-java=gij  \
+#         $OPTS"
+# fi  &&
+OPTS="--without-java $OPTS"
 
 source  $INSTALL_ROOT/etc/profile.d/java.sh  &&
 source  $INSTALL_ROOT/etc/profile.d/ant.sh   &&
