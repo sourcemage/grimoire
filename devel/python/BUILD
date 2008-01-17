@@ -1,5 +1,5 @@
-export OPT="$CFLAGS"
-export OPTS="$OPTS --enable-shared --enable-unicode"
+OPT="$CFLAGS" &&
+OPTS="$OPTS --enable-shared --enable-unicode --with-threads --enable-ipv6" &&
 
 # The following file from kdebindings has a syntax error that
 # makes Python compilation fail
@@ -10,4 +10,9 @@ if [[ -f $INSTALL_ROOT/usr/lib/python${PYTHON_VERSION}/pydcop.py ]]; then
     $SOURCE_DIRECTORY/spell-tmp
 fi &&
 
-default_build
+default_build &&
+
+# python -c '"(c)", "lynx"*3'
+make install DESTDIR=$SOURCE_DIRECTORY/anywhere &&
+
+message "Fake stage complete, installing to real path.."
