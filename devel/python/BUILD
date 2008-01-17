@@ -1,5 +1,13 @@
 OPT="$CFLAGS" &&
-OPTS="$OPTS --enable-shared --enable-unicode --with-threads --enable-ipv6" &&
+OPTS="$OPTS --enable-shared --enable-unicode" &&
+
+if [[ $IPV6 == y ]]; then
+  OPTS="$OPTS --enable-ipv6"
+fi &&
+
+if [[ $THREADS == y ]]; then
+  OPTS="$OPTS --with-threads"
+fi &&
 
 # The following file from kdebindings has a syntax error that
 # makes Python compilation fail
