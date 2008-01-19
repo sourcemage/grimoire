@@ -1,2 +1,3 @@
-cd  reportlab            &&
-python  setup.py  build
+cd reportlab     &&
+default_install
+
