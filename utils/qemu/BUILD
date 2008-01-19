@@ -1,4 +1,4 @@
-B1;1612;0cmessage "Target list:$QEMU_ARCHS"  &&
+message "Target list:$QEMU_ARCHS"  &&
 
 #
 # Disable PIC if building soft MMU targets
@@ -32,10 +32,10 @@ fi  &&
 
 
 ./configure --prefix=$INSTALL_ROOT/usr  \
+       --target-list="$QEMU_ARCHS"      \
+                     $OPTS              &&
 #            --build=$BUILD             \
 #       --sysconfdir=$INSTALL_ROOT/etc  \
 #    --localstatedir=$INSTALL_ROOT/var  \
-       --target-list="$QEMU_ARCHS"      \
-                     $OPTS              &&
 
 make
