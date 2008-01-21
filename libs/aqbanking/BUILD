@@ -1,4 +1,5 @@
-local BACKENDS="aqhbci aqdtaus"  &&
+# local BACKENDS="aqhbci aqdtaus"  && aqdtaus is broken
+local BACKENDS="aqhbci"  &&
 local FRONTENDS="cbanking"                    &&
 
 if  list_find  "$OPTS"  "--enable-libofx";  then
@@ -38,5 +39,6 @@ fi                                            &&
             --with-backends="${BACKENDS}"              \
             --with-frontends="${FRONTENDS}"            \
             $OPTS                                      &&
-
-make
+make_single  &&
+make  &&
+make_normal
