@@ -1,4 +1,3 @@
-source $GRIMOIRE/is_depends_enabled.function  &&
 
 if  is_depends_enabled  $SPELL  gettext
 then
