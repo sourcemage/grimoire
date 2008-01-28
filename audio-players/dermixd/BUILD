@@ -11,6 +11,9 @@ then
 else
   DMD_BUILD=gnu-oss
 fi &&
+if [[ "$DMD_PRIO" == y ]]; then
+  export CPPFLAGS="$CPPFLAGS -DLINUX"
+fi &&
 MAKE_OPT= &&
 if list_find "$OPTS" --enable-sndfile; then
   MAKE_OPT="$MAKE_OPT SNDFILE=yes"

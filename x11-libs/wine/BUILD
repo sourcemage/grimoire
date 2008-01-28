@@ -12,10 +12,6 @@ OPTS="--disable-debug  \
 touch programs/winetest/tests.rc                &&
 default_build                                   &&
 
-#
-## Remove this after is_depends_enabled is integrated to stable sorcery.
-#
-source  "$GRIMOIRE/is_depends_enabled.function"  &&
 
 if is_depends_enabled $SPELL docbook-utils;  then
   make  -C  documentation
