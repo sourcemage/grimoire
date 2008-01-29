@@ -4,4 +4,5 @@ echo  "/usr/lib/bglibs"                  >  conf-bgincs  &&
 echo  "gcc ${CFLAGS} -I/usr/lib/bglibs"  >  conf-cc      &&
 echo  "gcc $LDFLAGS -L/usr/lib/bglibs"             >  conf-ld      &&
 
+make_single &&
 make  programs
