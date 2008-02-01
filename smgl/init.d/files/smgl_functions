@@ -29,7 +29,9 @@ SCRIPTC="builtin echo -en \\033[1;37m"
 
 # log the messages hack
 echo() { 
-  # builtin echo "$@" # PARALLEL
+if ! [[ -t 1 ]]; then
+  builtin echo "$@"
+else
   INITSTORE="$INITSTORE$(builtin echo "$@")"
 
   # correct for bash's insane strip trailing newline mumbo jumbo on command substitutions
@@ -44,6 +46,7 @@ echo() {
   if [ "`builtin echo "$INITSTORE" | ( i=0; while read LINE; do i=$((++i)); done; builtin echo $i)`" -gt 1 ]; then
     print_status message
   fi
+fi
 }
 export -f echo
 export INITSTORE
