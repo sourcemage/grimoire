@@ -17,7 +17,7 @@ make_single  &&
 
 make  &&
 
-if  is_depends_enabled  tetex;  then
+if  is_depends_enabled $SPELL tetex;  then
   cd  gettext-tools/doc  &&
   make  dvi              &&
   make  ps               &&
