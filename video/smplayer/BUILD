@@ -1,1 +1,1 @@
-make QMAKE=${INSTALL_ROOT}/usr/bin/qt4/qmake
+make QMAKE=${INSTALL_ROOT}/usr/bin/qt4/qmake PREFIX=${INSTALL_ROOT}/usr CONF_PREFIX=${INSTALL_ROOT}
