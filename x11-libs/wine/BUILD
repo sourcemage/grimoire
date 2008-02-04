@@ -1,9 +1,6 @@
 # fix wine build problem
 LDFLAGS=${LDFLAGS//-z combreloc/}               &&
 
-# avoid the memory leak on vartest.c
-CFLAGS="$CFLAGS -fno-inline-functions"
-
 OPTS="--disable-debug  \
       --disable-trace  \
       $OPTS"           &&
