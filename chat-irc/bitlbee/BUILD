@@ -8,3 +8,7 @@ export OPTS="$OPTS --etcdir=/etc/bitlbee" &&
             $BITLBEE_OPTS $OPTS
 
 make
+
+if [[ "$BITLBEE_BITLBEED" == y ]] ; then
+	(cd ${SOURCE_DIRECTORY}/utils && gcc bitlbeed.c -o bitlbeed)
+fi
