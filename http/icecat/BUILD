@@ -1,4 +1,4 @@
- local ICECAT_HOME=${INSTALL_ROOT}/usr/lib/${SPELL}  &&
+local ICECAT_HOME=${INSTALL_ROOT}/usr/lib/${SPELL}  &&
 export  MOZ_PHOENIX=1                                  &&
 
 export  CFLAGS="${CFLAGS//-O3/-O2}"      &&
@@ -12,23 +12,28 @@ then
   OPTS="--enable-svg-renderer=$ICECAT_RENDER $OPTS"
 fi  &&
 
-./configure                                       \
-  --prefix=${INSTALL_ROOT}/usr                    \
-  --with-user-appdir=.${SPELL}                    \
-  --with-pthreads                                 \
-  --enable-application=browser                    \
-  --enable-reorder                                \
-  --enable-cpp-rtti                               \
-  --enable-strip                                  \
-  --enable-optimize="$CFLAGS"                     \
-  --with-default-mozilla-five-home=$ICECAT_HOME  \
-  --disable-debug                                 \
-  --disable-tests                                 \
-  --disable-installer                             \
-  --disable-pedantic                              \
-  --enable-single-profile                         \
-  --enable-extensions=default,typeaheadfind       \
-  --enable-canvas                                 \
-  $OPTS                                           &&
+[[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=$HOST"
+
+./configure --prefix=${INSTALL_ROOT}/usr             \
+        --sysconfdir=${INSTALL_ROOT}/etc             \
+     --localstatedir=${INSTALL_ROOT}/var             \
+            --mandir=${INSTALL_ROOT}/usr/share/man   \
+           --infodir=${INSTALL_ROOT}/usr/share/info  \
+  --with-user-appdir=.${SPELL}                       \
+   --enable-optimize="$CFLAGS"                       \
+     --with-pthreads                                 \
+--enable-application=browser                         \
+    --enable-reorder                                 \
+   --enable-cpp-rtti                                 \
+      --enable-strip                                 \
+  --with-default-mozilla-five-home=$ICECAT_HOME      \
+     --disable-debug                                 \
+     --disable-tests                                 \
+ --disable-installer                                 \
+  --disable-pedantic                                 \
+  --enable-single-profile                            \
+ --enable-extensions="default,typeaheadfind"         \
+     --enable-canvas                                 \
+               $OPTS                                           &&
 
 make
