@@ -1,3 +1,5 @@
+patch  -p1  <  ${SCRIPT_DIRECTORY}/shadow-4.0.18.1-useradd-usermod.patch  &&
+
 # Do not install default pam configuration files
 sedit 's|pam.d||' etc/Makefile.in  &&
 
