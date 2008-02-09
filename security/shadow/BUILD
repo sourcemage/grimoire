@@ -1,3 +1,6 @@
+# Do not compile/install su, coreutils provides that
+# Bug #4008
+patch  -p1  <  ${SCRIPT_DIRECTORY}/su.patch  &&
 patch  -p1  <  ${SCRIPT_DIRECTORY}/shadow-4.0.18.1-useradd-usermod.patch  &&
 
 # Do not install default pam configuration files
