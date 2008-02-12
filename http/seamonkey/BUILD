@@ -1,4 +1,5 @@
-MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey    &&
+cd  $SOURCE_DIRECTORY/mozilla                 &&
+MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey  &&
 
 #
 # Only strip if the user wants us to
