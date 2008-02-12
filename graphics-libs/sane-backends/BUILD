@@ -1,4 +1,5 @@
 create_group scanner &&
+
 if [[ $USEFORK == y ]]; then
   OPTS="$OPTS --enable-fork-process"
 else
@@ -16,10 +17,11 @@ if [[ $HP5400NVSM == y ]]; then
   echo '#define NO_STRING_VERSION_MATCH
 ' >> $SOURCE_DIRECTORY/backend/hp5400_internal.h
 fi &&
-if [[ $SANE_LOCAL == none ]];then
+
+if [[ $SANE_LOCAL == none ]]; then
   OPTS="$OPTS --disable-local-backends"
 else
-export BACKENDS=$SANE_LOCAL
+  export BACKENDS=$SANE_LOCAL
 fi &&
 
 OPTS="$OPTS --with-docdir=$INSTALL_ROOT/usr/share/doc/sane-backends" &&
