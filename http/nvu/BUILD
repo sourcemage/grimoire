@@ -1,3 +1,5 @@
+cd  $SOURCE_DIRECTORY/mozilla  &&
+
 local  NVU_HOME=${INSTALL_ROOT}/usr/lib/nvu  &&
 
 OPTS="--disable-mailnews                                              \
