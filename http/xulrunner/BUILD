@@ -1,4 +1,5 @@
-MOZILLA_HOME=$INSTALL_ROOT/usr/lib/xulrunner    &&
+cd  $SOURCE_DIRECTORY/mozilla                 &&
+MOZILLA_HOME=$INSTALL_ROOT/usr/lib/xulrunner  &&
 
 #
 # Only strip if the user wants us to
