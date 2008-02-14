@@ -1,4 +1,5 @@
-MOZILLA_HOME=$INSTALL_ROOT/usr/lib/mozilla    &&
+cd  $SOURCE_DIRECTORY/mozilla               &&
+MOZILLA_HOME=$INSTALL_ROOT/usr/lib/mozilla  &&
 
 if  [[  "$MOZILLA_ENIGMAIL"  ==  'y'  ]];  then
   MOZILLA_EXT="$MOZILLA_EXT,ipc,enigmail"
