@@ -1,3 +1,5 @@
+OPTS="$OPTS --disable-macosx"
+
 if  [  "$JOYSTICK"  =  "y"  ];  then
   export OPTS="$OPTS --enable-joystick"
 fi  &&
