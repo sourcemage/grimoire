@@ -2,6 +2,7 @@
  * @file webkit.c WebKit browser module for Liferea
  *
  * Copyright (C) 2007 Lars Lindner <lars.lindner@gmail.com>
+ * Copyright (C) 2008 Lars Strojny <larsml@strojny.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,23 +51,30 @@ liferea_webkit_deinit (void)
  */
 static void
 webkit_write_html (GtkWidget   *scrollpane,
-                   const gchar *string,
+					const gchar *string,
 		           guint       length,
 		           const gchar *base,
 		           const gchar *content_type)
 {
 	GtkWidget *htmlwidget = gtk_bin_get_child (GTK_BIN (scrollpane));
-
-	// WebKit does not like application/xhtml+xml: http://bugs.webkit.org/show_bug.cgi?id=9677
-	content_type = g_ascii_strcasecmp (content_type,"application/xhtml+xml") == 0 ? "application/xhtml" : content_type;
+	/**
+	 * WebKit does not like content type application/xhtml+xml. See
+	 * http://bugs.webkit.org/show_bug.cgi?id=9677 for details.
+	 */
+	content_type = 
+		g_ascii_strcasecmp (content_type, "application/xhtml+xml") == 0
+		? "application/xhtml"
+		: content_type;
 	webkit_web_view_load_string (WEBKIT_WEB_VIEW (htmlwidget), string, content_type, "UTF-8", base);
 }
 
-/**
- *
- */
 static void
-webkit_title_changed (WebKitWebView *view, const gchar* title, const gchar* url, gpointer user_data)
+webkit_title_changed (
+	WebKitWebView *view,
+	const gchar* title,
+	const gchar* url,
+	gpointer user_data
+)
 {
 	ui_tabs_set_title (GTK_WIDGET (view), title);
 }
@@ -83,18 +91,18 @@ static void
 webkit_on_url (WebKitWebView *view, const gchar *title, const gchar *url, gpointer user_data)
 {
 	LifereaHtmlView	*htmlview;
-	gchar		    *selected_url;
+	gchar		    *selectedURL;
 
-	htmlview     = g_object_get_data (G_OBJECT (view), "htmlview");
-	selected_url = g_object_get_data (G_OBJECT (view), "selected_url");
-	g_free (selected_url);
+	htmlview    = g_object_get_data (G_OBJECT (view), "htmlview");
+	selectedURL = g_object_get_data (G_OBJECT (view), "selectedURL");
 	
-	selected_url = url ? g_strdup (url) : g_strdup ("");
+	selectedURL = url ? g_strdup (url) : g_strdup ("");
 	
 	/* overwrite or clear last status line text */
-	liferea_htmlview_on_url (htmlview, selected_url);
+	liferea_htmlview_on_url (htmlview, selectedURL);
 	
-	g_object_set_data (G_OBJECT (view), "selected_url", selected_url);
+	g_object_set_data (G_OBJECT (view), "selectedURL", selectedURL);
+	g_free (selectedURL);
 }
 
 /**
@@ -103,27 +111,30 @@ webkit_on_url (WebKitWebView *view, const gchar *title, const gchar *url, gpoint
  * When a link has been clicked the the link management is dispatched to Liferea core in
  * order to manage the different filetypes, remote URLs.
  */
-static void
+static gboolean
 webkit_link_clicked (WebKitWebView *view, WebKitWebFrame *frame, WebKitNetworkRequest *request)
 {
 	const gchar *uri;
-	
+
 	g_return_if_fail (WEBKIT_IS_WEB_VIEW (view));
 	g_return_if_fail (WEBKIT_IS_NETWORK_REQUEST (request));
 
-	/** Bug in WebKit. See http://bugs.webkit.org/show_bug.cgi?id=16654 for details */
-	g_signal_stop_emission_by_name (WEBKIT_WEB_VIEW (view), "navigation-requested");
 
-	uri = webkit_network_request_get_uri (WEBKIT_NETWORK_REQUEST (request));
+	if (!conf_get_bool_value (BROWSE_INSIDE_APPLICATION)) {
 
-	LifereaHtmlView *htmlview = g_object_get_data (G_OBJECT (view), "htmlview");
-	liferea_htmlview_launch_URL (
-		htmlview, uri, GPOINTER_TO_INT (g_object_get_data (G_OBJECT (view), "internal_browsing"))
-		? UI_HTMLVIEW_LAUNCH_INTERNAL
-		: UI_HTMLVIEW_LAUNCH_DEFAULT
-	);
+		uri = webkit_network_request_get_uri (WEBKIT_NETWORK_REQUEST (request));
+		liferea_htmlview_launch_in_external_browser (uri);
 
-	return TRUE;
+		/** 
+		 * Bug in WebKit. Stop emitting signal when external browser is called.
+		 * So the boolean return will not be respected. See 
+		 * http://bugs.webkit.org/show_bug.cgi?id=16654 for details 
+		 */
+		g_signal_stop_emission_by_name (WEBKIT_WEB_VIEW (view), "navigation-requested");
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 /**
@@ -148,6 +159,13 @@ webkit_new (LifereaHtmlView *htmlview, gboolean forceInternalBrowsing)
 	
 	/** Create HTML widget and pack it into the scrolled window */
 	view = webkit_web_view_new ();
+	
+/*	// empty functions in current webkit code...
+	settings = webkit_web_settings_copy (webkit_web_settings_get_global ());
+	settings->is_java_script_enabled = !conf_get_bool_value (DISABLE_JAVASCRIPT);
+	settings->java_script_can_open_windows_automatically = FALSE;
+	webkit_page_set_settings (WEBKIT_WEB_VIEW (htmlwidget), settings);
+*/
 	gtk_container_add (GTK_CONTAINER (scrollpane), GTK_WIDGET (view));
 
 	/** Pass LifereaHtmlView into the WebKitWebView object */
@@ -177,7 +195,7 @@ webkit_launch_url (GtkWidget *scrollpane, const gchar *url)
 static gboolean
 webkit_launch_inside_possible (void)
 {
-	return FALSE;
+	return TRUE;
 }
 
 /**
@@ -224,21 +242,21 @@ webkit_scroll_pagedown (GtkWidget *scrollpane)
 }
 
 static struct htmlviewPlugin webkitInfo = {
-	.api_version	      = HTMLVIEW_PLUGIN_API_VERSION,
-	.name		          = "WebKit",
-	.priority	          = 100,
-	.externalCss	      = FALSE,
-	.plugin_init	      = liferea_webkit_init,
-	.plugin_deinit	      = liferea_webkit_deinit,
-	.create		          = webkit_new,
-	.write		          = webkit_write_html,
-	.launch		          = webkit_launch_url,
+	.api_version	= HTMLVIEW_PLUGIN_API_VERSION,
+	.name		= "WebKit",
+	.priority	= 100,
+	.externalCss	= FALSE,
+	.plugin_init	= liferea_webkit_init,
+	.plugin_deinit	= liferea_webkit_deinit,
+	.create		= webkit_new,
+	.write		= webkit_write_html,
+	.launch		= webkit_launch_url,
 	.launchInsidePossible = webkit_launch_inside_possible,
-	.zoomLevelGet	      = webkit_get_zoom_level,
-	.zoomLevelSet	      = webkit_change_zoom_level,
-	.scrollPagedown	      = webkit_scroll_pagedown,
-	.setProxy	          = NULL,
-	.setOffLine	          = NULL
+	.zoomLevelGet	= webkit_get_zoom_level,
+	.zoomLevelSet	= webkit_change_zoom_level,
+	.scrollPagedown	= webkit_scroll_pagedown,
+	.setProxy	= NULL,
+	.setOffLine	= NULL
 };
 
 static struct plugin pi = {
