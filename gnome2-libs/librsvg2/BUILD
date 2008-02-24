@@ -1,8 +1,8 @@
-if [ "$RSVGENGINE" == "y" ]; then
-   OPTS="$OPTS --enable-gtk-theme"
+if [[ $RSVGENGINE == y ]]; then
+  OPTS="$OPTS --enable-gtk-theme"
 else
-   OPTS="$OPTS --disable-gtk-theme"
-fi                                      &&
+  OPTS="$OPTS --disable-gtk-theme"
+fi &&
 
 CFLAGS="${CFLAGS} -I${INSTALL_ROOT}/usr/include/nspr"  && 
 
