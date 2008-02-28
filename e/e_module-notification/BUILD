@@ -1,3 +1,1 @@
-OPTS="--prefix=$INSTALL_ROOT/usr/lib/enlightenment/modules"  &&
-
-default_build
+default_build_e17_module
