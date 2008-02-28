@@ -9,6 +9,7 @@ OPTS="$FFMPEG_SWSCALE $OPTS"  &&
 
 ./configure  --prefix=${INSTALL_ROOT}/usr            \
              --mandir=${INSTALL_ROOT}/usr/share/man  \
+             --incdir=${INSTALL_ROOT}/usr/include/ffmpeg \
              --enable-shared                         \
              --enable-pthreads                       \
              --disable-static                        \
