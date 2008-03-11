@@ -1,3 +1,3 @@
 # breaks with lots of stuff, let it use its own CFLAGS
-export  CFLAGS=""  &&
+persistent_add CFLAGS="" &&
 default_build
