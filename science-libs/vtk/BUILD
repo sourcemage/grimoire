@@ -1,6 +1,6 @@
-export VTK_DATA_ROOT=/usr/share/vtk/VTKData    &&
-export VTK_INSTALL_PATH=/usr                   &&
-export CMAKE_INSTALL_PREFIX=/usr               &&
+persistent_add VTK_DATA_ROOT=/usr/share/vtk/VTKData    &&
+persistent_add VTK_INSTALL_PATH=/usr                   &&
+persistent_add CMAKE_INSTALL_PREFIX=/usr               &&
 
 cmake .           &&
 sedit "s/^CMAKE_INSTALL_PREFIX:PATH=.*$/CMAKE_INSTALL_PREFIX:PATH=\/usr/" CMakeCache.txt  &&
