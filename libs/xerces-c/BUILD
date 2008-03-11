@@ -1,7 +1,7 @@
-export  XERCESCROOT=$SOURCE_DIRECTORY
+persistent_add XERCESCROOT=$SOURCE_DIRECTORY
 
 if  echo $OPTS | grep -q 'ticu'; then
-   export  ICUROOT=/usr
+   persistent_add ICUROOT=/usr
 fi               &&
 
 cd  src/xercesc  &&
