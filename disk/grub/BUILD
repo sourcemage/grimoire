@@ -1,6 +1,5 @@
-unset  CFLAGS            &&
 unset  CXXFLAGS          &&
-export  CFLAGS="-Os"     &&
+persistent_add CFLAGS="-Os" &&
 
 # Begin setting up OPTS based on responses from CONFIGURE
 
