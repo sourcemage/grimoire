@@ -4,9 +4,9 @@ fi
 
 
 ### configure
-	cd $SOURCE_DIRECTORY/config_office/               &&
-	export CXXFLAGS="${CXXFLAGS} -I/usr/X11R6/include -I/usr/include/nspr -I/usr/include/nss"       &&
-export CFLAGS="${CFLAGS} -I/usr/include/nspr -I/usr/include/nss" &&
+cd $SOURCE_DIRECTORY/config_office/               &&
+persistent_add CXXFLAGS="${CXXFLAGS} -I/usr/X11R6/include -I/usr/include/nspr -I/usr/include/nss" &&
+persistent_add CFLAGS="${CFLAGS} -I/usr/include/nspr -I/usr/include/nss" &&
 if [ "$OPENOFFICE_VERSION" == "stable" ]; then
 optimize
 fi

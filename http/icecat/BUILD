@@ -1,8 +1,8 @@
 local ICECAT_HOME=${INSTALL_ROOT}/usr/lib/${SPELL}  &&
-export  MOZ_PHOENIX=1                                  &&
+persistent_add  MOZ_PHOENIX=1                       &&
 
-export  CFLAGS="${CFLAGS//-O3/-O2}"      &&
-export  CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
+persistent_add  CFLAGS="${CFLAGS//-O3/-O2}"         &&
+persistent_add  CXXFLAGS="${CXXFLAGS//-O3/-O2}"     &&
 
 OPTS="$ICECAT_MAILNEWS $ICECAT_CALENDAR $ICECAT_CHAT $ICECAT_COMPOSER  \
 $ICECAT_MATHML $ICECAT_JS $OPTS"  &&

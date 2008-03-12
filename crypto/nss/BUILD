@@ -1,5 +1,5 @@
-export BUILD_OPT=1 &&
-export SOURCE_PREFIX=$(pwd) &&
+persistent_add BUILD_OPT=1 &&
+persistent_add SOURCE_PREFIX=$(pwd) &&
 
 # use our CFLAGS and pre-installed NSPR headers
 #echo "OS_CFLAGS += $CFLAGS -I$INSTALL_ROOT/usr/include/nspr" >>coreconf/Linux.mk &&

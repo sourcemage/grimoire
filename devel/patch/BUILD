@@ -1,4 +1,4 @@
-export CPPFLAGS="${CPPFLAGS} -D_GNU_SOURCE"  &&
+persistent_add CPPFLAGS="${CPPFLAGS} -D_GNU_SOURCE"  &&
 
   OPTS="$OPTS --build=${BUILD}"
   [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"

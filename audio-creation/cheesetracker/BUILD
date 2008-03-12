@@ -1,2 +1,2 @@
-export QTDIR=/usr &&
+persistent_add QTDIR=/usr &&
 scons  
