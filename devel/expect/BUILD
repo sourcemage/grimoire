@@ -1,5 +1,5 @@
 if echo ${OPTS} | grep -q tk; then
-   persistent_add LDFLAGS="$LDFLAGS -L /usr/X11R6/lib"
+   export LDFLAGS="$LDFLAGS -L /usr/X11R6/lib"
 fi                                              &&
 
 OPTS="--with-tcl=/usr/lib                       \

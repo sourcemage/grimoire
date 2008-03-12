@@ -7,6 +7,6 @@ OPTS="DEBUG=-DNDEBUG \
   --sbindir=$DEFAULT_ROOT/sbin \
   $OPTS" &&
 
-persistent_add OPTIMIZER=$CFLAGS &&
+export OPTIMIZER=$CFLAGS &&
 
 default_build
