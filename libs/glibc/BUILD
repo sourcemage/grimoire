@@ -20,7 +20,7 @@ fi &&
 # in configurations and doesn't force recompile when it should. This stops it from
 # using the old cache entries.
 #
-persistent_add  CCACHE_RECACHE=true  &&
+export  CCACHE_RECACHE=true  &&
 #
 # End ccache fix
 #
@@ -55,8 +55,8 @@ else
   CFLAGS="-Os $CFLAGS"
 fi &&
 
-persistent_add  CFLAGS="${CFLAGS/-ffast-math/}"  &&
-persistent_add  CC=gcc                           &&
+export  CFLAGS="${CFLAGS/-ffast-math/}"  &&
+export  CC=gcc                           &&
 
 #
 # LD_LIBRARY_PATH includes $PWD bug
@@ -73,46 +73,44 @@ if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
   # headers, not sparc64
   #
   if  echo  "$CFLAGS"  |  grep  -q  --  "-m64";  then
-    persistent_add  CC=gcc64
+    export  CC=gcc64
   fi  &&
 
   #
   # Fixes from Gentoo's 2.3.3.20040420-r2 ebuild
   #
   sedit  "s:CPPFLAGS += -DHAVE_INITFINI:CPPFLAGS += -DHAVE_INITFINI -fno-pie -fno-PIE:"  csu/Makefile
-  CFLAGS="${CFLAGS/-fcall-used-g7/}"
-  CFLAGS="$CFLAGS  -fcall-used-g6"
-  CFLAGS="${CFLAGS/-mcpu=v9/}"
-  CFLAGS="${CFLAGS/-mtune=ultrasparc/}"
-  CFLAGS="${CFLAGS/-mvis/}"
-  persistent_add CFLAGS
+  export    CFLAGS="${CFLAGS/-fcall-used-g7/}"
+  export    CFLAGS="$CFLAGS  -fcall-used-g6"
+  export    CFLAGS="${CFLAGS/-mcpu=v9/}"
+  export    CFLAGS="${CFLAGS/-mtune=ultrasparc/}"
+  export    CFLAGS="${CFLAGS/-mvis/}"
 
   # Setup the HOST properly to insure "sparcv9"
   # This passes -mcpu=ultrasparc -Wa,-Av9a to the compiler
   [  "$HOST"  =  "sparc-unknown-linux-gnu"  ]   &&
-  persistent_add HOST="sparcv9-unknown-linux-gnu"       &&
+  export HOST="sparcv9-unknown-linux-gnu"       &&
   [  "$BUILD"  =  "sparc-unknown-linux-gnu"  ]  &&
-  persistent_add BUILD="sparcv9-unknown-linux-gnu"
+  export BUILD="sparcv9-unknown-linux-gnu"
 elif [[ ${SMGL_COMPAT_ARCHS[0]} == 32 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
   #
   # Fixes from Gentoo's 2.3.3.20040420-r2 ebuild
   #
   sedit  "s:CPPFLAGS += -DHAVE_INITFINI:CPPFLAGS += -DHAVE_INITFINI -fno-pie -fno-PIE:"  csu/Makefile
-  CFLAGS="${CFLAGS/-fcall-used-g7/}"
-  CFLAGS="$CFLAGS  -fcall-used-g6"
-  persistent_add CFLAGS
+  export    CFLAGS="${CFLAGS/-fcall-used-g7/}"
+  export    CFLAGS="$CFLAGS  -fcall-used-g6"
 elif [[ ${SMGL_COMPAT_ARCHS[1]} == alpha ]]; then
   # This is a first attempt to get alpha going, being paranoid about any CFLAGS,
   # not without reason: -Os/-O breaks compile in strange ways:
   #  either an elf/ld.so that segfaults (build failing at sunrpc) or
   #  internal compiler error(s) in intl/
   # glibc knows itself what flags to choose
-  persistent_add CFLAGS=""
+  export CFLAGS=""
 fi &&
 
 # CPPFLAGS setting is needed so the check for cpp works on boxes that don't
 # have any kernel headers in /usr/include yet
-persistent_add CPPFLAGS="$CPPFLAGS -I$GLIBC_HEADERS_DIR/usr/include"  &&
+export CPPFLAGS="$CPPFLAGS -I$GLIBC_HEADERS_DIR/usr/include"  &&
 #
 # End sanitised glibc-kernel-headers setup
 #

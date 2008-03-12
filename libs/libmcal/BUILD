@@ -6,5 +6,5 @@ cd ./icap/   && make && cd .. &&
 cd ./mstore/ && make && cd .. &&
 
 OPTS="$OPTS --with-icap --with-mstore" &&
-persistent_add OTHER_CFLAGS="$CFLAGS" &&
+export OTHER_CFLAGS="$CFLAGS" &&
 default_build

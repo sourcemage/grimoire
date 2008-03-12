@@ -7,7 +7,7 @@ fi                                      &&
 set_java_env                            &&
   
 if  list_find  "$OPTS"  "--with-antlr";  then
-  persistent_add CLASSPATH="$INSTALL_ROOT/usr/share/antlr-$(installed_version antlr)/antlr.jar:$CLASSPATH"
+  export CLASSPATH="$INSTALL_ROOT/usr/share/antlr-$(installed_version antlr)/antlr.jar:$CLASSPATH"
 fi                                      &&
 
 ./build.sh -Ddist.dir=antbuild dist

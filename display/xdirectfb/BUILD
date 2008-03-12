@@ -2,7 +2,7 @@ message  "Building xdirectfb takes a very long time."  &&
 rm -f config/cf/host.def  &&
 
 if  (echo $CFLAGS | grep -q -- "-Os"); then
-  persistent_add CFLAGS="-O2 ${CFLAGS//-Os/}"
+  export CFLAGS="-O2 ${CFLAGS//-Os/}"
 fi  &&
 
 if  spell_ok  linux-pam; then

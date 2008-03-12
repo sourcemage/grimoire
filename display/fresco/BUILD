@@ -1,4 +1,4 @@
-persistent_add LDFLAGS="$LDFLAGS -L /usr/X11R6/lib"    &&
+export LDFLAGS="$LDFLAGS -L /usr/X11R6/lib"    &&
 
 if [ "$CVS" = "yes" ]; then
   ./autogen.sh
