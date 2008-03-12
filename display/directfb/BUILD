@@ -6,7 +6,7 @@ OPTS="--with-inputdrivers=$inputdrivers         \
 
 
 if is_depends_enabled $SPELL libmpeg3; then
-     persistent_add CPPFLAGS="$CPPFLAGS -I/usr/include/libmpeg3/"
+     export CPPFLAGS="$CPPFLAGS -I/usr/include/libmpeg3/"
 fi &&
 
 default_build

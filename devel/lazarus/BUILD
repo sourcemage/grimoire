@@ -1,4 +1,4 @@
-persistent_add LCL_PLATFORM=$LAZ_GUI          &&
+export LCL_PLATFORM=$LAZ_GUI          &&
 make_single                           &&
 make FPC=fpc                          &&
 strip -s lazarus startlazarus         &&

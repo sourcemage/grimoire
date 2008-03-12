@@ -1,6 +1,6 @@
 ### had to cook up some pkg-config files for nss and nspr 
 if spell_ok nss ; then
-  persistent_add PKG_CONFIG_PATH="/usr/include/nss:/usr/include/nspr" 
+  export PKG_CONFIG_PATH="/usr/include/nss:/usr/include/nspr" 
 fi                                              &&
 make_single    &&
 OPTS="--with-nspr-includes=/usr/include/nspr --with-nspr-libs=/usr/lib $OPTS" &&

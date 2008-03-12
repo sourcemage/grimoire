@@ -1,7 +1,7 @@
 cd  $SOURCE_DIRECTORY/mozilla  &&
 
 FIREFOX_HOME=$INSTALL_ROOT/usr/lib/firefox    &&
-persistent_add  MOZ_PHOENIX=1 &&
+export  MOZ_PHOENIX=1 &&
 
 #
 # Only strip if the user wants us to

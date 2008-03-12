@@ -1,16 +1,16 @@
-# don't make it track all info files in /usr/share/info
+  # don't make it track all info files in /usr/share/info
 #  sedit  's:${COPYDESTS} ${infodir}:${COPYDESTS}:'  Makefile.in  &&
-# Fixes Bug #2938
-persistent_add  LDFLAGS="${LDFLAGS/-z combreloc/}"  &&
+  # Fixes Bug #2938
+  export  LDFLAGS="${LDFLAGS/-z combreloc/}"  &&
 
 #
 # Fails to link if using -Wl,-O1
 #
-persistent_add LDFLAGS="${LDFLAGS//-Wl,-O1/}"  &&
+export LDFLAGS="${LDFLAGS//-Wl,-O1/}"  &&
 
 if [ "$CVS" == "y" ]; then
   # Crashes with -03
-  persistent_add  CFLAGS="${CFLAGS//-O3/-O2}"      &&
+  export  CFLAGS="${CFLAGS//-O3/-O2}"      &&
   
   OPTS="$OPTS --build=${BUILD}"
 

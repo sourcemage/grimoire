@@ -1,8 +1,8 @@
 if [ "${PAM_DOCS}" == "n" ]; then
-   persistent_add SGML2LATEX=no
+   export  SGML2LATEX=no
 fi
 
-persistent_add PS2PDF=no
+export PS2PDF=no
 
 #autoconf                                             &&
 ./configure  --libdir=/lib                           \

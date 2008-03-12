@@ -1,5 +1,5 @@
-persistent_add  QTDIR=${QTDIR:-$INSTALL_ROOT/usr}
-persistent_add  QMAKESPEC=${QTDIR}/share/qt/mkspecs/linux-g++
+export  QTDIR=${QTDIR:-$INSTALL_ROOT/usr}                  &&
+export  QMAKESPEC=${QTDIR}/share/qt/mkspecs/linux-g++      &&
 
 for i in fparser dxflib
 do
