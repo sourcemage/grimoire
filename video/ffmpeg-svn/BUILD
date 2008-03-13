@@ -14,7 +14,7 @@ OPTS="$FFMPEG_SWSCALE $OPTS"  &&
              --enable-pthreads                       \
              --disable-static                        \
              --disable-debug                         \
-             --enable-pp                             \
+             --enable-postproc                       \
              --enable-gpl                            \
              $OPTS                         &&
 #sedit  's:SDL_LIBS=.*:\0 -L/usr/X11R6/lib -lX11:'  config.mak  &&
