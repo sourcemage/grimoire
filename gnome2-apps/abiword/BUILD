@@ -1,18 +1,11 @@
-if [ "$DEVEL" == "n" ]; then
-cd  abi     &&
-sedit "s/-pedantic -ansi//g" configure
-fi  &&
-
-if [ "$THREADS" == "y" ]; then
+if [[ $THREADS == y ]]; then
    OPTS="$OPTS --enable-threads"
 fi &&
-if [ "$PLUGINS" == "y" ]; then
+if [[ $PLUGINS == y ]]; then
    OPTS="$OPTS --enable-builtin-plugins"
 fi &&
-if [ "$EOPTS" == "y" ]; then
+if [[ $EOPTS == y ]]; then
    OPTS="$OPTS --enable-extra-optimization"
 fi &&
 
-make_single    &&
-default_build  &&
-make_normal
+default_build
