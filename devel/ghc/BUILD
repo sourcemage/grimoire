@@ -1,21 +1,21 @@
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST} --build=${BUILD}"
 
-GHC_DIR=ghc
+GHC_DIR=/usr/bin
 
-make_single  &&
+make_single &&
 
 if [[ $SOURCE2 != "" ]] ; then
   cd ghc-bin &&
-  ./configure &&
+  ./configure --prefix=${SOURCE_DIRECTORY}/ghc-bin-installed &&
   if [ "$(uname -m)" == x86_64 ]; then
-    echo 'SplitObjs=NO' > ../$SPELL-$VERSION/mk/build.mk
-  fi   &&
-  make in-place &&
-  GHC_DIR=$PWD/bin/$ARCH-unknown-linux/ghc &&
+    echo 'SplitObjs = NO' >> ../$SPELL-$VERSION/mk/build.mk
+  fi &&
+  make install &&
+  GHC_DIR=${SOURCE_DIRECTORY}/ghc-bin-installed/bin &&
   cd ..
 fi &&
 
 cd $SPELL-$VERSION &&
 
-OPTS="$OPTS --with-ghc=$GHC_DIR --with-hc=$GHC_DIR"  &&
+OPTS="$OPTS --with-ghc=$GHC_DIR/ghc" &&
 default_build

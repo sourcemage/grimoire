@@ -1,4 +1,5 @@
-MOZILLA_HOME=$INSTALL_ROOT/usr/lib/xulrunner    &&
+cd  $SOURCE_DIRECTORY/mozilla                 &&
+MOZILLA_HOME=$INSTALL_ROOT/usr/lib/xulrunner  &&
 
 #
 # Only strip if the user wants us to
@@ -17,6 +18,11 @@ fi  &&
 CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
+if [[ ${SMGL_COMPAT_ARCHS[1]} == ia32 ]]
+then
+  OPTS="--enable-elf-dynstr-gc $OPTS"
+fi &&
+
 ./configure --prefix=$INSTALL_ROOT/usr                       \
             --mandir=$INSTALL_ROOT/usr/share/man             \
             --with-default-mozilla-five-home=$MOZILLA_HOME   \
@@ -28,7 +34,6 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
             --enable-xft                                     \
             --disable-pango                                  \
             --enable-reorder                                 \
-            --enable-elf-dynstr-gc                           \
             --enable-storage                                 \
             --enable-cpp-rtti                                \
             --enable-application=xulrunner                   \
@@ -44,6 +49,7 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
             --disable-pedantic                               \
             $XULRUNNER_OPTS                                  \
             $OPTS                                            &&
+
 make_single  &&
 
 make

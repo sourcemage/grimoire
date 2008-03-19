@@ -1,0 +1,40 @@
+#!/bin/bash
+
+PROGRAM=/usr/bin/farmerjoe
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/sysconfig/farmerjoe-slave
+. /etc/init.d/smgl_init
+
+start()
+{
+	echo "Starting Farmerjoe Slave..."
+	su -c "$PROGRAM >> ${LOG_FILE} 2>&1"  $USER  &
+	evaluate_retval
+	echo $(ps aux|grep farmerjoe$|awk '{print $2}') > /var/run/farmerjoe-slave.pid
+}
+
+stop()
+{
+	echo "Stopping Farmerjoe Slave..."
+	if [[ -e /var/run/farmerjoe-slave.pid ]]
+	then
+		kill $(cat /var/run/farmerjoe-slave.pid)
+		evaluate_retval
+		rm -f /var/run/farmerjoe-slave.pid
+	else
+		echo "Farmerjoe Slave is not running"
+	fi	
+}
+
+status()
+{
+	if [[ -e /var/run/farmerjoe-slave.pid ]]
+	then
+		echo "Farmerjoe Slave is running as $(cat /var/run/farmerjoe-slave.pid)"
+	else
+		echo "Farmerjoe Slave is not running"
+	fi
+}
+

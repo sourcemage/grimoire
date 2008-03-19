@@ -1,0 +1,57 @@
+#-------------------------------------------------------------------------
+## Default build for ruby spell.
+#-------------------------------------------------------------------------
+function default_build_ruby() {
+  local up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")     &&
+  local up_spell_name=$(echo $SPELL | tr "-" "_")         &&
+  local tempopts="${up_spell_name}_OPTS"                  &&
+  OPTS="${!tempopts} $OPTS"                               &&
+  if [[ -e ./setup.rb ]]; then
+    ruby setup.rb config --prefix=${INSTALL_ROOT}/usr $OPTS &&
+    ruby setup.rb setup
+  elif [[ -e ./install.rb ]]; then
+    ruby install.rb config --prefix=${INSTALL_ROOT}/usr $OPTS &&
+    ruby install.rb setup
+  elif [[ -e ./extconf.rb ]]; then
+    ruby extconf.rb  $OPTS &&
+    default_build_make
+  elif [[ -e ./Makefile ]]; then
+    default_build_make
+  elif [[ -x ./configure.rb ]]; then
+    ./configure.rb --prefix=${INSTALL_ROOT}/usr             \
+                   --mandir=${INSTALL_ROOT}/usr/share/man   \
+                   $OPTS                                    &&
+    default_build_make
+  elif [[ -x ./configure ]]; then
+    default_build_configure &&
+    default_build_make
+  elif [[ -e ./Rakefile ]] ||
+       [[ -e ./rakefile ]]; then
+    rake $OPTS
+  fi
+}
+#-------------------------------------------------------------------------
+## Default install for ruby spell.
+#-------------------------------------------------------------------------
+function default_install_ruby() {
+  if [[ -e ./setup.rb ]]; then
+    ruby setup.rb install
+  elif [[ -e ./install.rb ]]; then
+    ruby install.rb install
+  elif [[ -e ./extconf.rb ]] ||
+       [[ -e ./Makefile ]]
+       then
+    make install
+  elif [[ -e ./Rakefile ]] ||
+       [[ -e ./rakefile ]]; then
+    rake install
+  fi
+}
+
+function default_build() {
+   default_build_ruby
+}
+function default_install() {
+   default_install_ruby
+}
+

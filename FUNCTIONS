@@ -404,13 +404,18 @@ function default_build_python() {
 
 #-------------------------------------------------------------------------
 ## Default install for Python spell.
-## INSTALL_ROOT is used here only if not empty, because some spells can't
-## install with "--root '/'" option.
 #-------------------------------------------------------------------------
 function default_install_python() {
-  python setup.py install ${INSTALL_ROOT:+--root "$INSTALL_ROOT/"}
+  python setup.py install --root "$INSTALL_ROOT/"
 }
 
+#-------------------------------------------------------------------------
+## Default build for Perl spell.
+#-------------------------------------------------------------------------
+function default_build_perl() {
+  perl Makefile.PL $OPTS &&
+  make
+}
 
 #---
 ## disable_pic
@@ -465,9 +470,9 @@ function check_if_xorg_modular_server()
 #  CALL THIS BEFORE YOU DO THE INSTALLING. You can see the postfix spell for an example.
 declare -f note_config_files &>/dev/null ||
 function note_config_files() {
-if check_if_modified "$1"; then 
-  mark_file_modified "$1" 
-fi
+  if check_if_modified "$1"; then 
+    mark_file_modified "$1" 
+  fi
 }
 
 # Functions for default_build and default_install for waf based build systems
@@ -476,36 +481,34 @@ fi
 # and waf is fast without it as well
 
 function waf_build(){
-./waf configure                               \
+  ./waf configure                             \
                 --nocache                     \
                 --prefix=${INSTALL_ROOT}/usr  \
                 $OPTS                         &&
-./waf build
+  ./waf build
 }
 
 function waf_install(){
-./waf install
+  ./waf install
 }
 
 # spells in several  sections now need cmake or qt4
-# 
 cmake_build() {
-cd $SOURCE_DIRECTORY  &&
-mkdir -p build        &&
-cd build              &&
-cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr ../  $OPTS &&
-make
+  cd $SOURCE_DIRECTORY  &&
+  mkdir -p build        &&
+  cd build              &&
+  cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr ../  $OPTS &&
+  make
 }
 
 qt4_build() {
-QTDIR=/usr
-PATH=$QTDIR/bin/qt4:$PATH
-cmake_build
+  [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
+  PATH="$QTDIR/bin/qt4:$PATH"
+  cmake_build
 }
 
-
 # check whether the QT provider is qt4
-
 function check_if_qt4_provider()
 {
   if  [[  "$(get_spell_provider  ${1:-$SPELL}  QT)"  ==  "qt4"  ]]
@@ -516,19 +519,31 @@ function check_if_qt4_provider()
 }
 
 
-
 # build using qt3 or qt4
 # some spells an adapt the build process to either qt3 or qt4
 function build_qt3_or_4()
 {
-  QTDIR=$INSTALL_ROOT/usr
+  [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
   if check_if_qt4_provider
   then
-    PATH=$QTDIR/bin/qt4:$PATH
+    PATH="$QTDIR/bin/qt4:$PATH"
   fi      &&
   qmake   &&
   make
 }
+
+# cmake flags use : which is an internal sorcery delimiter.
+# In order to facilitate the passing of depends flags, use % instead and call
+# this function at the start of BUILD. Don't use it anywhere else.
+# Example: 
+# DEPENDS: depends kdelibs4 -DCRUFT%BOOL=FALSE; ...
+# BUILD: prepare_cmake_flags; ...
+function prepare_cmake_flags()
+{
+  OPTS="${OPTS//%/:}"
+}
+
 
 #-------------------------------------------------------------------------
 ## Print the version of the running kernel.
@@ -642,3 +657,71 @@ function get_kernel_config()
   fi
 }
 
+# this is mostly copied from sorcery real_default_sorcery_build,
+# and kde-apps/KDE_BUILD
+
+# we need a different --includedir value for KDE3 spells,
+# so as to avoid conflicts with KDE4
+
+function default_kde3_build() {
+
+  if [[ -f /etc/profile.d/qt.sh ]]; then
+    . /etc/profile.d/qt.sh
+  fi                                       &&
+  OPTS="$KDE_DEBUG_OPTION                  \
+        $KDE_FINAL_OPTION                  \
+        $KDE_LDFLAGS                       \
+        --enable-dnotify                   \
+        --with-distribution                \
+        --disable-dependency-tracking      \
+        $OPTS"                             &&
+
+  OPTS="$OPTS --build=${BUILD}"
+  #If these switches are used, they _may_ stop distcc and ccache from working
+  # for some spells (bug 3798)
+  #  We could write wrappers for all of the possible binaries
+  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+
+  ./configure --prefix=${INSTALL_ROOT}/usr  \
+          --sysconfdir=${INSTALL_ROOT}/etc  \
+       --localstatedir=${INSTALL_ROOT}/var  \
+              --mandir=${INSTALL_ROOT}/usr/share/man   \
+             --infodir=${INSTALL_ROOT}/usr/share/info  \
+            --includedir=${INSTALL_ROOT}/usr/include/kde3 \
+                       $OPTS                 &&
+  make
+
+}
+
+#---
+## Default configure
+#---
+
+function default_build_configure() {
+  # this is here so that config_query_option can be used without
+  # extra junk
+  local up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")     &&
+  local up_spell_name=$(echo $SPELL | tr "-" "_")         &&
+  local tempopts="${up_spell_name}_OPTS"                  &&
+  OPTS="${!tempopts} $OPTS"                               &&
+  OPTS="$OPTS --build=${BUILD}"                           &&
+  #If these switches are used, they _may_ stop distcc and ccache from working
+  # for some spells (bug 3798)
+  #  We could write wrappers for all of the possible binaries
+  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+
+  ./configure --prefix=${INSTALL_ROOT}/usr                 \
+          --sysconfdir=${INSTALL_ROOT}/etc                 \
+       --localstatedir=${INSTALL_ROOT}/var                 \
+              --mandir=${INSTALL_ROOT}/usr/share/man       \
+             --infodir=${INSTALL_ROOT}/usr/share/info      \
+                       $OPTS
+}
+
+#---
+## Default make
+#---
+
+function default_build_make(){
+  make
+}

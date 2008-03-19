@@ -1,7 +1,3 @@
-# Do not compile/install su, coreutils provides that
-# Bug #4008
-patch  -p1  <  ${SCRIPT_DIRECTORY}/su.patch  &&
-
 # Do not install default pam configuration files
 sedit 's|pam.d||' etc/Makefile.in  &&
 

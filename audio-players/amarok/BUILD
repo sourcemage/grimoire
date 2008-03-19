@@ -1,2 +1,2 @@
 OPTS="$OPTS --without-arts" &&
-default_build
+default_kde3_build

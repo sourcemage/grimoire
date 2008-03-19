@@ -1,1 +1,2 @@
+touch *
 source  $SECTION_DIRECTORY/KDE_BUILD

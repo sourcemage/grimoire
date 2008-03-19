@@ -1,0 +1,40 @@
+#!/bin/bash
+
+PROGRAM=/usr/bin/farmerjoe
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/sysconfig/farmerjoe-appserver
+. /etc/init.d/smgl_init
+
+start()
+{
+	echo "Starting Farmerjoe Appserver..."
+	su -c "$PROGRAM --appserver >> ${LOG_FILE} 2>&1"  $USER &
+	evaluate_retval
+	echo $(ps aux|grep farmerjoe|grep -- "--appserver"|awk '{print $2}') > /var/run/farmerjoe-appserver.pid
+}
+
+stop()
+{
+	echo "Stopping Farmerjoe Appserver..."
+	if [[ -e /var/run/farmerjoe-appserver.pid ]]
+	then
+		kill $(cat /var/run/farmerjoe-appserver.pid)
+		evaluate_retval
+		rm -f /var/run/farmerjoe-appserver.pid
+	else
+		echo "Farmerjoe Appserver is not running"
+	fi	
+}
+
+status()
+{
+	if [[ -e /var/run/farmerjoe-appserver.pid ]]
+	then
+		echo "Farmerjoe Appserver is running as $(cat /var/run/farmerjoe-appserver.pid)"
+	else
+		echo "Farmerjoe Appserver is not running"
+	fi
+}
+

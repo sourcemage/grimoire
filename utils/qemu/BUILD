@@ -31,11 +31,11 @@ if grep -q softmmu <<< "$QEMU_ARCHS"; then
 fi  &&
 
 
-./configure --build=$BUILD             \
-           --prefix=$INSTALL_ROOT/usr  \
-       --sysconfdir=$INSTALL_ROOT/etc  \
-    --localstatedir=$INSTALL_ROOT/var  \
-      --target-list="$QEMU_ARCHS"      \
-                    $OPTS              &&
+./configure --prefix=$INSTALL_ROOT/usr  \
+       --target-list="$QEMU_ARCHS"      \
+                     $OPTS              &&
+#            --build=$BUILD             \
+#       --sysconfdir=$INSTALL_ROOT/etc  \
+#    --localstatedir=$INSTALL_ROOT/var  \
 
 make
