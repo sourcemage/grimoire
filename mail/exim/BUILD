@@ -158,6 +158,11 @@ then
   echo  "SUPPORT_MOVE_FROZEN_MESSAGES=yes"  >>  Local/Makefile
 fi  &&
 
+if  [[  "$EXIM_DEMIME"  ==  "y"  ]]
+then
+  echo  "WITH_OLD_DEMIME=yes"  >>  Local/Makefile
+fi  &&
+
 echo  "BIN_DIRECTORY=/usr/sbin"          >>  Local/Makefile  &&
 echo  "CONFIGURE_FILE=/etc/exim.conf"    >>  Local/Makefile  &&
 echo  "SPOOL_DIRECTORY=/var/spool/mail"  >>  Local/Makefile  &&

@@ -1,2 +1,2 @@
-./0 --prefix=${INSTALL_ROOT}/usr
+cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_ROOT}/usr . &&
 make

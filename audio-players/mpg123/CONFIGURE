@@ -1,12 +1,20 @@
+. $GRIMOIRE/config_query_multi.function &&
 message "${MESSAGE_COLOR}Optimization is chosen automatically now, though you can force your will via custom spell options.$DEFAULT_COLOR" &&
-config_query_list MPG123_AUDIO "choose audio output (will possibly add dependencies)" \
-  oss \
-  alsa \
-  portaudio \
-  jack \
-  esd \
-  nas \
-  sdl \
-  dummy &&
-config_query_option MPG123_OPTS "gapless mp3 playback?" y "--enable-gapless" "--disable-gapless" &&
-config_query_string MPG123_SEEKTABLE "seektable size" 2000
+config_query_option MPG123_MODULES "Build output modules?" y \
+  --enable-modules --disable-modules &&
+local modlist="oss alsa portaudio jack esd nas sdl \
+               pulse arts dummy auto" &&
+message "${MESSAGE_COLOR}\"auto\" will select (a) working output(s) at build time, disregarding spell dependencies.$DEFAULT_COLOR" &&
+if [[ "$MPG123_MODULES" == "--enable-modules" ]]; then
+  config_query_multi MPG123_AUDIO "Select the modules you want:" \
+  $modlist
+else
+  config_query_list MPG123_AUDIO "Choose the audio output:" \
+  $modlist
+fi &&
+message "${MESSAGE_COLOR}Gapless playback on by upstream default now.$DEFAULT_COLOR" &&
+# 1000 is upstream default
+message "${MESSAGE_COLOR}Seektable size can be tuned via configure options...$DEFAULT_COLOR" &&
+if [[ "$MPG123_SEEKTABLE" != "" ]]; then
+message "${MESSAGE_COLOR}But I still will use your old setting of $MPG123_SEEKTABLE.$DEFAULT_COLOR"
+fi

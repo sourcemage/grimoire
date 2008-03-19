@@ -6,6 +6,7 @@ OPTS="$OPTS
   --with-libiconv-prefix=$INSTALL_ROOT/usr
   --enable-geometry
   --enable-unicode
+  --enable-graphics_ctx
   --with-gtk=2
 " &&
 if list_find "$WX_CONTRIB" "xrc"

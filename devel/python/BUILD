@@ -1,14 +1,26 @@
-export OPT="$CFLAGS"
-export OPTS="$OPTS --enable-shared --enable-unicode"
-#sedit "s/\['ndbm'\]/\['ndbm', 'gdbm_compat'\]/g" setup.py &&
+OPT="$CFLAGS" &&
+OPTS="$OPTS --enable-shared --enable-unicode" &&
+
+if [[ $IPV6 == y ]]; then
+  OPTS="$OPTS --enable-ipv6"
+fi &&
+
+if [[ $THREADS == y ]]; then
+  OPTS="$OPTS --with-threads"
+fi &&
 
 # The following file from kdebindings has a syntax error that
 # makes Python compilation fail
-local  PYTHON_VERSION=`echo $VERSION|cut -d. -f1,2`
-if [ -f  /usr/lib/python${PYTHON_VERSION}/pydcop.py ];  then
-  mkdir  $SOURCE_DIRECTORY/spell-tmp                     &&
-  mv  /usr/lib/python${PYTHON_VERSION}/pydcop.py  \
-      $SOURCE_DIRECTORY/spell-tmp
-fi  &&
+local PYTHON_VERSION=`echo $VERSION|cut -d. -f1,2`
+if [[ -f $INSTALL_ROOT/usr/lib/python${PYTHON_VERSION}/pydcop.py ]]; then
+  mkdir $SOURCE_DIRECTORY/spell-tmp &&
+  mv $INSTALL_ROOT/usr/lib/python${PYTHON_VERSION}/pydcop.py \
+    $SOURCE_DIRECTORY/spell-tmp
+fi &&
 
-default_build
+default_build &&
+
+# python -c '"(c)", "lynx"*3'
+make install DESTDIR=$SOURCE_DIRECTORY/anywhere &&
+
+message "Fake stage complete, installing to real path.."

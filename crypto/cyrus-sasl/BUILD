@@ -21,10 +21,12 @@ OPTS="$OPTS \
 
 sedit 's|extern sasl_global_callbacks_t global_callbacks;||g'           lib/saslint.h &&
 sedit 's|^\(sasl_global_callbacks_t\s\+global_callbacks;\)|static \1|g' lib/server.c  &&
+make_single   &&
 default_build &&
 
 if [[ "$CS_MECH" =~ 'saslauthd' ]]; then
   pushd saslauthd    &&
   make testsaslauthd &&
   popd
-fi
+fi  &&
+make_normal

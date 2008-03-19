@@ -1,3 +1,1 @@
-echo 'y'               |
-perl  Makefile.PL  -n &&
-make
+yes | default_build_perl

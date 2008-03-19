@@ -1,7 +1,10 @@
-OPTS="$CAPABILITIES $OPTS" &&
-./configure  --sysconfdir=${INSTALL_ROOT}/etc  \
-             --prefix=${INSTALL_ROOT}/usr      \
-             --with-largefile                  \
-             --with-everything                 \
-             $OPTS                             &&
-make
+OPTS="$CAPABILITIES $OPTS"   &&
+OPTS="$PUREFTPD_HUMOR $PUREFTPD_PARANOID $PUREFTPD_SYSQUOTA $OPTS" &&
+OPTS="$PUREFTPD_ALTLOG $PUREFTPD_PUREDB $PUREFTPD_EXTAUTH $OPTS"   &&
+OPTS="$PUREFTPD_FORTUNE $PUREFTPD_THROTTLE $PUREFTPD_RATIOS $OPTS"   &&
+OPTS="$PUREFTPD_QUOTA $PUREFTPD_FTPWHO $PUREFTPD_SCRIPT $PUREFTPD_VHOST $OPTS"   &&
+OPTS="$PUREFTPD_VCHROOT $PUREFTPD_DIRALIASES $PUREFTPD_PERUSERLIMIT $OPTS"   &&
+OPTS="$PUREFTPD_PRIVSEP $PUREFTPD_RFC2640 $OPTS"   &&
+OPTS="--with-language=${PUREFTPD_LANG} $OPTS" &&
+OPTS="--with-largefile $OPTS" &&
+default_build

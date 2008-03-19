@@ -1,1 +1,1 @@
-PERL_MM_USE_DEFAULT=1  .  "$SECTION_DIRECTORY/PERL_BUILD"
+echo n | default_build_perl

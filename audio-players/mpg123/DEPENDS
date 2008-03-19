@@ -1,9 +1,18 @@
-case ${MPG123_AUDIO} in
+persistent_add MPG123_WITH_AUDIO &&
+MPG123_WITH_AUDIO="" &&
+for i in $MPG123_AUDIO
+do
+  local add=$i
+case $i in
+  auto)
+    MPG123_WITH_AUDIO=""
+    add=""
+  ;;
   esd)
     depends esound
   ;;
   jack)
-    depends jack
+    depends JACK-DRIVER
   ;;
   libao)
     depends libao
@@ -11,7 +20,7 @@ case ${MPG123_AUDIO} in
   oss)
   ;;
   portaudio)
-    depends portaudio
+    depends PORTAUDIO
   ;;
   nas)
     depends nas
@@ -22,7 +31,18 @@ case ${MPG123_AUDIO} in
   sdl)
     depends sdl
   ;;
-  dummy)
-    message "building mpg123 without audio device output (only raw and wav/au)"
+  pulse)
+    depends pulseaudio
   ;;
-esac
+  arts)
+    depends arts
+  ;;
+esac &&
+if [[ "$add" != "" ]]; then
+  MPG123_WITH_AUDIO="$MPG123_WITH_AUDIO,$add"
+fi
+done &&
+# Use libtool's libltdl.
+if [[ "$MPG123_MODULES" == "--enable-modules" ]]; then
+  depends libtool
+fi
