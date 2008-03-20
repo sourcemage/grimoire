@@ -18,7 +18,4 @@ else
   OPTS="$OPTS  --disable-ipv6"
 fi  &&
 
-# Fix for gcc 3.4:
-sedit  "s:};:}:"  libxmms/xmmsctrl.h  &&
-
 default_build

@@ -36,11 +36,7 @@ esac  &&
 
 #Check for xorg or xserver and pass location of xpm
 if [ "$PHP5_X11LIBS" == "y" ]; then
-   if check_if_xorg_modular_libs; then
-       OPTS="$OPTS --with-xpm-dir=/usr"
-   else
-       OPTS="$OPTS --with-xpm-dir=/usr/X11R6/lib"
-   fi
+  OPTS="$OPTS --with-xpm-dir=/usr"
 fi &&
 
 #check to see if internal GD requested
@@ -78,8 +74,11 @@ fi &&
 make                                               &&
 
 # safety precaution against earlier PHP installations removing httpd.conf
-# we can remove this sedit after a couple of ISOs (today's 2003-11-05)
-if  [  -f  $INSTALL_LOGS/$SPELL-*  ]
-   then  sedit 's|.*/httpd\.conf.*||g'  $INSTALL_LOGS/$SPELL-*
-fi
-
+pushd "$INSTALL_LOGS" &>/dev/null
+local each
+for each in $SPELL-*; do
+  if test -f "$each"; then
+    sedit 's|.*/httpd\.conf.*||g'  "$each" 
+  fi
+done
+popd &>/dev/null

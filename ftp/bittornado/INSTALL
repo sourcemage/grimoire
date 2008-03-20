@@ -1,0 +1,27 @@
+# Sanitize the filenames of the manpages on user request
+case  $BITTORNADO_MANSTYLE in
+
+    "man_programname")
+        rename .bittornado. . docs/man/*.bittornado.1
+    ;;
+
+    "man_programname.py")
+        # First, bring all extensions to .1
+        # and then add the .py in front of the .1
+        rename .bittornado. . docs/man/*.bittornado.1  &&
+        rename .1 .py.1 docs/man/*.1
+    ;;
+
+    # "as_defined_by_the_authors") , as well as *)
+    # Assume a NoOp here as default.
+esac  &&
+
+# manpages go to /usr/share/oc/bittornado/docs/man
+install -m 644  \
+        --target-directory=${INSTALL_ROOT}/usr/share/man/man1/  \
+        docs/man/*.1  &&
+
+# We don't want the CVS artefacts in /usr/share/doc
+rm -r docs/CVS  &&
+
+./setup.py install --prefix=${INSTALL_ROOT}/usr

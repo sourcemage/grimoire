@@ -45,10 +45,15 @@ fi  &&
 
 OPTS="$OPTS --enable-add-ons=${ADDONS/ /,}"  &&
 
-#
-# Fixes Bug #8595
-#
-CFLAGS="-Os $CFLAGS"  &&
+if [ "$GLIBC_NPTL" = "y" ]
+then
+  CFLAGS="-O2 ${CFLAGS//-Os/}"
+else
+  #
+  # Fixes Bug #8595
+  #
+  CFLAGS="-Os $CFLAGS"
+fi &&
 
 export  CFLAGS="${CFLAGS/-ffast-math/}"  &&
 export  CC=gcc                           &&

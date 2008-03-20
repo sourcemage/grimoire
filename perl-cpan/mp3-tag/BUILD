@@ -1,3 +1,2 @@
-make_single        &&
-perl  Makefile.PL  &&
-make               
+default_build_perl &&
+make_normal

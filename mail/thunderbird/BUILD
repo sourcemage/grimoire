@@ -1,3 +1,5 @@
+cd  $SOURCE_DIRECTORY/mozilla  &&
+
 THUNDERBIRD_HOME=${INSTALL_ROOT}/usr/lib/thunderbird &&
 export  MOZ_THUNDERBIRD="1"   &&
 

@@ -1,0 +1,3 @@
+list_remove ASK EMPTY1 EMPTY2 EMPTY3 EMPTY4 EMPTY5 EMPTY6
+OPTS="$ASK $OPTS" &&
+default_build

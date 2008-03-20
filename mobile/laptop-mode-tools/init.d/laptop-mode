@@ -14,53 +14,101 @@ NEEDS="+local_fs"
 
 test -f /usr/sbin/laptop_mode || exit 0
 
-#. /lib/lsb/init-functions
-
 # Enable laptop mode when the system is booted when running on battery.
 
-TEMPFILE=`mktemp`
-echo "Failed to start laptop mode" > $TEMPFILE
-
-
-trap "cat $TEMPFILE; rm $TEMPFILE; exit 10" HUP INT ABRT QUIT SEGV TERM
-set -e
-
 function start() {
-    touch /var/run/laptop-mode-enabled
-    $PROGRAM auto > $TEMPFILE
-    cat $TEMPFILE
+    TEMPFILE=`mktemp`
+
+    mkdir -p /var/run/laptop-mode-tools
+    touch /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM auto > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
+    if [ -f $TEMPFILE ] ; then
+       rm $TEMPFILE
+    fi
 }
 
 function restart() {
+    TEMPFILE=`mktemp`
+
     # Full restart: first stop laptop mode completely (to restore default mount options etc.)
-    rm -f /var/run/laptop-mode-enabled
-    $PROGRAM stop > $TEMPFILE
-    cat $TEMPFILE
-    
+    mkdir -p /var/run/laptop-mode-tools
+    rm -f /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM stop > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
     # Now remove files containing stored status, re-enable, and start it up again.
-    rm -f /var/run/laptop-mode-*
-    touch /var/run/laptop-mode-enabled
-    $PROGRAM auto force > $TEMPFILE
-    cat $TEMPFILE
+    rm -f /var/run/laptop-mode-tools/*
+    touch /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM auto force > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
+    if [ -f $TEMPFILE ] ; then
+       rm $TEMPFILE
+    fi
 }
 
 function reload() {
+    TEMPFILE=`mktemp`
+
     # Full restart: first stop laptop mode completely (to restore default mount options etc.)
-    rm -f /var/run/laptop-mode-enabled
-    $PROGRAM stop > $TEMPFILE
-    cat $TEMPFILE
-    
+    mkdir -p /var/run/laptop-mode-tools
+    rm -f /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM stop > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
     # Now remove files containing stored status, re-enable, and start it up again.
-    rm -f /var/run/laptop-mode-*
-    touch /var/run/laptop-mode-enabled
-    $PROGRAM auto force > $TEMPFILE
-    cat $TEMPFILE
+    rm -f /var/run/laptop-mode-tools/*
+    touch /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM auto force > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
+    if [ -f $TEMPFILE ] ; then
+       rm $TEMPFILE
+    fi
 }
 
 function stop() {
-    rm -f /var/run/laptop-mode-enabled
-    $PROGRAM stop > $TEMPFILE
-    cat $TEMPFILE
+    TEMPFILE=`mktemp`
+
+    rm -f /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM stop > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
+    if [ -f $TEMPFILE ] ; then
+       rm $TEMPFILE
+    fi
 }
 
 function status() {

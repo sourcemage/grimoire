@@ -16,6 +16,6 @@ case "${SMGL_COMPAT_ARCH[0]}" in
     ;;
 esac &&
 
-OPTS="$OPTS --with-gnu-ld --program-suffix=-cvs -C"
+OPTS="$OPTS --with-gnu-ld --program-suffix=-svn -C --enable-unicode"
 
 default_build

@@ -1,5 +1,4 @@
-  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
-patch -p0 <  $SPELL_DIRECTORY/inc.diff &&
+[[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=$HOST"
 
 ./configure  --host=${BUILD}                           \
              --prefix=${TRACK_ROOT}/usr              \
