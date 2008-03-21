@@ -7,6 +7,7 @@
 rc=0
 commit=$1
 [[ -z $commit ]] && echo no commit specified && exit 100
+[[ -f ChangeLog ]] || { echo run me from the top dir; exit 99; }
 
 # check if commit diff does not contain a HISTORY/ChangeLog header
 # it also must contain diff changes (this enables merging of bins)
@@ -24,8 +25,10 @@ else
   for diff in xx*; do
     if ! grep -q "+++.*\(HISTORY\|ChangeLog\)" $diff; then
       if ! grep -q "^Binary file" $diff; then
+        file=$(sed -n '/^+++ / s,^[^/]*/,,p' $diff)
         patch -p1 < $diff
         new_rc=$?
+        git add "$file"
         [[ $rc == 0 ]] && rc=$new_rc
       else
         file=$(sed -n '/^diff --git/ { s,^[^/]*/,,; s, .*$,,p} ' $diff)
@@ -34,6 +37,7 @@ else
           echo "Warning, nonexsitent file: $file"
         else # new or updated file
           git show $commit:"$file" > "$file"
+          git add "$file"
         fi
       fi
       echo
@@ -81,6 +85,7 @@ else
 
       cat $diff $file > $file.new
       mv $file.new $file
+      git add $file # needed when cherrypicking new spells
       echo
     fi
   done

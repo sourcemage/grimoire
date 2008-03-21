@@ -1,26 +1,18 @@
 #
-# Account for packaging differences between the stable and devel version
-#
-local  _src  &&
-
-#
 # Funny stuff needed because the source is a badly built zip archive
 #
-if [[ $JACKDMP_VCS != 'y' ]]
+if [[ $JACKDMP_VCS != y ]]
 then
   mkdir -p  "$SOURCE_DIRECTORY"  &&
   cd  "$SOURCE_DIRECTORY"        &&
   unpack_file                    &&
   cd  "${SPELL}_$VERSION"        &&
-  _src="src/"
+
+  sed -i  "s|/usr/local|/usr|"  src/linux/Makefile  &&
+  if [[ $JACKDMP_TMPDIR && $JACKDMP_TMPDIR != '/dev/shm' ]]
+  then
+    sed -i  "s|/dev/shm|$JACKDMP_TMPDIR|"  src/common/JackConstants.h
+  fi
 else
-  default_pre_build        &&
-  cd  "$SOURCE_DIRECTORY"
-fi  &&
-
-sed -i  "s|/usr/local|/usr|"  ${_src}linux/Makefile  &&
-
-if [[ $JACKDMP_TMPDIR && $JACKDMP_TMPDIR != '/dev/shm' ]]
-then
-  sed -i  "s|/dev/shm|$JACKDMP_TMPDIR|"  ${_src}common/JackConstants.h
+  default_pre_build
 fi
