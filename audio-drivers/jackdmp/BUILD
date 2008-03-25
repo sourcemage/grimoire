@@ -1,7 +1,9 @@
 if [[ $JACKDMP_VCS != y ]]
 then
   cd  "$SOURCE_DIRECTORY/${SPELL}_$VERSION/src/linux"  &&
-  make
+  make_single &&
+  make &&
+  make_normal
 else
   cd  "$SOURCE_DIRECTORY"                            &&
   scons  $JACKDMP_EXAMPLES  $JACKDMP_MIMIC  $OPTS    \
