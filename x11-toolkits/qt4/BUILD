@@ -1,34 +1,36 @@
-export QTDIR=$SOURCE_DIRECTORY  &&
-export LD_LIBRARY_PATH=$SOURCE_DIRECTORY/lib:$LD_LIBRARY_PATH &&
+export  QTDIR="$SOURCE_DIRECTORY"                                 &&
+export  LD_LIBRARY_PATH="$SOURCE_DIRECTORY/lib:$LD_LIBRARY_PATH"  &&
 
-OPTS="$QT_DEBUG   \
-      $QT_NIS     \
-      $QT_XRAMA   \
-      $QT_GIF     \
-      $QT_EXCEPT  \
-      $QT_PCH     \
-      $QT_QT3     \
-      $QT_DEMO demos   \
-      $QT_EXAMPLE examples \
-      $QT_TOOLS tools  \
+OPTS="$QT_DEBUG               \
+      $QT_NIS                 \
+      $QT_XRAMA               \
+      $QT_GIF                 \
+      $QT_EXCEPT              \
+      $QT_PCH                 \
+      $QT_QT3                 \
+      $QT_DEMO demos          \
+      $QT_EXAMPLE examples    \
+      $QT_TOOLS tools         \
       $QT_TRANS translations  \
-      $OPTS"      &&
-if [[ x${QT_DEBUG} == "x" ]];then
-  OPTS="-no-separate-debug-info ${OPTS}"
-fi &&
+      $OPTS"                  &&
 
-./configure   -confirm-license                                                             \
-                             -prefix $INSTALL_ROOT/usr                                     \
-                             -bindir $INSTALL_ROOT/usr/bin/qt4                             \
-                             -docdir $INSTALL_ROOT/usr/share/doc/qt4                       \
-                             -plugindir $INSTALL_ROOT/usr/lib/qt4/plugins                  \
-                             -sysconfdir $INSTALL_ROOT/etc/qt4                             \
-                             -translationdir $INSTALL_ROOT//usr/share/doc/qt4/translations \
-                             -examplesdir $INSTALL_ROOT/usr/share/doc/qt4/examples         \
-                             -demosdir $INSTALL_ROOT/usr/share/doc/qt4/demos               \
-                             -datadir $INSTALL_ROOT/usr/share/qt4                          \
-                             -platform linux-g++                                           \
-                             -stl                                                          \
-                             $OPTS                                                         &&
+if [[ $QT_VER == 'snapshot' || $QT_VER == 'prerelease' ]]
+then
+  OPTS="$QT_WEBKIT $OPTS"
+fi  &&
+
+./configure  -confirm-license                                                 \
+             -prefix  "$INSTALL_ROOT/usr"                                     \
+             -bindir  "$INSTALL_ROOT/usr/bin/qt4"                             \
+             -docdir  "$INSTALL_ROOT/usr/share/doc/qt4"                       \
+             -plugindir  "$INSTALL_ROOT/usr/lib/qt4/plugins"                  \
+             -sysconfdir  "$INSTALL_ROOT/etc/qt4"                             \
+             -translationdir  "$INSTALL_ROOT//usr/share/doc/qt4/translations" \
+             -examplesdir  "$INSTALL_ROOT/usr/share/doc/qt4/examples"         \
+             -demosdir  "$INSTALL_ROOT/usr/share/doc/qt4/demos"               \
+             -datadir  "$INSTALL_ROOT/usr/share/qt4"                          \
+             -platform  linux-g++                                             \
+             -stl                                                             \
+             $OPTS                                                            &&
 
 make
