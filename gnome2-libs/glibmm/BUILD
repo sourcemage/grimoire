@@ -1,7 +1,7 @@
-if [ "$FULLDOCS" == "y" ]; then
+if [[ $FULLDOCS == y ]]; then
    OPTS="$OPTS --enable-fulldocs"
 else
    OPTS="$OPTS --disable-fulldocs"
-fi                                  &&
+fi &&
 
 default_build
