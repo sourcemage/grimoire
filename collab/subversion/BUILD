@@ -22,8 +22,6 @@ OPTS="$OPTS --disable-debug --disable-static --disable-mod-activation --enable-d
 make_single &&
 default_build &&
 
-( make external-all && make LT_LDFLAGS="-L${INSTALL_ROOT}/usr/lib)" local-all ) &&
-
 if [[ "$SVN_PERL"   == y ]]; then
   mkdir -p subversion/bindings/swig/perl/native/blib/arch/auto/SVN/{_Client,_Delta,_Fs,_Ra,_Repos,_Wc} &&
   make swig-pl
