@@ -1,0 +1,16 @@
+default_pre_build &&
+cd $SOURCE_DIRECTORY &&
+
+# assure we don't use the included libs by accident
+rm -Rf neon apr apr-util &&
+
+# this is one of the lovely fixes for building perl with apr 1.x
+patch -p1 < ${SCRIPT_DIRECTORY}/subversion-apr_cppflags.patch &&
+
+sedit 's,\(subversion/svnversion/svnversion.*\)\(>.*svn-revision.txt\),echo "exported" \2,' Makefile.in &&
+sedit 's/\(NEON_ALLOWED_LIST=.* 0.26.4\)"/\1 0.27.2 0.28.0 0.28.1"/' configure.in &&
+sedit "s:apr-config:apr-1-config:g" build/ac-macros/{find_,}ap* &&
+sedit "s:apu-config:apu-1-config:g" build/ac-macros/{find_,}ap* &&
+
+autoreconf -v -f &&
+libtoolize -f
