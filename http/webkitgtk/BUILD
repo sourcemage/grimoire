@@ -1,5 +1,2 @@
-OPTS="$WEBKIT_SVG $OPTS"
-
-./autogen.sh --prefix=$INSTALL_ROOT/usr \
-             $OPTS &&
-make
+OPTS="$WEBKIT_SVG $OPTS"  &&
+default_build
