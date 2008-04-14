@@ -10,4 +10,3 @@ OPTS="$OPTS --build=${BUILD}"
            --infodir=${INSTALL_ROOT}/usr/share/info  \
                      $OPTS                 &&
 make
-
