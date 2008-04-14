@@ -81,6 +81,11 @@ elif  [[  "$EXIM_TLS"  ==  "openssl"  ]];  then
   echo  "TLS_LIBS=-lssl -lcrypto" >> Local/Makefile
 fi  &&
 
+if  [[  "$EXIM_IPV6"  ==  "y"  ]]
+then
+  echo  "HAVE_IPV6=yes"  >>  Local/Makefile
+fi  &&
+
 if  [[  "$EXIM_MAILDIR"  ==  "y"  ]]
 then
   echo  "SUPPORT_MAILDIR=yes"  >>  Local/Makefile

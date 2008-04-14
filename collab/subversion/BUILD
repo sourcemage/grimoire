@@ -16,12 +16,16 @@ fi &&
 
 if ! [[ -x configure ]]; then ./autogen.sh; fi &&
 
-
-OPTS="$OPTS --disable-debug --disable-static --disable-mod-activation --enable-dso --enable-shared --disable-neon-version-check" &&
+CFLAGS="${CFLAGS} $(/usr/bin/apr-1-config --cppflags)" &&
+SWIG_LDFLAGS="${LDFLAGS}" &&
+OPTS="$OPTS --disable-debug --disable-static --disable-mod-activation --enable-dso --enable-shared --disable-experimental-libtool" &&
 make_single &&
 default_build &&
 
-if [[ "$SVN_PERL"   == y ]]; then make swig-pl; fi &&
+if [[ "$SVN_PERL"   == y ]]; then
+  mkdir -p subversion/bindings/swig/perl/native/blib/arch/auto/SVN/{_Client,_Delta,_Fs,_Ra,_Repos,_Wc} &&
+  make swig-pl
+fi &&
 if [[ "$SVN_PYTHON" == y ]]; then make swig-py; fi &&
 if [[ "$SVN_RUBY"   == y ]]; then make swig-rb; fi &&
 
