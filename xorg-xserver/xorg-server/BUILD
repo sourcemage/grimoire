@@ -18,5 +18,6 @@ OPTS="${XORG_SERVER_OPTS}                                     \
       --with-dri-driver-path=$TRACK_ROOT/usr/lib/modules/dri  \
       --disable-xprint                                        \
       --disable-dmx                                           \
+      --disable-xwin                                          \
       ${OPTS}"                                                &&
 default_build
