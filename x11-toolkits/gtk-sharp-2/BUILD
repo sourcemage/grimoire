@@ -1,3 +1,4 @@
+aclocal        &&
 autoconf       &&
 make_single    &&
 default_build  &&
