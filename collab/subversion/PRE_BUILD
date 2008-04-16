@@ -4,13 +4,18 @@ cd $SOURCE_DIRECTORY &&
 # assure we don't use the included libs by accident
 rm -Rf neon apr apr-util &&
 
-# this is one of the lovely fixes for building perl with apr 1.x
-patch -p1 < ${SCRIPT_DIRECTORY}/subversion-apr_cppflags.patch &&
+if [[ "$(get_spell_provider $SPELL APR)" == "apr" ]] || \
+   [[ "$(get_spell_provider $SPELL APU)" == "apr-util" ]]; then
+  message "${MESSAGE_COLOR}Configuring ${SPELL} for APR/APR-UTIL 1.x...${DEFAULT_COLOR}" &&
 
-sedit 's,\(subversion/svnversion/svnversion.*\)\(>.*svn-revision.txt\),echo "exported" \2,' Makefile.in &&
-sedit 's/\(NEON_ALLOWED_LIST=.* 0.26.4\)"/\1 0.27.2 0.28.0 0.28.1"/' configure.in &&
-sedit "s:apr-config:apr-1-config:g" build/ac-macros/{find_,}ap* &&
-sedit "s:apu-config:apu-1-config:g" build/ac-macros/{find_,}ap* &&
+  # this is one of the lovely fixes for building perl with apr 1.x
+  patch -p1 < ${SPELL_DIRECTORY}/subversion-apr_cppflags.patch &&
 
-autoreconf -v -f &&
-libtoolize -f
+  sedit "s:apr-config:apr-1-config:g" build/ac-macros/{find_,}ap* &&
+  sedit "s:apu-config:apu-1-config:g" build/ac-macros/{find_,}ap* &&
+  sedit 's,\(subversion/svnversion/svnversion.*\)\(>.*svn-revision.txt\),echo "exported" \2,' Makefile.in &&
+  sedit 's/\(NEON_ALLOWED_LIST=.* 0.26.4\)"/\1 0.27.2 0.28.0 0.28.1"/' configure.in &&
+
+  autoreconf -v -f &&
+  libtoolize -f
+fi

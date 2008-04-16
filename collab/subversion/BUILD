@@ -16,9 +16,15 @@ fi &&
 
 if ! [[ -x configure ]]; then ./autogen.sh; fi &&
 
-CFLAGS="${CFLAGS} $(/usr/bin/apr-1-config --cppflags)" &&
+if [[ "$(get_spell_provider $SPELL APR)" == "apr" ]] || \
+   [[ "$(get_spell_provider $SPELL APU)" == "apr-util" ]]; then
+  CFLAGS="${CFLAGS} $(/usr/bin/apr-1-config --cppflags)" &&
+  OPTS="${OPTS} --disable-debug --disable-static --disable-mod-activation --enable-dso --enable-shared --disable-experimental-libtool"
+else
+  OPTS="${OPTS} --disable-debug --disable-static --disable-mod-activation --enable-dso --enable-shared --disable-neon-version-check"
+fi &&
+
 SWIG_LDFLAGS="${LDFLAGS}" &&
-OPTS="$OPTS --disable-debug --disable-static --disable-mod-activation --enable-dso --enable-shared --disable-experimental-libtool" &&
 make_single &&
 default_build &&
 
