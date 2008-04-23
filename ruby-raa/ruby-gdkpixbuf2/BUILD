@@ -1,2 +1,2 @@
-cd   gdkpixbuf   &&
+cd gdkpixbuf &&
 default_build
