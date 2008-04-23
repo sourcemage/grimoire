@@ -1,2 +1,2 @@
-cd   pango       &&
+cd pango &&
 default_build
