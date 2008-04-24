@@ -1,2 +1,2 @@
-cd   gtk         &&
+cd gtk &&
 default_build
