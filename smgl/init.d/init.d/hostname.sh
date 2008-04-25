@@ -16,6 +16,12 @@ start()
   /bin/hostname "`cat /etc/hostname`"
   evaluate_retval
 
+  if [ -e /etc/defaultdomain ]; then
+    echo "Setting domain name..."
+    /bin/domainname "`cat /etc/defaultdomain`"
+    evaluate_retval
+  fi
+
   echo "Setting up local network interface..."
   ifconfig lo 127.0.0.1 broadcast 127.255.255.255 netmask 255.0.0.0
   evaluate_retval

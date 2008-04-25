@@ -81,6 +81,11 @@ elif  [[  "$EXIM_TLS"  ==  "openssl"  ]];  then
   echo  "TLS_LIBS=-lssl -lcrypto" >> Local/Makefile
 fi  &&
 
+if  [[  "$EXIM_IPV6"  ==  "y"  ]]
+then
+  echo  "HAVE_IPV6=yes"  >>  Local/Makefile
+fi  &&
+
 if  [[  "$EXIM_MAILDIR"  ==  "y"  ]]
 then
   echo  "SUPPORT_MAILDIR=yes"  >>  Local/Makefile
@@ -156,6 +161,11 @@ echo  "EXTRALIBS=$EXTRALIBS"  >>  Local/Makefile  &&
 if  [[  "$EXIM_FROZEN"  ==  "y"  ]]
 then
   echo  "SUPPORT_MOVE_FROZEN_MESSAGES=yes"  >>  Local/Makefile
+fi  &&
+
+if  [[  "$EXIM_DEMIME"  ==  "y"  ]]
+then
+  echo  "WITH_OLD_DEMIME=yes"  >>  Local/Makefile
 fi  &&
 
 echo  "BIN_DIRECTORY=/usr/sbin"          >>  Local/Makefile  &&

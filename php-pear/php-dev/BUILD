@@ -78,8 +78,11 @@ fi &&
 make                                               &&
 
 # safety precaution against earlier PHP installations removing httpd.conf
-# we can remove this sedit after a couple of ISOs (today's 2003-11-05)
-if  [  -f  $INSTALL_LOGS/$SPELL-*  ]
-   then  sedit 's|.*/httpd\.conf.*||g'  $INSTALL_LOGS/$SPELL-*
-fi
-
+pushd "$INSTALL_LOGS" &>/dev/null
+local each
+for each in $SPELL-*; do
+  if test -f "$each"; then
+    sedit 's|.*/httpd\.conf.*||g'  "$each" 
+  fi
+done
+popd &>/dev/null

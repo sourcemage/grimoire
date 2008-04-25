@@ -20,7 +20,7 @@ if [ "$LONGDOUBLE" == "y" ]; then
    OPTS="$OPTS --with-long-double"
 else
    OPTS="$OPTS --without-long-double"  
-fi
+fi                                     &&
 
 make_single    &&
 default_build  &&

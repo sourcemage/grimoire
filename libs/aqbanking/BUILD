@@ -1,4 +1,5 @@
-local BACKENDS="aqhbci aqdtaus"  &&
+# local BACKENDS="aqhbci aqdtaus"  && aqdtaus is broken
+local BACKENDS="aqhbci"  &&
 local FRONTENDS="cbanking"                    &&
 
 if  list_find  "$OPTS"  "--enable-libofx";  then
@@ -37,6 +38,8 @@ fi                                            &&
             --infodir=${INSTALL_ROOT}/usr/share/info   \
             --with-backends="${BACKENDS}"              \
             --with-frontends="${FRONTENDS}"            \
+	    --disable-tutorials			       \
             $OPTS                                      &&
-
-make
+make_single  &&
+make  &&
+make_normal

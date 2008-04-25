@@ -404,13 +404,18 @@ function default_build_python() {
 
 #-------------------------------------------------------------------------
 ## Default install for Python spell.
-## INSTALL_ROOT is used here only if not empty, because some spells can't
-## install with "--root '/'" option.
 #-------------------------------------------------------------------------
 function default_install_python() {
-  python setup.py install ${INSTALL_ROOT:+--root "$INSTALL_ROOT/"}
+  python setup.py install --root "$INSTALL_ROOT/"
 }
 
+#-------------------------------------------------------------------------
+## Default build for Perl spell.
+#-------------------------------------------------------------------------
+function default_build_perl() {
+  perl Makefile.PL $OPTS &&
+  make
+}
 
 #---
 ## disable_pic
@@ -465,9 +470,9 @@ function check_if_xorg_modular_server()
 #  CALL THIS BEFORE YOU DO THE INSTALLING. You can see the postfix spell for an example.
 declare -f note_config_files &>/dev/null ||
 function note_config_files() {
-if check_if_modified "$1"; then 
-  mark_file_modified "$1" 
-fi
+  if check_if_modified "$1"; then 
+    mark_file_modified "$1" 
+  fi
 }
 
 # Functions for default_build and default_install for waf based build systems
@@ -476,36 +481,34 @@ fi
 # and waf is fast without it as well
 
 function waf_build(){
-./waf configure                               \
+  ./waf configure                             \
                 --nocache                     \
                 --prefix=${INSTALL_ROOT}/usr  \
                 $OPTS                         &&
-./waf build
+  ./waf build
 }
 
 function waf_install(){
-./waf install
+  ./waf install
 }
 
 # spells in several  sections now need cmake or qt4
-# 
 cmake_build() {
-cd $SOURCE_DIRECTORY  &&
-mkdir -p build        &&
-cd build              &&
-cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr ../  $OPTS &&
-make
+  cd $SOURCE_DIRECTORY  &&
+  mkdir -p build        &&
+  cd build              &&
+  cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr ../  $OPTS &&
+  make
 }
 
 qt4_build() {
-QTDIR=/usr
-PATH=$QTDIR/bin/qt4:$PATH
-cmake_build
+  [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
+  PATH="$QTDIR/bin/qt4:$PATH"
+  cmake_build
 }
 
-
 # check whether the QT provider is qt4
-
 function check_if_qt4_provider()
 {
   if  [[  "$(get_spell_provider  ${1:-$SPELL}  QT)"  ==  "qt4"  ]]
@@ -516,16 +519,209 @@ function check_if_qt4_provider()
 }
 
 
-
 # build using qt3 or qt4
 # some spells an adapt the build process to either qt3 or qt4
 function build_qt3_or_4()
 {
-  QTDIR=$INSTALL_ROOT/usr
+  [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
   if check_if_qt4_provider
   then
-    PATH=$QTDIR/bin/qt4:$PATH
+    PATH="$QTDIR/bin/qt4:$PATH"
   fi      &&
   qmake   &&
+  make
+}
+
+# cmake flags use : which is an internal sorcery delimiter.
+# In order to facilitate the passing of depends flags, use % instead and call
+# this function at the start of BUILD. Don't use it anywhere else.
+# Example: 
+# DEPENDS: depends kdelibs4 -DCRUFT%BOOL=FALSE; ...
+# BUILD: prepare_cmake_flags; ...
+function prepare_cmake_flags()
+{
+  OPTS="${OPTS//%/:}"
+}
+
+
+#-------------------------------------------------------------------------
+## Print the version of the running kernel.
+#-------------------------------------------------------------------------
+function get_running_kernel_version()
+{
+  # Try the proc interface first because it returns the version of the
+  # running kernel even when unamechange is invoked.
+  [[ -f /proc/sys/kernel/osrelease ]] && cat /proc/sys/kernel/osrelease ||
+    uname -r
+}
+
+#-------------------------------------------------------------------------
+## Print the version of the installed linux spell or, lacking that, "-1".
+## This is just a wrapper for 'installed_version linux' with the exception
+## that this will always print something and not return false.
+#-------------------------------------------------------------------------
+function get_sorcery_kernel_version()
+{
+  installed_version linux || echo "-1"
+}
+
+#-------------------------------------------------------------------------
+## Print the version of the kernel defined in USE_KERNEL_VERSION or, 
+## lacking that, the version of either the installed linux spell or the 
+## running kernel.
+#-------------------------------------------------------------------------
+function get_kernel_version()
+{
+  if [[ $USE_KERNEL_VERSION ]]
+  then
+    echo "$USE_KERNEL_VERSION"
+  else
+    installed_version linux || get_running_kernel_version
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Print the kernel config status of the running kernel for the option 
+## defined in $1.
+## If a configure file is found print the requested config status (if
+## any) and return 0, otherwise return 1.
+#-----------------------------------------------------------------------
+function get_running_kernel_config()
+{
+  if [[ -f /proc/config.gz ]]
+  then
+    zgrep "^$1=" /proc/config.gz | cut -d= -f2
+  else
+    local KVER="$(get_running_kernel_version)"
+    if [[ -f "/boot/config-$KVER" ]]
+    then
+      grep "^$1=" "/boot/config-$KVER" | cut -d= -f2
+    elif [[ -f "/usr/src/linux-$KVER/.config" ]]
+    then
+      grep "^$1=" "/usr/src/linux-$KVER/.config" | cut -d= -f2
+    else
+      return 1
+    fi
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Print the kernel config status of the installed linux spell for the 
+## option defined in $1.
+## If the linux spell is installed and a configure file is found print
+## the requested config status (if any) and return 0, otherwise return
+## 1.
+#-----------------------------------------------------------------------
+function get_sorcery_kernel_config()
+{
+  local KVER="$(installed_version linux)"
+  if [[ $KVER ]]
+  then
+    if [[ -f "/boot/config-$KVER" ]]
+    then
+      grep "^$1=" "/boot/config-$KVER" | cut -d= -f2
+    elif [[ -f "/usr/src/linux-$KVER/.config" ]]
+    then
+      grep "^$1=" "/usr/src/linux-$KVER/.config" | cut -d= -f2
+    else
+      return 1
+    fi
+  else
+    return 1
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Print the kernel config status for the option defined in $1 from the
+## kernel defined in USE_KERNEL_VERSION or, lacking that, from either
+## the installed linux spell or the running kernel.
+## If a configure file is found print the requested config status (if
+## any) and return 0, otherwise return 1.
+#-----------------------------------------------------------------------
+function get_kernel_config()
+{
+  if [[ $USE_KERNEL_VERSION ]]
+  then
+    if [[ -f "/boot/config-$USE_KERNEL_VERSION" ]]
+    then
+      grep "^$1=" "/boot/config-$USE_KERNEL_VERSION" | cut -d= -f2
+    elif [[ -f "/usr/src/linux-$USE_KERNEL_VERSION/.config" ]]
+    then
+      grep "^$1=" "/usr/src/linux-$USE_KERNEL_VERSION/.config" | cut -d= -f2
+    else
+      return 1
+    fi
+  else
+    get_sorcery_kernel_config "$1" || get_running_kernel_config "$1"
+  fi
+}
+
+# this is mostly copied from sorcery real_default_sorcery_build,
+# and kde-apps/KDE_BUILD
+
+# we need a different --includedir value for KDE3 spells,
+# so as to avoid conflicts with KDE4
+
+function default_kde3_build() {
+
+  if [[ -f /etc/profile.d/qt.sh ]]; then
+    . /etc/profile.d/qt.sh
+  fi                                       &&
+  OPTS="$KDE_DEBUG_OPTION                  \
+        $KDE_FINAL_OPTION                  \
+        $KDE_LDFLAGS                       \
+        --enable-dnotify                   \
+        --with-distribution                \
+        --disable-dependency-tracking      \
+        $OPTS"                             &&
+
+  OPTS="$OPTS --build=${BUILD}"
+  #If these switches are used, they _may_ stop distcc and ccache from working
+  # for some spells (bug 3798)
+  #  We could write wrappers for all of the possible binaries
+  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+
+  ./configure --prefix=${INSTALL_ROOT}/usr  \
+          --sysconfdir=${INSTALL_ROOT}/etc  \
+       --localstatedir=${INSTALL_ROOT}/var  \
+              --mandir=${INSTALL_ROOT}/usr/share/man   \
+             --infodir=${INSTALL_ROOT}/usr/share/info  \
+            --includedir=${INSTALL_ROOT}/usr/include/kde3 \
+                       $OPTS                 &&
+  make
+
+}
+
+#---
+## Default configure
+#---
+
+function default_build_configure() {
+  # this is here so that config_query_option can be used without
+  # extra junk
+  local up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")     &&
+  local up_spell_name=$(echo $SPELL | tr "-" "_")         &&
+  local tempopts="${up_spell_name}_OPTS"                  &&
+  OPTS="${!tempopts} $OPTS"                               &&
+  OPTS="$OPTS --build=${BUILD}"                           &&
+  #If these switches are used, they _may_ stop distcc and ccache from working
+  # for some spells (bug 3798)
+  #  We could write wrappers for all of the possible binaries
+  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+
+  ./configure --prefix=${INSTALL_ROOT}/usr                 \
+          --sysconfdir=${INSTALL_ROOT}/etc                 \
+       --localstatedir=${INSTALL_ROOT}/var                 \
+              --mandir=${INSTALL_ROOT}/usr/share/man       \
+             --infodir=${INSTALL_ROOT}/usr/share/info      \
+                       $OPTS
+}
+
+#---
+## Default make
+#---
+
+function default_build_make(){
   make
 }

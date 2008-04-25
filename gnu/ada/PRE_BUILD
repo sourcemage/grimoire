@@ -3,9 +3,35 @@ if [ "$(installed_version gcc)" != "$VERSION" ]; then
   message "Update gcc first.${DEFAULT_COLOR}"
   return 1;
 fi
-default_pre_build                &&
-cd $BUILD_DIRECTORY              &&
-unpack_file 2                    &&
-cd $SOURCE_DIRECTORY             &&
-unpack_file 3                    &&
-mk_source_dir  $SOURCE_DIRECTORY.bld
+
+default_pre_build                     &&
+cd $BUILD_DIRECTORY                   &&
+unpack_file 2                         &&
+cd $SOURCE_DIRECTORY                  &&
+mkdir ${SOURCE3/.tar.bz2/}            &&
+cd  ${SOURCE3/.tar.bz2/}              &&
+unpack_file 3                         &&
+mk_source_dir  $SOURCE_DIRECTORY.bld  &&
+
+#
+# This section is used to build a gnat bootstrap cache
+#
+touch  $SOURCE_DIRECTORY/gcc/cstamp-h.in       &&
+touch  $SOURCE_DIRECTORY/gcc/ada/[es]info.h    &&
+touch  $SOURCE_DIRECTORY/gcc/ada/nmake.ad[bs]  &&
+
+#
+# Set the compiler name to gnatgcc
+#
+for file in `find $SOURCE_DIRECTORY/gcc/ada/ -name '*.ad[sb]'`
+do
+  sedit "s:\"gcc\":\"gnatgcc\":g" $file
+done  &&
+
+sedit 's:(Last3 = "gnatgcc"):(Last3 = "gcc"):'    \
+       $SOURCE_DIRECTORY/gcc/ada/makegpr.adb      &&
+sedit 's:and Nam is "gnatgcc":and Nam is "gcc":'  \
+       $SOURCE_DIRECTORY/gcc/ada/osint.ads
+#
+# End Ada bootstrap cache code
+#

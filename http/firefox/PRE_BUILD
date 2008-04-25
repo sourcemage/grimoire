@@ -1,37 +1,19 @@
-if  [  "$FIREFOX_CVS"  =  "y"   ]              &&
-    [  -f  $SOURCE_CACHE/$FIREFOX_TARBALL  ];  then
-if  [  !  -f  /root/.cvspass  ];  then
-  touch /root/.cvspass
-fi                                                                          &&
+mk_source_dir  $SOURCE_DIRECTORY  &&
+cd  $SOURCE_DIRECTORY             &&
+unpack_file  ''                   &&
+cd  mozilla                       &&
 
-mk_source_dir  $SOURCE_DIRECTORY                                            &&
+if [ "$FIREFOX_CVS" == "n" ]; then
+  patch -p1 < $SCRIPT_DIRECTORY/cairo-fixes.patch &&
+  patch -p0 < $SCRIPT_DIRECTORY/x-lib.patch
+fi  &&
 
-FIREFOX_TARBALL=firefox-1.0+.tar.bz2  &&
-
-    message  "${MESSAGE_COLOR}Unpacking source file $FIREFOX_TARBALL"       \
-             "$for ${SPELL_COLOR}$SPELL${DEFAULT_COLOR}"                    &&
-    tar  jxf  $SOURCE_CACHE/$FIREFOX_TARBALL                                &&
-  message  "${MESSAGE_COLOR}\tIt can take some considerable time to"        \
-           "\tregenerate the cvs tags you will not see much progress or a"  \
-           "\ttime but do not despair, GOOD THINGS are happening in the"    \
-           "\tbackground.${DEFAULT_COLOR}"                                  &&
-  cvs  -z9  -q  -d:pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot        \
-       checkout -PA  -d  mozilla mozilla/client.mk                          &&
-  cd  $SOURCE_DIRECTORY                                                     &&
-  make  -j1  -f  client.mk  checkout  MOZ_CO_FLAGS=-PA  MOZ_CO_PROJECT=browser
-  cd  $BUILD_DIRECTORY                                                      &&
-  message  "${MESSAGE_COLOR}Generating tarball for reuse"                   &&
-  tar  jcf  $FIREFOX_TARBALL  mozilla/                                      &&
-  message  "Moving $FIREFOX_TARBALL to/var/spool/sorcery${DEFAULT_COLOR}"   &&
-  mv  -v  $FIREFOX_TARBALL  $SOURCE_CACHE/
+if [ "$FIREFOX_CVS" == "y" ]; then
+   cp $SCRIPT_DIRECTORY/mozconfig3 .mozconfig
 else
-  default_pre_build  &&
-  cd  $SOURCE_DIRECTORY    &&
-  patch -p0 < $SCRIPT_DIRECTORY/x-lib.patch &&
-  patch -p1 < $SCRIPT_DIRECTORY/cairo-fixes.patch
+   cp $SCRIPT_DIRECTORY/mozconfig  .mozconfig
 fi &&
 
-cp $SCRIPT_DIRECTORY/mozconfig $SOURCE_DIRECTORY/.mozconfig &&
 if [ "$FIREFOX_OFFICIAL" == "y" ]; then
- sedit '24iac_add_options --enable-official-branding' $SOURCE_DIRECTORY/.mozconfig
+ sedit '24iac_add_options --enable-official-branding' .mozconfig
 fi

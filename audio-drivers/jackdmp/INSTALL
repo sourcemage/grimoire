@@ -1,34 +1,28 @@
-#
-# libs & daemon
-#
-make  DESTDIR="$INSTALL_ROOT"  install  &&
-
-#
-# symlink
-#
-if [[ $JACKDMP_SYMLINK == y ]]
+if [[ $JACKDMP_VCS != y ]]
 then
-  message "${MESSAGE_COLOR}Installing symlink$DEFAULT_COLOR"             &&
-  ln -s  "$INSTALL_ROOT/usr/bin/jackdmp"  "$INSTALL_ROOT/usr/bin/jackd"
-fi  &&
+  #
+  # libs & daemon
+  #
+  make  DESTDIR="$INSTALL_ROOT"  install  &&
 
-#
-# headers
-#
-message "${MESSAGE_COLOR}Installing headers$DEFAULT_COLOR"  &&
-cd  "$SOURCE_DIRECTORY/src/common"                          &&
-mkdir -p  "$INSTALL_ROOT/usr/include/jack"                  &&
-local  file  HEADERS="intclient jack ringbuffer statistics  \
-                      thread transport types"               &&
-for file in $HEADERS
-do
-  cp  "$file.h"  "$INSTALL_ROOT/usr/include/jack/"
-done  &&
+  #
+  # pkgconfig file
+  #
+  message "${MESSAGE_COLOR}Installing pkgconfig file$DEFAULT_COLOR"  &&
+  mkdir -p  "$INSTALL_ROOT/usr/lib/pkgconfig"                        &&
+  cp  "$SCRIPT_DIRECTORY/jack.pc"                                    \
+      "$INSTALL_ROOT/usr/lib/pkgconfig/"
+else
+  scons  install  &&
 
-#
-# pkgconfig file
-#
-message "${MESSAGE_COLOR}Installing pkgconfig file$DEFAULT_COLOR"  &&
-mkdir -p  "$INSTALL_ROOT/usr/lib/pkgconfig"                        &&
-cp  "$SCRIPT_DIRECTORY/jack.pc"                                    \
-    "$INSTALL_ROOT/usr/lib/pkgconfig/"
+  if [[ $JACKDMP_MIMIC != 'FULL_MIMIC=yes' ]]
+  then
+    ln -sf  jackdmp  "$INSTALL_ROOT/usr/bin/jackd"
+  fi  &&
+
+  if  is_depends_enabled  $SPELL  doxygen
+  then
+    mkdir -p  "$INSTALL_ROOT/usr/share/doc/$SPELL"       &&
+    cp -r  html/  "$INSTALL_ROOT/usr/share/doc/$SPELL/"
+  fi
+fi

@@ -26,16 +26,7 @@ then
 fi &&
 make_single                        &&
 
-if list_find "$OPTS" yes-x11
-then
-  if [[ "$(get_spell_provider $SPELL  X11-LIBS)" != "xorg-server" ]]; then
-    make X11LIB=/usr/X11R6/lib/libX11.so
-  else
-    make X11LIB=/usr/lib/libX11.so
-  fi
-else
-  make
-fi &&
+make  &&
 
 if [ -e /tmp/netpbm ]; then
    rm -rf /tmp/netpbm              

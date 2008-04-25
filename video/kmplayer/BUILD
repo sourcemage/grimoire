@@ -5,4 +5,4 @@ if ! list_find "$BACKENDS" "gstreamer"; then
   OPTS="$OPTS --without-gstreamer"
 fi  &&
 
-default_build
+default_kde3_build

@@ -1,4 +1,5 @@
 message "if configure fails, unknown camera driver, please reconfigure"  &&
+persistent_add DRIVER  &&
 if  query  "Do you want to (re)configure drivers?" n
   then
     local drivers=$(  sed  's/$/\0 driver off/'  $SCRIPT_DIRECTORY/drivers  )
@@ -12,16 +13,14 @@ if  query  "Do you want to (re)configure drivers?" n
                   0  0  10                                          \
                   all driver on  $drivers  )
 
-    if  [  -z  "$DRIVER"  ]  ;  then
-      message  "No driver selected, defaulting to all."
-      DRIVER='"all"'
-    fi
-
     DRIVER=${DRIVER//\"/}     # Remove all " characters.
     DRIVER=${DRIVER// /,}     # Replace spaces with commas.
     DRIVER=${DRIVER%,}        # Strip any stray comma at the end.
     DRIVER=`echo $DRIVER | tr -d '\t'` # Remove strange leading tab
 
+fi  &&
+if  [  -z  "$DRIVER"  ]  ;  then
+  DRIVER='"all"'
 fi  &&
 
 config_query_string GP_RUN 'which program to run when camera is detected?' '/bin/true' &&

@@ -1,9 +1,15 @@
-if [ "$A4PAPER" == "y" ]; then
+if [[ $A4PAPER == y ]]; then
    OPTS="$OPTS --enable-a4-paper"
-fi                                 &&
+fi &&
 
-if [ "$PSOPI" == "y" ]; then
+if [[ $PSOPI == y ]]; then
    OPTS="$OPTS --enable-opi"
-fi                                 &&
-OPTS="--disable-utils --enable-xpdf-headers $OPTS"  &&
+fi &&
+
+OPTS="--disable-utils --enable-xpdf-headers $OPTS" &&
+
+if is_depends_enabled $SPELL qt4; then
+  export PATH="$INSTALL_ROOT/usr/bin/qt4:$PATH"
+fi &&
+
 default_build

@@ -1,1 +1,1 @@
-make  WRAP_DIR=${INSTALL_ROOT}/usr/lib
+make  WRAP_DIR=${INSTALL_ROOT}/usr/lib  $OPTS

@@ -1,0 +1,180 @@
+--- unix/xorg-x11-server-source/mi/miinitext.c.modular-xorg	2007-03-02 15:45:37.000000000 +0100
++++ unix/xorg-x11-server-source/mi/miinitext.c	2007-03-02 15:45:38.000000000 +0100
+@@ -283,6 +283,9 @@
+ #ifdef MITMISC
+ extern void MITMiscExtensionInit(INITARGS);
+ #endif
++#ifdef VNCEXT
++extern void vncExtensionInit(INITARGS);
++#endif
+ #ifdef XIDLE
+ extern void XIdleExtensionInit(INITARGS);
+ #endif
+@@ -561,6 +564,9 @@
+ #ifdef MITMISC
+     if (!noMITMiscExtension) MITMiscExtensionInit();
+ #endif
++#ifdef VNCEXT
++    vncExtensionInit();
++#endif
+ #ifdef XIDLE
+     if (!noXIdleExtension) XIdleExtensionInit();
+ #endif
+--- unix/xorg-x11-server-source/hw/Makefile.am.modular-xorg	2007-03-02 15:45:38.000000000 +0100
++++ unix/xorg-x11-server-source/hw/Makefile.am	2007-03-02 15:47:10.000000000 +0100
+@@ -30,6 +30,8 @@
+ XPRINT_SUBDIRS = xprint
+ endif
+ 
++XVNC_SUBDIRS = vnc
++
+ # need to add darwin support here
+ 
+ SUBDIRS =			\
+@@ -39,6 +41,7 @@
+ 	$(XVFB_SUBDIRS)		\
+ 	$(XNEST_SUBDIRS)	\
+ 	$(DMX_SUBDIRS)          \
++	$(XVNC_SUBDIRS)		\
+         $(KDRIVE_SUBDIRS)	\
+ 	$(XPRINT_SUBDIRS)
+ 
+--- /dev/null	2007-03-01 10:25:08.783929433 +0100
++++ unix/xorg-x11-server-source/hw/vnc/Makefile.am	2007-03-02 15:45:38.000000000 +0100
+@@ -0,0 +1,85 @@
++noinst_LTLIBRARIES = libvnccommon.la
++libvnccommon_la_SOURCES = \
++		RegionHelper.h     \
++		vncExtInit.cc     \
++		vncExtInit.h      \
++		vncHooks.cc       \
++		vncHooks.h        \
++		XserverDesktop.cc \
++		XserverDesktop.h
++
++libvnccommon_la_CXXFLAGS = \
++		-DVENDOR_RELEASE="$(VENDOR_RELEASE)" \
++		-DVENDOR_STRING="\"$(VENDOR_STRING)\"" \
++		-DGC_HAS_COMPOSITE_CLIP \
++		-DVNC_USE_FB \
++		-I/usr/include/X11 \
++		-I../../../../common \
++		-I../../../vncconfig
++
++bin_PROGRAMS = Xvnc
++
++Xvnc_SOURCES = \
++		xvnc.cc \
++		$(top_srcdir)/Xext/dpmsstubs.c \
++		$(top_srcdir)/Xi/stubs.c \
++		$(top_srcdir)/mi/miinitext.c \
++		$(top_srcdir)/fb/fbcmap.c
++
++Xvnc_LDADD =	$(XORG_CORE_LIBS) \
++		$(XORG_LIBS) \
++		$(XSERVER_LIBS) \
++		../../fb/libfb.la \
++		../../mi/libminimi.la \
++		../../render/librender.la \
++		../../xkb/libxkbstubs.la \
++		../../dbe/libdbe.la \
++		../../Xext/libXext.la \
++		../../XTrap/libxtrap.la \
++		../../record/librecord.la \
++		../xfree86/os-support/libxorgos.la \
++		../../os/libos.la \
++		../xfree86/common/libcommon.la \
++		-lX11 \
++		libvnccommon.la \
++		../../../../common/rfb/librfb.a \
++		../../../../common/rdr/librdr.a \
++		../../../../common/network/libnetwork.a \
++		../../../../common/Xregion/libXregion.a
++
++Xvnc_CFLAGS =  -DHAVE_DIX_CONFIG_H \
++		-DNO_HW_ONLY_EXTS \
++		-DNO_MODULE_EXTS \
++		-DXFree86Server -DVNCEXT
++
++Xvnc_CXXFLAGS = $(Xvnc_CFLAGS) \
++		-DVENDOR_RELEASE="$(VENDOR_RELEASE)" \
++		-DVENDOR_STRING="\"$(VENDOR_STRING)\"" \
++		-DVNC_USE_FB \
++		-I../../../../common \
++		-I../../../vncconfig \
++		-I../../mi \
++		-I ../../render \
++		-I/usr/include/X11
++
++libvnc_la_LTLIBRARIES = libvnc.la
++libvnc_la_LDFLAGS = -module -avoid-version
++libvnc_ladir = $(moduledir)/extensions
++libvnc_la_SOURCES = xf86vncModule.cc
++libvnc_la_LIBADD = \
++		libvnccommon.la \
++		../../../../common/rfb/librfb.a \
++		../../../../common/rdr/librdr.a \
++		../../../../common/network/libnetwork.a \
++		../../../../common/Xregion/libXregion.a
++libvnc_la_CXXFLAGS = \
++		-I../../../../common \
++		-I$(top_srcdir)/hw/xfree86/common \
++		-I$(top_srcdir)/hw/xfree86/os-support \
++		-I$(top_srcdir)/hw/xfree86/os-support/bus \
++		-DXFree86Module -DXFree86LOADER -DIN_MODULE
++
++AM_CXXFLAGS =	$(CFLAGS) \
++		-DVENDOR_RELEASE="$(VENDOR_RELEASE)" \
++		-DVENDOR_STRING="\"$(VENDOR_STRING)\""
++
+--- unix/xorg-x11-server-source/configure.ac.modular-xorg	2007-03-02 15:45:38.000000000 +0100
++++ unix/xorg-x11-server-source/configure.ac	2007-03-02 15:45:38.000000000 +0100
+@@ -1793,6 +1793,7 @@
+ hw/xnest/Makefile
+ hw/xwin/Makefile
+ hw/darwin/Makefile
++hw/vnc/Makefile
+ hw/kdrive/Makefile
+ hw/kdrive/ati/Makefile
+ hw/kdrive/chips/Makefile
+--- unix/xc/programs/Xserver/vnc/Xvnc/xvnc.cc.modular-xorg	2007-03-02 15:45:38.000000000 +0100
++++ unix/xc/programs/Xserver/vnc/Xvnc/xvnc.cc	2007-03-02 15:45:38.000000000 +0100
+@@ -36,8 +36,6 @@
+ extern "C" {
+ #define class c_class
+ #define public c_public
+-#define xor c_xor
+-#define and c_and
+ #ifdef WIN32
+ #include <X11/Xwinsock.h>
+ #endif
+@@ -72,11 +70,8 @@
+ #include "inputstr.h"
+ #include "keysym.h"
+   extern int defaultColorVisualClass;
+-  extern char buildtime[];
+ #undef class
+ #undef public
+-#undef xor
+-#undef and
+ #ifndef VNC_USE_FB
+   extern Bool cfb16ScreenInit(ScreenPtr, pointer, int, int, int, int, int);
+   extern Bool cfb32ScreenInit(ScreenPtr, pointer, int, int, int, int, int);
+@@ -221,7 +216,7 @@
+ 
+   void ddxUseMsg()
+   {
+-    ErrorF("\nXvnc %s - built %s\n%s", XVNCVERSION, buildtime, XVNCCOPYRIGHT);
++    ErrorF("\nXvnc %s\n%s", XVNCVERSION, XVNCCOPYRIGHT);
+     ErrorF("Underlying X server release %d, %s\n\n", VENDOR_RELEASE,
+            VENDOR_STRING);
+     ErrorF("-screen scrn WxHxD     set screen's width, height, depth\n");
+@@ -927,7 +922,7 @@
+ 
+ void InitOutput(ScreenInfo *screenInfo, int argc, char **argv)
+ {
+-  ErrorF("\nXvnc %s - built %s\n%s", XVNCVERSION, buildtime, XVNCCOPYRIGHT);
++  ErrorF("\nXvnc %s\n%s", XVNCVERSION, XVNCCOPYRIGHT);
+   ErrorF("Underlying X server release %d, %s\n\n", VENDOR_RELEASE,
+          VENDOR_STRING);
+   wellKnownSocketsCreated = true;

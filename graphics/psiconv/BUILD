@@ -1,2 +1,2 @@
-patch  -p1  <  $SCRIPT_DIRECTORY/gcc-3.4.patch  &&
+patch  -p1  <  $SCRIPT_DIRECTORY/cp1250.patch  &&
 default_build

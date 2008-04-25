@@ -1,2 +1,0 @@
-  perl  Makefile.PL  &&
-  make               

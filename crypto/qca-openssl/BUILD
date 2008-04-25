@@ -1,4 +1,5 @@
-sed -i -e "s:bin/qmake:bin/qt4/qmake:g" $SOURCE_DIRECTORY/configure &&
+QTDIR=/usr    &&
+PATH=$QTDIR/bin/qt4:$PATH &&
 ./configure $OPTS &&
 make_single  &&
 make &&

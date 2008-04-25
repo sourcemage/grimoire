@@ -1,27 +1,27 @@
+cd $SOURCE_DIRECTORY/mozilla  &&
+
 FIREFOX_HOME=$INSTALL_ROOT/usr/lib/firefox &&
 
 if  spell_ok  Firebird;  then
   dispel Firebird
 fi  &&
-#fix firefox-config file to match installed configuration
-patch -p0 < $SCRIPT_DIRECTORY/firefox-config.patch &&
 
 # Not recommended by http://www.mozilla.org/build to use
 # make install.  Manually install the files.
 
 mkdir -p $INSTALL_ROOT/usr/lib/firefox  &&
-cd $SOURCE_DIRECTORY   &&
 cp -RLv dist/bin/* $INSTALL_ROOT/usr/lib/firefox/  &&
 mkdir -p $INSTALL_ROOT/usr/include/firefox/ &&
 cp -LfRv dist/include/* $INSTALL_ROOT/usr/include/firefox/ &&
 mkdir -p $INSTALL_ROOT/usr/share/idl/firefox/ &&
 cp -LfRv dist/idl/* $INSTALL_ROOT/usr/share/idl/firefox/ &&
 
-#fix install directories in *.pc files.
-sed -i s#usr/local#usr# build/unix/firefox-* &&
-sed -i s#-${VERSION}## build/unix/firefox-* &&
-cp build/unix/firefox*.pc $INSTALL_ROOT/usr/lib/pkgconfig &&
-
+if [ "$FIREFOX_CVS" == "n" ]; then
+  #fix install directories in *.pc files.
+  sed -i s#usr/local#usr# build/unix/firefox-* &&
+  sed -i s#-${VERSION}## build/unix/firefox-* &&
+  cp build/unix/firefox*.pc $INSTALL_ROOT/usr/lib/pkgconfig 
+fi &&
 
 #
 # Script to set MOZILLA_FIVE_HOME
@@ -67,8 +67,16 @@ fi &&
 install  -m  755  -o  root  -g  root  $SCRIPT_DIRECTORY/firefox  \
          $INSTALL_ROOT/usr/bin  &&
 
-# make the pkgconfig files reference the nspr from the standalone nspr spell
-sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-nss.pc  &&
-sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-js.pc  &&
-sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-xpcom.pc &&
-sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-plugin.pc
+if [ "$FIREFOX_CVS" == "n" ]; then
+  # make the pkgconfig files reference the nspr from the standalone nspr spell
+  sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-nss.pc  &&
+  sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-js.pc  &&
+  sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-xpcom.pc &&
+  sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-plugin.pc
+fi  &&
+
+
+# fix up permissions, firefox 2.0.0.8 installs stuff non-readable for
+# anyone but root
+chmod -R go+r /usr/lib/firefox  &&
+chmod go+x /usr/lib/firefox/run-mozilla.sh

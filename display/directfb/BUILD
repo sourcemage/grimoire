@@ -1,11 +1,12 @@
-if  [  -f  /usr/include/linux/fusion.h  ];  then
-  OPTS="$OPTS --enable-multi"
-fi  &&
+OPTS="--with-inputdrivers=$inputdrivers         \
+      --with-gfxdrivers=$gfxdrivers             \
+      $DFB_DEBUG $DFB_NETWORK $DFB_VOODOO       \
+      $DFB_UNIQUE $DFB_V4L $DFB_V4L2 $DFB_TESTS \
+      $OPTS"                                    &&
 
-OPTS="--enable-linux-input           \
-      --with-gfxdrivers=$gfxdrivers  \
-      $OPTS"                         &&
 
-export CPPFLAGS="$CPPFLAGS -I/usr/include/libmpeg3/"  &&
+if is_depends_enabled $SPELL libmpeg3; then
+     export CPPFLAGS="$CPPFLAGS -I/usr/include/libmpeg3/"
+fi &&
 
 default_build
