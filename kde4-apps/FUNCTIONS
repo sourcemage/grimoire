@@ -51,3 +51,21 @@ default_final() {
 default_post_remove() {
   update_databases
 }
+
+
+# some spells need a special prebuild for svn versions
+svn_prebuild() {
+default_pre_build    &&
+cd $SOURCE_DIRECTORY &&
+if [ $VERSION == svn ];then
+# svn version has incomplete CMakeLists.txt,
+# as it was intended to be part of a larger unit, so fix it!
+sed -i '1 a \
+set(CMAKE_MODULE_PATH /opt/share/apps/cmake/modules) \
+find_package(KDE4 REQUIRED) \
+include(KDE4Defaults) \
+include(MacroLibrary) \
+' CMakeLists.txt
+fi
+
+}
