@@ -12,12 +12,8 @@ OPTS="$QT_DEBUG               \
       $QT_EXAMPLE examples    \
       $QT_TOOLS tools         \
       $QT_TRANS translations  \
+      $QT_WEBKIT              \
       $OPTS"                  &&
-
-if [[ $QT_VER == 'snapshot' || $QT_VER == 'prerelease' ]]
-then
-  OPTS="$QT_WEBKIT $OPTS"
-fi  &&
 
 ./configure  -confirm-license                                                 \
              -prefix  "$INSTALL_ROOT/usr"                                     \
