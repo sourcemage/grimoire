@@ -1,1 +1,1 @@
-make SHARED=yes OPT="$CFLAGS"
+make PREFIX=${INSTALL_ROOT}/usr SHARED=yes OPT="$CFLAGS"
