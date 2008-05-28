@@ -1,1 +1,1 @@
-make
+./check.sh && make
