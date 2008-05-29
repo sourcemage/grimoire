@@ -7,10 +7,6 @@ persistent_read  gcc  GCC_LDFLAGS  LDFLAGS  &&
 
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h             &&
 
-if  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64"  ]];  then
-  OPTS="--build=x86_64-pc-linux-gnu  $OPTS"
-fi  &&
-
 cd $SOURCE_DIRECTORY.bld                                   &&
 $SOURCE_DIRECTORY/configure                                \
              --host=$HOST                                  \
