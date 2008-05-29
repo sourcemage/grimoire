@@ -11,10 +11,6 @@ if  [[  "$ARCHITECTURE"  ==  "pentium4"  ||
   CXXFLAGS=${CXXFLAGS//-ffast-math/}
 fi  &&
 
-if  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64"  ]];  then
-  OPTS="--build=x86_64-pc-linux-gnu  $OPTS"
-fi  &&
-
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h             &&
 
 if [[ "$GCC_NOLIB64" == 'y' ]]; then
