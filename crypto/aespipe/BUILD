@@ -1,7 +1,7 @@
 if [[ $AESPIPE_STATIC == y ]]; then
-  LDFLAGS="-static -s" default_build
-else
-  default_build
+  LDFLAGS="-static -s $LDFLAGS"
 fi &&
+
+default_build &&
 
 make tests
