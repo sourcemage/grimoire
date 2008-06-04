@@ -33,11 +33,4 @@ scons \
 	WITH_BF_GAMEENGINE=1    \
 	BF_INSTALLDIR=$SOURCE_DIRECTORY/install &&
 
-# Do not build outside the default tree because of a bug in makesdna compiling 
-#        BF_BUILDDIR=$SOURCE_DIRECTORY/build
-
-install -d ${SOURCE_DIRECTORY}/install/linux2/plugins/include &&
-install -m 644 ${SOURCE_DIRECTORY}/source/blender/blenpluginapi/*.h \
-    ${SOURCE_DIRECTORY}/install/linux2/plugins/include        &&
-cp -a ${SOURCE_DIRECTORY}/release/plugins/* ${SOURCE_DIRECTORY}/install/linux2/plugins &&
-make -C ${SOURCE_DIRECTORY}/install/linux2/plugins
+make -C $SOURCE_DIRECTORY/install/plugins

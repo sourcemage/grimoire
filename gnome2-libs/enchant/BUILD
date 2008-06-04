@@ -1,0 +1,3 @@
+OPTS="$ENCHANT_MYSPELL $ENCHANT_ZEMBEREK $OPTS" &&
+
+default_build

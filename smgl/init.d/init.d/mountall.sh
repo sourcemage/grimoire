@@ -4,7 +4,7 @@
 PROGRAM=/bin/false
 RUNLEVEL=S
 NEEDS="+root_fs"
-WANTS="+modules"
+WANTS="+modules losetup"
 PROVIDES=local_fs
 ESSENTIAL=yes
 
