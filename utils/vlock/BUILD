@@ -5,12 +5,12 @@ then
    VLOCK_CACA_MODULE="caca.so"
 else
    VLOCK_CACA_MODULE=""
-fi
-
-./configure --with-modules="all.so new.so nosysrq.so $VLOCK_CACA_MODULE"  &&
-
+fi &&
 if is_depends_enabled $SPELL linux-pam; then
-  make PREFIX="$INSTALL_ROOT/usr" AUTH_METHOD=pam USE_PAM=y
+  AUTH_METHOD=pam
 else
-  make PREFIX="$INSTALL_ROOT/usr" AUTH_METHOD=shadow USE_PAM=n
-fi
+  AUTH_METHOD=shadow
+fi &&
+# The module path derived from prefix has to work at runtime.
+./configure --prefix="/usr" --enable-$AUTH_METHOD --with-modules="all.so new.so nosysrq.so $VLOCK_CACA_MODULE" &&
+make
