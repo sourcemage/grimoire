@@ -10,7 +10,7 @@ fi &&
 sedit "s:/usr/bin/awk:${TRACK_ROOT}/bin/awk:" utils/convert_isapnp_ids &&
 sedit "s: install-scripts : :" Makefile &&
 
-if [[ $ALSA_SNAPS != y ]]; then
+if [[ $ALSA_GIT != y ]]; then
   sedit "s:root.root:root.audio:" snddevices
 fi &&
 
