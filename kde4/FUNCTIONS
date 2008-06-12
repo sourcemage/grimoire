@@ -25,9 +25,25 @@ default_build() {
 # kde4 also needs a special default_install,
 # to maintain some environment variables
 default_install() {
-  prepare_environment                             &&
+  prepare_environment  &&
 
-  cd $SOURCE_DIRECTORY/build                      &&
+  # make sure that kde4 spells install their D-Bus
+  # service files into the system D-Bus service dir
+
+  local dir1 dir2  &&
+
+  dir1=$(pkg-config --variable=session_bus_services_dir dbus-1 \
+         | cut -d/ -f-4)                                       &&
+  dir2=$(echo $dir1 | cut -d/ -f3-)                            &&
+
+  if [[ "$KDE4DIR" != "$INSTALL_ROOT/usr" ]]  &&
+     [[ ! -s "$KDE4DIR/$dir2" ]]; then
+    mkdir -p "$KDE4DIR/share"     &&
+    ln -sf "$INSTALL_ROOT/$dir1"  \
+           "$KDE4DIR/share"
+  fi  &&
+
+  cd  "$SOURCE_DIRECTORY/build"  &&
   make install
 }
 
