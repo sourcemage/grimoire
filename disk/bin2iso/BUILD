@@ -1,3 +1,1 @@
-{
-gcc /var/spool/sorcery/$SOURCE -o $INSTALL_ROOT/usr/src/$SPELL-$VERSION/$SPELL
-}
+gcc -v $SOURCE_CACHE/$SOURCE -o $SOURCE_DIRECTORY/$SPELL
