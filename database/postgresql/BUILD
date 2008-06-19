@@ -1,3 +1,5 @@
+create_account postgres &&
+
 # -ffast-math breaks compiling. this brings no side-effects
 CFLAGS=${CFLAGS/-ffast-math/} &&
 
@@ -12,6 +14,13 @@ CFLAGS=${CFLAGS/-ffast-math/} &&
             --target=$HOST                              \
             $OPTS                                       &&
 
-make                &&
+make &&
+
+# build cryptographic functions support by default
 cd contrib/pgcrypto &&
-make
+make &&
+
+if is_depends_enabled $SPELL libxml2; then
+  cd ../xml2 &&
+  make
+fi
