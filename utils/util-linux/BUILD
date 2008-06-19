@@ -1,5 +1,8 @@
-OPTS="$OPTS --build=${BUILD}" &
-[[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+OPTS="--build=${BUILD} $OPTS" &&
+
+if [[ $CROSS_INSTALL == on ]]; then
+  OPTS="--host=${HOST} $OPTS"
+fi &&
 
 create_group tty &&
 
@@ -11,4 +14,4 @@ disable_pic  &&
             --mandir=${TRACK_ROOT}/usr/share/man   \
            --infodir=${TRACK_ROOT}/usr/share/info  \
                      $OPTS                 &&
-make 
+make

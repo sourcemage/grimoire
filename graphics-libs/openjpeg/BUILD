@@ -1,1 +1,1 @@
-make  PREFIX=$INSTALL_ROOT/usr
+cmake_build
