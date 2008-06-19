@@ -1,29 +1,27 @@
 cd $SOURCE_DIRECTORY &&
 default_install &&
 
-cd contrib/pgcrypto &&
-default_install &&
+if is_depends_enabled $SPELL openssl; then
+  cd contrib/pgcrypto &&
+  default_install
+fi &&
 
 if is_depends_enabled $SPELL libxml2; then
   cd ../xml2 &&
   default_install
 fi &&
 
-if [[ ! -d /var/lib/postgres/data ]]; then
-  install -vm 755 -o postgres -g postgres -d /var/lib/postgres/data
+if [[ ! -d $PGSQL_DBPATH ]]; then
+  install -vm 755 -o postgres -g postgres -d $PGSQL_DBPATH
 fi &&
 
-touch /var/log/postgres &&
-chown postgres:postgres /var/log/postgres &&
+touch $INSTALL_ROOT/var/log/postgres &&
+chown postgres:postgres $INSTALL_ROOT/var/log/postgres &&
 
-if echo "$OPTS" | grep -q "with-openssl" && ! [[ -e /var/lib/postgres/data/server.crt ]]; then
+if is_depends_enabled $SPELL openssl && ! [[ ! -e $PGSQL_DBPATH/server.crt ]]; then
   message "${MESSAGE_COLOR}"
-  message "Please place server key and certificate files"
-  message "server.key and server.crt into /var/lib/postgres/data."
-  message "See spell apache2, script mksscert.sh, for steps"
-  message "to generate server certificate file."
-  message "You can use the CA key and certificate generated for"
-  message "apache2, located in /etc/httpd/ssl/ca-{key,certificate}.pem,"
-  message "to sign the certificate for PostgreSQL."
+  message "Please place server key and certificate files server.key "
+  message "and server.crt into $PGSQL_DBPATH/var/lib/postgres/data. See more about"
+  message "it at http://www.postgresql.org/docs/8.3/static/ssl-tcp.html"
   message "${DEFAULT_COLOR}"
 fi
