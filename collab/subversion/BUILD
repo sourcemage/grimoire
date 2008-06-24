@@ -26,7 +26,7 @@ fi &&
 
 SWIG_LDFLAGS="${LDFLAGS}" &&
 make_single &&
-default_build &&
+OPTS="--enable-runtime-module-search $OPTS" default_build &&
 
 if [[ "$SVN_PERL"   == y ]]; then
   mkdir -p subversion/bindings/swig/perl/native/blib/arch/auto/SVN/{_Client,_Delta,_Fs,_Ra,_Repos,_Wc} &&
