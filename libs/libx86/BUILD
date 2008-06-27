@@ -1,1 +1,1 @@
-make
+make  "LIBDIR=$INSTALL_ROOT/usr/lib  CFLAGS=$CFLAGS"
