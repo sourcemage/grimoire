@@ -1,3 +1,5 @@
+cd ${SOURCE_DIRECTORY} &&
+
 if echo $OPTS | grep -q with-openssl; then
   message "${MESSAGE_COLOR}Building with OpenSSL...${DEFAULT_COLOR}" &&
   SSLOPTS="SSLTYPE=unix                                 \
@@ -9,6 +11,7 @@ else
   message "${MESSAGE_COLOR}Building without OpenSSL...${DEFAULT_COLOR}" &&
   SSLOPTS='SSLTYPE=none'
 fi &&
+
 if echo $OPTS | grep -q with-pam; then
   TARGET=lnp
 else
