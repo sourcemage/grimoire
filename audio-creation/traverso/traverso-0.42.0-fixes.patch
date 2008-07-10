@@ -1,0 +1,77 @@
+Nur in traverso-0.42.0.fix: lib.
+Nur in traverso-0.42.0.fix/src/3rdparty/slv2: build.
+Nur in traverso-0.42.0.fix/src/audiofileio: build.
+Nur in traverso-0.42.0.fix/src/commands: build.
+Nur in traverso-0.42.0.fix/src/commands/plugins/TraversoCommands: build.
+Nur in traverso-0.42.0.fix/src/core: build.
+diff -ru traverso-0.42.0/src/core/ReadSource.cpp traverso-0.42.0.fix/src/core/ReadSource.cpp
+--- traverso-0.42.0/src/core/ReadSource.cpp	2007-12-10 13:51:50.000000000 +0100
++++ traverso-0.42.0.fix/src/core/ReadSource.cpp	2008-07-10 01:04:57.000000000 +0200
+@@ -31,6 +31,7 @@
+ #include "AudioDevice.h"
+ #include <QFile>
+ #include "Config.h"
++#include <climits>
+ 
+ // Always put me below _all_ includes, this is needed
+ // in case we run with memory leak detection enabled!
+@@ -203,7 +204,7 @@
+ 	}
+ 	
+ 	if (m_silent) {
+-		m_length = TimeRef(LONG_LONG_MAX);
++		m_length = TimeRef(LLONG_MAX);
+ 		m_channelCount = 0;
+ 		m_origBitDepth = 16;
+ 		m_bufferstatus->fillStatus =  100;
+diff -ru traverso-0.42.0/src/core/Song.cpp traverso-0.42.0.fix/src/core/Song.cpp
+--- traverso-0.42.0/src/core/Song.cpp	2007-12-10 13:51:50.000000000 +0100
++++ traverso-0.42.0.fix/src/core/Song.cpp	2008-07-10 00:58:43.000000000 +0200
+@@ -369,7 +369,7 @@
+ 		m_rendering = true;
+ 	}
+ 
+-	spec->startLocation = LONG_LONG_MAX;
++	spec->startLocation = LLONG_MAX;
+ 	spec->endLocation = TimeRef();
+ 
+ 	TimeRef endlocation, startlocation;
+diff -ru traverso-0.42.0/src/core/Track.cpp traverso-0.42.0.fix/src/core/Track.cpp
+--- traverso-0.42.0/src/core/Track.cpp	2007-12-10 13:51:50.000000000 +0100
++++ traverso-0.42.0.fix/src/core/Track.cpp	2008-07-10 00:58:43.000000000 +0200
+@@ -504,7 +504,7 @@
+ 		return;
+ 		
+ 	endlocation = TimeRef();
+-	startlocation = LONG_LONG_MAX;
++	startlocation = LLONG_MAX;
+ 	
+ 	apill_foreach(AudioClip* clip, AudioClip, m_clips) {
+ 		if (! clip->is_muted() ) {
+Nur in traverso-0.42.0.fix/src/engine: build.
+Nur in traverso-0.42.0.fix/src/plugins: build.
+Nur in traverso-0.42.0.fix/src/traverso: build.
+diff -ru traverso-0.42.0/src/traverso/Main.cpp traverso-0.42.0.fix/src/traverso/Main.cpp
+--- traverso-0.42.0/src/traverso/Main.cpp	2007-12-10 13:51:50.000000000 +0100
++++ traverso-0.42.0.fix/src/traverso/Main.cpp	2008-07-10 01:14:08.000000000 +0200
+@@ -27,6 +27,7 @@
+ #include "Traverso.h"
+ #include "Main.h"
+ #include "../config.h"
++#include <cstdlib>
+ 
+ // Always put me below _all_ includes, this is needed
+ // in case we run with memory leak detection enabled!
+Nur in traverso-0.42.0.fix/src/traverso/songcanvas: build.
+diff -ru traverso-0.42.0/src/traverso/songcanvas/TimeLineView.cpp traverso-0.42.0.fix/src/traverso/songcanvas/TimeLineView.cpp
+--- traverso-0.42.0/src/traverso/songcanvas/TimeLineView.cpp	2007-12-10 13:51:50.000000000 +0100
++++ traverso-0.42.0.fix/src/traverso/songcanvas/TimeLineView.cpp	2008-07-10 01:11:47.000000000 +0200
+@@ -129,7 +129,7 @@
+ {
+ 	if (d->bypassjog) {
+ 		int diff = d->jogBypassPos - cpointer().x();
+-		if (std::abs(diff) > 15) {
++		if (diff > 15 || diff < -15) { // perplexed by that std::abs error
+ 			d->bypassjog = false;
+ 		} else {
+ 			return 0;
