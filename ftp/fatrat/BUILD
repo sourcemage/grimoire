@@ -1,5 +1,5 @@
 QTDIR=$INSTALL_ROOT/usr    &&
 PATH=$QTDIR/bin/qt4:$PATH  &&
 
-cmake . $FATRAT_OPTS $OPTS  &&
+cmake . -DCMAKE_INSTALL_PREFIX=/usr $FATRAT_OPTS $OPTS  &&
 make
