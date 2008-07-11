@@ -1,1 +1,1 @@
-PREFIX=${INSTALL_ROOT}/usr ./build build
+true
