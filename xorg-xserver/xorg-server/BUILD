@@ -19,5 +19,6 @@ OPTS="${XORG_SERVER_OPTS}                                     \
       --disable-xprint                                        \
       --disable-dmx                                           \
       --disable-xwin                                          \
+      --enable-dbe                                            \
       ${OPTS}"                                                &&
 default_build
