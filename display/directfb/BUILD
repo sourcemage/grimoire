@@ -1,5 +1,6 @@
 OPTS="--with-inputdrivers=$inputdrivers         \
       --with-gfxdrivers=$gfxdrivers             \
+      --disable-vnc                             \
       $DFB_DEBUG $DFB_NETWORK $DFB_VOODOO       \
       $DFB_UNIQUE $DFB_V4L $DFB_V4L2 $DFB_TESTS \
       $OPTS"                                    &&
