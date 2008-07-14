@@ -1,3 +1,3 @@
-sedit  "s/-O2/$CFLAGS/"        Makefile  &&
-sedit  "s|/man/|/share/man/|"  Makefile  &&
-make -k
+make_single  &&
+make -k      &&
+make_normal
