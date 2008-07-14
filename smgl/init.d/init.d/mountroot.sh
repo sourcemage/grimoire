@@ -32,8 +32,6 @@ checkrootfs()
     /sbin/sulogin
     /sbin/reboot  -f
   fi
-
-  rm -f /fastboot /forcefsck
 }
 
 scanlvm()
