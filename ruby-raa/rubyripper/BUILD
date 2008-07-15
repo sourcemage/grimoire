@@ -1,3 +1,3 @@
-OPTS="--enable-cli $OPTS" &&
+OPTS="--enable-cli --enable-lang-all $OPTS" &&
 
 default_build
