@@ -19,6 +19,12 @@ if [[ $DOVECOT_EXT_LDA == y ]]; then
 pushd dovecot-sieve-*                           &&
 OPTS="--with-dovecot=.."                        &&
 default_build                                   &&
+if [[ $DOVECOT_MANAGESIEVE == y ]]; then
+pushd dovecot-$VERSION5-managesieve-*           &&
+OPTS="--with-dovecot=../.. --with-dovecot-sieve=.." &&
+default_build                                   &&
+popd
+fi
 popd
 fi
 # when the dspam plugin will get updated to work in

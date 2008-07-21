@@ -1,7 +1,4 @@
+# text frontend is unsupported
+OPTS="--disable-textfe $XCHAT_OPTS $OPTS" &&
 
-./configure  --build=$BUILD                     \
-             --prefix=/usr                      \
-             --sysconfdir=/etc                  \
-             --localstatedir=/var               \
-             $XCHAT_OPTS --disable-textfe $OPTS   &&
-make                                           
+default_build

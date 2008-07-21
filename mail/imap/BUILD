@@ -1,3 +1,5 @@
+cd ${SOURCE_DIRECTORY} &&
+
 if  [  "$IMAP_MAILSUBDIR"  ==  "y"  ];  then
   patch  -p0  <  $SCRIPT_DIRECTORY/mailsubdir.patch
 fi  &&

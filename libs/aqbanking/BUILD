@@ -38,6 +38,7 @@ fi                                            &&
             --infodir=${INSTALL_ROOT}/usr/share/info   \
             --with-backends="${BACKENDS}"              \
             --with-frontends="${FRONTENDS}"            \
+	    --disable-tutorials			       \
             $OPTS                                      &&
 make_single  &&
 make  &&

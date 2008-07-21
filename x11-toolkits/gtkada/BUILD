@@ -6,4 +6,6 @@ sedit  's:$(prefix)/doc/GtkAda/:$(prefix)/share/doc/gtkada/:'  \
 # most modern flags we use
 unset CFLAGS  &&
 OPTS="$OPTS --with-GL-prefix=${INSTALL_ROOT}/usr/X11R6"  &&
-default_build
+make_single    &&
+default_build  &&
+make_normal

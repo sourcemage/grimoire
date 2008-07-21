@@ -21,6 +21,7 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
             --enable-extensions=all${MOZILLA_EXT}            \
             --enable-optimize="$CFLAGS"                      \
             --enable-application=suite                       \
+            --disable-tests                                  \
             $SEAMONKEY_MAILNEWS                              \
             $SEAMONKEY_CHAT                                  \
             $SEAMONKEY_COMPOSER                              \

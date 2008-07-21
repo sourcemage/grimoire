@@ -1,4 +1,4 @@
-PERL_OPTS="  TT_PREFIX=$INSTALL_ROOT/usr/share/$SPELL \
+OPTS="  TT_PREFIX=$INSTALL_ROOT/usr/share/$SPELL \
   TT_IMAGES=$INSTALL_ROOT/usr/share/$SPELL \
   TT_DOCS=${TT_DOCS}                       \
   TT_SPLASH=${TT_SPLASH}                   \
@@ -8,5 +8,6 @@ PERL_OPTS="  TT_PREFIX=$INSTALL_ROOT/usr/share/$SPELL \
   TT_XS_ENABLE=${TT_XS_ENABLE}             \
   TT_XS_DEFAULT=${TT_XS_DEFAULT}           \
   TT_QUIET=y                               \
-  TT_ACCEPT=y" &&
+  TT_ACCEPT=y                              \
+  $OPTS" &&
 default_build_perl
