@@ -1,0 +1,38 @@
+--- src/ferm.orig	2008-07-22 21:44:45.000000000 +0400
++++ src/ferm	2008-07-23 15:13:02.000000000 +0400
+@@ -2089,6 +2089,17 @@
+     return $status;
+ }
+ 
++sub table_to_save($$) {
++    my ($result_r, $table_info) = @_;
++
++    foreach my $chain (sort keys %{$table_info->{chains}}) {
++        my $chain_info = $table_info->{chains}{$chain};
++        foreach my $rule (@{$chain_info->{rules}}) {
++            $$result_r .= "-A $chain$rule->{rule}\n";
++        }
++    }
++}
++
+ sub rules_to_save($) {
+     my ($domain_info) = @_;
+ 
+@@ -2113,15 +2124,8 @@
+             $result .= ":$chain $policy\ [0:0]\n";
+         }
+ 
+-        next if $option{flush};
+-
+-        # dump rules
+-        foreach my $chain (sort keys %{$table_info->{chains}}) {
+-            my $chain_info = $table_info->{chains}{$chain};
+-            foreach my $rule (@{$chain_info->{rules}}) {
+-                $result .= "-A $chain$rule->{rule}\n";
+-            }
+-        }
++        table_to_save(\$result, $table_info)
++          unless $option{flush};
+ 
+         # do it
+         $result .= "COMMIT\n";
