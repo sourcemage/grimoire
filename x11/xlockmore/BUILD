@@ -1,10 +1,5 @@
-  if  spell_ok  linux-pam;  then
-    ENABLE_PAM="--enable-pam"
-  fi
+OPTS="$OPTS $XLOCKMORE_BO" &&
 
-  ./configure  --prefix=/usr         \
-               --sysconfdir=/etc     \
-               --localstatedir=/var  \
-               $ENABLE_PAM           \
-               $OPTS                 &&
-  make
+make_single &&
+default_build &&
+make_normal
