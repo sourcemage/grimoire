@@ -1,0 +1,72 @@
+From: Bruce Guenter <bguenter-djb-qmail@qcc.sk.ca>
+To: qmail@list.cr.yp.to
+Subject: QMAILQUEUE patch for qmail-1.03
+Date: Mon, 25 Jan 1999 15:37:21 -0600
+
+Greetings.
+
+Appended is a patch to qmail-1.03 that causes any program that would run
+qmail-queue to look for an environment variable QMAILQUEUE.  If it is
+present, it is used in place of the string "bin/qmail-queue" when
+running qmail-queue.  This could be used, for example, to add a program
+into the qmail-smtpd->qmail-queue pipeline that could do filtering,
+rewrite broken headers, etc. (this is my planned usage for it).
+
+This has undergone virtually no testing, but it looks so simple that it
+almost has to be correct.  No warranties, etc.  Note that the chdir to
+/var/qmail is always done before exec'ing the program.
+
+Does this look like a reasonable thing to do?
+-- 
+Bruce Guenter, QCC Communications Corp.  EMail: bruce.guenter@qcc.sk.ca
+Phone: (306)249-0220               WWW: http://www.qcc.sk.ca/~bguenter/
+
+diff -u qmail-1.03-orig/Makefile qmail-1.03/Makefile
+--- qmail-1.03-orig/Makefile	Mon Jun 15 04:53:16 1998
++++ qmail-1.03/Makefile	Tue Jan 19 10:52:24 1999
+@@ -1483,12 +1483,12 @@
+ trigger.o fmtqfn.o quote.o now.o readsubdir.o qmail.o date822fmt.o \
+ datetime.a case.a ndelay.a getln.a wait.a seek.a fd.a sig.a open.a \
+ lock.a stralloc.a alloc.a substdio.a error.a str.a fs.a auto_qmail.o \
+-auto_split.o
++auto_split.o env.a
+ 	./load qmail-send qsutil.o control.o constmap.o newfield.o \
+ 	prioq.o trigger.o fmtqfn.o quote.o now.o readsubdir.o \
+ 	qmail.o date822fmt.o datetime.a case.a ndelay.a getln.a \
+ 	wait.a seek.a fd.a sig.a open.a lock.a stralloc.a alloc.a \
+-	substdio.a error.a str.a fs.a auto_qmail.o auto_split.o 
++	substdio.a error.a str.a fs.a auto_qmail.o auto_split.o env.a
+ 
+ qmail-send.0: \
+ qmail-send.8
+diff -u qmail-1.03-orig/qmail.c qmail-1.03/qmail.c
+--- qmail-1.03-orig/qmail.c	Mon Jun 15 04:53:16 1998
++++ qmail-1.03/qmail.c	Tue Jan 19 09:57:36 1999
+@@ -6,14 +6,25 @@
+ #include "fd.h"
+ #include "qmail.h"
+ #include "auto_qmail.h"
++#include "env.h"
+ 
+-static char *binqqargs[2] = { "bin/qmail-queue", 0 } ;
++static char *binqqargs[2] = { 0, 0 } ;
++
++static void setup_qqargs()
++{
++  if(!binqqargs[0])
++    binqqargs[0] = env_get("QMAILQUEUE");
++  if(!binqqargs[0])
++    binqqargs[0] = "bin/qmail-queue";
++}
+ 
+ int qmail_open(qq)
+ struct qmail *qq;
+ {
+   int pim[2];
+   int pie[2];
++
++  setup_qqargs();
+ 
+   if (pipe(pim) == -1) return -1;
+   if (pipe(pie) == -1) { close(pim[0]); close(pim[1]); return -1; }
+
