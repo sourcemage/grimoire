@@ -1,1 +1,1 @@
-lua make.lua build
+make
