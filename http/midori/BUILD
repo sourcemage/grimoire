@@ -1,7 +1,10 @@
-if [[ $MIDORI_VCS == y ]]; then
-  ./autogen.sh
-fi &&
+OPTS="--prefix=${INSTALL_ROOT}/usr \
+    --sysconfdir=${INSTALL_ROOT}/etc \
+ --localstatedir=${INSTALL_ROOT}/var \
+        --mandir=${INSTALL_ROOT}/usr/share/man \
+       --infodir=${INSTALL_ROOT}/usr/share/info \
+                 $OPTS" &&
 
-CPPFLAGS="$CPPFLAGS -I$INSTALL_ROOT/usr/include/WebKit/webkit"
+./autogen.sh $OPTS &&
 
-default_build
+make
