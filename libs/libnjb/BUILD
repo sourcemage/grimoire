@@ -1,3 +1,5 @@
+OPTS="--without-hotplug $OPTS"            &&
+
 ./configure   --host=${HOST}              \
              --build=${BUILD}             \
             --prefix=${INSTALL_ROOT}/usr  \
