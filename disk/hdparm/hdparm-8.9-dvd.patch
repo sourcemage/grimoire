@@ -1,0 +1,184 @@
+Dateien hdparm-8.9/dvdspeed und hdparm-8.9-dvd/dvdspeed sind verschieden.
+diff -ruN hdparm-8.9/dvdspeed.c hdparm-8.9-dvd/dvdspeed.c
+--- hdparm-8.9/dvdspeed.c	1970-01-01 01:00:00.000000000 +0100
++++ hdparm-8.9-dvd/dvdspeed.c	2008-08-08 23:13:57.000000000 +0200
+@@ -0,0 +1,129 @@
++#include <stdio.h>
++#include <stdlib.h>
++#include <fcntl.h>
++#include <string.h>
++#include <unistd.h>
++#include <sys/ioctl.h>
++#include <linux/cdrom.h>
++/*
++ * dvdspeed - use SET STREAMING command to set the speed of DVD-drives
++ *
++ *
++ * Copyright (c) 2004	Thomas Fritzsche <tf@noto.de>
++ * A bit mangled in 2006 and 2008 by Thomas Orgis <thomas@orgis.org>
++ *
++ *   This program is free software; you can redistribute it and/or modify
++ *   it under the terms of the GNU General Public License as published by
++ *   the Free Software Foundation; either version 2 of the License, or
++ *   (at your option) any later version.
++ *
++ *   This program is distributed in the hope that it will be useful,
++ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *   GNU General Public License for more details.
++ *
++ *   You should have received a copy of the GNU General Public License
++ *   along with this program; if not, write to the Free Software
++ *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ *
++ */
++
++#include "dvdspeed.h" /* just to silence a stupid warning */
++
++#ifdef DVDSPEED_STANDALONE
++/* Just error handling. */
++void dump_sense(unsigned char *cdb, struct request_sense *sense)
++{
++	int i;
++	printf("Command failed: ");
++
++	for (i=0; i<12; i++)
++	fprintf(stderr, "%02x ", cdb[i]);
++
++	if(sense)
++	{
++		fprintf(stderr, " - sense: %02x.%02x.%02x\n",
++			sense->sense_key, sense->asc, sense->ascq);
++	}
++	else
++	{
++		fprintf(stderr, ", no sense\n");
++	}
++}
++#endif
++
++/* This is the interesting code. */
++int set_dvd_speed(int fd, int speed)
++{
++	struct cdrom_generic_command cgc;
++	struct request_sense sense;
++	unsigned char buffer[28];
++	memset(&cgc, 0, sizeof(cgc));
++	memset(&sense, 0, sizeof(sense));
++	memset(&buffer, 0, sizeof(buffer));
++
++	/* SET STREAMING command */
++	cgc.cmd[0] = 0xb6;
++	/* 28 byte parameter list length */
++	cgc.cmd[10] = 28;
++	cgc.sense = &sense;
++	cgc.buffer = buffer;
++	cgc.buflen = sizeof(buffer);
++	cgc.data_direction = CGC_DATA_WRITE;
++
++	buffer[8] = 0xff;
++	buffer[9] = 0xff;
++	buffer[10] = 0xff;
++	buffer[11] = 0xff;
++
++	buffer[15] = 177*speed;
++	buffer[18] = 0x03;
++	buffer[19] = 0xE8;
++
++	buffer[23] = 177*speed;
++	buffer[26] = 0x03;
++	buffer[27] = 0xE8;
++
++	if(ioctl(fd, CDROM_SEND_PACKET, &cgc) == 0)
++	{
++#ifdef DVDSPEED_STANDALONE
++		printf("OK\n");
++#endif
++		return 0;
++	}
++	else
++	{
++#ifdef DVDSPEED_STANDALONE
++		fprintf(stderr, "Error!\n");
++		dump_sense(cgc.cmd, cgc.sense);
++#endif
++		return -1;
++	}
++}
++
++#ifdef DVDSPEED_STANDALONE
++/* main()... should I explain? */
++int main(int argc, char *argv[])
++{
++	int c;
++	int speed = 0;
++	int fd;
++
++	if(argc != 3)
++	{
++		printf("dvdspeed - use SET STREAMING command to set the speed of DVD-drives\n");
++		printf("(c) 2004 Thomas Fritzsche, this version (restructure, help text) prepared by Thomas Orgis\n");
++		printf("free use under the GPL2, no warranties of any kind\n\n");
++		printf("\tusage: dvdspeed <speed> <device>\n\n");
++		printf("\texample: dvdspeed 8 /dev/hdc\n");
++		printf("Makes my media box more calm and me happier during dvd movie watching.\n\n");
++		printf("This tool may be necessary for (newer) drives that don't apply the CDROM speed setting of hdparm to DVDs.\n");
++		printf("One example is my NEC ND-4550, while the ND-1100A applied the hdparm CDROM speed setting to DVDs as well.\n");
++		exit(-1);
++	}
++
++	speed = atoi(argv[1]);
++	fd    = open(argv[2], O_RDONLY | O_NONBLOCK);
++	return set_dvd_speed(fd, speed);
++}
++#endif
+diff -ruN hdparm-8.9/dvdspeed.h hdparm-8.9-dvd/dvdspeed.h
+--- hdparm-8.9/dvdspeed.h	1970-01-01 01:00:00.000000000 +0100
++++ hdparm-8.9-dvd/dvdspeed.h	2008-08-08 23:05:20.000000000 +0200
+@@ -0,0 +1 @@
++int set_dvd_speed(int fd, int speed);
+diff -ruN hdparm-8.9/hdparm.c hdparm-8.9-dvd/hdparm.c
+--- hdparm-8.9/hdparm.c	2008-06-17 01:39:34.000000000 +0200
++++ hdparm-8.9-dvd/hdparm.c	2008-08-08 23:12:08.000000000 +0200
+@@ -21,6 +21,7 @@
+ #include <asm/byteorder.h>
+ 
+ #include "hdparm.h"
++#include "dvdspeed.h"
+ #include "sgio.h"
+ 
+ extern const char *minor_str[];
+@@ -1275,6 +1276,12 @@
+ 			err = errno;
+ 			perror(" CDROM_SELECT_SPEED failed");
+ 		}
++		/* A fix? Applying SET STREAMING command. */
++		printf("also setting dvd streaming speed to %d\n", cdromspeed);
++		if(set_dvd_speed(fd, cdromspeed) != 0)
++		{
++			perror(" dvd speed setting failed");
++		}
+ 	}
+ 	if (set_acoustic) {
+ 		__u8 args[4];
+diff -ruN hdparm-8.9/Makefile hdparm-8.9-dvd/Makefile
+--- hdparm-8.9/Makefile	2008-06-02 18:58:29.000000000 +0200
++++ hdparm-8.9-dvd/Makefile	2008-08-08 23:11:42.000000000 +0200
+@@ -23,7 +23,7 @@
+ INSTALL_DIR = $(INSTALL) -m 755 -d
+ INSTALL_PROGRAM = $(INSTALL)
+ 
+-OBJS = hdparm.o identify.o sgio.o sysfs.o geom.o fibmap.o
++OBJS = hdparm.o identify.o sgio.o sysfs.o geom.o fibmap.o dvdspeed.o
+ 
+ all: hdparm
+ 
+@@ -37,6 +37,8 @@
+ 
+ identify.o:	hdparm.h
+ 
++dvdspeed.o:     dvdspeed.c
++
+ sgio.o: sgio.c sgio.h hdparm.h
+ 
+ install: all hdparm.8
