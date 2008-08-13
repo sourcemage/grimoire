@@ -1,26 +1,22 @@
-cd ${SOURCE_DIRECTORY} &&
+cd "${SOURCE_DIRECTORY}" &&
 
-if  [  "$IMAP_MAILSUBDIR"  ==  "y"  ];  then
-  patch  -p0  <  $SCRIPT_DIRECTORY/mailsubdir.patch
-fi  &&
-
-if  [  "$IMAP_SSL"  ==  "y"  ];  then
-  message "${MESSAGE_COLOR}Building with OpenSSL...${DEFAULT_COLOR}" &&
-  SSLOPTS="SSLTYPE=unix                     \
-           SSLCERTS=/etc/ssl/certs          \
-           SSLINCLUDE=/usr/include/openssl  \
-           SSLLIB=/usr/lib                  \
-           SSLTYPE=unix"
+if is_depends_enabled $SPELL openssl; then
+    message "${MESSAGE_COLOR}Building with OpenSSL...${DEFAULT_COLOR}" &&
+    SSLOPTS="SSLTYPE=unix \
+             SSLCERTS="${INSTALL_ROOT}/etc/ssl/certs" \
+             SSLINCLUDE="${INSTALL_ROOT}/usr/include/openssl" \
+             SSLLIB="${INSTALL_ROOT}/usr/lib" \
+             SSLTYPE=unix"
 else
-  message "${MESSAGE_COLOR}Building without OpenSSL...${DEFAULT_COLOR}" &&
-  SSLOPTS="SSLTYPE=none"
-fi  &&
+    message "${MESSAGE_COLOR}Building without OpenSSL...${DEFAULT_COLOR}" &&
+    SSLOPTS="SSLTYPE=none"
+fi &&
 
-if  [  "$IMAP_PAM"  ==  "y"  ];  then
-  message "${MESSAGE_COLOR}Building with PAM...${DEFAULT_COLOR}"     &&
-  TARGET=lnp
+if is_depends_enabled $SPELL linux-pam; then
+    message "${MESSAGE_COLOR}Building with PAM...${DEFAULT_COLOR}"     &&
+    TARGET=lnp
 else
-  TARGET=slx
-fi  &&
+    TARGET=slx
+fi &&
 
-yes | make EXTRACFLAGS="$CFLAGS" $SSLOPTS $TARGET
+yes | make ${SSLOPTS} EXTRACFLAGS="${CFLAGS}" ${TARGET}
