@@ -1,5 +1,5 @@
 # prevent install of init scripts
-OPTS="$OPTS --without-rcdir"  &&
+OPTS="--without-rcdir $OPTS"  &&
 
 # set language options
 if [[ $EXTRA_LANG == n ]]; then
