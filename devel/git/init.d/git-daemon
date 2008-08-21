@@ -1,5 +1,6 @@
 #!/bin/bash
 
+PIDFILE=/var/run/git.pid
 PROGRAM=/usr/bin/git
 RUNLEVEL=3
 NEEDS="+network"
@@ -9,7 +10,7 @@ NEEDS="+network"
 
 create_args()
 {
-	ARGS="daemon $EXTRA_ARGS"
+	ARGS="daemon --pid-file=/var/run/git.pid $EXTRA_ARGS"
 	[[ $TIMEOUT ]] && ARGS="$ARGS --timeout=$TIMEOUT"
 	[[ $INIT_TIMEOUT ]] && ARGS="$ARGS --init-timeout=$INIT_TIMEOUT"
 	[[ $PORT ]] && ARGS="$ARGS --port=$PORT"
@@ -31,7 +32,14 @@ start()
 	create_args
 	(
 		unset -f echo &&
-		su -c "$PROGRAM $ARGS >> ${LOG_FILE} 2>&1" $USER
-	) &
+		su $USER -c "$PROGRAM $ARGS >> $LOG_FILE 2>&1 &"
+	)
+	evaluate_retval
+}
+
+stop()
+{
+	echo "Shutting down Git Daemon:"
+	killproc git-daemon
 	evaluate_retval
 }
