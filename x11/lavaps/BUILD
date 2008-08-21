@@ -13,4 +13,7 @@ fi  &&
              --disable-schemas-install         \
              $OPTS                             &&
 
-make
+make_single &&
+make &&
+make_normal
+
