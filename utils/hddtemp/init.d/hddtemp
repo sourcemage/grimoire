@@ -1,0 +1,44 @@
+#!/bin/bash
+
+. /etc/sysconfig/hddtemp
+
+PROGRAM=/usr/sbin/hddtemp
+RUNLEVEL=3
+NEEDS="+network"
+PIDFILE=/var/run/hddtemp.pid
+
+monitored_drives=""
+
+for drive in ${MONITORED_DRIVES}; do
+	if [[ drive != "/dev/*" ]]; then
+		drive="/dev/$drive"
+	fi
+	monitored_drives="$monitored_drives $drive"
+done;
+
+. /etc/init.d/smgl_init
+
+start()
+{
+	echo "Starting $NAME..."
+	if [ -e $PIDFILE ] ; then
+            echo "$NAME already running";
+        else
+    	    $PROGRAM -d ${monitored_drives}
+	    pidof $PROGRAM > $PIDFILE;
+	fi
+	evaluate_retval
+}
+
+stop()
+{
+        echo "Stopping $NAME..."
+        if [ -e $PIDFILE ] ; then
+            PID=`cat $PIDFILE`
+            kill -9 $PID && rm -f $PIDFILE;
+        else
+            echo "$NAME not running";
+        fi
+	evaluate_retval
+}
+
