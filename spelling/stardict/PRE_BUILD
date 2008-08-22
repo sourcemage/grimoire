@@ -1,0 +1,18 @@
+default_pre_build       &&
+cd ${SOURCE_DIRECTORY}  &&
+
+patch -p0 < ${SCRIPT_DIRECTORY}/configure.patch  &&
+if  is_depends_enabled  ${SPELL}  espeak
+then
+  sedit "s:espeak_Initialize(AUDIO_OUTPUT_PLAYBACK, 0, NULL);:espeak_Initialize(AUDIO_OUTPUT_PLAYBACK, 0, NULL, 0);:"  \
+        stardict-plugins/stardict-espeak-tts-plugin/stardict_espeak.cpp
+fi                                   &&
+intltoolize --force --copy           &&
+echo n | libtoolize --copy --force   &&
+aclocal -I m4                        &&
+autoheader                           &&
+automake --add-missing --copy        &&
+autoconf || true                     &&
+automake                             &&
+
+OPTS="--disable-festival --disable-deprecations ${OPTS}"

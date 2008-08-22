@@ -1,20 +1,32 @@
-default_pre_build      &&
-# can we use existing fpc?
-if ! spell_ok fpc; then
-  cd  $SOURCE_DIRECTORY  &&
-  mkdir  bootstrap       &&
-  cd     bootstrap       &&
-  unpack_file 2          &&
-  unpack_file 3  
+default_pre_build  &&
+
+if    [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "ia32"    ]];  then
+  ARCH=i386
+elif  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64"  ]];  then
+  ARCH=x86_64
+else
+  ARCH=i386
+fi  &&
+
+cd  $SOURCE_DIRECTORY             &&
+#
+# Setup bootstrapping, only if we don't have fpc already
+#
+if ! spell_ok fpc ; then
+mkdir  bootstrap                  &&
+cd     bootstrap                  &&
+unpack_file 2                     &&
+tar -xf  binary.$ARCH-linux.tar   &&
+tar -xzf base.$ARCH-linux.tar.gz
 fi &&
+
+cd  $SOURCE_DIRECTORY             &&
 # we need  libgdb.a in our tree
 local GDB WHERE &&
 GDB=$INSTALL_ROOT/usr/lib/libgdb.a  &&
-if [ -e $GDB ];then
-  WHERE=fpcsrc/packages/base/gdbint/libgdb/units/i386-linux/ &&
+
+if [[ -e $GDB ]];then
+  WHERE=packages/base/gdbint/libgdb/units/$ARCH-linux/ &&
   mkdir -p $WHERE &&
   cp $GDB $WHERE
-fi &&
-
-# fix man path
-sed -i '/INSTALL_MANDIR=/ s,/man,/share/man,' $SOURCE_DIRECTORY/install/man/Makefile 
+fi

@@ -7,7 +7,12 @@ if [ "${ARCH:0:6}" = "x86_64" ]; then
 fi                                                                      &&
 ################################################
 
-if  [  "$CVS"  ==  "y"  ];  then ./autogen.sh ; fi                      &&
+if  [  "$CVS"  ==  "y"  ]
+then
+  sedit "/^AM_GCONF_SOURCE_2$/d" configure.ac                           &&
+  touch xdao/gcdmaster.schemas.in                                       &&
+  ./autogen.sh
+fi                                                                      &&
 
 sed -i 's:/usr/src/linux/include::'  scsilib/DEFAULTS/Defaults.linux    &&
 sed -i 's/xdao=xdao/xdao=no/'  configure                                &&

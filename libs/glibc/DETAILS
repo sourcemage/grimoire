@@ -1,13 +1,52 @@
            SPELL=glibc
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
-         VERSION=2.4
- HEADERS_VERSION=2.6.12.0
+         VERSION=2.7
+ HEADERS_VERSION=2.6.25
           SOURCE=$SPELL-$VERSION.tar.bz2
          SOURCE2=$SOURCE.sig
-         SOURCE3=linux-libc-headers-$HEADERS_VERSION.tar.bz2
+case "${SMGL_COMPAT_ARCHS[1]}" in
+  ia32)
+         SOURCE3=linux-headers-${HEADERS_VERSION}-x86.tar.bz2
+         SOURCE6=${SOURCE3}.sig
+     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
+  ;;
+  x86_64)
+	 SOURCE3=linux-headers-${HEADERS_VERSION}-x86_64.tar.bz2
+         SOURCE6=${SOURCE3}.sig
+     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
+  ;;
+  ppc)
+	 SOURCE3=linux-headers-${HEADERS_VERSION}-powerpc.tar.bz2
+         SOURCE6=${SOURCE3}.sig
+     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
+  ;;
+  alpha)
+         SOURCE3=linux-headers-${HEADERS_VERSION}-alpha.tar.bz2
+         SOURCE6=${SOURCE3}.sig
+     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
+  ;;
+  sparc)
+    if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]]
+    then
+         SOURCE3=linux-headers-${HEADERS_VERSION}-sparc64.tar.bz2
+         SOURCE6=${SOURCE3}.sig
+     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
+    else
+         SOURCE3=linux-headers-${HEADERS_VERSION}-sparc.tar.bz2
+         SOURCE6=${SOURCE3}.sig
+     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
+    fi
+  ;;
+  *)
+         SOURCE3=UNKNOWN
+         message "${PROBLEM_COLOR}You have an unknown architecture, you should file a bug for this${DEFAULT_COLOR}"
+         return 222
+  ;;
+esac
    SOURCE_URL[0]=$GNU_URL/$SPELL/$SOURCE
   SOURCE2_URL[0]=${SOURCE_URL[0]}.sig
-  SOURCE3_URL[0]=http://ep09.pld-linux.org/~mmazur/linux-libc-headers/$SOURCE3
+  SOURCE3_URL[0]=http://download.sourcemage.org/distro/kernel/headers/$SOURCE3
+  SOURCE6_URL[0]=${SOURCE3_URL[0]}.sig
   if [ "$GLIBC_USEIDN" = "y" ]; then
          SOURCE4=$SPELL-libidn-$VERSION.tar.bz2
          SOURCE5=$SOURCE4.sig
@@ -18,8 +57,7 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   fi
       SOURCE_GPG=gnu.gpg:$SOURCE.sig:UPSTREAM_KEY
   SOURCE2_IGNORE=signature
-    SOURCE3_HASH=sha512:e7ee7a09880d19dea3d2c0d498631ee9d269738e7acdeba0a346da3b8bd0629628582973de33e6ac0c913e8c691806a50e07d520d6f6d078b76a3e74b9b61fd7
-      PATCHLEVEL=1
+      PATCHLEVEL=2
 else
          VERSION=2.3.6
  HEADERS_VERSION=2.4.24

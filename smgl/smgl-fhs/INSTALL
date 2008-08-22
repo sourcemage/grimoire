@@ -10,6 +10,14 @@ function  fhs_mkdir()
 }
 
 #
+# Root account is always needed, bin user/group is provided by iso and an unknown
+# number of spells need it.
+# Note: We assume that the currently active system has existing /etc/passwd.
+#
+create_account root &&
+create_account bin  &&
+
+#
 # http://www.pathname.com/fhs/2.2/fhs-3.html
 #
 for  root_directory  in  bin  etc  boot  dev  home  lib  mnt  opt  sbin  \
@@ -19,6 +27,17 @@ do
 done  &&
 
 fhs_mkdir /tmp 1777  &&
+
+#
+# For a chroot, we need minimal passwd files with root account once we enter it.
+# without existing passwd, not even `useradd root` will work!
+#
+if ! [[ -e "$INSTALL_ROOT/etc/passwd" ]]; then
+  echo 'root:!:0:0:root:/root:/bin/bash' > "$INSTALL_ROOT/etc/passwd"
+fi &&
+if ! [[ -e "$INSTALL_ROOT/etc/group" ]]; then
+  echo 'root:!:0:' > "$INSTALL_ROOT/etc/group"
+fi &&
 
 #
 # http://www.pathname.com/fhs/2.2/fhs-6.1.html
@@ -92,12 +111,17 @@ done  &&
 #
 # http://www.pathname.com/fhs/2.2/fhs-4.4.html
 #
-for  X11_directory  in  bin  lib/X11  include/X11
+for  X11_subdir in lib include
 do
-  fhs_mkdir  /usr/X11R6/$X11_directory  &&
-  pushd  $INSTALL_ROOT/                 &&
-  ln  -sf  usr/$X11_directory           \
-           usr/X11R6/$X11_directory     &&
+  fhs_mkdir  /usr/X11R6/$X11_subdir
+done  &&
+
+for  X11_directory  in  bin  lib/X11  include/X11 lib/modules
+do
+  fhs_mkdir  /usr/$X11_directory             &&
+  pushd  $INSTALL_ROOT/                      &&
+  ln  -sf  $TRACK_ROOT/usr/$X11_directory  \
+           usr/X11R6/$X11_directory          &&
   popd
 done  &&
 

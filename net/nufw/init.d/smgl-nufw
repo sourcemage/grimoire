@@ -1,0 +1,40 @@
+#!/bin/bash
+
+PROGRAM=/usr/sbin/nufw
+PROGRAM_ARGS="-D"
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/init.d/smgl_init
+required_executable /usr/sbin/nuauth
+
+start()
+{
+    echo  "Starting nufw..."
+    $PROGRAM $PROGRAM_ARGS
+    evaluate_retval
+    echo  "Starting nuauth..."
+    if [[ ! -d /var/run/nuauth ]] ; then
+      mkdir -p /var/run/nuauth
+    fi
+    /usr/sbin/nuauth $PROGRAM_ARGS
+    evaluate_retval
+}
+
+stop()
+{
+    NUFW_PID=$(cat /var/run/nufw.pid)
+    NUAUTH_PID=$(cat /var/run/nuauth/nuauth.pid)
+    echo  "Stopping nuauth..."
+    kill $NUAUTH_PID    
+    evaluate_retval
+    echo  "Stopping nufw..."
+    kill $NUFW_PID    
+    evaluate_retval
+}
+
+status()
+{
+    echo "Writing an audit line to syslog"
+    kill -s POLL $(pidof nufw)
+}

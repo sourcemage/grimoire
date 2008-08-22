@@ -1,0 +1,40 @@
+#!/bin/bash
+
+PROGRAM=/sbin/hdparm
+ARGS=""
+RUNLEVEL=1
+
+. /etc/sysconfig/hdparm
+. /etc/init.d/smgl_init
+
+start()
+{
+	echo "Starting hdparm..."
+	# SCSI/SATA
+	for drive in sd{a..z}; do
+		if [[ -b "/dev/$drive" ]]; then
+			$PROGRAM $common_params $disk_params $sata_params "/dev/$drive"
+		fi
+	done
+
+	# PATA
+	for drive in hd{a..z}; do
+		if [[ -b "/dev/$drive" ]]; then
+			if [[ -f /sys/block/$drive/device/media ]];
+			then
+				if [[ "$(cat /sys/block/$drive/device/media)" == "cdrom" ]];
+				then
+					$PROGRAM $common_params $pata_cdrom_params $pata_params "/dev/$drive"
+				else
+					$PROGRAM $common_params $disk_params $pata_disk_params $pata_params "/dev/$drive"
+				fi
+			fi
+		fi
+	done
+	evaluate_retval
+}
+
+stop()
+{
+	exit 0
+}

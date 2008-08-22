@@ -1,4 +1,5 @@
-MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey    &&
+cd  $SOURCE_DIRECTORY/mozilla                 &&
+MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey  &&
 
 #
 # Only strip if the user wants us to
@@ -20,6 +21,7 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
             --enable-extensions=all${MOZILLA_EXT}            \
             --enable-optimize="$CFLAGS"                      \
             --enable-application=suite                       \
+            --disable-tests                                  \
             $SEAMONKEY_MAILNEWS                              \
             $SEAMONKEY_CHAT                                  \
             $SEAMONKEY_COMPOSER                              \

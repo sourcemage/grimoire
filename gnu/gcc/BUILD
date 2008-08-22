@@ -11,6 +11,10 @@ if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
   CXXFLAGS=${CXXFLAGS//-ffast-math/}
 fi  &&
 
+if  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64"  ]];  then
+  OPTS="--build=x86_64-pc-linux-gnu  $OPTS"
+fi  &&
+
 # store CFLAGS and LDFLAGS persistently so they can be read by the other
 # split spells later, see bug #10087
 GCC_CFLAGS="$CFLAGS"                   &&

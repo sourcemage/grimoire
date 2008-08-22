@@ -1,1 +1,1 @@
-echo  >  $C_FIFO
+true

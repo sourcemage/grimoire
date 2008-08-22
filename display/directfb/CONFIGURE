@@ -12,12 +12,15 @@ make_gfxdrivers_checklist()  {
   add_status  `cat  $SCRIPT_DIRECTORY/gfxdrivers`
 }
 
+make_inputdrivers_checklist()  {
+  add_status  `cat  $SCRIPT_DIRECTORY/inputdrivers`
+}
+
 
 get_gfx()  {
-
   BACKTITLE="DirectFB GFXDRIVER Configuration"
       TITLE="Chipset Manufacturer selection"
-       HELP="Choose the chiipset your card uses, don't bother with any others if you don't have the 
+       HELP="Choose the chipset your card uses, don't bother with any others if you don't have the 
 hardware. If none are selected then all will be installed."
 
   dialog  --backtitle  "$BACKTITLE"  \
@@ -30,8 +33,22 @@ hardware. If none are selected then all will be installed."
 
 }
 
+get_input()  {
+  BACKTITLE="DirectFB INPUTDRIVER Configuration"
+      TITLE="Input device selection"
+       HELP="Choose the input devices your box uses, don't bother with any others. If none are selected then all will be installed."
+  dialog  --backtitle  "$BACKTITLE"  \
+          --title      "$TITLE"      \
+          --stdout                   \
+          --separate-output          \
+          --checklist  "$HELP"       \
+          0 0 0                      \
+         `make_inputdrivers_checklist`
+
+}
+
 if ! grep -q "gfxdrivers" $SPELL_CONFIG ;then 
-  if query "select gfxdrivers to compile ?" n 
+  if query "select gfxdrivers to compile?" n 
   then 
   gfxdrivers=all
   OLD_IFS=$IFS
@@ -42,4 +59,52 @@ if ! grep -q "gfxdrivers" $SPELL_CONFIG ;then
   export  IFS=$OLD_IFS
   else echo gfxdrivers=all  >> $SPELL_CONFIG
   fi
-fi
+fi &&
+
+if ! grep -q "inputdrivers" $SPELL_CONFIG ;then 
+  if query "select inputdrivers to compile?" n 
+  then 
+  inputdrivers=all
+  OLD_IFS=$IFS
+  export  IFS="	
+"
+  inputdrivers=`get_input | tr '\n' ','`
+  echo "inputdrivers=$inputdrivers" >> $SPELL_CONFIG
+  export  IFS=$OLD_IFS
+  else echo inputdrivers=all  >> $SPELL_CONFIG
+  fi
+fi &&
+
+config_query_option DFB_DEBUG 'Compile in debug support? (This will slow DFB down a lot)' \
+                              'n' \
+                              '--enable-debug --enable-debug-support' \
+                              '--disable-debug --disable-debug-support' &&
+
+config_query_option DFB_NETWORK 'Compile in networking support?' 'y' \
+                                '--enable-network' \
+                                '--disable-network' &&
+
+config_query_option DFB_VOODOO 'Compile in Voodoo support? (networking)' \
+                                'n'                 \
+                                '--enable-voodoo'   \
+                                '--disable-voodoo'  &&
+
+config_query_option DFB_UNIQUE 'Compile in Unique? (Window management module)' \
+                                'n'                \
+                                '--enable-unique'  \
+                                '--disable-unique' &&
+
+config_query_option DFB_V4L 'Enable the v4l video provider?' \
+                                'y'                     \
+                                '--enable-video4linux'  \
+                                '--disable-video4linux' &&
+
+config_query_option DFB_V4L2 'Enable the v4l2 support?'  \
+                                'n'                      \
+                                '--enable-video4linux2'  \
+                                '--disable-video4linux2' &&
+
+config_query_option DFB_TESTS 'Build test programs?'    \
+                                'n'                     \
+                                '--with-tests'          \
+                                '--with-tests'

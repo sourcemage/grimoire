@@ -1,0 +1,26 @@
+make_single &&
+
+if [[ $LAES_EXTRA_CIPHERS == y ]]; then
+  make EXTRA_CIPHERS=y LINUX_SOURCE="$BUILD_DIRECTORY/linux"
+else
+  make LINUX_SOURCE="$BUILD_DIRECTORY/linux"
+fi &&
+
+make_normal &&
+
+install -vm 755 "$SOURCE_DIRECTORY/loop-aes-keygen" \
+                "$INSTALL_ROOT/usr/bin" &&
+install -vm 644 "$SOURCE_DIRECTORY/loop-aes-keygen.1" \
+                "$INSTALL_ROOT/usr/share/man/man1" &&
+
+if [[ $INIT_INSTALLED ]]; then
+  install_config_file "$SPELL_DIRECTORY/init.d/loop-aes.conf" \
+                      "$INSTALL_ROOT/etc/sysconfig/loop-aes" &&
+  chmod 600 "$INSTALL_ROOT/etc/sysconfig/loop-aes"
+fi &&
+
+if is_depends_enabled $SPELL dietlibc; then
+  install -vm 755 -d "$INSTALL_ROOT/usr/share/$SPELL" &&
+  install -vm 755 "$SOURCE_DIRECTORY/build-initrd.sh" \
+                  "$INSTALL_ROOT/usr/share/$SPELL"
+fi

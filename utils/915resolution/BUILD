@@ -1,3 +1,3 @@
-rm 915resolution  &&
+rm 915resolution 915resolution.o  &&
 make
 

@@ -1,3 +1,4 @@
-OPTS="$ATTR_LIB64 $OPTS"  &&
-autoconf                  &&
-default_build
+OPTS="$ATTR_LIB64 $OPTS" &&
+make_single &&
+default_build &&
+make_normal

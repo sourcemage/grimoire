@@ -6,4 +6,15 @@ if [ "$DEV_DEBUG" == "y" ]; then
   fi
 fi &&
 
-default_build
+if [ "$DEV_CMAKE" == "y" ]; then
+  cd $SOURCE_DIRECTORY &&
+  mkdir build &&
+  cd build &&
+  cmake .. -DPREFIX=/usr &&
+  make
+else
+  if [ "$WEECHAT_DEVEL_CVS" == "y" ]; then
+    ./autogen.sh
+  fi &&
+  default_build
+fi

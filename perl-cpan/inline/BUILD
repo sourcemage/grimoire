@@ -1,2 +1,1 @@
-  yes | perl  Makefile.PL  &&
-  make               
+yes | default_build_perl

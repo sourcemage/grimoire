@@ -1,9 +1,10 @@
-# fix for 4.2rc4 alpha macro
-sedit 's/\[ "\$GCC"=="yes" \]/test "$GCC" = "yes"/' m4/alpha.m4 &&
 if [[ $GNUPLOT_SCM == "y" ]]; then
   ./prepare
-else
-  # also fix configure if not regenerated
-  sedit 's/"\$GCC"=="yes"/test "$GCC" = "yes"/' configure
 fi &&
+if [[ $GNUPLOT_LUA == "y" ]]; then
+  LIBS="-llua $LIBS"
+  cd $SOURCE_DIRECTORY/gnuplot_lua_terminal &&
+  lua gnuplot.lua style                     &&
+  cd $SOURCE_DIRECTORY
+fi            &&
 default_build

@@ -1,3 +1,4 @@
+./bin/bootstrap       &&
 mkdir  build          &&
 cd  build             &&
 ln  -s  ../configure  &&	

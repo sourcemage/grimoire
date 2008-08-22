@@ -1,3 +1,4 @@
+source /etc/profile.d/qt.sh
 if [ $PYQT_BIG == y ];then
   VBIG=-c
 fi                                                 &&

@@ -78,6 +78,15 @@ function create_defaults()
 	# list of patches that the user selected
 	persistent_add SELECTED_PATCHES
 
+	# extra make options that get directly passed to the make command line
+	persistent_add EXTRA_MAKE_OPTIONS
+
+	# restore the config file from a particular location in this variable
+	persistent_add CONFIG_RESTORE
+
+	# old source tree location for oldktree mode
+	persistent_add old_src_tree
+
 	# make sure that the state of the spell is good when we compile
 	# since users can put the spell into a state where it will always fail
 	# do some sanity checks to get a working installed configuration
@@ -123,9 +132,9 @@ function create_defaults()
 	# questions will be asked again.
 	if [[ $RECONFIGURE ]]
 	then
-		persistent_remove MAKEMODE &&
-		persistent_remove UPDATE_BL &&
-		persistent_remove CONFIG_KERNEL 
+		MAKEMODE=""
+		UPDATE_BL=""
+		CONFIG_KERNEL=""
 		KLINUX_RECONFIGURE="true"
 	else
 		KLINUX_RECONFIGURE="false"
@@ -206,270 +215,53 @@ function list_usr_src()
 # main menu uhhh, what else is there to say?
 function main_menu()
 {
-	while true
+	local first_iter=0
+	while [[ $KMODE == "Options" || $first_iter == 0 ]]
 	do
-		command=$( "${dialog[@]}" --title "New or Used Kernel Tree" \
-		--item-help --default-item "$KMODE" \
-		--cancel-label "Exit" --menu \
-		"Would you like to use a new kernel tree or an existing one?\nThe Current kernel is $BASE_KVER\nThe current selected patches: ${SELECTED_PATCHES}" 0 0 0 \
-		"newktree" "New Kernel Tree" "I want to use a new kernel tree"  \
-		"oldktree" "Old Kernel Tree" "I want to use an old kernel tree"  \
-		"expert"   "User Generated Kernel Tree" "I want to use a kernel tree that I made" \
-		"Options"  "Menu" "Kernel Arch, Build Dir, Cleaning" )
-		retval="$?"
-		if [ "$retval" == "0" ]
-		then
-			case "$command" in
-				"newktree") 
-					KMODE=$command
-					new_tree_menu 
-					;;
-				"oldktree")
-					KMODE=$command
-					old_src_menu
-					;;
-				"expert")
-					KMODE=$command
-					custom_kernel
-					;;
-				"Options")
-					options_menu
-					;;
-				*) break ;;
-			esac
-		else
-			break
-		fi
-	done
-}
-
-# clean a source directory ($1)
-function clean_src_menu()
-{
-	while true
-	do
-		clean_options=$( "${dialog[@]}" --title "Clean Menu" \
-			--item-help --menu \
-			"How to Clean" 0 0 0 \
-			"mrproper" "Clean $1 with mrproper" "Clean Source" \
-			"clean" "Clean $1 with clean" "Clean Source" )
-		retval="$?"
-		if [ "$retval" == "0" ]
-		then
-			tmpdir="`pwd`"
-			cd $1
-			make ${clean_options}
-			cd ${tmpdir}
-		else
-			break
-		fi
-	done
-}
-# select which kernel source to clean
-# pass that kernel source to clean_src_menu
-function clean_menu()
-{
-        while true
-        do
-                eval 'menu_option=$( "${dialog[@]}" --title "Clean Menu" \
-			--item-help --menu \
-			"Which Kernel" 0 0 0 '`list_usr_src`' )'
-		retval="$?"
-		if [[ "$retval" == "0" && "$menu_option" != "No" ]]
-		then
-			clean_src_menu ${menu_option}
-		else
-			break
-		fi
-	done
-}
-
-# making other package types for other Linux distros
-function other_pkg_src_menu()
-{
-	while true
-	do
-		menu_option=$( "${dialog[@]}" --title "Options Menu" \
-			--item-help --menu \
-			"Other Package Creation\nThese only work if you have the respective applications installed" 0 0 0 \
-			"rpm" "Make an RPM package" "Requires RPM" \
-			"rpm-pkg" "Make another RPM package" "Requires RPM" \
-			"binrpm-pkg" "Okay more RPM packages" "Requires RPM" \
-			"deb-pkg" "Make a Debian Package" "Requires Debian Package Utilities" 
-			)
-		retval="$?"
-		if [ "$retval" == "0" ]
-		then
-			tmpdir="`pwd`"
-			cd $1
-			make ${menu_option}
-			cd $tmpdir
-		else
-			break
-		fi
-	done
-}
-
-# list the linux sources to make other package types
-function other_package_menu()
-{
-	while true
-	do
-		eval 'menu_option=$( "${dialog[@]}" --title "Options Menu" \
-			--item-help --menu \
-			"Select a Kernel Source" 0 0 0 '`list_usr_src`' )'
-		retval="$?"
-		if [[ "$retval" == "0" && "$menu_option" != "No" ]]
-		then
-			other_pkg_src_menu ${menu_option}
-		else
-			break
-		fi
-	done
-}
-
-# select other arch to compile for
-function arch_menu() 
-{
-	arch_default
-	local DEFAULT=${KERNEL_ARCH}
-	local COMMAND
-	while true
-	do
-		COMMAND=$( "${dialog[@]}" --title "Select Kernel Architecture"       \
-		--item-help --default-item "$DEFAULT" --menu      \
-		"Select a kernel architecture to use" 0 0 0            \
-		"CUSTOM"             "Manually enter some other Architecture"           "You can enter any valid architecture" \
-		"DEFAULT"            "Default Kernel Architecture"                      "The detected architecture for your platform, $DEFAULT" \
-		"alpha"              "DEC/Compaq 64-bit Alpha"                          "DEC Alpha" \
-		"arm"                "Embedded Processors using 32-bit ARM processors"  "ARM 32-bit" \
-		"cris"               "Embedded Axis ETRAX CRIS processors 32-bit"       "Axis ETRAX CRIS" \
-		"ia64"               "Intel Architecture 64-bit Itanium"                "Intel IA64 64-bit" \
-		"i386"               "Intel Architecture 32-bit 386 through Pentium 4"  "Intel x86 32-bit" \
-		"m68k"               "Motorola 68000 series 32-bit (older Macintosh)"   "m68k 32-bit" \
-		"mips"               "MIPS Technologies 32-bit compatible processors"   "MIPS32 platforms" \
-		"mips64"             "MIPS Technologies 64-bit compatible processors"   "MIPS64 platforms" \
-		"parisc"             "HP PA-RISC 32 and 64-bit processors"              "PA-RISC 32-bit mode" \
-		"ppc"                "PowerPC 32-bit (IBM and Motorola) G3/G4 Mac"      "PPC32 G3/G4" \
-		"ppc64"              "PowerPC 64-bit (IBM) G5 Mac"                      "PPC64 G5" \
-		"s390"               "IBM s390  31-bit systems"                         "IBM s390 31-bit" \
-		"s390x"              "IBM s390x 64-bit systems"                         "IBM s390 64-bit" \
-		"sh"                 "SuperH processors sh4 is 32-bit, sh5 is 64-bit"   "SH4 and SH5 32-bit mode" \
-		"sparc"              "Sun SPARC 32-bit processors"                      "Sun SPARC 32-bit" \
-		"sparc64"            "Sun SPARC 64-bit processors"                      "Sun SPARC 64-bit" \
-		"x86_64"             "AMD x86-64 64-bit Hammer/Opteron/Athlon64 chips"  "AMD x86-64 Hammer" \
-		"um"                 "User Mode Linux arch used for creating UML kernels" "User Mode Linux" \
-		"xen"                "Xen kernel arch used for creating Xen kernels" "Xen Kernel"
-		)
+		first_iter=1
+		KMODE=$( "${dialog[@]}" --title "New or Used Kernel Tree" \
+			--item-help --default-item "$KMODE" \
+			--cancel-label "Exit" --menu \
+			"Would you like to use a new kernel tree or an existing one?\nThe Current kernel is $BASE_KVER\nThe current selected patches: ${SELECTED_PATCHES}" 0 0 0 \
+			"newktree" "New Kernel Tree" "I want to use a new kernel tree"  \
+			"oldktree" "Old Kernel Tree" "I want to use an old kernel tree"  \
+			"expert"   "User Generated Kernel Tree" "I want to use a kernel tree that I made" \
+			"Options"  "Menu" "Make and config options" )
 		retval=$?
-		if [[ "$retval" == "0" ]]
+		if [[ $retval == 0 ]]
 		then
-			if [[ $COMMAND == "CUSTOM" ]]
+			if [[ "$KMODE" == "Options" ]]
 			then
-				COMMAND=$("${dialog[@]}" --nocancel --inputbox "Which Architecture do you want to build?\nYou can enter any valid architecture.\nExamples:\n$i386\nppc\nx86_64\nsparc\nsparc64" 0 0 ${KERNEL_ARCH})
-			elif [[ $COMMAND == "DEFAULT" ]]
-			then
-				COMMAND="$DEFAULT"
+				options_menu
+			else
+				return $retval
 			fi
-			KERNEL_ARCH=$COMMAND
-			break
 		else
-			break
+			return $retval
 		fi
 	done
 }
 
-# change the O option for the kernel
-# doesn't work with some patched kernels
-function build_dir_menu()
-{
-	output_dir=$( "${dialog[@]}" --nocancel --inputbox \
-	"Would you like to select a kernel output dir.\n\
-	Leave it blank for no output dir\n" 0 0 ${output_dir} )
-	retval="$?"
-	echo $retval
-	if [[ "$retval" == "0" && "$output_dir" != "" ]]
-	then
-		OPTIONAL_BUILD_DIR=$output_dir
-		persistent_add OPTIONAL_BUILD_DIR
-		echo "first ifstatment"
-	elif [[ "$retval" == "0" && "$output_dir" == "" ]]
-	then
-		persistent_remove OPTIONAL_BUILD_DIR
-		echo "second ifstatment"
-	else
-		echo "Do nothing"
-	fi
-}
-
-# restore a config file from a different location
-function restore_config()
-{
-	. ${SPELL_DIRECTORY}/DETAILS
-	while true
-	do
-		CONFIG_RESTORE=$( "${dialog[@]}" --title "Config Restore" \
-			--item-help --menu \
-			"Restore Config From:" 0 0 0 \
-			"/proc/config.gz" "Restore" "Save /proc/config.gz your kernel tree" \
-			"/boot/config-$VERSION" "Restore" "Save /boot/config-$VERSION to your kernel tree" \
-			"Custom" "Restore" "Save custom config file to your kernel tree" \
-			)
-		retval="$?"
-		if [ "$retval" == "0" ]
-		then
-			persistent_add CONFIG_RESTORE
-			case "${CONFIG_RESTORE}" in
-				"Custom")
-					CONFIG_RESTORE=$( "${dialog[@]}" --title "Config Restore" \
-						--nocancel --inputbox \
-						"Enter Custom File to Save to /usr/src/linux/.config" \
-						0 0 ${CONFIG_RESTORE} )
-					;;
-					*)
-					;;
-			esac
-			break
-		else
-			break
-		fi
-	done
-}
-
-# other misc options menu
 function options_menu()
 {
 	while true
 	do
 		menu_option=$( "${dialog[@]}" --title "Options Menu" \
-			--item-help --menu \
+			--item-help --cancel-label "Exit" --menu \
 			"Options Menu Yeah Fun" 0 0 0 \
-			"Clean" "Options" "Clean the Source Tree" \
-			"Arch" "Selection" "Select Arch Default is $ARCH" \
 			"Config" "Restoration" "Optional config restoration" \
-			"Other" "Packages" "Make an RPM or Debian Package" \
 			"Make" "Options" "Options passed to make for compiling" 
 			)
 		retval="`echo $?`"
 		if [[ "$retval" == "0" ]]
 		then
 			case "${menu_option}" in
-				"Clean")
-					clean_menu
-					;;
-				"Arch")
-					arch_menu
-					;;
-				"Other")
-					other_package_menu
-					;;
-				"Config")
-					restore_config
-					;;
-				"Make")
-					EXTRA_MAKE_OPTIONS=$("${dialog[@]}" --inputbox "These Options are passed to make when compiling your kernel\nFor Example\nV=1 will change the 2.6 output to look more like the 2.4 output\nEXTRA_CFLAGS=$CFLAGS will add sorcery cflags to your kernel" 0 0 "")
-					persistent_add EXTRA_MAKE_OPTIONS
-					;;
+				Make)
+				EXTRA_MAKE_OPTIONS=$("${dialog[@]}" --inputbox "These Options are passed to make when compiling your kernel\nFor Example\nV=1 will change the 2.6 output to look more like the 2.4 output\nEXTRA_CFLAGS=$CFLAGS will add sorcery cflags to your kernel" 0 0 "$EXTRA_MAKE_OPTIONS")
+				;;
+				Config)
+				CONFIG_RESTORE=$("${dialog[@]}" --inputbox "This is the location of the config you would like used for the kernel to be built with.\nExamples:\n/proc/config.gz\n/etc/sorcery/local/kernel.config" 0 0 "$CONFIG_RESTORE")
+				;;
 				*) break ;;
 			esac
 		else
@@ -487,11 +279,10 @@ function custom_kernel()
 	then
 		BASE_KVER=$command
 		old_src_tree="/usr/src/linux-${BASE_KVER}"
-		persistent_add old_src_tree
 		KLINUX_RECONFIGURE="true"
-		persistent_remove MAKEMODE
-		persistent_remove UPDATE_BL
-		persistent_remove CONFIG_KERNEL
+		MAKEMODE=""
+		UPDATE_BL=""
+		CONFIG_KERNEL=""
 		SELECTED_PATCHES=""
 		patches=""
 	fi
@@ -502,42 +293,32 @@ function custom_kernel()
 # that should be changed but how?
 function new_tree_menu() 
 {
-	while true
+	menu=""
+	versions="`ls -r1 $KERNELS_DIRECTORY`"
+	for version in $versions
 	do
-		menu=""
-		versions="`ls -r1 $KERNELS_DIRECTORY`"
-		for version in $versions
-		do
-			menu="${menu}${version} Linux_Kernel Select_one "
-		done
-		menu="$( awk -F= '$1 ~ /LATEST_2/ {print $1 " Linux_Kernel " $2 }' $LATEST_KDEFAULTS ) ${menu}"
-		command=$( "${dialog[@]}" --title "Select Kernel Version" \
-		--item-help --cancel-label "Exit" --default-item "$BASE_KVER" --menu \
-		"Select a kernel version to use" 0 0 0 \
-		$menu )
-		retval="$?"
-		if [ "$retval" == "0" ]
-		then
-			case "$command" in
-				2.[0-9].[0-9]*) 
-					BASE_KVER=$command
-					patch_menu $BASE_KVER
-					;;
-				LATEST*)
-					BASE_KVER=$command
-					patch_menu $BASE_KVER
-					;;
-				CUSTOM*)
-					custom_kernel
-					;;
-				*) 
-					break 
-					;;
-			esac
-		else
-			break
-		fi
+		menu="${menu}${version} Linux_Kernel Select_one "
 	done
+	menu="$( awk -F= '$1 ~ /LATEST_2/ {print $1 " Linux_Kernel " $2 }' $LATEST_KDEFAULTS ) ${menu}"
+	command=$( "${dialog[@]}" --title "Select Kernel Version" \
+	--item-help --cancel-label "Exit" --default-item "$BASE_KVER" --menu \
+	"Select a kernel version to use" 0 0 0 \
+	$menu )
+	retval="$?"
+	if [ "$retval" == "0" ]
+	then
+		case "$command" in
+			2.[0-9].[0-9]*) 
+				BASE_KVER=$command
+				;;
+			LATEST*)
+				BASE_KVER=$command
+				;;
+		esac &&
+		return $retval
+	else
+		return $retval
+	fi
 }
 
 # find all patches list the directories and LATEST patches for the kernel version $1
@@ -626,7 +407,7 @@ function patch_menu()
 			menu='"No Patches Available Sorry"'
 		fi
 		eval 'command=$( "${dialog[@]}" --title "Select Patches" \
-			--help-button --cancel-label "Commit" \
+			--help-button --cancel-label "Exit" \
 			--ok-label "Select" --menu \
 			"Currently selected kernel: $1\nCurrently selected patches: $new_patch_list" 0 0 0 '${menu}' )'
 		retval="$?"
@@ -664,7 +445,7 @@ function dialog_specific_patchdir()
 		command=$( "${dialog[@]}" --title "Select Patches" \
 			--item-help --cancel-label "Commit" \
 			--ok-label "Toggle" --checklist \
-			"$help\n\nCurrently seleted kernel: $1\nCurrently selected patches: $npatch_list" 0 0 0 \
+			"$help\n\nCurrently selected kernel: $1\nCurrently selected patches: $npatch_list" 0 0 0 \
 			$(list_specific_patch_dir $1 $patchdir "$npatch_list") )
 		retval=$?
 		if [[ $retval == 0 ]]
@@ -755,21 +536,21 @@ create_defaults
 
 if [[ "$KLINUX_RECONFIGURE" == "true" || "$BASE_KVER" == "" ]]
 then
-	main_menu
-	if [ "$BASE_KVER" == "" ]
-	then
-		echo "You really need to tell the spell what linux kernel you are dealing with."
-		sleep 5
-	fi
-	while [ "$BASE_KVER" == "" ]
-	do
-		main_menu
-		if [ "$BASE_KVER" == "" ]
-		then
-			echo "You really need to tell the spell what linux kernel you are dealing with."
-			sleep 5
-		fi	
-	done
+	main_menu &&
+	case "$KMODE" in
+		"newktree")
+		new_tree_menu &&
+		patch_menu $BASE_KVER
+		;;
+		"oldktree")
+		old_src_menu
+		;;
+		"expert")
+		custom_kernel
+		;;
+	esac &&
+	persistent_remove MAKEMODE &&
+	persistent_remove UPDATE_BL 
 else
 	echo "No Reconfigure, using ${SPELL_CONFIG}.p for defaults"
 fi &&

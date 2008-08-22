@@ -1,1 +1,1 @@
-echo "nnnnn" |default_build_perl
+echo "nnnnn" | default_build_perl

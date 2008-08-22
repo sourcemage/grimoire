@@ -1,45 +1,34 @@
-# ------------------------------------------------------------------------------
+#---
 ## Replace sorcerys default_build with a custom one
-# ------------------------------------------------------------------------------
-function default_build ()
+#---
+function default_build()
 {
-    if [ -f /etc/profile.d/GNUstep.sh ]
-    then
-	. /etc/profile.d/GNUstep.sh
-    else
-	message "${ERROR_COLOR}Unable to find /etc/profile.d/GNUstep.sh" &&
-	message "Rebuild gnustep-make${DEFAULT_COLOR}"                   &&
-	return 1
-    fi                                                                   &&
-
-    if [ -f ./configure ]
-    then
-	./configure                                                      \
-	$OPTS                                                            
-    fi                                                                   &&
-
-    make                                                                 &&
-
-    if [ "$GNUSTEP_BUILD_DOC" == "y" ]
-    then
-	cd Documentation                                                 &&
-	make                                                             &&
-	cd ../                                        
-    fi
+  if [[ -f ${INSTALL_ROOT}/usr/share/GNUstep/Makefiles/GNUstep.sh ]]
+  then
+    . ${INSTALL_ROOT}/usr/share/GNUstep/Makefiles/GNUstep.sh
+  fi
+  if [[ -x ./configure ]]
+  then
+    real_default_build
+  else
+    make $@
+  fi
 }
 
-# ------------------------------------------------------------------------------
-## Replace sorcerys default_install with a custom one
-# ------------------------------------------------------------------------------
-function default_install ()
+function default_post_install()
 {
-    make GNUSTEP_INSTALLATION_DIR=$GNUSTEP_SYSTEM_ROOT install           &&
-
-    if [ "$GNUSTEP_BUILD_DOC" == "y" ]
-    then
-	cd Documentation                                                  &&
-	make                                                              &&
-	make GNUSTEP_INSTALLATION_DIR=$GNUSTEP_SYSTEM_ROOT install        &&
-	cd ../
-    fi
+  real_default_post_install  &&
+  if [[ -x ${INSTALL_ROOT}/usr/bin/make_services ]]; then
+    message "Running make_services"
+    ${INSTALL_ROOT}/usr/bin/make_services
+  fi
 }
+
+function default_final()
+{
+  if [[ -x ${INSTALL_ROOT}/usr/bin/make_services ]]; then
+    message "Running make_services"
+    ${INSTALL_ROOT}/usr/bin/make_services
+  fi
+}
+

@@ -1,14 +1,22 @@
-if  echo  $OPTS  |  grep  -q  --  "no-krb5";  then
-  OPENSSL_KRB5="no-krb5"
-fi  &&
-
-./config  --prefix=${INSTALL_ROOT}/usr      \
-      --openssldir=${INSTALL_ROOT}/etc/ssl  \
-          shared threads                    \
-          $OPENSSL_KRB5                     &&
+# again check if it's there or net and only then use the variable
+# else one would lose sse support on a new system
+if ! grep -q "sse" /proc/cpuinfo ; then
+if [[ $OPENSSL_SSE == n ]]; then
+  OPTS="no-sse2 $OPTS"
+fi
+fi                                                          &&
+OPTS="--prefix=${INSTALL_ROOT}/usr                          \
+      --openssldir=${INSTALL_ROOT}/etc/ssl                  \
+      shared                                                \
+      threads                                               \
+      $OPTS"
+./config  $OPTS   &&
 
 sedit  "s/-O3//"                    Makefile                &&
 sedit  "s/-m486//"                  Makefile                &&
+if [[ ${SMGL_COMPAT_ARCHS[1]} != alpha ]] && [[ $CFLAGS == ${CFLAGS/-O/} ]]; then
+  CFLAGS="$CFLAGS -O"; # bug 13855, but not for alpha
+fi &&
 sedit  "s/^CFLAG=/CFLAG=$CFLAGS /"  Makefile                &&
 sedit  "s/chmod 644\(.*pkgconfig\)/chmod 755\1/"  Makefile  &&
 

@@ -1,2 +1,1 @@
-yes no | perl Makefile.PL INSTALLDIRS=vendor
-make               
+yes no | default_build_perl

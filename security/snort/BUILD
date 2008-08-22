@@ -19,5 +19,7 @@ OPTS="--prefix=${INSTALL_ROOT}/usr             \
 [     "$CF_ODBC"  ==  y  ]  &&  OPTS="$OPTS --with-odbc"
 
 ./configure  $OPTS  &&
+make_single         &&
 make                &&
+make_normal         &&
 make  check

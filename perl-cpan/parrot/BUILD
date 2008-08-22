@@ -5,6 +5,4 @@ perl Configure.pl  --prefix=${INSTALL_ROOT}/usr   \
                  --optimize                       \
                       $OPTS                       &&
 make
-                                                 
-#                 --ccflags=${CFLAGS}             \
-#                 --ldflags=${LDFLAGS}            \
+                                               

@@ -1,2 +1,1 @@
-OPTS="$FLUIDSYNTH_OSS $OPTS"  &&
-default_build
+OPTS="$FLUIDSYNTH_OSS $OPTS"  default_build

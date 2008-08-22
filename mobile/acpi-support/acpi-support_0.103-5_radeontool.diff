@@ -1,0 +1,101 @@
+diff -Naur acpi-support-0.103.orig/lid.sh acpi-support-0.103/lid.sh
+--- acpi-support-0.103.orig/lid.sh	2007-10-07 07:40:23.000000000 -0600
++++ acpi-support-0.103/lid.sh	2008-02-29 23:48:08.000000000 -0600
+@@ -13,41 +13,67 @@
+ grep -q closed /proc/acpi/button/lid/*/state
+ if [ $? = 0 ]
+ then
+-    for x in /tmp/.X11-unix/*; do
+-	displaynum=`echo $x | sed s#/tmp/.X11-unix/X##`
+-	getXconsole;
+-	if [ x"$XAUTHORITY" != x"" ]; then
+-	    export DISPLAY=":$displaynum"	    
+-	    . /usr/share/acpi-support/screenblank
++	ls /tmp/.X11-unix/*
++	if [ $? != 0 ]
++	then
++		if [ -x /usr/sbin/radeontool ]
++		then
++			/usr/sbin/radeontool light off
++		fi
++	else
++		for x in /tmp/.X11-unix/*; do
++			displaynum=`echo $x | sed s#/tmp/.X11-unix/X##`
++			getXconsole;
++			if [ x"$XAUTHORITY" != x"" ]; then
++				export DISPLAY=":$displaynum"	    
++				. /usr/share/acpi-support/screenblank
++			fi
++		done
++		if [ -x /usr/sbin/radeontool ]
++		then
++			/usr/sbin/radeontool light off
++		fi
+ 	fi
+-    done
+ else
+-    if [ x$RADEON_LIGHT = xtrue ]; then
+-	[ -x /usr/sbin/radeontool ] && radeontool light on
+-    fi
+-    for x in /tmp/.X11-unix/*; do
+-	displaynum=`echo $x | sed s#/tmp/.X11-unix/X##`
+-	getXconsole;
+-	if [ x"$XAUTHORITY" != x"" ]; then
+-	    export DISPLAY=":$displaynum"
+-	    grep -q off-line /proc/acpi/ac_adapter/*/state
+-	    if [ $? = 1 ]
++	ls /tmp/.X11-unix/*
++	if [ $? != 0 ]
++	then
++		if [ -x /usr/sbin/radeontool ]
+ 		then
+-		if pidof xscreensaver > /dev/null; then 
+-		    su $user -c "xscreensaver-command -unthrottle"
++			/usr/sbin/radeontool light on
+ 		fi
+-	    fi
+-	    if [ `pidof xscreensaver` ]; then
+-		su $user -c "xscreensaver-command -deactivate"
+-	    fi
+-	    su $user -c "xset dpms force on"
++	else
++		if [ x$RADEON_LIGHT = xtrue ]; then
++			[ -x /usr/sbin/radeontool ] && radeontool light on
++		fi
++		for x in /tmp/.X11-unix/*; do
++			displaynum=`echo $x | sed s#/tmp/.X11-unix/X##`
++			getXconsole;
++			if [ x"$XAUTHORITY" != x"" ]; then
++				export DISPLAY=":$displaynum"
++				grep -q off-line /proc/acpi/ac_adapter/*/state
++				if [ $? = 1 ]
++				then
++					if pidof xscreensaver > /dev/null; then 
++						su $user -c "xscreensaver-command -unthrottle"
++					fi
++				fi
++				if [ `pidof xscreensaver` ]; then
++					su $user -c "xscreensaver-command -deactivate"
++				fi
++				su $user -c "xset dpms force on"
+ 	    
+-	    # Press LEFT SHIFT. On some laptops / in some configurations forcing
+-	    # the DPMS on is not enough, X needs to be convinced to unblank the
+-	    # screen. The left shift key is probably the most harmless key we
+-	    # could press. :-)
+-	    acpi_fakekey 42
++				# Press LEFT SHIFT. On some laptops / in some configurations forcing
++				# the DPMS on is not enough, X needs to be convinced to unblank the
++				# screen. The left shift key is probably the most harmless key we
++				# could press. :-)
++				acpi_fakekey 42
++			fi
++		done
++		if [ -x /usr/sbin/radeontool ]
++		then
++			/usr/sbin/radeontool light on
++		fi
+ 	fi
+-    done
+ fi
+ [ -x /etc/acpi/local/lid.sh.post ] && /etc/acpi/local/lid.sh.post

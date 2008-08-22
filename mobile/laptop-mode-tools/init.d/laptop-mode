@@ -1,0 +1,118 @@
+#!/bin/sh
+#
+# chkconfig: - 20 90
+# description: Starts and stops "laptop-mode" - tweaks system behavior
+#              to extend battery life.
+#
+# config:  /etc/laptop-mode/laptop-mode.conf
+
+PROGRAM=/usr/sbin/laptop_mode
+RUNLEVEL=3
+NEEDS="+local_fs"
+
+. /etc/init.d/smgl_init
+
+test -f /usr/sbin/laptop_mode || exit 0
+
+# Enable laptop mode when the system is booted when running on battery.
+
+function start() {
+    TEMPFILE=`mktemp`
+
+    mkdir -p /var/run/laptop-mode-tools
+    touch /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM auto > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
+    if [ -f $TEMPFILE ] ; then
+       rm $TEMPFILE
+    fi
+}
+
+function restart() {
+    TEMPFILE=`mktemp`
+
+    # Full restart: first stop laptop mode completely (to restore default mount options etc.)
+    mkdir -p /var/run/laptop-mode-tools
+    rm -f /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM stop > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
+    # Now remove files containing stored status, re-enable, and start it up again.
+    rm -f /var/run/laptop-mode-tools/*
+    touch /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM auto force > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
+    if [ -f $TEMPFILE ] ; then
+       rm $TEMPFILE
+    fi
+}
+
+function reload() {
+    TEMPFILE=`mktemp`
+
+    # Full restart: first stop laptop mode completely (to restore default mount options etc.)
+    mkdir -p /var/run/laptop-mode-tools
+    rm -f /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM stop > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
+    # Now remove files containing stored status, re-enable, and start it up again.
+    rm -f /var/run/laptop-mode-tools/*
+    touch /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM auto force > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
+    if [ -f $TEMPFILE ] ; then
+       rm $TEMPFILE
+    fi
+}
+
+function stop() {
+    TEMPFILE=`mktemp`
+
+    rm -f /var/run/laptop-mode-tools/enabled
+    if ($PROGRAM stop > $TEMPFILE) ; then
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.info -- "$(cat $TEMPFILE)"
+    else
+      cat $TEMPFILE
+      logger -t LAPTOP-MODE -p daemon.notice -- "$(cat $TEMPFILE)"
+    fi
+
+    if [ -f $TEMPFILE ] ; then
+       rm $TEMPFILE
+    fi
+}
+
+function status() {
+    echo "Laptop mode status:"
+    echo
+    $PROGRAM status
+}

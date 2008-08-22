@@ -1,26 +1,69 @@
+prepare_environment() {
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"             &&
+  PATH="$QTDIR/bin/qt4:$PATH"                     &&
+
+  persistent_add KDE4DIR                          &&
+  KDE4DIR="$INSTALL_ROOT/opt"                     &&
+
+  PATH="$KDE4DIR/bin:$PATH"                       &&
+  LD_LIBRARY_PATH="$KDE4DIR/lib:$LD_LIBRARY_PATH" &&
+  QT_PLUGIN_PATH="$KDE4DIR/lib/kde4/plugins"
+}
+
 default_build() {
-QTDIR=/usr
-PATH=$QTDIR/bin/qt4:$PATH
-LD_LIBRARY_PATH=$QTDIR/lib/qt4:$LD_LIBRARY_PATH
-PKG_CONFIG_PATH=$QTDIR/lib/qt4:$PKG_CONFIG_PATH
+  prepare_environment                             &&
+
+  cd $SOURCE_DIRECTORY                            &&
+  mkdir -p build                                  &&
+  cd build                                        &&
+  cmake -DCMAKE_INSTALL_PREFIX="$KDE4DIR"         \
+        -DCMAKE_BUILD_TYPE=$KDE_DEBUG_OPTION      \
+        ../                                       &&
+  make
+}
+
+# kde4 also needs a special default_install,
+# to maintain some environment variables
+default_install() {
+  prepare_environment  &&
+
+  # make sure that kde4 spells install their D-Bus
+  # service files into the system D-Bus service dir
+
+  local dir1 dir2  &&
+
+  dir1=$(pkg-config --variable=session_bus_services_dir dbus-1 \
+         | cut -d/ -f-4)                                       &&
+  dir2=$(echo $dir1 | cut -d/ -f3-)                            &&
+
+  if [[ "$KDE4DIR" != "$INSTALL_ROOT/usr" ]]  &&
+     [[ ! -s "$KDE4DIR/$dir2" ]]; then
+    mkdir -p "$KDE4DIR/share"     &&
+    ln -sf "$INSTALL_ROOT/$dir1"  \
+           "$KDE4DIR/share"
+  fi  &&
+
+  cd  "$SOURCE_DIRECTORY/build"  &&
+  make install
+}
 
 
-KDEDIR=/opt/kde4
-PATH=$KDEDIR/bin:$PATH
-LD_LIBRARY_PATH=$KDEDIR/lib:$LD_LIBRARY_PATH
-QT_PLUGIN_PATH=$KDEDIR/lib/kde4/plugins
+# we need a default_final, default_post_remove
+# so that the mime and desktop databases get updated
+update_databases() {
 
-XDG_DATA_DIRS=$KDEDIR/share
-KDEHOME=$HOME/.kde4
-KDETMP=/tmp/$USER-kde4
-mkdir -p $KDETMP
-KDEVARTMP=/var/tmp/$USER-kde4
+  source /etc/profile.d/strigi.sh
+  update-mime-database /opt/share/mime/
+  if [[ -e /opt/share/desktop-directories ]]; then
+    update-desktop-database /opt/share/desktop-directories
+  fi
+}
+
+default_final() {
+  update_databases
+}
 
 
-cd $SOURCE_DIRECTORY  &&
-mkdir -p build        &&
-cd build              &&
-cmake -DCMAKE_INSTALL_PREFIX=$KDEDIR \
-      -DCMAKE_BUILD_TYPE=$KDE_DEBUG_OPTION ../  &&
-make
+default_post_remove() {
+  update_databases
 }

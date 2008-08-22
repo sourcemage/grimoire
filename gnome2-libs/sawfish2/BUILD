@@ -1,10 +1,16 @@
-OPTS="--with-gdk-pixbuf" &&
+if [[ "${SAWFISH_IMAGE}" == "gdk-pixbuf" ]]; then
+   OPTS="--enable-gdk-pixbuf ${OPTS}"
+elif [[ "${SAWFISH_IMAGE}" == "imlib" ]]; then
+   OPTS="--disble-gdk-pixbuf ${OPTS}"
+fi  &&
 
-case $VERSION in
-  2002-05-02) sedit "s/(eval-when-compile (require 'sawfish.wm.commands.xterm))/(require 'sawfish.wm.commands.xterm)/" \
-                lisp/sawfish/wm/gnome/integration.jl
-              ;;
-esac &&
+if [[ "${SAWFISH_CAPPLET}" == "y" ]]; then
+   OPTS="--enable-capplet ${OPTS}"
+fi  &&
+
+if [[ "${SAWFISH_WIDGETS}" == "y" ]]; then
+   OPTS="--enable-gnome-widgets ${OPTS}"
+fi  &&
 
 make_single    &&
 default_build  &&

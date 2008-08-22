@@ -1,0 +1,40 @@
+#!/bin/bash
+
+PROGRAM=/usr/bin/farmerjoe
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/sysconfig/farmerjoe-master
+. /etc/init.d/smgl_init
+
+start()
+{
+	echo "Starting Farmerjoe Master..."
+	su -c "$PROGRAM --master >> ${LOG_FILE} 2>&1"  $USER  &
+	evaluate_retval
+	echo $(ps aux|grep farmerjoe|grep -- "--master"|awk '{print $2}') > /var/run/farmerjoe-master.pid
+}
+
+stop()
+{
+	echo "Stopping Farmerjoe Master..."
+	if [[ -e /var/run/farmerjoe-master.pid ]]
+	then
+		kill $(cat /var/run/farmerjoe-master.pid)
+		evaluate_retval
+		rm -f /var/run/farmerjoe-master.pid
+	else
+		echo "Farmerjoe Master is not running"
+	fi	
+}
+
+status()
+{
+	if [[ -e /var/run/farmerjoe-master.pid ]]
+	then
+		echo "Farmerjoe Master is running as $(cat /var/run/farmerjoe-master.pid)"
+	else
+		echo "Farmerjoe Master is not running"
+	fi
+}
+

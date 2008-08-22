@@ -22,14 +22,18 @@
 
 FORCE_RAID=${FORCE_RAID:=false}
 FORCE_LVM=${FORCE_LVM:=false}
+FORCE_CRYPTO=${FORCE_CRYPTO:=false}
 USE_RAID=${USE_RAID:=false}
 USE_LVM=${USE_LVM:=false}
+USE_CRYPTO=${USE_CRYPTO:=false}
 BREAK_ON_MISSING=${BREAK_ON_MISSING:=true}
 REMOVE_OLD_INITRD=${REMOVE_OLD_INITRD:=false}
 
 MODULES=${MODULES:=}
 KVERSION=$(uname -r)
 INITRD_FILE=${INITRD_FILE:=/boot/initrd.img-$KVERSION}
+CPIO_TMP_ROOT=$(mktemp -d -p ${TMP_DIR:-/tmp})
+
 
 function usage()
 {
@@ -46,9 +50,25 @@ function linuxrc_pre()
 
 for module in \`cat /modules.lst\`
 do
-/sbin/insmod \$module
+/bin/insmod \$module
 done
 EOF
+}
+
+function linuxrc_crypto()
+{
+	if $USE_CRYPTO || $FORCE_CRYPTO
+	then
+		cat <<-EOF
+/bin/mount -t proc proc /proc
+/bin/dmsetup mknodes
+cat /crypttab |
+while read line
+do
+eval "/bin/cryptsetup luksOpen \$line" < /dev/console > /dev/console 2>&1
+done
+EOF
+	fi
 }
 
 function linuxrc_raid()
@@ -56,7 +76,7 @@ function linuxrc_raid()
 	if $USE_RAID || $FORCE_RAID
 	then
 	cat <<-EOF
-/sbin/mdadm --assemble --scan
+/bin/mdadm --assemble --scan
 EOF
 	fi
 }
@@ -66,12 +86,18 @@ function linuxrc_lvm()
 	if $USE_LVM || $FORCE_LVM
 	then
 	cat <<-EOF
-/sbin/mount -t proc proc /proc
-/sbin/dmsetup mknodes
-/sbin/vgscan --ignorelockingfailure --mknodes
-/sbin/vgchange -ay --ignorelockingfailure
+/bin/mount -t proc proc /proc
+/bin/dmsetup mknodes
+/bin/vgscan --ignorelockingfailure --mknodes
+/bin/vgchange -ay --ignorelockingfailure
 EOF
 	fi
+}
+
+function linuxrc_pre_kinit()
+{
+	[ -x /etc/linux-initramfs/pre_kinit.sh ] && 
+	. /etc/linux-initramfs/pre_kinit.sh
 }
 
 function linuxrc_post()
@@ -87,22 +113,41 @@ function default_parts()
 dir /dev 0755 0 0
 nod /dev/console 0600 0 0 c 5 1
 dir /root 0700 0 0
-slink /init linuxrc 0755 0 0
 file /linuxrc /tmp/linuxrc 0755 0 0
+link /init /linuxrc 0755 0 0
 EOF
 }
 
 function dir_parts()
 {
 	cat <<-EOF
-slink /sbin bin 0755 0 0
 dir /bin 0755 0 0
+dir /usr 0755 0 0
+dir /usr/bin 0755 0 0
 dir /lib 0755 0 0
 dir /proc 0755 0 0
 dir /sys 0755 0 0
 dir /etc 0755 0 0
 dir /modules 0755 0 0
 EOF
+}
+
+function user_parts()
+{
+	local file
+	[ -f /etc/linux-initramfs/add-files.lst ] &&
+	for file in `cat /etc/linux-initramfs/add-files.lst`
+	do
+		if [[ -f $file ]]
+		then
+			local mode=$(stat -c %a $file)
+			local O=$(stat -c %o $file)
+			local G=$(stat -c %g $file)
+			cat <<-EOF
+			file $file $file $mode $O $G
+			EOF
+		fi
+	done
 }
 
 function dev_parts()
@@ -472,6 +517,262 @@ nod /dev/ram0 660 0 6 b 1 0
 nod /dev/ram1 660 0 6 b 1 1
 nod /dev/ram2 660 0 6 b 1 2
 nod /dev/ram3 660 0 6 b 1 3
+nod /dev/xvda 660 0 6 b 202 0
+nod /dev/xvda1 660 0 6 b 202 1
+nod /dev/xvda2 660 0 6 b 202 2
+nod /dev/xvda3 660 0 6 b 202 3
+nod /dev/xvda4 660 0 6 b 202 4
+nod /dev/xvda5 660 0 6 b 202 5
+nod /dev/xvda6 660 0 6 b 202 6
+nod /dev/xvda7 660 0 6 b 202 7
+nod /dev/xvda8 660 0 6 b 202 8
+nod /dev/xvda9 660 0 6 b 202 9
+nod /dev/xvda10 660 0 6 b 202 10
+nod /dev/xvda11 660 0 6 b 202 11
+nod /dev/xvda12 660 0 6 b 202 12
+nod /dev/xvda13 660 0 6 b 202 13
+nod /dev/xvda14 660 0 6 b 202 14
+nod /dev/xvda15 660 0 6 b 202 15
+nod /dev/xvdb 660 0 6 b 202 16
+nod /dev/xvdb1 660 0 6 b 202 17
+nod /dev/xvdb2 660 0 6 b 202 18
+nod /dev/xvdb3 660 0 6 b 202 19
+nod /dev/xvdb4 660 0 6 b 202 20
+nod /dev/xvdb5 660 0 6 b 202 21
+nod /dev/xvdb6 660 0 6 b 202 22
+nod /dev/xvdb7 660 0 6 b 202 23
+nod /dev/xvdb8 660 0 6 b 202 24
+nod /dev/xvdb9 660 0 6 b 202 25
+nod /dev/xvdb10 660 0 6 b 202 26
+nod /dev/xvdb11 660 0 6 b 202 27
+nod /dev/xvdb12 660 0 6 b 202 28
+nod /dev/xvdb13 660 0 6 b 202 29
+nod /dev/xvdb14 660 0 6 b 202 30
+nod /dev/xvdb15 660 0 6 b 202 31
+nod /dev/xvdc 660 0 6 b 202 32
+nod /dev/xvdc1 660 0 6 b 202 33
+nod /dev/xvdc2 660 0 6 b 202 34
+nod /dev/xvdc3 660 0 6 b 202 35
+nod /dev/xvdc4 660 0 6 b 202 36
+nod /dev/xvdc5 660 0 6 b 202 37
+nod /dev/xvdc6 660 0 6 b 202 38
+nod /dev/xvdc7 660 0 6 b 202 39
+nod /dev/xvdc8 660 0 6 b 202 40
+nod /dev/xvdc9 660 0 6 b 202 41
+nod /dev/xvdc10 660 0 6 b 202 42
+nod /dev/xvdc11 660 0 6 b 202 43
+nod /dev/xvdc12 660 0 6 b 202 44
+nod /dev/xvdc13 660 0 6 b 202 45
+nod /dev/xvdc14 660 0 6 b 202 46
+nod /dev/xvdc15 660 0 6 b 202 47
+nod /dev/xvdd 660 0 6 b 202 48
+nod /dev/xvdd1 660 0 6 b 202 49
+nod /dev/xvdd2 660 0 6 b 202 50
+nod /dev/xvdd3 660 0 6 b 202 51
+nod /dev/xvdd4 660 0 6 b 202 52
+nod /dev/xvdd5 660 0 6 b 202 53
+nod /dev/xvdd6 660 0 6 b 202 54
+nod /dev/xvdd7 660 0 6 b 202 55
+nod /dev/xvdd8 660 0 6 b 202 56
+nod /dev/xvdd9 660 0 6 b 202 57
+nod /dev/xvdd10 660 0 6 b 202 58
+nod /dev/xvdd11 660 0 6 b 202 59
+nod /dev/xvdd12 660 0 6 b 202 60
+nod /dev/xvdd13 660 0 6 b 202 61
+nod /dev/xvdd14 660 0 6 b 202 62
+nod /dev/xvdd15 660 0 6 b 202 63
+nod /dev/xvde 660 0 6 b 202 64
+nod /dev/xvde1 660 0 6 b 202 65
+nod /dev/xvde2 660 0 6 b 202 66
+nod /dev/xvde3 660 0 6 b 202 67
+nod /dev/xvde4 660 0 6 b 202 68
+nod /dev/xvde5 660 0 6 b 202 69
+nod /dev/xvde6 660 0 6 b 202 70
+nod /dev/xvde7 660 0 6 b 202 71
+nod /dev/xvde8 660 0 6 b 202 72
+nod /dev/xvde9 660 0 6 b 202 73
+nod /dev/xvde10 660 0 6 b 202 74
+nod /dev/xvde11 660 0 6 b 202 75
+nod /dev/xvde12 660 0 6 b 202 76
+nod /dev/xvde13 660 0 6 b 202 77
+nod /dev/xvde14 660 0 6 b 202 78
+nod /dev/xvde15 660 0 6 b 202 79
+nod /dev/xvdf 660 0 6 b 202 80
+nod /dev/xvdf1 660 0 6 b 202 81
+nod /dev/xvdf2 660 0 6 b 202 82
+nod /dev/xvdf3 660 0 6 b 202 83
+nod /dev/xvdf4 660 0 6 b 202 84
+nod /dev/xvdf5 660 0 6 b 202 85
+nod /dev/xvdf6 660 0 6 b 202 86
+nod /dev/xvdf7 660 0 6 b 202 87
+nod /dev/xvdf8 660 0 6 b 202 88
+nod /dev/xvdf9 660 0 6 b 202 89
+nod /dev/xvdf10 660 0 6 b 202 90
+nod /dev/xvdf11 660 0 6 b 202 91
+nod /dev/xvdf12 660 0 6 b 202 92
+nod /dev/xvdf13 660 0 6 b 202 93
+nod /dev/xvdf14 660 0 6 b 202 94
+nod /dev/xvdf15 660 0 6 b 202 95
+nod /dev/xvdg 660 0 6 b 202 96
+nod /dev/xvdg1 660 0 6 b 202 97
+nod /dev/xvdg2 660 0 6 b 202 98
+nod /dev/xvdg3 660 0 6 b 202 99
+nod /dev/xvdg4 660 0 6 b 202 100
+nod /dev/xvdg5 660 0 6 b 202 101
+nod /dev/xvdg6 660 0 6 b 202 102
+nod /dev/xvdg7 660 0 6 b 202 103
+nod /dev/xvdg8 660 0 6 b 202 104
+nod /dev/xvdg9 660 0 6 b 202 105
+nod /dev/xvdg10 660 0 6 b 202 106
+nod /dev/xvdg11 660 0 6 b 202 107
+nod /dev/xvdg12 660 0 6 b 202 108
+nod /dev/xvdg13 660 0 6 b 202 109
+nod /dev/xvdg14 660 0 6 b 202 110
+nod /dev/xvdg15 660 0 6 b 202 111
+nod /dev/xvdh 660 0 6 b 202 112
+nod /dev/xvdh1 660 0 6 b 202 113
+nod /dev/xvdh2 660 0 6 b 202 114
+nod /dev/xvdh3 660 0 6 b 202 115
+nod /dev/xvdh4 660 0 6 b 202 116
+nod /dev/xvdh5 660 0 6 b 202 117
+nod /dev/xvdh6 660 0 6 b 202 118
+nod /dev/xvdh7 660 0 6 b 202 119
+nod /dev/xvdh8 660 0 6 b 202 120
+nod /dev/xvdh9 660 0 6 b 202 121
+nod /dev/xvdh10 660 0 6 b 202 122
+nod /dev/xvdh11 660 0 6 b 202 123
+nod /dev/xvdh12 660 0 6 b 202 124
+nod /dev/xvdh13 660 0 6 b 202 125
+nod /dev/xvdh14 660 0 6 b 202 126
+nod /dev/xvdh15 660 0 6 b 202 127
+nod /dev/xvdi 660 0 6 b 202 128
+nod /dev/xvdi1 660 0 6 b 202 129
+nod /dev/xvdi2 660 0 6 b 202 130
+nod /dev/xvdi3 660 0 6 b 202 131
+nod /dev/xvdi4 660 0 6 b 202 132
+nod /dev/xvdi5 660 0 6 b 202 133
+nod /dev/xvdi6 660 0 6 b 202 134
+nod /dev/xvdi7 660 0 6 b 202 135
+nod /dev/xvdi8 660 0 6 b 202 136
+nod /dev/xvdi9 660 0 6 b 202 137
+nod /dev/xvdi10 660 0 6 b 202 138
+nod /dev/xvdi11 660 0 6 b 202 139
+nod /dev/xvdi12 660 0 6 b 202 140
+nod /dev/xvdi13 660 0 6 b 202 141
+nod /dev/xvdi14 660 0 6 b 202 142
+nod /dev/xvdi15 660 0 6 b 202 143
+nod /dev/xvdj 660 0 6 b 202 144
+nod /dev/xvdj1 660 0 6 b 202 145
+nod /dev/xvdj2 660 0 6 b 202 146
+nod /dev/xvdj3 660 0 6 b 202 147
+nod /dev/xvdj4 660 0 6 b 202 148
+nod /dev/xvdj5 660 0 6 b 202 149
+nod /dev/xvdj6 660 0 6 b 202 150
+nod /dev/xvdj7 660 0 6 b 202 151
+nod /dev/xvdj8 660 0 6 b 202 152
+nod /dev/xvdj9 660 0 6 b 202 153
+nod /dev/xvdj10 660 0 6 b 202 154
+nod /dev/xvdj11 660 0 6 b 202 155
+nod /dev/xvdj12 660 0 6 b 202 156
+nod /dev/xvdj13 660 0 6 b 202 157
+nod /dev/xvdj14 660 0 6 b 202 158
+nod /dev/xvdj15 660 0 6 b 202 159
+nod /dev/xvdk 660 0 6 b 202 160
+nod /dev/xvdk1 660 0 6 b 202 161
+nod /dev/xvdk2 660 0 6 b 202 162
+nod /dev/xvdk3 660 0 6 b 202 163
+nod /dev/xvdk4 660 0 6 b 202 164
+nod /dev/xvdk5 660 0 6 b 202 165
+nod /dev/xvdk6 660 0 6 b 202 166
+nod /dev/xvdk7 660 0 6 b 202 167
+nod /dev/xvdk8 660 0 6 b 202 168
+nod /dev/xvdk9 660 0 6 b 202 169
+nod /dev/xvdk10 660 0 6 b 202 170
+nod /dev/xvdk11 660 0 6 b 202 171
+nod /dev/xvdk12 660 0 6 b 202 172
+nod /dev/xvdk13 660 0 6 b 202 173
+nod /dev/xvdk14 660 0 6 b 202 174
+nod /dev/xvdk15 660 0 6 b 202 175
+nod /dev/xvdl 660 0 6 b 202 176
+nod /dev/xvdl1 660 0 6 b 202 177
+nod /dev/xvdl2 660 0 6 b 202 178
+nod /dev/xvdl3 660 0 6 b 202 179
+nod /dev/xvdl4 660 0 6 b 202 180
+nod /dev/xvdl5 660 0 6 b 202 181
+nod /dev/xvdl6 660 0 6 b 202 182
+nod /dev/xvdl7 660 0 6 b 202 183
+nod /dev/xvdl8 660 0 6 b 202 184
+nod /dev/xvdl9 660 0 6 b 202 185
+nod /dev/xvdl10 660 0 6 b 202 186
+nod /dev/xvdl11 660 0 6 b 202 187
+nod /dev/xvdl12 660 0 6 b 202 188
+nod /dev/xvdl13 660 0 6 b 202 189
+nod /dev/xvdl14 660 0 6 b 202 190
+nod /dev/xvdl15 660 0 6 b 202 191
+nod /dev/xvdm 660 0 6 b 202 192
+nod /dev/xvdm1 660 0 6 b 202 193
+nod /dev/xvdm2 660 0 6 b 202 194
+nod /dev/xvdm3 660 0 6 b 202 195
+nod /dev/xvdm4 660 0 6 b 202 196
+nod /dev/xvdm5 660 0 6 b 202 197
+nod /dev/xvdm6 660 0 6 b 202 198
+nod /dev/xvdm7 660 0 6 b 202 199
+nod /dev/xvdm8 660 0 6 b 202 200
+nod /dev/xvdm9 660 0 6 b 202 201
+nod /dev/xvdm10 660 0 6 b 202 202
+nod /dev/xvdm11 660 0 6 b 202 203
+nod /dev/xvdm12 660 0 6 b 202 204
+nod /dev/xvdm13 660 0 6 b 202 205
+nod /dev/xvdm14 660 0 6 b 202 206
+nod /dev/xvdm15 660 0 6 b 202 207
+nod /dev/xvdn 660 0 6 b 202 208
+nod /dev/xvdn1 660 0 6 b 202 209
+nod /dev/xvdn2 660 0 6 b 202 210
+nod /dev/xvdn3 660 0 6 b 202 211
+nod /dev/xvdn4 660 0 6 b 202 212
+nod /dev/xvdn5 660 0 6 b 202 213
+nod /dev/xvdn6 660 0 6 b 202 214
+nod /dev/xvdn7 660 0 6 b 202 215
+nod /dev/xvdn8 660 0 6 b 202 216
+nod /dev/xvdn9 660 0 6 b 202 217
+nod /dev/xvdn10 660 0 6 b 202 218
+nod /dev/xvdn11 660 0 6 b 202 219
+nod /dev/xvdn12 660 0 6 b 202 220
+nod /dev/xvdn13 660 0 6 b 202 221
+nod /dev/xvdn14 660 0 6 b 202 222
+nod /dev/xvdn15 660 0 6 b 202 223
+nod /dev/xvdo 660 0 6 b 202 224
+nod /dev/xvdo1 660 0 6 b 202 225
+nod /dev/xvdo2 660 0 6 b 202 226
+nod /dev/xvdo3 660 0 6 b 202 227
+nod /dev/xvdo4 660 0 6 b 202 228
+nod /dev/xvdo5 660 0 6 b 202 229
+nod /dev/xvdo6 660 0 6 b 202 230
+nod /dev/xvdo7 660 0 6 b 202 231
+nod /dev/xvdo8 660 0 6 b 202 232
+nod /dev/xvdo9 660 0 6 b 202 233
+nod /dev/xvdo10 660 0 6 b 202 234
+nod /dev/xvdo11 660 0 6 b 202 235
+nod /dev/xvdo12 660 0 6 b 202 236
+nod /dev/xvdo13 660 0 6 b 202 237
+nod /dev/xvdo14 660 0 6 b 202 238
+nod /dev/xvdo15 660 0 6 b 202 239
+nod /dev/xvdp 660 0 6 b 202 240
+nod /dev/xvdp1 660 0 6 b 202 241
+nod /dev/xvdp2 660 0 6 b 202 242
+nod /dev/xvdp3 660 0 6 b 202 243
+nod /dev/xvdp4 660 0 6 b 202 244
+nod /dev/xvdp5 660 0 6 b 202 245
+nod /dev/xvdp6 660 0 6 b 202 246
+nod /dev/xvdp7 660 0 6 b 202 247
+nod /dev/xvdp8 660 0 6 b 202 248
+nod /dev/xvdp9 660 0 6 b 202 249
+nod /dev/xvdp10 660 0 6 b 202 250
+nod /dev/xvdp11 660 0 6 b 202 251
+nod /dev/xvdp12 660 0 6 b 202 252
+nod /dev/xvdp13 660 0 6 b 202 253
+nod /dev/xvdp14 660 0 6 b 202 254
+nod /dev/xvdp15 660 0 6 b 202 255
 EOF
 }
 
@@ -510,7 +811,7 @@ function raid_parts()
 	if $USE_RAID || $FORCE_RAID
 	then
 	cat <<-EOF
-file /sbin/mdadm /sbin/mdadm.static 0755 0 0
+file /bin/mdadm /sbin/mdadm.static 0755 0 0
 file /etc/mdadm.conf /etc/mdadm.conf 0644 0 0
 EOF
 	fi
@@ -523,7 +824,7 @@ function lvm_parts()
 	cat <<-EOF
 dir /etc/lvm 0755 0 0
 file /etc/lvm/lvm.conf /etc/lvm/lvm.conf 0644 0 0
-file /sbin/lvm /usr/sbin/lvm.static 0755 0 0
+file /bin/lvm /usr/sbin/lvm.static 0755 0 0
 EOF
 	local link
 	for link in lvs pvs vgs vgck lvconvert lvdisplay pvchange pvcreate \
@@ -534,9 +835,19 @@ EOF
 		vgremove vgconvert vgcfgbackup lvreduce lvrename lvremove \
 		lvresize vgdisplay 
 	do
-		echo "slink /sbin/$link lvm 0755 0 0"
+		echo "link /bin/$link /bin/lvm 0755 0 0"
 	done
-	echo "file /sbin/dmsetup /sbin/dmsetup.static 0755 0 0"
+	echo "file /bin/dmsetup /sbin/dmsetup.static 0755 0 0"
+	fi
+}
+
+function crypto_parts()
+{
+	if $USE_CRYPTO || $FORCE_CRYPTO
+	then
+	echo "file /crypttab /etc/crypttab 0644 0 0"
+	echo "file /bin/cryptsetup /usr/sbin/cryptsetup.static 0755 0 0"
+	echo "file /bin/dmsetup /sbin/dmsetup.static 0755 0 0"
 	fi
 }
 
@@ -575,7 +886,7 @@ function fill_root_driver()
 {
 	local module
 	# there should be a better way to 'detect' what this is but...
-	for module in `cat /etc/modules`
+	for module in `cat /etc/linux-initramfs/modules.lst`
 	do
 		if ! echo $MODULES | grep -q " $module"
 		then
@@ -605,8 +916,51 @@ function fill_modules()
 	then
 		rec_fill_modules dm-mod
 	fi
+	if $USE_CRYPTO || $FORCE_CRYPTO
+	then
+		rec_fill_modules sha256
+		rec_fill_modules sha512
+		rec_fill_modules aes-i586
+		rec_fill_modules aes
+		rec_fill_modules dm-crypt
+	fi
 	fill_root_driver
 	fill_root_filesystem
+}
+
+function gen_cpio_root()
+{
+	local line args
+	while read line
+	do
+		args=($line)
+		case ${args[0]} in
+			link)
+				ln ${CPIO_TMP_ROOT}/${args[2]} ${CPIO_TMP_ROOT}/${args[1]}
+			;;
+			file)
+				cat ${args[2]} > ${CPIO_TMP_ROOT}/${args[1]}
+				chmod ${args[3]} ${CPIO_TMP_ROOT}/${args[1]}
+			;;
+			dir)
+				mkdir ${CPIO_TMP_ROOT}/${args[1]}
+				chmod ${args[2]} ${CPIO_TMP_ROOT}/${args[1]}
+			;;
+			nod)
+				mknod ${CPIO_TMP_ROOT}/${args[1]} ${args[5]} ${args[6]} ${args[7]}
+				chmod ${args[2]} ${CPIO_TMP_ROOT}/${args[1]}
+
+			;;
+		esac
+	done
+}
+
+function gen_cpio_image()
+{
+	pushd $CPIO_TMP_ROOT > /dev/null 2>&1
+	find . | cpio --quiet -H newc -o | gzip -c > $INITRD_FILE
+	popd > /dev/null 2>&1
+	rm -rf $CPIO_TMP_ROOT
 }
 
 function check_raid()
@@ -629,11 +983,25 @@ function check_lvm()
 	fi
 }
 
+function check_crypto()
+{
+	if [[ -f /etc/crypttab && -x /usr/sbin/cryptsetup.static && -x /sbin/dmsetup.static ]]
+	then
+		USE_CRYPTO=true
+	else
+		USE_CRYPTO=false
+	fi
+}
+
 while [[ $1 ]]
 do
 	case $1 in
 		-v|--version)
 			echo "Source Mage GNU/Linux mkinitrd v0.1"
+			usage
+			exit 0
+		;;
+		-h|--help)
 			usage
 			exit 0
 		;;
@@ -643,11 +1011,17 @@ do
 		--enable-lvm)
 			FORCE_LVM=true
 		;;
+		--enable-crypto)
+			FORCE_CRYPTO=true
+		;;
 		--disable-raid)
 			FORCE_RAID=false
 		;;
 		--disable-lvm)
 			FORCE_LVM=false
+		;;
+		--disable-crypto)
+			FORCE_CRYPTO=false
 		;;
 		-f|--force)
 			REMOVE_OLD_INITRD=true
@@ -679,7 +1053,16 @@ done
 depmod -a $KVERSION
 check_raid
 check_lvm
+check_crypto
 fill_modules
+(
+	linuxrc_pre
+	linuxrc_raid
+	linuxrc_lvm
+	linuxrc_crypto
+	linuxrc_pre_kinit
+	linuxrc_post
+) > /tmp/linuxrc
 (
 	default_parts
 	dev_parts
@@ -687,27 +1070,17 @@ fill_modules
 	module_parts
 	klibc_parts
 	raid_parts
-	lvm_parts	
-) > /tmp/initrd.lst
-(
-	linuxrc_pre
-	linuxrc_raid
-	linuxrc_lvm
-	linuxrc_post
-) > /tmp/linuxrc
-if ! [[ -x /lib/modules/$KVERSION/build/usr/gen_init_cpio ]]
-then
-  echo "Bah!!! can't find the gen_init_cpio file is your kernel built?"
-  usage
-  exit -1
-fi &&
+	crypto_parts
+	lvm_parts
+	user_parts	
+) | gen_cpio_root
 if [[ -f $INITRD_FILE && ! $REMOVE_OLD_INITRD ]]
 then
 	echo "Refusing to blow away original initrd"
 	usage
 	exit -1
-fi &&
-/lib/modules/$KVERSION/build/usr/gen_init_cpio /tmp/initrd.lst | gzip -c > $INITRD_FILE
+fi && 
+gen_cpio_image
 
 #---------------------------------------------------------------------
 ##=back

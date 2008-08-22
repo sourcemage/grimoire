@@ -1,14 +1,2 @@
-unset GNUSTEP_LOCAL_ROOT
-unset GNUSTEP_HOST
-unset GNUSTEP_MAKEFILES
-unset GNUSTEP_NETWORK_ROOT
-unset GNUSTEP_FLATTENED
-unset GNUSTEP_HOST_OS
-unset GNUSTEP_HOST_VENDOR
-unset GNUSTEP_HOST_CPU
-unset GNUSTEP_USER_ROOT
-unset GNUSTEP_SYSTEM_ROOT
-unset GNUSTEP_PATHLIST
-
-OPTS="--prefix=/opt/GNUstep $OPTS"  &&
+OPTS="--with-layout=fhs --enable-native-objc-exceptions $OPTS"  &&
 default_build

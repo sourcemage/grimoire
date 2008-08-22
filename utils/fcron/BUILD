@@ -1,22 +1,14 @@
-create_account  fcron
+create_account fcron
 
-# Removed according to Bug #385
-# if    spell_ok  linux-pam
-# then  WITH_PAM="--with-pam=yes"
-# else  WITH_PAM="--with-pam=no"
-# fi
-WITH_PAM="--with-pam=no"
+local editor
+editor=`which ${EDITOR%% *} 2> /dev/null` ||
+editor=`which nano`
 
-EDITOR=`which ${EDITOR%% *}  2>/dev/null`  ||
-EDITOR=`which nano`
-
-sedit  "s/-O2/$CFLAGS/"  configure
-
-./configure  --prefix=/usr          \
-             --with-answer-all=no   \
-             $WITH_PAM              \
-             --with-editor=$EDITOR  \
-             --bindir=/bin          \
-             --sbindir=/sbin        \
-             $OPTS                  &&
-make
+OPTS="--with-answer-all=no \
+      --with-editor=$editor \
+      --localstatedir=$INSTALL_ROOT/var \
+      --with-piddir=$INSTALL_ROOT/var/run \
+      --with-fifodir=$INSTALL_ROOT/var/run \
+      --with-spooldir=$INSTALL_ROOT/var/spool/fcron \
+      $OPTS"  &&
+default_build

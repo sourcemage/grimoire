@@ -1,1 +1,1 @@
-true
+python setup.py build

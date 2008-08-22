@@ -9,8 +9,7 @@
 
   sedit "s/ eu / /" docs/Makefile.in
 
-  groupadd  gdm           2>/dev/null
-  useradd   gdm  -g  gdm  2>/dev/null
+  create_account gdm  &&
 
   patch  -p 0  <  $SCRIPT_DIRECTORY/gdm.patch  &&
 

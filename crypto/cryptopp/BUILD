@@ -1,2 +1,2 @@
-sedit "s:^CXXFLAGS:# CXXFLAGS:" GNUmakefile  &&
+#sedit "s:^CXXFLAGS:# CXXFLAGS:" GNUmakefile  &&
 make

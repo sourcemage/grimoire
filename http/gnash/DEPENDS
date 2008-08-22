@@ -1,32 +1,66 @@
-optional_depends libxml2 "--enable-xml" "--disable-xml" "Enable XML support?" &&
-optional_depends kdebase "--enable-klash" "--disable-klash" "Build konqueror plugin?" &&
-optional_depends NS-PLUGIN-COMPATIBLE "--enable-plugin --with-plugindir=${INSTALL_ROOT}/usr/lib/mozilla/plugins" \
-                         "--disable-plugin"
+depends  -sub "THREAD DATE_TIME"  boost     &&
+depends  curl                               &&
+depends  fontconfig  '--enable-fontconfig'  &&
+depends  g++                                &&
+depends  $GNASH_SOUND                       &&
+depends  jpeg        '--enable-jpeg'        &&
+depends  libpng      '--enable-png'         &&
+depends  libxml2                            &&
+depends  zlib        '--enable-z'           &&
 
-if [[ "${GNASH_GUI}" == "GTK" ]]; then
-  depends GTK2     &&
-  depends pango    &&
-  depends atk      &&
-  depends cairo    &&
-  depends gtkglext
-fi
+#
+# Video rendering
+#
+if [[ $GNASH_RENDERER == "opengl" ]]; then
+  depends  OPENGL  '--enable-renderer=ogl'
+else
+  depends  agg  '--enable-renderer=agg'
+fi  &&
 
-if [[ "${GNASH_GUI}" == "SDL" ]]; then
-  depends sdl
-fi
+#
+# Media rendering
+#
+if [[ $GNASH_MEDIA == "gstreamer" ]]; then
+  depends  $GNASH_MEDIA '--enable-media=GST'
+elif [[ $GNASH_MEDIA == "libmad" ]]; then
+  depends  $GNASH_MEDIA '--enable-media=mad --enable-mad'
+elif [[ $GNASH_MEDIA == "ffmpeg" ]]; then
+  depends  LIBAVCODEC '--enable-media=ffmpeg'
+fi  &&
 
-if [[ "${GNASH_GUI}" == "KDE" ]]; then
-  depends kdebase
-fi
 
-if [[ "${GNASH_SOUND}" == "gstreamer" ]]; then
-  depends gstreamer
-fi
+#
+# GUI
+#
+if   [[ "${GNASH_GUI}" == "GTK" ]]; then
+  depends  atk                           &&
+  depends  cairo                         &&
+  depends  GTK2      '--enable-gui=gtk'  &&
+  depends  gtkglext  '--enable-glext'    &&
+  depends  pango
+elif [[ "${GNASH_GUI}" == "KDE" ]]; then
+  depends  kdebase '--enable-gui=kde'  &&
+  depends  kdelibs '--enable-kparts'   &&
+  depends  qt-x11
+fi  &&
 
-if [[ "${GNASH_SOUND}" == "SDL" ]]; then
-  depends sdl
-fi
+# no longer needed to build
+suggest_depends  NS-PLUGIN-COMPATIBLE                             \
+                  ''                                              \
+                  ''                                              \
+                  'Suggested to run the plugin from a browser'    &&
 
-depends libpng   &&
-depends jpeg  &&
-depends OPENGL
+optional_depends  dbus                           \
+                  ''                             \
+                  ''                             \
+                  'for D-bus extension support'  &&
+
+optional_depends  gettext                        \
+                  '--enable-nls'                 \
+                  '--disable-nls'                \
+                  'for Native Language Support'  &&
+
+optional_depends  lirc                                      \
+                  '--enable-lirc'                           \
+                  '--disable-lirc'                          \
+                  'for Linux infra-red controller support'

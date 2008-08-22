@@ -11,6 +11,10 @@ if  [[  "$ARCHITECTURE"  ==  "pentium4"  ||
   CXXFLAGS=${CXXFLAGS//-ffast-math/}
 fi  &&
 
+if  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64"  ]];  then
+  OPTS="--build=x86_64-pc-linux-gnu  $OPTS"
+fi  &&
+
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h             &&
 
 if [[ "$GCC_NOLIB64" == 'y' ]]; then
@@ -19,7 +23,8 @@ if [[ "$GCC_NOLIB64" == 'y' ]]; then
 fi                                                         &&
 
 cd $SOURCE_DIRECTORY.bld                                   &&
-$SOURCE_DIRECTORY/configure                                \
+# Ignore any installed g++, it could botch up configure!
+CXX=/bin/false $SOURCE_DIRECTORY/configure                 \
              --host=$HOST                                  \
              --prefix=${INSTALL_ROOT}/usr                  \
              --infodir=${INSTALL_ROOT}/usr/share/info      \

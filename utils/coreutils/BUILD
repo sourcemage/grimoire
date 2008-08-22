@@ -4,6 +4,7 @@
    --prefix=${TRACK_ROOT}/usr              \
    --mandir=${TRACK_ROOT}/usr/share/man    \
    --infodir=${TRACK_ROOT}/usr/share/info  \
+   $SELINUX                                \
    $OPTS                                   &&
 
 make_single                                &&

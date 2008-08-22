@@ -1,4 +1,6 @@
-FIREFOX_HOME=$INSTALL_ROOT/usr/lib/seamonkey    &&
+cd "$SOURCE_DIRECTORY/mozilla" &&
+
+FIREFOX_HOME="$INSTALL_ROOT/usr/lib/firefox" &&
 export  MOZ_PHOENIX=1 &&
 
 #

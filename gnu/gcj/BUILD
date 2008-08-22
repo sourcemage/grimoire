@@ -6,9 +6,13 @@ persistent_read  gcc  GCC_CFLAGS   CFLAGS   &&
 persistent_read  gcc  GCC_LDFLAGS  LDFLAGS  &&
 
 # when updating this spell please check if this is still necessary:
-if [ "$GCJ_AWT" = "y" ]; then
-	CFLAGS="$CFLAGS -I${INSTALL_ROOT}/usr/include/freetype2"
-fi                                                         &&
+if [[ $GCJ_AWT == y ]]; then
+  CFLAGS="$CFLAGS -I${INSTALL_ROOT}/usr/include/freetype2"
+fi &&
+
+if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
+  OPTS="--build=x86_64-pc-linux-gnu  $OPTS"
+fi &&
 
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h             &&
 

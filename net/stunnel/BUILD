@@ -12,14 +12,6 @@ case  $CERTIFICATE  in
 
   y|Y|j|J)
     ./configure $OPTS                   &&
-    make cert <<EOF                     &&
-$COUNTRY_NAME
-$PROVINCE_NAME
-$LOCALITY_NAME
-$ORG_NAME
-$ORG_UNIT_NAME
-$COMMON_NAME
-EOF
     make all                            &&
     rm -f /etc/stunnel/stunnel.pem
   ;;

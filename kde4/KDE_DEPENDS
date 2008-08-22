@@ -1,20 +1,48 @@
+source  $GRIMOIRE/FUNCTIONS            &&
 depends g++      &&
-#depends qt4      &&
 depends cmake    &&
-depends dbus     &&
-#depends LIBGIF   &&
-# KDE4 needs these sub_depends
-## Remove this after is_depends_enabled is integrated to stable sorcery.
-#
-#source  "$GRIMOIRE/is_depends_enabled.function"  &&
-#if is_depends_enabled $SPELL dbus; then
-#fi               &&
-#if is_depends_enabled $SPELL LIBGIF; then
-#sub_depends qt4 $(get_spell_provider $SPELL LIBGIF) LIBGIF
-#fi
 case $SPELL in
-  kdelibs4)   depends qt4;;
-  kdepimlibs4) depends kdelibs4;;
-  *)           depends kdepimlibs4;;
-esac            &&
-sub_depends qt4 DBUS
+  kdelibs4)   depends -sub "DBUS SSL OPENGL QT3" qt4     &&
+              if check_if_xorg_modular_libs  qt4  ;  then
+                depends  iceauth       &&
+                depends  libice        &&
+                depends  libsm         &&
+                depends  libxtst       &&
+                depends  libxext
+              fi                       &&
+              depends  phonon          &&
+              depends desktop-file-utils  &&
+              depends dbus             &&
+              depends hal              &&
+              depends pkgconfig        &&
+              depends openssl          &&
+#              if [[ $KDE_VER != stable ]]; then
+              depends strigi           &&
+              sub_depends strigi QT4   &&
+              depends shared-mime-info &&
+              depends  perl            &&
+              depends  libpng          &&
+              depends libxml2          &&
+              depends libxslt          &&
+              depends giflib
+              ;;
+
+  kdepimlibs4) depends kdelibs4        &&
+               depends gpgme           &&
+               depends libgpg-error    &&
+               depends boost
+               ;;
+
+  kdebase4-runtime)
+               depends kdelibs4
+               ;;
+
+  kdebase-workspace4)
+               depends  kdebase4-runtime &&
+               depends X11-SERVER
+               ;;
+
+  *)           depends kdebase4-runtime &&
+               optional_depends kdebase-workspace4 '' '' 'kde desktop'
+               ;;
+esac

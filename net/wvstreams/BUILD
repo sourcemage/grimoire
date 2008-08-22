@@ -1,4 +1,1 @@
-(
-  export CPPFLAGS="-I/usr/include/qt"  &&
-  default_build
-)
+CPPFLAGS="-I/usr/include/qt $CPPFLAGS"  default_build

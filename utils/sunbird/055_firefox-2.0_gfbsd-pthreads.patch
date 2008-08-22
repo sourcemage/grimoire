@@ -1,0 +1,44 @@
+# https://bugs.gentoo.org/show_bug.cgi?id=169825
+
+--- mozilla/config/rules.mk.orig	Thu Sep 14 14:07:03 2006
++++ mozilla/config/rules.mk	Wed Oct 18 11:00:09 2006
+@@ -442,9 +442,7 @@
+ endif
+ 
+ ifeq ($(OS_ARCH),FreeBSD)
+-ifdef IS_COMPONENT
+-EXTRA_DSO_LDOPTS += -Wl,-Bsymbolic
+-endif
++EXTRA_DSO_LDOPTS += -Wl,-Bsymbolic -lc
+ endif
+ 
+ ifeq ($(OS_ARCH),NetBSD)
+--- mozilla/configure.in.orig	2007-02-06 02:37:37 -0300
++++ mozilla/configure.in	2007-03-07 15:35:41 -0300
+@@ -2667,7 +2667,7 @@
+ *-hpux11.*)
+ 	;;
+ *)
+-	AC_CHECK_LIB(c_r, gethostbyname_r)
++	AC_SEARCH_LIBS([gethostbyname_r], [c_r])
+ 	;;
+ esac
+ AC_CHECK_LIB(m, atan)
+--- mozilla/configure.in.orig   2007-02-06 02:37:37 -0300
++++ mozilla/configure.in	2007-03-07 13:59:53 -0300
+@@ -2839,11 +2839,12 @@
+ 	    *-*-freebsd*)
+ 			AC_DEFINE(_REENTRANT)
+ 			AC_DEFINE(_THREAD_SAFE)
+-			dnl -pthread links in -lc_r, so don't specify it explicitly.
+-			if test "$ac_cv_have_dash_pthread" = "yes"; then
+-				_PTHREAD_LDFLAGS="-pthread"
++			dnl use the environment PTHREAD_LIBS
++			if test -n "$PTHREAD_LIBS"; then
++				_PTHREAD_LDFLAGS="$PTHREAD_LIBS"
+ 			else
+-				_PTHREAD_LDFLAGS="-lc_r"
++				_PTHREAD_LDFLAGS="-lpthread"
+ 			fi
++			LDFLAGS="${_PTHREAD_LDFLAGS} ${LDFLAGS}"
+ 			;;

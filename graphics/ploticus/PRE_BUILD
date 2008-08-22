@@ -3,19 +3,24 @@ mk ()
 cat << EOF
 ZLIB = -lz
 ZFLAG = -DWZ
-BIN = /usr/bin
+BIN = $INSTALL_ROOT/usr/bin
 ploticus: plgd18
 GD18LIBS = -lgd -lpng -lz -ljpeg ${LDFLAGS}
 GD18H = 
 GDFREETYPE = -DGDFREETYPE ${CFLAGS}
-PREFABS_DIR = "/usr/lib/ploticus"
+PREFABS_DIR = "$INSTALL_ROOT/usr/lib/ploticus"
+XLIBS = -L$INSTALL_ROOT/usr/X11/lib -lX11
 EOF
-  sed  "s|/local||;s/CFLAGS = /CFLAGS+=/;/^BIN/d" src/Makefile  
+  sed  "s|/local||;s/CFLAGS = /CFLAGS+=/;/^BIN/d;/^XLIBS/D" src/Makefile  
 }
+  source  $GRIMOIRE/FUNCTIONS            &&
   default_pre_build     &&
   cd $SOURCE_DIRECTORY  &&
 # recreate makefile
   mk > MK               &&  
+  if check_if_xorg_modular_libs  $SPELL  ;  then
+    sed -i "s|/X11||" MK
+  fi                    &&
   cp MK src/Makefile    
   
 

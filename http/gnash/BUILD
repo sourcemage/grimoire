@@ -1,13 +1,4 @@
-. $GRIMOIRE/is_depends_enabled.function
-
-if is_depends_enabled $SPELL firefox; then
-  sedit 's#$HOME/.firefox/plugins#$INSTALL_ROOT/usr/lib/firefox/plugins#g' configure
-  sedit 's#$HOME/.mozilla/plugins#$INSTALL_ROOT/usr/lib/mozilla/plugins#g' configure
-fi
-
-if is_depends_enabled $SPELL mozilla; then
-  sedit 's#$HOME/.firefox/plugins#$INSTALL_ROOT/usr/lib/firefox/plugins#g' configure
-  sedit 's#$HOME/.mozilla/plugins#$INSTALL_ROOT/usr/lib/mozilla/plugins#g' configure
-fi
-
+CXXFLAGS=${CXXFLAGS/-Os/-O2}
+CFLAGS=${CFLAGS/-Os/-O2}
+OPTS="$GNASH_OPTS $OPTS"  &&
 default_build
