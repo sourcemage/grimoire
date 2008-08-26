@@ -32,4 +32,5 @@ fi  &&
 
 default_build  &&
 
+export -n MOC RCC UIC  &&
 unset MOC RCC UIC
