@@ -23,14 +23,13 @@ else
   USE_FFMPEG="WITH_BF_FFMPEG=0"
 fi &&
 
-scons \
-	$USE_OPENAL             \
-	$USE_OPENEXR            \
-	$USE_ODE                \
-	$USE_FFMPEG             \
-	WITH_BF_INTERNATIONAL=1 \
-	WITH_BF_PLAYER=1        \
-	WITH_BF_GAMEENGINE=1    \
-	BF_INSTALLDIR=$SOURCE_DIRECTORY/install &&
+scons $USE_OPENAL \
+      $USE_OPENEXR \
+      $USE_ODE \
+      $USE_FFMPEG \
+      WITH_BF_INTERNATIONAL=1 \
+      WITH_BF_PLAYER=1 \
+      WITH_BF_GAMEENGINE=1 \
+      BF_INSTALLDIR="$SOURCE_DIRECTORY/install" &&
 
-make -C $SOURCE_DIRECTORY/install/plugins
+make -C "$SOURCE_DIRECTORY/install/plugins"

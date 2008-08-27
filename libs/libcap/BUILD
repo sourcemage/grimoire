@@ -2,4 +2,5 @@
 disable_pic  &&
 
 # -I added (bug #14583)
-make PAM_CAP=$LIBCAP_PAM CFLAGS="$CFLAGS -I$SOURCE_DIRECTORY/libcap/include"
+# -L added (bug #14660)
+make PAM_CAP=$LIBCAP_PAM CFLAGS="$CFLAGS -I$SOURCE_DIRECTORY/libcap/include -L$SOURCE_DIRECTORY/libcap"

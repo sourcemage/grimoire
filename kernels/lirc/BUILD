@@ -1,11 +1,8 @@
 # Remove their CFLAGS, but make sure only literal CFLAGS definition is gone.
 sedit 's|^CFLAGS="[^$]*"$|#\0|g' configure &&
-
-message "Custom configuration: $LIRCOPTS" &&
-OPTS="
-  $OPTS
-  $LIRCOPTS
-  --with-kerneldir=${INSTALL_ROOT}/usr/src/linux-$(get_kernel_version)
-  --with-moduledir=/lib/modules/$(get_kernel_version)/misc
-" &&
+if [[ "$LIRC_ALL" == y ]]; then
+  OPTS="$OPTS --with-driver=all"
+else
+  OPTS="$OPTS --with-driver=$LIRC_DRIVER"
+fi &&
 default_build
