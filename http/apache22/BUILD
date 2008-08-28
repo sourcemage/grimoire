@@ -13,5 +13,5 @@ cp -f $SCRIPT_DIRECTORY/config.layout $SOURCE_DIRECTORY &&
              --mandir=$INSTALL_ROOT/usr/share/man  \
       --enable-layout=SMGL                         \
           --enable-so                              \
-                      $OPTS                        &&
+                      $OPTS $APACHE22_EXTRA        &&
 make
