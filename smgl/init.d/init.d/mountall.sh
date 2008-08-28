@@ -134,7 +134,7 @@ start()
 
   if [ "$CLEAN_TMP" == "yes" ] ; then
     echo "Cleaning out /tmp..."
-    [ -d /tmp ] && shopt dotglob && rm -rf /tmp/*
+    [ -d /tmp ] && shopt -s dotglob && rm -rf /tmp/* && shopt -u dotglob
     evaluate_retval
   fi
 
