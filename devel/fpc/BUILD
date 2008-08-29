@@ -6,26 +6,9 @@ else
   ARCH=386
 fi  &&
 
-make_single        &&
-
-#
-# First compile a local version with the bootstrap
-#
-make PP=$SOURCE_DIRECTORY/bootstrap/lib/fpc/$VERSION/ppc$ARCH compiler_cycle  &&
-cp $SOURCE_DIRECTORY/compiler/ppc$ARCH         \
-   $SOURCE_DIRECTORY/bootstrap/ppc$ARCH.local  &&
-
-#
-# Now recompile our new bootstrap with our local compiler
-#
-make PP=$SOURCE_DIRECTORY/bootstrap/ppc$ARCH.local compiler_cycle  &&
-rm -f $SOURCE_DIRECTORY/bootstrap/ppc$ARCH.local                   &&
-
-#
-# Build all with our newly forged local FPC
-#
-make PP=$SOURCE_DIRECTORY/compiler/ppc$ARCH rtl_clean                               &&
-make PP=$SOURCE_DIRECTORY/compiler/ppc$ARCH rtl packages_base_all packages_fcl_all  \
-                                            fv_all packages_extra_all utils         &&
-
-make_normal
+if ! spell_ok fpc ; then
+  PP=$SOURCE_DIRECTORY/bootstrap/lib/fpc/$VERSIONB/ppc$ARCH
+else
+  PP=$INSTALL_ROOT/usr/bin/fpc
+fi &&
+make PP=$PP build

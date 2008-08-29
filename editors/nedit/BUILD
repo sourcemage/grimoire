@@ -10,4 +10,5 @@ sed -e "s/CFLAGS\=/CFLAGS:=-DBUILD_UNTESTED_NEDIT -DREPLACE_SCOPE /" \
 	Makefile.linux.tmp > Makefile.linux &&
 rm Makefile.linux.tmp &&
 cd ${SOURCE_DIRECTORY} &&
-make linux
+# echo to make build continue in case of untested build warning
+echo | make linux

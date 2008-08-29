@@ -1,0 +1,32 @@
+#!/bin/bash
+
+NAME=qmail-send
+PROGRAM=/var/qmail/bin/qmail-send
+RUNLEVEL=3
+NEEDS="+network +remote_fs"
+
+. /etc/init.d/smgl_init
+
+loadproc()
+{
+  if [ $# = 0 ] ; then
+    echo "Usage: loadproc {program}"
+    exit 1
+  fi
+
+  getpids $1
+
+  if [ -z "$pidlist" ] ; then
+    ( unset -f echo ; exec "$@" & )
+    evaluate_retval
+  else
+    $SET_WCOL
+    print_status warning running
+  fi
+}
+
+start()
+{
+  echo "Starting $NAME..."
+  loadproc /var/qmail/rc
+}

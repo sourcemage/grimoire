@@ -1,38 +1,52 @@
 #!/bin/bash
 
-PROGRAM=/usr/bin/git-daemon
+. /etc/sysconfig/git-daemon
+
+PIDFILE=/var/run/git-daemon.pid
+PROGRAM=/usr/bin/git
 RUNLEVEL=3
 NEEDS="+network"
+ARGS="daemon --detach --reuseaddr --pid-file=${PIDFILE} ${EXTRA_ARGS}"
 
-. /etc/sysconfig/git-daemon
+[[ -z ${TIMEOUT} ]] || ARGS="${ARGS} --timeout=${TIMEOUT}"
+[[ -z ${INIT_TIMEOUT} ]] || ARGS="${ARGS} --init-timeout=${INIT_TIMEOUT}"
+[[ -z ${PORT} ]] || ARGS="${ARGS} --port=${PORT}"
+[[ -z ${USER} ]] || ARGS="${ARGS} --user=${USER}"
+[[ -z ${GROUP} ]] || ARGS="${ARGS} --group=${GROUP}"
+[[ -z ${STRICT_PATHS} ]] || ARGS="${ARGS} --strict-paths"
+[[ -z ${BASE_PATH} ]] || ARGS="${ARGS} --base-path=${BASE_PATH}"
+
+if [[ -z ${LOG_FILE} ]]; then
+    ARGS="${ARGS} --syslog"
+fi
+
+if [[ -z ${EXPORTED_DIRECTORIES} ]]; then
+    ARGS="${ARGS} --export-all"
+else
+    ARGS="${ARGS} ${EXPORTED_DIRECTORIES}"
+fi
+
 . /etc/init.d/smgl_init
-
-create_args()
-{
-	ARGS="$EXTRA_ARGS"
-	[[ $TIMEOUT ]] && ARGS="$ARGS --timeout=$TIMEOUT"
-	[[ $INIT_TIMEOUT ]] && ARGS="$ARGS --init-timeout=$INIT_TIMEOUT"
-	[[ $PORT ]] && ARGS="$ARGS --port=$PORT"
-	[[ $STRICT_PATHS ]] && ARGS="$ARGS --strict-paths"
-	[[ $BASE_PATH ]] && ARGS="$ARGS --base-path=$BASE_PATH"
-	if [ -z $EXPORTED_DIRECTORIES ] ; then
-		ARGS="$ARGS --export-all"
-	else
-		ARGS="$ARGS $EXPORTED_DIRECTORIES"
-	fi 
-	if [ -z $LOG_FILE ] ; then
-		LOG_FILE="/var/log/git-daemon.log"
-	fi
-}
 
 start()
 {
-	echo "Starting Git Daemon:" 
-	create_args 
-        ( 
-		unset -f echo &&
-		su -c "$PROGRAM $ARGS >> ${LOG_FILE} 2>&1" $USER 
-	) &
-	evaluate_retval
+    echo "Starting ${NAME}..."
+    loadproc ${PROGRAM} ${ARGS}
 }
 
+stop()
+{
+    echo "Stopping ${NAME}..."
+    killproc ${PROGRAM/git/git-daemon}
+}
+
+status()
+{
+    statusproc ${PROGRAM/git/git-daemon}
+}
+
+reload()
+{
+    echo "Reloading ${NAME}..."
+    reloadproc ${PROGRAM/git/git-daemon}
+}

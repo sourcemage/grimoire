@@ -1,4 +1,2 @@
-PATH=$QTDIR/bin/qt4:$PATH  &&
-qmake   &&
+${INSTALL_ROOT}/usr/bin/qt4/qmake  &&
 make
-

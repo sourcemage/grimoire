@@ -1,3 +1,5 @@
-./configure  &&
-sedit 'd/#define HAVE_locale_h/' defines.h
-make  OPT="$CFLAGS"
+./configure &&
+
+sed -i "/#define HAVE_locale_h/ d" defines.h &&
+
+make OPT="$CFLAGS"
