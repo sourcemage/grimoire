@@ -8,4 +8,3 @@ OPTS="$OPTS --with-app-defaults=/usr/share/X11/app-defaults"  &&
 OPTS="$OPTS --with-utmp-setgid=utmp"                          &&
 
 default_build
-
