@@ -36,13 +36,9 @@ case "${PHP5_APACHE}" in
     ;;
 esac &&
 
-# Check for xorg or xserver and pass location of xpm
-if [[ "${PHP5_X11LIBS}" == "y" ]]; then
-    if check_if_xorg_modular_libs; then
-        OPTS="--with-xpm-dir=${INSTALL_ROOT}/usr ${OPTS}"
-    else
-        OPTS="--with-xpm-dir=${INSTALL_ROOT}/usr/X11R6/lib ${OPTS}"
-    fi
+#Check for xorg or xserver and pass location of xpm
+if [ "$PHP5_X11LIBS" == "y" ]; then
+  OPTS="$OPTS --with-xpm-dir=/usr"
 fi &&
 
 # Check to see if internal GD requested
