@@ -17,4 +17,4 @@ fi                                      &&
 
 export CLASSPATH  &&
 ./build.sh -Ddist.dir=antbuild dist  &&
-export -p CLASSPATH
+export -n CLASSPATH
