@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROGRAM=/bin/loadkeys
+PROGRAM=/usr/bin/loadkeys
 RUNLEVEL=S
 NEEDS="+local_fs"
 RECOMMENDED=yes
@@ -16,10 +16,10 @@ start()
   [[ "$TTY_NUMS" ]] && [[ "$SETFONT_ARGS" ]] &&
     required_executable /usr/bin/setfont
   [[ "$KEYMAP$INCLUDEMAPS" ]] &&
-    required_executable /bin/loadkeys
+    required_executable /usr/bin/loadkeys
 
   if [[ "$KEYMAP" ]]; then
-    echo "$(/bin/loadkeys $KEYMAP 2>&1)"
+    echo "$(/usr/bin/loadkeys $KEYMAP 2>&1)"
     evaluate_retval
   fi
 
@@ -27,7 +27,7 @@ start()
     [[ $(find /usr/share/kbd/keymaps/ -type f -name "$a.inc*" 2>/dev/null) ]] &&
     [[ ! $(find /usr/share/kbd/keymaps/ -type f -name "$a.map*" 2>/dev/null) ]] &&
       a="$a.inc"
-    echo "$(/bin/loadkeys $a 2>&1)"
+    echo "$(/usr/bin/loadkeys $a 2>&1)"
     evaluate_retval
   done
 
@@ -36,7 +36,7 @@ start()
   if [[ "$UNICODE_START" ]]; then
     required_executable /usr/bin/unicode_start
     /usr/bin/kbd_mode -u
-    /usr/bin/dumpkeys | /bin/loadkeys --unicode
+    /usr/bin/dumpkeys | /usr/bin/loadkeys --unicode
   fi
 
   if [[ "$TTY_NUMS" == '*' ]]; then
@@ -70,8 +70,8 @@ stop()
   [[ -f $dropfile ]] && . $dropfile && rm $dropfile
 
   [[ "$KEYMAP$INCLUDEMAPS" ]] &&
-    required_executable /bin/loadkeys &&
-    echo "$(/bin/loadkeys defkeymap 2>&1)"
+    required_executable /usr/bin/loadkeys &&
+    echo "$(/usr/bin/loadkeys defkeymap 2>&1)"
 
   [[ "$UNICODE_START" ]] &&
     required_executable /usr/bin/unicode_stop &&
