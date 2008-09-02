@@ -23,8 +23,7 @@ if [[ "$GCC_NOLIB64" == 'y' ]]; then
 fi                                                         &&
 
 cd $SOURCE_DIRECTORY.bld                                   &&
-# Ignore any installed g++, it could botch up configure!
-CXX=/bin/false $SOURCE_DIRECTORY/configure                 \
+$SOURCE_DIRECTORY/configure                                \
              --host=$HOST                                  \
              --prefix=${INSTALL_ROOT}/usr                  \
              --infodir=${INSTALL_ROOT}/usr/share/info      \
