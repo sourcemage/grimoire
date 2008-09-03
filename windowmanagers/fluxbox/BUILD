@@ -1,7 +1,9 @@
-export CPPFLAGS="-I/usr/include/freetype2 $CPPFLAGS" &&
+CPPFLAGS="-I/usr/include/freetype2 $CPPFLAGS" &&
 
-if  [  "$FLUXBOX_SVN"  ==  "y"  ];  then
+if [[ $FLUXBOX_GIT == y ]]; then
   ./autogen.sh
-fi  &&
-OPTS="$OPT $OPTS"  &&
+fi &&
+
+OPTS="$FLUXBOX_OPTS $OPTS" &&
+
 default_build
