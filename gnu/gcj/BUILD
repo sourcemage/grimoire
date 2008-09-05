@@ -10,15 +10,16 @@ if [[ $GCJ_AWT == y ]]; then
   CFLAGS="$CFLAGS -I${INSTALL_ROOT}/usr/include/freetype2"
 fi &&
 
-if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
-  OPTS="--build=x86_64-pc-linux-gnu  $OPTS"
-fi &&
+if [[ $CROSS_INSTALL == on ]]; then
+  OPTS="--host=$HOST $OPTS"
+else
+  OPTS="--build=$HOST $OPTS"
+fi  &&
 
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h             &&
 
 cd $SOURCE_DIRECTORY.bld                                   &&
 $SOURCE_DIRECTORY/configure                                \
-             --host=$HOST                                  \
              --prefix=${INSTALL_ROOT}/usr                  \
              --infodir=${INSTALL_ROOT}/usr/share/info      \
              --mandir=${INSTALL_ROOT}/usr/share/man        \
