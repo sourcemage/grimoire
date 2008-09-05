@@ -16,8 +16,8 @@ else
 fi  &&
 
 export          CC="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin/gnatgcc"                      &&
-export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gnatgcc/$HOST/4.3.0/include"  &&
-export     LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gnatgcc/$HOST/4.3.0/"         &&
+export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gnatgcc/$HOST/4.3.2/include"  &&
+export     LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gnatgcc/$HOST/4.3.2/"         &&
 export     LDFLAGS="-L${LIB_DIR}"
 
 export    LIBRARY_PATH="$LIB_DIR"                             &&
@@ -36,7 +36,7 @@ $SOURCE_DIRECTORY/configure                                \
              --with-system-zlib                            \
              --program-prefix=gnat                         \
              --enable-libada                               \
-             --enable-languages="ada"                      \
+             --enable-languages="c,ada"                    \
              $GCC_MULTILIB                                 \
              $OPTS                                         &&
 
