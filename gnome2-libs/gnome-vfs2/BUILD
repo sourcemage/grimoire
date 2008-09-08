@@ -1,5 +1,5 @@
 if  [  "$IPV6"  ==  "y"  ];  then
-   OPTS="--enable-IPV6  $OPTS"
+   OPTS="--enable-ipv6  $OPTS"
 fi  &&
 
 if  [  "$GNOME_VFS_CRYPTO"  ==  "none"  ];  then
