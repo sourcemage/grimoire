@@ -18,10 +18,8 @@ if [[ $HP5400NVSM == y ]]; then
 ' >> $SOURCE_DIRECTORY/backend/hp5400_internal.h
 fi &&
 
-if [[ $SANE_LOCAL == none ]]; then
+if [[ "$SANE_BUILD_LOCAL" == n ]]; then
   OPTS="$OPTS --disable-local-backends"
-else
-  export BACKENDS=$SANE_LOCAL
 fi &&
 
 OPTS="$OPTS --with-docdir=$INSTALL_ROOT/usr/share/doc/sane-backends" &&
