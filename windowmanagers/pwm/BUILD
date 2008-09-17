@@ -1,3 +1,1 @@
-cp  $SCRIPT_DIRECTORY/sgl-Makefile  \
-    $SOURCE_DIRECTORY/Makefile      &&
-make PREFIX=/usr
+HAS_SYSTEM_ASPRINTF=y make PREFIX=/usr
