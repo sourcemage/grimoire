@@ -1,3 +1,3 @@
 make_single &&
-make &&
+make prefix="$INSTALL_ROOT/usr" &&
 make_normal
