@@ -1,4 +1,5 @@
-./configure  $OPTS -d +lang all                 &&
-make_single                                     &&
-make                                            &&
+./configure -d +lang all $OPTS &&
+
+make_single &&
+make &&
 make_normal
