@@ -1,2 +1,2 @@
-OPTS="$OPTS --disable-gtk-doc" &&
+OPTS="--disable-gtk-doc $OPTS" &&
 default_build
