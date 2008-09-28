@@ -1,7 +1,7 @@
 OPTS="--disable-avahi $OPTS"   &&
 if [ "$GTK_ONLY" == "y" ]; then
      echo "Building without gnome support"   &&
-     OPTS="$OPTS --disable-gnome"
+     OPTS="$OPTS --disable-gnome --disable-eds"
 else
      echo "Building with gnome support"
 fi &&
