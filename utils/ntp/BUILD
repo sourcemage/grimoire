@@ -1,8 +1,13 @@
-create_account  ntp  &&
+create_account ntp &&
 
-for i in $(grep -rl CONFIG_PHONE .);  do
-  sedit  "s/CONFIG_PHONE/NTP_CONFIG_PHONE/g"  $i
-done  &&
+local GLIBCVER=$(installed_version glibc) &&
+GLIBCVER=${GLIBCVER:0:3} &&
 
-OPTS="$OPTS --enable-linuxcaps" &&
+if [[ ! -z $GLIBCVER ]] && [[ ${GLIBCVER/.} > 24 ]]; then
+    if list_find "$NTP_IPV6" "--enable-ipv6"; then
+        OPTS="$OPTS --enable-getifaddrs=glibc"
+    fi
+fi &&
+
+OPTS="$OPTS $NTP_IPV6" &&
 default_build
