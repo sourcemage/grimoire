@@ -6,5 +6,5 @@ OPTS="--with-gcc-compat=${INSTALL_ROOT}/opt/gcc34/bin/gcc $OPTS"
 # this patch must be applied after configure is run
 patch -p0 < $SCRIPT_DIRECTORY/Xcursor.patch &&
 
-source env.sh  &&
+source ./env.sh  &&
 kmk all
