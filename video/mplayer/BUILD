@@ -11,6 +11,10 @@ CFLAGS= ./configure  --prefix=${INSTALL_ROOT}/usr    \
              --mandir=${INSTALL_ROOT}/usr/share/man  \
              $OPTS          &&
 
-make_single &&
-make &&
-make_normal
+if is_depends_enabled $SPELL openal; then
+  make
+else
+  make_single &&
+  make &&
+  make_normal
+fi
