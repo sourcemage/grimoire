@@ -4,7 +4,7 @@ OPTS="--with-gcc-compat=${INSTALL_ROOT}/opt/gcc34/bin/gcc $OPTS"
 
 # patch to make this spell compiling with libxcursor from xorg-modular grimoire
 # this patch must be applied after configure is run
-patch -p0 < $SCRIPT_DIRECTORY/Xcursor.patch
+patch -p0 < $SCRIPT_DIRECTORY/Xcursor.patch &&
 
-source ./env.sh  &&
+source env.sh  &&
 kmk all
