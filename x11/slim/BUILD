@@ -1,1 +1,1 @@
-make $OPTS DESTDIR=${TRACK_ROOT}/ CC=gcc CXX=g++
+make $OPTS DESTDIR="$TRACK_ROOT/" CC=gcc CXX=g++
