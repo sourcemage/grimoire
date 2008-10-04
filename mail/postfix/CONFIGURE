@@ -1,12 +1,13 @@
-persistent_add POSTFIX_PRE_EXISTING &&
-persistent_add POSTFIX_FIX_MAINCF &&
-persistent_add POSTFIX_VDA &&
+local PFIX_VER=$(installed_version $SPELL) &&
+PFIX_VER=$(echo ${PFIX_VER:0:5} | sed -e 's/\.//g') &&
 
-if [[ "x$POSTFIX_VDA" == "x" ]] && spell_ok $SPELL; then
-    persistent_read $SPELL VDA POSTFIX_VDA
+if [[ $PFIX_VER < 255 ]]; then
+    persistent_add POSTFIX_VDA &&
+    POSTFIX_VDA=$VDA
 fi &&
 
 if [[ -f /etc/postfix/main.cf ]]; then
+    persistent_add POSTFIX_PRE_EXISTING &&
     POSTFIX_PRE_EXISTING="yes" &&
 
     message "${MESSAGE_COLOR}Pre-existing main.cf found. Doing upgrade install.${DEFAULT_COLOR}" &&
@@ -17,7 +18,9 @@ if [[ -f /etc/postfix/main.cf ]]; then
 
     config_query POSTFIX_FIX_MAINCF "Check for and fix problems in installed main.cf? (HIGHLY RECOMMENDED)" y
 else
+    persistent_add POSTFIX_PRE_EXISTING &&
     POSTFIX_PRE_EXISTING="no" &&
+
     message "${MESSAGE_COLOR}No pre-existing main.cf found. Doing normal install.${DEFAULT_COLOR}"
 fi &&
 
