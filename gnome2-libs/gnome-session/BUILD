@@ -1,5 +1,3 @@
-if [ "$IPV6" == "y" ]; then
-   OPTS="$OPTS --enable-ipv6"
-fi  &&
+OPTS="$OPTS $GSESSION_IPV6"
 
 default_build
