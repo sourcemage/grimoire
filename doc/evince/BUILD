@@ -1,5 +1,4 @@
-OPTS="$OPTS --enable-dvi --enable-pixbuf"  &&
-if test "$EVINCE_COMIC" = "y"; then
-  OPTS="--enable-comics  $OPTS"
-fi  &&
+OPTS="$EVINCE_THUMB $EVINCE_DVI $EVINCE_PIXBUF $OPTS" &&
+OPTS="$EVINCE_COMIC $EVINCE_IMPRESS $OPTS" &&
+
 default_build
