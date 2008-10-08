@@ -22,10 +22,6 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 CFLAGS="${CFLAGS//-ffast-math/}"      &&
 CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
-./configure --prefix=$INSTALL_ROOT/usr                       \
-            --mandir=$INSTALL_ROOT/usr/share/man             \
-            --enable-optimize="$CFLAGS"                      \
-            $OPTS                                            &&
 make_single  &&
 make -f client.mk build &&
 make_normal
