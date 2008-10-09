@@ -15,8 +15,7 @@ fi                                                            &&
 OPTS="${XORG_SERVER_OPTS}                                     \
       --with-mesa-source=${SOURCE_DIRECTORY}/Mesa-${VERSION2} \
       --with-xkb-output=$TRACK_ROOT/var/lib/xkb               \
-      --with-dri-driver-path=$TRACK_ROOT/usr/lib/modules/dri  \
-      --disable-xprint                                        \
+      --with-dri-driver-path=$TRACK_ROOT/usr/lib/dri          \
       --disable-dmx                                           \
       --disable-xwin                                          \
       --enable-dbe                                            \
