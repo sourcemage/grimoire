@@ -1,0 +1,358 @@
+diff -urN kazehakase-0.5.5.orig/ext/ruby/Makefile.am kazehakase-0.5.5/ext/ruby/Makefile.am
+--- kazehakase-0.5.5.orig/ext/ruby/Makefile.am	2008-07-29 17:15:31.000000000 +0300
++++ kazehakase-0.5.5/ext/ruby/Makefile.am	2008-08-11 02:22:57.000000000 +0300
+@@ -8,7 +8,6 @@
+ 	-DG_DISABLE_DEPRECATED=1
+ 
+ INCLUDES =						\
+-	$(MOZILLA_COMPONENT_CFLAGS)			\
+ 	$(GTK_CFLAGS)					\
+ 	$(LIBGNUTLS_CFLAGS)				\
+ 	$(RUBY_CFLAGS)					\
+@@ -63,5 +62,4 @@
+ 	$(GTK_LIBS)				\
+ 	$(LIBGNUTLS_LIBS)			\
+ 	$(RUBY_LIBS)				\
+-	$(MOZILLA_COMPONENT_LIBS)		\
+ 	$(top_builddir)/src/libkazehakase.la
+diff -urN kazehakase-0.5.5.orig/ext/ruby/Makefile.in kazehakase-0.5.5/ext/ruby/Makefile.in
+--- kazehakase-0.5.5.orig/ext/ruby/Makefile.in	2008-07-29 17:21:39.000000000 +0300
++++ kazehakase-0.5.5/ext/ruby/Makefile.in	2008-08-11 02:22:57.000000000 +0300
+@@ -306,7 +306,6 @@
+ top_srcdir = @top_srcdir@
+ ext_LTLIBRARIES = ruby.la
+ INCLUDES = \
+-	$(MOZILLA_COMPONENT_CFLAGS)			\
+ 	$(GTK_CFLAGS)					\
+ 	$(LIBGNUTLS_CFLAGS)				\
+ 	$(RUBY_CFLAGS)					\
+@@ -354,7 +353,6 @@
+ 	$(GTK_LIBS)				\
+ 	$(LIBGNUTLS_LIBS)			\
+ 	$(RUBY_LIBS)				\
+-	$(MOZILLA_COMPONENT_LIBS)		\
+ 	$(top_builddir)/src/libkazehakase.la
+ 
+ all: all-am
+diff -urN kazehakase-0.5.5.orig/module/embed/gecko/gtkmozembed/nsProfileDirServiceProvider2.cpp kazehakase-0.5.5/module/embed/gecko/gtkmozembed/nsProfileDirServiceProvider2.cpp
+--- kazehakase-0.5.5.orig/module/embed/gecko/gtkmozembed/nsProfileDirServiceProvider2.cpp	2008-07-29 17:15:30.000000000 +0300
++++ kazehakase-0.5.5/module/embed/gecko/gtkmozembed/nsProfileDirServiceProvider2.cpp	2008-08-11 02:23:39.000000000 +0300
+@@ -306,26 +306,6 @@
+         rv = EnsureProfileFileExists(localFile, domainDir);
+     }
+   }
+-  else if (strcmp(prop, NS_APP_MAIL_50_DIR) == 0) {
+-    rv = domainDir->Clone(getter_AddRefs(localFile));
+-    if (NS_SUCCEEDED(rv))
+-      rv = localFile->AppendNative(MAIL_DIR_50_NAME);
+-  }
+-  else if (strcmp(prop, NS_APP_IMAP_MAIL_50_DIR) == 0) {
+-    rv = domainDir->Clone(getter_AddRefs(localFile));
+-    if (NS_SUCCEEDED(rv))
+-      rv = localFile->AppendNative(IMAP_MAIL_DIR_50_NAME);
+-  }
+-  else if (strcmp(prop, NS_APP_NEWS_50_DIR) == 0) {
+-    rv = domainDir->Clone(getter_AddRefs(localFile));
+-    if (NS_SUCCEEDED(rv))
+-      rv = localFile->AppendNative(NEWS_DIR_50_NAME);
+-  }
+-  else if (strcmp(prop, NS_APP_MESSENGER_FOLDER_CACHE_50_DIR) == 0) {
+-    rv = domainDir->Clone(getter_AddRefs(localFile));
+-    if (NS_SUCCEEDED(rv))
+-      rv = localFile->AppendNative(MSG_FOLDER_CACHE_DIR_50_NAME);
+-  }
+   else if (strcmp(prop, NS_APP_STORAGE_50_FILE) == 0) {
+     rv = domainDir->Clone(getter_AddRefs(localFile));
+     if (NS_SUCCEEDED(rv))
+@@ -518,10 +498,6 @@
+   (void) directoryService->Undefine(NS_APP_BOOKMARKS_50_FILE);
+   (void) directoryService->Undefine(NS_APP_DOWNLOADS_50_FILE);
+   (void) directoryService->Undefine(NS_APP_SEARCH_50_FILE);
+-  (void) directoryService->Undefine(NS_APP_MAIL_50_DIR);
+-  (void) directoryService->Undefine(NS_APP_IMAP_MAIL_50_DIR);
+-  (void) directoryService->Undefine(NS_APP_NEWS_50_DIR);
+-  (void) directoryService->Undefine(NS_APP_MESSENGER_FOLDER_CACHE_50_DIR);
+ 
+   return NS_OK;
+ }
+diff -urN kazehakase-0.5.5.orig/module/embed/gecko/GtkPromptService.cpp kazehakase-0.5.5/module/embed/gecko/GtkPromptService.cpp
+--- kazehakase-0.5.5.orig/module/embed/gecko/GtkPromptService.cpp	2008-07-29 17:15:30.000000000 +0300
++++ kazehakase-0.5.5/module/embed/gecko/GtkPromptService.cpp	2008-08-11 02:22:57.000000000 +0300
+@@ -36,6 +36,7 @@
+  *
+  * ***** END LICENSE BLOCK ***** */
+ 
++#include "config.h"
+ #include "GtkPromptService.h"
+ #include <nsIWindowWatcher.h>
+ #include <nsIWebBrowserChrome.h>
+@@ -49,6 +50,23 @@
+ #include <nsIDOMCharacterData.h>
+ #include <nsIDOMText.h>
+ #include <nsMemory.h>
++#ifdef HAVE_GECKO_1_9
++#include <nsIAuthInformation.h>
++#include <nsIStringBundle.h>
++#include <nsServiceManagerUtils.h>
++/* That is ugly but I didn't find another way, except including
++ * NS_GetAuthHostPort */
++#define kNotFound -1
++NS_COM void AppendUTF16toUTF8( const nsAString& aSource, nsACString& aDest );
++#include <nsStringAPI.h>
++#include <nsIProxiedChannel.h>
++#include <nsIProxyInfo.h>
++#include <nsIIDNService.h>
++#include <nsNetCID.h>
++#include <nsIURI.h>
++#include <nsNetUtil.h>
++#include <nsPromptUtils.h>
++#endif
+ 
+ #include <glib/gi18n.h>
+ #include "kz-prompt-dialog.h"
+@@ -89,8 +107,11 @@
+ {
+ }
+ 
+-
++#ifdef HAVE_GECKO_1_9
++NS_IMPL_ISUPPORTS2(GtkPromptService, nsIPromptService, nsIPromptService2)
++#else
+ NS_IMPL_ISUPPORTS1(GtkPromptService, nsIPromptService)
++#endif
+ 
+ NS_IMETHODIMP
+ GtkPromptService::Alert(nsIDOMWindow* aParent, const PRUnichar* aDialogTitle, 
+@@ -338,10 +359,12 @@
+ 	KzPromptDialog *prompt = KZ_PROMPT_DIALOG(kz_prompt_dialog_new_with_parent
+ 	    						(TYPE_PROMPT_USER_PASS,
+ 	    					         GTK_WINDOW(GetGtkWindowForDOMWindow(aParent))));
++#ifndef HAVE_GECKO_1_9
+ 	gchar *host = GetURIForDOMWindow(aParent);
+ 	kz_prompt_dialog_set_host (prompt, host);
+ 	if (host)
+ 		g_free(host);
++#endif
+ 	kz_prompt_dialog_set_title(prompt,
+ 	    			   aDialogTitle ? cTitle.get() : _("Prompt"));
+ 	kz_prompt_dialog_set_message_text(prompt, cText.get());
+@@ -391,10 +414,12 @@
+ 	KzPromptDialog *prompt = KZ_PROMPT_DIALOG(kz_prompt_dialog_new_with_parent
+ 	    						(TYPE_PROMPT_PASS,
+ 	    					         GTK_WINDOW(GetGtkWindowForDOMWindow(aParent))));
++#ifndef HAVE_GECKO_1_9
+ 	gchar *host = GetURIForDOMWindow(aParent);
+ 	kz_prompt_dialog_set_host (prompt, host);
+ 	if (host)
+ 		g_free(host);
++#endif
+ 	kz_prompt_dialog_set_title(prompt,
+ 	    			   aDialogTitle ? cTitle.get() : _("Prompt"));
+ 	kz_prompt_dialog_set_message_text(prompt, cText.get());
+@@ -510,3 +535,147 @@
+ 	NS_UTF16ToCString(uri, NS_CSTRING_ENCODING_UTF8, c_uri);
+ 	return g_strdup(c_uri.get());
+ }
++
++#ifdef HAVE_GECKO_1_9
++static nsresult
++MakeDialogText(nsIChannel* aChannel, nsIAuthInformation* aAuthInfo,
++               nsString& message)
++{
++  nsresult rv;
++  nsCOMPtr<nsIStringBundleService> bundleSvc =
++    do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
++  NS_ENSURE_SUCCESS(rv, rv);
++
++  nsCOMPtr<nsIStringBundle> bundle;
++  rv = bundleSvc->CreateBundle("chrome://global/locale/prompts.properties",
++                               getter_AddRefs(bundle));
++  NS_ENSURE_SUCCESS(rv, rv);
++
++  // figure out what message to display...
++  nsCAutoString host;
++  PRInt32 port;
++  NS_GetAuthHostPort(aChannel, aAuthInfo, PR_FALSE, host, &port);
++
++  nsAutoString displayHost;
++  CopyUTF8toUTF16(host, displayHost);
++
++  nsCOMPtr<nsIURI> uri;
++  aChannel->GetURI(getter_AddRefs(uri));
++
++  nsCAutoString scheme;
++  uri->GetScheme(scheme);
++
++  nsAutoString username;
++  aAuthInfo->GetUsername(username);
++
++  PRUint32 flags;
++  aAuthInfo->GetFlags(&flags);
++  PRBool proxyAuth = (flags & nsIAuthInformation::AUTH_PROXY) != 0;
++
++  nsAutoString realm;
++  aAuthInfo->GetRealm(realm);
++
++  // Append the port if it was specified
++  if (port != -1) {
++    displayHost.Append(PRUnichar(':'));
++    displayHost.AppendInt(port);
++  }
++
++  NS_NAMED_LITERAL_STRING(proxyText, "EnterLoginForProxy");
++  NS_NAMED_LITERAL_STRING(originText, "EnterLoginForRealm");
++  NS_NAMED_LITERAL_STRING(noRealmText, "EnterUserPasswordFor");
++  NS_NAMED_LITERAL_STRING(passwordText, "EnterPasswordFor");
++
++  const PRUnichar *text;
++  if (proxyAuth) {
++    text = proxyText.get();
++  } else {
++    text = originText.get();
++
++    // prepend "scheme://"
++    nsAutoString schemeU;
++    CopyASCIItoUTF16(scheme, schemeU);
++    schemeU.AppendLiteral("://");
++    displayHost.Insert(schemeU, 0);
++  }
++
++  const PRUnichar *strings[] = { realm.get(), displayHost.get() };
++  PRUint32 count = NS_ARRAY_LENGTH(strings);
++
++  if (flags & nsIAuthInformation::ONLY_PASSWORD) {
++    text = passwordText.get();
++    strings[0] = username.get();
++  } else if (!proxyAuth && realm.IsEmpty()) {
++    text = noRealmText.get();
++    count--;
++    strings[0] = strings[1];
++  }
++
++  rv = bundle->FormatStringFromName(text, strings, count, getter_Copies(message));
++  return rv;
++}
++
++NS_METHOD
++GtkPromptService::PromptAuth(nsIDOMWindow *aParent,
++                              nsIChannel *aChannel,
++                              PRUint32 level,
++                              nsIAuthInformation *authInfo,
++                              const PRUnichar *checkboxLabel,
++                              PRBool *checkValue,
++                              PRBool *retval)
++{
++	NS_ENSURE_ARG_POINTER (retval);
++	NS_ENSURE_ARG_POINTER (authInfo);
++
++  nsString message;
++  MakeDialogText(aChannel, authInfo, message);
++
++  nsAutoString defaultUser, defaultDomain, defaultPass;
++  authInfo->GetUsername(defaultUser);
++  authInfo->GetDomain(defaultDomain);
++  authInfo->GetPassword(defaultPass);
++
++  PRUint32 flags;
++  authInfo->GetFlags(&flags);
++
++  if ((flags & nsIAuthInformation::NEED_DOMAIN) && !defaultDomain.IsEmpty()) {
++    defaultDomain.Append(PRUnichar('\\'));
++    defaultUser.Insert(defaultDomain, 0);
++  }
++
++  // NOTE: Allocation failure is not fatal here (just default to empty string
++  // if allocation fails)
++  PRUnichar *user = ToNewUnicode(defaultUser),
++    *pass = ToNewUnicode(defaultPass);
++  nsresult rv;
++  if (flags & nsIAuthInformation::ONLY_PASSWORD)
++    rv = PromptPassword(aParent, nsnull, message.get(),
++                                  &pass, checkboxLabel,
++                                  checkValue, retval);
++  else
++    rv = PromptUsernameAndPassword(aParent, nsnull, message.get(),
++                                             &user, &pass, checkboxLabel,
++                                             checkValue, retval);
++
++  nsString userStr(user);
++  nsString passStr(pass);
++  authInfo->SetUsername(userStr);
++  authInfo->SetPassword(passStr);
++
++  return rv;
++}
++
++NS_METHOD GtkPromptService::AsyncPromptAuth(nsIDOMWindow *aParent,
++                                            nsIChannel *aChannel,
++                                            nsIAuthPromptCallback *aCallback,
++                                            nsISupports *aContext,
++                                            PRUint32 level,
++                                            nsIAuthInformation *authInfo,
++                                            const PRUnichar *checkboxLabel,
++                                            PRBool *checkValue,
++                                            nsICancelable **retval)
++{
++  return NS_ERROR_NOT_IMPLEMENTED;
++}
++
++#endif
+diff -urN kazehakase-0.5.5.orig/module/embed/gecko/GtkPromptService.h kazehakase-0.5.5/module/embed/gecko/GtkPromptService.h
+--- kazehakase-0.5.5.orig/module/embed/gecko/GtkPromptService.h	2008-07-29 17:15:30.000000000 +0300
++++ kazehakase-0.5.5/module/embed/gecko/GtkPromptService.h	2008-08-11 02:22:57.000000000 +0300
+@@ -37,7 +37,11 @@
+  *
+  * ***** END LICENSE BLOCK ***** */
+ 
++#ifdef HAVE_GECKO_1_9
++#include <nsIPromptService2.h>
++#else
+ #include <nsIPromptService.h>
++#endif
+ #include <gtk/gtk.h>
+ 
+ #define NS_PROMPTSERVICE_CID \
+@@ -45,7 +49,12 @@
+ 
+ class nsIDOMWindow;
+ 
+-class GtkPromptService : public nsIPromptService
++class GtkPromptService :
++#ifdef HAVE_GECKO_1_9
++	public nsIPromptService2
++#else
++	public nsIPromptService
++#endif
+ {
+ public:
+ 	GtkPromptService();
+@@ -53,6 +62,9 @@
+ 
+ 	NS_DECL_ISUPPORTS
+ 	NS_DECL_NSIPROMPTSERVICE
++#ifdef HAVE_GECKO_1_9
++	NS_DECL_NSIPROMPTSERVICE2
++#endif
+ 
+ private:
+ 	const char *GetButtonLabel(PRUint32 aFlags, PRUint32 aPos,
+diff -urN kazehakase-0.5.5.orig/module/embed/gecko/kz-mozutils.h kazehakase-0.5.5/module/embed/gecko/kz-mozutils.h
+--- kazehakase-0.5.5.orig/module/embed/gecko/kz-mozutils.h	2008-07-29 17:15:30.000000000 +0300
++++ kazehakase-0.5.5/module/embed/gecko/kz-mozutils.h	2008-08-11 02:22:57.000000000 +0300
+@@ -49,6 +49,8 @@
+  * The following functions is taken from include/necko/nsNetUtils.h in mozilla
+  */
+ 
++#ifndef nsNetUtil_h__
++
+ inline nsresult
+ GetIOService (nsIIOService **ioService)
+ {
+@@ -245,6 +247,6 @@
+ 
+   return resultBuffer;
+ }
+-
++#endif
+ 
+ #endif /* __KZ_MOZ_UTILS_H__ */

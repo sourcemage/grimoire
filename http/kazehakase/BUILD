@@ -11,7 +11,7 @@ if test "$(get_spell_provider $SPELL GECKO)" = mozilla-nightly; then
    OPTS="$OPTS --with-gecko-engine=mozilla"
 fi &&
 if test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
-   OPTS="$OPTS --with-gecko-engine=xulrunner"
+   OPTS="$OPTS --with-gecko-engine=libxul"
 fi &&
 
 # requires at least -O2 to not segfault on startup with gcc 4.0
