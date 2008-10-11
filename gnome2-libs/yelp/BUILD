@@ -6,6 +6,10 @@ if [ "$YELPINFO" == "y" ]; then
    OPTS="$OPTS --enable-info"
 fi  &&
 
+if [ "$YELPSEARCH" == "n" ]; then
+   OPTS="$OPTS --without-search"
+fi  &&
+
 if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
    OPTS="$OPTS --with-gecko=firefox"
 elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
