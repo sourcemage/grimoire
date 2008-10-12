@@ -1,6 +1,6 @@
   local FF DB LL                                &&
   persistent_add FB_PREFIX                      &&
-  FB_PREFIX=${INSTALL_ROOT}/usr/firebird        &&
+  FB_PREFIX=${INSTALL_ROOT}/opt/firebird        &&
   OPTS="${OPTS} ${FB_SS}"                       &&
 if [[ $$FB_VER == 2.0 ]];then
   if spell_ok icu; then
@@ -19,10 +19,10 @@ fi                                              &&
   done                                          &&
   OPTS="${OPTS} ${FB_STAT}"                     &&
   LDFLAGS="$LDFLAGS -lpthread"                  &&
-
-  ./configure 				                        \
-	--prefix=$FB_PREFIX 		                     \
-	$OPTS					                           &&
+  make_single                                   &&
+  ./configure                                    \
+	--prefix=$FB_PREFIX                      \
+	$OPTS                                   &&
 if [[ $FB_CLIENT == n ]]; then
   make                                          &&
   cd $SOURCE_DIRECTORY/gen/firebird             &&
@@ -57,4 +57,5 @@ else
   make -f Makefile.client.isql                  
 # probably need to build gbak and then restore messages and help fdb
 #  make -f Makefile.client.gbak 
-fi
+fi  &&
+make_normal
