@@ -8,7 +8,7 @@ if list_find "${OPTS}" "--enable-cgi" || list_find "${OPTS}" "--enable-fastcgi";
 fi &&
 
 # Setup SSL IMAP if desired
-if list_find "${OPTS}" "--with-imap"; then
+if list_find "${OPTS}" "--with-imap=${INSTALL_ROOT}/usr"; then
     # Setup SSL IMAP if desired
     local CCLIENT=$(get_spell_provider $SPELL C-CLIENT) &&
 
