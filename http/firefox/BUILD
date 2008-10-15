@@ -22,7 +22,9 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 CFLAGS="${CFLAGS//-ffast-math/}"      &&
 CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
-autoconf-2.13 &&
+if [[ "$FIREFOX_CVS" == "y" ]]; then
+autoconf-2.13
+fi &&
 
 make_single  &&
 make -f client.mk build &&
