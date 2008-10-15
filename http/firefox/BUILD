@@ -1,4 +1,4 @@
-cd "$SOURCE_DIRECTORY/mozilla" &&
+cd $SOURCE_DIRECTORY/mozilla* &&
 
 FIREFOX_HOME="$INSTALL_ROOT/usr/lib/firefox" &&
 export  MOZ_PHOENIX=1 &&
@@ -21,6 +21,8 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 #
 CFLAGS="${CFLAGS//-ffast-math/}"      &&
 CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
+
+autoconf-2.13 &&
 
 make_single  &&
 make -f client.mk build &&
