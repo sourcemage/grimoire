@@ -1,0 +1,243 @@
+diff -Naur gst-ffmpeg-0.10.5.orig/ext/ffmpeg/gstffmpegcfg.c gst-ffmpeg-0.10.5/ext/ffmpeg/gstffmpegcfg.c
+--- gst-ffmpeg-0.10.5.orig/ext/ffmpeg/gstffmpegcfg.c	2008-08-19 11:35:20.000000000 +0200
++++ gst-ffmpeg-0.10.5/ext/ffmpeg/gstffmpegcfg.c	2008-10-17 21:45:45.000000000 +0200
+@@ -272,7 +272,9 @@
+       {CODEC_FLAG_GRAY, "Only decode/encode grayscale", "gray"},
+       {CODEC_FLAG_NORMALIZE_AQP,
+           "Normalize Adaptive Quantization (masking, etc)", "aqp"},
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+       {CODEC_FLAG_TRELLIS_QUANT, "Trellis Quantization", "trellis"},
++#endif
+       {CODEC_FLAG_GLOBAL_HEADER,
+             "Global headers in extradata instead of every keyframe",
+           "global-headers"},
+@@ -669,6 +671,11 @@
+       "Prediction Method",
+       GST_TYPE_FFMPEG_PRED_METHOD, FF_PRED_LEFT, G_PARAM_READWRITE);
+   gst_ffmpeg_add_pspec (pspec, config.prediction_method, FALSE, huffyuv, NULL);
++#if LIBAVCODEC_VERSION_INT >= ((52<<16)+(0<<8)+0)
++  pspec = g_param_spec_int ("trellis", "Trellis Quantization",
++      "Trellis RD quantization", 0, 1, 1, G_PARAM_READWRITE);
++  gst_ffmpeg_add_pspec (pspec, config.trellis, FALSE, mpeg, NULL);
++#endif
+ }
+ 
+ /* ==== END CONFIGURATION SECTION ==== */
+diff -Naur gst-ffmpeg-0.10.5.orig/ext/ffmpeg/gstffmpegcodecmap.c gst-ffmpeg-0.10.5/ext/ffmpeg/gstffmpegcodecmap.c
+--- gst-ffmpeg-0.10.5.orig/ext/ffmpeg/gstffmpegcodecmap.c	2008-09-03 16:04:27.000000000 +0200
++++ gst-ffmpeg-0.10.5/ext/ffmpeg/gstffmpegcodecmap.c	2008-10-17 21:56:16.000000000 +0200
+@@ -368,7 +368,11 @@
+           NULL);
+       if (context) {
+         gst_caps_set_simple (caps,
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+             "depth", G_TYPE_INT, context->bits_per_sample, NULL);
++#else
++            "depth", G_TYPE_INT, context->bits_per_coded_sample, NULL);
++#endif
+       }
+       break;
+ 
+@@ -547,7 +551,11 @@
+       caps = gst_ff_vid_caps_new (context, codec_id, "video/x-huffyuv", NULL);
+       if (context) {
+         gst_caps_set_simple (caps,
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+             "bpp", G_TYPE_INT, context->bits_per_sample, NULL);
++#else
++            "bpp", G_TYPE_INT, context->bits_per_coded_sample, NULL);
++#endif
+       }
+       break;
+ 
+@@ -663,7 +671,11 @@
+           "layout", G_TYPE_STRING, "microsoft", NULL);
+       if (context) {
+         gst_caps_set_simple (caps,
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+             "depth", G_TYPE_INT, (gint) context->bits_per_sample, NULL);
++#else
++            "depth", G_TYPE_INT, (gint) context->bits_per_coded_sample, NULL);
++#endif
+       } else {
+         gst_caps_set_simple (caps, "depth", GST_TYPE_INT_RANGE, 1, 64, NULL);
+       }
+@@ -674,7 +686,11 @@
+           "layout", G_TYPE_STRING, "quicktime", NULL);
+       if (context) {
+         gst_caps_set_simple (caps,
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+             "depth", G_TYPE_INT, (gint) context->bits_per_sample, NULL);
++#else
++            "depth", G_TYPE_INT, (gint) context->bits_per_coded_sample, NULL);
++#endif
+       } else {
+         gst_caps_set_simple (caps, "depth", GST_TYPE_INT_RANGE, 1, 64, NULL);
+       }
+@@ -724,7 +740,11 @@
+       caps = gst_ff_vid_caps_new (context, codec_id, "video/x-camtasia", NULL);
+       if (context) {
+         gst_caps_set_simple (caps,
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+             "depth", G_TYPE_INT, (gint) context->bits_per_sample, NULL);
++#else
++            "depth", G_TYPE_INT, (gint) context->bits_per_coded_sample, NULL);
++#endif
+       } else {
+         gst_caps_set_simple (caps, "depth", GST_TYPE_INT_RANGE, 8, 32, NULL);
+       }
+@@ -1077,7 +1097,11 @@
+       caps = gst_ff_aud_caps_new (context, codec_id, "audio/x-alac", NULL);
+       if (context) {
+         gst_caps_set_simple (caps,
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+             "samplesize", G_TYPE_INT, context->bits_per_sample, NULL);
++#else
++            "samplesize", G_TYPE_INT, context->bits_per_coded_sample, NULL);
++#endif
+       }
+       break;
+ 
+@@ -1100,7 +1124,11 @@
+       caps = gst_ff_aud_caps_new (context, codec_id, "audio/x-tta", NULL);
+       if (context) {
+         gst_caps_set_simple (caps,
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+             "samplesize", G_TYPE_INT, context->bits_per_sample, NULL);
++#else
++            "samplesize", G_TYPE_INT, context->bits_per_coded_sample, NULL);
++#endif
+       }
+       break;
+     default:
+@@ -1473,7 +1501,11 @@
+ 
+   gst_structure_get_int (structure, "width", &context->width);
+   gst_structure_get_int (structure, "height", &context->height);
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+   gst_structure_get_int (structure, "bpp", &context->bits_per_sample);
++#else
++  gst_structure_get_int (structure, "bpp", &context->bits_per_coded_sample);
++#endif
+ 
+   fps = gst_structure_get_value (structure, "framerate");
+   if (fps != NULL && GST_VALUE_HOLDS_FRACTION (fps)) {
+@@ -1717,7 +1749,11 @@
+       gint depth;
+ 
+       if (gst_structure_get_int (str, "depth", &depth)) {
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+         context->bits_per_sample = depth;
++#else
++        context->bits_per_coded_sample = depth;
++#endif
+       } else {
+         GST_WARNING ("No depth field in caps %" GST_PTR_FORMAT, caps);
+       }
+@@ -1750,7 +1786,11 @@
+         context->bit_rate = bitrate;
+     }
+     case CODEC_ID_ALAC:
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+       gst_structure_get_int (str, "samplesize", &context->bits_per_sample);
++#else
++      gst_structure_get_int (str, "samplesize", &context->bits_per_coded_sample);
++#endif
+       break;
+ 
+     case CODEC_ID_DVVIDEO:
+diff -Naur gst-ffmpeg-0.10.5.orig/ext/ffmpeg/gstffmpegdec.c gst-ffmpeg-0.10.5/ext/ffmpeg/gstffmpegdec.c
+--- gst-ffmpeg-0.10.5.orig/ext/ffmpeg/gstffmpegdec.c	2008-08-29 10:31:42.000000000 +0200
++++ gst-ffmpeg-0.10.5/ext/ffmpeg/gstffmpegdec.c	2008-10-17 21:45:45.000000000 +0200
+@@ -696,7 +696,11 @@
+ 
+   /* workaround encoder bugs */
+   ffmpegdec->context->workaround_bugs |= FF_BUG_AUTODETECT;
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+   ffmpegdec->context->error_resilience = 1;
++#else
++  ffmpegdec->context->error_recognition = 1;
++#endif
+ 
+   /* for slow cpus */
+   ffmpegdec->context->lowres = ffmpegdec->lowres;
+@@ -2425,7 +2429,7 @@
+   AVCodec *in_plugin;
+   gint rank;
+ 
+-  in_plugin = first_avcodec;
++  in_plugin = av_codec_next(NULL);
+ 
+   GST_LOG ("Registering decoders");
+ 
+@@ -2537,7 +2541,7 @@
+       gst_caps_unref (sinkcaps);
+     if (srccaps)
+       gst_caps_unref (srccaps);
+-    in_plugin = in_plugin->next;
++    in_plugin = av_codec_next(in_plugin);
+   }
+ 
+   GST_LOG ("Finished Registering decoders");
+diff -Naur gst-ffmpeg-0.10.5.orig/ext/ffmpeg/gstffmpegenc.c gst-ffmpeg-0.10.5/ext/ffmpeg/gstffmpegenc.c
+--- gst-ffmpeg-0.10.5.orig/ext/ffmpeg/gstffmpegenc.c	2008-08-19 11:36:00.000000000 +0200
++++ gst-ffmpeg-0.10.5/ext/ffmpeg/gstffmpegenc.c	2008-10-17 22:05:46.000000000 +0200
+@@ -331,8 +331,8 @@
+     /* set some default properties */
+     ctx->width = DEFAULT_WIDTH;
+     ctx->height = DEFAULT_HEIGHT;
+-    ctx->time_base.num = DEFAULT_FRAME_RATE_BASE;
+-    ctx->time_base.den = 25 * DEFAULT_FRAME_RATE_BASE;
++    ctx->time_base.num = 1;
++    ctx->time_base.den = 25;
+     ctx->bit_rate = DEFAULT_VIDEO_BITRATE;
+     /* makes it silent */
+     ctx->strict_std_compliance = -1;
+@@ -408,7 +408,9 @@
+ 
+   /* RTP payload used for GOB production (for Asterisk) */
+   if (ffmpegenc->rtp_payload_size) {
++#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
+     ffmpegenc->context->rtp_mode = 1;
++#endif
+     ffmpegenc->context->rtp_payload_size = ffmpegenc->rtp_payload_size;
+   }
+ 
+@@ -973,13 +975,13 @@
+   GType type;
+   AVCodec *in_plugin;
+ 
+-  in_plugin = first_avcodec;
+ 
+   GST_LOG ("Registering encoders");
+ 
+   /* build global ffmpeg param/property info */
+   gst_ffmpeg_cfg_init ();
+ 
++  in_plugin = av_codec_next(NULL);
+   while (in_plugin) {
+     gchar *type_name;
+     GstCaps *srccaps = NULL, *sinkcaps = NULL;
+@@ -1056,7 +1058,7 @@
+       gst_caps_unref (sinkcaps);
+     if (srccaps)
+       gst_caps_unref (srccaps);
+-    in_plugin = in_plugin->next;
++    in_plugin = av_codec_next(in_plugin);
+   }
+ 
+   GST_LOG ("Finished registering encoders");
+diff -Naur gst-ffmpeg-0.10.5.orig/ext/ffmpeg/gstffmpegprotocol.c gst-ffmpeg-0.10.5/ext/ffmpeg/gstffmpegprotocol.c
+--- gst-ffmpeg-0.10.5.orig/ext/ffmpeg/gstffmpegprotocol.c	2008-05-12 17:03:23.000000000 +0200
++++ gst-ffmpeg-0.10.5/ext/ffmpeg/gstffmpegprotocol.c	2008-10-17 21:45:45.000000000 +0200
+@@ -175,8 +175,8 @@
+   return size;
+ }
+ 
+-static offset_t
+-gst_ffmpegdata_seek (URLContext * h, offset_t pos, int whence)
++static int64_t
++gst_ffmpegdata_seek (URLContext * h, int64_t pos, int whence)
+ {
+   GstProtocolInfo *info;
+   guint64 newpos;
