@@ -28,6 +28,8 @@ make_single                           &&
 make LCL_PLATFORM=$LAZ_GUI            &&
 UNIT=$SOURCE_DIRECTORY/components     &&
 cd $SOURCE_DIRECTORY/components       &&
+# only build the sqlite3 package
+rm sqlite/sqlitelaz.lpk             &&
 for FF in $LAZ_PACK;do
   if [[ $FF == lazreport ]];then
     FF=$FF/source
