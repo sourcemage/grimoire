@@ -98,14 +98,36 @@ if is_depends_enabled $SPELL postgresql && list_find "${PHP5_OPTS}" "--enable-pd
 fi &&
 
 optional_depends mysql \
-                 "--with-mysql" "--without-mysql" \
+                 "" "" \
                  "for MySQL support" &&
 
+if is_depends_enabled $SPELL mysql && [[ "${VERSION:0:3}" == "5.3" ]]; then
+    config_query PHP5_MYSQLND "Do you want to use the MySQL Native Driver [mysqlnd]? (experimental)" y &&
+
+    if [[ "${PHP5_MYSQLND}" == "y" ]]; then
+        PHP5_OPTS="${PHP5_OPTS} --with-mysql=mysqlnd"
+    else
+        PHP5_OPTS="${PHP5_OPTS} --with-mysql"
+    fi
+elif is_depends_enabled $SPELL mysql && [[ "${VERSION:0:3}" != "5.3" ]]; then
+    PHP5_OPTS="${PHP5_OPTS} --with-mysql"
+else
+    PHP5_OPTS="${PHP5_OPTS} --without-mysql"
+fi &&
+
 if is_depends_enabled $SPELL mysql && list_find "${PHP5_OPTS}" "--enable-pdo"; then
-    config_query_option PHP5_OPTS "Do you also want to build the MySQL PDO driver?" n \
-                        "--with-pdo-mysql" "--without-pdo-mysql" &&
-    config_query_option PHP5_OPTS "Do you want to build the MySQLi extension?" n \
-                        "--with-mysqli" "--without-mysqli"
+    if [[ "${VERSION:0:3}" == "5.3" ]] && [[ "${PHP5_MYSQLND}" == "y" ]]; then
+        config_query_option PHP5_OPTS "Do you want to build the MySQLi extension?" n \
+                            "--with-mysqli=mysqlnd" "--without-mysqli" &&
+
+        config_query_option PHP5_OPTS "Do you also want to build the MySQL PDO driver?" n \
+                            "--with-pdo-mysql=mysqlnd" "--without-pdo-mysql"
+    else
+        config_query_option PHP5_OPTS "Do you want to build the MySQLi extension?" n \
+                            "--with-mysqli" "--without-mysqli" &&
+        config_query_option PHP5_OPTS "Do you also want to build the MySQL PDO driver?" n \
+                            "--with-pdo-mysql" "--without-pdo-mysql"
+    fi
 fi &&
 
 optional_depends gdbm \
