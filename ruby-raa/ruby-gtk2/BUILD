@@ -1,5 +1,2 @@
-cd glib &&
-ruby extconf.rb &&
-
-cd ../gtk &&
+cd gtk &&
 default_build
