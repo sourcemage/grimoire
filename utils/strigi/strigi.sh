@@ -1,3 +1,3 @@
 #!/bin/sh
 #set environment for using strigi
-export XDG_DATA_DIRS=/usr/share:/opt/kde4/share
+export XDG_DATA_DIRS=/opt/kde4/share:/usr/share
