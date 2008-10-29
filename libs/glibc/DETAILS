@@ -3,6 +3,7 @@ if  [  "$GLIBC_NPTL"  =  "n"  ];  then
          VERSION=2.3.6
  HEADERS_VERSION=2.4.24
           SOURCE=$SPELL-$VERSION.tar.bz2
+SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
          SOURCE2=$SOURCE.sig
          SOURCE3=glibc-linuxthreads-$VERSION.tar.bz2
          SOURCE4=$SOURCE3.sig
@@ -19,10 +20,36 @@ if  [  "$GLIBC_NPTL"  =  "n"  ];  then
     SOURCE5_HASH=sha512:c1931495915c8461de97e4156c9d0edd7b44e4b48cbce2d4c3a52b83d331a9ce48f3c7abb7dd787ed897f1e7d0e81c5cdb4eb3986bc24a5e2788708427e2dcb1
       PATCHLEVEL=1
 else
+  if [[ "$GLIBC_CVS" == "y" ]]; then
+    if [[ "${GLIBC_CVS_AUTOUPDATE}" == "y" ]]; then
+         VERSION=2.8-$(date +%Y%m%d) && FORCE_DOWNLOAD=on
+    else 
+         VERSION=2.8
+    fi
+          SOURCE=$SPELL-2.8.tar.bz2
+SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-2.8
+      SOURCE_URL=cvs://:pserver:anoncvs:anoncvs@sources.redhat.com:/cvs/glibc:libc:$SPELL-2_8-branch
+   SOURCE_IGNORE=volatile
+  else
          VERSION=2.7
- HEADERS_VERSION=2.6.25
           SOURCE=$SPELL-$VERSION.tar.bz2
+SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
          SOURCE2=$SOURCE.sig
+   SOURCE_URL[0]=$GNU_URL/$SPELL/$SOURCE
+  SOURCE2_URL[0]=${SOURCE_URL[0]}.sig
+  if [ "$GLIBC_USEIDN" = "y" ]; then
+         SOURCE4=$SPELL-libidn-$VERSION.tar.bz2
+         SOURCE5=$SOURCE4.sig
+  SOURCE4_URL[0]=$GNU_URL/$SPELL/$SOURCE4
+  SOURCE5_URL[0]=${SOURCE4_URL[0]}.sig
+     SOURCE4_GPG=gnu.gpg:$SOURCE4.sig:UPSTREAM_KEY
+  SOURCE5_IGNORE=signature
+  fi
+      SOURCE_GPG=gnu.gpg:$SOURCE.sig:UPSTREAM_KEY
+  SOURCE2_IGNORE=signature
+      PATCHLEVEL=2
+  fi
+ HEADERS_VERSION=2.6.25
 case "${SMGL_COMPAT_ARCHS[1]}" in
   ia32)
          SOURCE3=linux-headers-${HEADERS_VERSION}-x86.tar.bz2
@@ -62,23 +89,9 @@ case "${SMGL_COMPAT_ARCHS[1]}" in
          return 222
   ;;
 esac
-   SOURCE_URL[0]=$GNU_URL/$SPELL/$SOURCE
-  SOURCE2_URL[0]=${SOURCE_URL[0]}.sig
   SOURCE3_URL[0]=http://download.sourcemage.org/distro/kernel/headers/$SOURCE3
   SOURCE6_URL[0]=${SOURCE3_URL[0]}.sig
-  if [ "$GLIBC_USEIDN" = "y" ]; then
-         SOURCE4=$SPELL-libidn-$VERSION.tar.bz2
-         SOURCE5=$SOURCE4.sig
-  SOURCE4_URL[0]=$GNU_URL/$SPELL/$SOURCE4
-  SOURCE5_URL[0]=${SOURCE4_URL[0]}.sig
-     SOURCE4_GPG=gnu.gpg:$SOURCE4.sig:UPSTREAM_KEY
-  SOURCE5_IGNORE=signature
-  fi
-      SOURCE_GPG=gnu.gpg:$SOURCE.sig:UPSTREAM_KEY
-  SOURCE2_IGNORE=signature
-      PATCHLEVEL=2
 fi
-SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
         WEB_SITE=http://www.gnu.org/software/libc
       LICENSE[0]=LGPL
       LICENSE[1]=LGPL
