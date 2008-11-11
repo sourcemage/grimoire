@@ -1,5 +1,6 @@
 export BUILD_OPT=1 &&
 export SOURCE_PREFIX=$(pwd) &&
+export NSS_USE_SYSTEM_SQLITE=1 &&
 
 # use our CFLAGS and pre-installed NSPR headers
 #echo "OS_CFLAGS += $CFLAGS -I$INSTALL_ROOT/usr/include/nspr" >>coreconf/Linux.mk &&
