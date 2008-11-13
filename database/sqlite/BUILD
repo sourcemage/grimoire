@@ -1,5 +1,7 @@
 if [[ $SQLITE_META == y ]];then
   CFLAGS="$CFLAGS -DSQLITE_ENABLE_COLUMN_METADATA=1"
 fi &&
-OPTS="$OPTS $SQLITE_TSAFE" &&
+
+OPTS="$SQLITE_TSAFE $OPTS" &&
+
 default_build
