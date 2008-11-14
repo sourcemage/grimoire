@@ -13,6 +13,8 @@ echo 'INCLUDES += -I/usr/include/nspr -I$(DIST)/include/dbm' >> headers.mk &&
 
 sed -e 's:$(DIST)/lib:/usr/lib/nspr:' -i location.mk &&
 
+make_single &&
+
 make $MAKE_OPTS &&
 
 cd ../dbm &&
@@ -21,4 +23,6 @@ make $MAKE_OPTS &&
 
 cd ../nss &&
 
-make $MAKE_OPTS
+make $MAKE_OPTS &&
+
+make_normal
