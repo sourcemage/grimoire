@@ -1,10 +1,8 @@
-if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
-  OPTS="$OPTS --enable-gecko=firefox --disable-xulrunner"
-elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
-  OPTS="$OPTS --enable-gecko=seamonkey --disable-xulrunner"
+if test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
+  OPTS="$OPTS --with-gecko=seamonkey"
 elif test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
-  OPTS="$OPTS --enable-xulrunner --disable-gecko"
+  OPTS="$OPTS --with-gecko=libxul-embedding"
 elif test "$(get_spell_provider $SPELL GECKO)" = mozilla; then
-  OPTS="$OPTS --enable-gecko=mozilla --disable-xulrunner"
+  OPTS="$OPTS --with-gecko=mozilla"
 fi  &&
 default_build
