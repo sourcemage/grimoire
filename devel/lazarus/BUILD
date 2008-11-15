@@ -25,7 +25,7 @@ cat > idemake.cfg << EOF
 EOF
 #export LCL_PLATFORM=$LAZ_GUI          &&
 make_single                           &&
-make LCL_PLATFORM=$LAZ_GUI            &&
+make LCL_PLATFORM=$LAZ_GUI $OPTS      &&
 UNIT=$SOURCE_DIRECTORY/components     &&
 cd $SOURCE_DIRECTORY/components       &&
 # only build the sqlite3 package
@@ -47,7 +47,7 @@ for FF in $LAZ_PACK;do
 done                                  &&
 cd $SOURCE_DIRECTORY                  &&
 cp staticpackages.inc ~/.lazarus      &&
-make LCL_PLATFORM=$LAZ_GUI idepkg     &&
+make LCL_PLATFORM=$LAZ_GUI $OPTS idepkg     &&
 cp ~/.lazarus/packagefiles.xml ./     &&
 sed -i "s|$SOURCE_DIRECTORY|$TRACK_ROOT/usr/share/lazarus|" idemake.cfg &&
 strip -s lazarus startlazarus         &&
