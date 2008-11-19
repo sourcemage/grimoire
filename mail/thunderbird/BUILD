@@ -19,6 +19,10 @@ if  echo $LDFLAGS | grep  -q  '\-s'; then
   OPTS="$OPTS  --enable-strip"
 fi  &&
 
+if [[ $THUNDERBIRD_OFFICIAL == y ]]; then
+  OPTS="$OPTS --enable-official-branding"
+fi
+
 ./configure --prefix=${INSTALL_ROOT}/usr     \
             --with-user-appdir=.thunderbird  \
             --enable-application=mail        \
