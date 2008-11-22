@@ -29,9 +29,24 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.bz2}  &&
 
   unpack_file 3                         &&
-  cd  $GLIBC_HEADERS_DIR/usr/include                  &&
-  chmod  -R  +r  *                                    &&
-  find  .  -type  d  -exec  chmod  +x  '{}'  ';'
+  if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
+    cd  $GLIBC_HEADERS_DIR/usr/include                  &&
+    chmod  -R  +r  *                                    &&
+    find  .  -type  d  -exec  chmod  +x  '{}'  ';'
+  else
+    cd  $GLIBC_HEADERS_DIR &&
+    if [ ! -z $SOURCE7 ]; then
+      verify_file 7 || return 1 &&
+      bzcat ${SOURCE_CACHE}/$SOURCE7 > ${SOURCE7%.bz2} &&
+      message "${MESSAGE_COLOR}Patching ${!patch}${DEFAULT_COLOR}" &&
+      patch -p1 < ${SOURCE7%.bz2} &&
+      if [[ $? != 0 ]]; then
+        message "${PROBLEM_COLOR}Patch ${!patch} failed${DEFAULT_COLOR}" &&
+        return 1
+      fi
+    fi &&
+    make mrproper
+  fi
 else
   cd      $SOURCE_DIRECTORY                         &&
   #
@@ -57,24 +72,6 @@ fi  &&
 cd  $SOURCE_DIRECTORY                               &&
 patch  -p0  <  $SCRIPT_DIRECTORY/Makefile.patch     &&
 patch  -p1  <  $SCRIPT_DIRECTORY/as-test-x.patch &&
-
-#
-# Fix for GCC 4.3.0
-# http://sources.redhat.com/bugzilla/show_bug.cgi?id=5442
-#
-if [[ "$GLIBC_CVS" != "y" ]]; then
-  patch $SOURCE_DIRECTORY/configure.in  \
-        $SCRIPT_DIRECTORY/gcc43.patch   &&
-  autoconf
-fi                                      &&
-
-#
-# Fix for fnstsw asm issue with latest binutils
-# http://sourceware.org/ml/binutils/2008-01/msg00151.html
-#
-if [[ "$GLIBC_CVS" != "y" ]]; then
-  patch -p1 < $SCRIPT_DIRECTORY/fnstsw.patch
-fi                                      &&
 
 # disabled libgd detection/building memusagestat for now until a better
 # fix has been found, bug #8277
