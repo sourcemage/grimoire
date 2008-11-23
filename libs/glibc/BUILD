@@ -67,6 +67,15 @@ unset  LD_LIBRARY_PATH  &&
 # Setup sanitised glibc-kernel-headers for the glibc compile
 # ...as well as other arch-dependend specialties
 #
+if [[ ${GLIBC_NPTL} == y ]] && [[ ${GLIBC_SANITIZE_HEADERS} == y ]]; then
+  cd ${GLIBC_HEADERS_DIR} &&
+  if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]] && [[ ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
+    make ARCH=sparc64 INSTALL_HDR_PATH=usr headers_install
+  else
+    make ARCH=${SMGL_COMPAT_ARCHS[1]} INSTALL_HDR_PATH=usr headers_install
+  fi
+fi
+
 if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
   #
   # If we're not compiling for 64-bit SPARC then we need to use the sparc
