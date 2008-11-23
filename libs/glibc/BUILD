@@ -69,11 +69,17 @@ unset  LD_LIBRARY_PATH  &&
 #
 if [[ ${GLIBC_NPTL} == y ]] && [[ ${GLIBC_SANITIZE_HEADERS} == y ]]; then
   cd ${GLIBC_HEADERS_DIR} &&
-  if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]] && [[ ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
-    make ARCH=sparc64 INSTALL_HDR_PATH=usr headers_install
+  GL_ARCH=${SMGL_COMPAT_ARCHS[1]}  &&
+  if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]];then
+    if [[ ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
+      GL_ARCH=sparc64
+    fi
   else
-    make ARCH=${SMGL_COMPAT_ARCHS[1]} INSTALL_HDR_PATH=usr headers_install
-  fi
+    if [[ ${SMGL_COMPAT_ARCHS[1]} == ia32 ]]; then
+     GL_ARCH=i386
+    fi
+  fi &&
+  make ARCH=$GL_ARCH INSTALL_HDR_PATH=usr headers_install
 fi
 
 if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
