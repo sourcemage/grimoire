@@ -1,2 +1,2 @@
-qt4_build
+qt4_cmake_build
 
