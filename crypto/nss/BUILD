@@ -1,5 +1,6 @@
 export BUILD_OPT=1 &&
 export NSS_USE_SYSTEM_SQLITE=1 &&
+export NSS_ENABLE_ECC=1 &&
 
 persistent_add MAKE_OPTS &&
 if [[ ${SMGL_COMPAT_ARCHS[1]} == "x86_64" ]]
