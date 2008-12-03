@@ -1,5 +1,7 @@
 ## Build jar
-
+if [ -f /etc/profile.d/ant.sh ]; then
+    source /etc/profile.d/ant.sh
+fi &&
 ant build &&
 
 ## Build docs
