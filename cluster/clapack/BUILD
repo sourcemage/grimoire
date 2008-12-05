@@ -1,3 +1,3 @@
-make  blaslib    &&
-make  lapacklib  &&
-make  tmglib
+make lib &&
+make blaslib &&
+make lapack_install # not really installing anything
