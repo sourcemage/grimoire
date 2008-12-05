@@ -7,6 +7,6 @@
 #
 
 if  [ -z "$MOZILLA_FIVE_HOME" ] ; then 
-	MOZILLA_FIVE_HOME=/usr/lib/seamonkey
+	MOZILLA_FIVE_HOME=/usr/lib/xulrunner-1.9
 fi 
 export  MOZILLA_FIVE_HOME

@@ -1,13 +1,7 @@
-if [[ $EXAMPLES == y ]]; then
-   OPTS="$OPTS --enable-examples"
-else
-   OPTS="$OPTS --disable-examples"
-fi &&
-
 if [[ $DEMOS == y ]]; then
-   OPTS="$OPTS --enable-demos"
+   OPTS="--enable-demos $OPTS"
 else
-   OPTS="$OPTS --disable-demos"
+   OPTS="--disable-demos $OPTS"
 fi &&
 
 default_build

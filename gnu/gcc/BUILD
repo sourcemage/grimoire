@@ -11,6 +11,9 @@ if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
   CXXFLAGS=${CXXFLAGS//-ffast-math/}
 fi  &&
 
+# fixes seg-fault on libiberty/splay.c in v 4.3.2
+CFLAGS="-O1 $CFLAGS"
+
 if [[ $CROSS_INSTALL == on ]]; then
   OPTS="--host=$HOST $OPTS"
 else

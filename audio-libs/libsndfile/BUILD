@@ -1,1 +1,5 @@
-OPTS="--disable-dependency-tracking $SND_LARGEFILE $OPTS"  default_build
+OPTS="--disable-dependency-tracking $LIBSNDFILE_LARGEFILE $OPTS" &&
+
+autoreconf &&
+
+default_build

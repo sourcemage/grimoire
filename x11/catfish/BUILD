@@ -1,2 +1,3 @@
-./configure --prefix=${INSTALL_ROOT}/usr &&
+./configure --prefix="$INSTALL_ROOT/usr" &&
+
 make
