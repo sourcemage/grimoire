@@ -8,7 +8,7 @@ chown mail:mail "$INSTALL_ROOT/var/spool/mail" &&
 chgrp -R mail "$INSTALL_ROOT/var/spool/mail" &&
 
 # We want blank vars
-local AUXLIBS="" &&
+local AUXLIBS="-L$INSTALL_ROOT/usr/lib -L$INSTALL_ROOT/lib -lm" &&
 local CCARGS="" &&
 
 if is_depends_enabled $SPELL openldap; then
@@ -29,14 +29,20 @@ if is_depends_enabled $SPELL cyrus-sasl; then
     message "${MESSAGE_COLOR}Cyrus-SASL requested: Using Cyrus-SASL${DEFAULT_COLOR}"
 fi &&
 
+if is_depends_enabled $SPELL sqlite; then
+    AUXLIBS="$AUXLIBS -lsqlite3"
+    CCARGS="$CCARGS -DHAS_SQLITE -I$INSTALL_ROOT/usr/include" &&
+    message "${MESSAGE_COLOR}SQLite requested: Using SQLite${DEFAULT_COLOR}"
+fi &&
+
 if is_depends_enabled $SPELL mysql; then
-    AUXLIBS="$AUXLIBS -L$INSTALL_ROOT/usr/lib -lmysqlclient -lz -lm" &&
+    AUXLIBS="$AUXLIBS -lmysqlclient -lz" &&
     CCARGS="$CCARGS -DHAS_MYSQL -I$INSTALL_ROOT/usr/include/mysql" &&
     message "${MESSAGE_COLOR}MySQL requested: Using MySQL${DEFAULT_COLOR}"
 fi &&
 
 if is_depends_enabled $SPELL postgresql; then
-    AUXLIBS="$AUXLIBS -L$INSTALL_ROOT/usr/lib -lpq" &&
+    AUXLIBS="$AUXLIBS -lpq" &&
     CCARGS="$CCARGS -DHAS_PGSQL -I$INSTALL_ROOT/usr/include/pgsql" &&
     message "${MESSAGE_COLOR}PostgreSQL requested: Using PostgresSQL${DEFAULT_COLOR}"
 fi &&
