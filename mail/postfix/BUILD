@@ -29,6 +29,12 @@ if is_depends_enabled $SPELL cyrus-sasl; then
     message "${MESSAGE_COLOR}Cyrus-SASL requested: Using Cyrus-SASL${DEFAULT_COLOR}"
 fi &&
 
+if is_depends_enabled $SPELL sqlite; then
+    AUXLIBS="$AUXLIBS -lsqlite3"
+    CCARGS="$CCARGS -DHAS_SQLITE -I$INSTALL_ROOT/usr/include" &&
+    message "${MESSAGE_COLOR}SQLite requested: Using SQLite${DEFAULT_COLOR}"
+fi &&
+
 if is_depends_enabled $SPELL mysql; then
     AUXLIBS="$AUXLIBS -lmysqlclient -lz" &&
     CCARGS="$CCARGS -DHAS_MYSQL -I$INSTALL_ROOT/usr/include/mysql" &&
