@@ -9,9 +9,9 @@ if [[ $FB_VER == 2.0 ]];then
   fi                                            &&
   if spell_ok libedit; then
     LDFLAGS="$LDFLAGS -ledit"
-  fi                                            &&
-  make_single
+  fi
 fi                                              &&
+  make_single                                   &&
 # prepare optional language support
   for LL in $FB_GPRE; do
     if [[ $LL != none ]]; then
