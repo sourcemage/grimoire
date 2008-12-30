@@ -15,6 +15,7 @@ OPTS="--with-isapnp=yes --with-sequencer=yes --with-oss=yes --with-debug=none \
       --with-cards=${CARDS} ${OPTS}"                                          &&
 
 if [[ $ALSA_GIT == y ]]; then
+export ALSAKERNELDIR="$SOURCE2_DIRECTORY" &&
   OPTS="--prefix=${INSTALL_ROOT}/usr \
     --sysconfdir=${INSTALL_ROOT}/etc \
  --localstatedir=${INSTALL_ROOT}/var \
