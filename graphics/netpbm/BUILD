@@ -4,8 +4,8 @@ DEFAULT_TARGET = nonmerge
 NETPBMLIBTYPE=unixshared
 NETPBMLIBSUFFIX=so
 STATICLIB_TOO=n
-CFLAGS = -O3 -ffast-math -pedantic -fno-common -Wall -Wno-uninitialized -Wmissing-declarations -Wimplicit -Wwrite-strings -Wmissing-prototypes -Wundef
-CFLAGS_MERGE = -Wno-missing-declarations -Wno-missing-prototypes
+CFLAGS = -ffast-math -pedantic -Wall -Wno-uninitialized -Wmissing-declarations -Wimplicit -Wwrite-strings -Wmissing-prototypes -Wundef
+CFLAGS_MERGE = -Wno-missing-declarations -Wno-missing-prototypes -fno-common
 LDRELOC = ld --reloc
 LINKER_CAN_DO_EXPLICIT_LIBRARY = Y
 LINKERISCOMPILER = Y
@@ -30,8 +30,4 @@ fi &&
 sedit "s/^\(CFLAGS =\)/\1 ${CFLAGS} /" Makefile.config &&
 make_single &&
 make &&
-if [ -e /tmp/netpbm ]; then
-   rm -rf /tmp/netpbm              
-fi &&
-make package pkgdir=/tmp/netpbm &&
 make_normal
