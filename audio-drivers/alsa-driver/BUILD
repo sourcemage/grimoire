@@ -12,6 +12,7 @@ sedit "s: install-scripts : :" Makefile &&
 
 OPTS="--with-isapnp=yes --with-sequencer=yes --with-oss=yes --with-debug=none \
       --with-moddir=${INSTALL_ROOT}/lib/modules/$(get_kernel_version)/misc    \
+      --with-kernel=${INSTALL_ROOT}/lib/modules/$(get_kernel_version)/source  \
       --with-cards=${CARDS} ${OPTS}"                                          &&
 
 if [[ $ALSA_GIT == y ]]; then
