@@ -1,9 +1,8 @@
 OPTS="$OPTS --build=${BUILD}"
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
-if use_gcc 4.0
-then
-	CFLAGS="${CFLAGS/-O3/-O2}"
+if use_gcc 4.0; then
+  CFLAGS="${CFLAGS/-O3/-O2}"
 fi &&
 
   ./configure --prefix=${TRACK_ROOT}/usr  \
