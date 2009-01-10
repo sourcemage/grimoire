@@ -1,2 +1,2 @@
 OPTS="$LMMS_VST $OPTS"  &&
-qt4_build
+qt4_cmake_build
