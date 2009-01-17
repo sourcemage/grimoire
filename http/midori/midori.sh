@@ -7,7 +7,7 @@
 # the plugins (e.g. flash) in default path
 #
 
-if [ -z "$MOZ_PLUGIN_PATH" -a ! -f /etc/profile.d/midori.sh ]; then
+if [ -z "$MOZ_PLUGIN_PATH" ]; then
 	MOZ_PLUGIN_PATH="/usr/lib/midori/.plugins"
 fi &&
 
