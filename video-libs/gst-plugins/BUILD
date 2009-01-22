@@ -1,4 +1,4 @@
-OPTS="$OPTS --disable-examples --disable-tests"  &&
+OPTS="$OPTS --disable-examples --disable-tests --disable-dvdnav --disable-x264 --disable-dirac --disable-xvid --disable-swfdec --disable-flac --disable-dts --disable-mpeg2enc --disable-mplex --disable-wavpack"  &&
 if spell_ok nvidia_driver; then
   # nvidia_driver breaks the opengl sink, bug #8361
   OPTS="$OPTS --disable-opengl"
