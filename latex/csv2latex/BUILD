@@ -1,1 +1,1 @@
-make -f makefile
+make -f Makefile
