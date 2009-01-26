@@ -1,0 +1,156 @@
+From ab8110b8978cb965d49e0c2e9c1cb7e7608c185e Mon Sep 17 00:00:00 2001
+From: Paulo Cesar Pereira de Andrade<pcpa@mandriva.com.br>
+Date: Thu, 22  Jan  2009  18:49:25  +0000
+Subject: Correct make distcheck and sparse warnings.
+
+---
+diff --git a/Makefile.am b/Makefile.am
+index 3ba5868..63e18dc 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -21,7 +21,7 @@
+ 
+ bin_PROGRAMS = xmore
+ 
+-xmore_CFLAGS = $(XMORE_CFLAGS) -DXMORE
++AM_CFLAGS = $(XMORE_CFLAGS) -DXMORE
+ xmore_LDADD = $(XMORE_LIBS)
+ 
+ xmore_SOURCES =	\
+@@ -31,34 +31,22 @@ xmore_SOURCES =	\
+ appman_PRE = \
+         xmore.man
+ 
+-# App default files  (*.ad)
++# App default files
++DISTCHECK_CONFIGURE_FLAGS = --with-appdefaultdir=\$${datadir}/X11/app-defaults
+ 
+ appdefaultdir = @appdefaultdir@
+ 
+-
+-APPDEFAULTFILES = \
++dist_appdefault_DATA = \
+         app-defaults/XMore
+ 
+-SUFFIXES = .ad
+-
+-.ad:
+-	$(mkdir_p) app-defaults
+-	cp $< $@
+-
+-appdefault_DATA = $(APPDEFAULTFILES)
+-
+-EXTRA_DIST = $(APPDEFAULTFILES:%=%.ad)
+-
+-CLEANFILES = $(APPDEFAULTFILES)
+-
+-EXTRA_DIST += xmore.sgml
++EXTRA_DIST = xmore.sgml
+ 
+ appmandir = $(APP_MAN_DIR)
+ 
+ appman_DATA = $(appman_PRE:man=@APP_MAN_SUFFIX@)
+ 
+ EXTRA_DIST += $(appman_PRE)
+-CLEANFILES += $(appman_DATA)
++CLEANFILES = $(appman_DATA)
+ 
+ SED = sed
+ 
+@@ -79,7 +67,7 @@ MAN_SUBSTS = \
+ 	-e 's|__miscmansuffix__|$(MISC_MAN_SUFFIX)|g' \
+ 	-e 's|__filemansuffix__|$(FILE_MAN_SUFFIX)|g'
+ 
+-SUFFIXES += .$(APP_MAN_SUFFIX) .man
++SUFFIXES = .$(APP_MAN_SUFFIX) .man
+ 
+ .man.$(APP_MAN_SUFFIX):
+ 	sed $(MAN_SUBSTS) < $< > $@
+diff --git a/app-defaults/XMore.ad b/app-defaults/XMore.ad
+index 78b1e0a..9227efa 100644
+--- a/app-defaults/XMore.ad
++++ b/app-defaults/XMore.ad
+@@ -28,4 +28,6 @@
+ ! tip messages
+ *quit.tip:  Quit application
+ 
++*international:		True
++
+ ! EOF.
+diff --git a/configure.ac b/configure.ac
+index 34d6aa6..a427a9c 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -26,23 +26,34 @@ AC_INIT(xmore,[1.0.1], [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg]
+ AM_INIT_AUTOMAKE([dist-bzip2])
+ AM_MAINTAINER_MODE
+ 
++# Require xorg-macros: XORG_CWARNFLAGS, XORG_CHANGELOG
++m4_ifndef([XORG_MACROS_VERSION], [AC_FATAL([must install xorg-macros 1.2 or later before running autoconf/autogen])])
++XORG_MACROS_VERSION(1.2)
++
+ AM_CONFIG_HEADER(config.h)
+ 
+ AC_PROG_CC
+ AM_PROG_CC_C_O
+ AC_PROG_INSTALL
+ 
++XORG_CWARNFLAGS
++
+ # Checks for pkg-config packages
+ PKG_CHECK_MODULES(XMORE, xaw7)
+-
++XMORE_CFLAGS="$CWARNFLAGS $XMORE_CFLAGS"
+ AC_SUBST(XMORE_CFLAGS)
+ AC_SUBST(XMORE_LIBS)
+ 
+ PKG_CHECK_MODULES(APPDEFS, xt)
+-appdefaultdir=$(pkg-config --variable=appdefaultdir xt)
++xt_appdefaultdir=$(pkg-config --variable=appdefaultdir xt)
++AC_ARG_WITH(appdefaultdir,
++	AC_HELP_STRING([--with-appdefaultdir=<pathname>],
++	  [specify directory for app-defaults files (default is autodetected)]),
++	[appdefaultdir="$withval"], [appdefaultdir="${xt_appdefaultdir}"])
+ AC_SUBST(appdefaultdir)
+ 
+ XORG_MANPAGE_SECTIONS
+ XORG_RELEASE_VERSION
++XORG_CHANGELOG
+ 
+ AC_OUTPUT([Makefile])
+diff --git a/xmore.c b/xmore.c
+index ff8c299..ed6be29 100644
+--- a/xmore.c
++++ b/xmore.c
+@@ -73,17 +73,17 @@ static XtActionsRec actions[] = {
+ };
+ 
+ /* See xmore.h */
+-XMoreResourceData userOptions;
++static XMoreResourceData userOptions;
+ 
+ #define Offset(field) XtOffsetOf(XMoreResourceData, field)
+ 
+-XtResource resources[] = {
++static XtResource resources[] = {
+   {"verbose", "Verbose", XtRBoolean, sizeof(Boolean),  Offset(verbose),  XtRImmediate, (XtPointer)False},
+   {"textfont", XtCFont,  XtRFontSet, sizeof(XFontSet), Offset(textfont), XtRString,    STANDARDFONT},
+ };
+ 
+ 
+-String fallback_resources[] = {
++static String fallback_resources[] = {
+ #ifdef NOTYET
+     "*iconPixmap:    xmore32",
+     "*iconMask:      xmore32",
+@@ -174,7 +174,7 @@ int main( int argc, char *argv[] )
+   XtSetArg(args[n], XtNfromVert,        text);                   n++;
+   XtSetArg(args[n], XtNlabel,           "Quit");      n++;
+   quitbutton = XtCreateManagedWidget("quit", commandWidgetClass, form, args, n);
+-  XtAddCallback(quitbutton, XtNcallback, quitXtProc, 0);
++  XtAddCallback(quitbutton, XtNcallback, quitXtProc, NULL);
+   
+   XtRealizeWidget(toplevel);
+   
+--
+cgit v0.8.1-24-ge5fb
