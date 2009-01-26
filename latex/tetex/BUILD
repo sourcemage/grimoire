@@ -2,7 +2,7 @@ if [ "$CSTEX" = "y" ]; then
     patch -p 0 < $SCRIPT_DIRECTORY/cstetex.patch
 fi                                                          &&
 
-OPTS="$OPTS --disable-multiplatform --with-editor=ed"       &&
+OPTS="$OPTS --disable-multiplatform --with-editor=ed --without-xdvik"   &&
 rm -rf utils/dialog                                         &&
 rm -rf utils/texinfo                                        &&
 #
