@@ -1,0 +1,2 @@
+cd  $SOURCE_DIRECTORY/source4/lib/$SPELL  &&
+default_build
