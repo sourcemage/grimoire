@@ -7,6 +7,7 @@ OPTS="$QT_DEBUG               \
       $QT_GIF                 \
       $QT_EXCEPT              \
       $QT_PCH                 \
+      $QT_STL                 \
       $QT_QT3                 \
       $QT_DEMO demos          \
       $QT_EXAMPLE examples    \
@@ -26,7 +27,6 @@ OPTS="$QT_DEBUG               \
              -demosdir  "$INSTALL_ROOT/usr/share/doc/qt4/demos"               \
              -datadir  "$INSTALL_ROOT/usr/share/qt4"                          \
              -platform  linux-g++                                             \
-             -stl                                                             \
              $OPTS                                                            &&
 
 make
