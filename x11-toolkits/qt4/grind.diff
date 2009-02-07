@@ -1,0 +1,29 @@
+diff -u qt-x11-opensource-src-4.5.0-rc1/src/testlib/qtestcase.cpp qt-x11-opensource-src-4.5.0-snapshot-20090206/src/testlib/qtestcase.cpp
+--- qt-x11-opensource-src-4.5.0-rc1/src/testlib/qtestcase.cpp	2009-02-04 17:05:30.000000000 +0100
++++ qt-x11-opensource-src-4.5.0-snapshot-20090206/src/testlib/qtestcase.cpp	2009-02-06 01:44:53.000000000 +0100
+@@ -1359,6 +1359,9 @@
+     QBenchmarkGlobalData benchmarkData;
+     QBenchmarkGlobalData::current = &benchmarkData;
+ 
++#ifdef QTESTLIB_USE_VALGRIND
++    int callgrindChildExitCode = 0;
++#endif
+ 
+ #ifdef Q_WS_MAC
+      bool macNeedsActivate = qApp && qstrcmp(qApp->metaObject()->className(), "QApplicaion");
+@@ -1411,7 +1414,6 @@
+     QTestResult::setCurrentTestObject(metaObject->className());
+     qParseArgs(argc, argv);
+ #ifdef QTESTLIB_USE_VALGRIND
+-    int callgrindChildExitCode;
+     if (QBenchmarkGlobalData::current->mode() == QBenchmarkGlobalData::CallgrindParentProcess) {
+         const QStringList origAppArgs(QCoreApplication::arguments());
+         if (!QBenchmarkValgrindUtils::rerunThroughCallgrind(origAppArgs, callgrindChildExitCode))
+@@ -1436,6 +1438,7 @@
+              QTestResult::setCurrentTestFunction(0);
+          }
+ 
++        QTestLog::stopLogging();
+ #ifdef QT_MAC_USE_COCOA
+          if (macNeedsActivate) {
+              IOPMAssertionRelease(powerID);
