@@ -6,7 +6,7 @@
 # Minor - new GL provider added/removed
 # Point - bugfixes/filelist changes and so on
 #
-GL_SELECT_VERSION="1.0.0"
+GL_SELECT_VERSION="1.0.1"
 GL_LIBS="$(ls ${TRACK_ROOT}/usr/lib/*/libGL.so | awk -F"/" '{print $4}' 2> /dev/null )"
 GL_FILELIST_DIR="${TRACK_ROOT}/usr/share/gl_select/"
 . /etc/sysconfig/gl_select
@@ -43,7 +43,7 @@ function gl_pick() {
     rm -f $ii
     echo -n "."
   done
-  echo "."
+  echo -n "."
   unset i ii
   for i in $(grep "/mesa" $GL_FILELIST_DIR/mesa-filelist)
   do
@@ -51,7 +51,7 @@ function gl_pick() {
     rm -f $ii
     echo -n "."
   done
-  echo "."
+  echo -n "."
   unset i ii
   for i in $(grep "/nvidia" $GL_FILELIST_DIR/nvidia-filelist)
   do
@@ -62,18 +62,19 @@ function gl_pick() {
   unset i ii
   echo ""
   message "Done."
+  message "Setting up new GL provider $gl_lib..."
     case "$1" in
        ati)
             for i in $(grep "/mesa" $GL_FILELIST_DIR/ati-filelist)
             do
               ii=${i/\/mesa}
-              ln -svf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
               echo -n "."
             done
             for i in $(grep "/ati" $GL_FILELIST_DIR/ati-filelist)
             do
               ii=${i/\/ati}
-              ln -svf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
               echo -n "."
             done
             ;;
@@ -81,7 +82,7 @@ function gl_pick() {
             for i in $(cat $GL_FILELIST_DIR/mesa-filelist)
             do
               ii=${i/\/mesa}
-              ln -svf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
               echo -n "."
             done
             ;;
@@ -89,21 +90,28 @@ function gl_pick() {
             for i in $(grep "/mesa" $GL_FILELIST_DIR/nvidia-filelist)
             do
               ii=${i/\/mesa}
-              ln -svf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
               echo -n "."
             done
             for i in $(grep "/nvidia" $GL_FILELIST_DIR/nvidia-filelist)
             do
               ii=${i/\/nvidia}
-              ln -svf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
               echo -n "."
             done
             ;;
          *) message "Unknown secondary files so I only linked the libGL.so"  &&
-            rm -fv  ${TRACK_ROOT}/usr/lib/libGL.so*                          &&
-            ln -vfs ${TRACK_ROOT}/usr/lib/$gl_lib/libGL.so*                  \
-                    ${INSTALL_ROOT}/usr/lib/                                 ;;
+            for i in $(cat $GL_FILELIST_DIR/mesa-filelist)
+            do
+              ii=${i/\/mesa}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
+              echo -n "."
+            done
+            ln -fs ${TRACK_ROOT}/usr/lib/$gl_lib/libGL.so*                  \
+                    ${INSTALL_ROOT}/usr/lib/ 2>/dev/null
+            ;;
     esac
+    echo -e "\nDone."
     exit 0
   else
     message "Error ${INSTALL_ROOT}/usr/lib/libGL.so is not a symlink unable to procede!!!"
