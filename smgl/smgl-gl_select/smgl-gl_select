@@ -1,6 +1,16 @@
 #!/bin/bash
-GL_SELECT_VERSION="0.5"
+#
+# Versioning
+# Major.Minor.Point
+# Major - complete rewrites
+# Minor - new GL provider added/removed
+# Point - bugfixes/filelist changes and so on
+#
+GL_SELECT_VERSION="1.0.1"
 GL_LIBS="$(ls ${TRACK_ROOT}/usr/lib/*/libGL.so | awk -F"/" '{print $4}' 2> /dev/null )"
+GL_FILELIST_DIR="${TRACK_ROOT}/usr/share/gl_select/"
+. /etc/sysconfig/gl_select
+
 . /var/lib/sorcery/modules/libmedia
 LOCAL_MEDIA_CONFIG=/etc/sorcery/local/media source /etc/sorcery/media
 function message() {
@@ -9,55 +19,99 @@ function message() {
 
 function gl_list() {
   message "Available GL Libraries on the system"
-  ls ${TRACK_ROOT}/usr/lib/*/libGL.so | awk -F"/" '{print $4}' 2> /dev/null
+  /bin/ls -1 --color=none ${TRACK_ROOT}/usr/lib/*/libGL.so \
+             | awk -F"/" '{print $4}' 2> /dev/null
   exit 0
 }
 
 function gl_pick() {
-  if ! grep -q "$1" <<< "$GL_LIBS"
+  local i ii
+  local gl_lib=$1
+  if ! grep -q "$gl_lib" <<< "$GL_LIBS"
   then
-    message "Error $1 is not a valid GL Library"
+    message "Error $gl_lib is not a valid GL Library"
     exit 1
   fi
-  message "Selecting $1 as the default system GL library"
+  message "Selecting $gl_lib as the default system GL library"
   if [[ -L ${INSTALL_ROOT}/usr/lib/libGL.so ]] ||
      [[ ! -e ${INSTALL_ROOT}/usr/lib/libGL.so ]]
   then
-    ln -vfs ${TRACK_ROOT}/usr/lib/$1/libGL.so* ${INSTALL_ROOT}/usr/lib/
+  message "Cleaning all previous GL providers..."
+  for i in $(grep "/ati" $GL_FILELIST_DIR/ati-filelist)
+  do
+    ii=${i/\/ati}
+    rm -f $ii
+    echo -n "."
+  done
+  echo -n "."
+  unset i ii
+  for i in $(grep "/mesa" $GL_FILELIST_DIR/mesa-filelist)
+  do
+    ii=${i/\/mesa}
+    rm -f $ii
+    echo -n "."
+  done
+  echo -n "."
+  unset i ii
+  for i in $(grep "/nvidia" $GL_FILELIST_DIR/nvidia-filelist)
+  do
+    ii=${i/\/nvidia}
+    rm -f $ii
+    echo -n "."
+  done
+  unset i ii
+  echo ""
+  message "Done."
+  message "Setting up new GL provider $gl_lib..."
     case "$1" in
-       ati) if gaze installed xorg-server ; then
-            ln -vfs ${TRACK_ROOT}/usr/include/GL/mesa/*.h                    \
-                    ${INSTALL_ROOT}/usr/include/GL/                          &&
-            ln -vfs ${TRACK_ROOT}/usr/lib/xorg/modules/extensions/mesa/*     \
-                    ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions/
-            else
-            ln -vfs ${TRACK_ROOT}/usr/X11R6/include/GL/monolithic/*.h        \
-                    ${INSTALL_ROOT}/usr/X11R6/include/GL/                    &&
-            ln -vfs ${TRACK_ROOT}/usr/X11R6/lib/modules/extensions/monolithic/* \
-                    ${INSTALL_ROOT}/usr/X11R6/lib/modules/extensions/
-            fi                                                               ;;
-      mesa) ln -vfs ${TRACK_ROOT}/usr/include/GL/mesa/*.h                    \
-                    ${INSTALL_ROOT}/usr/include/GL/                          &&
-            ln -vfs ${TRACK_ROOT}/usr/lib/xorg/modules/extensions/mesa/*     \
-                    ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions/         ;;
-    nvidia) if gaze installed xorg-server ; then
-            ln -vfs ${TRACK_ROOT}/usr/include/GL/nvidia/*.h                  \
-                    ${INSTALL_ROOT}/usr/include/GL/                          &&
-            ln -vfs ${TRACK_ROOT}/usr/lib/xorg/modules/extensions/nvidia/*   \
-                    ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions/
-            else
-            ln -vfs ${TRACK_ROOT}/usr/X11R6/include/GL/nvidia/*.h            \
-                    ${INSTALL_ROOT}/usr/X11R6/include/GL/                    &&
-            ln -vfs ${TRACK_ROOT}/usr/X11R6/lib/modules/extensions/nvidia/*  \
-                    ${INSTALL_ROOT}/usr/X11R6/lib/modules/extensions/
-            fi                                                               ;;
-
-monolithic) ln -vfs ${TRACK_ROOT}/usr/X11R6/include/GL/monolithic/*.h        \
-                    ${INSTALL_ROOT}/usr/X11R6/include/GL/                    &&
-            ln -vfs ${TRACK_ROOT}/usr/X11R6/lib/modules/extensions/monolithic/*  \
-                    ${INSTALL_ROOT}/usr/X11R6/lib/modules/extensions/        ;;
-         *) message "Unknown secondary files so I only linked the libGL.so"  ;;
+       ati)
+            for i in $(grep "/mesa" $GL_FILELIST_DIR/ati-filelist)
+            do
+              ii=${i/\/mesa}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
+              echo -n "."
+            done
+            for i in $(grep "/ati" $GL_FILELIST_DIR/ati-filelist)
+            do
+              ii=${i/\/ati}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
+              echo -n "."
+            done
+            ;;
+      mesa) 
+            for i in $(cat $GL_FILELIST_DIR/mesa-filelist)
+            do
+              ii=${i/\/mesa}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
+              echo -n "."
+            done
+            ;;
+    nvidia) 
+            for i in $(grep "/mesa" $GL_FILELIST_DIR/nvidia-filelist)
+            do
+              ii=${i/\/mesa}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
+              echo -n "."
+            done
+            for i in $(grep "/nvidia" $GL_FILELIST_DIR/nvidia-filelist)
+            do
+              ii=${i/\/nvidia}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
+              echo -n "."
+            done
+            ;;
+         *) message "Unknown secondary files so I only linked the libGL.so"  &&
+            for i in $(cat $GL_FILELIST_DIR/mesa-filelist)
+            do
+              ii=${i/\/mesa}
+              ln -sf ${INSTALL_ROOT}${i} ${INSTALL_ROOT}${ii} 2>/dev/null
+              echo -n "."
+            done
+            ln -fs ${TRACK_ROOT}/usr/lib/$gl_lib/libGL.so*                  \
+                    ${INSTALL_ROOT}/usr/lib/ 2>/dev/null
+            ;;
     esac
+    echo -e "\nDone."
     exit 0
   else
     message "Error ${INSTALL_ROOT}/usr/lib/libGL.so is not a symlink unable to procede!!!"
@@ -68,7 +122,7 @@ monolithic) ln -vfs ${TRACK_ROOT}/usr/X11R6/include/GL/monolithic/*.h        \
 
 function gl_help() {
   message "gl_select -$GL_SELECT_VERSION
-Copyright (C) 2006 Source Mage
+Copyright (C) 2006-2009 Source Mage
 This is free software.  You may redistribute copies of it under the terms of
 the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
 There is NO WARRANTY, to the extent permitted by law.
@@ -81,9 +135,13 @@ function gl_usage() {
   message "USAGE: gl_select OPTIONS
 
 OPTIONS:
+  --default, -d            Use the default GL Library defined in config.
   --list, -l               List available GL Libraries on the system.
-  --select, -s <PARAM>       Select a GL Library that's available.
-  --help, -h               Print the help message."
+  --select, -s <PARAM>     Select a GL Library that's available.
+  --help, -h               Print the help message.
+
+FILES:
+  /etc/sysconfig/gl_select"
   exit 0
 }
 
@@ -93,6 +151,7 @@ while  [[  -n  "$1"  ]];  do
       --list|-l)gl_list ;;
       --help|-h)gl_help ;;
     --select|-s)gl_pick $2 ; shift 2 ;;
+   --default|-d)export GL_LIB ; shift ; gl_pick $GL_LIB ;;
               *)gl_usage ;;
     esac
   else
