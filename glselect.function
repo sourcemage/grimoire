@@ -1,30 +1,15 @@
-#!/bin/bash
-#
-# Versioning
-# Major.Minor.Point
-# Major - complete rewrites
-# Minor - new GL provider added/removed
-# Point - bugfixes/filelist changes and so on
-#
-GL_SELECT_VERSION="2.0.1"
-GL_LIBS="$(ls ${TRACK_ROOT}/usr/lib/*/libGL.so | awk -F"/" '{print $4}' 2> /dev/null )"
-. /etc/sysconfig/gl_select
+#---
+## glselect - select default libGL provider
+## rewritten from smgl-gl_select
+##
+## this is run in FINAL and will always set the provider
+## based on the final spell cast that calls this.
+## If one wants to have this settable runtime then
+## there's the smgl-gl_select tool to do so
+##
+#---
 
-. /var/lib/sorcery/modules/libmedia
-LOCAL_MEDIA_CONFIG=/etc/sorcery/local/media source /etc/sorcery/media
-function message() {
-  echo -e "$@"
-}
-
-function gl_list() {
-  message "Available GL Libraries on the system"
-  ls -1 --color=none ${TRACK_ROOT}/usr/lib/*/libGL.so \
-             | awk -F"/" '{print $4}' 2> /dev/null
-  exit 0
-}
-
-function gl_pick() {
-  local gl_lib=$1
+function glselect(){
   local file_list="
                     /usr/lib/libGL.so
                     /usr/lib/libGL.so.*
@@ -111,12 +96,12 @@ nvidia)
     message "either smgl-gl_select or manually by symlinking the files"
     message "from their respective directories i.e.:"
     message "/usr/lib/[nvidia|ati|mesa]/libGL.so"
-    message "/usr/xorg/modules/extensions/[nvidia,ati,mesa]/lib{glx,dri}.so"
+    message "/usr/lib/xorg/modules/extensions/[nvidia,ati,mesa]/lib{glx,dri}.so"
     message "/usr/include/GL/[nvidia|ati|mesa]/gl{x,xext,ext}.h"
     message ""
     message "To:"
     message "/usr/lib/libGL.so"
-    message "/usr/xorg/modules/extensions/lib{glx,dri}.so"
+    message "/usr/lib/xorg/modules/extensions/lib{glx,dri}.so"
     message "/usr/include/GL/gl{x,xext,ext}.h"
     message ""
     return 0
@@ -131,43 +116,4 @@ nvidia)
     return 1
   fi
 }
-
-function gl_help() {
-  message "gl_select -$GL_SELECT_VERSION
-Copyright (C) 2006-2009 Source Mage
-This is free software.  You may redistribute copies of it under the terms of
-the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
-There is NO WARRANTY, to the extent permitted by law.
-"
-  gl_usage
-  exit 0
-}
-
-function gl_usage() {
-  message "USAGE: gl_select OPTIONS
-
-OPTIONS:
-  --default, -d            Use the default GL Library defined in config.
-  --list, -l               List available GL Libraries on the system.
-  --select, -s <PARAM>     Select a GL Library that's available.
-  --help, -h               Print the help message.
-
-FILES:
-  /etc/sysconfig/gl_select"
-  exit 0
-}
-
-while  [[  -n  "$1"  ]];  do
-  if  echo  "" $1  |  grep  -q  "^ -";  then
-    case  $1  in
-      --list|-l)gl_list ;;
-      --help|-h)gl_help ;;
-    --select|-s)gl_pick $2 ; shift 2 ;;
-   --default|-d)export GL_LIB ; shift ; gl_pick $GL_LIB ;;
-              *)gl_usage ;;
-    esac
-  else
-    shift
-  fi
-done
 
