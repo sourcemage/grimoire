@@ -1,3 +1,6 @@
+if [[ $EX_VER == y ]];then
+qt4_cmake_build
+else
 QTDIR="${QTDIR:-$INSTALL_ROOT/usr}" &&
 PATH="$QTDIR/bin/qt4:$PATH" &&
 qmake -set ZINT_INSTALL_LIBS ${INSTALL_ROOT}/usr/lib
@@ -19,4 +22,4 @@ qmake -set EXARO_INSTALL_ICONS ${INSTALL_ROOT}/usr/share/icons &&
 qmake -set EXARO_INSTALL_TRANSLATIONS ${INSTALL_ROOT}/usr/share/eXaro/translations &&
 qmake &&
 make
-
+fi
