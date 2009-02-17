@@ -1,6 +1,3 @@
-# fix wine build problem
-LDFLAGS=${LDFLAGS//-z combreloc/} &&
-
 # touch non-existant file
 touch programs/winetest/tests.rc &&
 default_build &&
