@@ -6,4 +6,6 @@
 	    --mandir=$INSTALL_ROOT/usr/share/man 	\
             --enable-static_link              		\
             $OPTS                                       &&
-make
+make_single &&
+make &&
+make_normal
