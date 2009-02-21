@@ -1,2 +1,3 @@
 cd src &&
-make
+make &&
+cd ..
