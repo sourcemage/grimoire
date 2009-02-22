@@ -1,5 +1,5 @@
-OPTS="${ENGLISH}  ${OPTS}"                 &&
-# rm src/unistd.h &&
-./configure  --prefix ${INSTALL_ROOT}/usr  \
+QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"        \
+OPTS="$ENGLISH  $OPTS"                     \
+./configure  --prefix "$INSTALL_ROOT/usr"  \
              $OPTS                         &&
 make
