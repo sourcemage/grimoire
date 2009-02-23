@@ -14,6 +14,6 @@ fi &&
 default_build &&
 
 # python -c '"(c)", "lynx"*3'
-make install DESTDIR="$SOURCE_DIRECTORY/anywhere" &&
+make install DESTDIR="$SOURCE_DIRECTORY/anywhere/$INSTALL_ROOT" &&
 
 message "Fake stage complete, installing to real path.."
