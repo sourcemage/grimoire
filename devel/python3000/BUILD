@@ -14,10 +14,10 @@ fi &&
 default_build &&
 
 if [[ $PY3K == y ]]; then
-  # python -c '"(c)", "lynx"*3'
-  make fullinstall DESTDIR="$SOURCE_DIRECTORY/anywhere"
+  # python -c 'print ("(c)", "lynx"*3)'
+  make fullinstall DESTDIR="$SOURCE_DIRECTORY/anywhere/$INSTALL_ROOT"
 else
-  make install DESTDIR="$SOURCE_DIRECTORY/anywhere"
+  make install DESTDIR="$SOURCE_DIRECTORY/anywhere/$INSTALL_ROOT"
 fi &&
 
 message "Fake stage complete, installing to real path.."
