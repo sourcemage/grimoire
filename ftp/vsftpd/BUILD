@@ -1,6 +1,3 @@
-# fixes bug 14863 
-patch -p0 < ${SCRIPT_DIRECTORY}/14863.diff &&
-
 #
 # We don't want to install into /usr/local, so
 # we'll just copy the files correctly
