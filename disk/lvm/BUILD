@@ -7,5 +7,11 @@
             --enable-static_link              		\
             $OPTS                                       &&
 make_single &&
-make &&
+
+if [[ $LVM_DM_ONLY == y ]]; then
+  make device-mapper
+else
+  make
+fi &&
+
 make_normal
