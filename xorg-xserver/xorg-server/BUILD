@@ -19,5 +19,6 @@ OPTS="${XORG_SERVER_OPTS}                                     \
       --disable-dmx                                           \
       --disable-xwin                                          \
       --enable-dbe                                            \
+      --enable-shm                                            \
       ${OPTS}"                                                &&
 default_build
