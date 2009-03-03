@@ -26,5 +26,4 @@ else
   OPTS="--no-install-kde $OPTS"
 fi &&
 
-echo $OPTS
 python setup.py configure $OPTS
