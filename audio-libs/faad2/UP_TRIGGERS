@@ -3,12 +3,13 @@
 local OLD_SPELL_VERSION=""
 if spell_ok  $SPELL; then
   OLD_SPELL_VERSION="$(installed_version $SPELL)"
-  if [[ $OLD_SPELL_VERSION != $VERSION ]] && [[ $VERSION == 2.6.1 ]]; then
+  if [[ $OLD_SPELL_VERSION != $VERSION ]]; then
+    [[ $VERSION == 2.6.1 ]] || [[ $VERSION == 2.7 ]] || return
     message "This is a possibly incompatible update of faad2..."
     message "Figuring out what spells need to be recast, this may take a while."
-    for each in $(show_up_depends $SPELL); do
-      if gaze install $each | xargs readelf -s 2> /dev/null |
-         grep -q faacDec; then
+    for each in $(show_up_depends $SPELL 1); do
+      if gaze install $each | xargs readelf -a 2> /dev/null |
+         grep -q "faacDec\|libfaad.so.0"; then
            up_trigger $each cast_self
       fi
     done
