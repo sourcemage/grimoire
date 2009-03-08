@@ -1,4 +1,4 @@
-message "Target list:$QEMU_ARCHS"  &&
+message "Target list: $QEMU_ARCHS" &&
 
 #
 # Disable PIC if building soft MMU targets
@@ -6,7 +6,8 @@ message "Target list:$QEMU_ARCHS"  &&
 # generally shrinking march down to pentium-mmx
 #
 if grep -q softmmu <<< "$QEMU_ARCHS"; then
-  message "${MESSAGE_COLOR}Qemu 0.9 has a build problem with advanced CFLAGS.${DEFAULT_COLOR}" &&
+  # we need to check does 0.10 act the same way
+  message "${MESSAGE_COLOR}QEMU 0.9 has a build problem with advanced CFLAGS.${DEFAULT_COLOR}" &&
   message "${MESSAGE_COLOR}Trying to make it work, starting with removal of any sse flags.${DEFAULT_COLOR}" &&
   # sse seems to be bad; -march=pentium -m3dnow worked, though
   list_remove CFLAGS -msse -msse2 -msse3 -mfpmath=sse &&
@@ -30,12 +31,8 @@ if grep -q softmmu <<< "$QEMU_ARCHS"; then
   disable_pic
 fi  &&
 
-
-./configure --prefix=$INSTALL_ROOT/usr  \
-       --target-list="$QEMU_ARCHS"      \
-                     $OPTS              &&
-#            --build=$BUILD             \
-#       --sysconfdir=$INSTALL_ROOT/etc  \
-#    --localstatedir=$INSTALL_ROOT/var  \
+./configure --prefix="$INSTALL_ROOT/usr" \
+       --target-list="$QEMU_ARCHS"       \
+                     $OPTS               &&
 
 make
