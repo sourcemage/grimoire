@@ -4,8 +4,11 @@ touch programs/winetest/tests.rc &&
 #
 # Fixes http://bugs.winehq.com/show_bug.cgi?id=17406
 #
-CFLAGS="-fno-inline $CFLAGS"      &&
-CXXFLAGS="-fno-inline $CXXFLAGS"  &&
+if grep -q "\-O3" <<< $CFLAGS; then
+  CFLAGS="-fno-guess-branch-probability $CFLAGS"      &&
+  CXXFLAGS="-fno-guess-branch-probability $CXXFLAGS"
+fi  &&
+
 default_build                     &&
 
 if is_depends_enabled $SPELL docbook-utils; then
