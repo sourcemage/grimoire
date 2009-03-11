@@ -1,0 +1,3 @@
+make PREFIX=$INSTALL_ROOT/usr \
+     MANDIR=$INSTALL_ROOT/usr/share/man \
+     $ELOG_CRYPT $OPTS
