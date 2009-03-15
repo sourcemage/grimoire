@@ -18,4 +18,10 @@ sed -i -r \
 's:^(LIBOWFAT_LIBRARY=\$\(PREFIX\)/libowfat):#\1:' \
 Makefile &&
 
+#works for me. getting an error about ip6 address otherwise.
+#reported upstream.
+sed -i -r \
+'s:^#(FEATURES\+=-DWANT_BROKEN_OPENBSD_V6_API$):\1:' \
+Makefile &&
+
 make
