@@ -1,1 +1,1 @@
-make clean resynth
+make
