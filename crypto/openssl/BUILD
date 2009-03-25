@@ -44,4 +44,6 @@ make         && {
     cd -                                      &&
     ldconfig
 fi
-}
+} &&
+
+make_normal
