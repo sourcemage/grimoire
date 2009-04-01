@@ -1,3 +1,3 @@
-OPTS="--disable-dependency-tracking $LIBSNDFILE_LARGEFILE $OPTS" &&
+OPTS="--disable-dependency-tracking $LIBSNDFILE_OPTS $OPTS" &&
 
 default_build

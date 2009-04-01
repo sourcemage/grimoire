@@ -1,4 +1,4 @@
-if [[ $WPA_RELEASE == devel ]]; then
+if [[ $WPA_RELEASE != old ]]; then
   cd "$SOURCE_DIRECTORY/wpa_supplicant"
 fi &&
 
@@ -16,9 +16,7 @@ local VARS="CONFIG_NO_WPA CONFIG_DNET_PCAP CONFIG_L2_PACKET CONFIG_NO_WPA2  \
             CONFIG_EAP_LEAP CONFIG_EAP_SAKE CONFIG_EAP_GPSK                 \
             CONFIG_EAP_GPSK_SHA256 CONFIG_PKCS12 CONFIG_SMARTCARD"  var     &&
 
-if [[ $WPA_RELEASE != old ]]; then
-  VARS="$VARS CONFIG_TLS"
-fi &&
+VARS="$VARS CONFIG_TLS" &&
 
 for var in $VARS $OPTS; do
   if [[ ${!var} && ${!var} != n ]]; then

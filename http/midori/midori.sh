@@ -8,7 +8,7 @@
 #
 
 if [ -z "$MOZ_PLUGIN_PATH" ]; then
-	MOZ_PLUGIN_PATH="/usr/lib/midori/.plugins"
+	MOZ_PLUGIN_PATH="/usr/lib/midori/plugins"
 fi &&
 
 export MOZ_PLUGIN_PATH

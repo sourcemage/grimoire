@@ -1,4 +1,3 @@
-chmod a+x configure &&
 ./configure  &&
 
 if gcc -include netinet/in.h -E - < /dev/null | grep -q IPPROTO_SCTP ; then

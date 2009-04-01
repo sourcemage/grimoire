@@ -1,23 +1,17 @@
-mk_source_dir  $SOURCE_DIRECTORY  &&
-cd             $SOURCE_DIRECTORY  &&
-unpack_file    ''                 &&
+default_pre_build &&
+cd $SOURCE_DIRECTORY &&
 
 sedit  "s/-O2/$CFLAGS/"  Makefile                             &&
-sedit  's/-g//'  Makefile                                     &&
-sedit  "s!^CFLAGS =!& -include ${PWD}/sctpfix.h !"  Makefile  &&
+sedit  "s:DESTDIR=/usr/:DESTDIR=:"     Makefile               &&
+sedit  "s:/share/:/usr/share/:"        Makefile               &&
 sedit  "s:/usr:${INSTALL_ROOT}/usr:g"  Makefile               &&
 sedit  "s:/etc:${INSTALL_ROOT}/etc:g"  Makefile               &&
-sedit  "s:SBINDIR=.*:SBINDIR=$INSTALL_ROOT/sbin:"  Makefile   &&
+sedit  's:$(DESTDIR)/lib/:$(LIBDIR):'  netem/Makefile         &&
 
 # Fix document install directory
 if  [  "$BUILD_DOCS"  =  y  ];  then
   sedit "s:PAGESPERPAGE=2:PAGESPERPAGE=2\nDOCDIR=${INSTALL_ROOT}/usr/share/doc/${SPELL}:" doc/Makefile
 fi  &&
-
-# This fixes a compile error, thanks to Lunar:
-# http://lunar-linux.org/pipermail/lunar-bugs/2004-May/002350.html
-patch  -p1  <  $SCRIPT_DIRECTORY/ip.patch
-
 
 if  ! is_depends_enabled  ${SPELL}  db
 then

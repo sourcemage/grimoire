@@ -1,0 +1,91 @@
+--- coreutils-7.1/src/ls.c~	2009-02-20 20:34:02.000000000 +0200
++++ coreutils-7.1/src/ls.c	2009-02-22 15:39:37.000000000 +0200
+@@ -37,6 +37,7 @@
+ 
+ #include <config.h>
+ #include <sys/types.h>
++#include <attr/attributes.h>
+ 
+ #ifdef HAVE_CAP
+ # include <sys/capability.h>
+@@ -188,6 +189,9 @@
+     /* For long listings, true if the file has an access control list,
+        or an SELinux security context.  */
+     enum acl_type acl_type;
++
++    /* Smack label */
++    char smack[8];
+   };
+ 
+ #define LEN_STR_PAIR(s) sizeof (s) - 1, s
+@@ -660,6 +664,10 @@
+ 
+ static bool print_dir_name;
+ 
++/* True means print the SMACK attribute.  */
++
++static bool print_smack;
++
+ /* The line length to use for breaking lines in many-per-line format.
+    Can be set with -w.  */
+ 
+@@ -787,6 +795,7 @@
+   {"ignore", required_argument, NULL, 'I'},
+   {"indicator-style", required_argument, NULL, INDICATOR_STYLE_OPTION},
+   {"dereference", no_argument, NULL, 'L'},
++  {"smack", no_argument, NULL, 'M'},
+   {"literal", no_argument, NULL, 'N'},
+   {"quote-name", no_argument, NULL, 'Q'},
+   {"quoting-style", required_argument, NULL, QUOTING_STYLE_OPTION},
+@@ -1534,7 +1543,7 @@
+     {
+       int oi = -1;
+       int c = getopt_long (argc, argv,
+-			   "abcdfghiklmnopqrstuvw:xABCDFGHI:LNQRST:UXZ1",
++			   "abcdfghiklmnopqrstuvw:xABCDFGHI:LMNQRST:UXZ1",
+ 			   long_options, &oi);
+       if (c == -1)
+ 	break;
+@@ -1697,6 +1706,10 @@
+ 	  dereference = DEREF_ALWAYS;
+ 	  break;
+ 
++	case 'M':
++	  print_smack = true;
++	  break;
++
+ 	case 'N':
+ 	  set_quoting_style (NULL, literal_quoting_style);
+ 	  break;
+@@ -2873,6 +2886,18 @@
+ 		file_size_width = len;
+ 	    }
+ 	}
++
++    if (print_smack)
++      {
++        int len = 0;
++        int err = getxattr (absolute_name, "security.SMACK64", f->smack, &len);
++        if (err < 0)
++          {
++perror(absolute_name);
++            f->smack[0] = '?';
++            f->smack[1] = '\0';
++          }
++      }
+     }
+ 
+   if (print_inode)
+@@ -3488,6 +3513,12 @@
+ 
+   p = buf;
+ 
++  if (print_smack)
++    {
++      sprintf(p, "%-8s", f->smack);
++      p += 8;
++    }
++
+   if (print_inode)
+     {
+       char hbuf[INT_BUFSIZE_BOUND (uintmax_t)];

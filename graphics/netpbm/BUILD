@@ -11,6 +11,7 @@ LINKER_CAN_DO_EXPLICIT_LIBRARY = Y
 LINKERISCOMPILER = Y
 CFLAGS_SHLIN += -fPIC
 NETPBM_DOCURL = http://netpbm.sourceforge.net/doc/
+PNGLIB = libpng.so
 EOF
 if list_find "$OPTS" yes-jpeg; then
   echo "JPEGLIB = libjpeg.so" >> Makefile.config

@@ -1,10 +1,6 @@
-if [[ $MPLAYER_SVN = y ]]; then
-  OPTS="$OPTS --with-extraincdir=${INSTALL_ROOT}/usr/include/ffmpeg"
-fi  &&
-
 disable_pic                 &&
 
-OPTS="$MPLAYER_OPTS $OPTS"  &&
+OPTS="$MPLAYER_OPTS $MPLAYER_IVTV $OPTS"  &&
 
 CFLAGS= ./configure  --prefix=${INSTALL_ROOT}/usr    \
              --confdir=${TRACK_ROOT}/etc/mplayer   \

@@ -1,0 +1,119 @@
+#---
+## glselect - select default libGL provider
+## rewritten from smgl-gl_select
+##
+## this is run in FINAL and will always set the provider
+## based on the final spell cast that calls this.
+## If one wants to have this settable runtime then
+## there's the smgl-gl_select tool to do so
+##
+#---
+
+function glselect(){
+  local file_list="
+                    /usr/lib/libGL.so
+                    /usr/lib/libGL.so.*
+                    /usr/lib/xorg/modules/extensions/libdri.la
+                    /usr/lib/xorg/modules/extensions/libdri.so
+                    /usr/lib/xorg/modules/extensions/libglx.la
+                    /usr/lib/xorg/modules/extensions/libglx.so*
+                    /usr/include/GL/gl.h
+                    /usr/include/GL/glext.h
+                    /usr/include/GL/glx.h
+                    /usr/include/GL/glxext.h
+                   "
+  local dir_list=( \
+                  "/usr/lib/ati" \
+                  "/usr/lib/nvidia" \
+                  "/usr/lib/mesa" \
+                  "/usr/include/GL/ati" \
+                  "/usr/include/GL/nvidia" \
+                  "/usr/include/GL/mesa" \
+                  "/usr/lib/xorg/modules/extensions/ati" \
+                  "/usr/lib/xorg/modules/extensions/nvidia" \
+                  "/usr/lib/xorg/modules/extensions/mesa" \
+                 )
+  local rm_file orig_dir
+  local gl_lib=$1
+  message "Selecting $gl_lib as the default system GL library"
+  if [[ -L ${INSTALL_ROOT}/usr/lib/libGL.so ]] ||
+     [[ ! -e ${INSTALL_ROOT}/usr/lib/libGL.so ]]
+  then
+    message "Cleaning all previous GL providers..."
+    for rm_file in $file_list
+    do
+      rm -f $rm_file
+      echo -n "."
+    done
+    echo -n "."
+    echo ""
+    message "Done."
+    message "Setting up new GL provider $gl_lib..."
+    case "$1" in
+   ati) 
+        [[ -e ${INSTALL_ROOT}${dir_list[0]}/libGL.so ]] &&
+        ln -sf ${INSTALL_ROOT}${dir_list[0]}/* \
+               ${INSTALL_ROOT}/usr/lib/ 2>/dev/null
+        [[ -e ${INSTALL_ROOT}${dir_list[3]}/gl.h ]] &&
+        ln -sf ${INSTALL_ROOT}${dir_list[3]}/* \
+               ${INSTALL_ROOT}/usr/include/GL/ 2>/dev/null
+        [[ -e ${INSTALL_ROOT}${dir_list[6]}/libglx.so ]] &&
+        ln -sf ${INSTALL_ROOT}${dir_list[6]}/* \
+               ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions/ 2>/dev/null
+        echo -n "."
+        ;;
+  mesa) 
+        [[ -e ${INSTALL_ROOT}${dir_list[2]}/libGL.so ]] &&
+        ln -sf ${INSTALL_ROOT}${dir_list[2]}/* \
+               ${INSTALL_ROOT}/usr/lib/ 2>/dev/null
+        [[ -e ${INSTALL_ROOT}${dir_list[5]}/gl.h ]] &&
+        ln -sf ${INSTALL_ROOT}${dir_list[5]}/* \
+               ${INSTALL_ROOT}/usr/include/GL/ 2>/dev/null
+        [[ -e ${INSTALL_ROOT}${dir_list[8]}/libglx.so ]] &&
+        ln -sf ${INSTALL_ROOT}${dir_list[8]}/* \
+               ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions/ 2>/dev/null
+        echo -n "."
+        ;;
+nvidia) 
+        [[ -e ${INSTALL_ROOT}${dir_list[1]}/libGL.so ]] &&
+        ln -sf ${INSTALL_ROOT}${dir_list[1]}/* \
+               ${INSTALL_ROOT}/usr/lib/ 2>/dev/null
+        [[ -e ${INSTALL_ROOT}${dir_list[4]}/gl.h ]] &&
+        ln -sf ${INSTALL_ROOT}${dir_list[4]}/* \
+               ${INSTALL_ROOT}/usr/include/GL/ 2>/dev/null
+        [[ -e ${INSTALL_ROOT}${dir_list[7]}/libglx.so ]] &&
+        ln -sf ${INSTALL_ROOT}${dir_list[7]}/* \
+               ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions/ 2>/dev/null
+        echo -n "."
+        ;;
+     *) message "Unknown secondary files so I only linked the libGL.so"
+        ln -fs ${INSTALL_ROOT}/usr/lib/$gl_lib/libGL.so* \
+               ${INSTALL_ROOT}/usr/lib/ 2>/dev/null
+        ;;
+      esac
+    echo -e "\nDone."
+    message "You can manage the libGL providers at runtime by using"
+    message "either smgl-gl_select or manually by symlinking the files"
+    message "from their respective directories i.e.:"
+    message "/usr/lib/[nvidia|ati|mesa]/libGL.so"
+    message "/usr/lib/xorg/modules/extensions/[nvidia,ati,mesa]/lib{glx,dri}.so"
+    message "/usr/include/GL/[nvidia|ati|mesa]/gl{x,xext,ext}.h"
+    message ""
+    message "To:"
+    message "/usr/lib/libGL.so"
+    message "/usr/lib/xorg/modules/extensions/lib{glx,dri}.so"
+    message "/usr/include/GL/gl{x,xext,ext}.h"
+    message ""
+    return 0
+  else
+    message "Error ${INSTALL_ROOT}/usr/lib/libGL.so is not a symlink"
+    message "unable to proceed!!!"
+    message "Please recast:"
+    message "mesalib, xorg-server and whatever GL driver you use."
+    message ""
+    message "If this continues to happen please file a bug."
+    message ""
+    return 1
+  fi
+}
+

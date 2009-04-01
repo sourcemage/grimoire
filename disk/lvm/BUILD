@@ -6,4 +6,12 @@
 	    --mandir=$INSTALL_ROOT/usr/share/man 	\
             --enable-static_link              		\
             $OPTS                                       &&
-make
+make_single &&
+
+if [[ $LVM_DM_ONLY == y ]]; then
+  make device-mapper
+else
+  make
+fi &&
+
+make_normal
