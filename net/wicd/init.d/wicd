@@ -9,15 +9,23 @@ PIDFILE="/var/run/wicd/wicd.pid"
 . /etc/init.d/smgl_init
 
 start() {
-  if [ -e $PIDFILE ]; then
-    echo "Wicd appears to already be running."
-    echo "If this is not the case, then remove "
-    echo "$PIDFILE and try again..."
-    exit 1
-  else
-    echo "Starting wicd daemon..."
-    $PROGRAM 2>/dev/null 1>&2
+  echo  "Starting wicd..."
+  mkdir -p $(dirname $PIDFILE)
+  # make sure there is actually a process there...
+  if [ -f $PIDFILE ]; then
+    echo "Found $PIDFILE doing extra checks..."
+    if ! ps ax | grep "wicd " | grep -q $(cat $PIDFILE) ; then
+      print_status warning "$PIDFILE exists, but wicd is not running under this PID"
+      echo "Attempting cleanup and new startup..."
+      rm -f $PIDFILE
+    else
+      echo "Seems to be running..."
+      return 0
+    fi
   fi
+  # don't use loadproc here, as that fails if some user is running
+  # a session bus
+  $PROGRAM $ARGS
   evaluate_retval
 }
 
