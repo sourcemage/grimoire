@@ -14,6 +14,7 @@ local TEMP_DIR="$INSTALL_ROOT/var/spool/nginx" &&
     --http-fastcgi-temp-path="$TEMP_DIR/fastcgi_temp" \
              --http-log-path="$INSTALL_ROOT/var/log/nginx/access.log" \
             --error-log-path="$INSTALL_ROOT/var/log/nginx/error.log" \
+                             $NGINX_OPTS \
                              $OPTS &&
 
 make
