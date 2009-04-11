@@ -1,1 +1,2 @@
-mxmkmf
+xmkmf &&
+make
