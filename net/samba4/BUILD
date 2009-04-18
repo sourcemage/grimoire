@@ -1,5 +1,4 @@
-OPTS="--with-swatdir=/usr/share/swat  \
-      --enable-fhs                    \
+OPTS="--enable-fhs                    \
       $SAMBA4_PTHREADS                \
       $OPTS"                          &&
 
