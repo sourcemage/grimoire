@@ -2,7 +2,6 @@ if  list_find "$MSQL_ENGINES" "none"  ;  then
    OPTS="--without-archive-storage-engine    \
          --without-berkeley-db               \
          --without-blackhole-storage-engine  \
-         --without-csv-storage-engine        \
          --without-example-storage-engine    \
          --without-federated-storage-engine  \
          --without-innodb                    \
@@ -21,11 +20,6 @@ else
     OPTS="--with-blackhole-storage-engine $OPTS"
   else
     OPTS="--without-blackhole-storage-engine $OPTS"
-  fi                                                     &&
-  if  list_find "$MSQL_ENGINES" "CSV"  ;  then
-    OPTS="--with-csv-storage-engine $OPTS"
-  else
-    OPTS="--without-csv-storage-engine $OPTS"
   fi                                                     &&
   if  list_find "$MSQL_ENGINES" "EXAMPLE"  ;  then
     OPTS="--with-example-storage-engine $OPTS"
