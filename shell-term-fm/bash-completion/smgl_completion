@@ -68,6 +68,7 @@ _add_grimoire_list()
 
 # Source Mage GNU/Linux gaze(1) completion
 # by Lunar_fr (lunar@l-a-p.org)
+# updated by Bor Kraljic (pyrobor@ver.si)
 #
 have gaze &&
 _gaze()
@@ -150,6 +151,10 @@ _gaze()
 }
 [ "$have" ] && complete -F _gaze -o default gaze
 
+
+# Source Mage GNU/Linux sorcery(8) completion
+# by Bor Kraljic (pyrobor@ver.si)
+#
 have sorcery &&
 _sorcery()
 {
@@ -324,6 +329,53 @@ _dispel()
 }
 [ "$have" ] && complete -F _dispel -o default dispel
 
+# Source Mage GNU/Linux confmeld(8) completion
+# by Bor Kraljic (pyrobor@ver.si)
+#
+
+have confmeld &&
+_confmeld()
+{
+	local cur prev
+
+	COMPREPLY=()
+	cur=${COMP_WORDS[COMP_CWORD]}
+	prev=${COMP_WORDS[COMP_CWORD-1]}
+
+	if [ $COMP_CWORD -ge 1 -o ${prev} != ${prev#-} -o ${prev} != ${prev#--} ]; then
+	case "$cur" in
+		--*)
+		COMPREPLY=( $( compgen -W 'help list list-configs list-spells no-column force' ${cur#--} ) )
+		_dashify
+		return 0
+		;;
+		-*)
+		COMPREPLY=( $( compgen -W 'h l c s q f' ${cur#-} ) )
+		_dashify
+		return 0
+		;;
+
+	esac
+	fi
+	case "$prev" in
+	-f|--force)
+		COMPREPLY=( $( compgen -W 'discard-new discard-old use-old use-new' $cur ) )
+		_dashify
+		return 0
+		;;
+	*)
+		_spell_list
+		return 0
+		;;
+	esac
+
+	return 0
+}
+[ "$have" ] && complete -F _confmeld -o default confmeld
+
+# Source Mage GNU/Linux cleanse(8) completion
+# by Bor Kraljic (pyrobor@ver.si)
+#
 have cleanse &&
 _cleanse()
 {
@@ -365,6 +417,47 @@ _cleanse()
 	return 0
 }
 [ "$have" ] && complete -F _cleanse -o default cleanse
+
+# Source Mage GNU/Linux resurrect(8) completion
+# by Bor Kraljic (pyrobor@ver.si)
+#
+have resurrect &&
+_resurrect()
+{
+	local cur prev
+
+	COMPREPLY=()
+	cur=${COMP_WORDS[COMP_CWORD]}
+	prev=${COMP_WORDS[COMP_CWORD-1]}
+
+	if [ $COMP_CWORD -ge 1 -o ${prev} != ${prev#-} -o ${prev} != ${prev#--} ]; then
+	case "$cur" in
+		--*)
+		COMPREPLY=( $( compgen -W 'version latest from check voyeur nosustain help' ${cur#--} ) )
+		_dashify
+		return 0
+		;;
+		-*)
+		COMPREPLY=( $( compgen -W 'v l f c V h' ${cur#-} ) )
+		_dashify
+		return 0
+		;;
+	esac
+	fi
+	case "$prev" in
+	--from)
+		COMPREPLY=( $( compgen -d $cur ) )
+		return 0
+		;;
+	*)
+		_spell_list
+		return 0
+		;;
+	esac
+
+	return 0
+}
+[ "$have" ] && complete -F _resurrect -o default resurrect
 
 # Source Mage GNU/Linux scribe(8) completion
 # by Arjan Bouter (abouter@sourcemage.org)
@@ -432,6 +525,43 @@ _scribe()
     return 0
 }
 [ "$have" ] && complete -F _scribe -o default scribe
+
+# Source Mage GNU/Linux scribbler(8) completion
+# by Bor Kraljic (pyrobor@ver.si)
+#
+have scribbler &&
+_scribbler()
+{
+	local cur prev
+
+	COMPREPLY=()
+	cur=${COMP_WORDS[COMP_CWORD]}
+	prev=${COMP_WORDS[COMP_CWORD-1]}
+	first=${COMP_WORDS[1]}
+	second=${COMP_WORDS[2]}
+
+	if [ $COMP_CWORD = 1 ]; then
+		COMPREPLY=( $( compgen -W 'add remove' $cur ))
+		return 0
+	elif [ $COMP_CWORD = 2 ]; then
+		if [ "$prev" = add ] || [ "$prev" = remove ]; then
+			_spell_list
+			return 0
+		else
+			_add_grimoire_list
+			return 0
+		fi
+	elif [ $COMP_CWORD = 3 ]; then
+		_add_grimoire_list
+		return 0
+	elif  [ $COMP_CWORD = 4 ]; then
+		_add_grimoire_list
+		return 0
+	fi
+
+	return 0
+}
+[ "$have" ] && complete -F _scribbler -o default scribbler
 
 # Source Mage GNU/Linux quill(8) completion
 # by p3pilot
