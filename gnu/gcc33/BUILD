@@ -3,10 +3,16 @@ sedit  's:#!/bin/sh:#!/bin/bash:'  $SOURCE_DIRECTORY/configure  &&
 
 # GCC 3.3 doesn't know arch=pentium4m, replace with pentium4,
 # same for pentium3m
+# Doesn't know core2, replace with nocona, nor does it no -mssse3, remove it
+# See http://gcc.gnu.org/onlinedocs/gcc-3.3.6/gcc/i386-and-x86_002d64-Options.html
 CFLAGS=${CFLAGS/pentium4m/pentium4}      &&
 CXXFLAGS=${CXXFLAGS/pentium4m/pentium4}  &&
 CFLAGS=${CFLAGS/pentium-m/pentium3}      &&
 CXXFLAGS=${CFLAGS/pentium-m/pentium3}    &&
+CFLAGS=${CFLAGS/core2/nocona}            &&
+CXXFLAGS=${CFLAGS/core2/nocona}          &&
+CFLAGS=${CFLAGS/-mssse3/}                &&
+CXXFLAGS=${CXXFLAGS/-mssse3/}            &&
 
 cd $SOURCE_DIRECTORY.bld                                  &&
 $SOURCE_DIRECTORY/configure                               \
