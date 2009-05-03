@@ -1,0 +1,1 @@
+make PREFIX=${INSTALL_ROOT}/usr COMPONENT_TYPE=lib-shared
