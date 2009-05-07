@@ -1,5 +1,4 @@
-export  QTDIR="$SOURCE_DIRECTORY"                                 &&
-export  LD_LIBRARY_PATH="$SOURCE_DIRECTORY/lib:$LD_LIBRARY_PATH"  &&
+QTDIR=$INSTALL_ROOT/usr &&
 
 OPTS="$QT_DEBUG               \
       $QT_NIS                 \

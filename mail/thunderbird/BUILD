@@ -15,6 +15,12 @@ export  CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 CFLAGS="${CFLAGS//-ffast-math/}"      &&
 CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
+#
+# Forcing SSE for mfpmath causes Thunderbird to segfault on start
+#
+CFLAGS="${CFLAGS//-mfpmath=sse/}"      &&
+CXXFLAGS="${CXXFLAGS//-mfpmath=sse/}"  &&
+
 if  echo $LDFLAGS | grep  -q  '\-s'; then
   OPTS="$OPTS  --enable-strip"
 fi  &&
