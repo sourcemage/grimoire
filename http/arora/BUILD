@@ -3,5 +3,5 @@ PATH="$QTDIR/bin/qt4:$PATH"          &&
 
 cd  "$SOURCE_DIRECTORY"              &&
 
-QT_WEBKIT=webkit_trunk  qmake        &&
+qmake &&
 make
