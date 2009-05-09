@@ -1,5 +1,7 @@
 create_group scanner &&
 
+LDFLAGS="-pthread $LDFLAGS"
+
 if [[ $USEFORK == y ]]; then
   OPTS="$OPTS --enable-fork-process"
 else
