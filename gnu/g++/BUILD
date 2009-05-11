@@ -36,5 +36,6 @@ CXX=/bin/false $SOURCE_DIRECTORY/configure                 \
              $GCC_MULTILIB                                 \
              $OPTS                                         &&
 
+make_single                                                    &&
 make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
      profiledbootstrap
