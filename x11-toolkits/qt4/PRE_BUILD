@@ -1,9 +1,12 @@
 default_pre_build          &&
 cd $SOURCE_DIRECTORY 	   &&
+#apply upstream patch
+patch -p0 < $SPELL_DIRECTORY/0279-svg-rendering-regression.diff &&
+
+patch -p0 < $SPELL_DIRECTORY/odbc.patch &&
 
 # add better optimisation flags
-# -O2 gives segmentation fault in moc when building tools
-sed -i   "s|-O2|${CFLAGS/-O3/-O2}|" mkspecs/common/g++.conf      \
+sed -i   "s|-O2||" mkspecs/common/g++.conf      \
                                      mkspecs/linux-cxx/qmake.conf &&
 
 # remove big direcotries
@@ -15,6 +18,14 @@ if [[ x${QT_DEBUG} != "x-debug" ]];then
   sed -i "/-g/d" mkspecs/common/g++.conf      \
                  mkspecs/linux-cxx/qmake.conf
 fi                          &&
+
+if is_depends_enabled $SPELL libiodbc;then
+# force use of libiodbc
+  sed -i 's/-lodbc/-liodbc/' src/plugins/sqldrivers/odbc/odbc.pro \
+                             src/sql/drivers/drivers.pri \
+                             config.tests/unix/odbc/odbc.pro
+fi  &&
+
 # fix use of firebird
 sed -i "s/-lgds/-lfbclient/" config.tests/unix/ibase/ibase.pro \
                              src/sql/drivers/drivers.pri  \

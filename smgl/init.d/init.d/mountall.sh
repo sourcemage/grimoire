@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # vim:set ts=2 sw=2 et:
 
 PROGRAM=/bin/false

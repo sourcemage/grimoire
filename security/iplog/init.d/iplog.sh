@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Source Mage init.d install information
 # SMGL-START:2 3 4 5:S40
