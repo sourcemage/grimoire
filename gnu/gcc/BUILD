@@ -35,5 +35,6 @@ $SOURCE_DIRECTORY/configure                                \
              --with-system-zlib                            \
              $GCC_MULTILIB $OPTS                          &&
 
+make_single                                                    &&
 make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
      profiledbootstrap
