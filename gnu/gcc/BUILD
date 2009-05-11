@@ -37,4 +37,4 @@ $SOURCE_DIRECTORY/configure                                \
 
 make_single                                                    &&
 make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
-     profiledbootstrap
+     profiledbootstrap-lean
