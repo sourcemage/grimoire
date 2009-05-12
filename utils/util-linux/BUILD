@@ -1,3 +1,4 @@
+OPTS="--with-fsprobe=builtin $OPTS" &&
 OPTS="--build=$BUILD $OPTS" &&
 
 if [[ $CROSS_INSTALL == on ]]; then
