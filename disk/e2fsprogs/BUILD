@@ -6,7 +6,6 @@
           --mandir=${TRACK_ROOT}/usr/share/man \
 --with-root-prefix=${TRACK_ROOT} \
                    --enable-elf-shlibs \
-                   --enable-libblkid \
                    $OPTS &&
 
 make DESTDIR="$INSTALL_ROOT"
