@@ -1,3 +1,5 @@
 sedit  "s:-L\$(OGLDIR):-L/usr/X11/lib -L\$(OGLDIR):"  c_src/Makefile  &&
 
-make
+make &&
+
+chmod 755 ebin/*
