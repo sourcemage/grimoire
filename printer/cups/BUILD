@@ -12,4 +12,6 @@ else
   fi
 fi &&
 
+OPTS="--libdir=$INSTALL_ROOT/usr/lib $OPTS"  &&
+
 default_build
