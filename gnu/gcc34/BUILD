@@ -15,4 +15,4 @@ $SOURCE_DIRECTORY/configure                               \
  --enable-languages=c,c++                                 \
        $GCC_MULTILIB $OPTS                                &&
 
-make  bootstrap
+make  profiledbootstrap
