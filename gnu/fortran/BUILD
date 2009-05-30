@@ -16,6 +16,7 @@ fi  &&
 cd $SOURCE_DIRECTORY.bld                                   &&
 $SOURCE_DIRECTORY/configure                                \
              --prefix=${INSTALL_ROOT}/usr                  \
+             --libdir=${INSTALL_ROOT}/usr/lib              \
              --infodir=${INSTALL_ROOT}/usr/share/info      \
              --mandir=${INSTALL_ROOT}/usr/share/man        \
              --enable-threads=posix                        \
