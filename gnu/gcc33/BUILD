@@ -31,4 +31,4 @@ sedit 's|\(CFLAGS_FOR_TARGET.*\)\$(CFLAGS)|\1$(CFLAGS:k8=athlon-xp)|g' Makefile 
 sedit 's|\(CXXFLAGS_FOR_TARGET.*\)\$(CXXFLAGS)|\1$(CXXFLAGS:k8=athlon-xp)|g' Makefile &&
 sedit 's|march=k8|march=athlon-xp|g' libiberty/Makefile libiberty/testsuite/Makefile &&
 
-make  bootstrap
+make  bootstrap-lean
