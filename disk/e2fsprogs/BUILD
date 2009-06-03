@@ -1,5 +1,3 @@
-OPTS="--disable-libblkid $OPTS" &&
-
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=$HOST"
 
 ./configure --host=${BUILD} \
