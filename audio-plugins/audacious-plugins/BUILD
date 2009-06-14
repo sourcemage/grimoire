@@ -1,2 +1,2 @@
-OPTS="--enable-ipv6 --enable-chardet $OPTS" &&
+OPTS="--enable-chardet $AUDACIOUS_IPV6 $AUDACIOUS_STATUS $AUDACIOUS_OSD $AUDACIOUS_COSD $OPTS" &&
 default_build
