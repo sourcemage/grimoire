@@ -7,6 +7,8 @@ SQUID_AUTH=basic &&
 SQUID_AUTH_DIGEST='' &&
 SQUID_AUTH_NTLM='' &&
 
+CXXFLAGS="-Wno-error $CXXFLAGS" &&
+
 ./configure                                          \
   --prefix=${INSTALL_ROOT}/usr                       \
   --sysconfdir=${INSTALL_ROOT}/etc/squid             \

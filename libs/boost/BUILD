@@ -29,6 +29,6 @@ bjam -q                                           \
      link=shared                                  \
      --prefix=${INSTALL_ROOT}/usr                 \
      --toolset=gcc                                \
-     threading=single,multi                       \
+     threading=multi                              \
      --layout=system                              \
      $OPTS
