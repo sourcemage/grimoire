@@ -1,5 +1,7 @@
 OPTS="--prefix=$INSTALL_ROOT/usr \
-      --exec-prefix=$INSTALL_ROOT \
+      --sbindir=$INSTALL_ROOT/sbin \
+      --libexecdir=$INSTALL_ROOT/lib/udev \
+      --with-rootlibdir=$INSTALL_ROOT/lib \
       $UDEV_OPTS \
       $OPTS" &&
 
