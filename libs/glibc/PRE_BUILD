@@ -1,5 +1,16 @@
 default_pre_build  &&
 
+local GLIBC_LIBIDN_DIR=$SOURCE_DIRECTORY/glibc-libidn-$VERSION  &&
+
+if [ "$GLIBC_USEIDN" = "y" ] && [[ "$GLIBC_CVS" != "y" ]]; then
+  #
+  # Unpack glibc-libidn
+  #
+  cd $SOURCE_DIRECTORY                  &&
+  unpack_file 4                         &&
+  mv $GLIBC_LIBIDN_DIR libidn
+fi &&
+
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   cd      $SOURCE_DIRECTORY                  &&
   patch $SOURCE_DIRECTORY/timezone/Makefile  \
@@ -16,9 +27,12 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
 
   unpack_file 3                         &&
   if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
-    cd  $GLIBC_HEADERS_DIR/usr/include                  &&
-    chmod  -R  +r  *                                    &&
-    find  .  -type  d  -exec  chmod  +x  '{}'  ';'
+    cd  $GLIBC_HEADERS_DIR &&
+    if [ ! -z $SOURCE3 ]; then
+      verify_file 3 || return 1 &&
+      bzcat ${SOURCE_CACHE}/$SOURCE3 > ${SOURCE3%.bz2}
+    fi  &&
+    make mrproper
   else
     cd  $GLIBC_HEADERS_DIR &&
     if [ ! -z $SOURCE7 ]; then
@@ -58,7 +72,6 @@ fi  &&
 cd  $SOURCE_DIRECTORY                               &&
 patch  -p0  <  $SCRIPT_DIRECTORY/Makefile.patch     &&
 patch  -p1  <  $SCRIPT_DIRECTORY/as-test-x.patch &&
-patch  -p1  <  $SCRIPT_DIRECTORY/bug-15014.patch &&
 
 # disabled libgd detection/building memusagestat for now until a better
 # fix has been found, bug #8277

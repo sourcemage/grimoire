@@ -1,5 +1,4 @@
-export  QTDIR="$SOURCE_DIRECTORY"                                 &&
-export  LD_LIBRARY_PATH="$SOURCE_DIRECTORY/lib:$LD_LIBRARY_PATH"  &&
+QTDIR=$INSTALL_ROOT/usr &&
 
 OPTS="$QT_DEBUG               \
       $QT_NIS                 \
@@ -16,7 +15,7 @@ OPTS="$QT_DEBUG               \
       $QT_WEBKIT              \
       $OPTS"                  &&
 
-./configure  -confirm-license                                                 \
+./configure  -opensource -confirm-license                                     \
              -prefix  "$INSTALL_ROOT/usr"                                     \
              -bindir  "$INSTALL_ROOT/usr/bin/qt4"                             \
              -docdir  "$INSTALL_ROOT/usr/share/doc/qt4"                       \

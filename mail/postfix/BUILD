@@ -23,9 +23,18 @@ if is_depends_enabled $SPELL linux-pam; then
     message "${MESSAGE_COLOR}Linux-PAM requested: Using Linux-PAM${DEFAULT_COLOR}"
 fi &&
 
+if is_depends_enabled $SPELL dovecot || is_depends_enabled $SPELL cyrus-sasl; then
+    CCARGS="$CCARGS -DUSE_SASL_AUTH"
+fi &&
+
+if is_depends_enabled $SPELL dovecot; then
+    CCARGS="$CCARGS -DDEF_SERVER_SASL_TYPE=\\\"dovecot\\\"" &&
+    message "${MESSAGE_COLOR}Dovecot SASL requested: Using Dovecot SASL${DEFAULT_COLOR}"
+fi &&
+
 if is_depends_enabled $SPELL cyrus-sasl; then
     AUXLIBS="$AUXLIBS -lsasl2" &&
-    CCARGS="$CCARGS -DUSE_SASL_AUTH -DUSE_CYRUS_SASL -I$INSTALL_ROOT/usr/include/sasl" &&
+    CCARGS="$CCARGS -DUSE_CYRUS_SASL -I$INSTALL_ROOT/usr/include/sasl" &&
     message "${MESSAGE_COLOR}Cyrus-SASL requested: Using Cyrus-SASL${DEFAULT_COLOR}"
 fi &&
 
