@@ -1,4 +1,4 @@
-cd "$SOURCE_DIRECTORY/mozilla" &&
+cd "$SOURCE_DIRECTORY/mozilla-$VERSION" &&
 
 XULRUNNER_HOME="$INSTALL_ROOT/usr/lib/xulrunner" &&
 export  MOZ_PHOENIX=1 &&
