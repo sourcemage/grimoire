@@ -1,6 +1,8 @@
 OPTS="--prefix=$INSTALL_ROOT/usr \
-      --exec-prefix=$INSTALL_ROOT \
-      $UDEV_DEBUG \
+      --sbindir=$INSTALL_ROOT/sbin \
+      --libexecdir=$INSTALL_ROOT/lib/udev \
+      --with-rootlibdir=$INSTALL_ROOT/lib \
+      $UDEV_OPTS \
       $OPTS" &&
 
 default_build
