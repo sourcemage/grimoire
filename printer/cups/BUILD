@@ -12,6 +12,6 @@ else
   fi
 fi &&
 
-OPTS="--libdir=$INSTALL_ROOT/usr/lib $OPTS"  &&
+OPTS="--libdir=$INSTALL_ROOT/usr/lib $CUPS_OPTS $OPTS"  &&
 
 default_build
