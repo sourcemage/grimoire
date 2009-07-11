@@ -1,0 +1,23 @@
+
+# HG changeset patch
+# User Timo Sirainen <tss@iki.fi>
+# Date 1246987501 14400
+# Node ID ee173ea99ea630f624db378ef518984fa959f3f6
+# Parent 8f8b5e2f8df7dc6e68630bc47df6ac0e27f344d2
+auth: Ignore empty initial response strings.
+
+--- a/src/auth/auth-request-handler.c	Tue Jul 07 13:20:24 2009 -0400
++++ b/src/auth/auth-request-handler.c	Tue Jul 07 13:25:01 2009 -0400
+@@ -364,7 +364,10 @@ bool auth_request_handler_auth_begin(str
+ 		return TRUE;
+ 	}
+ 
+-	if (initial_resp == NULL) {
++	/* Empty initial response is a "=" base64 string. Completely empty
++	   string shouldn't really be sent, but at least Exim does it,
++	   so just allow it for backwards compatibility.. */
++	if (initial_resp == NULL || *initial_resp == '\0') {
+ 		initial_resp_data = NULL;
+ 		initial_resp_len = 0;
+ 	} else {
+
