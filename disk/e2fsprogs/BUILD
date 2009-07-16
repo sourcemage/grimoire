@@ -1,4 +1,6 @@
 OPTS="--disable-libblkid $OPTS" &&
+OPTS="--disable-libuuid --disable-uuidd $OPTS" &&
+OPTS="--disable-fsck $OPTS" &&
 
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=$HOST"
 
