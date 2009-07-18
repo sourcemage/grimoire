@@ -4,5 +4,8 @@ cd "${SOURCE_DIRECTORY}" &&
       --extra-cflags="${CFLAGS}"                                \
      --extra-ldflags="${LDFLAGS}"                               \
          --kerneldir="/lib/modules/$(get_kernel_version)/build" \
-          --disable-werror                                      &&
+          --disable-werror                                      \
+          --audio-drv-list="${KVM_DRV}"                         \
+          --audio-card-list="${KVM_CARD}"                       \
+            $OPTS                                               &&
 make
