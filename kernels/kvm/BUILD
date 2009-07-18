@@ -4,5 +4,6 @@ cd "${SOURCE_DIRECTORY}" &&
       --extra-cflags="${CFLAGS}"                                \
      --extra-ldflags="${LDFLAGS}"                               \
          --kerneldir="/lib/modules/$(get_kernel_version)/build" \
-          --disable-werror                                      &&
+          --disable-werror                                      \
+            $OPTS                                               &&
 make
