@@ -1,6 +1,7 @@
 create_account postgres &&
 
-OPTS="--with-docdir=$INSTALL_ROOT/usr/share/doc $OPTS"
+OPTS="--with-docdir=$INSTALL_ROOT/usr/share/doc $OPTS" &&
+OPTS="--with-system-tzdata=$INSTALL_ROOT/usr/share/zoneinfo $OPTS"  &&
 
 default_build &&
 
