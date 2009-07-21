@@ -1,0 +1,359 @@
+diff -Naur cvs-1.11.23.orig/lib/getline.c cvs-1.11.23/lib/getline.c
+--- cvs-1.11.23.orig/lib/getline.c	2009-07-21 14:00:37.293591431 -0700
++++ cvs-1.11.23/lib/getline.c	2009-07-21 14:01:21.127614022 -0700
+@@ -155,7 +155,7 @@
+ }
+ 
+ int
+-getline (lineptr, n, stream)
++getline_ (lineptr, n, stream)
+      char **lineptr;
+      size_t *n;
+      FILE *stream;
+diff -Naur cvs-1.11.23.orig/lib/getline.h cvs-1.11.23/lib/getline.h
+--- cvs-1.11.23.orig/lib/getline.h	2009-07-21 14:00:37.294851298 -0700
++++ cvs-1.11.23/lib/getline.h	2009-07-21 14:01:07.562689821 -0700
+@@ -12,7 +12,7 @@
+ #define GETLINE_NO_LIMIT -1
+ 
+ int
+-  getline __PROTO ((char **_lineptr, size_t *_n, FILE *_stream));
++  getline_ __PROTO ((char **_lineptr, size_t *_n, FILE *_stream));
+ int
+   getline_safe __PROTO ((char **_lineptr, size_t *_n, FILE *_stream,
+                          int limit));
+diff -Naur cvs-1.11.23.orig/lib/getpass.c cvs-1.11.23/lib/getpass.c
+--- cvs-1.11.23.orig/lib/getpass.c	2009-07-21 14:00:37.295845838 -0700
++++ cvs-1.11.23/lib/getpass.c	2009-07-21 14:02:23.393596499 -0700
+@@ -81,7 +81,7 @@
+   fflush (out);
+ 
+   /* Read the password.  */
+-  nread = getline (&buf, &bufsize, in);
++  nread = getline_ (&buf, &bufsize, in);
+   if (buf != NULL)
+     {
+       if (nread < 0)
+diff -Naur cvs-1.11.23.orig/src/client.c cvs-1.11.23/src/client.c
+--- cvs-1.11.23.orig/src/client.c	2009-07-21 14:00:37.307835984 -0700
++++ cvs-1.11.23/src/client.c	2009-07-21 14:03:52.955845745 -0700
+@@ -5781,7 +5781,7 @@
+     char *p;
+ 
+     fp = open_file (CVSADM_NOTIFY, "r");
+-    if (getline (&line, &line_len, fp) < 0)
++    if (getline_ (&line, &line_len, fp) < 0)
+     {
+ 	if (feof (fp))
+ 	    error (0, 0, "cannot read %s: end of file", CVSADM_NOTIFY);
+@@ -5802,7 +5802,7 @@
+ 	       line + 1);
+     }
+ 
+-    if (getline (&line, &line_len, fp) < 0)
++    if (getline_ (&line, &line_len, fp) < 0)
+     {
+ 	if (feof (fp))
+ 	{
+diff -Naur cvs-1.11.23.orig/src/cvsrc.c cvs-1.11.23/src/cvsrc.c
+--- cvs-1.11.23.orig/src/cvsrc.c	2009-07-21 14:00:37.302836324 -0700
++++ cvs-1.11.23/src/cvsrc.c	2009-07-21 14:03:53.043595970 -0700
+@@ -92,7 +92,7 @@
+     line_chars_allocated = 0;
+     command_len = strlen (cmdname);
+     cvsrcfile = open_file (homeinit, "r");
+-    while ((line_length = getline (&line, &line_chars_allocated, cvsrcfile))
++    while ((line_length = getline_ (&line, &line_chars_allocated, cvsrcfile))
+ 	   >= 0)
+     {
+ 	/* skip over comment lines */
+diff -Naur cvs-1.11.23.orig/src/edit.c cvs-1.11.23/src/edit.c
+--- cvs-1.11.23.orig/src/edit.c	2009-07-21 14:00:37.307835984 -0700
++++ cvs-1.11.23/src/edit.c	2009-07-21 14:03:53.106595623 -0700
+@@ -187,7 +187,7 @@
+ 	return 0;
+     }
+ 
+-    while (getline (&line, &line_len, fp) > 0)
++    while (getline_ (&line, &line_len, fp) > 0)
+     {
+ 	notif_type = line[0];
+ 	if (notif_type == '\0')
+@@ -906,7 +906,7 @@
+ 		error (0, errno, "cannot read %s", usersname);
+ 	    if (fp != NULL)
+ 	    {
+-		while (getline (&line, &line_len, fp) >= 0)
++		while (getline_ (&line, &line_len, fp) >= 0)
+ 		{
+ 		    if (strncmp (line, p, len) == 0
+ 			&& line[len] == ':')
+@@ -1018,7 +1018,7 @@
+ 	    error (0, errno, "cannot open %s", CVSADM_NOTIFY);
+ 	return;
+     }
+-    while (getline (&line, &line_len, fp) > 0)
++    while (getline_ (&line, &line_len, fp) > 0)
+     {
+ 	int notif_type;
+ 	char *filename;
+diff -Naur cvs-1.11.23.orig/src/entries.c cvs-1.11.23/src/entries.c
+--- cvs-1.11.23.orig/src/entries.c	2009-07-21 14:00:37.302836324 -0700
++++ cvs-1.11.23/src/entries.c	2009-07-21 14:03:53.137845837 -0700
+@@ -312,7 +312,7 @@
+     line_chars_allocated = 0;
+ 
+     ent = NULL;
+-    while ((line_length = getline (&line, &line_chars_allocated, fpin)) > 0)
++    while ((line_length = getline_ (&line, &line_chars_allocated, fpin)) > 0)
+     {
+ 	l = line;
+ 
+@@ -748,7 +748,7 @@
+ 	line = NULL;
+ 	line_chars_allocated = 0;
+ 
+-	if ((line_length = getline (&line, &line_chars_allocated, fp)) > 0)
++	if ((line_length = getline_ (&line, &line_chars_allocated, fp)) > 0)
+ 	{
+ 	    /* Remove any trailing newline.  */
+ 	    if (line[line_length - 1] == '\n')
+@@ -1084,7 +1084,7 @@
+ 
+     if (fp != NULL)
+     {
+-	while (getline (&line, &line_allocated, fp) >= 0)
++	while (getline_ (&line, &line_allocated, fp) >= 0)
+ 	{
+ 	    char *linefile;
+ 	    char *p;
+diff -Naur cvs-1.11.23.orig/src/fileattr.c cvs-1.11.23/src/fileattr.c
+--- cvs-1.11.23.orig/src/fileattr.c	2009-07-21 14:00:37.299846139 -0700
++++ cvs-1.11.23/src/fileattr.c	2009-07-21 14:03:53.219864533 -0700
+@@ -101,7 +101,7 @@
+     attrlist = getlist ();
+     while (1) {
+ 	int nread;
+-	nread = getline (&line, &line_len, fp);
++	nread = getline_ (&line, &line_len, fp);
+ 	if (nread < 0)
+ 	    break;
+ 	/* Remove trailing newline.  */
+diff -Naur cvs-1.11.23.orig/src/ignore.c cvs-1.11.23/src/ignore.c
+--- cvs-1.11.23.orig/src/ignore.c	2009-07-21 14:00:37.306836136 -0700
++++ cvs-1.11.23/src/ignore.c	2009-07-21 14:03:53.389864070 -0700
+@@ -159,7 +159,7 @@
+ 	    error (0, errno, "cannot open %s", file);
+ 	return;
+     }
+-    while (getline (&line, &line_allocated, fp) >= 0)
++    while (getline_ (&line, &line_allocated, fp) >= 0)
+ 	ign_add (line, hold);
+     if (ferror (fp))
+ 	error (0, errno, "cannot read %s", file);
+diff -Naur cvs-1.11.23.orig/src/login.c cvs-1.11.23/src/login.c
+--- cvs-1.11.23.orig/src/login.c	2009-07-21 14:00:37.305836009 -0700
++++ cvs-1.11.23/src/login.c	2009-07-21 14:03:53.511863562 -0700
+@@ -321,7 +321,7 @@
+ 
+     /* Check each line to see if we have this entry already. */
+     line = 0;
+-    while ((line_length = getline (&linebuf, &linebuf_len, fp)) >= 0)
++    while ((line_length = getline_ (&linebuf, &linebuf_len, fp)) >= 0)
+     {
+ 	line++;
+ 	password = password_entry_parseline (cvsroot_canonical, 1, line,
+@@ -394,7 +394,7 @@
+ 		   tmp_name ? tmp_name : "(null)");
+ 
+ 	line = 0;
+-	while ((line_length = getline (&linebuf, &linebuf_len, fp)) >= 0)
++	while ((line_length = getline_ (&linebuf, &linebuf_len, fp)) >= 0)
+ 	{
+ 	    line++;
+ 	    if (line < found_at
+diff -Naur cvs-1.11.23.orig/src/logmsg.c cvs-1.11.23/src/logmsg.c
+--- cvs-1.11.23.orig/src/logmsg.c	2009-07-21 14:00:37.306836136 -0700
++++ cvs-1.11.23/src/logmsg.c	2009-07-21 14:03:53.540845679 -0700
+@@ -334,7 +334,7 @@
+ 	size_t offset = 0;
+ 	while (1)
+ 	{
+-	    line_length = getline (&line, &line_chars_allocated, fp);
++	    line_length = getline_ (&line, &line_chars_allocated, fp);
+ 	    if (line_length == -1)
+ 	    {
+ 		if (ferror (fp))
+@@ -369,7 +369,7 @@
+ 	    (void) printf ("a)bort, c)ontinue, e)dit, !)reuse this message unchanged for remaining dirs\n");
+ 	    (void) printf ("Action: (continue) ");
+ 	    (void) fflush (stdout);
+-	    line_length = getline (&line, &line_chars_allocated, stdin);
++	    line_length = getline_ (&line, &line_chars_allocated, stdin);
+ 	    if (line_length < 0)
+ 	    {
+ 		error (0, errno, "cannot read from stdin");
+@@ -520,7 +520,7 @@
+ 
+ 	    while (1)
+ 	    {
+-		line_length = getline (&line,
++		line_length = getline_ (&line,
+ 				       &line_chars_allocated,
+ 				       fp);
+ 		if (line_length == -1)
+@@ -579,7 +579,7 @@
+ 	char *line = NULL;
+ 	size_t line_chars_allocated = 0;
+ 
+-	while (getline (&line, &line_chars_allocated, tfp) >= 0)
++	while (getline_ (&line, &line_chars_allocated, tfp) >= 0)
+ 	    (void) fputs (line, fp);
+ 	if (ferror (tfp))
+ 	    error (0, errno, "warning: cannot read %s", template);
+diff -Naur cvs-1.11.23.orig/src/mkmodules.c cvs-1.11.23/src/mkmodules.c
+--- cvs-1.11.23.orig/src/mkmodules.c	2009-07-21 14:00:37.298846011 -0700
++++ cvs-1.11.23/src/mkmodules.c	2009-07-21 14:03:53.602845692 -0700
+@@ -482,7 +482,7 @@
+ 	 *
+ 	 * comment lines begin with '#'
+ 	 */
+-	while (getline (&line, &line_allocated, fp) >= 0)
++	while (getline_ (&line, &line_allocated, fp) >= 0)
+ 	{
+ 	    /* skip lines starting with # */
+ 	    if (line[0] == '#')
+diff -Naur cvs-1.11.23.orig/src/parseinfo.c cvs-1.11.23/src/parseinfo.c
+--- cvs-1.11.23.orig/src/parseinfo.c	2009-07-21 14:00:37.300845568 -0700
++++ cvs-1.11.23/src/parseinfo.c	2009-07-21 14:03:53.711613676 -0700
+@@ -87,7 +87,7 @@
+ 
+     /* search the info file for lines that match */
+     callback_done = line_number = 0;
+-    while (getline (&line, &line_allocated, fp_info) >= 0)
++    while (getline_ (&line, &line_allocated, fp_info) >= 0)
+     {
+ 	line_number++;
+ 
+@@ -284,7 +284,7 @@
+ 	goto set_defaults_and_return;
+     }
+ 
+-    while (getline (&line, &line_allocated, fp_info) >= 0)
++    while (getline_ (&line, &line_allocated, fp_info) >= 0)
+     {
+ 	/* Skip comments.  */
+ 	if (line[0] == '#')
+diff -Naur cvs-1.11.23.orig/src/patch.c cvs-1.11.23/src/patch.c
+--- cvs-1.11.23.orig/src/patch.c	2009-07-21 14:00:37.298846011 -0700
++++ cvs-1.11.23/src/patch.c	2009-07-21 14:03:53.740845686 -0700
+@@ -628,8 +628,8 @@
+ 
+ 	    /* Now the munging. */
+ 	    fp = open_file (tmpfile3, "r");
+-	    if (getline (&line1, &line1_chars_allocated, fp) < 0 ||
+-		getline (&line2, &line2_chars_allocated, fp) < 0)
++	    if (getline_ (&line1, &line1_chars_allocated, fp) < 0 ||
++		getline_ (&line2, &line2_chars_allocated, fp) < 0)
+ 	    {
+ 		if (feof (fp))
+ 		    error (0, 0, "\
+@@ -736,7 +736,7 @@
+ 
+ 	    /* spew the rest of the diff out */
+ 	    while ((line_length
+-		    = getline (&line1, &line1_chars_allocated, fp))
++		    = getline_ (&line1, &line1_chars_allocated, fp))
+ 		   >= 0)
+ 		cvs_output (line1, 0);
+ 	    if (line_length < 0 && !feof (fp))
+diff -Naur cvs-1.11.23.orig/src/release.c cvs-1.11.23/src/release.c
+--- cvs-1.11.23.orig/src/release.c	2009-07-21 14:00:37.301840876 -0700
++++ cvs-1.11.23/src/release.c	2009-07-21 14:03:53.884613662 -0700
+@@ -206,7 +206,7 @@
+ 
+ 	    c = 0;
+ 
+-	    while ((line_length = getline (&line, &line_allocated, fp)) >= 0)
++	    while ((line_length = getline_ (&line, &line_allocated, fp)) >= 0)
+ 	    {
+ 		if (strchr ("MARCZ", *line))
+ 		    c++;
+diff -Naur cvs-1.11.23.orig/src/repos.c cvs-1.11.23/src/repos.c
+--- cvs-1.11.23.orig/src/repos.c	2009-07-21 14:00:37.306836136 -0700
++++ cvs-1.11.23/src/repos.c	2009-07-21 14:03:53.937613647 -0700
+@@ -94,7 +94,7 @@
+ 	error (1, save_errno, "cannot open %s", tmp);
+     }
+ 
+-    if (getline (&repos, &repos_allocated, fpin) < 0)
++    if (getline_ (&repos, &repos_allocated, fpin) < 0)
+     {
+ 	/* FIXME: should be checking for end of file separately.  */
+ 	error (0, 0, "in directory %s:", xupdate_dir);
+diff -Naur cvs-1.11.23.orig/src/root.c cvs-1.11.23/src/root.c
+--- cvs-1.11.23.orig/src/root.c	2009-07-21 14:00:37.303836103 -0700
++++ cvs-1.11.23/src/root.c	2009-07-21 14:03:53.965595566 -0700
+@@ -81,7 +81,7 @@
+      */
+     fpin = open_file (tmp, "r");
+ 
+-    if ((len = getline (&root, &root_allocated, fpin)) < 0)
++    if ((len = getline_ (&root, &root_allocated, fpin)) < 0)
+     {
+ 	int saved_errno = errno;
+ 	/* FIXME: should be checking for end of file separately; errno
+diff -Naur cvs-1.11.23.orig/src/server.c cvs-1.11.23/src/server.c
+--- cvs-1.11.23.orig/src/server.c	2009-07-21 14:00:37.299846139 -0700
++++ cvs-1.11.23/src/server.c	2009-07-21 14:03:54.361613312 -0700
+@@ -2599,7 +2599,7 @@
+ 	 }
+ 	 else  /* successfully opened readers file */
+ 	 {
+-	     while ((num_red = getline (&linebuf, &linebuf_len, fp)) >= 0)
++	     while ((num_red = getline_ (&linebuf, &linebuf_len, fp)) >= 0)
+ 	     {
+ 		 /* Hmmm, is it worth importing my own readline
+ 		    library into CVS?  It takes care of chopping
+@@ -2660,7 +2660,7 @@
+ 	 }
+ 
+ 	 found_it = 0;
+-	 while ((num_red = getline (&linebuf, &linebuf_len, fp)) >= 0)
++	 while ((num_red = getline_ (&linebuf, &linebuf_len, fp)) >= 0)
+ 	 {
+ 	     /* Chop newline by hand, for strcmp()'s sake. */
+ 	     if (num_red > 0 && linebuf[num_red - 1] == '\n')
+@@ -5555,7 +5555,7 @@
+ 
+     /* Look for a relevant line -- one with this user's name. */
+     namelen = strlen (username);
+-    while (getline (&linebuf, &linebuf_len, fp) >= 0)
++    while (getline_ (&linebuf, &linebuf_len, fp) >= 0)
+     {
+ 	if ((strncmp (linebuf, username, namelen) == 0)
+ 	    && (linebuf[namelen] == ':'))
+diff -Naur cvs-1.11.23.orig/src/subr.c cvs-1.11.23/src/subr.c
+--- cvs-1.11.23.orig/src/subr.c	2009-07-21 14:00:37.305836009 -0700
++++ cvs-1.11.23/src/subr.c	2009-07-21 14:03:54.158863504 -0700
+@@ -668,7 +668,7 @@
+     fp = CVS_FOPEN (finfo->file, "r");
+     if (fp == NULL)
+ 	error (1, errno, "cannot open %s", finfo->fullname);
+-    while (getline (&line, &line_allocated, fp) > 0)
++    while (getline_ (&line, &line_allocated, fp) > 0)
+     {
+ 	if (strncmp (line, RCS_MERGE_PAT_1, sizeof RCS_MERGE_PAT_1 - 1) == 0 ||
+ 	    strncmp (line, RCS_MERGE_PAT_2, sizeof RCS_MERGE_PAT_2 - 1) == 0 ||
+diff -Naur cvs-1.11.23.orig/src/wrapper.c cvs-1.11.23/src/wrapper.c
+--- cvs-1.11.23.orig/src/wrapper.c	2009-07-21 14:00:37.298846011 -0700
++++ cvs-1.11.23/src/wrapper.c	2009-07-21 14:03:54.335595818 -0700
+@@ -284,7 +284,7 @@
+ 	    error (0, errno, "cannot open %s", file);
+ 	return;
+     }
+-    while (getline (&line, &line_allocated, fp) >= 0)
++    while (getline_ (&line, &line_allocated, fp) >= 0)
+ 	wrap_add (line, temp);
+     if (line)
+         free (line);
