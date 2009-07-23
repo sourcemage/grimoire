@@ -25,16 +25,44 @@ fi  &&
 GCC_CFLAGS="$CFLAGS"                   &&
 GCC_LDFLAGS="$LDFLAGS"                 &&
 persistent_add GCC_CFLAGS GCC_LDFLAGS  &&
+# when updating this spell please check if this is still necessary:
+if [[ $GCJ_AWT == y ]]; then
+  CFLAGS="$CFLAGS -I${INSTALL_ROOT}/usr/include/freetype2"
+fi &&
+if list_find "$GCC_COMPILER" "ada" ; then
+# setup bootstrap ada compiler
+ ADA_PATH=${SOURCE13/.tar.bz2/}                   &&
+ PATH=$SOURCE_DIRECTORY/$ADA_PATH/usr/bin:$PATH  &&
 
+ export CC="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin/gcc"   &&
+ export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gcc/$HOST/4.3.3/include"  &&
+ export LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gcc/$HOST/4.3.3/"         &&
+ export LDFLAGS="-L${LIB_DIR}"
+
+ export LIBRARY_PATH="$LIB_DIR"                             &&
+ export LD_LIBRARY_PATH="$LIB_DIR"                             &&
+ export COMPILER_PATH="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin"  &&
+
+ export ADA_OBJECTS_PATH="$LIB_DIR/adalib"      &&
+ export ADA_INCLUDE_PATH="$LIB_DIR/adainclude"  &&
+
+ OPTS="--enable-libada $OPTS"
+
+fi
 cd $SOURCE_DIRECTORY.bld                                  &&
 $SOURCE_DIRECTORY/configure                                \
              --prefix=${INSTALL_ROOT}/usr                  \
              --infodir=${INSTALL_ROOT}/usr/share/info      \
              --mandir=${INSTALL_ROOT}/usr/share/man        \
              --enable-threads=posix                        \
+             --enable-languages=$(echo ${GCC_COMPILER} | tr " " ",")  \
              --with-system-zlib                            \
              $GCC_MULTILIB $OPTS                          &&
 
-make_single                                                    &&
+if [[ "$GCC_TARGET" == "profiledbootstrap" ]] ||
+   [[ "$GCC_TARGET" == "profiledbootstrap-lean" ]] ; then
+make_single 
+fi &&
+echo "$MAKE_NJOBS  $JOBS_PER_HOST"
 make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
-     profiledbootstrap-lean
+     $GCC_TARGET
