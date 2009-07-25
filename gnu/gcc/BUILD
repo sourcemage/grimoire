@@ -1,9 +1,7 @@
 # install gcc libraries to /lib instead of /lib64
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h  &&
-if [[ "$GCC_NOLIB64" == 'y' ]]; then
-  # tell gcc to target binaries to expect the linker in /lib instead of /lib64
-  sedit "s/lib64/lib/" gcc/config/i386/t-linux64           
-fi  &&
+# tell gcc to target binaries to expect the linker in /lib instead of /lib64
+sedit "s/lib64/lib/" gcc/config/i386/t-linux64           
 
 if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
        "$ARCHITECTURE"  ==  "pentium-m"  ]];  then
