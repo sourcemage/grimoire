@@ -1,2 +1,4 @@
 make TARGETS="ping ping6" &&
-make -C doc man
+if is_depends_enable $SPELL opensp ; then
+  make -C doc man
+fi
