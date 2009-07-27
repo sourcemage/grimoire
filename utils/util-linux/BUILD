@@ -1,5 +1,6 @@
-OPTS="--with-fsprobe=builtin $OPTS" &&
-OPTS="--build=$BUILD $OPTS" &&
+OPTS="--build=$BUILD \
+      --with-fsprobe=builtin \
+      $OPTS" &&
 
 if [[ $CROSS_INSTALL == on ]]; then
   OPTS="--host=$HOST $OPTS"
