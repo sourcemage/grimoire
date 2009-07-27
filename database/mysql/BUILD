@@ -44,6 +44,7 @@ else
 fi                                                       &&
 
 OPTS="$MSQL_SERVER $MSQL_EMBED $OPTS"                    &&
+CFLAGS="${CFLAGS//-ffast-math}"                          &&
 
 create_account mysql                                     &&
 
