@@ -1,4 +1,4 @@
-. "${GRIMOIRE}/FUNCTIONS" &&
+. ${GRIMOIRE}/FUNCTIONS &&
 
 depends flex &&
 
@@ -7,44 +7,73 @@ depends flex &&
 depends readline "--with-readline" &&
 depends zlib "--with-zlib" &&
 
-# This is required since PHP5
-depends libxml2 "--enable-xml --enable-dom --with-xmlrpc" &&
+optional_depends bzip2 \
+                 "--with-bz2" "--without-bz2" \
+                 "for compression support" &&
+
+optional_depends libxml2 \
+                 '--enable-xml --enable-dom --with-xmlrpc' \
+                 '--disable-xml --disable-dom --without-xmlrpc --disable-xmlreader --disable-xmlwriter --disable-simplexml' \
+                 'For XML support (required for SOAP and PEAR)' &&
+
+optional_depends libxslt \
+                 "--with-xsl" "--without-xsl" \
+                 "for XSLT support" &&
+
+if is_depends_enabled $SPELL libxml2 ; then
+  config_query_option PHP5_OPTS "Enable SOAP support?" n \
+                      "--enable-soap" "--disable-soap" &&
+  if list_find "${PHP5_OPTS}" "--enable-cli"; then
+     config_query_option PHP5_OPTS "Enable PEAR support?" y \
+                         "--enable-pear=${INSTALL_ROOT}/usr/share/pear" \
+                         "--without-pear"
+  fi
+else
+  PHP5_OPTS="${PHP5_OPTS} --disable-soap --without-pear"
+fi &&
+
+optional_depends pth \
+                 "--with-tsrm-pth=${INSTALL_ROOT}/usr" "--with-tsrm-pthreads" \
+                 "use GNU Portable Threads instead of POSIX threads" &&
 
 case "${PHP5_APACHE}" in
     handler) depends APACHE;;
     filter) depends APACHE2;;
 esac &&
 
-if [[ "${PHP5_GD}" == "external" ]]; then
-    depends gd "--with-gd=${INSTALL_ROOT}/usr --enable-gd-native-ttf" 
-fi &&
-
-# Query for external PCRE library if PCRE support is enabled
-if list_find "${PHP5_OPTS}" "--with-pcre-regex"; then
-    optional_depends pcre \
-                     "--with-pcre-dir=${INSTALL_ROOT}/usr" "" \
-                     "to use an external PCRE library"
-fi &&
+optional_depends pcre \
+                 "--with-pcre-regex --with-pcre=${INSTALL_ROOT}/usr" \
+                 "--without-pcre-regex --without-pcre" \
+                 "for perl regular expressions support (required for PEAR)" &&
 
 optional_depends C-CLIENT \
                  "--with-imap=${INSTALL_ROOT}/usr" "--without-imap" \
                  "for IMAP support" &&
 
+if list_find "${OPTS}" "--with-imap"; then
+  optional_depends openssl "--with-imap-ssl" "--without-imap-ssl" \
+                           "for SSL support with IMAP"
+fi &&
+
 optional_depends MAIL-TRANSPORT-AGENT \
                   "" "" \
                   "for SMTP support" &&
 
-optional_depends bzip2 \
-                 "--with-bz2" "--without-bz2" \
-                 "for compression support" &&
+optional_depends enchant \
+                 "--with-enchant" "--without-enchant" \
+                 "use enchant for spelling functions?" &&
 
 optional_depends aspell \
                  "--with-pspell" "--without-pspell" \
-                 "for spelling functions" &&
+                 "use aspell for spelling functions" &&
 
 optional_depends mhash \
                  "--with-mhash" "--without-mhash" \
                  "for hash functions support" &&
+
+optional_depends oniguruma \
+                 "--with-onig=${INSTALL_ROOT}/usr" "--without-onig" \
+                 "for external oniguruma" &&
 
 optional_depends libmcrypt \
                  "--with-mcrypt" "--without-mcrypt" \
@@ -67,40 +96,27 @@ optional_depends openssl \
                  "--with-openssl" "--without-openssl" \
                  "for OpenSSL support" &&
 
+optional_depends krb5 \
+                 "--with-kerberos" "--without-kerberos" \
+                 "for Kerberos support" &&
+
 optional_depends gettext \
                  "--with-gettext" "--without-gettext" \
                  "for GNU gettext support" &&
 
-optional_depends firebird \
-                 "--with-pdo-firebird=${INSTALL_ROOT}/opt/firebird" "--without-pdo-firebird" \
-                 "for native Firebird support" &&
+optional_depends icu \
+                 "--with-icu-dir=${INSTALL_ROOT}/usr" \
+                 "--without-icu-dir" \
+                 "for ICU unicode support" &&
 
-optional_depends unixodbc \
-                 "--with-unixODBC=${INSTALL_ROOT}/usr" "--without-unixODBC" \
-                 "for ODBC database support" &&
+optional_depends ODBC-MGR "" "" "for ODBC support" &&
 
-if is_depends_enabled $SPELL unixodbc && list_find "${PHP5_OPTS}" "--enable-pdo"; then
-    config_query_option PHP5_OPTS "Do you also want to build the unixODBC PDO driver?" n \
-                        "--with-pdo-odbc=unixODBC,${INSTALL_ROOT}/usr" "--without-pdo-odbc"
-fi &&
+case $(get_spell_provider $SPELL ODBC-MGR) in
+  unixodbc) OPTS="${OPTS} --with-unixODBC=${INSTALL_ROOT}/usr --without-iodbc" ;;
+  libiodbc) OPTS="${--with-iodbc=${INSTALL_ROOT}}/usr --without-unixODBC" ;;
+esac &&
 
-optional_depends libiodbc \
-                 "--with-iodbc" "--without-iodbc" \
-                 "for ODBC database support" &&
-
-optional_depends postgresql \
-                 "--with-pgsql" "--without-pgsql" \
-                 "for native Postgresql support" &&
-
-if is_depends_enabled $SPELL postgresql && list_find "${PHP5_OPTS}" "--enable-pdo"; then
-    config_query_option PHP5_OPTS "Do you also want to build the PostgreSQL PDO driver?" n \
-                        "--with-pdo-pgsql" "--without-pdo-pgsql"
-fi &&
-
-optional_depends mysql \
-                 "" "" \
-                 "for MySQL support" &&
-
+optional_depends mysql "" "--without-mysql" "for MySQL support" &&
 if is_depends_enabled $SPELL mysql && [[ "${VERSION:0:3}" == "5.3" ]]; then
     config_query PHP5_MYSQLND "Do you want to use the MySQL Native Driver [mysqlnd]? (experimental)" y &&
 
@@ -109,63 +125,89 @@ if is_depends_enabled $SPELL mysql && [[ "${VERSION:0:3}" == "5.3" ]]; then
     else
         PHP5_OPTS="${PHP5_OPTS} --with-mysql"
     fi
+    config_query_option PHP5_OPTS "Do you want to build the MySQLi extension?" n \
+                        "--with-mysqli" "--without-mysqli"
 elif is_depends_enabled $SPELL mysql && [[ "${VERSION:0:3}" != "5.3" ]]; then
     PHP5_OPTS="${PHP5_OPTS} --with-mysql"
-else
-    PHP5_OPTS="${PHP5_OPTS} --without-mysql"
 fi &&
 
-if is_depends_enabled $SPELL mysql && list_find "${PHP5_OPTS}" "--enable-pdo"; then
-    if [[ "${VERSION:0:3}" == "5.3" ]] && [[ "${PHP5_MYSQLND}" == "y" ]]; then
-        config_query_option PHP5_OPTS "Do you want to build the MySQLi extension?" n \
-                            "--with-mysqli=mysqlnd" "--without-mysqli" &&
+optional_depends postgresql \
+                 "--with-pgsql" "--without-pgsql" \
+                 "for native Postgresql support" &&
 
-        config_query_option PHP5_OPTS "Do you also want to build the MySQL PDO driver?" n \
-                            "--with-pdo-mysql=mysqlnd" "--without-pdo-mysql"
-    else
-        config_query_option PHP5_OPTS "Do you want to build the MySQLi extension?" n \
-                            "--with-mysqli" "--without-mysqli" &&
-        config_query_option PHP5_OPTS "Do you also want to build the MySQL PDO driver?" n \
-                            "--with-pdo-mysql" "--without-pdo-mysql"
-    fi
-fi &&
-
-optional_depends gdbm \
-                 "--with-gdbm" "--without-gdbm" \
-                 "database routines that use extensive hashing" &&
-
-optional_depends sqlite2 \
-                 "--with-sqlite=${INSTALL_ROOT}/usr --enable-sqlite-utf8" "--without-sqlite" \
-                 "for SQLite 2.x support" &&
+optional_depends sqlite \
+                 "--with-sqlite3=${INSTALL_ROOT}/usr --enable-sqlite-utf8" "--without-sqlite" \
+                 "for SQLite support" &&
 
 if list_find "${PHP5_OPTS}" "--enable-pdo"; then
-    config_query_option PHP5_OPTS "Do you also want to build the SQLite 3.x PDO driver (requires: sqlite)?" y \
-                        "--with-pdo-sqlite=${INSTALL_ROOT}/usr" "--without-pdo-sqlite" &&
 
-    if ! list_find "${PHP5_OPTS}" "--without-pdo-sqlite"; then
-        depends sqlite
+  if is_depends_enabled $SPELL postgresql ; then
+    config_query_option PHP5_OPTS "Do you want to build the SQLite PDO driver?" y \
+                        "--with-pdo-sqlite=${INSTALL_ROOT}/usr" "--without-pdo-sqlite"
+  fi &&
+  optional_depends firebird \
+                 "--with-pdo-firebird=${INSTALL_ROOT}/opt/firebird" "--without-pdo-firebird" \
+                 "for native Firebird support" &&
+
+  if is_depends_enabled $SPELL postgresql ; then
+    config_query_option PHP5_OPTS "Do you also want to build the PostgreSQL PDO driver?" n \
+                        "--with-pdo-pgsql" "--without-pdo-pgsql"
+  fi &&
+
+  if is_depends_enabled $SPELL mysql ; then
+    if [[ "${VERSION:0:3}" == "5.3" ]] && [[ "${PHP5_MYSQLND}" == "y" ]]; then
+       config_query_option PHP5_OPTS "Do you also want to build the MySQL PDO driver?" n \
+                           "--with-pdo-mysql=mysqlnd" "--without-pdo-mysql"
+    else
+       config_query_option PHP5_OPTS "Do you also want to build the MySQL PDO driver?" n \
+                           "--with-pdo-mysql" "--without-pdo-mysql"
     fi
+  fi &&
+
+  case $(get_spell_provider $SPELL ODBC-MGR) in
+    unixodbc) config_query_option PHP5_OPTS \
+                        "Do you also want to build the unixODBC PDO driver?" n \
+                        "--with-pdo-odbc=unixODBC,${INSTALL_ROOT}/usr" \
+                        "--without-pdo-odbc" ;;
+    libiodbc) config_query_option PHP5_OPTS \
+                        "Do you also want to build the iODBC PDO driver?" n \
+                        "--with-pdo-odbc=iODBC,${INSTALL_ROOT}/usr" \
+                        "--without-pdo-odbc" ;;
+  esac
+fi &&
+
+if list_find "${PHP5_OPTS}" "--enable-dba"; then
+  optional_depends qdbm \
+                 "--with-qdbm" "--without-qdbm" \
+                 "qdbm database routines" &&
+
+  optional_depends db \
+                 "--with-db4" "--without-db4" \
+                 "qdbm database routines" &&
+
+  optional_depends gdbm \
+                 "--with-gdbm" "--without-gdbm" \
+                 "database routines that use extensive hashing"
+fi &&
+
+optional_depends openldap \
+                 "--with-ldap" "--without-ldap" \
+                 "for LDAP support" &&
+
+if list_find "${PHP5_OPTS}" "--with-ldap"; then
+  optional_depends LIBSASL \
+                 "--with-ldap-sasl" "--without-ldap-sasl" \
+                 "for LDAP with Cyrus SASL support" &&
+  depends -sub openldap SASL
 fi &&
 
 optional_depends mm \
                  "--with-mm" "--without-mm" \
                  "for sharing memory between related processes" &&
 
-optional_depends openldap \
-                 "--with-ldap" "--without-ldap" \
-                 "for LDAP support" &&
-
 optional_depends tidy \
                  "--with-tidy" "--without-tidy" \
                  "for HTML Tidy support" &&
-
-optional_depends libxslt \
-                 "--with-xsl" "--without-xsl" \
-                 "for XSLT support" &&
-
-optional_depends t1lib \
-                 "--with-t1lib" "--without-t1lib" \
-                 "for T1lib support" &&
 
 optional_depends re2c \
                  "" "" \
@@ -175,21 +217,39 @@ optional_depends libexif \
                  "--enable-exif" "--disable-exif" \
                  "for image metadata support" &&
 
+if [[ "${PHP5_GD}" == "external" ]]; then
+    depends gd "--with-gd=${INSTALL_ROOT}/usr --enable-gd-native-ttf" 
+fi &&
+
 if [[ "${PHP5_GD}" != "none" ]]; then
-    if [[ "${PHP5_X11LIBS}" == "y" ]]; then
-        depends xorg-libs &&
-        depends libxpm "--with-xpm-dir=${INSTALL_ROOT}/usr"
-    fi &&
+
+    optional_depends libxpm \
+                     "--with-xpm-dir=${INSTALL_ROOT}/usr" \
+                     "--without-xpm" \
+                     "for XPM image support" &&
 
     optional_depends jpeg \
-                     "--with-jpeg-dir=${INSTALL_ROOT}/usr" "--without-jpeg-dir" \
+                     "--with-jpeg-dir=${INSTALL_ROOT}/usr" \
+                     "--without-jpeg-dir" \
                      "for JPEG support (for GD)" &&
 
     optional_depends libpng \
-                     "--with-png-dir=${INSTALL_ROOT}/usr" "--without-png-dir" \
+                     "--with-png-dir=${INSTALL_ROOT}/usr" \
+                     "--without-png-dir" \
                      "for PNG support (for GD)" &&
 
+    optional_depends t1lib \
+                     "--with-t1lib=${INSTALL_ROOT}/usr" \
+                     "--without-t1lib" \
+                     "for t1lib support" &&
+
     optional_depends freetype2 \
-                     "--with-freetype-dir=${INSTALL_ROOT}/usr" "--without-freetype-dir" \
-                     "for freetype2 support"
+                     "--with-freetype-dir=${INSTALL_ROOT}/usr" \
+                     "--without-freetype-dir" \
+                     "for freetype2 support" &&
+
+    optional_depends font-jis-misc \
+                     "--enable-gd-jis-conv" \
+                     "--disable-gd-jis-conv" \
+                     "for JIS-mapped Japanese font support"
 fi
