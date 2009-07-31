@@ -1,3 +1,6 @@
+config_query_option PHP5_OPTS "Enable IPv6?" n \
+                    "--enable-ipv6" "--disable-ipv6" &&
+
 config_query_option PHP5_OPTS "Enable PHP safe mode?" n \
                     "--enable-safe-mode" "--disable-safe-mode" &&
 
@@ -10,9 +13,6 @@ config_query_option PHP5_OPTS "Enable FTP support?" y \
 config_query_option PHP5_OPTS "Enable calendar support?" y \
                     "--enable-calendar" "--disable-calendar" &&
 
-config_query_option PHP5_OPTS "Enable perl regular expressions?" y \
-                    "--with-pcre-regex" "--without-pcre-regex" &&
-
 config_query_option PHP5_OPTS "Enable pcntl support (CLI/CGI only)" n \
                     "--enable-pcntl" "--disable-pcntl" &&
 
@@ -24,17 +24,28 @@ config_query_option PHP5_OPTS "Enable FastCGI SAPI?" n \
 config_query_option PHP5_OPTS "Enable CGI SAPI?" y \
                     "--enable-cgi" "--disable-cgi" &&
 
-config_query_option PHP5_OPTS "Enable multibyte support?"  n \
-                    "--enable-mbstring" "--disable-mbstring" &&
+config_query_option PHP5_OPTS "Enable CLI version? (needed for PEAR and CGI/FastCGI)" y \
+                    "--enable-cli" "--disable-cli" &&
 
-config_query_option PHP5_OPTS "Enable the PDO driver?" y \
+config_query_option PHP5_OPTS "Enable multibyte support?"  n \
+                    "--enable-mbstring --enable-mbregex" \
+                    "--disable-mbstring --disable-mbregex" &&
+
+config_query_option PHP5_OPTS "Enable the DBA database drivers? (qdbm/gdbm/db/flatfile)" n \
+                    "--enable-dba" "--disable-dba" &&
+
+if list_find "${PHP5_OPTS}" "--enable-dba"; then
+   config_query_option PHP5_OPTS "Enable DBA inifile support?" y \
+                     "--enable-inifile" "--disable-inifile" &&
+   config_query_option PHP5_OPTS "Enable DBA flatfile support?" y \
+                     "--enable-flatfile" "--disable-flatfile"
+fi &&
+
+config_query_option PHP5_OPTS "Enable the PDO database drivers? (mysql/postgresql/oracle/*odbc)" y \
                     "--enable-pdo" "--disable-pdo" &&
 
 config_query_option PHP5_OPTS "Enable shmop support?" n \
                     "--enable-shmop" "--disable-shmop" &&
-
-config_query_option PHP5_OPTS "Enable soap support?" n \
-                    "--enable-soap" "--disable-soap" &&
 
 config_query_option PHP5_OPTS "Enable ZIP support?" n \
                     "--enable-zip" "--disable-zip" &&
@@ -52,8 +63,4 @@ config_query_list PHP5_APACHE "Which Apache module to build?" \
                   none handler filter &&
 
 config_query_list PHP5_GD "Which GD library to use?" \
-                  none internal external &&
-
-if [[ "${PHP5_GD}" != "none" ]]; then
-    config_query PHP5_X11LIBS "Would you like to support XPM image files? (requires: X11-LIBS)" n
-fi
+                  none internal external

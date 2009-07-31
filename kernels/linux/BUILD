@@ -16,12 +16,6 @@ case "${KERNEL_ARCH}" in
     IMAGE_TARGET=zImage
     ;;
   *)
-    if grep CONFIG_XEN=y ./.config
-    then
-      IMAGE_TARGET=vmlinuz
-    else
-      IMAGE_TARGET=bzImage
-    fi
     ;;
 esac &&
 
