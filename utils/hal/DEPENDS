@@ -48,9 +48,28 @@ optional_depends  libusb                    \
                   "for libusb support"      &&
 
 optional_depends  hwdata                             \
-                  "--with-hwdata=/usr/share/hwdata"  \
-                  "--without-hwdata"                 \
-                  "for PCI/USB hardware data"       &&
+                  "--enable-pnp-ids" \
+                  "--disable-pnp-ids" \
+                  "for PNP hardware data" &&
+
+optional_depends  PCIIDS              \
+                  "--enable-pci-ids"  \
+                  "--disable-pci-ids" \
+                  "for PCI hardware data"  &&
+
+optional_depends  USBIDS              \
+                  "--enable-usb-ids"  \
+                  "--disable-usb-ids" \
+                  "for USB hardware data" &&
+
+if (is_depends_enabled $SPELL hwdata) || \
+     [[ "$(get_spell_provider ${SPELL} PCIIDS)" = 'hwdata' ]] || \
+     [[ "$(get_spell_provider ${SPELL} USBIDS)" = 'hwdata' ]]; then
+         OPTS="${OPTS} --with-hwdata=/usr/share/hwdata"
+elif [[ "$(get_spell_provider ${SPELL} PCIIDS)" = 'pciutils' ]] || \
+     [[ "$(get_spell_provider ${SPELL} USBIDS)" = 'usbutils' ]]; then
+         OPTS="${OPTS} --with-hwdata=/usr/share"
+fi &&
 
 optional_depends  pciutils                           \
                   "--with-macbookpro"                \
