@@ -17,4 +17,6 @@ local TEMP_DIR="$INSTALL_ROOT/var/spool/nginx" &&
                              $NGINX_OPTS \
                              $OPTS &&
 
-make
+make_single &&
+make &&
+make_normal
