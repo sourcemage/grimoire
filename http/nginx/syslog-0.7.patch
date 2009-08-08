@@ -13,55 +13,47 @@
  
 --- auto/options.orig	2009-05-18 23:50:32.000000000 +0700
 +++ auto/options	2009-07-08 17:57:57.000000000 +0700
-@@ -110,6 +110,8 @@
- MD5_OPT=
- MD5_ASM=NO
+@@ -102,6 +102,8 @@
+ PCRE=NONE
+ PCRE_OPT=
  
 +USE_SYSLOG=NO
 +
- USE_SHA1=NO
- SHA1=NONE
- SHA1_OPT=
-@@ -252,6 +254,8 @@
-         --with-md5-opt=*)                MD5_OPT="$value"           ;;
-         --with-md5-asm)                  MD5_ASM=YES                ;;
+ USE_OPENSSL=NO
+ OPENSSL=NONE
  
-+	--with-syslog)			 USE_SYSLOG=YES		    ;;
+@@ -245,6 +247,8 @@
+         --with-pcre=*)                   PCRE="$value"              ;;
+         --with-pcre-opt=*)               PCRE_OPT="$value"          ;;
+ 
++        --with-syslog)                   USE_SYSLOG=YES             ;;
 +
-         --with-sha1=*)                   SHA1="$value"              ;;
-         --with-sha1-opt=*)               SHA1_OPT="$value"          ;;
-         --with-sha1-asm)                 SHA1_ASM=YES               ;;
-@@ -381,6 +385,8 @@
+         --with-openssl=*)                OPENSSL="$value"           ;;
+         --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
+ 
+@@ -377,6 +381,8 @@
+   --with-pcre=DIR                    set path to PCRE library sources
+   --with-pcre-opt=OPTIONS            set additional options for PCRE building
+ 
++  --with-syslog                      use syslog instead of files to log messages
++
+   --with-md5=DIR                     set path to md5 library sources
    --with-md5-opt=OPTIONS             set additional options for md5 building
    --with-md5-asm                     use md5 assembler sources
- 
-+  --with-syslog			     use syslog instead of files to log messages
-+
-   --with-sha1=DIR                    set path to sha1 library sources
-   --with-sha1-opt=OPTIONS            set additional options for sha1 building
-   --with-sha1-asm                    use sha1 assembler sources
-@@ -395,6 +401,7 @@
-   --with-openssl-opt=OPTIONS         set additional options for OpenSSL building
- 
-   --with-debug                       enable the debugging logging
-+  
- 
- END
- 
 --- auto/summary.orig	2009-05-26 21:28:49.000000000 +0700
 +++ auto/summary	2009-07-08 16:35:19.000000000 +0700
-@@ -71,6 +71,11 @@
-     *)     echo "  + using zlib library: $ZLIB" ;;
- esac
+@@ -43,6 +43,11 @@
+     esac
+ fi
  
 +case $USE_SYSLOG in
 +    YES)   echo "  + using syslog" ;;
 +    *)     echo "  + syslog is not used" ;;
 +esac
 +
- echo
- 
- 
+ case $OPENSSL in
+     YES)   echo "  + using system OpenSSL library" ;;
+     NONE)  echo "  + OpenSSL library is not used" ;;
 --- src/core/nginx.c.orig	2009-06-06 19:41:31.000000000 +0700
 +++ src/core/nginx.c	2009-07-08 16:39:57.000000000 +0700
 @@ -8,6 +8,9 @@
@@ -124,7 +116,7 @@
  
  static char *ngx_error_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
  
-@@ -90,9 +93,11 @@
+@@ -90,16 +93,22 @@
      u_char  *p, *last, *msg;
      u_char   errstr[NGX_MAX_ERROR_STR];
  
@@ -136,7 +128,18 @@
  
      last = errstr + NGX_MAX_ERROR_STR;
  
-@@ -139,7 +144,21 @@
++#ifdef USE_SYSLOG
++    p = errstr;
++#else
+     ngx_memcpy(errstr, ngx_cached_err_log_time.data,
+                ngx_cached_err_log_time.len);
+ 
+     p = errstr + ngx_cached_err_log_time.len;
++#endif
+ 
+     p = ngx_slprintf(p, last, " [%V] ", &err_levels[level]);
+ 
+@@ -139,7 +148,21 @@
  
      ngx_linefeed(p);
  
@@ -158,7 +161,19 @@
  
      if (!ngx_use_stderr
          || level > NGX_LOG_WARN
-@@ -428,9 +447,13 @@
+@@ -267,7 +290,11 @@
+     ngx_log.file = &ngx_log_file;
+     ngx_log.log_level = NGX_LOG_NOTICE;
+ 
++#ifndef USE_SYSLOG
+     name = (u_char *) NGX_ERROR_LOG_PATH;
++#else
++    name = "";
++#endif
+ 
+     /*
+      * we use ngx_strlen() here since BCC warns about
+@@ -428,6 +455,10 @@
  
      value = cf->args->elts;
  
@@ -168,11 +183,7 @@
 +
      if (ngx_strcmp(value[1].data, "stderr") == 0) {
          name.len = 0;
--        name.data = NULL;
-+        name.data = "";
- 
-     } else {
-         name = value[1];
+         name.data = NULL;
 --- src/http/modules/ngx_http_log_module.c.orig	2009-06-02 23:09:44.000000000 +0700
 +++ src/http/modules/ngx_http_log_module.c	2009-07-08 19:56:29.000000000 +0700
 @@ -8,6 +8,9 @@
@@ -185,19 +196,16 @@
  
  typedef struct ngx_http_log_op_s  ngx_http_log_op_t;
  
-@@ -183,7 +186,11 @@
+@@ -183,7 +186,7 @@
  
  
  static ngx_str_t  ngx_http_combined_fmt =
-+#ifdef USE_SYSLOG
+-    ngx_string("$remote_addr - $remote_user [$time_local] "
 +    ngx_string("$remote_addr - $remote_user "
-+#else
-     ngx_string("$remote_addr - $remote_user [$time_local] "
-+#endif
                 "\"$request\" $status $body_bytes_sent "
                 "\"$http_referer\" \"$http_user_agent\"");
  
-@@ -310,6 +317,19 @@
+@@ -310,6 +313,19 @@
  ngx_http_log_write(ngx_http_request_t *r, ngx_http_log_t *log, u_char *buf,
      size_t len)
  {
@@ -217,7 +225,7 @@
      u_char     *name;
      time_t      now;
      ssize_t     n;
-@@ -354,6 +374,7 @@
+@@ -354,6 +370,7 @@
  
          log->error_log_time = now;
      }
@@ -225,27 +233,23 @@
  }
  
  
-@@ -800,7 +821,11 @@
+@@ -800,6 +817,9 @@
          return NGX_CONF_ERROR;
      }
  
 +#ifdef USE_SYSLOG
-+    ngx_http_access_log.data = "";
++    ngx_http_access_log.data = NULL;
 +#endif
      log->file = ngx_conf_open_file(cf->cycle, &ngx_http_access_log);
-+
      if (log->file == NULL) {
          return NGX_CONF_ERROR;
-     }
-@@ -859,7 +884,11 @@
+@@ -859,6 +879,9 @@
      n = ngx_http_script_variables_count(&value[1]);
  
      if (n == 0) {
 +#ifdef USE_SYSLOG
-+        value[1].data = "";
++        value[1].data = NULL;
 +#endif
          log->file = ngx_conf_open_file(cf->cycle, &value[1]);
-+
          if (log->file == NULL) {
              return NGX_CONF_ERROR;
-         }
