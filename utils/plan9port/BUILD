@@ -1,1 +1,2 @@
-true
+cd ${SOURCE_DIRECTORY} &&
+./INSTALL -b
