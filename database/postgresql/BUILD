@@ -9,11 +9,11 @@ default_build &&
 if is_depends_enabled $SPELL openssl; then
   cd contrib/pgcrypto &&
   make &&
-  cd ..
+  cd $SOURCE_DIRECTORY
 fi &&
 
 if is_depends_enabled $SPELL libxml2; then
   cd contrib/xml2 &&
   make &&
-  cd ..
+  cd $SOURCE_DIRECTORY
 fi
