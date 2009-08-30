@@ -1,2 +1,2 @@
-OPTS="$OPTS $LKSCTP_IPV6"
+OPTS="$OPTS $NETEMBRYO_IPV6"
 default_build
