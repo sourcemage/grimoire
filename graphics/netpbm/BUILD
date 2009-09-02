@@ -1,7 +1,7 @@
 if [[ "${NETPBM_SVN}" == 'y' ]]; then
   CONFIGFILE=config.mk
 else
-  CONFIGFILE=Makefile.conf
+  CONFIGFILE=Makefile.config
 fi &&
 cp ${CONFIGFILE}.in $CONFIGFILE &&
 cat >> $CONFIGFILE << EOF
