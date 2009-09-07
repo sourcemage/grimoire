@@ -4,11 +4,23 @@ depends  diffutils       &&
 depends  gmp             &&
 depends  gnupg           &&
 depends  mpfr            &&
+depends  smgl-fhs        &&
+depends  smgl-archspecs  &&
 
 if  [[ "$(installed_version mpfr|sed 's:\.::g')" < 230 ]]
 then
   force_depends  mpfr
 fi  &&
 
-depends  smgl-fhs        &&
-depends  smgl-archspecs
+if spell_ok gmp; then
+  persistent_read gmp GMP_BUILD_ARCH GMP_BUILD_ARCH
+fi                                                        &&
+if spell_ok mpfr; then
+  persistent_read mpfr MPFR_BUILD_ARCH MPFR_BUILD_ARCH
+fi                                                        &&
+
+if [[ $GMP_BUILD_ARCH  != ${SMGL_COMPAT_ARCHS[4]}
+   || $MPFR_BUILD_ARCH != ${SMGL_COMPAT_ARCHS[4]} ]]; then
+  force_depends gmp &&
+  force_depends mpfr
+fi
