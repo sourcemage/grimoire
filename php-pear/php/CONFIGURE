@@ -1,3 +1,13 @@
+. $GRIMOIRE/config_query_multi.function &&
+message "${MESSAGE_COLOR}PEAR support will enable the CLI version and force depends on libxml2" &&
+message "It will also enable some PCRE support (internal reccomended)${DEFAULT_COLOR}" &&
+# prior pear enabledness
+if list_find "$PHP5_OPTS" "--enable-pear" ; then
+	PHP5_PEAR="y"
+fi &&
+
+config_query PHP5_PEAR "Do you want PEAR support?" y &&
+
 config_query_option PHP5_OPTS "Enable IPv6?" n \
                     "--enable-ipv6" "--disable-ipv6" &&
 
@@ -13,7 +23,7 @@ config_query_option PHP5_OPTS "Enable FTP support?" y \
 config_query_option PHP5_OPTS "Enable calendar support?" y \
                     "--enable-calendar" "--disable-calendar" &&
 
-config_query_option PHP5_OPTS "Enable pcntl support (CLI/CGI only)" n \
+config_query_option PHP5_OPTS "Enable pcntl support (Only affects CLI/CGI)" n \
                     "--enable-pcntl" "--disable-pcntl" &&
 
 message "${MESSAGE_COLOR}Both FastCGI and CGI can be enabled at the same time${DEFAULT_COLOR}" &&
@@ -24,25 +34,66 @@ config_query_option PHP5_OPTS "Enable FastCGI SAPI?" n \
 config_query_option PHP5_OPTS "Enable CGI SAPI?" y \
                     "--enable-cgi" "--disable-cgi" &&
 
-config_query_option PHP5_OPTS "Enable CLI version? (needed for PEAR and CGI/FastCGI)" y \
-                    "--enable-cli" "--disable-cli" &&
+if [[ "${PHP5_PEAR}" == "y" ]] || list_find "$PHP5_OPTS" "--enable-cgi" || list_find "$PHP5_OPTS" "--enable-fastcgi" ; then
+	message "${MESSAGE_COLOR}Enabling CLI version for PEAR/CGI/FastCGI support${DEFAULT_COLOR}" &&
+	PHP5_OPTS="$PHP5_OPTS --enable-cli"
+else 
+	config_query_option PHP5_OPTS "Enable CLI version?" y \
+    	                "--enable-cli" "--disable-cli"
+fi &&
 
 config_query_option PHP5_OPTS "Enable multibyte support?"  n \
                     "--enable-mbstring --enable-mbregex" \
                     "--disable-mbstring --disable-mbregex" &&
 
-config_query_option PHP5_OPTS "Enable the DBA database drivers? (qdbm/gdbm/db/flatfile)" n \
-                    "--enable-dba" "--disable-dba" &&
+message "${MESSAGE_COLOR}See http://us.php.net/dba.installation for more info${DEFAULT_COLOR}" &&
+message "${MESSAGE_COLOR}Not recommended: dbm, ndbm. NOTE: qdbm conflicts with dbm and gdbm${DEFAULT_COLOR}" &&
+config_query_multi PHP5_DBA_DRIVERS "Select dbm-style database drivers (if any)" none gdbm db4 flatfile inifile qdbm &&
 
-if list_find "${PHP5_OPTS}" "--enable-dba"; then
-   config_query_option PHP5_OPTS "Enable DBA inifile support?" y \
-                     "--enable-inifile" "--disable-inifile" &&
-   config_query_option PHP5_OPTS "Enable DBA flatfile support?" y \
-                     "--enable-flatfile" "--disable-flatfile"
+if ! list_find "${PHP5_DBA_DRIVERS}" "none"; then
+	if list_find "${PHP5_DBA_DRIVERS}" "flatfile"; then
+		PHP5_OPTS="$PHP5_OPTS --enable-inifile"
+	fi
+	if list_find "${PHP5_DBA_DRIVERS}" "flatfile"; then
+		PHP5_OPTS="$PHP5_OPTS --enable-flatfile"
+	fi
 fi &&
 
-config_query_option PHP5_OPTS "Enable the PDO database drivers? (mysql/postgresql/oracle/*odbc)" y \
+# get the native simple drivers
+local DB_DRIVERS="mysql mysqli pgsql sqlite sqlite3 firebird unixODBC iODBC"
+config_query_multi PHP5_DATABASE_DRIVERS "Select vendor specific database drivers to install (if any)" \
+	none all $DB_DRIVERS &&
+
+if ! list_find "${PHP5_DATABASE_DRIVERS}" "none"; then
+	PHP5_OPTS="$PHP5_OPTS --enable-dba" &&
+	for foo in $DB_DRIVERS; do 
+		if list_find "${PHP5_DATABASE_DRIVERS}" "$foo" || list_find "${PHP5_DATABASE_DRIVERS}" "all"; then
+			PHP5_OPTS="$PHP5_OPTS --with-$foo"
+		else
+			PHP5_OPTS="$PHP5_OPTS --without-$foo"
+		fi
+	done
+fi &&
+
+#ask if they want the PDO drivers for the drivers they selected
+config_query_option PHP5_OPTS "Enable PHP Data Objects?" y \
                     "--enable-pdo" "--disable-pdo" &&
+
+if list_find "$PHP5_OPTS" "--enable-pdo"; then
+	local PDO_DRIVERS="mysql pgsql firebird unixODBC iODBC" &&
+	for foo in $PDO_DRIVERS; do
+		if list_find "${PHP5_DATABASE_DRIVERS}" "$foo" || list_find "${PHP5_DATABASE_DRIVERS}" "all"; then
+			# odbc special case
+			if [[ "$foo" == "unixODBC" ]]; then
+				config_query_option PHP5_OPTS "Enable PDO driver for unixodbc?" n "--with-pdo-odbc=unixODBC,${INSTALL_ROOT}/usr" ""
+			elif [[ "$foo" == "iODBC" ]]; then
+				config_query_option PHP5_OPTS "Enable PDO driver for libiodbc?" n "--with-pdo-odbc=iODBC,${INSTALL_ROOT}/usr" ""
+			else
+				config_query_option PHP5_OPTS "Enable PDO driver for $foo?" n "--with-pdo-$foo=${INSTALL_ROOT}/usr" "--without-pdo-$foo"
+			fi
+		fi
+	done
+fi &&
 
 config_query_option PHP5_OPTS "Enable shmop support?" n \
                     "--enable-shmop" "--disable-shmop" &&
@@ -63,4 +114,12 @@ config_query_list PHP5_APACHE "Which Apache module to build?" \
                   none handler filter &&
 
 config_query_list PHP5_GD "Which GD library to use?" \
-                  none internal external
+                  none internal external &&
+
+if [[ "$PHP5_PEAR" == "y" ]]; then
+	config_query_list PHP5_PCRE "Which PCRE library to use (internal reccomended)?" \
+					  internal external
+else
+	config_query_list PHP5_PCRE "Which PCRE library to use (internal reccomended)?" \
+					  internal external none
+fi
