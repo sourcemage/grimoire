@@ -1,2 +1,2 @@
 cd linux-core  &&
-make  DRM_MODULES="$DRM_DRIVERS"  RUNNING_REL=2.6.31
+make  DRM_MODULES="$DRM_DRIVERS"  RUNNING_REL=$(get_kernel_version)
