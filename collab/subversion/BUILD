@@ -19,9 +19,9 @@ if ! [[ -x configure ]]; then ./autogen.sh; fi &&
 if [[ "$(get_spell_provider $SPELL APR)" == "apr" ]] || \
    [[ "$(get_spell_provider $SPELL APU)" == "apr-util" ]]; then
   CFLAGS="${CFLAGS} $(/usr/bin/apr-1-config --cppflags)" &&
-  OPTS="${OPTS} --disable-static --disable-mod-activation --enable-shared --disable-experimental-libtool"
+  OPTS="${OPTS} --disable-debug --disable-static --disable-mod-activation --enable-shared --disable-experimental-libtool"
 else
-  OPTS="${OPTS} --disable-static --disable-mod-activation --enable-shared --disable-neon-version-check"
+  OPTS="${OPTS} --disable-debug --disable-static --disable-mod-activation --enable-shared --disable-neon-version-check"
 fi &&
 
 SWIG_LDFLAGS="${LDFLAGS}" &&
