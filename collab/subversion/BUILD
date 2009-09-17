@@ -1,5 +1,3 @@
-# -ggdb will not let it compile with a release version
-OPTS=${OPTS/-ggdb/}
 # only check for Apache if the modules are needed
 if echo $OPTS | grep -q 'with-apxs'; then
   message "${MESSAGE_COLOR}Checking for Apache 2.x${DEFAULT_COLOR}" &&
