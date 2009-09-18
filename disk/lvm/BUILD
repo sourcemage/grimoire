@@ -5,7 +5,7 @@
             --sysconfdir=$INSTALL_ROOT/etc  		\
 	    --mandir=$INSTALL_ROOT/usr/share/man 	\
             --enable-static_link              		\
-            $OPTS                                       &&
+            $LVM_OPTS $OPTS                             &&
 make_single &&
 
 if [[ $LVM_DM_ONLY == y ]]; then
