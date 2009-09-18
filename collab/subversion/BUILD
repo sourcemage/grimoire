@@ -1,5 +1,7 @@
-# -ggdb will not let it compile with a release version
-OPTS=${OPTS/-ggdb/}
+# -ggdb conflicts with --disable-debug OPT
+  CFLAGS=${CFLAGS/-ggdb/}
+CPPFLAGS=${CPPFLAGS/-ggdb/}
+CXXFLAGS=${CXXFLAGS/-ggdb/}
 # only check for Apache if the modules are needed
 if echo $OPTS | grep -q 'with-apxs'; then
   message "${MESSAGE_COLOR}Checking for Apache 2.x${DEFAULT_COLOR}" &&
