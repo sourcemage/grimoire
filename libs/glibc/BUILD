@@ -47,6 +47,8 @@ OPTS="$OPTS --enable-add-ons=${ADDONS/ /,}"  &&
 
 if [ "$GLIBC_NPTL" = "y" ]
 then
+# minimise optimisation level
+  CFLAGS="${CFLAGS//-O?/}"  &&
   CFLAGS="-O2 ${CFLAGS//-Os/}"
 else
   #
