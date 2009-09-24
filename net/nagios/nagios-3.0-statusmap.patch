@@ -1,0 +1,55 @@
+--- statusmap.c.orig    2006-03-21 22:31:46.000000000 +0100
++++ statusmap.c         2006-06-29 11:08:23.399501664 +0200
+@@ -1652,13 +1652,13 @@
+
+			temp_hoststatus=find_hoststatus(temp_host->name);
+			if(temp_hoststatus!=NULL){
+-				if(temp_hoststatus->status==HOST_DOWN)
++				if(temp_hoststatus->status==HOST_DOWN || get_servicestatus_count(temp_host->name,SERVICE_CRITICAL))
+					status_color=color_red;
+-				else if(temp_hoststatus->status==HOST_UNREACHABLE)
+-					status_color=color_red;
+-				else if(temp_hoststatus->status==HOST_UP)
++				else if(temp_hoststatus->status==HOST_UNREACHABLE ||get_servicestatus_count(temp_host->name,SERVICE_WARNING))
++					status_color=color_yellow;
++				else if(temp_hoststatus->status==HOST_UP  ||get_servicestatus_count(temp_host->name,SERVICE_OK))
+					status_color=color_green;
+-				else if(temp_hoststatus->status==HOST_PENDING)
++				else if(temp_hoststatus->status==HOST_PENDING
+||get_servicestatus_count(temp_host->name,SERVICE_PENDING)||get_servicestatus_count(temp_host->name,SERVICE_UNKNOWN))
+					status_color=color_grey;
+			        }
+			else
+@@ -1875,6 +1875,14 @@
+			strncpy(temp_buffer,"Unreachable",sizeof(temp_buffer));
+			status_color=color_red;
+                        }
++		 else if(temp_hoststatus->status==HOST_UP && get_servicestatus_count(name,SERVICE_CRITICAL)){
++			strncpy(temp_buffer,"Up",sizeof(temp_buffer));
++			status_color=color_red;
++			}
++		else if(temp_hoststatus->status==HOST_UP && get_servicestatus_count(name,SERVICE_WARNING)){
++			strncpy(temp_buffer,"Up",sizeof(temp_buffer));
++			status_color=color_yellow;
++			}
+		else if(temp_hoststatus->status==HOST_UP){
+			strncpy(temp_buffer,"Up",sizeof(temp_buffer));
+			status_color=color_green;
+@@ -2814,10 +2814,14 @@
+
+			/* determine background color */
+			temp_hoststatus=find_hoststatus(temp_host->name);
+-			if(temp_hoststatus==NULL)
++			if(temp_hoststatus==NULL||get_servicestatus_count(temp_host->name,SERVICE_UNKNOWN))
+				bgcolor=color_lightgrey;
+-			else if(temp_hoststatus->status==HOST_DOWN || temp_hoststatus->status==HOST_UNREACHABLE)
++			else if(temp_hoststatus->status==HOST_DOWN || temp_hoststatus->status==HOST_UNREACHABLE ||
+get_servicestatus_count(temp_host->name,SERVICE_CRITICAL))
+				bgcolor=color_lightred;
++			else if (get_servicestatus_count(temp_host->name,SERVICE_WARNING) )
++				 bgcolor=color_yellow;
++			else if (get_servicestatus_count(temp_host->name,SERVICE_PENDING) )
++				bgcolor=color_grey;
+			else
+				bgcolor=color_lightgreen;
+

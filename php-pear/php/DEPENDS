@@ -1,7 +1,19 @@
 . ${GRIMOIRE}/FUNCTIONS &&
 
-depends flex &&
+# takes two params
+# $1 is the driver name
+# $2 is the spell name (for depending)
+function db_driver_depends() {
+	local db_driver="$1"
+	local db_spell="$2"
+	if list_find "$PHP5_DATABASE_DRIVERS" "$db_driver" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
+		depends $db_spell "--with-$db_driver"
+	else
+		OPTS="$OPTS --without-$db_driver"
+	fi
+}
 
+depends flex &&
 # Officially these are optional, but we require them because some other
 # optional extensions depend on it, and they're omnipresent anyway
 depends readline "--with-readline" &&
@@ -11,10 +23,14 @@ optional_depends bzip2 \
                  "--with-bz2" "--without-bz2" \
                  "for compression support" &&
 
-optional_depends libxml2 \
-                 '--enable-xml --enable-dom --with-xmlrpc' \
-                 '--disable-xml --disable-dom --without-xmlrpc --disable-xmlreader --disable-xmlwriter --disable-simplexml' \
-                 'For XML support (required for SOAP and PEAR)' &&
+if [[ "$PHP5_PEAR" == "y" ]]; then
+	depends libxml2 '--enable-xml --enable-dom --with-xmlrpc'
+else
+	optional_depends libxml2 \
+					 '--enable-xml --enable-dom --with-xmlrpc' \
+					 '--disable-xml --disable-dom --without-xmlrpc --disable-xmlreader --disable-xmlwriter --disable-simplexml' \
+					 'For XML support (required for SOAP)'
+fi
 
 optional_depends libxslt \
                  "--with-xsl" "--without-xsl" \
@@ -22,14 +38,9 @@ optional_depends libxslt \
 
 if is_depends_enabled $SPELL libxml2 ; then
   config_query_option PHP5_OPTS "Enable SOAP support?" n \
-                      "--enable-soap" "--disable-soap" &&
-  if list_find "${PHP5_OPTS}" "--enable-cli"; then
-     config_query_option PHP5_OPTS "Enable PEAR support?" y \
-                         "--enable-pear=${INSTALL_ROOT}/usr/share/pear" \
-                         "--without-pear"
-  fi
+                      "--enable-soap" "--disable-soap"
 else
-  PHP5_OPTS="${PHP5_OPTS} --disable-soap --without-pear"
+  PHP5_OPTS="${PHP5_OPTS} --disable-soap"
 fi &&
 
 optional_depends pth \
@@ -41,18 +52,27 @@ case "${PHP5_APACHE}" in
     filter) depends APACHE2;;
 esac &&
 
-optional_depends pcre \
-                 "--with-pcre-regex=${INSTALL_ROOT}/usr --with-pcre=${INSTALL_ROOT}/usr" \
-                 "--without-pcre-regex --without-pcre" \
-                 "for perl regular expressions support (required for PEAR)" &&
+if [[ "$PHP5_PCRE" == "none" ]]; then
+	PHP5_OPTS="$PHP5_OPTS --without-pcre-regex --without-pcre"
+elif [[ "$PHP5_PCRE" == "external" ]]; then
+	depends pcre "--with-pcre-regex=${INSTALL_ROOT}/usr --with-pcre=${INSTALL_ROOT}/usr"
+fi &&
 
 optional_depends C-CLIENT \
                  "--with-imap=${INSTALL_ROOT}/usr" "--without-imap" \
                  "for IMAP support" &&
 
+optional_depends openssl \
+                 "--with-openssl" "--without-openssl" \
+                 "for OpenSSL support" &&
+
 if list_find "${OPTS}" "--with-imap"; then
-  optional_depends openssl "--with-imap-ssl" "--without-imap-ssl" \
-                           "for SSL support with IMAP"
+	if is_depends_enabled $SPELL openssl; then
+		OPTS="$OPTS --with-imap-ssl"
+	else
+		optional_depends openssl "--with-imap-ssl" "--without-imap-ssl" \
+								 "for SSL support with IMAP (but not elsewhere)"
+	fi
 fi &&
 
 optional_depends MAIL-TRANSPORT-AGENT \
@@ -83,19 +103,19 @@ optional_depends curl \
                  "--with-curl" "--without-curl" \
                  "for cURL URL stream functions" &&
 
+optional_depends net-snmp \
+                 "--with-snmp" "--without-snmp" \
+                 "for SNMP support" &&
+
 if is_depends_enabled $SPELL curl; then
     config_query_option PHP5_OPTS "Do you want to use cURL for URL streams in core PHP functions?" n \
                         "--with-curlwrappers" "--without-curlwrappers" &&
-    depends -sub NO_ARES curl
+    depends -sub NO_ARES curl '--with-curl'
 fi &&
 
 optional_depends gmp \
                  "--with-gmp" "--without-gmp" \
                  "GNU multi-precision library support" &&
-
-optional_depends openssl \
-                 "--with-openssl" "--without-openssl" \
-                 "for OpenSSL support" &&
 
 optional_depends krb5 \
                  "--with-kerberos" "--without-kerberos" \
@@ -110,85 +130,49 @@ optional_depends icu \
                  "--without-icu-dir" \
                  "for ICU unicode support" &&
 
-optional_depends ODBC-MGR "" "" "for ODBC support" &&
-
-case $(get_spell_provider $SPELL ODBC-MGR) in
-  unixodbc) OPTS="${OPTS} --with-unixODBC=${INSTALL_ROOT}/usr --without-iodbc" ;;
-  libiodbc) OPTS="${--with-iodbc=${INSTALL_ROOT}}/usr --without-unixODBC" ;;
-esac &&
-
-optional_depends mysql "" "--without-mysql" "for MySQL support" &&
-if is_depends_enabled $SPELL mysql && [[ "${VERSION:0:3}" == "5.3" ]]; then
-    config_query PHP5_MYSQLND "Do you want to use the MySQL Native Driver [mysqlnd]? (experimental)" y &&
-
-    if [[ "${PHP5_MYSQLND}" == "y" ]]; then
-        PHP5_OPTS="${PHP5_OPTS} --with-mysql=mysqlnd"
-    else
-        PHP5_OPTS="${PHP5_OPTS} --with-mysql"
-    fi
-    config_query_option PHP5_OPTS "Do you want to build the MySQLi extension?" n \
-                        "--with-mysqli" "--without-mysqli"
-elif is_depends_enabled $SPELL mysql && [[ "${VERSION:0:3}" != "5.3" ]]; then
-    PHP5_OPTS="${PHP5_OPTS} --with-mysql"
+# new database madness
+# DB_DRIVERS="mysql mysqli pgsql sqlite sqlite3 firebird unixODBC iODBC"
+# PDO_DRIVERS="mysql pgsql firebird unixODBC iODBC"
+if list_find "$PHP5_DATABASE_DRIVERS" "mysql" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
+	depends mysql "" &&
+	if [[ "${VERSION:0:3}" == "5.3" ]]; then
+		config_query PHP5_MYSQLND "Do you want to use the MySQL Native Driver [mysqlnd]? (expiremental)" n &&
+		if [[ "${PHP5_MYSQLND}" == "y" ]]; then
+			PHP5_OPTS="$PHP5_OPTS --with-mysql=mysqlnd"
+		else
+			PHP5_OPTS="$PHP5_OPTS --with-mysql"
+		fi
+	fi
+else
+	OPTS="$OPTS --without-mysql"
 fi &&
-
-optional_depends postgresql \
-                 "--with-pgsql" "--without-pgsql" \
-                 "for native Postgresql support" &&
-
-optional_depends sqlite \
-                 "--with-sqlite3=${INSTALL_ROOT}/usr --enable-sqlite-utf8" "--without-sqlite" \
-                 "for SQLite support" &&
-
-if list_find "${PHP5_OPTS}" "--enable-pdo"; then
-
-  if is_depends_enabled $SPELL postgresql ; then
-    config_query_option PHP5_OPTS "Do you want to build the SQLite PDO driver?" y \
-                        "--with-pdo-sqlite=${INSTALL_ROOT}/usr" "--without-pdo-sqlite"
-  fi &&
-  optional_depends firebird \
-                 "--with-pdo-firebird=${INSTALL_ROOT}/opt/firebird" "--without-pdo-firebird" \
-                 "for native Firebird support" &&
-
-  if is_depends_enabled $SPELL postgresql ; then
-    config_query_option PHP5_OPTS "Do you also want to build the PostgreSQL PDO driver?" n \
-                        "--with-pdo-pgsql" "--without-pdo-pgsql"
-  fi &&
-
-  if is_depends_enabled $SPELL mysql ; then
-    if [[ "${VERSION:0:3}" == "5.3" ]] && [[ "${PHP5_MYSQLND}" == "y" ]]; then
-       config_query_option PHP5_OPTS "Do you also want to build the MySQL PDO driver?" n \
-                           "--with-pdo-mysql=mysqlnd" "--without-pdo-mysql"
-    else
-       config_query_option PHP5_OPTS "Do you also want to build the MySQL PDO driver?" n \
-                           "--with-pdo-mysql" "--without-pdo-mysql"
-    fi
-  fi &&
-
-  case $(get_spell_provider $SPELL ODBC-MGR) in
-    unixodbc) config_query_option PHP5_OPTS \
-                        "Do you also want to build the unixODBC PDO driver?" n \
-                        "--with-pdo-odbc=unixODBC,${INSTALL_ROOT}/usr" \
-                        "--without-pdo-odbc" ;;
-    libiodbc) config_query_option PHP5_OPTS \
-                        "Do you also want to build the iODBC PDO driver?" n \
-                        "--with-pdo-odbc=iODBC,${INSTALL_ROOT}/usr" \
-                        "--without-pdo-odbc" ;;
-  esac
+db_driver_depends "mysqli" "mysql" &&
+db_driver_depends "pgsql" "postgresql" &&
+db_driver_depends "sqlite" "sqlite2" &&
+db_driver_depends "sqlite3" "sqlite" &&
+db_driver_depends "firebird" "firebird" &&
+# unixODBC and iODBC are mutually exclusive... first one in wins?
+if list_find "$PHP5_DATABASE_DRIVERS" "unixODBC" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
+	depends unixodbc "--with-unixODBC=${INSTALL_ROOT}/usr --without-iodbc"
+elif list_find "$PHP5_DATABASE_DRIVERS" "iODBC"; then
+	depends unixodbc "--with-iodbc=${INSTALL_ROOT}/usr --without-unixODBC"
+else
+	OPTS="$OPTS --without-iodbc --without-unixODBC"
 fi &&
+#ND
 
+#DBA drivers
 if list_find "${PHP5_OPTS}" "--enable-dba"; then
-  optional_depends qdbm \
-                 "--with-qdbm" "--without-qdbm" \
-                 "qdbm database routines" &&
-
-  optional_depends db \
-                 "--with-db4" "--without-db4" \
-                 "qdbm database routines" &&
-
-  optional_depends gdbm \
-                 "--with-gdbm" "--without-gdbm" \
-                 "database routines that use extensive hashing"
+	for foo in $PHP5_DBA_DRIVERS; do
+	  if [[ $foo != none ]]; then
+		# handle the few special cases
+		if [[ "$foo" == "db4" ]]; then
+			depends db "--with-db4"
+		elif [[ "$foo" != "flatfile" ]] && [[ "$foo" != "inifile" ]]; then
+			depends $foo "--with-$foo"
+		fi
+	  fi
+	done
 fi &&
 
 optional_depends openldap \

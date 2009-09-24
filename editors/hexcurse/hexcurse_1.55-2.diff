@@ -1,0 +1,368 @@
+--- hexcurse-1.55.orig/src/getopt.c
++++ hexcurse-1.55/src/getopt.c
+@@ -36,8 +36,6 @@
+  * enables hexcurse to be compiled with SGI's proprietary compiler        */
+ #ifdef _SGIAPI
+ #include <alloca.h>
+-#else
+-char *alloca ();
+ #endif
+ #define __alloca      alloca
+ /* end of modification */
+--- hexcurse-1.55.orig/man/hexcurse.1
++++ hexcurse-1.55/man/hexcurse.1
+@@ -1,6 +1,6 @@
+ .\" to process use the following command
+ .\" groff -man -Tascii manpagename.1
+-.TH HEXCURSE "22 December 2003"
++.TH HEXCURSE 1 "22 December 2003"
+ .SH NAME
+ hexcurse \- an ncurses-based hex editor
+ .SH SYNOPSIS
+--- hexcurse-1.55.orig/debian/menu
++++ hexcurse-1.55/debian/menu
+@@ -0,0 +1 @@
++?package(hexcurse):needs="text" section="Apps/Editors" title="hexcurse" command="/usr/bin/hexcurse"
+--- hexcurse-1.55.orig/debian/changelog
++++ hexcurse-1.55/debian/changelog
+@@ -0,0 +1,45 @@
++hexcurse (1.55-2) unstable; urgency=low
++
++  * removed {,} bashism (closes: #264036)
++  * gcc-3.4 compliance (closes: #262614)
++  * quoted things in menu
++  * added section to TH header in the manpage
++  * dh_installmanpages -> dh_installman
++
++ -- RISKO Gergely <risko@debian.org>  Sun,  8 Aug 2004 16:04:47 +0200
++
++hexcurse (1.55-1) unstable; urgency=low
++
++  * New upstream release (closes: Bug#226041, Bug#217673)
++
++ -- RISKO Gergely <risko@debian.org>  Sat, 24 Jan 2004 15:12:37 +0100
++
++hexcurse (1.54-1) unstable; urgency=low
++
++  * New upstream release
++
++ -- RISKO Gergely <risko@debian.org>  Fri, 17 Jan 2003 15:04:16 +0100
++
++hexcurse (1.40-1) unstable; urgency=low
++
++  * new upstream release
++
++ -- RISKO Gergely <risko@debian.org>  Fri, 29 Mar 2002 12:24:14 +0100
++
++hexcurse (1.21-2) unstable; urgency=low
++
++  * description fix (closes: Bug#130988)
++
++ -- RISKO Gergely <risko@debian.org>  Sat, 26 Jan 2002 19:20:52 +0100
++
++hexcurse (1.21-1) unstable; urgency=low
++
++  * new upstream release
++
++ -- RISKO Gergely <risko@debian.org>  Mon, 30 Jul 2001 19:19:32 +0200
++
++hexcurse (1.01-1) unstable; urgency=low
++
++  * Initial Release.
++
++ -- RISKO Gergely <risko@debian.org>  Wed, 27 Jun 2001 21:12:11 +0200
+--- hexcurse-1.55.orig/debian/dirs
++++ hexcurse-1.55/debian/dirs
+@@ -0,0 +1 @@
++usr/bin
+--- hexcurse-1.55.orig/debian/rules
++++ hexcurse-1.55/debian/rules
+@@ -0,0 +1,72 @@
++#!/usr/bin/make -f
++# Sample debian/rules that uses debhelper.
++# GNU copyright 1997 to 1999 by Joey Hess.
++
++# Uncomment this to turn on verbose mode.
++#export DH_VERBOSE=1
++
++# This is the debhelper compatability version to use.
++export DH_COMPAT=2
++
++configure: configure-stamp
++configure-stamp:
++	dh_testdir
++	# Add here commands to configure the package.
++	cp -f /usr/share/misc/config.sub /usr/share/misc/config.guess $(CURDIR)
++	./configure
++
++	touch configure-stamp
++
++build: configure-stamp build-stamp
++build-stamp:
++	dh_testdir
++
++	$(MAKE)
++
++	touch build-stamp
++
++clean:
++	dh_testdir
++	dh_testroot
++	rm -f build-stamp configure-stamp
++	rm -f $(CURDIR)/config.sub $(CURDIR)/config.guess
++	# Add here commands to clean up after the build process.
++	-$(MAKE) distclean
++
++	dh_clean
++
++install: build
++	dh_testdir
++	dh_testroot
++	dh_clean -k
++	dh_installdirs
++
++	# Add here commands to install the package into debian/hexcurse.
++	$(MAKE) install prefix=$(CURDIR)/debian/hexcurse/usr
++	rm -Rf $(CURDIR)/debian/hexcurse/usr/man
++
++
++# Build architecture-independent files here.
++binary-indep: build install
++# We have nothing to do by default.
++
++# Build architecture-dependent files here.
++binary-arch: build install
++	dh_testdir
++	dh_testroot
++	dh_installdocs
++	dh_installmenu
++	dh_installman man/hexcurse.1
++	dh_installchangelogs ChangeLog
++	dh_link
++	dh_strip
++	dh_compress
++	dh_fixperms
++	dh_installdeb
++	dh_shlibdeps
++	dh_gencontrol
++	dh_md5sums
++	dh_builddeb
++
++binary: binary-indep binary-arch
++.PHONY: build clean binary-indep binary-arch binary install configure
+--- hexcurse-1.55.orig/debian/control
++++ hexcurse-1.55/debian/control
+@@ -0,0 +1,15 @@
++Source: hexcurse
++Section: utils
++Priority: optional
++Maintainer: RISKO Gergely <risko@debian.org>
++Build-Depends: debhelper (>> 2.0.0), libncurses-dev, autotools-dev
++Standards-Version: 3.5.8
++
++Package: hexcurse
++Architecture: any
++Depends: ${shlibs:Depends}
++Description: A ncurses-based hex editor with many features
++ HexCurse is a versatile ncurses-based hex editor written in C that provides
++ the user with many features. It currently supports searching, hex, and
++ decimal address output, jumping  to specified locations in a file, and
++ quick keyboard shortcuts to commands.
+--- hexcurse-1.55.orig/debian/postrm
++++ hexcurse-1.55/debian/postrm
+@@ -0,0 +1,36 @@
++#! /bin/sh
++# postrm script for hexcurse
++#
++# see: dh_installdeb(1)
++
++set -e
++
++# summary of how this script can be called:
++#        * <postrm> `remove'
++#        * <postrm> `purge'
++#        * <old-postrm> `upgrade' <new-version>
++#        * <new-postrm> `failed-upgrade' <old-version>
++#        * <new-postrm> `abort-install'
++#        * <new-postrm> `abort-install' <old-version>
++#        * <new-postrm> `abort-upgrade' <old-version>
++#        * <disappearer's-postrm> `disappear' <r>overwrit>r> <new-version>
++# for details, see /usr/share/doc/packaging-manual/
++
++case "$1" in
++       purge|remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
++
++
++        ;;
++
++    *)
++        echo "postrm called with unknown argument \`$1'" >&2
++        exit 0
++
++esac
++
++# dh_installdeb will replace this with shell code automatically
++# generated by other debhelper scripts.
++
++#DEBHELPER#
++
++
+--- hexcurse-1.55.orig/debian/preinst
++++ hexcurse-1.55/debian/preinst
+@@ -0,0 +1,42 @@
++#! /bin/sh
++# preinst script for hexcurse
++#
++# see: dh_installdeb(1)
++
++set -e
++
++# summary of how this script can be called:
++#        * <new-preinst> `install'
++#        * <new-preinst> `install' <old-version>
++#        * <new-preinst> `upgrade' <old-version>
++#        * <old-preinst> `abort-upgrade' <new-version>
++#
++# For details see /usr/share/doc/packaging-manual/
++
++case "$1" in
++    install|upgrade)
++#        if [ "$1" = "upgrade" ]
++#        then
++#            start-stop-daemon --stop --quiet --oknodo  \
++#                --pidfile /var/run/hexcurse.pid  \
++#                --exec /usr/sbin/hexcurse 2>/dev/null || true
++#        fi
++    ;;
++
++    abort-upgrade)
++    ;;
++
++    *)
++        echo "preinst called with unknown argument \`$1'" >&2
++        exit 0
++    ;;
++esac
++
++# dh_installdeb will replace this with shell code automatically
++# generated by other debhelper scripts.
++
++#DEBHELPER#
++
++exit 0
++
++
+--- hexcurse-1.55.orig/debian/prerm
++++ hexcurse-1.55/debian/prerm
+@@ -0,0 +1,37 @@
++#! /bin/sh
++# prerm script for hexcurse
++#
++# see: dh_installdeb(1)
++
++set -e
++
++# summary of how this script can be called:
++#        * <prerm> `remove'
++#        * <old-prerm> `upgrade' <new-version>
++#        * <new-prerm> `failed-upgrade' <old-version>
++#        * <conflictor's-prerm> `remove' `in-favour' <package> <new-version>
++#        * <deconfigured's-prerm> `deconfigure' `in-favour'
++#          <package-being-installed> <version> `removing'
++#          <conflicting-package> <version>
++# for details, see /usr/share/doc/packaging-manual/
++
++case "$1" in
++    remove|upgrade|deconfigure)
++#       install-info --quiet --remove /usr/info/hexcurse.info.gz
++        ;;
++    failed-upgrade)
++        ;;
++    *)
++        echo "prerm called with unknown argument \`$1'" >&2
++        exit 0
++    ;;
++esac
++
++# dh_installdeb will replace this with shell code automatically
++# generated by other debhelper scripts.
++
++#DEBHELPER#
++
++exit 0
++
++
+--- hexcurse-1.55.orig/debian/copyright
++++ hexcurse-1.55/debian/copyright
+@@ -0,0 +1,16 @@
++This package was debianized by RISKO Gergely <risko@debian.org> on
++Wed, 27 Jun 2001 21:12:11 +0200.
++
++It was downloaded from http://jewfish.net/description.php?title=HexCurse
++
++Upstream Authors: 
++		jewfish
++	        e-mail: jewfish@jewfish.net
++	        IM:     jewf1sh
++
++		armoth
++		e-mail: uknowho@n0mansland.net
++		IM:     UkNOWh0
++
++Copyright: GPL
++You can find it (on a Debian system) in the file /usr/share/common-licenses/GPL.
+\ No newline at end of file
+--- hexcurse-1.55.orig/debian/docs
++++ hexcurse-1.55/debian/docs
+@@ -0,0 +1 @@
++README
+--- hexcurse-1.55.orig/debian/postinst
++++ hexcurse-1.55/debian/postinst
+@@ -0,0 +1,47 @@
++#! /bin/sh
++# postinst script for hexcurse
++#
++# see: dh_installdeb(1)
++
++set -e
++
++# summary of how this script can be called:
++#        * <postinst> `configure' <most-recently-configured-version>
++#        * <old-postinst> `abort-upgrade' <new version>
++#        * <conflictor's-postinst> `abort-remove' `in-favour' <package>
++#          <new-version>
++#        * <deconfigured's-postinst> `abort-deconfigure' `in-favour'
++#          <failed-install-package> <version> `removing'
++#          <conflicting-package> <version>
++# for details, see /usr/share/doc/packaging-manual/
++#
++# quoting from the policy:
++#     Any necessary prompting should almost always be confined to the
++#     post-installation script, and should be protected with a conditional
++#     so that unnecessary prompting doesn't happen if a package's
++#     installation fails and the `postinst' is called with `abort-upgrade',
++#     `abort-remove' or `abort-deconfigure'.
++
++case "$1" in
++    configure)
++
++    ;;
++
++    abort-upgrade|abort-remove|abort-deconfigure)
++
++    ;;
++
++    *)
++        echo "postinst called with unknown argument \`$1'" >&2
++        exit 0
++    ;;
++esac
++
++# dh_installdeb will replace this with shell code automatically
++# generated by other debhelper scripts.
++
++#DEBHELPER#
++
++exit 0
++
++

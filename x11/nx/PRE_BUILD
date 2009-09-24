@@ -1,5 +1,5 @@
 mkdir -p  ${SOURCE_DIRECTORY}  &&
-cd        ${SOURCE_DIRECTORY}  
+cd        ${SOURCE_DIRECTORY}  &&
 
 unpack_file  '' &&
 unpack_file  2  &&
@@ -7,5 +7,26 @@ unpack_file  3  &&
 unpack_file  4  &&
 unpack_file  5  &&
 unpack_file  6  &&
-unpack_file  7  &&  
-unpack_file  8  
+unpack_file  7
+
+cd ${SOURCE_DIRECTORY}/nxproxy &&
+patch -p0 < ${SCRIPT_DIRECTORY}/patches/nx-3.2.0-nxproxy_read_from_stdin.patch &&
+cd ${SOURCE_DIRECTORY}/nxcomp  &&
+patch -p0 < ${SCRIPT_DIRECTORY}/patches/nx-2.1.0-invalid-options.patch    &&
+patch -p0 < ${SCRIPT_DIRECTORY}/patches/nx-3.3.0-nxcomp-glibc2.10.patch   &&
+cd ${SOURCE_DIRECTORY}         &&
+patch -p0 < ${SCRIPT_DIRECTORY}/patches/nxcomp-1.5.0-pic.patch            &&
+patch -p0 < ${SCRIPT_DIRECTORY}/patches/nx-x11-1.5.0-tmp-exec.patch       &&
+patch -p0 < ${SCRIPT_DIRECTORY}/patches/nx-3.3.0-cflags.patch             &&
+
+for i in nxcomp nxcompext nxcompshad nxproxy; do
+    message "${MESSAGE_COLOR}autoreconf in ${SOURCE_DIRECTORY}/$i${DEFAULT_COLOR}"
+    cd ${SOURCE_DIRECTORY}/${i} &&
+    autoreconf
+done &&
+
+
+HOSTCONF="${SOURCE_DIRECTORY}/nx-X11/config/cf/host.def"
+echo "#define CcCmd gcc" >> "${HOSTCONF}"
+echo "#define OptimizedCDebugFlags ${CFLAGS} GccAliasingArgs" >> "${HOSTCONF}"
+echo "#define OptimizedCplusplusDebugFlags ${CXXFLAGS} GccAliasingArgs" >> "${HOSTCONF}"

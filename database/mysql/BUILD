@@ -1,3 +1,5 @@
+OPTS="--with-charset=$MSQL_CHARSET $OPTS" &&
+
 if  list_find "$MSQL_ENGINES" "none"  ;  then
    OPTS="--without-archive-storage-engine    \
          --without-berkeley-db               \
