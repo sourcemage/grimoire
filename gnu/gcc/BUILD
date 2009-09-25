@@ -1,3 +1,15 @@
+persistent_read gmp GMP_BUILD_ARCH GMP_BUILD_ARCH         &&
+persistent_read mpfr MPFR_BUILD_ARCH MPFR_BUILD_ARCH      &&
+
+if [[ $GMP_BUILD_ARCH  != ${SMGL_COMPAT_ARCHS[4]}
+   || $MPFR_BUILD_ARCH != ${SMGL_COMPAT_ARCHS[4]} ]]; then
+  message "${PROBLEM_COLOR}" 1>&2 &&
+  message "gmp and/or mpfr have been built with a different archspec, building gcc now" 1>&2 &&
+  message "would result in a broken compiler" 1>&2 &&
+  message "${DEFAULT_COLOR}" 1>&2
+  return 1
+fi                                                        &&
+
 # install gcc libraries to /lib instead of /lib64
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h  &&
 # tell gcc to target binaries to expect the linker in /lib instead of /lib64

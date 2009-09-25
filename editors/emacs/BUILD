@@ -24,7 +24,5 @@ if [ "$CVS" == "y" ]; then
               $OPTS                 &&
   make bootstrap
 else 
-  # add support for AMD64 (modified patch from Gentoo)
-  patch -p1 < $SCRIPT_DIRECTORY/emacs-21-amd64.diff &&
   default_build
 fi

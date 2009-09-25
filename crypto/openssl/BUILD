@@ -32,6 +32,8 @@ make         && {
     summon wget                               &&
     RUN_COMPILER_DIR="${RUN_COMPILER_DIR:-/var/lib/sorcery/build}" &&
     PATH="${PATH//$RUN_COMPILER_DIR:/}"                            &&
+    (
+    unset OPTS  &&
     delve -c start BUILD wget                 && # this links against old libraries still
     local TEMPWGET_DIR="$BUILD_DIRECTORY/wget-$(gaze version wget |
                         head -n 3 | tail -n 1 | awk '{ print $4 }')" &&
@@ -43,6 +45,7 @@ make         && {
     install -m 755 wget /usr/bin/wget         && # and installed
     cd -                                      &&
     ldconfig
+    )
 fi
 } &&
 

@@ -60,13 +60,17 @@ function linuxrc_crypto()
 	if $USE_CRYPTO || $FORCE_CRYPTO
 	then
 		cat <<-EOF
-/bin/mount -t proc proc /proc
+/bin/mount -t proc proc /proc > /dev/null 2>&1
+/bin/mount -t sysfs sys /sys  > /dev/null 2>&1
 /bin/dmsetup mknodes
 cat /crypttab |
 while read line
 do
 eval "/bin/cryptsetup luksOpen \$line" < /dev/console > /dev/console 2>&1
 done
+/bin/dmsetup mknodes
+/bin/vgscan --ignorelockingfailure --mknodes
+/bin/vgchange -ay --ignorelockingfailure
 EOF
 	fi
 }
@@ -86,7 +90,8 @@ function linuxrc_lvm()
 	if $USE_LVM || $FORCE_LVM
 	then
 	cat <<-EOF
-/bin/mount -t proc proc /proc
+/bin/mount -t proc proc /proc > /dev/null 2>&1
+/bin/mount -t sysfs sys /sys  > /dev/null 2>&1
 /bin/dmsetup mknodes
 /bin/vgscan --ignorelockingfailure --mknodes
 /bin/vgchange -ay --ignorelockingfailure
@@ -112,6 +117,8 @@ function default_parts()
 	cat <<-EOF
 dir /dev 0755 0 0
 nod /dev/console 0600 0 0 c 5 1
+nod /dev/random  0666 0 0 c 1 8
+nod /dev/urandom 0644 0 0 c 1 9
 dir /root 0700 0 0
 file /linuxrc /tmp/linuxrc 0755 0 0
 link /init /linuxrc 0755 0 0

@@ -13,7 +13,7 @@ else
   OPTS="--without-cifsmount $OPTS"
 fi &&
 
-cd  $SOURCE_DIRECTORY/source  &&
+cd  $SOURCE_DIRECTORY/source3  &&
 make_single    &&
 default_build  &&
 make_normal    &&

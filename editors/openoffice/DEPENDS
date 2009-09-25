@@ -1,186 +1,137 @@
-if [ "$OPENOFFICE_VERSION" == "cvs" ]; then
-depends CVS
-fi
-if [ "$OPENOFFICE_VERSION" != "stable" ]; then
-depends  g++
-depends archive-zip
-else
-depends  gcc33
-fi
-depends  xorg-server  "--with-x"                    &&
-depends  zip                                       &&
-depends  unzip                                     &&
-depends  which                                     &&
-depends  ant         "--with-ant-home=${ANT_HOME}" &&
-depends  libart_lgpl "--enable-libart"             &&
-depends  bison                                     &&
+# good old fashioned hard dependencies, with or without options
+depends  gmp           &&
+depends  freetype2     &&
+depends  archive-zip   &&
+depends  zip  '--with-zip-home=/usr/bin/zip' &&
+depends  unzip  '--with-unzip-home=/usr/bin/uzip' &&
 
-# optional now?
-depends  zlib        "--with-system-zlib"          &&
-depends  LINUX-PAM-HEADERS &&
+# dependencies that are required but will use local versions when missing
+optional_depends  libwpd  '--with-system-libwpd' '' 'use system libpwd' &&
+optional_depends  icu  '--with-system-icu' '' 'use system ICU?' &&
+optional_depends  python  '--with-system-python' '' 'use system python?'  &&
+optional_depends  db  '--with-system-db' '--without-system-db' 'use system db?' &&
+#optional_depends  lucene  '--with-system-lucene' '' 'use system Lucene?' &&
+optional_depends  expat  '--with-system-expat' '' 'use system expat?' &&
+optional_depends  libxml2  '--with-system-libxml' '' 'use system libxml2? (recommended)' &&
+optional_depends  libxslt  '--with-system-libxslt' '' 'use system libxslt? (recommended)' &&
+optional_depends  jpeg  '--with-system-jpeg' '' 'use system JPEG?' &&
+optional_depends  openssl  '--with-system-openssl' '' 'use system OpenSSL? (recommended)' &&
+optional_depends  zlib  '--with-system-zlib' '' 'use system zlib? (recommended)' &&
+optional_depends  poppler  '--with-system-poppler' '' 'use system poppler?' &&
+optional_depends curl '--with-system-curl' '' 'use system curl?' &&
+optional_depends boost '--with-system-boost' '' 'use system boost?' &&
+optional_depends hunspell '--with-system-hunspell' '' 'enable system hunspell?' &&
+optional_depends stlport "--with-stlport=${INSTALL_ROOT}/usr" '--without-stlport' 'use system stlport? (not recommended)' &&
+optional_depends ant "--with-ant-home=${INSTALL_ROOT}/usr" '' 'enable system ant?' &&
+optional_depends vigra '--with-system-vigra' '--without-system-vigra' 'enable system vigra?' &&
 
-# is this the key to using bash?
-depends  tcsh                                      &&
-#optional_depends  "tcsh"                           \
-#                  "--with-use-shell=/usr/bin/tcsh" \
-#		  "--with-use-shell=/bin/bash"     \
-#                  "Use tcsh shell for compiling (safer)" &&
-
-if [ $OPENOFFICE_VERSION != "stable" ]; then
-depends  "JAVA" "--enable-java --with-jdk-home=${JAVA_HOME}"  ''  'z-rejected'
-else
-optional_depends  'JAVA-1.4'                      \
-	"--enable-java --with-jdk-home=${JAVA_HOME}"  \
-	'--disable-java'                              \
-	'To enable java support'                      \
-    'z-rejected'
-fi
-#
-# We now have stlport 5 in the grimoire
-# This will no longer work
-#
-#optional_depends  stlport                            \
-#                  "--with-stlport4-home=/usr"        \
-#                  ""                                 \
-#                  "to use system installed STLport"  &&
-
-optional_depends  startup-notification        \
-                  "--enable-libsn"            \
-                  ""                          \
-                  "for startup notification"  &&
-
-#
-# Yes, this is the correct --enable/disable order. :)
-#
-# From `./configure  --help`:
-#  --disable-mozilla       OO.o usually includes a strangely hacked up mozilla
-#                          binary for your platform, to build without this
-#                          version, use this option.
-#
-if [ "$OPENOFFICE_VERSION" == "stable" ]; then
-# broken for the 2.0 branch
-optional_depends  GRAPHICAL-WEB-BROWSER       \
-                  "--disable-mozilla"         \
-                  ""                          \
-                  "for a normal web browser"
+# regular optional dependencies
+optional_depends tcsh \
+                 '--with-use-shell=tcsh' \
+                 '--with-use-shell=bash' \
+                 'use TCSH instead of BASH (default)' &&
+optional_depends ODBC-MGR \
+                 '--with-system-odbc --with-system-odbc-headers' \
+                 '' \
+                 'enable ODBC database access? (recommended)' &&
+optional_depends JAVA \
+                 '--with-java --with-system-jars' \
+                 '--without-java --without-system-jars' \
+                 'enable JAVA support?' &&
+if (is_depends_enabled ${SPELL} JAVA); then
+   optional_depends gcj \
+                    '--enable-gcjaot' \
+                    '--disable-gcjaot' \
+                    'Build with[out] using Ahead of Time java compilation?'
 fi &&
-
-#
-# Passing --without-system-<lib> still /enables/ the system lib
-# use as OO's configure is stupid and just greps for "system-lib"
-#
-optional_depends  curl                     \
-                  "--with-system-curl"     \
-                  ""                       \
-                  "for up-to-date curl"    &&
-
-optional_depends  freetype2                                  \
-                  "--with-system-freetype  --without-fonts"  \
-                  ""                                         \
-                  "for up-to-date freetype2"                 &&
-
-#
-# configure is looking for the nas headers in
-# /usr/include/audio
-# but nas installs the headers to
-# /usr/X11R6/include/audio
-#
-optional_depends  nas                                    \
-                  "--with-system-nas"                    \
-                  ""                                     \
-                  "for up-to-date Network Audio System"  &&
-
-if [ "$OPENOFFICE_VERSION" != "stable" ]; then
-
-#
-# For both gtk and kde-base, this spell requires
-# 8gb+ space to compile.
-#
-# Say "NO"
-# "Yes is broken"
-#
-#
-#optional_depends  gtk+2                       \
-#                  "--enable-gtk"              \
-#                  "--disable-gtk"             \
-#                  "Determines whether to use Gtk+ vclplug on platforms where Gtk+ is available." &&
-#
-#optional_depends  gnome-vfs2                  \
-#                  "--enable-gnome-vfs"        \
-#                  "--disable-gnome-vfs"       \
-#                  "Determines whether to use the Gnome Virtual Filing System on platforms where that VFS is available" &&
-#
-# I'm not sure which kde level it really needs
-# kdebase
-# kdelibs
-# qt-x11
-#
-#optional_depends  kdebase                     \
-#                  "--enable-kde"              \
-#                  "--disable-kde"             \
-#                  "Determines whether to use Qt/KDE vclplug on platforms where Qt and KDE are available." &&
-
-optional_depends  openldap                    \
-                  "--enable-openldap"         \
-                  ""                          \
-                  "Enables the use of the OpenLDAP LDAP SDK instead of the Netscape/Mozilla one" &&
-
-optional_depends  CUPS                        \
-                  "--enable-cups"             \
-                  ""                          \
-                  "enable cups support in the psprint project" &&
-
-optional_depends  jpeg                         \
-                  "--with-system-jpg"          \
-                  ""                           \
-                  "Use jpeg already on system" &&
-
-optional_depends  expat                         \
-                  "--with-system-expat"         \
-                  ""                            \
-                  "Use expat already on system" &&
-
-#
-# Appears to be broken
-#
-#optional_depends  libxml2                        \
-#                  "--with-system-libxml"         \
-#                  ""                             \
-#                  "Use libxml already on system" &&
-
-optional_depends  python                         \
-                  "--with-system-python"         \
-                  ""                             \
-                  "Use python already on system" &&
-
-optional_depends  sablot                         \
-                  "--with-system-sablot"         \
-                  ""                             \
-                  "Use sablot already on system" &&
-
-optional_depends  unixodbc                                 \
-                  "--with-system-odbc-headers"             \
-                  ""                                       \
-                  "Use the odbc headers already on system" &&
-
-optional_depends  boost                         \
-                  "--with-system-boost"         \
-                  ""                            \
-                  "Use boost already on system" &&
-
-optional_depends  neon                     \
-                  "--with-system-neon"     \
-                  ""                       \
-                  "for up-to-date neon"
-
-#
-# What is epm?
-# Where does one get it?#
-#
-if [ "$OPENOFFICE_EPM" == "external" ]; then
-depends epm "--enable-epm"
-fi
-if [ "$OPENOFFICE_EPM" != "none" ]; then
-depends rpm
-fi
-fi
+optional_depends GTK2 \
+                 '--enable-gtk' \
+                 '--disable-gtk' \
+                 'use GTK vclplug? (recommended)' &&
+if [[ "$(get_spell_provider ${SPELL} GTK2)" = 'gtk+2' ]] || \
+   [[ "$(get_spell_provider ${SPELL} GTK2)" = 'gtk+2-directfb' ]]; then
+optional_depends gconf2 \
+                 '--enable-gconf --enable-lockdown' \
+                 '--disable-gconf --disable-lockdown' \
+                 'enable gconf integration, used for settings and lockdown?' &&
+optional_depends evolution \
+                 '--enable-evolution2' \
+                 '--disable-evolution2' \
+                 'use evolution?' &&
+optional_depends gnome-vfs2 \
+                 '--enable-gnome-vfs' \
+                 '--disable-gnome-vfs' \
+                 'enable GNOME virtual filesystem support?'
+fi &&
+optional_depends kdebase4 \
+                 '--enable-kde --enable-kdeab' \
+                 '--disable-kde --disable-kdeab' \
+                 'enable KDE addressbook and vclplugin' &&
+optional_depends cairo \
+                 '--enable-cairo --with-system-cairo' \
+                 '--disable-cairo' \
+                 'use Cairo? (recommended)' &&
+optional_depends OPENGL \
+                 '--enable-opengl' \
+                 '--disable-opengl' \
+                 'use OpenGL for 3D effects?' &&
+optional_depends libxrandr \
+                 '--enable-randr' \
+                 '--disable-randr' \
+                 'enable RandR support in the vcl project?' &&
+optional_depends libxrender \
+                 '--with-system-xrender-headers' \
+                 '' \
+                 'use system libxrender?' &&
+optional_depends agg \
+                 '--with-agg --with-system-agg' \
+                 '--without-agg' \
+                 'enable agg support?' &&
+# I'm only testing with xulrunner, feel free to add others ;)
+optional_depends xulrunner \
+                 '--disable-mozilla --with-system-mozilla=xulrunner' \
+                 '--disable-build-mozilla' \
+                 "use xulrunner instead of 'strangely hacked up mozilla binary'? (recommended)" &&
+#always --without-ppds. not needed without and provided with cups
+optional_depends CUPS \
+                 '--enable-cups --without-ppds' \
+                 '--disable-cups --without-ppds' \
+                 'use CUPS in the psprint project?' &&
+optional_depends sane-backends \
+                 '--with-system-sane-header' \
+                 '' \
+                 'use sane backends?' &&
+optional_depends fontconfig \
+                 '--enable-fontconfig --disable-fontooo' \
+                 '--disable-fontconfig --enable-fontooo' \
+                 'use fontconfig instead of FontOOo?' &&
+optional_depends dbus \
+                 '--enable-dbus' \
+                 '--disable-dbus' \
+                 'use D-BUS for screensaver control?' &&
+#probably wrong, but I have no idea what to include for KDE and which version ;)
+optional_depends linux-pam \
+                 '--enable-pam' \
+                 '--disable-pam' \
+                 'use Linux-PAM?' &&
+optional_depends neon \
+                 '--enable-neon --with-system-neon' \
+                 '--disable-neon' \
+                 'enable neon and the compilation of webdav binding?' &&
+optional_depends libxaw \
+                 '--enable-Xaw' \
+                 '--disable-Xaw' \
+                 'enable the use of Xaw for the Netscape/Mozilla plugin?' &&
+optional_depends openldap \
+                 '--enable-ldap --with-openldap' \
+                 '--disable-ldap --without-openldap' \
+                 "enable the use of the OpenLDAP LDAP SDK?" &&
+optional_depends rpm \
+                 '--enable-epm' \
+                 '--disable-epm' \
+                 "enable self-packaging code? (not recommended)" &&
+# this one is intentionally reversed
+optional_depends ttf-bitstream-vera \
+                 '--without-fonts' \
+                 '--with-fonts' \
+                 'use system provided font instead of packaged version? (recommended)'

@@ -1,3 +1,5 @@
+OPTS="$T1LIB_X11 $OPTS"  &&
+
 if [ "$DOCUMENTATION" = "n" ]; then
 
   ./configure --prefix=${INSTALL_ROOT}/usr  \

@@ -1,16 +1,9 @@
-if  [  "$GECKO_PLUGIN" = "y"  ]; then
-  OPTS="$OPTS --enable-mozilla"  &&
-  if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
-    OPTS="$OPTS --with-mozilla=firefox"
-  elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
-    OPTS="$OPTS --with-mozilla=seamonkey"
-  elif test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
-    OPTS="$OPTS --with-mozilla=xulrunner"
-  else
-    OPTS="$OPTS --with-mozilla=mozilla"
-  fi
-else
-  OPTS="$OPTS --disable-browser-plugins"
-fi  &&
+case $(get_spell_provider ${SPELL} GECKO) in
+  seamonkey) OPTS="${OPTS} --with-mozilla=seamonkey"  ;;
+  xulrunner) OPTS="${OPTS} --with-mozilla=xulrunner"  ;;
+  xulrunner-bin) OPTS="${OPTS} --with-mozilla=xulrunner" ;;
+  mozilla)   OPTS="${OPTS} --with-mozilla=mozilla"    ;;
+  *)         OPTS="${OPTS} --disable-browser-plugins" ;;
+esac &&
 
 default_build
