@@ -1,3 +1,4 @@
-#apply the official patches
-patch -p1 < $SOURCE_CACHE/$SOURCE1 &&
-patch -p1 < $SOURCE_CACHE/$SOURCE2
+# apply the official patches
+for patch in `gaze sources $SPELL | grep "\.patch$"`; do
+  patch -p1 < "$SOURCE_CACHE/$patch"
+done
