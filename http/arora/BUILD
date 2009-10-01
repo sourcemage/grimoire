@@ -1,7 +1,1 @@
-QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"  &&
-PATH="$QTDIR/bin/qt4:$PATH"          &&
-
-cd  "$SOURCE_DIRECTORY"              &&
-
-qmake &&
-make
+qt4_build
