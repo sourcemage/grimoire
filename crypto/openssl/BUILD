@@ -5,6 +5,7 @@ if [[ $OPENSSL_SSE == n ]]; then
   OPTS="no-sse2 $OPTS"
 fi
 fi                                                          &&
+OPTS="$OPENSSL_TLSEXT $OPTS"                                &&
 OPTS="--prefix=${INSTALL_ROOT}/usr                          \
       --openssldir=${INSTALL_ROOT}/etc/ssl                  \
       shared                                                \
