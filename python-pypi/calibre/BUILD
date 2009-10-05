@@ -1,2 +1,2 @@
 PATH="/usr/bin/qt4:$PATH" &&
-default_build
+default_build_python
