@@ -1,3 +1,3 @@
-scons prefix=/usr \
-      mandir=/usr/share/man \
+scons prefix=${INSTALL_ROOT}/usr \
+      mandir=${INSTALL_ROOT}/usr/share/man \
       CCFLAGS="$CFLAGS"
