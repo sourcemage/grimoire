@@ -1,6 +1,36 @@
-source $GRIMOIRE/FUNCTIONS   &&
+. $GRIMOIRE/FUNCTIONS &&
+
 config_query EXTRA_LANG "Do you want to build extra languages?" n
-if [ $EXTRA_LANG == "y" ]; then
-config_query_list CUPS_LANG "Which additional language to install?" \
+
+if [[ $EXTRA_LANG == y ]]; then
+  config_query_list CUPS_LANG "Which additional language to install?" \
       all de es fr ja pl sv
-fi
+fi &&
+
+if spell_ok xpdf ; then
+config_query_list CUPS_PDF "Which pdf-to-ps filter do you want to use?" \
+                  xpdf ghostscript none
+elif spell_ok ghostscript ; then
+config_query_list CUPS_PDF "Which pdf-to-ps filter do you want to use?" \
+                  ghostscript xpdf none
+else
+config_query_list CUPS_PDF "Which pdf-to-ps filter do you want to use?" \
+                  none xpdf ghostscript
+fi &&
+
+config_query_option CUPS_OPTS \
+                    "Do you want to use AppleTalk protocol for printers?" \
+                    y \
+                    '--enable-pap' \
+                    '--disable-pap' &&
+config_query_option CUPS_OPTS \
+                    "Do you want to use network default printers" \
+                    y \
+                    '--enable-use-network-default' \
+                    '--disable-use-network-default' &&
+config_query_option CUPS_OPTS \
+                    "Do you want to enable raw printing" \
+                    n \
+                    '--enable-raw-printing' \
+                    '--disable-raw-printing'
+

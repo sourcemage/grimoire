@@ -2,58 +2,31 @@
 # automatically enabled in Makefile if relevant options are chosen,
 # prompting about them is unnecessary.
 
-config_query  CONFIG_NO_WPA  "Build without WPA support?"  n  &&
+config_query CONFIG_NO_WPA "Build without WPA support?" n &&
 
-if [[ $WPA_RELEASE == old ]]
-then
-  if [[ $CONFIG_CTRL_IFACE == unix || $CONFIG_CTRL_IFACE == udp ]]
-  then
-    CONFIG_CTRL_IFACE=y                &&
-    persistent_add  CONFIG_CTRL_IFACE
-  fi  &&
-  if [[ -z $CONFIG_DNET_PCAP ]]   &&
-     [[ $CONFIG_L2_PACKET == pcap ]]
-  then
-    CONFIG_DNET_PCAP=y                &&
-    persistent_add  CONFIG_DNET_PCAP
-  fi  &&
+config_query CONFIG_NO_WPA2 "Build without WPA2 support?" n &&
 
-  config_query  CONFIG_CTRL_IFACE                                          \
-                "Build external control interface?"                        \
-                y                                                          &&
-  config_query  CONFIG_DNET_PCAP                                           \
-                "Use libpcap/libdnet instead of native Linux packet socket \
-interface?"                                                                \
-                n
-else
-  config_query  CONFIG_NO_WPA2  "Build without WPA2 support?"  n  &&
+if [[ $CONFIG_CTRL_IFACE == y ]]; then
+  CONFIG_CTRL_IFACE=unix &&
+  persistent_add  CONFIG_CTRL_IFACE
+fi &&
+if [[ -z $CONFIG_L2_PACKET ]] && [[ $CONFIG_DNET_PCAP == y ]]; then
+  CONFIG_L2_PACKET=pcap &&
+  persistent_add CONFIG_L2_PACKET
+fi &&
 
-  if [[ $CONFIG_CTRL_IFACE == y ]]
-  then
-    CONFIG_CTRL_IFACE=unix             &&
-    persistent_add  CONFIG_CTRL_IFACE
-  fi  &&
-  if [[ -z $CONFIG_L2_PACKET ]] &&
-     [[ $CONFIG_DNET_PCAP == y  ]]
-  then
-    CONFIG_L2_PACKET=pcap             &&
-    persistent_add  CONFIG_L2_PACKET
-  fi  &&
+config_query_list CONFIG_CTRL_IFACE "Select control interface to build (n is none):" \
+                  unix \
+                  udp \
+                  n &&
 
-  config_query_list  CONFIG_CTRL_IFACE                                  \
-                     "Select control interface to build (n is none):"   \
-                     unix                                               \
-                     udp                                                \
-                     n                                                  &&
-  config_query_list  CONFIG_L2_PACKET                                   \
-                     "Select layer2 packet processing implementation:"  \
-                     linux                                              \
-                     pcap
-fi  &&
+config_query_list CONFIG_L2_PACKET "Select layer2 packet processing implementation:" \
+                  linux \
+                  pcap &&
 
-config_query  CONFIG_NO_STDOUT_DEBUG  "Remove debugging code?"  n  &&
+config_query CONFIG_NO_STDOUT_DEBUG "Remove debugging code?" n &&
 
-message "${MESSAGE_COLOR}Hardware driver options:${DEFAULT_COLOR}"  &&
+message "${MESSAGE_COLOR}Hardware driver options:${DEFAULT_COLOR}" &&
 
 #
 ## Commented-out options require external sources to work, WIP.
@@ -83,45 +56,29 @@ config_query  CONFIG_EAP_PSK  "EAP-PSK support?"  n            &&
 config_query  CONFIG_EAP_PAX  "EAP-PAX support?"  n            &&
 config_query  CONFIG_EAP_LEAP  "LEAP support?"  y              &&
 
-if [[ $WPA_RELEASE != old ]]
-then
-  config_query  CONFIG_EAP_SAKE  "EAP-SAKE support?"  n  &&
-  config_query  CONFIG_EAP_GPSK  "EAP-GPSK support?"  n  &&
+config_query  CONFIG_EAP_SAKE "EAP-SAKE support?" n &&
+config_query  CONFIG_EAP_GPSK "EAP-GPSK support?" n &&
 
-  if [[ $CONFIG_EAP_GPSK == y ]]
-  then
-    config_query  CONFIG_EAP_GPSK_SHA256                     \
-                  "Build SHA256 cipher suite for EAP-GPSK?"  \
-                  n
-  fi
-fi  &&
+if [[ $CONFIG_EAP_GPSK == y ]]; then
+  config_query CONFIG_EAP_GPSK_SHA256 "Build SHA256 cipher suite for EAP-GPSK?" n
+fi &&
 
 if [[ $CONFIG_EAP_TLS  == y ||
       $CONFIG_EAP_PEAP == y ||
-      $CONFIG_EAP_TTLS == y ]]
-then
-  message "${MESSAGE_COLOR}Crypto options:${DEFAULT_COLOR}"  &&
+      $CONFIG_EAP_TTLS == y ]]; then
+  message "${MESSAGE_COLOR}Crypto options:${DEFAULT_COLOR}" &&
 
-  if [[ $WPA_RELEASE == old ]]
-  then
-    CONFIG_TLS=openssl          &&
-    persistent_add  CONFIG_TLS
-  else
-    config_query_list  CONFIG_TLS                    \
-                       "Select TLS library to use:"  \
-                       openssl                       \
-                       gnutls                        \
-                       internal
-  fi  &&
+  config_query_list CONFIG_TLS "Select TLS library to use:" \
+                    openssl \
+                    gnutls \
+                    internal &&
 
-  config_query  CONFIG_PKCS12  "Enable PKCS#12 certificate support?"  y  &&
-  config_query  CONFIG_SMARTCARD  "Enable smartcard support?"  y
-fi  &&
+  config_query CONFIG_PKCS12 "Enable PKCS#12 certificate support?" y &&
+  config_query CONFIG_SMARTCARD "Enable smartcard support?" y
+fi &&
 
-message "${MESSAGE_COLOR}An example config file will be installed"   \
-        "in /etc if you choose to install\nthe init script."         \
-        "${DEFAULT_COLOR}"                                           &&
+message "${MESSAGE_COLOR}An example config file will be installed" \
+        "in /etc if you choose to install\nthe init script." \
+        "${DEFAULT_COLOR}" &&
 
-config_query  WPA_CONFIG_FILE                                      \
-              "Install config file even without the init script?"  \
-              n
+config_query WPA_CONFIG_FILE "Install config file even without the init script?" n

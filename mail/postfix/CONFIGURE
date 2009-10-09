@@ -1,64 +1,41 @@
-persistent_add POSTFIX_PRE_EXISTING
-persistent_add POSTFIX_FIX_MAINCF
-if  [[ -f  /etc/postfix/main.cf  ]];  then
-	message "${MESSAGE_COLOR}Pre-existing main.cf found. Doing upgrade install.${DEFAULT_COLOR}"
-	POSTFIX_PRE_EXISTING="yes"
-	message "${WARNING_COLOR}If you do not say yes to the next question this spell could fail to install${DEFAULT_COLOR}"
-	message "${MESSAGE_COLOR}The spell will go through your main.cf and ensure that the man pages are 
-installed to the right place, because the postfix install program uses the 
-values from the main.cf to determine where to install things.${DEFAULT_COLOR}"
-	config_query POSTFIX_FIX_MAINCF "Check for and fix problems in installed main.cf? (HIGHLY RECOMMENDED)" y
+local PFIX_VER=$(installed_version $SPELL) &&
+PFIX_VER=$(echo ${PFIX_VER:0:5} | sed -e 's/\.//g') &&
+
+if [[ $PFIX_VER -lt 255 ]]; then
+    persistent_add POSTFIX_VDA &&
+    POSTFIX_VDA=$VDA
+fi &&
+
+if [[ -f $INSTALL_ROOT/etc/postfix/main.cf ]]; then
+    persistent_add POSTFIX_PRE_EXISTING &&
+    POSTFIX_PRE_EXISTING="yes" &&
+
+    message "${MESSAGE_COLOR}Pre-existing main.cf found. Doing upgrade install.${DEFAULT_COLOR}" &&
+    message "${WARNING_COLOR}If you do not say yes to the next question this spell could fail to install${DEFAULT_COLOR}" &&
+    message "${MESSAGE_COLOR}The spell will go through your main.cf and ensure that the man pages are" &&
+    message "installed to the right place, because the postfix install program uses the" &&
+    message "values from the main.cf to determine where to install things.${DEFAULT_COLOR}" &&
+
+    config_query POSTFIX_FIX_MAINCF "Check for and fix problems in installed main.cf? (HIGHLY RECOMMENDED)" y
 else
-	message "${MESSAGE_COLOR}No pre-existing main.cf found. Doing normal install.${DEFAULT_COLOR}"
-	POSTFIX_PRE_EXISTING="no"
-fi  &&
+    persistent_add POSTFIX_PRE_EXISTING &&
+    POSTFIX_PRE_EXISTING="no" &&
 
-config_query  BENCH   "install smtpstone benckmarking tools?"  n
+    message "${MESSAGE_COLOR}No pre-existing main.cf found. Doing normal install.${DEFAULT_COLOR}"
+fi &&
 
-#message "${MESSAGE_COLOR}smtp configuration files loss may expose your system to SPAM relaying. You should backup and restore configuration files and reply y to the next two questions...${DEFAULT_COLOR}"
-#
-#config_query  BACKUP   "backup config on dispel?"  y
-#config_query  RESTORE  "restore config on rebuild/update?"  y
+config_query POSTFIX_BENCH "Install smtpstone benckmarking tools?" n &&
 
-#message "${MESSAGE_COLOR}You should run newaliases after each aliases file update, and on first $spell cast...${DEFAULT_COLOR}"
-#config_query  ALIAS    "run newaliases after cast?"  y
+# Config file backup
+#message "${MESSAGE_COLOR}Configuration file loss may expose your system to SPAM relaying." &&
+#message "You should backup and restore configuration files and reply y to the next two questions...${DEFAULT_COLOR}" &&
+#config_query BACKUP "Backup config on dispel?" y &&
+#config_query RESTORE "Restore config on rebuild/update?" y
 
-if  spell_ok  mysql;  then
-  config_query  MYSQL  "Add MySQL support?"  y
-else
-  config_query  MYSQL  "Add MySQL support?"  n
-fi  &&
+# Newaliases
+#message "${MESSAGE_COLOR}You should run newaliases after each aliases file update, and on first $spell cast...$}DEFAULT_COLOR}" &&
+#config_query ALIAS "Run newaliases after cast?" y &&
 
-if  spell_ok  postgresql;  then
-  config_query  POSTGRES  "Add Postgresql support?"  y
-else
-  config_query  POSTGRES  "Add Postgresql support?"  n
-fi  &&
-
-if  spell_ok  openldap;  then
-  config_query  LDAP  "Add LDAP support?"  y
-else
-  config_query  LDAP  "Add LDAP support?"  n
-fi  &&
-
-if  spell_ok  linux-pam;  then
-  config_query  PAM  "Add PAM support?"  y
-else
-  config_query  PAM  "Add PAM support?"  n
-fi  &&
-
-if  spell_ok  openssl;  then
-  config_query  SSL  "Add SSL support?"  y
-  config_query  SSL_TLS  "Add TLS support?"  y
-else
-  config_query  SSL  "Add SSL support?"  n
-  config_query  SSL_TLS  "Add TLS support?"  n
-fi  &&
-
-if  spell_ok  cyrus-sasl;  then
-  config_query  SASL  "Add SASL support?"  y
-else
-  config_query  SASL  "Add SASL support?"  n
-fi  &&
-
-config_query  VDA      "Apply Virtual Delivery Agent (VDA) patch (EXPERIMENTAL?)"  n
+if [[ "$POSTFIX_EXP" != "y" ]]; then
+    config_query POSTFIX_VDA "Apply Virtual Delivery Agent (VDA) patch? (EXPERIMENTAL)" n
+fi

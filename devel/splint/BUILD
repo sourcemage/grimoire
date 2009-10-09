@@ -1,6 +1,3 @@
-  ./configure  --build=$BUILD        \
-               --prefix=/usr         \
-               --sysconfdir=/etc     \
-               --localstatedir=/var  \
-               $OPTS                 &&
-  make
+make_single    &&
+default_build  &&
+make_normal

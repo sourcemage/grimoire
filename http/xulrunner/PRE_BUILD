@@ -1,16 +1,20 @@
 mk_source_dir  $SOURCE_DIRECTORY  &&
-cd             $SOURCE_DIRECTORY  &&
-unpack_file    ''                 &&
-cd             mozilla            &&
+cd  $SOURCE_DIRECTORY             &&
+unpack_file  ''                   &&
+cd  mozilla-1.9.1                 &&
+# fix for gcc-4.4
+sed -i 's/^#elif$/#else/' toolkit/xre/nsAppRunner.cpp  &&
+patch -p0 < $SCRIPT_DIRECTORY/xulrunner-install-paths.patch &&
 
-mozilla_remove_nspr_nss  &&
-patch -p0 < $SCRIPT_DIRECTORY/xulrunner-visibility.diff &&
-patch -p0 < $SCRIPT_DIRECTORY/nsiSidebar.patch &&
-patch -p0 < $SCRIPT_DIRECTORY/nsiPermission.patch &&
+patch -p0 < $SCRIPT_DIRECTORY/xulrunner-nss.patch &&
 
-if  [  -f  /root/.mozconfig  ];  then
-  rm  -f  /root/.mozconfig
-fi  &&
+patch -p1 < $SCRIPT_DIRECTORY/gfxdirectfbsurface-header.patch &&
 
-# remove broken .mozconfig shipped with 1.0b
-rm  -f  .mozconfig
+# Needed to make things using XUL find NSPR.
+echo "Requires: nspr" >> xulrunner/installer/libxul-embedding.pc.in &&
+
+cp -v $SPELL_DIRECTORY/mozconfig3 .mozconfig &&
+
+if [[ $FIREFOX_OFFICIAL == y ]]; then
+  sed -i '24iac_add_options --enable-official-branding' .mozconfig
+fi

@@ -1,6 +1,6 @@
-cd  $SOURCE_DIRECTORY/mozilla  &&
+cd $SOURCE_DIRECTORY/mozilla* &&
 
-FIREFOX_HOME=$INSTALL_ROOT/usr/lib/firefox    &&
+FIREFOX_HOME="$INSTALL_ROOT/usr/lib/firefox" &&
 export  MOZ_PHOENIX=1 &&
 
 #
@@ -22,10 +22,10 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 CFLAGS="${CFLAGS//-ffast-math/}"      &&
 CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
-./configure --prefix=$INSTALL_ROOT/usr                       \
-            --mandir=$INSTALL_ROOT/usr/share/man             \
-            --enable-optimize="$CFLAGS"                      \
-            $OPTS                                            &&
+if [[ "$FIREFOX_CVS" == "y" ]]; then
+autoconf-2.13
+fi &&
+
 make_single  &&
 make -f client.mk build &&
 make_normal

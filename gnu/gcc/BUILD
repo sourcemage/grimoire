@@ -1,3 +1,15 @@
+persistent_read gmp GMP_BUILD_ARCH GMP_BUILD_ARCH         &&
+persistent_read mpfr MPFR_BUILD_ARCH MPFR_BUILD_ARCH      &&
+
+if [[ $GMP_BUILD_ARCH  != ${SMGL_COMPAT_ARCHS[4]}
+   || $MPFR_BUILD_ARCH != ${SMGL_COMPAT_ARCHS[4]} ]]; then
+  message "${PROBLEM_COLOR}" 1>&2 &&
+  message "gmp and/or mpfr have been built with a different archspec, building gcc now" 1>&2 &&
+  message "would result in a broken compiler" 1>&2 &&
+  message "${DEFAULT_COLOR}" 1>&2
+  return 1
+fi                                                        &&
+
 # install gcc libraries to /lib instead of /lib64
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h            &&
 if [[ "$GCC_NOLIB64" == 'y' ]]; then
@@ -11,8 +23,13 @@ if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
   CXXFLAGS=${CXXFLAGS//-ffast-math/}
 fi  &&
 
-if  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64"  ]];  then
-  OPTS="--build=x86_64-pc-linux-gnu  $OPTS"
+# fixes seg-fault on libiberty/splay.c in v 4.3.2
+CFLAGS="-O1 $CFLAGS"                                      &&
+
+if [[ $CROSS_INSTALL == on ]]; then
+  OPTS="--host=$HOST $OPTS"
+else
+  OPTS="--build=$HOST $OPTS"
 fi  &&
 
 # store CFLAGS and LDFLAGS persistently so they can be read by the other
@@ -23,7 +40,6 @@ persistent_add GCC_CFLAGS GCC_LDFLAGS  &&
 
 cd $SOURCE_DIRECTORY.bld                                  &&
 $SOURCE_DIRECTORY/configure                                \
-             --host=$HOST                                  \
              --prefix=${INSTALL_ROOT}/usr                  \
              --infodir=${INSTALL_ROOT}/usr/share/info      \
              --mandir=${INSTALL_ROOT}/usr/share/man        \
@@ -31,5 +47,6 @@ $SOURCE_DIRECTORY/configure                                \
              --with-system-zlib                            \
              $GCC_MULTILIB $OPTS                          &&
 
+make_single                                                    &&
 make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
-     profiledbootstrap
+     profiledbootstrap-lean

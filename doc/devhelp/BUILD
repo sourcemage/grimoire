@@ -3,7 +3,8 @@ if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
 elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
    OPTS="$OPTS --with-gecko=seamonkey"
 elif test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
-   OPTS="$OPTS --with-gecko=xulrunner"
+   OPTS="$OPTS --with-gecko=libxul-embedding"
+   CXXFLAGS="$CXXFLAGS -I/$INSTALL_ROOT/usr/include/nspr"
 else
    OPTS="$OPTS --with-gecko=mozilla"
 fi &&

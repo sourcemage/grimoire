@@ -1,0 +1,55 @@
+unset XSHTTPD_OPTS &&
+
+config_query_list XSHTTPD_PP \
+  "Which configuration preprocessor would you like to use?" \
+  "none" \
+  "m4" \
+  "cpp" &&
+
+case $XSHTTPD_PP in 
+  none)
+    list_add XSHTTPD_OPTS "--without-preprocessor"
+  ;;
+  *)
+    list_add XSHTTPD_OPTS "--with-preprocessor=$XSHTTPD_PP"
+  ;;
+esac &&
+
+XSHTTPD_OLD_USE_PREFIX=$XSHTTPD_USE_PREFIX &&
+
+config_query XSHTTPD_USE_PREFIX \
+  "Do you want to use a binary prefix? (To install xshttpd alongside another httpd)" \
+  "n" &&
+
+if [[ $XSHTTPD_USE_PREFIX == "y" ]]; then
+  list_add XSHTTPD_OPTS "--program-transform-name=s/^httpd/xs&/"
+fi &&
+
+unset XSHTTPD_CAST_TYPE &&
+
+if spell_ok xshttpd; then
+  if [[ $XSHTTPD_OLD_USE_PREFIX == $XSHTTPD_USE_PREFIX ]]; then
+    XSHTTPD_CAST_TYPE=unchanged
+  else
+    XSHTTPD_CAST_TYPE=changed
+  fi
+else
+  XSHTTPD_CAST_TYPE=new
+fi &&
+
+persistent_add XSHTTPD_CAST_TYPE &&
+
+config_query_string XSHTTPD_ROOTDIR \
+  "What do you want xshttpd to use as root directory?" \
+  "/srv/www" &&
+
+list_add XSHTTPD_OPTS "--with-rootdir=$XSHTTPD_ROOTDIR" &&
+
+config_query_option XSHTTPD_SSL "Support SSL connections?" \
+  y \
+  "--with-ssl" \
+  "--without-ssl" &&
+
+list_add XSHTTPD_OPTS $XSHTTPD_SSL &&
+
+persistent_add XSHTTPD_OPTS

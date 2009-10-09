@@ -1,4 +1,6 @@
-cd $SOURCE_DIRECTORY &&
-/bin/sh ./Build.sh -d -r &&
+sh ./Build.sh -r &&
 gzip -n9 mksh.1 &&
-./test.sh -v >/var/log/mksh.test.log 2>&1
+
+if [[ $MKSH_TEST == y ]]; then
+  ./test.sh -v > "$INSTALL_ROOT/tmp/mksh.test.log" 2>&1
+fi

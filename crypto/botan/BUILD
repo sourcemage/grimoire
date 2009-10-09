@@ -1,2 +1,2 @@
-./configure.pl --prefix=/usr  && 
+./configure.py --prefix=/usr &&
 make

@@ -1,22 +1,31 @@
-persistent_add  SOURCE_LIB                           &&
-make_single                                          &&
-local config=$(<$SCRIPT_DIRECTORY/atlas-nog77.config) &&
-if [[ "${SMGL_COMPAT_ARCHS[1]}" == alpha ]]; then
-  config=$(<$SCRIPT_DIRECTORY/atlas-alpha.config) &&
-  # Tricky: The question may come even if generic chosen,
-  # when cpu is ev5/6/7 nevertheless!
-  if [[ "${SMGL_COMPAT_ARCHS[3]}" =~ ^ev[567] ]]; then
-    config=$(sed 's/EV5GEMM/y/' <<< "$config")
-  else # Assume that question is not posed.
-    config=$(sed '/EV5GEMM/d' <<< "$config")
+cd  $SOURCE_DIRECTORY/bld                            &&
+if is_depends_enabled $SPELL lapack; then
+  OPTS="--with-netlib-lapack=$INSTALL_ROOT/usr/lib/liblapack.a $OPTS"
+fi                                                   &&
+if [ $WALL_TIMER == y ]; then
+  if [[ ${SMGL_COMPAT_ARCHS[1]} == "ia32" || ${SMGL_COMPAT_ARCHS[1]} == "x86_64" ]]; then
+    OPTS="-D c -DPentiumCPS=$CPU_FREQ $OPTS"
+  else
+    OPTS="-D c -DWALL $OPTS"
   fi
+fi                                                   &&
+
+../configure -Si cputhrchk 0 \
+             -Fa alg -fPIC \
+             -b ${SMGL_COMPAT_ARCHS[0]} \
+             --prefix=$INSTALL_ROOT/usr              &&
+sedit '/RANLIB/s/echo/ranlib/' Make.inc              &&
+
+make_single &&
+make                                                 &&
+if [ $SHARED_LIB == y ]; then
+  cd lib                                             &&
+  make shared                                        &&
+  cd ..
+fi                                                   &&
+if [ $PTSHARED_LIB == y ]; then
+  cd lib                                             &&
+  make ptshared                                      &&
+  cd ..
 fi &&
-if is_depends_enabled $SPELL fortran; then
-  config=$(sed 's/FORTRAN/1\ngfortran/' <<< "$config")
-else
-  config=$(sed 's/FORTRAN/0/' <<< "$config")
-fi &&
-echo "$config" | make      &&
-ARCH=`ls -1 Make.Linux* | sed -e 's/Make.//'`        &&
-make  install  arch=$ARCH                            &&
-SOURCE_LIB=$SOURCE_DIRECTORY/lib/$ARCH
+make_normal

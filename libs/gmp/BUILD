@@ -1,3 +1,5 @@
+# needed by essential /bin/expr at least
+OPTS="--libdir=$INSTALL_ROOT/lib $OPTS" &&
 # gcc bug when running test?
 CFLAGS=${CFLAGS/-O3/-O2}   &&
 if [[ ${SMGL_COMPAT_ARCHS[1]} == alpha ]];then

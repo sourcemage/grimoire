@@ -1,5 +1,4 @@
-export  QTDIR="$SOURCE_DIRECTORY"                                 &&
-export  LD_LIBRARY_PATH="$SOURCE_DIRECTORY/lib:$LD_LIBRARY_PATH"  &&
+QTDIR=$INSTALL_ROOT/usr &&
 
 OPTS="$QT_DEBUG               \
       $QT_NIS                 \
@@ -7,19 +6,16 @@ OPTS="$QT_DEBUG               \
       $QT_GIF                 \
       $QT_EXCEPT              \
       $QT_PCH                 \
+      $QT_STL                 \
       $QT_QT3                 \
       $QT_DEMO demos          \
       $QT_EXAMPLE examples    \
       $QT_TOOLS tools         \
       $QT_TRANS translations  \
+      $QT_WEBKIT              \
       $OPTS"                  &&
 
-if [[ $QT_VER == 'snapshot' || $QT_VER == 'prerelease' ]]
-then
-  OPTS="$QT_WEBKIT $OPTS"
-fi  &&
-
-./configure  -confirm-license                                                 \
+./configure  -opensource -confirm-license                                     \
              -prefix  "$INSTALL_ROOT/usr"                                     \
              -bindir  "$INSTALL_ROOT/usr/bin/qt4"                             \
              -docdir  "$INSTALL_ROOT/usr/share/doc/qt4"                       \
@@ -30,7 +26,6 @@ fi  &&
              -demosdir  "$INSTALL_ROOT/usr/share/doc/qt4/demos"               \
              -datadir  "$INSTALL_ROOT/usr/share/qt4"                          \
              -platform  linux-g++                                             \
-             -stl                                                             \
              $OPTS                                                            &&
 
 make

@@ -5,5 +5,13 @@
             --sysconfdir=$INSTALL_ROOT/etc  		\
 	    --mandir=$INSTALL_ROOT/usr/share/man 	\
             --enable-static_link              		\
-            $OPTS                                       &&
-make
+            $LVM_OPTS $OPTS                             &&
+make_single &&
+
+if [[ $LVM_DM_ONLY == y ]]; then
+  make device-mapper
+else
+  make
+fi &&
+
+make_normal

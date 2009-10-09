@@ -2,5 +2,5 @@
            --datadir=/share/${SPELL}      \
             --docdir=/share/doc/${SPELL}  \
             --mandir=/share/man           \
-               $OPTS                      &&
+            $OPTS                         &&
 make

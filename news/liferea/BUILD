@@ -1,10 +1,10 @@
-if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
-  OPTS="$OPTS --enable-gecko=firefox --disable-xulrunner"
-elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
-  OPTS="$OPTS --enable-gecko=seamonkey --disable-xulrunner"
-elif test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
-  OPTS="$OPTS --enable-xulrunner --disable-gecko"
-elif test "$(get_spell_provider $SPELL GECKO)" = mozilla; then
-  OPTS="$OPTS --enable-gecko=mozilla --disable-xulrunner"
-fi  &&
+if [[ "$LIFEREA_DEVEL" == "n" ]]; then
+  if test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
+    OPTS="$OPTS --with-gecko=seamonkey"
+  elif test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
+    OPTS="$OPTS --with-gecko=libxul-embedding"
+  elif test "$(get_spell_provider $SPELL GECKO)" = mozilla; then
+    OPTS="$OPTS --with-gecko=mozilla"
+  fi
+fi &&
 default_build

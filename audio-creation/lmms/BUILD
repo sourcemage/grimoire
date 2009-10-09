@@ -1,2 +1,2 @@
-OPTS="$LMMS_SURROUND $LMMS_SINC $LMMS_OSS $LMMS_VST $OPTS"  &&
-default_build
+OPTS="$LMMS_VST $OPTS"  &&
+qt4_cmake_build

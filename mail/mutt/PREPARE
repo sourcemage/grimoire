@@ -1,14 +1,58 @@
-# temporary, to migrate old branch preference
-if  [ "${CVS}" == "y" ]; then
-  persistent_add BRANCH &&
-  BRANCH="cvs" &&
-  persistent_remove CVS
+# temporary, to migrate old patch preferences
+OLD_PATCHES="$PATCHES" &&
+list_remove OLD_PATCHES "compressed_folders" "message_count" "trash_folder" &&
+list_remove OLD_PATCHES "-attachment_counting" "-current_shortcut" \
+     "-date_conditional" "-deepif" "-edit_threads" "-indexcolor" "-isalias" \
+     "-libesmpt" "-maildir_header_cache" "-purge_message" "-sidebar" \
+     "-signatures_menu" "-xtitles" "-compressed_folders" "-message_count" \
+     "-trash_folder" &&
+list_remove PATCHES "attachment_counting" "current_shortcut" \
+     "date_conditional" "deepif" "edit_threads" "indexcolor" "isalias" \
+     "libesmtp" "maildir_header_cache" "purge_message" "sidebar" \
+     "signatures_menu" "xtitles" &&
+list_remove PATCHES "-attachment_counting" "-current_shortcut" \
+     "-date_conditional" "-deepif" "-edit_threads" "-indexcolor" "-isalias" \
+     "-libesmpt" "-maildir_header_cache" "-purge_message" "-sidebar" \
+     "-signatures_menu" "-xtitles" &&
+
+if [[ $OLD_PATCHES ]]; then
+  message "$PROBLEM_COLOR" &&
+  message "This new version of the mutt spell only includes the" &&
+  message "compressed_folders, trash_folder and message_count patches, you" &&
+  message "were using other patches, you can continue casting without these" &&
+  message "patches or abort. If you'd like a particular patch to be available" &&
+  message "again in the future, please post a request on bugs.sourcemage.org" &&
+  message "Perhaps you should consider using the devel or scm version of mutt" &&
+  message "which already includes some of the patches available earlier" &&
+  message "You had the following, now unavailable, patches enabled:" &&
+  message "$OLD_PATCHES" &&
+  message "$DEFAULT_COLOR" &&
+  if ! query "Do you wish to continue casting mutt without these patches?" n; then
+    return 1
+  fi
+fi
+
+# temporary, to migrate old autoupdate pref
+if [[ "${MUTT_CVS_AUTOUPDATE}" == "y" ]]; then
+  persistent_add MUTT_SCM_AUTOUPDATE &&
+  MUTT_SCM_AUTOUPDATE="y" &&
+  persistent_remove MUTT_CVS_AUTOUPDATE
 fi &&
 
-config_query_list BRANCH "Build which version?" stable devel cvs &&
+# temporary, to migrate old branch pref
+if [[ "${BRANCH}" == "cvs" ]]; then
+  BRANCH="scm"
+fi &&
 
-if [ "${BRANCH}" == "cvs" ]; then
-  config_query  MUTT_CVS_AUTOUPDATE                                     \
-                "Update to the latest CVS automatically on every cast?" \
-                n
+message "The mutt spell provides three different versions of mutt; stable," &&
+message "which apart from security fixes has not been developed in a long" &&
+message "time, devel, the current development releases and scm, which pulls" &&
+message "a snapshot from the mutt source repository." &&
+
+config_query_list BRANCH "Build which version?" stable devel scm &&
+
+if [[ "${BRANCH}" == "scm" ]]; then
+  config_query MUTT_SCM_AUTOUPDATE \
+    "Update to the latest scm checkout automatically on every cast?" \
+    n
 fi

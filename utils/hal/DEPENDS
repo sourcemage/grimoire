@@ -4,29 +4,23 @@ depends  glib2              &&
 depends  intltool           &&
 depends  libcap             &&
 depends  libtool            &&
-depends  python             &&
-depends  udev               &&
+depends  udev '--with-udev-prefix=/etc' &&
 depends  xml-parser-expat   &&
 depends  pkgconfig          &&
-depends  dbus-python        &&
+depends  util-linux         &&
 
-# bug #13500
-sub_depends  udev  VOLUME_ID  &&
+if [[ $HAL_VER == devel ]]; then
+  depends git
+fi &&
+# needs checking, maybe optional_depends, but definately not depends
+# depends  dbus-python  &&
 
 depends glibc &&
-if [[ $(installed_version glibc | sed -n 's/^\(.\)\.\(.\).*/\1\2/p') -lt 26 ]]; then
-  force_depends glibc
-fi &&
 
-#optional_depends  consolekit               \
-#                  "--enable-console-kit"   \
-#                  "--disable-console-kit"  \
-#                  "ConsoleKit support"     &&
-
-#optional_depends  polkit                    \
-#                  "--enable-policy-kit"     \
-#                  "--disable-policy-kit"    \
-#                  "Build with PolicyKit (strongly recommended)"  &&
+optional_depends  consolekit               \
+                  "--enable-console-kit"   \
+                  "--disable-console-kit"  \
+                  "ConsoleKit support"     &&
 
 optional_depends  gtk-doc                   \
                   "--enable-gtk-doc"        \
@@ -43,15 +37,34 @@ optional_depends  docbook-utils             \
                   "--disable-docbook-docs"  \
                   "Build Docbook Docs"      &&
 
-optional_depends  libusb         \
-                  ""             \
-                  ""             \
-                  "usb support"  &&
+optional_depends  libusb                    \
+                  "--enable-usb"            \
+                  "--disable-usb"           \
+                  "for libusb support"      &&
 
 optional_depends  hwdata                             \
-                  "--with-hwdata=/usr/share/hwdata"  \
-                  "--without-hwdata"                 \
-                  "for PCI/USB hardware data"       &&
+                  "--enable-pnp-ids" \
+                  "--disable-pnp-ids" \
+                  "for PNP hardware data" &&
+
+optional_depends  PCIIDS              \
+                  "--enable-pci-ids"  \
+                  "--disable-pci-ids" \
+                  "for PCI hardware data"  &&
+
+optional_depends  USBIDS              \
+                  "--enable-usb-ids"  \
+                  "--disable-usb-ids" \
+                  "for USB hardware data" &&
+
+if (is_depends_enabled $SPELL hwdata) || \
+     [[ "$(get_spell_provider ${SPELL} PCIIDS)" = 'hwdata' ]] || \
+     [[ "$(get_spell_provider ${SPELL} USBIDS)" = 'hwdata' ]]; then
+         OPTS="${OPTS} --with-hwdata=/usr/share/hwdata"
+elif [[ "$(get_spell_provider ${SPELL} PCIIDS)" = 'pciutils' ]] || \
+     [[ "$(get_spell_provider ${SPELL} USBIDS)" = 'usbutils' ]]; then
+         OPTS="${OPTS} --with-hwdata=/usr/share"
+fi &&
 
 optional_depends  pciutils                           \
                   "--with-macbookpro"                \
@@ -61,5 +74,19 @@ optional_depends  pciutils                           \
 optional_depends  dmidecode                          \
                   ""                                 \
                   ""                                 \
-                  "for dmidecode support"
+                  "for dmidecode support"           &&
 
+optional_depends  acpid                              \
+                  "--enable-acpi-acpid"              \
+                  "--disable-acpi-acpid"             \
+                  "for an acpid event source"       &&
+
+optional_depends  cryptsetup-luks                    \
+                  ""                                 \
+                  ""                                 \
+                  "for cryptsetup-luks support"     &&
+
+optional_depends  libsmbios                          \
+                  "--enable-smbios"                  \
+                  "--disable-smbios"                 \
+                  "for smbios support"

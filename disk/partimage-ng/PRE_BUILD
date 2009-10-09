@@ -1,0 +1,18 @@
+default_pre_build          &&
+cd $SOURCE_DIRECTORY 	   &&
+if [[ $PART_VCS == y ]];then
+  if spell_ok ntfs-3g;then
+    sed -i '/set(NTFS3G_PREFERRED/s/0/1/' src/CMakeLists.txt
+  fi
+else
+# fix compile with recent e2fsprogs
+  patch -p1 -i $SPELL_DIRECTORY/e2fs.diff  &&
+# fix glibc problem
+sed -i -e '/<fcntl.h>/ a\
+#include <langinfo.h>
+' src/imager.cpp
+fi &&
+#fix gcc4.4 problem
+sed -i -e '/<cstdlib>/ a\
+#include <stdint.h>
+' src/fat32partition.cpp

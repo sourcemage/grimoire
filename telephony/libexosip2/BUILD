@@ -1,13 +1,3 @@
-OPTS="--disable-static  --disable-debug --disable-trace $OPTS"  &&
-  case $EXO_RTP in
-    ccrtp) OPTS="--enable-ucl $OPTS"
-      ;;
+OPTS="--disable-static --disable-debug --disable-trace $OPTS" &&
 
-    ortp)  OPTS="--enable-ortp $OPTS"
-      ;;
-
-    none)  OPTS="--disable-josua $OPTS"
-      ;;
-  esac            &&
-message opt=$OPTS &&
 default_build

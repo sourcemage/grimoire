@@ -1,35 +1,39 @@
-#sedit  "s/^CFLAGS_SHLIB =/CFLAGS_SHLIB = ${CFLAGS}/" Makefile.config.in &&
-#sedit  "s/^\(CFLAGS_FOR_BUILD = \)\$(CFLAGS)/\1${CFLAGS}/" Makefile.config.in &&
-echo  -e  "\ngnu\nregular\nshared\ny\n\n\n\n\n\n\n\n\n\n\n\n\n\n"  |
-#  Ignores  $OPTS
-# to get our OPTS and CFLAGS, etc we'll need to sed Makefile.config.in
-./configure                        &&
-# I have no idea how netpbm gets its standard set
-# of cflags, the entries in Makefile.config.in are all
-# commented out!
-sedit  "s/^\(CFLAGS =\)/\1 ${CFLAGS} /" Makefile.config &&
-if list_find "$OPTS" no-x11
-then
-  message "disabling X11 stuff" &&
-  sedit 's/^\(X11LIB =\).*$/\1 NONE/' \
-  Makefile.config &&
-  sedit 's/^\(X11HDR_DIR =\).*$/\1/' \
-  Makefile.config
+if [[ "${NETPBM_SVN}" == 'y' ]]; then
+  CONFIGFILE=config.mk
+else
+  CONFIGFILE=Makefile.config
 fi &&
-if list_find "$OPTS" no-svga
-then
-  message "disabling svgalib stuff" &&
-  sedit 's/^\(LINUXSVGALIB =\).*$/\1 NONE/' \
-  Makefile.config &&
-  sedit 's/^\(LINUXSVGAHDR_DIR =\).*$/\1/' \
-  Makefile.config
+cp ${CONFIGFILE}.in $CONFIGFILE &&
+cat >> $CONFIGFILE << EOF
+DEFAULT_TARGET = nonmerge
+NETPBMLIBTYPE=unixshared
+NETPBMLIBSUFFIX=so
+STATICLIB_TOO=n
+CFLAGs = $CFLAGS
+CFLAGS_MERGE = -Wno-missing-declarations -Wno-missing-prototypes -fno-common
+LDRELOC = ld --reloc
+LINKER_CAN_DO_EXPLICIT_LIBRARY = Y
+LINKERISCOMPILER = Y
+CFLAGS_SHLIN += -fPIC
+NETPBM_DOCURL = http://netpbm.sourceforge.net/doc/
+PNGLIB = libpng.so
+EOF
+if list_find "$OPTS" yes-jpeg; then
+  echo "JPEGLIB = libjpeg.so" >> $CONFIGFILE
 fi &&
-make_single                        &&
-
-make  &&
-
-if [ -e /tmp/netpbm ]; then
-   rm -rf /tmp/netpbm              
-fi                                 &&
-make  package  pkgdir=/tmp/netpbm  &&
+if list_find "$OPTS" yes-tiff; then
+  echo "TIFFLIB = libtiff.so" >> $CONFIGFILE
+fi &&
+if list_find "$OPTS" yes-zlib; then
+  echo "ZLIB = libz.so" >> $CONFIGFILE
+fi &&
+if list_find "$OPTS" yes-x11; then
+  echo "X11LIB = /usr/lib/libX11.so" >> $CONFIGFILE
+fi &&
+if list_find "$OPTS" yes-svga; then
+  echo "LINUXSVGALIB = libvga.so" >> $CONFIGFILE
+fi &&
+sedit "s/^\(CFLAGS =\)/\1 ${CFLAGS} /" $CONFIGFILE &&
+make_single &&
+make &&
 make_normal

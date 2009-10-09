@@ -1,0 +1,2 @@
+make CC="gcc $CFLAGS"
+

@@ -1,1 +1,2 @@
-qt4_build
+prepare_cmake_flags &&
+qt4_cmake_build

@@ -1,0 +1,50 @@
+#!/bin/sh
+# This file was created by ROX-Session and edited for Source Mage GNU/Linux by Arjan Bouter.
+
+if [ -d ${HOME}/bin ] && echo $PATH | grep -qv ${HOME}/bin ; then
+	PATH="${HOME}/bin:${PATH}"
+fi
+
+# Step 1: Try to run ROX-Session. If it works, stop right here.
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] ; then
+	DBUS_LAUNCH="dbus-launch --exit-with-session"
+else
+	DBUS_LAUNCH=
+fi
+
+if [ -x "`which 0launch`" ]; then
+	exec $DBUS_LAUNCH 0launch http://rox.sourceforge.net/2005/interfaces/ROX-Session -w
+fi
+
+if [ -x "/usr/libexec/rox/ROX-Session/AppRun" ]; then
+	exec $DBUS_LAUNCH "/usr/libexec/rox/ROX-Session/AppRun" -w
+fi
+
+# Step 2: It didn't work. Try to provide a failsafe login so the user
+# can fix things.
+
+# Load a window manager. Keep trying until we find one that works!
+
+for wm in openbox xfwm4 sawfish enlightenment wmaker icewm blackbox fluxbox \
+	metacity kwin kwm fvwm2 fvwm 4Dwm twm; do
+  if [ -x "`which $wm`" ]; then break; fi;
+done
+
+"$wm" &
+
+xmessage -file - << END
+.xsession: failed to run /usr/libexec/rox/ROX-Session/AppRun - maybe you moved or deleted it?
+
+I'll try to give you an xterm and a filer window instead - try to find
+and run ROX-Session to fix the problem. Close the xterm to logout.
+
+If all else fails, delete your .xsession and .xinitrc files to get the
+system defaults.
+
+Report any problems to:
+http://rox.sourceforge.net/phpwiki/index.php/MailingLists
+
+Good luck!
+END
+rox &
+exec xterm

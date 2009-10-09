@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# Note: svscan may be started and respawned directly from inittab.
+
+if [ -x "/command/svscan" ]; then
+  PROGRAM="/command/svscan"
+elif [ -x "/sbin/svscan" ]; then
+  PROGRAM="/sbin/svscan"
+else
+  error "svscan not found"
+fi
+
+if [ -d "/service" ]; then
+  ARGS="/service"
+elif [ -d "/etc/service" ]; then
+  ARGS="/etc/service"
+else
+  error "service directory not found"
+fi
+
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/init.d/smgl_init
+
+SUPERVISE_IN_INITTAB="`grep '^supervise:' /etc/inittab`"
+
+start()
+{
+  if [ -n "${SUPERVISE_IN_INITTAB}" ]; then
+    echo "svscan is being run from /etc/inittab."
+  else
+    _start 
+  fi
+}
+
+stop_services()
+{
+  echo -n "Stopping supervised services... "
+  if [ `/bin/ls "${ARGS}" | wc -l` -gt 0 ]; then
+    echo
+    for SVC in "${ARGS}/"*; do
+      echo "Stopping $SVC..."
+      svc -dx "$SVC"
+      evaluate_retval
+      if [ -d "$SVC/log" ]; then
+        echo "Stopping $SVC/log..."
+        svc -dx "$SVC/log"
+        evaluate_retval
+      fi
+    done
+  else
+    echo "no services found."
+  fi
+}
+
+stop()
+{
+  stop_services
+
+  if [ -n "${SUPERVISE_IN_INITTAB}" ]; then
+    echo "svscan is being run from /etc/inittab and cannot be stopped."
+  else
+    _stop
+  fi
+}
+
+restart()
+{
+  if [ -n "${SUPERVISE_IN_INITTAB}" ]; then
+    stop_services
+    _stop
+    echo "svscan will be restarted by init."
+  else
+    _restart
+  fi
+}
+
+status()
+{
+  _status
+  if [ -n "${SUPERVISE_IN_INITTAB}" ]; then
+    echo "run from /etc/inittab."
+  else
+    echo "run standalone."
+  fi
+  svstat "${ARGS}/"*
+}

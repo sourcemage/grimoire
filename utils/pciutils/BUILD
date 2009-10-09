@@ -1,3 +1,1 @@
-sedit  "s:/local::" Makefile                                  &&
-sedit  "s:PREFIX=/usr:PREFIX=${INSTALL_ROOT}/usr:"  Makefile  &&
-make
+make PREFIX="$INSTALL_ROOT/usr" SHARED=yes ${OPTS} OPT="$CFLAGS"

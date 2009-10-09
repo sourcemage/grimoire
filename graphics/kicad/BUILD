@@ -1,1 +1,1 @@
-make -f makefile.gtk
+cmake_build

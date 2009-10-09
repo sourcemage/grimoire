@@ -1,17 +1,19 @@
-# -ffast-math breaks compiling. this brings no side-effects
-CFLAGS=${CFLAGS/-ffast-math/} &&
+create_account postgres &&
 
-./configure --build=$BUILD                              \
-            --prefix=${INSTALL_ROOT}/usr                \
-            --with-docdir=${INSTALL_ROOT}/usr/share/doc \
-            --mandir=${INSTALL_ROOT}/usr/share/man      \
-            --sysconfdir=${INSTALL_ROOT}/etc            \
-            --localstatedir=${INSTALL_ROOT}/var         \
-            --enable-syslog                             \
-            --with-CXX                                  \
-            --target=$HOST                              \
-            $OPTS                                       &&
+OPTS="--with-docdir=$INSTALL_ROOT/usr/share/doc $OPTS" &&
+OPTS="--with-system-tzdata=$INSTALL_ROOT/usr/share/zoneinfo $OPTS"  &&
+CFLAGS="${CFLAGS//-ffast-math}" &&
 
-make                &&
-cd contrib/pgcrypto &&
-make
+default_build &&
+
+if is_depends_enabled $SPELL openssl; then
+  cd contrib/pgcrypto &&
+  make &&
+  cd $SOURCE_DIRECTORY
+fi &&
+
+if is_depends_enabled $SPELL libxml2; then
+  cd contrib/xml2 &&
+  make &&
+  cd $SOURCE_DIRECTORY
+fi

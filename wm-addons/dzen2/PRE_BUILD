@@ -1,15 +1,36 @@
-. $GRIMOIRE/FUNCTIONS
-default_pre_build                                                  &&
-cd $SOURCE_DIRECTORY                                               &&
-sedit "s:^PREFIX.*:PREFIX= ${INSTALL_ROOT}/usr:" config.mk         &&
-if check_if_xorg_modular_libs ; then
+default_pre_build                                                          &&
+cd $SOURCE_DIRECTORY                                                       &&
+cat config.mk
+sedit "s:^PREFIX.*:PREFIX= ${INSTALL_ROOT}/usr:" config.mk                 &&
+# comment out existing
+sedit "s:^LIBS \(.*\):# LIBS \1:" config.mk                                &&
+sedit "s:^CFLAGS \(.*\):# CFLAGS \1:" config.mk                            &&
+# replace with the default
+sedit "22s:^#LIBS \(.*\):LIBS \1:" config.mk                               &&
+sedit "23s:^#CFLAGS \(.*\):CFLAGS \1:" config.mk                           &&
+sedit "22s:^# LIBS \(.*\):LIBS \1:" config.mk                              &&
+sedit "23s:^# CFLAGS \(.*\):CFLAGS \1:" config.mk                          &&
+sedit "s:^CFLAGS = -Os \(.*\):CFLAGS = \1 $CFLAGS:" config.mk              &&
+sedit "s:^LDFLAGS = \(.*\):LDFLAGS = \1 $LDFLAGS:" config.mk               &&
+
+local DZENLIBS DZENFLAGS
+# pkg-config --libs xft xpm xinerama
 if is_depends_enabled $SPELL libxinerama ; then
-sedit "s:^LIBS = \(.*\):LIBS = \1 -lxinerama:" config.mk           &&
-sedit "s:^CFLAGS = \(.*\):CFLAGS = \1 -DDZEN_XINERAMA:" config.mk
+DZENFLAGS="$DZENFLAGS -DDZEN_XINERAMA"
+DZENLIBS="$DZENLIBS $(pkg-config --libs xinerama)"
+fi                                                                         &&
+if is_depends_enabled $SPELL libxpm ; then
+DZENFLAGS="$DZENFLAGS -DDZEN_XPM"
+DZENLIBS="$DZENLIBS $(pkg-config --libs xpm)"
+fi                                                                         &&
+if [[ "$DZEN_SCM" == "y" ]]; then
+if is_depends_enabled $SPELL libxft ; then
+DZENFLAGS="$DZENFLAGS -DDZEN_XFT $(pkg-config --cflags xft)"
+DZENLIBS="$DZENLIBS $(pkg-config --libs xft)"
 fi
-fi                                                                 &&
-sedit "s:^CFLAGS = -Os \(.*\):CFLAGS = \1 $CFLAGS:" config.mk      &&
-sedit "s:^LDFLAGS = \(.*\):LDFLAGS = \1 $LDFLAGS:" config.mk       &&
+fi                                                                         &&
+sedit "s:^CFLAGS = \(.*\):CFLAGS = \1 $DZENFLAGS:" config.mk               &&
+sedit "s:^LIBS = \(.*\):LIBS = \1 $DZENLIBS:" config.mk              &&
 if [[ $DZEN2_GADGETS == y ]]; then
 sedit "s:^PREFIX.*:PREFIX= ${INSTALL_ROOT}/usr:" gadgets/config.mk         &&
 sedit "s:^CFLAGS = -Os \(.*\):CFLAGS = \1 $CFLAGS:" gadgets/config.mk      &&

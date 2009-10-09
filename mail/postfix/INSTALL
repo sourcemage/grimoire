@@ -1,48 +1,46 @@
-if [[ $POSTFIX_PRE_EXISTING == "no" ]] ; then
-#OMG YAY fixes for stupid godamn config files!
-note_config_files /etc/postfix/main.cf       &&
-note_config_files /etc/postfix/master.cf     &&
-note_config_files /etc/postfix/aliases       &&
-note_config_files /etc/postfix/access        &&
-note_config_files /etc/postfix/canonical     &&
-note_config_files /etc/postfix/generic       &&
-note_config_files /etc/postfix/header_checks &&
-note_config_files /etc/postfix/relocated     &&
-note_config_files /etc/postfix/transport     &&
-#the below are the answers to the interactive install
-/bin/bash postfix-install -non-interactive        \
-	install_root=$INSTALL_ROOT                    \
-	tempdir=$SOURCE_DIRECTORY                     \
-	config_directory=/etc/postfix                 \
-	daemon_directory=/usr/libexec/postfix         \
-	command_directory=/usr/sbin                   \
-	queue_directory=/var/spool/postfix            \
-	sendmail_path=/usr/bin/mailq                  \
-	newaliases_path=/usr/bin/newaliases           \
-	mailq_path=/usr/bin/mailq                     \
-	mail_owner=postfix                            \
-	setgid_group=postdrop                         \
-	html_directory=no                             \
-	manpage_directory=/usr/share/man              \
-	readme_directory=no                           &&
+if [[ "$POSTFIX_PRE_EXISTING" == "no" ]]; then
+    # OMG YAY fixes for stupid godamn config files!
+    note_config_files /etc/postfix/main.cf &&
+    note_config_files /etc/postfix/master.cf &&
+    note_config_files /etc/postfix/aliases &&
+    note_config_files /etc/postfix/access &&
+    note_config_files /etc/postfix/canonical &&
+    note_config_files /etc/postfix/generic &&
+    note_config_files /etc/postfix/header_checks &&
+    note_config_files /etc/postfix/relocated &&
+    note_config_files /etc/postfix/transport &&
 
-	# fix the default manpage_directory
-	sed -i -e "s|manpage_directory.*=.*|manpage_directory = /usr/share/man|" /etc/postfix/main.cf
+    # the below are the answers to the interactive install
+    /bin/bash postfix-install -non-interactive \
+              install_root="$INSTALL_ROOT" \
+              tempdir="$SOURCE_DIRECTORY" \
+              config_directory="$INSTALL_ROOT/etc/postfix" \
+              daemon_directory="$INSTALL_ROOT/usr/libexec/postfix" \
+              command_directory="$INSTALL_ROOT/usr/sbin" \
+              queue_directory="$INSTALL_ROOT/var/spool/postfix" \
+              sendmail_path="$INSTALL_ROOT/usr/sbin/sendmail" \
+              newaliases_path="$INSTALL_ROOT/usr/bin/newaliases" \
+              mailq_path="$INSTALL_ROOT/usr/bin/mailq" \
+              mail_owner=postfix \
+              setgid_group=postdrop \
+              html_directory=no \
+              manpage_directory="$INSTALL_ROOT/usr/share/man" \
+              readme_directory=no &&
+
+    # fix the default manpage_directory
+    sed -i -e "s|manpage_directory.*=.*|manpage_directory = $INSTALL_ROOT/usr/share/man|" /etc/postfix/main.cf
 else
-	# preexisting install found doing the upgrade, which is unattended
-	make upgrade
+    # preexisting install found doing the upgrade, which is unattended
+    make upgrade
 fi &&
 
-ln  -sf  ../sbin/sendmail   ${INSTALL_ROOT}/usr/lib/sendmail  &&
-ln  -sf  postfix/aliases    ${INSTALL_ROOT}/etc/aliases       &&
+ln -sf ../sbin/sendmail "$INSTALL_ROOT/usr/lib/sendmail" &&
+ln -sf postfix/aliases "$INSTALL_ROOT/etc/aliases" &&
 
-if  [  "$BENCH"  ==  "y"  ];  then
-  chmod  544  src/smtpstone/qmqp-source  \
-              src/smtpstone/smtp-sink    \
-              src/smtpstone/smtp-source  &&
+if [[ "$POSTFIX_BENCH" == "y" ]]; then
+    local file &&
 
-  cp src/smtpstone/qmqp-source ${INSTALL_ROOT}/usr/sbin  &&
-  cp src/smtpstone/smtp-sink   ${INSTALL_ROOT}/usr/sbin  &&
-  cp src/smtpstone/smtp-source ${INSTALL_ROOT}/usr/sbin
+    for file in qmqp-source smtp-sink smtp-source; do
+        install -v -m 544 "src/smtpstone/$file" "$INSTALL_ROOT/usr/sbin"
+    done
 fi
-

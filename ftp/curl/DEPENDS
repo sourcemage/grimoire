@@ -1,14 +1,25 @@
 depends  zlib  &&
 
-optional_depends  gnutls                                       \
-                  "--with-gnutls=$INSTALL_ROOT/usr"            \
-                  '--without-gnutls'                           \
-                  'for encrypted communications using GNUTLS'  &&
-
-optional_depends  openssl                          \
-                  "--with-ssl=$INSTALL_ROOT/usr"   \
-                  '--without-ssl'                  \
-                  "for https encrypted transport"  &&
+if [[ "$CURL_SSL" == "gnutls" ]]; then
+     depends  gnutls     \
+     "--with-gnutls \
+      --with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt \
+      --without-ssl --without-nss" &&
+     depends ca-certificates
+elif [[ "$CURL_SSL" == "openssl" ]]; then
+     depends  openssl         \
+     "--with-ssl \
+      --without-ca-bundle \
+      --with-ca-path=$INSTALL_ROOT/etc/ssl/certs \
+      --without-gnutls --without-nss"  &&
+      depends ca-certificates
+elif [[ "$CURL_SSL" == "nss" ]]; then
+     depends  -sub PEM nss         \
+     "--with-nss \
+      --with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt \
+      --without-gnutls --without-ssl"  &&
+     depends ca-certificates
+fi &&
 
 optional_depends  libssh2                              \
                   "--with-libssh2=$INSTALL_ROOT/usr"   \
@@ -23,4 +34,16 @@ optional_depends  c-ares                                                       \
 optional_depends  libidn                                   \
                   "--with-libidn=$INSTALL_ROOT/usr"        \
                   '--without-libidn'                       \
-                  'for International Domain Name support'
+                  'for International Domain Name support'  &&
+
+if [[ "$CURL_SSL" != "none" ]]; then
+  optional_depends  openldap                                             \
+                    '--enable-ldap --enable-ldaps'                       \
+                    '--disable-ldap --disable-ldaps'                     \
+                    'for Lightweight Directory Access Protocol support'
+else
+  optional_depends  openldap                                             \
+                    '--enable-ldap'                                      \
+                    '--disable-ldap'                                     \
+                    'for Lightweight Directory Access Protocol support'
+fi

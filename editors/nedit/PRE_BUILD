@@ -1,0 +1,15 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+if [[ "$NEDIT_WMCLASS" == "y" ]]
+then
+  patch -Np1 < ${SCRIPT_DIRECTORY}/nedit-svrname-in-wmclass.patch
+fi &&
+# accept our lesstif version (needs update in case of lesstif update)
+patch -Np1 < "${SCRIPT_DIRECTORY}/nedit-accept-lesstif.patch" &&
+cd ${SOURCE_DIRECTORY}/makefiles &&
+mv Makefile.linux Makefile.linux.tmp &&
+sed -e "s/CFLAGS\=/CFLAGS:= -DREPLACE_SCOPE /" \
+    -e "s/-DUSE_LPR_PRINT_CMD/& \$\(CFLAGS\)/" \
+    -e 's/\(LIBS=.*\) -Wl,-Bstatic -lXm -Wl,-Bdynamic -lXp \(.*\)/\1 -lXm \2 -lXft/' \
+	Makefile.linux.tmp > Makefile.linux &&
+rm Makefile.linux.tmp

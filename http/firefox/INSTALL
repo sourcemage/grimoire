@@ -1,39 +1,27 @@
-cd $SOURCE_DIRECTORY/mozilla  &&
+cd $SOURCE_DIRECTORY/mozilla*  &&
 
-FIREFOX_HOME=$INSTALL_ROOT/usr/lib/firefox &&
+FIREFOX_HOME="$INSTALL_ROOT/usr/lib/firefox" &&
 
 if  spell_ok  Firebird;  then
   dispel Firebird
 fi  &&
 
-# Not recommended by http://www.mozilla.org/build to use
-# make install.  Manually install the files.
+make install &&
 
-mkdir -p $INSTALL_ROOT/usr/lib/firefox  &&
-cp -RLv dist/bin/* $INSTALL_ROOT/usr/lib/firefox/  &&
-mkdir -p $INSTALL_ROOT/usr/include/firefox/ &&
-cp -LfRv dist/include/* $INSTALL_ROOT/usr/include/firefox/ &&
-mkdir -p $INSTALL_ROOT/usr/share/idl/firefox/ &&
-cp -LfRv dist/idl/* $INSTALL_ROOT/usr/share/idl/firefox/ &&
 
-if [ "$FIREFOX_CVS" == "n" ]; then
-  #fix install directories in *.pc files.
-  sed -i s#usr/local#usr# build/unix/firefox-* &&
-  sed -i s#-${VERSION}## build/unix/firefox-* &&
-  cp build/unix/firefox*.pc $INSTALL_ROOT/usr/lib/pkgconfig 
-fi &&
+ln -s $INSTALL_ROOT/usr/lib/firefox-$VERSION $INSTALL_ROOT/usr/lib/firefox &&
 
 #
 # Script to set MOZILLA_FIVE_HOME
 #
-cp  ${SCRIPT_DIRECTORY}/${SPELL}.sh  $INSTALL_ROOT/etc/profile.d &&
+cp -v $SPELL_DIRECTORY/$SPELL.sh  $INSTALL_ROOT/etc/profile.d &&
 
 #
 # Create symlink to mozilla for hardwired applications
 # Only create if /usr/bin/mozilla does not exist or is
 # already a symlink
 #
-if  [  "$FIREFOX_MOZLINK"  =  "y"  ];  then
+if  [[ $FIREFOX_MOZLINK == y ]];  then
   if  !  test  -f   $INSTALL_ROOT/usr/bin/mozilla  ||
          test  -h   $INSTALL_ROOT/usr/bin/mozilla  ;  then
     ln -sf $TRACK_ROOT/usr/bin/firefox  /usr/bin/mozilla
@@ -52,31 +40,10 @@ if  test  -f   $INSTALL_ROOT/usr/lib/libnssckbi.so;  then
   if  !  test  -f   $FIREFOX_HOME/libnssckbi.so  ||
          test  -h   $FIREFOX_HOME/libnssckbi.so; then
     ln -sf $TRACK_ROOT/usr/lib/libnssckbi.so  $FIREFOX_HOME/libnssckbi.so
-  fi                                                                  
-fi  &&
-if [[ "$FIREFOX_NULLPLUGIN" == "n" ]]
-then
-   rm $FIREFOX_HOME/plugins/libnullplugin.so
-fi &&
-
-
-#
-# install firefox script so it loads properly even if MOZILLA_FIVE_HOME is
-# not set or set to a different mozilla/firefox directory
-#
-install  -m  755  -o  root  -g  root  $SCRIPT_DIRECTORY/firefox  \
-         $INSTALL_ROOT/usr/bin  &&
-
-if [ "$FIREFOX_CVS" == "n" ]; then
-  # make the pkgconfig files reference the nspr from the standalone nspr spell
-  sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-nss.pc  &&
-  sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-js.pc  &&
-  sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-xpcom.pc &&
-  sedit "s/nspr/mozilla-nspr/" ${INSTALL_ROOT}/usr/lib/pkgconfig/firefox-plugin.pc
+  fi
 fi  &&
 
+ ln -vs "$INSTALL_ROOT/usr/lib/xulrunner/plugins" \
+       "$INSTALL_ROOT/usr/lib/$SPELL-$VERSION/plugins"
 
-# fix up permissions, firefox 2.0.0.8 installs stuff non-readable for
-# anyone but root
-chmod -R go+r /usr/lib/firefox  &&
-chmod go+x /usr/lib/firefox/run-mozilla.sh
+

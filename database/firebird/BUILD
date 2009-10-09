@@ -1,8 +1,8 @@
-  local FF FileName DB LCK LL                   &&
+  local FF DB LL                                &&
   persistent_add FB_PREFIX                      &&
-  FB_PREFIX=${INSTALL_ROOT}/usr/firebird        &&
+  FB_PREFIX=${INSTALL_ROOT}/opt/firebird        &&
   OPTS="${OPTS} ${FB_SS}"                       &&
-if [ $$FB_VER != 2.1 ];then
+if [[ $FB_VER == 2.0 ]];then
   if spell_ok icu; then
     ICU_FLAGS=`icu-config --ldflags-libsonly`   &&
     LDFLAGS="$LDFLAGS $ICU_FLAGS"
@@ -10,66 +10,51 @@ if [ $$FB_VER != 2.1 ];then
   if spell_ok libedit; then
     LDFLAGS="$LDFLAGS -ledit"
   fi
-fi                                            &&
+fi                                              &&
+  make_single                                   &&
 # prepare optional language support
   for LL in $FB_GPRE; do
-    if [ $LL != none ]; then
+    if [[ $LL != none ]]; then
       OPTS="${OPTS} --with-gpre-${LL}"
     fi
   done                                          &&
   OPTS="${OPTS} ${FB_STAT}"                     &&
   LDFLAGS="$LDFLAGS -lpthread"                  &&
-
-#strip -O3 from optimisations, gcc-4.2.2 problem
-  CFLAGS="${CFLAGS/-O3/-O2}"                    &&
-  CXXFLAGS="${CXXFLAGS/-O3/-O2}"                &&
-
-  ./configure 				\
-	--prefix=$FB_PREFIX 		\
-	$OPTS					&&
-  make_single                                   &&
-if [ $FB_CLIENT == n ]; then
+  ./configure                                    \
+	--prefix=$FB_PREFIX                      \
+	$OPTS                                   &&
+if [[ $FB_CLIENT == n ]]; then
   make                                          &&
-# prepare an install image
-  cd gen                                        &&
-  ./install/makeInstallImage.sh                 &&
-#
+  cd $SOURCE_DIRECTORY/gen/firebird             &&
 # fix ownership and permissions
-  cd $SOURCE_DIRECTORY/gen/buildroot/$FB_PREFIX &&
   chown -R root:root ./                         &&
   chmod -R uga-w ./                             &&
-
 # Everyone may execute clients
   chmod 0555 bin/*                              &&
 # Shell scripts changing security attributes are for root only
   chmod 0500 bin/*.sh                           &&
 # Security database
-# Nobody besides firebird permitted to even read this file
-  chown firebird:firebird security*.fdb         &&
-  chmod 0600 security*.fdb                      &&
+  FF=security2.fdb                              &&
+  if [[ -e $FB_PREFIX/$FF ]];then
+    mv $FF $FF.new
+  else
+# Nobody except firebird permitted to even read this file
+    chown firebird:firebird $FF                 &&
+    chmod 0600 $FF
+  fi                                            &&
 # all database should be owned by firebird
-  for DB in `ls examples/empbuild/*.fdb`
-    do
-      chmod ug+w $DB                            &&
-      chown firebird:firebird $DB
-    done
+#  cd $SOURCE_DIRECTORY/gen/                     &&
+ for DB in `ls examples/empbuild/*.fdb`
+  do
+    chmod ug+w $DB                              &&
+    chown firebird:firebird $DB
+  done
 else
   cd gen                                        &&
   make includes                                 &&
   make -f Makefile.boot.gpre                    &&
   make -f Makefile.libfbclient                  &&
-  make -f Makefile.client.isql                  &&
+  make -f Makefile.client.isql                  
 # probably need to build gbak and then restore messages and help fdb
-#  make -f Makefile.client.gbak                  &&
-  cd firebird                                   &&
-  FBDEST=../buildroot${FB_PREFIX}/bin              &&
-  mkdir -p $FBDEST                              &&
-  cp -a bin/isql $FBDEST                        &&
-  FBDEST=../buildroot${INSTALL_ROOT}/usr/lib       &&
-  mkdir -p $FBDEST                              &&
-  cp -a lib/* $FBDEST                           &&
-  FBDEST=../buildroot${INSTALL_ROOT}/usr/include   &&
-  mkdir -p $FBDEST                              &&
-  cp -a include/* $FBDEST
-fi                                              &&
-make_normal
+#  make -f Makefile.client.gbak 
+fi

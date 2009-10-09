@@ -2,10 +2,10 @@
 
 local  DEVICES_LIST  &&
 
-if  [[ $(get_sorcery_kernel_config CONFIG_NET) == y  &&
-       $(get_sorcery_kernel_config CONFIG_UNIX) == y  &&
-       $(get_sorcery_kernel_config CONFIG_HOTPLUG) == y ]]; then
-  DEVICES_LIST="udev static"
+if  [[ $(get_running_kernel_config CONFIG_NET) == y  &&
+       $(get_running_kernel_config CONFIG_UNIX) == y  &&
+       $(get_running_kernel_config CONFIG_HOTPLUG) == y ]]; then
+  DEVICES_LIST="udev static static_udev"
 else
   DEVICES_LIST="static"
 fi  &&
@@ -13,7 +13,8 @@ fi  &&
 if  grep -q devfs /proc/filesystems  &&
     [[ -e /dev/.devfsd ]]; then
   DEVICES_LIST="$DEVICES_LIST devfs"  &&
-  message "\n${MESSAGE_COLOR}NOTICE: Switching from devfs to udev or static currently needs manual editing of /etc/fstab.${DEFAULT_COLOR}\n"
+  message "\n${MESSAGE_COLOR}NOTICE: Switching from devfs to udev or static" \
+          "currently needs manual editing of /etc/fstab.${DEFAULT_COLOR}\n"
 fi  &&
 
 # default to the previously selected option #9772 - only a problem on the very
@@ -22,7 +23,8 @@ fi  &&
 if [[ -f $INSTALL_ROOT/etc/sysconfig/devices ]]; then
   . $INSTALL_ROOT/etc/sysconfig/devices 
 fi &&
-config_query_list DEVICES "Choose /dev management mode:" $DEVICES ${DEVICES_LIST/$DEVICES/}
+config_query_list DEVICES "Choose /dev management mode:" \
+                  $DEVICES ${DEVICES_LIST/$DEVICES/}     &&
 if [[ "$DEVICES" != "devfs" ]]
 then
   config_query  CREATE_DEV_TREE  "check for/create static /dev tree" y

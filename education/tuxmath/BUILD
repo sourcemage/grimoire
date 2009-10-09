@@ -1,11 +1,4 @@
-(
-
-  sedit  "s:/local::"                Makefile
-  sedit  "s/-O2/$CFLAGS/"            Makefile
-  sedit  "s:/usr/bin/:/usr/games/:"  Makefile
-  make             &&
-  prepare_install  &&
-  mkdir -p ${INSTALL_ROOT}/usr/games &&
-  make    install
-
-) > $C_FIFO 2>&1
+OPTS="$OPTS --bindir=${INSTALL_ROOT}/usr/games    \
+      --datadir=${INSTALL_ROOT}/usr/share/games   \
+      --localstatedir=${INSTALL_ROOT}/var/games"  &&
+default_build

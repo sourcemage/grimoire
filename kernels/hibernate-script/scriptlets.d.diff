@@ -1,0 +1,86 @@
+diff -Nuar scriptlets.d.orig/clock scriptlets.d/clock
+--- scriptlets.d.orig/clock	2009-04-02 20:58:49.000000000 +0200
++++ scriptlets.d/clock	2009-04-02 21:01:22.000000000 +0200
+@@ -12,6 +12,9 @@
+ 	gentoo)
+ 	    /etc/init.d/clock.sh stop > /dev/null 2>&1
+ 	    ;;
++	sourcemage)
++	    /sbin/telinit run hwclock.sh stop > /dev/null 2>&1
++	    ;;
+ 	*)
+ 	    if ! /sbin/hwclock $DIRECTISA --systohc ; then
+ 		echo "$EXE: Failed to save system clock - continuing anyway"
+@@ -29,6 +32,9 @@
+ 	gentoo)
+ 	    /etc/init.d/clock.sh start > /dev/null 2>&1
+ 	    ;;
++	sourcemage)
++	    /sbin/telinit run hwclock.sh start > /dev/null 2>&1
++	    ;;
+ 	*)
+ 	    if ! /sbin/hwclock $DIRECTISA --hctosys ; then
+ 		echo "$EXE: Failed to restore system clock."
+@@ -51,6 +57,10 @@
+ 			echo "$EXE: Options for hwclock should be set in /etc/init.d/hwclock.sh"
+ 			exit 1
+ 			;;
++		sourcemage)
++			echo "$EXE: Options for hwclock should be set in /etc/sysconfig/hwclock"
++			exit 1
++			;;
+ 		*)
+ 			DIRECTISA="--directisa"
+ 			;;
+diff -Nuar scriptlets.d.orig/lockfile scriptlets.d/lockfile
+--- scriptlets.d.orig/lockfile	2009-04-02 20:58:49.000000000 +0200
++++ scriptlets.d/lockfile	2009-04-03 19:06:26.000000000 +0200
+@@ -78,7 +78,10 @@
+ 
+ # CheckRunlevel: Verify we're not shutting down or rebooting mid-suspend.
+ CheckRunlevel() {
+-    [ -z "${RUNLEVEL}" ] && RUNLEVEL=$(/sbin/runlevel | awk '{print $2}')
++    case $DISTRIBUTION in
++    sourcemage)[ -z "${RUNLEVEL}" ] && RUNLEVEL=$(telinit runlevel) ;;
++             *)[ -z "${RUNLEVEL}" ] && RUNLEVEL=$(/sbin/runlevel | awk '{print $2}');;
++    esac
+     case "${RUNLEVEL}" in
+ 	0|6) # shutdown ongoing, emergency abort
+ 	    vecho 0 "System ongoing shutdown by runlevel, aborting hibernation."
+diff -Nuar scriptlets.d.orig/network scriptlets.d/network
+--- scriptlets.d.orig/network	2009-04-02 20:58:49.000000000 +0200
++++ scriptlets.d/network	2009-04-02 21:02:50.000000000 +0200
+@@ -116,7 +116,7 @@
+ 		/sbin/ifdown $*
+ 	    }
+ 	    ;;
+-	mandrake|fedora|redhat)
++	mandrake|fedora|redhat|sourcemage)
+ 	    network_ifup() {
+ 		/sbin/ifup $*
+ 	    }
+diff -Nuar scriptlets.d.orig/services scriptlets.d/services
+--- scriptlets.d.orig/services	2009-04-02 20:58:49.000000000 +0200
++++ scriptlets.d/services	2009-04-03 19:41:21.000000000 +0200
+@@ -75,6 +76,9 @@
+ 	debian|ubuntu|redhat|fedora)
+ 	    INITDIR=/etc/init.d
+ 	    ;;
++	sourcemage)
++	    INITDIR=/sbin/telinit
++	    ;;
+ 	slackware)
+ 	    INITDIR=/etc/rc.d
+ 	    ;;
+@@ -108,7 +112,10 @@
+ 	    service="$1"
+ 	    action="$2"
+ 	    [ -x "$INITDIR/$service" ] || return 100
+-	    cmd="$INITDIR/$service $action"
++      case $DISTRIBUTION in
++  sourcemage) cmd="$INITDIR run $service $action" ;;
++           *) cmd="$INITDIR/$service $action" ;;
++      esac
+ 	    if [ "$action" = "start" ] ; then
+ 		tmp=`echo $INITDIR/../rc${SERVICES_RUNLEVEL}.d/K??$service`
+ 		[ -x "$tmp" ] && return 101

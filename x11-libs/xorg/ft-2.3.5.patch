@@ -1,0 +1,64 @@
+diff -Naur xc.orig/lib/font/FreeType/ft.h xc/lib/font/FreeType/ft.h
+--- xc.orig/lib/font/FreeType/ft.h	2008-04-24 20:29:15.000000000 -0700
++++ xc/lib/font/FreeType/ft.h	2008-04-24 21:48:32.000000000 -0700
+@@ -89,7 +89,6 @@
+ 
+ int FTtoXReturnCode(int);
+ int FTGetEnglishName(FT_Face, int, char *, int);
+-int FTcheckForTTCName(char*, char**, int*);
+ 
+ extern void ErrorF(const char*, ...);
+ 
+diff -Naur xc.orig/lib/font/FreeType/fttools.c xc/lib/font/FreeType/fttools.c
+--- xc.orig/lib/font/FreeType/fttools.c	2008-04-24 20:29:15.000000000 -0700
++++ xc/lib/font/FreeType/fttools.c	2008-04-24 21:48:42.000000000 -0700
+@@ -153,49 +153,3 @@
+     return -1;
+ }
+ 
+-int
+-FTcheckForTTCName(char *fileName, char **realFileName, int *faceNumber)
+-{
+-    int length;
+-    int fn;
+-    int i, j;
+-    char *start, *realName;
+-
+-    length = strlen(fileName);
+-    if(length < 4)
+-        return 0;
+-
+-    if(strcasecmp(fileName + (length-4), ".ttc") != 0 &&
+-       strcasecmp(fileName + (length-4), ".otc") != 0)
+-        return 0;
+-
+-    realName = xalloc(length + 1);
+-    if(realName == NULL)
+-        return 0;
+-
+-    strcpy(realName, fileName);
+-    *realFileName=realName;
+-    start = strchr(realName, ':');
+-    if(start) {
+-        fn=0;
+-        i=1;
+-        while(ft_isdigit(start[i])) {
+-            fn *= 10;
+-            fn += start[i]-'0';
+-            i++;
+-        }
+-        if(start[i]==':') {
+-            *faceNumber = fn;
+-            i++;
+-            j = 0;
+-            while(start[i]) {
+-                start[j++] = start[i++];
+-            }
+-            start[j] = '\0';
+-            return 1;
+-        }
+-    }
+-
+-    *faceNumber = 0;
+-    return 1;
+-}

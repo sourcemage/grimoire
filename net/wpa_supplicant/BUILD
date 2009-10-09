@@ -1,6 +1,6 @@
-if [[ "${WPA_RELEASE}" == "devel" ]]; then
-   cd  "$SOURCE_DIRECTORY/wpa_supplicant"    
-fi  &&
+if [[ $WPA_RELEASE != old ]]; then
+  cd "$SOURCE_DIRECTORY/wpa_supplicant"
+fi &&
 
 # Create .config file for make (this is here instead of PRE_BUILD because
 # OPTS isn't available there, and this is equivalent to running ./configure
@@ -16,22 +16,16 @@ local VARS="CONFIG_NO_WPA CONFIG_DNET_PCAP CONFIG_L2_PACKET CONFIG_NO_WPA2  \
             CONFIG_EAP_LEAP CONFIG_EAP_SAKE CONFIG_EAP_GPSK                 \
             CONFIG_EAP_GPSK_SHA256 CONFIG_PKCS12 CONFIG_SMARTCARD"  var     &&
 
-if [[ $WPA_RELEASE != old ]]
-then
-  VARS="$VARS CONFIG_TLS"
-fi  &&
+VARS="$VARS CONFIG_TLS" &&
 
-for var in $VARS $OPTS
-do
-  if [[ ${!var} && ${!var} != n ]]
-  then
+for var in $VARS $OPTS; do
+  if [[ ${!var} && ${!var} != n ]]; then
     echo "$var=${!var}" >> .config
   fi
-done  &&
+done &&
 
-make  &&
+make &&
 
-if is_depends_enabled $SPELL qt-x11
-then
-  make  wpa_gui
+if is_depends_enabled $SPELL qt-x11; then
+  make wpa_gui
 fi

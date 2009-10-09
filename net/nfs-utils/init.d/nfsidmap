@@ -1,0 +1,44 @@
+#!/bin/bash
+
+PROGRAM=/usr/sbin/rpc.idmapd
+RUNLEVEL=3
+NEEDS="+network +portmap"
+
+. /etc/init.d/smgl_init
+
+# pseudo fs stuff
+mount_pipefs()
+{
+  if grep -q rpc_pipefs /proc/filesystems; then
+    if ! grep -q rpc_pipefs /etc/mtab; then
+      required_executable /bin/mount
+      echo "mounting pipefs"
+      mkdir -p /var/lib/nfs/rpc_pipefs
+      mount -t rpc_pipefs rpc_pipefs /var/lib/nfs/rpc_pipefs
+      evaluate_retval
+    fi
+  fi
+}
+umount_pipefs()
+{
+  if grep -q rpc_pipefs /etc/mtab; then
+    required_executable /bin/umount
+    echo "unmounting pipefs pseudofs"
+    umount /var/lib/nfs/rpc_pipefs
+    evaluate_retval
+  fi
+}
+
+start()
+{
+  required_executable ${PROGRAM}
+  mount_pipefs
+  loadproc ${PROGRAM}
+}
+
+stop()
+{
+  required_executable ${PROGRAM}
+  killproc ${PROGRAM}
+  umount_pipefs
+}

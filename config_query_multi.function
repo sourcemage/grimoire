@@ -48,20 +48,23 @@ function select_list_sub_multi() {
   local msgstr=$3
   local default=$4
 
-  local result
+  local __result=() j
+  local answer answer_parsed
 
-  while [[ ! $result ]] ; do
+  while [[ ! $__result ]] ; do
     message -n "$msgstr"
     read   -t  $PROMPT_DELAY  answer
     [[ $answer ]] || answer=$default
     answer=$(echo $answer | sed -e 's,\W,,g' -e 's/./& /g')
+    j=0
     for answer_parsed in $answer
     do
-       result="$result $(hash_get $hashname $answer_parsed)"
+       __result[j]="$(hash_get $hashname $answer_parsed)"
+       let j++
     done
   done
   echo
-  eval $returnvar=\"$result\"
+  eval $returnvar=\"${__result[@]}\"
 }
 
 
@@ -99,6 +102,7 @@ function real_config_query_multi () {
     echo -e "[[ ${QUERY_COLOR}${QUESTION}${DEFAULT_COLOR} -> '${QUERY_COLOR}$ANSWER${DEFAULT_COLOR}' ]]"
   else
     # if there was an answer before, find it
+    local stuff=(0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z)
     local defaults default default_num foo
     config_get_last_option "$VARIABLE" default
     [[ $default ]] || default="$1"
@@ -106,7 +110,7 @@ function real_config_query_multi () {
     let i=0
       for foo in "$@"; do
         if [[ "$defaults" == "$foo" ]] ; then
-          default_num="$default_num $i"
+          default_num="$default_num ${stuff[$i]}"
         fi
         let i++
       done

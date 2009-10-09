@@ -1,1 +1,1 @@
-waf_build
+make

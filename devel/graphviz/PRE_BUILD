@@ -14,4 +14,16 @@ if ! spell_ok tcl; then
 fi &&
 cd ${SOURCE_DIRECTORY}                                 &&
 sedit "s:./configure.*::g"  autogen.sh                 &&
+libtoolize -f                                          &&
+rm -rf libltdl                                         &&
+sedit '/libltdl/d' configure.ac                        &&
+sedit 's/AC_LIBLTDL_CONVENIENCE/AC_LIBLTDL_INSTALLABLE/' configure.ac &&
+sedit 's:$(top_builddir)/libltdl/libltdlc.la:$(LIBLTDL):' lib/gvc/Makefile.am &&
+#
+# Remove LIBPOSTFIX so we don't install to lib64 on 64bit archs
+#
+sed -i '99,108d' configure.ac  &&
+aclocal                                                &&
+automake --add-missing -f                              &&
+autoreconf -f                                          &&
 ./autogen.sh

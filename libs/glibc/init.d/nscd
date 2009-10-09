@@ -1,0 +1,32 @@
+#!/bin/bash
+
+[[ -f /etc/sysconfig/nscd ]] && . /etc/sysconfig/nscd
+
+PROGRAM=/usr/sbin/nscd
+ARGS="--config-file=/etc/nscd.conf --nthreads=${NTHREADS:=4}"
+RUNLEVEL=3
+NEEDS="+network +remote_fs"
+RECOMMENDED=yes
+
+. /etc/init.d/smgl_init
+
+start()
+{
+	[[ -d /var/run/nscd ]] || mkdir -p /var/run/nscd
+	[[ -d /var/db/nscd  ]] || mkdir -p /var/db/nscd
+	echo "Starting Name Service Cache Daemon..."
+	$PROGRAM $ARGS
+	evaluate_retval
+}
+
+stop()
+{
+	echo "Stopping Name Service Cache Daemon..."
+	$PROGRAM --shutdown
+	evaluate_retval
+}
+
+status()
+{
+	$PROGRAM --statistics
+}

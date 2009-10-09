@@ -1,0 +1,33 @@
+default_pre_build     &&
+cd $SOURCE_DIRECTORY  &&
+
+if  [  "$QMAIL_PATCH_QMAILQUEUE"  ==  "y"  ];  then
+  patch -p1 <$SCRIPT_DIRECTORY/patches/qmailqueue-patch
+fi  &&
+if  [  "$QMAIL_PATCH_LOCALBIND"  ==  "y"  ];  then
+  patch -p0 <$SCRIPT_DIRECTORY/patches/local-bind
+fi  &&
+if  [  "$QMAIL_PATCH_OVERSIZEDNS"  ==  "y"  ];  then
+  patch -p1 <$SCRIPT_DIRECTORY/patches/qmail-dns-patch
+fi  &&
+
+if  !  is_depends_enabled  $SPELL  groff;  then
+  sed  -i  -e  '/auto_qmail,"man\//d'  hier.c  &&
+  sed  -i  -e  '/auto_qmail,"man\//d'  install-big.c
+fi  &&
+
+mkdir  -p  /var/qmail  &&
+
+create_account  alias   /var/qmail/alias  /bin/false  &&
+create_account  qmaild  /var/qmail        /bin/false  &&
+create_account  qmaill  /var/qmail        /bin/false  &&
+create_account  qmailp  /var/qmail        /bin/false  &&
+create_account  qmailq  /var/qmail        /bin/false  &&
+create_account  qmailr  /var/qmail        /bin/false  &&
+create_account  qmails  /var/qmail        /bin/false  &&
+
+sedit '/echo Putting "$fqdn" into control\/locals.../i  \
+echo Putting `hostname --short` into control/defaulthost... \
+hostname --short > /var/qmail/control/defaulthost \
+chmod 644 QMAIL/control/defaulthost
+' config-fast.sh

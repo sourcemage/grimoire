@@ -6,11 +6,9 @@
 # on system startup and shutdown to start the background
 # Firebird2  database Super server daemon 
 
-
-FB=/usr/firebird/bin/fbmgr.bin
-# as of rc2, preferred method of stoppng is to kill the pid
-RUND=/var/run/firebird
-PID=$RUND/`basename $0`.pid
+FB_DIR=/opt/firebird/bin
+FB=fbserver
+# as of rc2, preferred method of stopping is to kill the process
 
 source /etc/init.d/smgl_functions
 
@@ -21,15 +19,12 @@ NEEDS="+network  +remote_fs"
 case $1 in
 	start)
 		echo "Starting Firebird Super Server"
-		mkdir -p $RUND
-		chown firebird:firebird $RUND
-                su -s "/bin/sh" -m \
-                       -c "$FB -start -forever -pidfile $PID" -l "firebird"
+                su -s "/bin/sh" -m -c "$FB_DIR/$FB" -l "firebird" &
 		evaluate_retval
 		;;
 	stop)
                 echo "Stopping Firebird server"
-		kill `cat $PID`
+                pkill $FB
 		evaluate_retval
                 ;;
 

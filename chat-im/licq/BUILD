@@ -19,6 +19,20 @@
     default_build
   fi &&
 
+  if  [ "$QT4GUI" == "y" ];  then
+        cd  $SOURCE_DIRECTORY/plugins/qt4-gui                          &&
+        if [ "$LICQ_SVN" == "y" ]; then
+                make -f Makefile.cvs
+        fi &&
+    mkdir build &&
+    cd    build &&
+    QTDIR=/usr &&
+    PATH=$QTDIR/bin/qt4:$PATH &&
+    export QTDIR=/usr &&
+    cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr .. &&
+    make
+  fi &&
+
   if [ "$EMAIL" == "y" ]; then
 	cd $SOURCE_DIRECTORY/plugins/email                          &&
     if [ "$LICQ_SVN" == "y" ]; then

@@ -1,0 +1,2 @@
+OPTS="$JWM_CONFIRM $JWM_ICONS $OPTS"
+default_build

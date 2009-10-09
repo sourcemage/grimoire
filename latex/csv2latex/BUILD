@@ -1,1 +1,1 @@
-gcc $CFLAGS -o $SPELL $SPELL.c
+make -f Makefile

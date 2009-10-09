@@ -8,6 +8,6 @@ OPTS="--build=${BUILD}
 
 default_build &&
 
-if [ "${UPDATE_DOC}" == "y" ]; then
+if [[ "$UPDATE_DOC" == "y" ]]; then
   make update-doc
 fi

@@ -1,0 +1,40 @@
+#!/bin/bash
+
+PROGRAM="/usr/sbin/wicd"
+RUNLEVEL=3
+NEEDS="+local_fs smgl-messagebus"
+PROVIDES=network
+
+PIDFILE="/var/run/wicd/wicd.pid"
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo  "Starting wicd..."
+  mkdir -p $(dirname $PIDFILE)
+  # make sure there is actually a process there...
+  if [ -f $PIDFILE ]; then
+    echo "Found $PIDFILE doing extra checks..."
+    if ! ps ax | grep "wicd " | grep -q $(cat $PIDFILE) ; then
+      print_status warning "$PIDFILE exists, but wicd is not running under this PID"
+      echo "Attempting cleanup and new startup..."
+      rm -f $PIDFILE
+    else
+      echo "Seems to be running..."
+      return 0
+    fi
+  fi
+  # don't use loadproc here, as that fails if some user is running
+  # a session bus
+  $PROGRAM $ARGS
+  evaluate_retval
+}
+
+stop() {
+  echo "Stopping wicd daemon..."
+  if [ -e $PIDFILE ]; then
+    kill $(cat $PIDFILE) 2>/dev/null
+    rm -f $PIDFILE 2>/dev/null
+  fi
+  evaluate_retval
+}

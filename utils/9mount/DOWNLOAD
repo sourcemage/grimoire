@@ -1,0 +1,32 @@
+if [ "x$HG" != "xy" ]; then
+  default_download 
+  return $?
+fi                                                                       &&
+if [[ -f $SOURCE_CACHE/$SOURCE ]] ; then
+  message "${MESSAGE_COLOR}Extracting old tarball ${DEFAULT_COLOR}"      &&
+  cd $BUILD_DIRECTORY                                                    &&
+  tar -xjf $SOURCE_CACHE/$SOURCE                                         &&
+  cd ${SPELL}                                                            &&
+  message "${MESSAGE_COLOR}Running hg pull & hg update ${DEFAULT_COLOR}" &&
+  hg pull                                                                &&
+  hg update                                                              &&
+  message "${MESSAGE_COLOR}Regenerating source tarball${DEFAULT_COLOR}"  &&
+  cd ../                                                                 &&
+  tar -cjf $SOURCE ${SPELL}                                              &&
+  mv $SOURCE $SOURCE_CACHE                                               &&
+  success="Affirmative"
+else
+  message "${MESSAGE_COLOR}Generating new tarball${DEFAULT_COLOR}"       &&
+  cd $BUILD_DIRECTORY                                                    &&
+  hg clone ${SOURCE_URL}                                                 &&
+  tar -jcf ${SOURCE} ${SPELL}                                            &&
+  mv $SOURCE $SOURCE_CACHE                                               &&
+  message "${MESSAGE_COLOR}Hg cloning complete...${DEFAULT_COLOR}"       &&
+  success="Affirmative"
+fi
+
+if [[ -z $success ]] ; then
+  return 1
+else
+  return 0
+fi

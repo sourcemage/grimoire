@@ -1,62 +1,47 @@
+list_remove  MESALIB_DRIVERS  nouveau  || true
+list_remove  MESALIB_DRIVERS  i915tex  || true
+# ordering is important
+MESALIB_BUILD=${MESALIB_BUILD/linux-dri/dri}
+MESALIB_BUILD=${MESALIB_BUILD/linux-dri-x86-64/dri}
+MESALIB_BUILD=${MESALIB_BUILD/linux-dri-x86/dri}
+MESALIB_BUILD=${MESALIB_BUILD/linux-dri-ppc/dri}
+MESALIB_BUILD=${MESALIB_BUILD/linux-ppc/xlib}
+MESALIB_BUILD=${MESALIB_BUILD/linux-x86-64/xlib}
+MESALIB_BUILD=${MESALIB_BUILD/linux-x86/xlib}
+MESALIB_BUILD=${MESALIB_BUILD/linux-fbdev/xlib}
+MESALIB_BUILD=${MESALIB_BUILD/linux-directfb/xlib}
+MESALIB_BUILD=${MESALIB_BUILD/linux-glide/xlib}
+MESALIB_BUILD=${MESALIB_BUILD/linux-sparc5/xlib}
+MESALIB_BUILD=${MESALIB_BUILD/linux-sparc/xlib}
+MESALIB_BUILD=${MESALIB_BUILD/linux-ultrasparc/xlib}
+MESALIB_BUILD=${MESALIB_BUILD/linux/xlib}
+
 . $GRIMOIRE/config_query_multi.function                                  &&
-if [[ "${SMGL_COMPAT_ARCHS[1]}" == "sparc" ]]
-then
+message "${MESSAGE_COLOR}MesaLib build types:\n"                         \
+        "xlib:   Stand-alone software rendering library;\n"              \
+	"        Output is via xlib library functions;\n"                \
+	"        No X server integration.\n"                             \
+        "dri:    Hardware acceleration in Linux with DRI-enabled kernel;\n"\
+	"        Integrated with DRI-enabled X server;\n"                \
+	"        Required for building xorg-xserver with DRI enabled.\n" \
+        "osmesa: Stand-alone software rendering library;\n"              \
+	"        Off-screen rendering only;\n"                           \
+	"        No connection to X server at all.${DEFAULT_COLOR}"      &&
 config_query_list MESALIB_BUILD                                          \
-                  "Select build type(use dri type for 3D acceleration?"  \
-                  linux-sparc                                            \
-                  linux-sparc5                                           \
-                  linux-ultrasparc                                       \
-                  linux-directfb                                         \
-                  linux-fbdev                                            \
-                  linux-glide
-elif [[ "${SMGL_COMPAT_ARCHS[1]}" == "ppc" ]]
-then
-config_query_list MESALIB_BUILD                                          \
-                  "Select build type(use dri type for 3D acceleration?"  \
-                  linux-ppc                                              \
-                  linux-dri-ppc                                          \
-                  linux-dri                                              \
-                  linux-directfb                                         \
-                  linux-fbdev                                            \
-                  linux-glide
-elif [[ "${SMGL_COMPAT_ARCHS[1]}" == "x86_64" ]]
-then
-config_query_list MESALIB_BUILD                                          \
-                  "Select build type(use dri type for 3D acceleration?"  \
-                  linux-x86-64                                           \
-                  linux-dri-x86-64                                       \
-                  linux-dri                                              \
-                  linux-directfb                                         \
-                  linux-fbdev                                            \
-                  linux-glide
-elif [[ "${SMGL_COMPAT_ARCHS[1]}" == "ia32" ]]
-then
-config_query_list MESALIB_BUILD                                          \
-                  "Select build type(use dri type for 3D acceleration?"  \
-                  linux-x86                                              \
-                  linux-dri-x86                                          \
-                  linux-dri                                              \
-                  linux-directfb                                         \
-                  linux-fbdev                                            \
-                  linux-glide
-else
-config_query_list MESALIB_BUILD                                          \
-                  "Select build type(use dri type for 3D acceleration?"  \
-                  linux                                                  \
-                  linux-dri
-fi                                                                       &&
-if grep -q dri <<< "$MESALIB_BUILD"
-then
+                  "Select build type?"                                   \
+                  xlib                                                   \
+                  dri                                                    \
+                  osmesa                                                 &&
+if [[ $MESALIB_BUILD == dri ]]; then
 config_query_multi MESALIB_DRIVERS                                       \
                    "What drivers would you like to build?"               \
+                   swrast                                                \
                    all                                                   \
                    i810                                                  \
-                   i915tex                                               \
                    i915                                                  \
                    i965                                                  \
                    mach64                                                \
                    mga                                                   \
-                   nouveau                                               \
                    r128                                                  \
                    r200                                                  \
                    r300                                                  \
@@ -70,6 +55,16 @@ config_query_multi MESALIB_DRIVERS                                       \
                    ffb                                                   &&
   if list_find "$MESALIB_DRIVERS" all
   then
-  MESALIB_DRIVERS="i810 i915tex i915 i965 mach64 mga nouveau r128 r200 r300 radeon s3v savage sis tdfx trident unichrome ffb"
+  MESALIB_DRIVERS="i810 i915 i965 mach64 mga r128 r200 r300 radeon s3v savage sis tdfx trident unichrome ffb swrast"
   fi
-fi
+fi                                                                       &&
+
+if [[ $MESALIB_BUILD == xlib ]]; then
+config_query_multi MESALIB_DRIVERS                                       \
+                   "What drivers would you like to build?"               \
+                   swrast
+fi                                                                       &&
+
+config_query_multi MESALIB_GALLIUM                                       \
+                   "What Gallium3D drivers woulld you like to build?"    \
+                   none intel radeon nouveau all

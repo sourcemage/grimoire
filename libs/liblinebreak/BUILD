@@ -1,0 +1,1 @@
+CFG=release make

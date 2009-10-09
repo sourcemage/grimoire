@@ -1,0 +1,77 @@
+#!/bin/bash
+
+_run_script_list()
+{
+	COMPREPLY=( $( find /etc/init.d/runlevels -type f|xargs -n1 basename|grep -v runlevel.config|grep -E "^$cur" ) ) 
+}
+
+_runlevel_list () 
+{
+	COMPREPLY=( $( find /etc/init.d/runlevels -mindepth 1 -maxdepth 1 -type d \
+			|xargs -n1 basename| sed -n 's/^%//p'  ) )
+}
+
+# Source Mage GNU/Linux utility functions used by actual completion functions
+# by Lunar_fr (lunar@l-a-p.org)
+#
+_spell_list()
+{
+    for GRIMOIRE in `. $GRIMOIRE_LIST; echo ${GRIMOIRE_DIR[*]}`; do
+	COMPREPLY=( ${COMPREPLY[@]} $( cut -d' ' -f1 "$GRIMOIRE/codex.index" | sed -ne 's/^\('$cur'.*\)/\1/p' ) )
+    done
+}
+
+# simpleinit_msb telinit completion
+# Based on 
+#
+# Source Mage GNU/Linux scribe(8) completion
+# by Arjan Bouter (abouter@sourcemage.org)
+#
+have telinit &&
+_telinit()
+{
+    local cur prev
+    
+    COMPREPLY=()
+    cur=${COMP_WORDS[COMP_CWORD]}
+    first=${COMP_WORDS[1]}
+
+    if [ $COMP_CWORD = 1 ]; then
+	COMPREPLY=( $( compgen -W 'run switch enable disable bootenable \
+		bootdisable delete list runlevel runlevels move install spellinstall' $cur ))
+    elif [ $COMP_CWORD = 2 ]; then
+	    case "$first" in
+	    @(run|enable|disable|bootenable|bootdisable|delete|move))
+                _run_script_list
+		return 0
+		;;
+	    switch)
+	    	_runlevel_list
+		return 0
+		;;
+	    spellinstall)
+	    	_spell_list
+		return 0
+		;;
+	    *)
+		return 0
+		;;
+	esac
+    elif [ $COMP_CWORD = 3 ]; then
+	case "$first" in
+	    run)
+                COMPREPLY=( $( compgen -W 'start stop restart reload force-reload status' $cur ) )
+		return 0
+		;;
+	    @(install|move))
+	    	_runlevel_list
+		return 0
+		;;
+	    *)
+		return 0
+		;;
+	esac
+    fi
+    return 0
+}
+[ "$have" ] && complete -F _telinit -o default telinit

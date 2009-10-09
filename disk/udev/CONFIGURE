@@ -1,56 +1,19 @@
-# Added in stable 0.6, remove when appropriate
-if [[ $UDEV_PERSIST ]]
-then
-  UDEV_PERSIST_STORAGE=$UDEV_PERSIST    &&
-  persistent_add  UDEV_PERSIST_STORAGE  &&
-  persistent_remove  UDEV_PERSIST
-fi  &&
+config_query_option UDEV_OPTS \
+                    "Compile extra debugging messages?" n \
+                    "--enable-debug" \
+                    "--disable-debug" &&
 
-config_query  UDEV_PERSIST_STORAGE                 \
-              'Install persistent storage rules?'  \
-              n                                    &&
+config_query_option UDEV_OPTS \
+                    "Compile hash function generator and access control lists" n \
+                    "--enable-extras" \
+                    "--disable-extras" &&
 
-config_query  UDEV_PERSIST_INPUT                 \
-              'Install persistent input rules?'  \
-              n                                  &&
+if spell_ok hotplug; then
+  message "You seem to have hotplug installed. Hotplug has been" \
+          "officially\ndeprecated in favor of udev, and it is" \
+          "highly recommended that\nhotplug is removed after" \
+          "udev has been installed." &&
 
-if [[ $UDEV_PERSIST_STORAGE == n ]]
-then
-  config_query  UDEV_EXTRAS             \
-                'Build extra helpers?'  \
-                y
-fi  &&
-
-config_query_option  UDEV_DEBUG                           \
-                     'Compile extra debugging messages?'  \
-                     n                                    \
-                     'DEBUG=true'                         \
-                     'DEBUG=false'                        &&
-
-# Store extras build options in a var for reuse
-
-local  _EXTRAS_TARG="extras/cdrom_id    \
-                     extras/firmware extras/rule_generator"  &&
-
-if [[ $UDEV_EXTRAS == y || $UDEV_PERSIST_STORAGE == y ]]
-then
-  _EXTRAS_TARG="$_EXTRAS_TARG extras/ata_id extras/usb_id extras/edd_id \
-                extras/floppy extras/scsi_id  extras/volume_id"
-elif [[ $UDEV_PERSIST_INPUT == y ]]
-then
-  _EXTRAS_TARG="$_EXTRAS_TARG extras/usb_id"
-fi  &&
-
-persistent_add  _EXTRAS_TARG  &&
-
-if spell_ok hotplug
-then
-  message  "You seem to have hotplug installed. Hotplug has been"  \
-            "officially\ndeprecated in favor of udev, and it is"   \
-            "highly recommended that\nhotplug is removed after"    \
-            "udev has been installed."                             &&
-
-  config_query  UDEV_DISPEL_HOTPLUG                   \
-                "Dispel hotplug after udev is cast?"  \
-                y
+  config_query UDEV_DISPEL_HOTPLUG \
+               "Dispel hotplug after udev is cast?" y
 fi

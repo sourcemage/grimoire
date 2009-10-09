@@ -1,1 +1,1 @@
-scons release=yes PREFIX=/usr
+scons release=yes PREFIX=$INSTALL_ROOT/usr

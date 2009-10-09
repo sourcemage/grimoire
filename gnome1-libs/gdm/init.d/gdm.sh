@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 #  gdm.sh  Load the GDM login manager at boot
 #

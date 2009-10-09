@@ -7,5 +7,5 @@ then
 else
   cd  "$SOURCE_DIRECTORY"  &&
   scons  PREFIX="/usr"  DESTDIR="$INSTALL_ROOT"  BUILD_TESTS=no  \
-         $JACKDMP_EXAMPLES  $JACKDMP_MIMIC  $OPTS
+         $JACKDMP_EXAMPLES  $OPTS
 fi

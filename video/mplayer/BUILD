@@ -1,14 +1,16 @@
-if [[ $MPLAYER_SVN = y ]]; then
-  OPTS="$OPTS --with-extraincdir=${INSTALL_ROOT}/usr/include/ffmpeg"
-fi  &&
-
 disable_pic                 &&
 
-OPTS="$MPLAYER_OPTS $OPTS"  &&
+OPTS="$MPLAYER_OPTS $MPLAYER_IVTV $OPTS"  &&
 
 CFLAGS= ./configure  --prefix=${INSTALL_ROOT}/usr    \
              --confdir=${TRACK_ROOT}/etc/mplayer   \
              --mandir=${INSTALL_ROOT}/usr/share/man  \
              $OPTS          &&
 
-make
+if is_depends_enabled $SPELL openal; then
+  make
+else
+  make_single &&
+  make &&
+  make_normal
+fi

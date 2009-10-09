@@ -3,6 +3,7 @@ depends  boost       &&
 depends  libglademm  &&
 depends  raul        &&
 depends  flowcanvas  &&
+depends  alsa-lib    &&
 
 if [[ $PATCHAGE_VCS == y ]]
 then
@@ -11,18 +12,19 @@ then
   depends  autoconf
 fi  &&
 
-depends  alsa-lib     &&
-depends  JACK-DRIVER  &&
+message  "${MESSAGE_COLOR}The D-Bus interface requires"  \
+         "a development version of JACK.$DEFAULT_COLOR"  &&
 
-if [[ $PATCHAGE_VCS == y ]]
+optional_depends  dbus                   \
+                  "--enable-jack-dbus"   \
+                  "--disable-jack-dbus"  \
+                  "to use a D-Bus interface for controlling JACK"  &&
+
+if  is_depends_enabled  $SPELL  dbus
 then
-  message  "${MESSAGE_COLOR}The D-Bus interface requires"  \
-           "a development version of JACK.$DEFAULT_COLOR"  &&
-
-  optional_depends  dbus                   \
-                    "--enable-jack-dbus"   \
-                    "--disable-jack-dbus"  \
-                    "to use a D-Bus interface for controlling JACK"
+  depends  -sub DBUS  jack2
+else
+  depends  JACK-DRIVER
 fi  &&
 
 optional_depends  lash              \

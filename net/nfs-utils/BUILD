@@ -1,8 +1,8 @@
-OPTS="$OPTS              \
-      --disable-nfsv4    \
-      --disable-gss      \
-      $NFS_UTILS_NFSV3"  &&
+OPTS="$OPTS             \
+      --disable-gss     \
+      $NFS_UTILS_NFSV3  \
+      $NFS_UTILS_NFSV4" &&
 
-make_single    &&
-default_build  &&
+make_single &&
+default_build &&
 make_normal

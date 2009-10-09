@@ -10,12 +10,21 @@ fi &&
 sedit "s:/usr/bin/awk:${TRACK_ROOT}/bin/awk:" utils/convert_isapnp_ids &&
 sedit "s: install-scripts : :" Makefile &&
 
-if [[ $ALSA_SNAPS != y ]]; then
-  sedit "s:root.root:root.audio:" snddevices
-fi &&
-
 OPTS="--with-isapnp=yes --with-sequencer=yes --with-oss=yes --with-debug=none \
       --with-moddir=${INSTALL_ROOT}/lib/modules/$(get_kernel_version)/misc    \
+      --with-kernel=${INSTALL_ROOT}/lib/modules/$(get_kernel_version)/source  \
       --with-cards=${CARDS} ${OPTS}"                                          &&
 
-default_build
+if [[ $ALSA_GIT == y ]]; then
+export ALSAKERNELDIR="$SOURCE2_DIRECTORY" &&
+  OPTS="--prefix=${INSTALL_ROOT}/usr \
+    --sysconfdir=${INSTALL_ROOT}/etc \
+ --localstatedir=${INSTALL_ROOT}/var \
+        --mandir=${INSTALL_ROOT}/usr/share/man \
+       --infodir=${INSTALL_ROOT}/usr/share/info \
+                 $OPTS" &&
+  ./gitcompile $OPTS
+else
+  sedit "s:root.root:root.audio:" snddevices &&
+  default_build
+fi

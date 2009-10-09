@@ -1,12 +1,32 @@
-depends  gnupg     &&
-depends  smgl-fhs  &&
+depends gnupg &&
+depends smgl-fhs &&
 
-optional_depends  libselinux             \
-                  "USE_SELINUX=true"     \
-                  "USE_SELINUX=false"    \
-                  "for SELinux support"  &&
+if list_find "$UDEV_OPTS" "--enable-extras"; then
+  depends acl &&
+  depends gperf  &&
+  depends pkgconfig &&
+  depends glib2     &&
+  depends libusb    &&
+  depends usbutils  &&
+  depends USBIDS &&
+  depends PCIIDS
+fi &&
 
-optional_depends  SYSTEM-LOGGER            \
-                  "USE_LOG=true"           \
-                  "USE_LOG=false"          \
-                  "for logging to syslog"
+if [[ "$(get_spell_provider ${SPELL} PCIIDS)" = 'pciutils' ]]; then
+  depends -sub NO_ZLIB pciutils
+fi &&
+
+optional_depends gtk-doc \
+                 "--enable-gtk-doc" \
+                 "--disable-gtk-doc" \
+                 "build and install documentation?" &&
+
+optional_depends libselinux \
+                 "--with-selinux" \
+                 "--without-selinux" \
+                 "for SELinux support" &&
+
+optional_depends SYSTEM-LOGGER \
+                 "--enable-logging" \
+                 "--disable-logging" \
+                 "for logging to syslog"

@@ -1,6 +1,4 @@
-if [ "$IPV6" == "y" ]; then
-   OPTS="$OPTS --enable-ipv6=yes"
-fi             &&
+OPTS="$GUTILS_IPV6 $GUTILS_FLOPPY $OPTS"  &&
 
 make_single    &&
 default_build  &&

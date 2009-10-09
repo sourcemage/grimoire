@@ -5,17 +5,14 @@ then
   sedit "s:CFLAGS   =:CFLAGS   = ${CFLAGS}:" Makefile   &&
   sedit "s:LDFLAGS  =:LDFLAGS  = ${LDFLAGS}:" Makefile  &&
   sedit "s:/usr:${INSTALL_ROOT}/usr:" Makefile  &&
-  if  check_if_xorg_modular_libs
+  sedit "s:/X11R6::" Makefile  &&
+  if ! is_depends_enabled ${SPELL} libxext
   then
-    sedit "s:/X11R6::" Makefile  &&
-    if ! is_depends_enabled ${SPELL} libxext
-    then
-      sedit "s:CIMG_XSHM_FLAGS:#CIMG_XSHM_FLAGS:" Makefile
-    fi  &&
-    if ! is_depends_enabled ${SPELL} libxrandr
-    then
-      sedit "s:CIMG_XRANDR_FLAGS:#CIMG_XRANDR_FLAGS:" Makefile
-    fi
+    sedit "s:CIMG_XSHM_FLAGS:#CIMG_XSHM_FLAGS:" Makefile
+  fi  &&
+  if ! is_depends_enabled ${SPELL} libxrandr
+  then
+    sedit "s:CIMG_XRANDR_FLAGS:#CIMG_XRANDR_FLAGS:" Makefile
   fi  &&
   if is_depends_enabled ${SPELL} fftw
   then

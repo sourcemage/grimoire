@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # vim:set ts=2 sw=2 et:
 
 PROGRAM=/bin/false
@@ -32,8 +32,6 @@ checkrootfs()
     /sbin/sulogin
     /sbin/reboot  -f
   fi
-
-  rm -f /fastboot /forcefsck
 }
 
 scanlvm()
@@ -80,7 +78,9 @@ start()
   echo "Mounting root file system read/write..."
   {
     mount    -n -o remount,rw / &&
-    echo     > /etc/mtab        &&
+    if ! [[ -h /etc/mtab ]]; then
+      builtin echo > /etc/mtab
+    fi &&
     mount    -f -o remount,rw /
   } || exit 1
 

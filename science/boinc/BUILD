@@ -1,3 +1,6 @@
+#disabling the server intentionally, because it doesn't build
+#I left the logic in case someone can get the server to build
+BOINC_PARTS="client" &&
 if [[ $BOINC_PARTS == client ]]
 then
   OPTS="$OPTS --disable-server"

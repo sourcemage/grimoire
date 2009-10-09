@@ -1,39 +1,91 @@
-depends  boost                                                    &&
-sub_depends boost THREAD                                          &&
-sub_depends boost DATE_TIME                                       &&
-depends  g++                                                      &&
-depends  libpng                                                   &&
-depends  jpeg                                                     &&
-depends  libxml2                                                  &&
-depends  curl                                                     &&
+depends  -sub "THREAD DATE_TIME"  boost     &&
+depends  curl                               &&
+depends  fontconfig  '--enable-fontconfig'  &&
+depends  g++                                &&
+depends  jpeg        '--enable-jpeg'        &&
+depends  libpng      '--enable-png'         &&
+depends  libxml2                            &&
+depends  zlib        '--enable-z'           &&
+
+#
+# Video rendering
+#
 if [[ $GNASH_RENDERER == "opengl" ]]; then
   depends  OPENGL  '--enable-renderer=ogl'
 else
   depends  agg  '--enable-renderer=agg'
-fi                                                                &&
+fi  &&
+
+#
+# Media rendering
+#
 if [[ $GNASH_MEDIA == "gstreamer" ]]; then
   depends  $GNASH_MEDIA '--enable-media=GST'
-elif [[ $GNASH_MEDIA == "libmad" ]]; then
-  depends  $GNASH_MEDIA '--enable-media=mad --enable-mad'
 elif [[ $GNASH_MEDIA == "ffmpeg" ]]; then
-  depends  LIBAVCODEC '--enable-media=ffmpeg'
-fi                                                                &&
-# There's no --enable/--disable sound option
-depends  $GNASH_SOUND                                             &&
-# no longer needed to build
-suggest_depends  NS-PLUGIN-COMPATIBLE                             \
-                  ''                                              \
-                  ''                                              \
-                  'Suggested to run the plugin from a browser'    &&
+  depends  LIBAVCODEC '--enable-media=ffmpeg'  &&
+# needed for sound backend with ffmpeg
+  depends  sdl
+fi  &&
+
+
+#
+# GUI
+#
 if   [[ "${GNASH_GUI}" == "GTK" ]]; then
-  depends  atk                                                    &&
-  depends  cairo                                                  &&
-  depends  GTK2      '--enable-gui=gtk'                           &&
-  depends  gtkglext  '--enable-glext'                             &&
+  depends  atk                           &&
+  depends  cairo                         &&
+  depends  GTK2      '--enable-gui=gtk'  &&
+  depends  gtkglext  '--enable-glext'    &&
   depends  pango
 elif [[ "${GNASH_GUI}" == "KDE" ]]; then
-  depends  kdebase '--enable-gui=kde'                             &&
-  depends  kdelibs '--enable-kparts'                              &&
-  depends  qt-x11  "--with-qt-incl=${INSTALL_ROOT}/usr/include/qt --with-qt-lib=${INSTALL_ROOT}/usr/lib"
-fi
+  depends  kdebase '--enable-gui=kde'  &&
+  depends  kdelibs '--enable-kparts'   &&
+  depends  qt-x11
+fi  &&
+
+# no longer needed to build
+suggest_depends  NS-PLUGIN-COMPATIBLE                             \
+                  '--enable-npapi'                                \
+                  '--disable-npapi'                               \
+                  'Suggested to run the plugin from a browser'    &&
+
+optional_depends  dbus                           \
+                  '--enable-extensions=dbus'     \
+                  ''                             \
+                  'for D-bus extension support'  &&
+
+optional_depends  gettext                        \
+                  '--enable-nls'                 \
+                  '--disable-nls'                \
+                  'for Native Language Support'  &&
+
+optional_depends  lirc                                      \
+                  '--enable-lirc'                           \
+                  '--disable-lirc'                          \
+                  'for Linux infra-red controller support'  &&
+
+optional_depends  libxft                                    \
+                  '--enable-Xft'                            \
+                  '--disable-Xft'                           \
+                  'Enable support for xft library'          &&
+
+optional_depends GECKO                                      \
+                 '--enable-xpcom'                           \
+                 '--disable-xpcom'                          \
+                 'Enable xpcom support in NPAPI plugin'     &&
+
+optional_depends nspr                                       \
+                 '--enable-nspr'                            \
+                 '--disable-nspr'                           \
+                 'Enable support for Netscape Portable Runtime (NSPR).' &&
+
+optional_depends giflib                                     \
+                 '--enable-gif'                             \
+                 '--disable-gif'                            \
+                 'Enable support for gif images.'           &&
+
+optional_depends expat                                      \
+                 '--enable-expat'                           \
+                 '--disable-expat'                          \
+                 'Enable support for Expat library.'
 

@@ -6,7 +6,13 @@ if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
 		case "$VERSION" in
 			2.[0246]*)
 				message "${MESSAGE_COLOR}installing for a 2.x kernel${DEFAULT_COLOR}" &&
-				make INSTALL_MOD_PATH="${INSTALL_ROOT}" modules_install 
+				local strip_modules
+				if list_find "$OPTIMIZATIONS" strip; then
+					# makes make run strip --strip-debug over the modules
+					strip_modules=1
+				fi
+
+				make INSTALL_MOD_PATH="${INSTALL_ROOT}" INSTALL_MOD_STRIP="$strip_modules" modules_install
 				;;
 			*)
 				message "${PROBLEM_COLOR}I again don't know what version: $VERSION is${DEFAULT_COLOR}" &&
@@ -29,13 +35,7 @@ if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
 			${INSTALL_ROOT}/boot/vmlinuz
 			;;
 		*)
-            if grep CONFIG_XEN=y ./.config
-            then
-				cp ${LINUX_SOURCE_DIRECTORY}/arch/${KERNEL_ARCH}/boot/vmlinuz \
-				${INSTALL_ROOT}/boot/vmlinuz-$VERSION &&
-				ln -sf vmlinuz-${VERSION} \
-				${INSTALL_ROOT}/boot/vmlinuz
-			elif [[ -f ${LINUX_SOURCE_DIRECTORY}/arch/${KERNEL_ARCH}/boot/bzImage ]]
+			if [[ -f ${LINUX_SOURCE_DIRECTORY}/arch/${KERNEL_ARCH}/boot/bzImage ]]
 			then
 				cp ${LINUX_SOURCE_DIRECTORY}/arch/${KERNEL_ARCH}/boot/bzImage \
 				${INSTALL_ROOT}/boot/vmlinuz-$VERSION &&
@@ -68,7 +68,9 @@ if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
 	ln -sfn . ${INSTALL_ROOT}/boot/boot &&
 	if is_depends_enabled $SPELL linux-initramfs
 	then
-		mkinitrd --force --ignore-missing -o ${INSTALL_ROOT}/boot/initrd.img-${VERSION} ${VERSION}
+		message "${MESSAGE_COLOR}Creating and linking initrd.img${DEFAULT_COLOR}" &&
+		mkinitrd --force --ignore-missing -o "${INSTALL_ROOT}"/boot/initrd.img-${VERSION} ${VERSION} &&
+		ln -sf initrd.img-${VERSION} "${INSTALL_ROOT}"/boot/initrd.img
 	fi
 fi &&
 ln -sfn `basename ${LINUX_SOURCE_DIRECTORY}` ${BUILD_DIRECTORY}/linux 

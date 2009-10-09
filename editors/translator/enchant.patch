@@ -1,0 +1,37 @@
+--- Utils.cc.orig	2007-09-25 05:07:26.000000000 +0400
++++ Utils.cc	2008-05-28 15:56:41.253768162 +0400
+@@ -1,18 +1,19 @@
+ #include "Utils.h"
+-#include <aspell.h>
++#include <enchant/enchant.h>
+ #include <vector>
+ 
++std::vector<Glib::ustring> list;
++
++void enchDictDescCb(const char *const lang_tag, const char *const provider_name, const char *const provider_desc, const char *const provider_file, void *user_data) {
++	list.push_back(lang_tag);
++}
++
+ std::vector<Glib::ustring> getDictionaryList() {
+-	std::vector<Glib::ustring> list;
++	EnchantBroker *eb;
+ 
+-	struct AspellConfig *a_config = new_aspell_config();
+-	
+-	AspellDictInfoList *dlist = get_aspell_dict_info_list(a_config);
+-	AspellDictInfoEnumeration *dels = aspell_dict_info_list_elements(dlist);
+-	const AspellDictInfo *entry;
+-	while ( (entry = aspell_dict_info_enumeration_next(dels)) != 0) {
+-		list.push_back(entry->name);
+-	}
++	eb = enchant_broker_init();
++	enchant_broker_list_dicts(eb, enchDictDescCb, &list);
++	enchant_broker_free(eb);
+ 
+ 	return list;
+ }
+@@ -44,4 +45,3 @@
+ 	if (u_str1.find(u_str2)!=Glib::ustring::npos) return true;
+ 	return false;
+ }
+-

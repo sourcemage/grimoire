@@ -3,11 +3,5 @@ if [[ $OPENAL_OSS == n ]]; then
 else
     OPTS="$OPTS --enable-linux"
 fi &&
-if [[ $OPENAL_VERSION == snapshot ]]; then
-  cd linux
-elif [[ $OPENAL_VERSION == scm ]]; then
-  cd OpenAL-Sample
-else
-  make_single
-fi  &&
+cd linux &&
 default_build

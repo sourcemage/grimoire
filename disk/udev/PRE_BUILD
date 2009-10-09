@@ -1,22 +1,19 @@
 # kernel < 2.6.15 can't use udev > 092 because udevsend has been removed
 
-local  KVER=$(get_kernel_version)        &&
-local  VER2=$(echo $KVER | cut -d. -f2)  &&
-local  VER3=$(echo $KVER | cut -d. -f3)  &&
-       VER3=${VER3%%[^0-9]*}             &&
+local KVER=$(get_kernel_version) &&
+local VER2=$(echo $KVER | cut -d. -f2) &&
+local VER3=$(echo $KVER | cut -d. -f3) &&
+      VER3=${VER3%%[^0-9]*} &&
 
-if (( VER2 < 6 ))            ||
-   (( VER2 == 6 && VER3 < 15 ))
-then
-  message  "${PROBLEM_COLOR}You have a kernel < 2.6.15, it is too"  \
-           "old for udev. Please install\na newer kernel.\nIf you"  \
-           "insist on using your old kernel with hotplug,\nyou"     \
-           "can install udev-old.$DEFAULT_COLOR"                    &&
+if [[ VER2 < 6 || VER2 == 6 && VER3 < 15 ]]; then
+  message "${PROBLEM_COLOR}You have a kernel < 2.6.15, it is too" \
+          "old for udev. Please install\na newer kernel.\nIf you" \
+          "insist on using your old kernel with hotplug,\nyou" \
+          "can install udev-old.$DEFAULT_COLOR" &&
   return 1
-fi  &&
+else
+  default_pre_build &&
+  cd "$SOURCE_DIRECTORY"
+fi &&
 
-default_pre_build        &&
-cd  "$SOURCE_DIRECTORY"  &&
-
-# Prevent udev restart on 'make install'
-patch -p0 < "$SCRIPT_DIRECTORY/Makefile.patch"
+sed -i "s:install-dist_udevconfDATA::g" Makefile.in

@@ -1,0 +1,19 @@
+# The inittab needs to be modified here so that it doesn't get removed on
+# dispel.
+
+if  [  "${DAEMONTOOLS_CHANGE_INITTAB}"  ==  "y"  ]  &&  \
+    !  grep  -q  svscanboot  /etc/inittab
+then
+  if  [  "${DAEMONTOOLS_INSTALL_PATHS}"  ==  "fhs"  ];  then
+    sedit  '1,/^tty/{; /^tty/i    \
+supervise:dumb:/sbin/svscanboot
+  }'  /etc/inittab
+  else
+    sedit  '1,/^tty/{; /^tty/i    \
+supervise:dumb:/command/svscanboot
+  }'  /etc/inittab
+  fi  &&
+  message "svscanboot has been added to /etc/inittab.  'kill -1 1' to reload init."
+else
+  message "svscanboot is already in /etc/inittab."
+fi

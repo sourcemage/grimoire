@@ -1,17 +1,3 @@
-if [[ "${EPIPHANY_WEBKIT}" == "y" ]]; then
-   OPTS="${OPTS} --with-engine=webkit"
-else
-   if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
-      OPTS="${OPTS} --with-gecko=firefox"
-   elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
-      OPTS="${OPTS} --with-gecko=seamonkey"
-   elif test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
-      OPTS="${OPTS} --with-gecko=xulrunner"
-   else
-      OPTS="${OPTS} --with-gecko=mozilla"
-   fi
-fi &&
-
 # requires at least -O2 to not segfault on startup with gcc 4.0
 if ! echo "$CFLAGS" | grep -q -- '-O3'; then
   CFLAGS="$CFLAGS -O2"      &&

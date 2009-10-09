@@ -3,6 +3,34 @@
 . $GRIMOIRE/config_query_multi.function
 
 #---------------------------------------------------------------------
+## This function automatically fixes any known bad paths
+#---------------------------------------------------------------------
+function default_grimoire_post_install () {
+  real_default_sorcery_post_install && # currently a no-op
+  if [[ $STAGED_INSTALL == off ]]; then
+    return 0
+  fi &&
+  pushd TRANSL &> /dev/null &&
+  if [[ -d usr/man ]]; then
+    echo Fixing bad install path: /usr/man &&
+    mv -v usr/man usr/share
+  fi &&
+  if [[ -d usr/info ]]; then
+    echo Fixing bad install path: /usr/info &&
+    mv -v usr/info usr/share
+  fi &&
+  if [[ -d usr/local/man ]]; then
+    echo Fixing bad install path: /usr/local/man &&
+    mv -v usr/local/man usr/share
+  fi &&
+  if [[ -d usr/local/info ]]; then
+    echo Fixing bad install path: /usr/local/info &&
+    mv -v usr/local/info usr/share
+  fi &&
+  popd &> /dev/null
+}
+
+#---------------------------------------------------------------------
 ## Replaces sorcerys default_pre_build with a custom version using
 ## the invoke_gcc function from libgcc #10641
 #---------------------------------------------------------------------
@@ -399,14 +427,28 @@ function unpack_file() {
 ## Default build for Python spell.
 #-------------------------------------------------------------------------
 function default_build_python() {
-  python setup.py build
+  python setup.py build "$@"
+}
+
+#-------------------------------------------------------------------------
+## Default build for Python 3 spell.
+#-------------------------------------------------------------------------
+function default_build_python3() {
+  python3 setup.py build "$@"
 }
 
 #-------------------------------------------------------------------------
 ## Default install for Python spell.
 #-------------------------------------------------------------------------
 function default_install_python() {
-  python setup.py install --root "$INSTALL_ROOT/"
+  python setup.py install --root "$INSTALL_ROOT/" "$@"
+}
+
+#-------------------------------------------------------------------------
+## Default install for Python 3 spell.
+#-------------------------------------------------------------------------
+function default_install_python3() {
+  python3 setup.py install --root "$INSTALL_ROOT/" "$@"
 }
 
 #-------------------------------------------------------------------------
@@ -433,33 +475,6 @@ disable_pic() {
     CXXFLAGS=${CXXFLAGS/-fPIC}                &&
     CXXFLAGS=${CXXFLAGS/-DPIC}
   fi
-}
-
-#
-## Function to check if we're using xorg-modular libs or not
-#
-
-function check_if_xorg_modular_libs()
-{
-  if  [[  "$(get_spell_provider  ${1:-$SPELL}  X11-LIBS)"  ==  "xorg-server"  ]] ||
-      [[  "$(get_spell_provider  ${1:-$SPELL}  X11-LIBS)"  ==  "xorg-libs"  ]]     
-  then
-     return 0
-  fi
-  return 1
-}
-
-#
-## Function to check if we're using xorg-modular server or not
-#
-
-function check_if_xorg_modular_server()
-{
-  if  [[  "$(get_spell_provider  ${1:-$SPELL}  X11-SERVER)"  ==  "xorg-server"  ]]
-  then
-     return 0
-  fi
-  return 1
 }
 
 # FUnction to tag config files that cannot be tagged by the normal install_config_file method
@@ -501,11 +516,17 @@ cmake_build() {
   make
 }
 
-qt4_build() {
-  [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
+qt4_cmake_build() {
   QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
   PATH="$QTDIR/bin/qt4:$PATH"
   cmake_build
+}
+
+qt4_build() {
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
+  PATH="$QTDIR/bin/qt4:$PATH"
+  qmake PREFIX=$INSTALL_ROOT/usr &&
+  make
 }
 
 # check whether the QT provider is qt4
@@ -523,11 +544,13 @@ function check_if_qt4_provider()
 # some spells an adapt the build process to either qt3 or qt4
 function build_qt3_or_4()
 {
-  [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
-  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
   if check_if_qt4_provider
   then
+    QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
     PATH="$QTDIR/bin/qt4:$PATH"
+  else
+    [[ -z $QTDIR ]] && source /etc/profile.d/qt.sh
+    QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
   fi      &&
   qmake   &&
   make
@@ -564,21 +587,6 @@ function get_running_kernel_version()
 function get_sorcery_kernel_version()
 {
   installed_version linux || echo "-1"
-}
-
-#-------------------------------------------------------------------------
-## Print the version of the kernel defined in USE_KERNEL_VERSION or, 
-## lacking that, the version of either the installed linux spell or the 
-## running kernel.
-#-------------------------------------------------------------------------
-function get_kernel_version()
-{
-  if [[ $USE_KERNEL_VERSION ]]
-  then
-    echo "$USE_KERNEL_VERSION"
-  else
-    installed_version linux || get_running_kernel_version
-  fi
 }
 
 #-----------------------------------------------------------------------
@@ -725,3 +733,5 @@ function default_build_configure() {
 function default_build_make(){
   make
 }
+
+. $GRIMOIRE/glselect.function

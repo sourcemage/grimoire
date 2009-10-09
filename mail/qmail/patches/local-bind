@@ -1,0 +1,170 @@
+From: Chuck Foster <Chuck.Foster@uk.uu.net>
+To: djb-qmail@koobera.math.uic.edu
+Subject: binding to local interfaces
+Date: Mon, 19 Jan 1998 09:40:42 +0000 (GMT)
+
+Hi,
+
+Well it finally reached the stage where I needed to do this on one of our
+hosts, as I wanted mail to go out using the virtual interface ip address
+and not the default one. (sigh).
+
+Anyways, if anyone thinks they'll have a use for it, I've included the
+patch to timeoutconn.c to bind to the interface, and an optional
+qmail-remote.c patch to print errors returned from it (if you don't use
+that then the 'standard' SMTP connection failed message gets used).
+
+I used a file called /var/qmail/control/bindroutes, using the same
+ip-address matching as tcpcontrol, ie. 1.2.3.4, 1.2.3., 1.2., 1., none.
+The LHS is the outbound IP (ie. the host you're going to), and the RHS
+is the interface on the local machine to bind to (ie. needs to be
+valid on the host).
+
+Eg.
+
+# Send this on the internal net
+10.:10.0.0.1
+# Rest goes on external "mail" address (yes, its bogus!)
+:301.32.1.1
+# Hey, we could 'cheat' on stopping qmail-remote sending to this host
+555.123.123.123:this-isnt-an-ip-address
+
+The define should be either 0 or 1; 0 means if the bind() fails then go
+ahead and connect() with the os bind; 1 means that a temp error is
+generated and the mail requeued.
+
+
+As usual, if you use these patches yourself it's at your own risk; all
+seems to work fine on my (Solaris 2.5.1) boxes, but if something busts cos
+you've used them then you're on your own (but feel free to tell me!).
+
+C.
+
+From: Bill Nugent <whn@topelo.lopi.com>
+To: Chuck.Fostera@auk.uu.net
+cc: nelson@qmail.org
+Subject: Updated your local bind patch for qmail 1.03
+Date: Tue, 08 Sep 1998 10:10:15 -0400
+
+Howdy Chuck,
+
+I had some minor trouble compiling your local bind patch for qmail 1.03 - 
+I had to make a change to the Makefile in addition to applying your patch 
+to timeoutconn.c.  I've enclosed the diff of the Makefile.  It will be a 
+few days before I have a chance to test the change.
+
+	Thanks for the patch!
+	Bill
+
+
+*** timeoutconn.c	1998/01/18 12:52:28	1.1
+--- timeoutconn.c	1998/01/19 09:29:57
+***************
+*** 10,15 ****
+--- 10,63 ----
+  #include "byte.h"
+  #include "timeoutconn.h"
+  
++ #define BIND_SOCKET 1 /* 0 to ignore bind fail, 1 to tempfail and requeue */
++ #ifdef BIND_SOCKET
++ #include "control.h"
++ #include "constmap.h"
++ #include "stralloc.h"
++ 
++ int bind_socket(s,ip)
++ int s;
++ struct ip_address *ip;
++ {
++   struct sockaddr_in salocal;
++   struct ip_address iplocal;
++   char *ipstr, ipstring[IPFMT+1];
++   int iplen;
++   stralloc routes = {0};
++   struct constmap bindroutes;
++   char *bindroute = (char *)0;
++ 
++   /* Right, do we actually have any bind routes? */
++   switch(control_readfile(&routes,"control/bindroutes",0))
++    {
++     case 0: return 0; /* no file, no bind to worry about */
++     case -1: return -2; /* buggered up somewhere, urgh! */
++     case 1: if (!constmap_init(&bindroutes,routes.s,routes.len,1)) return -3;
++    }
++ 
++   ipstring[0] = '.'; /* "cheating", but makes the loop check easier below! */
++   ipstr = ipstring+1;
++   iplen = ip_fmt(ipstr,ip); /* Well, Dan seems to trust its output! */
++ 
++   /* check d.d.d.d, d.d.d., d.d., d., none */
++   bindroute = constmap(&bindroutes,ipstr,iplen);
++   if (!bindroute) while (iplen--)  /* no worries - the lost char must be 0-9 */
++     if (ipstring[iplen] == '.') 
++       if (bindroute = constmap(&bindroutes,ipstr,iplen)) break;
++   if (!bindroute || !*bindroute) return 0; /* no bind required */
++   if (!ip_scan(bindroute,&iplocal)) return -4; /* wasn't an ip returned */
++ 
++   byte_zero(&salocal,sizeof(salocal));
++   salocal.sin_family = AF_INET;
++   byte_copy(&salocal.sin_addr,4,&iplocal);
++ 
++   if (bind(s, (struct sockaddr *)&salocal,sizeof(salocal))) return BIND_SOCKET;
++   return 0;
++ }
++ 
++ #endif
++ 
+  int timeoutconn(s,ip,port,timeout)
+  int s;
+  struct ip_address *ip;
+***************
+*** 31,36 ****
+--- 79,87 ----
+    if (ndelay_on(s) == -1) return -1;
+   
+    /* XXX: could bind s */
++ #ifdef BIND_SOCKET
++   if (ch = bind_socket(s,ip)) return ch;
++ #endif
+   
+    if (connect(s,(struct sockaddr *) &sin,sizeof(sin)) == 0) {
+      ndelay_off(s);
+--- Makefile.orig       Mon Sep  7 20:44:52 1998
++++ Makefile    Mon Sep  7 21:04:33 1998
+@@ -1333,10 +1333,12 @@
+
+ qmail-qmqpc: \
+ load qmail-qmqpc.o slurpclose.o timeoutread.o timeoutwrite.o \
+-timeoutconn.o ip.o control.o auto_qmail.o sig.a ndelay.a open.a \
+-getln.a substdio.a stralloc.a alloc.a error.a str.a fs.a socket.lib
++timeoutconn.o constmap.o  case_diffb.o ip.o control.o auto_qmail.o \
++sig.a ndelay.a open.a getln.a substdio.a stralloc.a alloc.a error.a \
++str.a fs.a socket.lib
+	./load qmail-qmqpc slurpclose.o timeoutread.o \
+-	timeoutwrite.o timeoutconn.o ip.o control.o auto_qmail.o \
++	timeoutwrite.o timeoutconn.o constmap.o case_diffb.o \
++	ip.o control.o auto_qmail.o \
+	sig.a ndelay.a open.a getln.a substdio.a stralloc.a alloc.a \
+	error.a str.a fs.a  `cat socket.lib`
+
+@@ -2066,12 +2068,14 @@
+
+ tcp-env: \
+ load tcp-env.o dns.o remoteinfo.o timeoutread.o timeoutwrite.o \
+-timeoutconn.o ip.o ipalloc.o case.a ndelay.a sig.a env.a getopt.a \
+-stralloc.a alloc.a substdio.a error.a str.a fs.a dns.lib socket.lib
++timeoutconn.o constmap.o control.o ip.o ipalloc.o case.a open.a \
++getln.a ndelay.a sig.a env.a getopt.a stralloc.a alloc.a \
++substdio.a error.a str.a fs.a dns.lib socket.lib
+	./load tcp-env dns.o remoteinfo.o timeoutread.o \
+-	timeoutwrite.o timeoutconn.o ip.o ipalloc.o case.a ndelay.a \
+-	sig.a env.a getopt.a stralloc.a alloc.a substdio.a error.a \
+-	str.a fs.a  `cat dns.lib` `cat socket.lib`
++	timeoutwrite.o timeoutconn.o constmap.o control.o ip.o ipalloc.o \
++	case.a open.a getln.a ndelay.a sig.a env.a getopt.a stralloc.a \
++	alloc.a substdio.a error.a str.a fs.a \
++	`cat dns.lib` `cat socket.lib`
+
+ tcp-env.0: \
+ tcp-env.1
+
+

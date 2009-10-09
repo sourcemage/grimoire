@@ -1,44 +1,26 @@
-local  file  UDEV_CFG="$INSTALL_ROOT/etc/udev"      &&
-mkdir -p  "$INSTALL_ROOT/sys"  "$UDEV_CFG/rules.d"  &&
+local file UDEV_CFG="$INSTALL_ROOT/etc/udev" &&
 
-for file in $SCRIPT_DIRECTORY/rules/*
-do
-  install_config_file  "$file"                                \
-                       "$UDEV_CFG/rules.d/$(basename $file)"
-done  &&
+install -m 755 -d "$INSTALL_ROOT/sys" \
+                  "$UDEV_CFG/rules.d" &&
 
-install_config_file  "$SOURCE_DIRECTORY/etc/udev/rules.d/95-udev-late.rules" \
-                     "$UDEV_CFG/rules.d/95-udev-late.rules"                  &&
-
-if [[ $UDEV_PERSIST_STORAGE == y ]]
-then
-  install_config_file  etc/udev/rules.d/60-persistent-storage.rules     \
-                       "$UDEV_CFG/rules.d/60-persistent-storage.rules"
-fi  &&
-
-if [[ $UDEV_PERSIST_INPUT == y ]]
-then
-  install_config_file  etc/udev/rules.d/60-persistent-input.rules     \
-                       "$UDEV_CFG/rules.d/60-persistent-input.rules"
-fi  &&
+for file in $SPELL_DIRECTORY/rules/*; do
+  install_config_file $file "$UDEV_CFG/rules.d/$(basename $file)"
+done &&
 
 # Aliases for modprobe
-mkdir -p             "$INSTALL_ROOT/etc/modprobe.d"        &&
-install_config_file  "$SCRIPT_DIRECTORY/modprobe.aliases"  \
-                     "$INSTALL_ROOT/etc/modprobe.d/udev"   &&
+install -m 755 -d "$INSTALL_ROOT/etc/modprobe.d" &&
+
+install_config_file "$SPELL_DIRECTORY/modprobe.aliases" \
+                    "$INSTALL_ROOT/etc/modprobe.d/udev.conf" &&
+
+install_config_file "$SPELL_DIRECTORY/udev.missing" \
+                    "$UDEV_CFG/udev.missing" &&
 
 # These are used by devices init script, udev.conf also by udev
-install_config_file  "$SCRIPT_DIRECTORY/udev.conf"     \
-                     "$UDEV_CFG/udev.conf"             &&
-install_config_file  "$SCRIPT_DIRECTORY/udev.missing"  \
-                     "$UDEV_CFG/udev.missing"          &&
+install_config_file "$SPELL_DIRECTORY/udev.conf" \
+                    "$UDEV_CFG/udev.conf" &&
+make_single &&
+default_install &&
+make_normal &&
 
-make  prefix="$INSTALL_ROOT" $OPTS $UDEV_DEBUG  \
-      V=true EXTRAS="$_EXTRAS_TARG" install     &&
-
-# Persistent rules need path_id helper
-if [[ $UDEV_PERSIST_STORAGE == y || $UDEV_PERSIST_INPUT == y ]]
-then
-  install  extras/path_id/path_id     \
-           "$INSTALL_ROOT/lib/udev/"
-fi
+ln -sf "$TRACK_ROOT/sbin/udevadm" "$INSTALL_ROOT/usr/bin/udevinfo"

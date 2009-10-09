@@ -1,10 +1,11 @@
 #sedit  "6690s/Screensaver/Screensaver Properties/"  po/es.po    &&
 
-OPTS="--with-dpms-ext --with-xinerama-ext --with-xf86vmode-ext     \
-            --with-xf86gamma-ext --with-proc-interrupts --with-xshm-ext  \
-            --with-xdbe-ext --with-readdisplay  --without-motif $OPTS"  &&
-if [ "$XSCSV" == "n" ]; then
-   OPTS="--without-gtk --without-xml $OPTS"
-fi  &&
-
+OPTS="--with-proc-interrupts $OPTS"
+OPTS="--with-readdisplay $OPTS"
+OPTS="--without-motif $OPTS"
+if ! (is_depends_enabled $SPELL WEB-BROWSER); then
+  OPTS="--without-browser $OPTS"
+else
+  OPTS="--with-browser=$(get_spell_provider $SPELL WEB-BROWSER) $OPTS"
+fi &&
 default_build

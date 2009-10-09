@@ -1,0 +1,33 @@
+--- svgalib-1.9.25/kernel/svgalib_helper/kernel26compat.h
++++ svgalib-1.9.25/kernel/svgalib_helper/kernel26compat.h
+@@ -105,7 +109,8 @@
+      class_device_create(svgalib_helper_class,                      	\
+                              MKDEV(SVGALIB_HELPER_MAJOR, _minor),       \
+                              &sh_pci_devs[_minor]->dev->dev, _name);
+-#else /* 2.6.15 changed class_device_create */
++/* 2.6.15 changed class_device_create */
++#elif LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
+ #  define SLH_SYSFS_ADD_CONTROL                                         \
+      class_device_create(svgalib_helper_class, NULL,                	\
+                              MKDEV(SVGALIB_HELPER_MAJOR, 0),            \
+@@ -115,7 +120,18 @@
+      class_device_create(svgalib_helper_class, NULL,                	\
+                              MKDEV(SVGALIB_HELPER_MAJOR, _minor),       \
+                              &sh_pci_devs[_minor]->dev->dev, _name);
+-#endif /* 2.6.15 */
++/* 2.6.26 changed class_device_create to device_create */
++#else
++#  define SLH_SYSFS_ADD_CONTROL                                         \
++     device_create(svgalib_helper_class, NULL,                		\
++                             MKDEV(SVGALIB_HELPER_MAJOR, 0),            \
++                             NULL, "svga");
++
++#  define SLH_SYSFS_ADD_DEVICE(_name, _minor)                           \
++     device_create(svgalib_helper_class, NULL,                		\
++                             MKDEV(SVGALIB_HELPER_MAJOR, _minor),       \
++                             &sh_pci_devs[_minor]->dev->dev, _name);
++#endif
+ 
+ #  define SLH_SYSFS_REMOVE_DEVICE(i)                                    \
+      class_destroy(svgalib_helper_class);
+
