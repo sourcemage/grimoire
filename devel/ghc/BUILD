@@ -17,5 +17,5 @@ fi &&
 
 cd $SPELL-$VERSION &&
 
-OPTS="$OPTS --with-ghc=$GHC_DIR/ghc" &&
+PATH="$GHC_DIR:$PATH" &&
 default_build

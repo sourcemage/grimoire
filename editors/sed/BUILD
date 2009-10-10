@@ -8,4 +8,3 @@
              --infodir=${TRACK_ROOT}/usr/share/info  \
                        $OPTS                 &&
   make DESTDIR=$INSTALL_ROOT
-

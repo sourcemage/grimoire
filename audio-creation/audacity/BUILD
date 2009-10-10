@@ -6,7 +6,10 @@ if [ "$AUDACITY_REL" == "beta" ]; then
    OPTS="$AUDACITY_SOUNDTOUCH $OPTS"
 fi &&
 
-OPTS="$AUDACITY_LADSPA $AUDACITY_PORTMIXER $AUDACITY_PORTAUDIO $OPTS" &&
+OPTS="$AUDACITY_LADSPA $OPTS"    &&
+OPTS="$AUDACITY_PORTMIXER $OPTS" &&
+OPTS="$AUDACITY_PORTAUDIO $OPTS" &&
+OPTS="$AUDACITY_NYQUIST $OPTS"
 
 ./configure  --prefix=${INSTALL_ROOT}/usr                \
              --sysconfdir=${INSTALL_ROOT}/etc            \

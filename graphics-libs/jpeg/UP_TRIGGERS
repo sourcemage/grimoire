@@ -1,0 +1,18 @@
+# up_trigger everything on major version updates 
+
+local OLD_SPELL_VERSION=""
+if spell_ok  $SPELL; then
+  OLD_SPELL_VERSION="$(installed_version $SPELL)"
+  if test "${VERSION:0:1}" != "${OLD_SPELL_VERSION:0:1}"; then
+    message "This is a possibly incompatible update of jpeg..."
+    message "Figuring out what spells need to be recast, this may take a while."
+# special case for version 6b
+    OLD_SPELL_VERSION=${OLD_SPELL_VERSION/6b/62}
+    for each in $(show_up_depends $SPELL 1); do
+      if gaze install $each | xargs readelf -d 2> /dev/null |
+         grep -q "NEEDED.*libjpeg\.so\.$OLD_SPELL_VERSION"; then
+           up_trigger $each cast_self
+      fi
+    done
+  fi
+fi

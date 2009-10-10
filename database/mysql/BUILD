@@ -1,3 +1,5 @@
+OPTS="--with-charset=$MSQL_CHARSET $OPTS" &&
+
 if  list_find "$MSQL_ENGINES" "none"  ;  then
    OPTS="--without-archive-storage-engine    \
          --without-berkeley-db               \
@@ -44,6 +46,7 @@ else
 fi                                                       &&
 
 OPTS="$MSQL_SERVER $MSQL_EMBED $OPTS"                    &&
+CFLAGS="${CFLAGS//-ffast-math}"                          &&
 
 create_account mysql                                     &&
 

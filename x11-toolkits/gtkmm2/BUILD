@@ -1,7 +1,3 @@
-if [[ $DEMOS == y ]]; then
-   OPTS="--enable-demos $OPTS"
-else
-   OPTS="--disable-demos $OPTS"
-fi &&
+OPTS="$GTKMM2_OPTS $OPTS" &&
 
 default_build

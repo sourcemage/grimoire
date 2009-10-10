@@ -1,5 +1,3 @@
-OPTS="${OPTS} --with-gecko=libxul-embedding" &&
-
 OPTS="${OPTS} --with-extensions="
 if [ "${EPIPHANY_ACTIONS}" == "y" ]; then
    OPTS="${OPTS}actions,"
@@ -13,9 +11,6 @@ fi                                             &&
 if [ "${EPIPHANY_AUTOSCROLL}" == "y" ]; then
    OPTS="${OPTS}auto-scroller,"
 fi                                             &&
-if [ "${EPIPHANY_CCLICENSEVIEW}" == "y" ]; then
-   OPTS="${OPTS}cc-license-viewer,"
-fi                                              &&
 if [ "${EPIPHANY_CERTS}" == "y" ]; then
    OPTS="${OPTS}certificates,"
 fi                                              &&
@@ -24,9 +19,6 @@ if [ "${EPIPHANY_ERRORVIEWER}" == "y" ]; then
 fi                                              &&
 if [ "${EPIPHANY_EXTMANUI}" == "y" ]; then
    OPTS="${OPTS}extensions-manager-ui,"
-fi                                              &&
-if [ "${EPIPHANY_FAVICON}" == "y" ]; then
-   OPTS="${OPTS}favicon,"
 fi                                              &&
 if [ "${EPIPHANY_GESTURES}" == "y" ]; then
    OPTS="${OPTS}gestures,"
@@ -49,20 +41,11 @@ fi                                              &&
 if [ "${EPIPHANY_PUSHSCROLL}" == "y" ]; then
    OPTS="${OPTS}push-scroller,"
 fi                                              &&
-if [ "${EPIPHANY_PYCON}" == "y" ]; then
-   OPTS="${OPTS}python-console,"
-fi                                              &&
 if [ "${EPIPHANY_RSS}" == "y" ]; then
    OPTS="${OPTS}rss,"
 fi                                              &&
 if [ "${EPIPHANY_SAMPLE}" == "y" ]; then
    OPTS="${OPTS}sample,"
-fi                                              &&
-if [ "${EPIPHANY_SAMPLEMOZ}" == "y" ]; then
-   OPTS="${OPTS}sample-mozilla,"
-fi                                              &&
-if [ "${EPIPHANY_SAMPLEPY}" == "y" ]; then
-   OPTS="${OPTS}sample-python,"
 fi                                              &&
 if [ "${EPIPHANY_SELECTSTYLE}" == "y" ]; then
    OPTS="${OPTS}select-stylesheet,"

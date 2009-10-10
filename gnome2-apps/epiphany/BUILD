@@ -1,8 +1,3 @@
-if [[ "${EPIPHANY_WEBKIT}" == "n" ]]; then
-OPTS="${OPTS} --with-gecko=libxul-embedding"
-fi &&
-
-
 # requires at least -O2 to not segfault on startup with gcc 4.0
 if ! echo "$CFLAGS" | grep -q -- '-O3'; then
   CFLAGS="$CFLAGS -O2"      &&

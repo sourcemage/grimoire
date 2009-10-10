@@ -1,3 +1,15 @@
+persistent_read gmp GMP_BUILD_ARCH GMP_BUILD_ARCH         &&
+persistent_read mpfr MPFR_BUILD_ARCH MPFR_BUILD_ARCH      &&
+
+if [[ $GMP_BUILD_ARCH  != ${SMGL_COMPAT_ARCHS[4]}
+   || $MPFR_BUILD_ARCH != ${SMGL_COMPAT_ARCHS[4]} ]]; then
+  message "${PROBLEM_COLOR}" 1>&2 &&
+  message "gmp and/or mpfr have been built with a different archspec, building g++ now" 1>&2 &&
+  message "would result in a broken compiler" 1>&2 &&
+  message "${DEFAULT_COLOR}" 1>&2
+  return 1
+fi                                                        &&
+
 # take multilib option (and nolib64 option) from GCC
 # ignore return value as they are only available on x86_64
 persistent_read  gcc  GCC_MULTILIB  GCC_MULTILIB
