@@ -13,6 +13,8 @@ OPTS="$QT_DEBUG               \
       $QT_TOOLS tools         \
       $QT_TRANS translations  \
       $QT_WEBKIT              \
+      $QT_MEDIA               \
+      $QT_GTK                 \
       $OPTS"                  &&
 
 ./configure  -opensource -confirm-license                                     \
