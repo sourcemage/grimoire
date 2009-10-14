@@ -15,6 +15,7 @@ OPTS="$QT_DEBUG               \
       $QT_WEBKIT              \
       $QT_MEDIA               \
       $QT_GTK                 \
+      $QT_ACCESS              \
       $OPTS"                  &&
 
 ./configure  -opensource -confirm-license                                     \
