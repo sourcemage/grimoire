@@ -7,19 +7,6 @@ if list_find "${OPTS}" "--enable-cgi" || list_find "${OPTS}" "--enable-fastcgi";
     OPTS="--enable-force-cgi-redirect ${OPTS}"
 fi &&
 
-# Setup SSL IMAP if desired
-if list_find "${OPTS}" "--with-imap=${INSTALL_ROOT}/usr"; then
-    # Setup SSL IMAP if desired
-    local CCLIENT=$(get_spell_provider $SPELL C-CLIENT) &&
-
-    if [[ ! -z "${CCLIENT}" ]]; then
-        if is_depends_enabled $CCLIENT openssl; then
-            message "${MESSAGE_COLOR}Enabling SSL for the IMAP extension${DEFAULT_COLOR}" &&
-            OPTS="--with-imap-ssl ${OPTS}"
-        fi
-    fi
-fi &&
-
 case "${PHP5_APACHE}" in
     handler)
         if httpd -v | grep -q "Apache/2\."; then
@@ -36,11 +23,6 @@ case "${PHP5_APACHE}" in
     ;;
 esac &&
 
-#Check for xorg or xserver and pass location of xpm
-if [ "$PHP5_X11LIBS" == "y" ]; then
-  OPTS="$OPTS --with-xpm-dir=/usr"
-fi &&
-
 # Check to see if internal GD requested
 if [[ "${PHP5_GD}" == "internal" ]]; then
     OPTS="--with-gd --enable-gd-native-ttf ${OPTS}"
@@ -48,8 +30,6 @@ fi &&
 
 OPTS="   --with-exec-dir=${INSTALL_ROOT}/usr/bin \
  --with-config-file-path=${INSTALL_ROOT}/etc \
-             --with-pear=${INSTALL_ROOT}/usr/share/pear \
-                --enable-cli \
                --disable-rpath \
                 --enable-bcmath \
          --enable-inline-optimization \

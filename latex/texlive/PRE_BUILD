@@ -1,0 +1,41 @@
+mk_source_dir $SOURCE_DIRECTORY &&
+cd $BUILD_DIRECTORY &&
+verify_file '' &&
+xz -dc $SOURCE_CACHE/$SOURCE | tar -xf -
+cd $SOURCE_DIRECTORY &&
+#--
+## these two patches fix the scripts so that it gets
+## installed to FHS locations
+patch -p0 < $SPELL_DIRECTORY/fix_scripts.patch &&
+patch -p0 < $SPELL_DIRECTORY/fix_scripts_2.patch &&
+#--
+#--
+## the sed on the patch is live so it will take into
+## account INSTALL_ROOT
+sed "s:/usr/share:$INSTALL_ROOT/usr/share:g" $SPELL_DIRECTORY/texmf.cnf_fix.patch | patch -p0 &&
+#--
+#--
+## getline rename where it's defined
+patch -p0 < $SPELL_DIRECTORY/rename_getline.patch &&
+#--
+#--
+## this has been suggested by Finn Haedicke
+sed -i '/^[^#]*\.p:/ {n; a \
+	sed -i "s/getline/tex_getline/g" $@
+}' texk/web2c/Makefile.in &&
+sed -i '/^[^#]*\.p:/ {n; a \
+	sed -i "s/getline/tex_getline/g" $@
+}' texk/web2c/omegadir/omega.mk &&
+#--
+#--
+## cleanup all the extra getlines
+sed -i "s/getline/tex_getline/g"  texk/web2c/mpware/mpto.c &&
+sed -i "s/getline/tex_getline/g"  texk/afm2pl/afm2pl.c &&
+sed -i "s/getline/tex_getline/g"  texk/dvipsk/afm2tfm.c &&
+sed -i "s/getline/tex_getline/g"  texk/ttf2pk/newobj.h &&
+sed -i "s/getline/tex_getline/g"  texk/ttf2pk/newobj.c &&
+sed -i "s/getline/tex_getline/g"  texk/ttf2pk/parse.c &&
+#--
+## removing as much internal things as possible
+rm -rf utils/{dialog,gzip,lzma,ps2eps,psutils,t1utils,texinfo,pdfopen} &&
+rm -rf libs/{freetype2,lua51,libpng,jpeg,expat,gd,luafilesystem,luafontforge,luamd5,luapeg,luazip,luazlib,ncurses,t1lib,unzip}
