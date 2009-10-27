@@ -1,0 +1,38 @@
+Common subdirectories: trickle-1.06/compat and trickle-1.06-patched/compat
+diff -u trickle-1.06/configure.in trickle-1.06-patched/configure.in
+--- trickle-1.06/configure.in	2003-06-02 07:45:45.000000000 -0400
++++ trickle-1.06-patched/configure.in	2006-04-11 22:52:00.000000000 -0400
+@@ -67,7 +67,20 @@
+ AC_CHECK_TYPE(u_int32_t, unsigned int)
+ AC_CHECK_TYPE(u_int16_t, unsigned short)
+ AC_CHECK_TYPE(u_int8_t, unsigned char)
+-AC_CHECK_TYPE(in_addr_t, unsigned long)
++dnl in_addr_t might be defined in <sys/types.h> or, on newer
++dnl  glibc versions, in <netinet/in.h>
++AC_CHECK_TYPE([in_addr_t ],,
++              [AC_DEFINE([in_addr_t], [unsigned long],
++                         [Define to ‘unsigned long’ if
++                         <sys/types.h> and <netinet/in.h> 
++                         do not define.])],
++              [#include <stdio.h>
++               #if HAVE_SYS_TYPES_H
++               # include <sys/types.h>
++               #endif
++               #if HAVE_NETINET_IN_H
++               # include <netinet/in.h>
++               #endif])
+ 
+ dnl Checks for library functions.
+ AC_PROG_GCC_TRADITIONAL
+@@ -214,11 +227,4 @@
+ AC_DEFINE_UNQUOTED(SYSCONFDIR, "$csysconfdir")
+ AC_DEFINE_UNQUOTED(LIBDIR, "$clibdir")
+ 
+-
+-# This is necessary so that .o files in LIBOBJS are also built via
+-# the ANSI2KNR-filtering rules.
+-LIBOBJS=`echo "$LIBOBJS" | sed 's/\.o /\$U.o /g;s/\.o$/\$U.o/'`
+-LTLIBOBJS=`echo "$LIBOBJS" | sed 's/\.o/\.lo/g'`
+-AC_SUBST(LTLIBOBJS)
+-
+ AC_OUTPUT(Makefile)
