@@ -20,6 +20,7 @@ LIBS="-lpng" $SOURCE_DIRECTORY/configure --prefix=${INSTALL_ROOT}/usr \
                             --without-luatex \
                             --without-graphite \
                             --disable-multiplatform \
+			    --disable-native-texlive-build \
                             --without-x \
                             $OPTS &&
 make_single &&
