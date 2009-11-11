@@ -1,5 +1,6 @@
-if is_spell_ok cmake;then
- cmake_build
-else
- default_build
-fi
+./configure --prefix=${INSTALL_ROOT}/usr  \
+           --datadir=/share/${SPELL}      \
+            --docdir=/share/doc/${SPELL}  \
+            --mandir=/share/man           \
+            $OPTS                         &&
+make
