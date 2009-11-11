@@ -3,4 +3,4 @@
             --docdir=/share/doc/${SPELL}  \
             --mandir=/share/man           \
             $OPTS                         &&
-make
+make -j $JOBS
