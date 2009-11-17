@@ -1,0 +1,52 @@
+diff -uNr partimage-ng/doc/CMakeLists.txt partimage-ng.cp/doc/CMakeLists.txt
+--- partimage-ng/doc/CMakeLists.txt	2009-01-23 14:44:55.000000000 +0100
++++ partimage-ng.cp/doc/CMakeLists.txt	2009-11-16 16:58:11.000000000 +0100
+@@ -1,3 +1,6 @@
+ # install man pages
+ INSTALL(FILES partimage-ng.8 DESTINATION share/man/man8/)
++if (NOT NO_HAL)
+ INSTALL(FILES ping-cdcat.8 DESTINATION share/man/man8/)
++endif (NOT NO_HAL)
++
+diff -uNr partimage-ng/src/CMakeLists.txt partimage-ng.cp/src/CMakeLists.txt
+--- partimage-ng/src/CMakeLists.txt	2009-01-23 14:44:55.000000000 +0100
++++ partimage-ng.cp/src/CMakeLists.txt	2009-11-16 16:57:32.000000000 +0100
+@@ -51,7 +51,6 @@
+ FIND_PACKAGE(Ntfs)
+ FIND_PACKAGE(Ntfs3g)
+ FIND_PACKAGE(Parted REQUIRED)
+-FIND_PACKAGE(Hal REQUIRED)
+ 
+ # OK, figure out which ntfs library to use
+ IF(NTFS3G_PREFERRED)
+@@ -101,20 +100,26 @@
+ ENDIF (NTFS3G_PREFERRED AND NTFS3G_FOUND)
+ 
+ # Directories
+-INCLUDE_DIRECTORIES(${HAL_INCLUDE_DIR} ${NTFS3G_INCLUDE_DIR})
+-LINK_DIRECTORIES(${HAL_LIBRARY_DIR} ${NTFS3G_LIBRARY_DIR})
++INCLUDE_DIRECTORIES(${NTFS3G_INCLUDE_DIR})
++LINK_DIRECTORIES(${NTFS3G_LIBRARY_DIR})
+ 
+ # add the main target
+ ADD_EXECUTABLE(partimage-ng ${partimage_ng_src})
+-ADD_EXECUTABLE(ping-cdcat ${ping-cdcat_src})
+ 
+ 
+ # link target libraries
+ TARGET_LINK_LIBRARIES(partimage-ng parted ext2fs ${NTFS_LIBRARIES})
+-TARGET_LINK_LIBRARIES(ping-cdcat ${HAL_LIBRARIES})
+ 
+ 
+ # install application and scripts
+ INSTALL(TARGETS partimage-ng DESTINATION "sbin")
++
++if (NOT NO_HAL)
++FIND_PACKAGE(Hal REQUIRED)
++INCLUDE_DIRECTORIES(${HAL_INCLUDE_DIR} )
++LINK_DIRECTORIES(${HAL_LIBRARY_DIR} )
++TARGET_LINK_LIBRARIES(ping-cdcat ${HAL_LIBRARIES})
++ADD_EXECUTABLE(ping-cdcat ${ping-cdcat_src})
+ INSTALL(TARGETS ping-cdcat DESTINATION "sbin")
++endif (NOT NO_HAL)
+ 
