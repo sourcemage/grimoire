@@ -1,2 +1,1 @@
-./configure --prefix=/usr  &&
-default_build_make
+qt4_build
