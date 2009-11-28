@@ -4,4 +4,5 @@ export PKG_CONFIG_PATH="${TRACK_ROOT}/usr/include/nss:${TRACK_ROOT}/usr/include/
 OPTS="--disable-nm $OPTS" &&
 make_single          &&
 default_build        &&
+make_normal          &&
 cd $SOURCE_DIRECTORY
