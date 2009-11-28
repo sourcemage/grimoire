@@ -1,0 +1,2 @@
+OPTS="$OPTS $OSMO_CONTACTS $OSMO_TASKS $OSMO_NOTES" &&
+default_build
