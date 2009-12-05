@@ -1,0 +1,64 @@
+diff -Nur schroedinger-1.0.7.orig/gst-libs/gst/video/gstbasevideoutils.c schroedinger-1.0.7/gst-libs/gst/video/gstbasevideoutils.c
+--- schroedinger-1.0.7.orig/gst-libs/gst/video/gstbasevideoutils.c	2009-04-22 19:55:58.000000000 +0200
++++ schroedinger-1.0.7/gst-libs/gst/video/gstbasevideoutils.c	2009-12-05 11:15:29.000000000 +0100
+@@ -230,48 +230,6 @@
+ }
+ 
+ 
+-int
+-gst_adapter_masked_scan_uint32 (GstAdapter *adapter,
+-    guint32 pattern, guint32 mask, int offset, int n)
+-{
+-  GSList *g;
+-  int j;
+-  int k;
+-  int skip;
+-  int m;
+-
+-  g_return_val_if_fail (n >= 0, 0);
+-  g_return_val_if_fail (offset >= 0, 0);
+-  g_return_val_if_fail (offset + n + 4 <= adapter->size, 0);
+-
+-  g = get_chunk (adapter, offset, &skip);
+-  j = 0;
+-  while (j < n) {
+-    m = MIN (GST_BUFFER_SIZE(GST_BUFFER(g->data)) - skip - 4, 0);
+-    if (m > 0) {
+-      k = scan_fast (GST_BUFFER_DATA(GST_BUFFER(g->data)) + skip,
+-          pattern, mask, m);
+-      if (k < m) {
+-        return offset+j+k;
+-      }
+-      j += m;
+-      skip += m;
+-    } else {
+-      if (scan_slow (adapter, g, skip, pattern, mask)) {
+-        return offset + j;
+-      }
+-      j++;
+-      skip++;
+-    }
+-    if (skip >= GST_BUFFER_SIZE (GST_BUFFER(g->data))) {
+-      g = g->next;
+-      skip = 0;
+-    }
+-  }
+-
+-  return n;
+-}
+-
+ GstBuffer *
+ gst_adapter_get_buffer (GstAdapter *adapter)
+ {
+diff -Nur schroedinger-1.0.7.orig/gst-libs/gst/video/gstbasevideoutils.h schroedinger-1.0.7/gst-libs/gst/video/gstbasevideoutils.h
+--- schroedinger-1.0.7.orig/gst-libs/gst/video/gstbasevideoutils.h	2009-04-22 19:56:06.000000000 +0200
++++ schroedinger-1.0.7/gst-libs/gst/video/gstbasevideoutils.h	2009-12-05 11:15:11.000000000 +0100
+@@ -84,8 +84,6 @@
+ GstClockTime gst_video_state_get_timestamp (const GstVideoState *state,
+     int frame_number);
+ 
+-int gst_adapter_masked_scan_uint32 (GstAdapter *adapter,
+-    guint32 pattern, guint32 mask, int offset, int n);
+ GstBuffer *gst_adapter_get_buffer (GstAdapter *adapter);
+ 
+ G_END_DECLS
