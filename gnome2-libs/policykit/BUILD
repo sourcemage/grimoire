@@ -1,6 +1,6 @@
 create_account polkituser  &&
 
-if [[ "$POLICYKIT_MAN" == "y" ]]; then
+if [[ "$POLICYKIT_MANPAGES" == "y" ]]; then
    OPTS="--enable-man-pages $OPTS"
 else
    OPTS="--disable-man-pages $OPTS"
