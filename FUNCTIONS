@@ -512,7 +512,7 @@ cmake_build() {
   cd $SOURCE_DIRECTORY  &&
   mkdir -p build        &&
   cd build              &&
-  cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr ../  $OPTS &&
+  cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr $OPTS ../  &&
   make
 }
 
@@ -732,6 +732,22 @@ function default_build_configure() {
 
 function default_build_make(){
   make
+}
+
+#---
+## Simple version check with force depends
+## @params $1 - the spell to check the version of
+## @params $2 - the simple version to check against
+##              (if proper is 2.1.0 then this is 210)
+## @params $3 - how many digits to compare against from left to right
+##              defaults to 99 digits
+#---
+function simple_version_check_force_depends(){
+if spell_ok $1 &&
+   [[ $(installed_version $1|sed -e 's:^0\.::' -e 's:\.::g' | cut -c-${3:=99}) -lt $2 ]]
+  then
+    force_depends $1
+fi
 }
 
 . $GRIMOIRE/glselect.function

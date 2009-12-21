@@ -37,7 +37,7 @@ update_lilo()  {
     rm  -rf  /etc/lilo.conf.new
     cp  -a /etc/lilo.conf  /etc/lilo.conf.old
 
-    IMAGE_COUNT=0 
+    IMAGE_COUNT=0
     awk -F= 'BEGIN { output=0 } \
          $1 ~ /image/ { output=1 } \
 	 { if( output == 0 ) print $0 }' /etc/lilo.conf > /etc/lilo.conf.new
@@ -45,7 +45,7 @@ update_lilo()  {
     awk -F= 'BEGIN { output=1 } \
          $1 ~ /image/ { output=0 } \
 	 { if( output == 0 ) print $0 }' /etc/lilo.conf >> /etc/lilo.conf.new
-    cat /etc/lilo.conf.new > /etc/lilo.conf  
+    cat /etc/lilo.conf.new > /etc/lilo.conf
   fi
 
   /sbin/lilo -H
@@ -75,7 +75,7 @@ update_silo()  {
       if  ((  IMAGE_COUNT == 14  ));  then
         break
       fi
-    
+
       echo  $LINE  >>  /etc/silo.conf.new
 
     done
@@ -135,7 +135,7 @@ update_yaboot()  {
 update_grub() {
 
   local MENU=/boot/grub/menu.lst
-  
+
   if  !  grep  -q  "vmlinuz-${VERSION} "  $MENU;  then
 
     rm  -rf  $MENU.old
@@ -168,17 +168,25 @@ update_grub() {
 
 }
 
+update_grub2() {
+    grub-mkconfig > /boot/grub/grub.cfg
+}
+
 # Changed from 'case $BUILD  in' as $BUILD is not defined yet
 root_dev
 case  `uname -m`  in
   powerpc)  boot_loader="yaboot" update_yaboot  ;;
    sparc*)  boot_loader="silo" update_silo    ;;
-        *)  if  [  -f /etc/lilo.conf  ]
+        *)  if  [  -f /etc/lilo.conf  -a -x /sbin/lilo ]
             then
-	      boot_loader="lilo"
+              boot_loader="lilo"
               update_lilo
-            else  [  -f  /boot/grub/menu.lst  ]
-	      boot_loader="grub"
+            elif  [  -f  /boot/grub/grub.cfg  -a -x /usr/sbin/grub-mkconfig ]
+            then
+              boot_loader="grub2"
+              update_grub2
+            else  [  -f  /boot/grub/menu.lst  -a -x /sbin/grub ]
+              boot_loader="grub"
               update_grub
-	    fi;;
+            fi;;
 esac
