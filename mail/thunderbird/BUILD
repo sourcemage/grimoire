@@ -1,4 +1,4 @@
-cd  $SOURCE_DIRECTORY/mozilla  &&
+cd  $SOURCE_DIRECTORY/comm-1.9.1  &&
 
 THUNDERBIRD_HOME=${INSTALL_ROOT}/usr/lib/thunderbird &&
 export  MOZ_THUNDERBIRD="1"   &&
@@ -32,12 +32,7 @@ fi
 ./configure --prefix=${INSTALL_ROOT}/usr     \
             --with-user-appdir=.thunderbird  \
             --enable-application=mail        \
-            --enable-optimize="$CFLAGS"      \
+            --enable-static                  \
               $OPTS                          &&
 
-make  &&
-
-if [[ "$BUILD_ENIGMAIL" == 'y' ]]; then
-   build/autoconf/make-makefile mailnews/extensions/enigmail &&
-   make -C mailnews/extensions/enigmail
-fi
+make
