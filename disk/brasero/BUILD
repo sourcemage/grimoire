@@ -1,2 +1,2 @@
-OPTS="$OPTS --disable-caches"  &&
+OPTS="$BRASERO_CACHE $OPTS"  &&
 default_build
