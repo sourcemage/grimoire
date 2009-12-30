@@ -1,3 +1,23 @@
 config_query DRM_AUTOUPDATE \
-       "Automaticaly update the spell on sorcery queue/system-update?" "n"
+       "Automaticaly update the spell on sorcery queue/system-update?" "n"  &&
 
+# At least for 2.6.26 and 2.6.27, drm requires CONFIG_UNUSED_SYMBOLS=y
+# to define init_mm
+#
+local  _KERNEL_VERSION=$(installed_version linux|cut -d. -f1,2,3) &&
+
+if  [[  "$_KERNEL_VERSION" == "2.6.26" ||
+        "$_KERNEL_VERSION" == "2.6.27" ]]
+then
+  . $GRIMOIRE/FUNCTIONS  &&
+
+  local  _KVM_UNUSED_SYMBOLS=$(get_kernel_config CONFIG_UNUSED_SYMBOLS)  &&
+
+  if [[ $_KVM_UNUSED_SYMBOLS != y ]]
+  then
+    message "${PROBLEM_COLOR}You don't have CONFIG_UNUSED_SYMBOLS"   \
+            "enabled in your kernel configuration, cannot build"     \
+            "${SPELL_COLOR}$SPELL${MESSAGE_COLOR}.${DEFAULT_COLOR}"  &&
+    return 1
+  fi
+fi

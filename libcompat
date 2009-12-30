@@ -52,10 +52,19 @@ else
 fi
 
 # fall back to depends if runtime_depends isn't implemented
-declare -f runtime_depends &> /dev/null ||
-function runtime_depends() {
-  depends "$@"
-}
+if declare -f runtime_depends &> /dev/null; then
+  function runtime_depends_2() {
+    runtime_depends "$@"
+  }
+else
+  function runtime_depends() {
+    depends "$@"
+  }
+
+  function runtime_depends_2() {
+    true
+  }
+fi
 
 declare -f is_depends_enabled &>/dev/null ||
 function is_depends_enabled() {
@@ -68,5 +77,4 @@ function is_depends_enabled() {
   fi
   grep -q "^[[:space:]]*$1:$2:on" $dep_status
 }
-
 

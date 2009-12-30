@@ -1,14 +1,9 @@
-#  Set compile to use STLport's headers before gcc's...
+# can't use default_build
 
-persistent_add PATH_HOLD              &&
-PATH_HOLD=${PATH}                                                &&
-export  PATH=${SOURCE_DIRECTORY}/stlport:${PATH}                 &&
-sedit  "s:../g++-v3:/usr/include/c++/`installed_version gcc`:g"  \
-       stlport/stl/config/_gcc.h                                  &&
-
-cd  build/lib                         &&
-cp  gcc.mak  Makefile &&
-sedit  's:\-O2:${CFLAGS}:'  Makefile  &&
-make_single                           &&
-make  clean  depend  install          &&
-make_normal
+./configure --prefix=${INSTALL_ROOT}/usr \
+  --with-extra-cflags="$CFLAGS" \
+  --with-extra-ldflags="$LDFLAGS" \
+  --with-extra-cxxflags="$CXXFLAGS" \
+  --with-system-boost \
+$OPTS  &&
+make all

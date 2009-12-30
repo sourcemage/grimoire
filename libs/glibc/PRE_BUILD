@@ -1,20 +1,11 @@
 default_pre_build  &&
 
-#
-# Set GLIBC_LIBIDN_DIR for use later; the variable was needlessly persistent
-#
-persistent_remove  GLIBC_LIBIDN_DIR                                      &&
-local GLIBC_LIBIDN_DIR=$SOURCE_DIRECTORY/glibc-libidn-$VERSION           &&
+patch $SOURCE_DIRECTORY/configure < $SPELL_DIRECTORY/binutils-2.20.patch &&
 
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
-  cd      $SOURCE_DIRECTORY                           &&
-  if [ "$GLIBC_USEIDN" = "y" ]; then
-    #
-    # Unpack glibc-libidn
-    #
-    unpack_file 4                         &&
-    mv $GLIBC_LIBIDN_DIR libidn
-  fi &&
+  cd      $SOURCE_DIRECTORY                  &&
+  patch $SOURCE_DIRECTORY/timezone/Makefile  \
+        $SCRIPT_DIRECTORY/localtime.patch    &&
 
   #
   # Unpack glibc-kernel-headers
@@ -26,9 +17,27 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.bz2}  &&
 
   unpack_file 3                         &&
-  cd  $GLIBC_HEADERS_DIR/usr/include                  &&
-  chmod  -R  +r  *                                    &&
-  find  .  -type  d  -exec  chmod  +x  '{}'  ';'
+  if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
+    cd  $GLIBC_HEADERS_DIR &&
+    if [ ! -z $SOURCE3 ]; then
+      verify_file 3 || return 1 &&
+      bzcat ${SOURCE_CACHE}/$SOURCE3 > ${SOURCE3%.bz2}
+    fi  &&
+    make mrproper
+  else
+    cd  $GLIBC_HEADERS_DIR &&
+    if [ ! -z $SOURCE7 ]; then
+      verify_file 7 || return 1 &&
+      bzcat ${SOURCE_CACHE}/$SOURCE7 > ${SOURCE7%.bz2} &&
+      message "${MESSAGE_COLOR}Patching ${!patch}${DEFAULT_COLOR}" &&
+      patch -p1 < ${SOURCE7%.bz2} &&
+      if [[ $? != 0 ]]; then
+        message "${PROBLEM_COLOR}Patch ${!patch} failed${DEFAULT_COLOR}" &&
+        return 1
+      fi
+    fi &&
+    make mrproper
+  fi
 else
   cd      $SOURCE_DIRECTORY                         &&
   #
@@ -54,14 +63,6 @@ fi  &&
 cd  $SOURCE_DIRECTORY                               &&
 patch  -p0  <  $SCRIPT_DIRECTORY/Makefile.patch     &&
 patch  -p1  <  $SCRIPT_DIRECTORY/as-test-x.patch &&
-
-#
-# Fix for GCC 4.3.0
-# http://sources.redhat.com/bugzilla/show_bug.cgi?id=5442
-#
-patch $SOURCE_DIRECTORY/configure.in  \
-      $SCRIPT_DIRECTORY/gcc43.patch   &&
-autoconf                              &&
 
 # disabled libgd detection/building memusagestat for now until a better
 # fix has been found, bug #8277

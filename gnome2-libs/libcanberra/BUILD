@@ -1,0 +1,3 @@
+OPTS="$CANBERRA_OSS $CANBERRA_NULL $OPTS"  &&
+
+default_build

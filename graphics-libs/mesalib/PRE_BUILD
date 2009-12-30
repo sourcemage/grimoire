@@ -1,6 +1,10 @@
 default_pre_build                                            &&
-# missing file in 7.0.2 release tarball
-cp $SPELL_DIRECTORY/glw.pc.in $SOURCE_DIRECTORY/src/glw/     &&
+cd ${SOURCE_DIRECTORY}                                       &&
+if  [[  "$MESALIB_GIT"  ==  "y"  ]];  then
+  patch -p1 < $SPELL_DIRECTORY/gl_select-scm.patch
+else
+  patch -p1 < $SPELL_DIRECTORY/gl_select.patch
+fi                                                           &&
 cd ${SOURCE_DIRECTORY}/configs                               &&
 sedit "s:/usr/local:/usr:g" default                          &&
 
@@ -9,11 +13,13 @@ then
 sedit "/^DRI_DIRS/ { N; s/.*/DRI_DIRS = $MESALIB_DRIVERS/ }" $SOURCE_DIRECTORY/configs/linux-dri
 sedit "/^DRI_DIRS/ { N; s/.*/DRI_DIRS = $MESALIB_DRIVERS/ }" $SOURCE_DIRECTORY/configs/linux-dri-x86-64
 fi                                                           &&
+
 sedit "s:MKDEP = /usr/X11R6:MKDEP = /usr/:g" linux-dri       &&
 sedit "s:MKDEP = /usr/X11R6:MKDEP = /usr/:g" linux-indirect  &&
 sedit "s:/X11R6::g" linux-dri                                &&
 sedit "s:/X11R6::g" default                                  &&
 sedit "s:/X11R6::g" linux-indirect                           &&
+
 # x86-64 libs go into normal lib/
 for i in linux*x86-64
 do
@@ -26,4 +32,10 @@ sedit "s:/X11R6::g" Makefile.template                        &&
 cd ${SOURCE_DIRECTORY}/src/glx/x11                           &&
 sedit "s:/X11R6::g" dri_glx.c                                &&
 cd ${SOURCE_DIRECTORY}/src/glw                               &&
-sedit "s:/X11R6::g" Makefile
+sedit "s:/X11R6::g" Makefile                                 &&
+
+if [[ $MESALIB_GIT == y ]]; then
+  cd "$SOURCE_DIRECTORY"                                     &&
+  sedit "/.*configure.*/d" autogen.sh                        &&
+  ./autogen.sh
+fi

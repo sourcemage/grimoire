@@ -3,24 +3,33 @@
 PROGRAM=/usr/bin/dbus-daemon
 ARGS="--system"
 RUNLEVEL=3
+NEEDS="+remote_fs"
 PIDFILE=/var/run/dbus/pid
 
 . /etc/init.d/smgl_init
 
 start() {
   echo  "Starting system message bus..."
-  mkdir -p  /var/run/dbus
-  if test ! -f $PIDFILE; then
-    # don't use loadproc here, as that fails if some user is running
-    # a session bus
-    $PROGRAM $ARGS
-    evaluate_retval
-    echo "Creating dbus machine uuid..."
-    /usr/bin/dbus-uuidgen --ensure
-    evaluate_retval
-  else
-    print_status warning "$PIDFILE exists, messagebus is running or has crashed"
+  mkdir -p $(dirname $PIDFILE)
+  # make sure there is actually a process there...
+  if [ -f $PIDFILE ]; then
+    echo "Found $PIDFILE doing extra checks..."
+    if ! ps ax | grep "dbus-daemon" | grep -q $(cat $PIDFILE) ; then
+      print_status warning "$PIDFILE exists, but messagebus is not running under this PID"
+      echo "Attempting cleanup and new startup..."
+      rm -f $PIDFILE
+    else
+      echo "Seems to be running..."
+      return 0
+    fi
   fi
+  # don't use loadproc here, as that fails if some user is running
+  # a session bus
+  $PROGRAM $ARGS
+  evaluate_retval
+  echo "Creating dbus machine uuid..."
+  /usr/bin/dbus-uuidgen --ensure
+  evaluate_retval
 }
 
 stop() {

@@ -1,0 +1,43 @@
+#!/bin/bash
+
+. /etc/sysconfig/alsa
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+remote_fs"
+
+declare -r ASOUNDCFG=/etc/asound.state
+
+. /etc/init.d/smgl_init
+
+start() {
+  [[ "$START_ALSA" == no ]]  &&  exit 0
+
+  #
+  # restore driver settings
+  #
+  if [[ -d /proc/asound ]]; then
+    if ! [[ -r "$ASOUNDCFG" ]]; then
+      echo "No mixer config in $ASOUNDCFG, you have to unmute your card!"
+    else
+      echo "Restoring settings..."
+      sleep 5
+      /usr/sbin/alsactl -F -f $ASOUNDCFG restore
+      evaluate_retval
+    fi
+  fi
+}
+
+stop() {
+  #
+  # store driver settings
+  #
+  echo "Saving settings..."
+  /usr/sbin/alsactl -f $ASOUNDCFG store
+  evaluate_retval
+
+  #
+  # mute master to avoid clicks at unload
+  #
+  /usr/bin/amixer set Master mute >/dev/null 2>&1
+}

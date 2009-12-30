@@ -71,9 +71,9 @@ optional_depends  libpng                                 \
                   '--without-png'                        \
                   'for PNG image support'                &&
 
-optional_depends  libxslt                   \
-                  '--with-xslt'             \
-                  '--without-xslt'          \
+optional_depends  libxslt                                \
+                  '--with-xslt --with-xml'               \
+                  '--without-xslt --without-xml'         \
                   'for a functional Microsoft XML (MSXML) implementation'  &&
 
 optional_depends  MSTTF                                  \
@@ -88,10 +88,11 @@ optional_depends  nas                                    \
                   'for NAS audio support'                &&
 
 # the --with-curses option fails
-optional_depends  ncurses               \
-                  ""                    \
-                  "--without-curses"    \
-                  "curses gui?"         &&
+# because it can't find libncurses
+#optional_depends  ncurses               \
+#                  ""                    \
+#                  "--without-curses"    \
+#                  "curses gui?"         &&
 
 optional_depends  OPENGL                \
                   '--with-opengl'       \
@@ -113,56 +114,65 @@ optional_depends  winedoc                   \
                   ""                        \
                   "for wine documentation"  &&
 
-optional_depends  X11-LIBS                  \
-                  "--with-x"                \
-                  "--without-x"             \
-                  "X gui support"           &&
-
 optional_depends  sane-backends             \
                   '--without-sane'          \
                   '--without-sane'          \
                   'for scanner support'     &&
 
-source  $GRIMOIRE/FUNCTIONS  &&
+optional_depends  libx11                    \
+                  "--with-x"                \
+                  "--without-x"             \
+                  "X gui support"           &&
+if is_depends_enabled $SPELL libx11;then
+depends libice &&
+depends libsm  &&
+optional_depends  libxinerama                           \
+                  '--with-xinerama'                     \
+                  '--without-xinerama'                  \
+                  'for X11 Xinerama extension support'  &&
 
-if  check_if_xorg_modular_libs
-then
-  optional_depends  libxinerama                           \
-                    '--with-xinerama'                     \
-                    '--without-xinerama'                  \
-                    'for X11 Xinerama extension support'  &&
-  optional_depends  libxi                                 \
-                    '--with-xinput'                       \
-                    '--without-xinput'                    \
-                    'for X11 Xinput support'              &&
-  optional_depends  libxcomposite                         \
-                    '--with-xcomposite'                   \
-                    '--without-xcomposite'                \
-                    'for X11 COMPOSITE extension support'
-  optional_depends  libxcursor                            \
-                    '--with-xcursor'                      \
-                    '--without-xcursor'                   \
-                    'for X11 cursor extension support'
-  optional_depends  libxrandr                             \
-                    '--with-xrandr'                       \
-                    '--without-xrandr'                    \
-                    'for X11 XRandr extension support'    &&
-  optional_depends  libxrender                            \
-                    '--with-xrender'                      \
-                    '--without-xrender'                   \
-                    'for X11 XRender extension support'   &&
-  optional_depends  libxext                               \
-                    '--with-xshape --with-xshm'           \
-                    '--without-xshape --without-xshm'     \
-                    'for X11 XShape and Xshmextension support'  &&
-  optional_depends  xf86vidmodeproto                      \
-                    '--without-xvidmode'                  \
-                    '--without-xvidmode'                  \
-                    'for Xvidmode support'
+optional_depends  libxi                                 \
+                  '--with-xinput'                       \
+                  '--without-xinput'                    \
+                  'for X11 Xinput support'              &&
+
+optional_depends  libxcomposite                         \
+                  '--with-xcomposite'                   \
+                  '--without-xcomposite'                \
+                  'for X11 COMPOSITE extension support'
+
+optional_depends  libxcursor                            \
+                  '--with-xcursor'                      \
+                  '--without-xcursor'                   \
+                  'for X11 cursor extension support'
+
+optional_depends  libxrandr                             \
+                  '--with-xrandr'                       \
+                  '--without-xrandr'                    \
+                  'for X11 XRandr extension support'    &&
+
+optional_depends  libxrender                            \
+                  '--with-xrender'                      \
+                  '--without-xrender'                   \
+                  'for X11 XRender extension support'   &&
+
+optional_depends  libxext                               \
+                  '--with-xshape --with-xshm'           \
+                  '--without-xshape --without-xshm'     \
+                  'for X11 XShape and Xshmextension support'  &&
+
+optional_depends  xf86vidmodeproto                      \
+                  '--with-xxf86vm'                      \
+                  '--without-xxf86vm'                   \
+                  'for Xvidmode support'
 fi &&
-
 suggest_depends  'wine-gecko'                       \
                  ''                                 \
                  ''                                 \
                  'for pre-downloaded GECKO engine'  \
-                 'z-rejected'
+                 'z-rejected'                       &&
+
+optional_depends mpg123                      \
+                 '--with-mpg123'             \
+                 '--without-mpg123'          \
+                 'for MP3 decoding support'

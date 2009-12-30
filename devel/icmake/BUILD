@@ -1,1 +1,1 @@
-./bootstrap.sh
+./icm_bootstrap /

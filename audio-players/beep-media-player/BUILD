@@ -18,4 +18,7 @@ if [ "$SIMD" = "y" ]; then
    OPTS="$OPTS --enable-simd"
 fi &&
 
+# bug #14584
+CFLAGS="$CFLAGS -O2" &&
+
 default_build

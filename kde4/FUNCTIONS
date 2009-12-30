@@ -1,31 +1,21 @@
-prepare_environment() {
-  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"             &&
-  PATH="$QTDIR/bin/qt4:$PATH"                     &&
-
-  persistent_add KDE4DIR                          &&
-  KDE4DIR="$INSTALL_ROOT/opt"                     &&
-
-  PATH="$KDE4DIR/bin:$PATH"                       &&
-  LD_LIBRARY_PATH="$KDE4DIR/lib:$LD_LIBRARY_PATH" &&
-  QT_PLUGIN_PATH="$KDE4DIR/lib/kde4/plugins"
-}
-
 default_build() {
-  prepare_environment                             &&
-
+  persistent_add KDE4DIR                          &&
+  KDE4DIR="$INSTALL_ROOT/opt/kde4"                &&
+  QTDIR=$INSTALL_ROOT/usr/bin/qt4                 &&
   cd $SOURCE_DIRECTORY                            &&
   mkdir -p build                                  &&
   cd build                                        &&
-  cmake -DCMAKE_INSTALL_PREFIX="$KDE4DIR"         \
+  PATH=$KDE4DIR:$QTDIR:$PATH                      &&
+  CMAKE_PREFIX_PATH=$KDE4DIR                      &&
+  cmake -DCMAKE_INSTALL_PREFIX=$KDE4DIR           \
         -DCMAKE_BUILD_TYPE=$KDE_DEBUG_OPTION      \
-        ../                                       &&
+        $OPTS ../                                 &&
   make
 }
 
 # kde4 also needs a special default_install,
 # to maintain some environment variables
 default_install() {
-  prepare_environment  &&
 
   # make sure that kde4 spells install their D-Bus
   # service files into the system D-Bus service dir
@@ -53,9 +43,9 @@ default_install() {
 update_databases() {
 
   source /etc/profile.d/strigi.sh
-  update-mime-database /opt/share/mime/
-  if [[ -e /opt/share/desktop-directories ]]; then
-    update-desktop-database /opt/share/desktop-directories
+  update-mime-database $KDE4DIR/share/mime/
+  if [[ -e $KDE4DIR/share/desktop-directories ]]; then
+    update-desktop-database $KDE4DIR/share/desktop-directories
   fi
 }
 

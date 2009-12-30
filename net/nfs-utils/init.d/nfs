@@ -2,17 +2,71 @@
 
 PROGRAM=/bin/false
 RUNLEVEL=3
-NEEDS="+remote_fs +network +portmap"
+NEEDS="+network +portmap"
 
 . /etc/init.d/smgl_init
 . /etc/sysconfig/nfs
 
-if [ ! -e /etc/exports ] ; then
+if [[ ! -e /etc/exports ]]; then
   $FAILURE
   echo "Please create an /etc/exports file. Exiting without starting nfs..."
   $NORMAL
   exit 1
 fi
+
+if [[ -e /usr/sbin/rpc.idmapd ]]; then
+  HASNFS4=1
+fi
+
+# pseudo fs stuff
+mount_nfsd()
+{
+  if grep -q 'nfsd' /proc/filesystems; then
+    if ! grep -q 'nfsd' /etc/mtab; then
+      required_executable /bin/mount
+      echo "mounting nfsd"
+      mount -t nfsd nfsd /proc/fs/nfsd
+      evaluate_retval
+    fi
+  fi
+}
+umount_nfsd()
+{
+  if grep -q 'nfsd' /etc/mtab; then
+    required_executable /bin/umount
+    echo "unmounting nfsd"
+    umount /proc/fs/nfsd
+    evaluate_retval
+  fi
+}
+mount_pipefs()
+{
+  if grep -q 'rpc_pipefs' /proc/filesystems; then
+    if ! grep -q 'rpc_pipefs' /etc/mtab; then
+      required_executable /bin/mount
+      echo "mounting pipefs"
+      mount -t rpc_pipefs rpc_pipefs /var/lib/nfs/rpc_pipefs
+      evaluate_retval
+    fi
+  fi
+}
+umount_pipefs()
+{
+  if grep -q 'rpc_pipefs' /etc/mtab; then
+    required_executable /bin/umount
+    echo "unmounting pipefs"
+    umount /var/lib/nfs/rpc_pipefs
+    evaluate_retval
+  fi
+}
+
+# for making sure these exist
+mknfsdirs() {
+  local d
+  for d in /var/lib/nfs/{rpc_pipefs,v4recovery,v4root}; do
+    [[ ! -d "${d}" ]] && mkdir -p "${d}"
+  done
+}
 
 # may be outsourced
 get_kernel_pids()
@@ -30,51 +84,87 @@ get_kernel_pids()
 
 start()
 {
-  echo "Starting full NFS services (server & locking)"
-  # why do we reexport before the daemons are up?
-  # doesn't seem to matter much
+  local bins
+  echo "Starting NFS services (client & server)"
+
+  bins="statd nfsd mountd"
+  if [[ ! -z $HASNFS4 ]]; then
+    mknfsdirs
+    mount_nfsd
+    mount_pipefs
+    bins="${bins} idmapd"
+  fi
+
+  for b in $bins; do
+    required_executable /usr/sbin/rpc.$b
+  done
+
+  # nfs-howto says: these daemons in this order
+  # userspace does not bother about lockd since linux 2.2.18
+  for d in ${bins} rquotad; do
+    if [[ -x /usr/sbin/rpc.$d ]]; then
+      local opts=
+
+      if [[ $d == 'mountd' ]]; then
+        opts="$MOUNTDOPTS"
+
+        if [[ ! -z "$MOUNTD_PORT" ]]; then
+          opts="$opts -p $MOUNTD_PORT"
+        fi
+      elif [[ $d == 'nfsd' ]]; then
+        opts="$NUMSERVERS"
+      elif [[ $d == 'statd' && ! -z $STATD_PORT ]]; then
+        opts="-p $STATD_PORT"
+      fi
+
+      echo -n $d
+      loadproc /usr/sbin/rpc.$d $opts
+    fi
+  done
+
   required_executable /usr/sbin/exportfs
   echo -n "exportfs"
   /usr/sbin/exportfs -r 
   evaluate_retval
-
-  # nfs-howto says: these daemons in this order
-  # userspace does not bother about lockd since linux 2.2.18
-  for d in mountd nfsd statd rquotad
-  do
-    required_executable /usr/sbin/rpc.$d
-    local opts=
-    if   [[ $d == mountd ]]; then opts="$MOUNTDOPTS"
-	  if  [[ ! -z "$MOUNTD_PORT" ]]; then opts="$opts -p $MOUNTD_PORT"
-	  fi
-    elif [[ $d == nfsd ]]; then opts="$NUMSERVERS"
-	elif [[ $d == statd && ! -z $STATD_PORT ]]; then opts="-p $STATD_PORT"
-    fi
-    echo -n $d
-    loadproc /usr/sbin/rpc.$d $opts
-  done
 }
 
 stop()
 {
-  echo "Stopping NFS services"
+  local bins
+  echo "Stopping NFS services (client & server)"
   echo -n "unexporting filesystems"
   /usr/sbin/exportfs -au
   evaluate_retval
+
+  bins="statd nfsd mountd"
+  if [[ ! -z $HASNFS4 ]]; then
+    umount pipefs
+    umount_nfsd
+    bins="${bins} idmapd"
+  fi
+
+  for b in $bins; do
+    required_executable /usr/sbin/rpc.$b
+  done
   
   # all in one loop to simplify code, reversed order
   # atm. only nfsd is really in-kernel (and lockd self-managed)
-  for d in rquotad statd nfsd mountd
-  do
-    local kpid=$(get_kernel_pids $d)
-    if [[ -z $kpid ]]; then
-      echo -n "killing $d"
-      killproc /usr/sbin/rpc.$d
-    else
-      echo "not killing kernel $d (PID $kpid)"
+  for d in ${bins} rquotad; do
+    if [[ -x /usr/sbin/rpc.$d ]]; then
+      local kpid=$(get_kernel_pids $d)
+
+      if [[ -z $kpid ]]; then
+        echo -n "killing $d"
+        killproc /usr/sbin/rpc.$d
+      else
+        if [[ $d == 'nfsd' ]]; then
+          echo "Removing kernel nfsd"
+          /usr/sbin/rpc.nfsd 0
+        else
+          echo "not killing kernel $d (PID=${kpid})"
+        fi
+      fi
     fi
-    echo "Removing kernel nfsd"
-    /usr/sbin/rpc.nfsd 0
   done
 }
 

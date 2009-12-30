@@ -1,0 +1,313 @@
+.\" To see this man-page formatted, run it through
+.\" groff -man -Tascii | less -r
+.\"
+.\" Change Month, Day, Year to time of editing.
+.TH SMGL-SETUP \
+7 \
+"October 12, 2008" \
+"SMGL User Manual" \
+"Source Mage GNU/Linux User Manual"
+
+.SH NAME
+.B smgl-setup
+- basic introduction to configuring Source Mage GNU/Linux
+
+.SH DESCRIPTION
+.B Welcome to Source Mage GNU/Linux!
+
+This man-page describes the steps that you can/should take for a newly installed Source Mage GNU/Linux system. After finishing the minimal installation from the ISO itself, there is still a lot of work to be done on the part of the user to bring the system to a more usable/polished state. This includes configuring the system, setting up networking, etc. Each section below will describe different things you can do with your new system.
+
+.SH SYSTEM CONFIGURATION
+The Source Mage installation provides some default settings for a baseline system (such as EDITOR=nano). Now would be a good time to configure some of those settings to suit your own tastes. Note that you can do these before or after updating your system, though it is recommended that you configure some of these (such as your text editor and timezone) before doing anything else.
+.\"
+.SS Default Text Editor
+
+You can change the default text editor either globally, by editing the
+.IR /etc/profile.d/editor.sh
+script, or per user, by setting the
+.B $EDITOR
+environment variable in your
+.I .bashrc
+or equivalent. The default text editor set by the installer is
+.BR nano .
+Make sure that you have your preferred text editor installed else you will get errors for trying to use an editor that doesn't exist on your system.
+.\"
+.SS System Logger
+
+You may optionally want to install a system logger. You can have more than one logger installed at a time, but you can only have one of them running (enabled) at a time or they will conflict with each other. Some spells (optionally) depend on having a system logger, so it is recommended that you install one. You can view the possible system logging providers by running:
+.IP
+.B gaze provides SYSTEM-LOGGER
+.\"
+.SS /etc/sysconfig/
+
+This directory is full of configuration files that provide different settings for your entire system. Some files you might want to edit would be:
+.IP
+.B facilities
+- setup which programs should provide different services such as system logging and default display manager
+
+.B hwclock
+- set whether the hardware clock stores time in UTC format
+
+.B keymap
+- sets the keymap to use in the console, as well as the font and whether UTF-8 should be enabled or not
+
+.B locale
+- define various locale information
+
+.B init
+- configure the init process, such as the default run level
+
+.B shutdown
+- configure whether to power off or just halt when shutting down
+.\"
+.SS Timezone
+
+You can setup your system's timezone by following these steps. Look for your timezone in
+.IR /usr/share/zoneinfo.
+Copy or link that timezone to the
+.IR /etc/localtime
+file by running this command as root (using Asia/Manila as an example):
+.IP
+.BR cp " (or" " ln -sf" )
+.I /usr/share/zoneinfo/Asia/Manila /etc/localtime
+.PP
+Verify that everything is working correctly with the
+.BR date (1)
+command.
+
+.SS Networking
+
+Source Mage has recently switched to a simpler system for managing network connections using the Debian-based ifupdown interfaces system. This basically involves editing the
+.I /etc/network/interfaces
+file to configure what the
+.BR ifup (8)
+and
+.BR ifdown (8)
+commands would do. The
+.BR interfaces (5)
+man page explains how to write the file. Example configurations are also provided in the
+.I /usr/share/doc/ifupdown/examples/
+directory, specifically the
+.B network-interfaces
+file.
+
+.SH SYSTEM UPDATE
+
+Once you are able to connect to the Internet, you can start upgrading your system to the latest stable versions of the grimoires and sorcery or switch to other branches. This is done through the
+.BR scribe (8)
+and
+.BR sorcery (8)
+commands as described below.
+.\"
+.SS Updating Grimoires
+
+A
+.B grimoire
+is Source Mage's repository of spells and is managed using the
+.BR scribe (8)
+command. By default, only the
+.B stable
+grimoire installed, but the version might be a bit dated by the time you have installed Source Mage. The command
+.IP
+.B scribe update
+.PP
+will update all
+.B grimoires
+installed on your system. You can add other
+.B grimoires
+like the
+.B test grimoire
+by running:
+.IP
+.B scribe add test
+.PP
+More information about managing
+.B grimoires
+can be found in the
+.BR scribe (8)
+man page.
+.\"
+.SS Updating Sorcery
+.BR sorcery (8)
+is Source Mage's package management suite. Make sure that it is up-to-date by running:
+.IP
+.B sorcery update
+.PP
+You can choose which branch of sorcery to use through the
+.B sorcery
+menu. Run
+.IP
+.B sorcery
+.PP
+and go to the
+.I Option
+menu and then select
+.IR "Sorcery Branch" .
+Be sure to update sorcery every time you switch branches. In case something causes the update to fail and your sorcery scripts are lost, run the following command to restore them:
+.IP
+.B bash
+.I /root/sorcery.restore
+.\"
+.SS Configuring Sorcery Options
+.B Sorcery
+lets you fine-tune compilation options to your hardware and your personal preferences. This is easily done through the
+.BR sorcery (8)
+menu. Run the command
+.IP
+.B sorcery
+.PP
+And go to the
+.B Options
+menu. Here you are presented with a lot of options to customize how sorcery functions or how spells are cast. There are a few worth mentioning:
+
+.B Optimize Architecture
+
+Here you will be able to choose a microprocessor category, some pre-defined optimization options, as well as additional options that you would want to be passed to the compiler.
+
+.B Feature Menu
+
+This lists some Sorcery features which you can toggle on or off. For example, you can choose whether Sorcery will create archives of installed software or whether to use ccache for accelerated upgrade compilations (
+.B ccache
+must be installed for this to work).
+
+.B Prompt Delay
+
+While casting spells, Sorcery will ask you questions regarding features or actions to be taken. It will wait for a given amount of time for you to answer before continuing the cast, using the default answer (varies from spell to spell) if you don't respond before it times out. This feature allows you to set how long, in seconds, Sorcery has to wait before proceeding (choose 0 to have sorcery just use the default values immediately - you won't be able to change any settings when casting spells if you do this though).
+
+.B Tip:
+The status message at the bottom of the screen gives a brief explanation about each option. Feel free to play with various options, but be aware that if you don't know what you are doing with some of the options, you could end up with drastically different results than you might expect. You can leave most settings, besides the compile options, at the default and things should run just fine.
+.\"
+.SS Rebuilding the system
+After you have updated your
+.B grimoire(s)
+and
+.B sorcery,
+you may choose to rebuild all the spells installed on your system. This step is optional, but recommended. If you choose not to rebuild your system, then the options you selected for sorcery will not take effect until the next time the spell is compiled (either by forcing a recompile of the spell with:
+.IP
+.B cast -c [spell]
+.PP
+or by upgrading to a new version of the spell). You can rebuild every spell in the system by issuing the following command:
+.IP
+.B sorcery rebuild
+.PP
+Optionally, you can first rebuild the toolchain before rebuilding the whole system. This will ensure that the toolchain will be using whatever optimizations you set in
+.BR sorcery (8)
+when it recompiles the rest of the system. You can rebuild the toolchain by running:
+.IP
+.B cast -c binutils gcc g++ gettext glibc
+.PP
+After it's done, you can rebuild the system as indicated above. You can skip g++ if you don't have it installed.
+
+.SH BEYOND A BASE INSTALL
+
+You should now have fully working and updated base system, ready to be expanded to your personal needs, whether for a desktop, a server, or anything else. Where you go from here is really up to you. Add more
+.B grimoires
+with
+.BR scribe (8),
+search and view spells using
+.BR gaze (1),
+or install or remove spells using
+.BR cast (8)
+and
+.BR dispel (8).
+Here are a few suggestions you might be interested in.
+.\"
+.SS Command line chatting and surfing
+
+Whether you are a command line type of person, or merely waiting for a proper graphical interface to finish casting, you can still enjoy the use of your newly set up Internet connection to go online. You can chat on IRC with
+.B irssi
+and browse the web with one of many text browsers, such as
+.B w3m,
+.B elinks,
+or
+.B lynx.
+For example,
+.IP
+.B cast irssi elinks
+.PP
+will install both
+.B irssi
+and
+.B elinks.
+.\"
+.SS X Window System
+
+Most window managers and desktop environments rely on the X Window System for graphical capabilities. If you are using the
+.B stable grimoire,
+you can install (monolithic) Xorg by running
+.IP
+.B cast xorg
+.PP
+On the other hand, if you are using the
+.B test grimoire,
+you can get the newer (modular) Xorg with
+.IP
+.B cast xorg-server
+.PP
+Note that you do not have to manually cast X if you are casting a spell that depends on X (such as a window manager or desktop environment), since it will automatically be pulled in as a dependency of the spell you are casting that depends on it.
+.\"
+.SS DE's and WM's
+
+If you fancy setting up a full graphical environment, Source Mage provides spells for most of the major desktop environments and window managers. You can install GNOME 1 or 2, KDE 3 or 4, Xfce 4, or a whole host of other window managers such as
+.B awesome
+and
+.B fluxbox.
+Most of these are in the
+.B windowmanagers
+section of the
+.B grimoires.
+To list the spells available in that section, run
+.IP
+.B gaze section windowmanagers
+.PP
+The desktop environment spells provide a special
+.I profile
+spell to make it easier to install the whole desktop using just one command. These profile spells are as follows:
+.IP
+.B gnome-profile
+- for GNOME 1
+
+.B gnome2-profile
+- for GNOME 2
+
+.B kde-profile
+- for KDE 3
+
+.B kde4-profile
+- for KDE 4
+
+.B xfce4-profile
+- for Xfce 4
+.PP
+To install one of the desktops, for example Xfce 4, run the command
+.IP
+.B cast xfce4-profile
+.PP
+.B Note about KDE 4:
+In order for a user to be able to use KDE 4, that user must belong to the
+.I kde4
+group. Add a user to the kde4 group with this command:
+.IP
+.B gpasswd -a [username] kde4
+.PP
+.\"
+.\" The following commands should be uncommented and
+.\" used where appropriate.
+.\" This next command is for sections 1, 6, 7 and 8 only.
+.\" .SH ENVIRONMENT
+.\" .SH FILES
+.\" .SH EXAMPLES
+.\"
+.SH SEE ALSO
+.BR scribe (8), \ sorcery (8), \ gaze (1), \ cast (8), \ dispel (8)
+.PP
+Visit the Source Mage GNU/Linux website:
+.I http://www.sourcemage.org
+.\"
+.\" .SH STANDARDS
+.\" .SH HISTORY
+.\"
+.SH AUTHORS
+The Tome and Cauldron Teams of Source Mage GNU/Linux
+.\"
+.\" .SH BUGS

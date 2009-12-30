@@ -1,14 +1,30 @@
 mk_source_dir  $SOURCE_DIRECTORY  &&
 cd             $SOURCE_DIRECTORY  &&
 unpack_file    ''                 &&
-cd             mozilla            &&
+cd             comm-1.9.1            &&
 
-# remove /root/.mozconfig, it causes too much trouble
-if  [  -f  /root/.mozconfig  ];  then
-  rm  -f  /root/.mozconfig
-fi  &&
+cp -v $SPELL_DIRECTORY/blfs-mozconfig .mozconfig &&
 
-# remove broken .mozconfig shipped with 1.0b
-rm  -f  .mozconfig  &&
+#cp -v $SPELL_DIRECTORY/blfs-mozconfig mozilla/.mozconfig &&
 
-patch -p1 < $SCRIPT_DIRECTORY/cairo-fixes.patch
+if [[ "$SEAMONKEY_MAILNEWS" == "n" ]]; then
+   sed -i '85iac_add_options --disable-mailnews' .mozconfig
+fi &&
+
+if [[ "$SEAMONKEY_COMPOSER" == "n" ]]; then
+   sed -i '85iac_add_options --disable-composer' .mozconfig
+fi &&
+
+if [[ "$SEAMONKEY_JS" == "y" ]]; then
+   sed -i '85iac_add_options --enable-xpctools' .mozconfig
+else
+   sed -i '85iac_add_options --disable-xpctools' .mozconfig
+fi &&
+
+if [[ "$SEAMONKEY_XINERAMA" == "y" ]]; then
+   sed -i '85iac_add_options --enable-xinerama' .mozconfig
+fi &&
+
+if [[ "$SEAMONKEY_PANGO" == "y" ]]; then
+   sed -i '85iac_add_options --enable-pango' .mozconfig
+fi

@@ -28,6 +28,22 @@ _dashify()
     done
 }
 
+_dashify1()
+{
+	local i
+	for (( i=0; i < ${#COMPREPLY[@]}; i++ )); do
+		COMPREPLY[i]=-${COMPREPLY[i]}
+	done
+}
+
+_dashify2()
+{
+	local i
+	for (( i=0; i < ${#COMPREPLY[@]}; i++ )); do
+		COMPREPLY[i]=--${COMPREPLY[i]}
+	done
+}
+
 _add_installed_spell_list()
 {
     COMPREPLY=( ${COMPREPLY[@]}
@@ -52,6 +68,7 @@ _add_grimoire_list()
 
 # Source Mage GNU/Linux gaze(1) completion
 # by Lunar_fr (lunar@l-a-p.org)
+# updated by Bor Kraljic (pyrobor@ver.si)
 #
 have gaze &&
 _gaze()
@@ -64,38 +81,46 @@ _gaze()
     
     if [ $COMP_CWORD = 1 ]; then
 	COMPREPLY=( $( compgen -W 'alien from search service provides what \
-                where website install installed compile sources history sum \
-                md5sum export import section maintainer grimoire html newer \
-                older prune voyeur pam orphans depends spider version versions \
-		DETAILS CONFIGURE DEPENDS CONFLICTS PRE_BUILD BUILD POST_BUILD \
-		POST_INSTALL POST_REMOVE HISTORY INSTALL FINAL' $cur ))
+           where website install installed compile sources history sum \
+           md5sum export import section maintainer grimoire html newer \
+           older prune voyeur pam orphans depends spider time version versions \
+			activity install-queue remove-queue show-held show-exiled short \
+			source_urls install-full install-spell license size grimoires dependencies \
+			time time-system \
+			BUILD CONFIGURE CONFLICTS DETAILS DEPENDS DOWNLOAD FINAL HISTORY \
+			INSTALL INSTALL_EXTRAS PATCH POST_BUILD POST_INSTALL POST_REMOVE \
+			POST_RESURRECT PRE_BUILD PRE_INSTALL PRE_REMOVE PRE_RESURRECT \
+			PRE_SUB_DEPENDS PREPARE PROVIDES SECURITY SUB_DEPENDS TRANSFER \
+			TRIGGER_CHECK TRIGGERS UP_TRIGGERS' $cur ))
     elif [ $COMP_CWORD = 2 ]; then
 	case "$prev" in
-	    @(what|where|website|sources|maintainer|depends|history|version*))
+		@(what|where|website|sources|maintainer|depends|history|version|versions|short|url|source_urls))
                 _spell_list
 		return 0
 		;;
-	    @(compile|install|sum|md5sum))
+		@(compile|install|sum|md5sum|install-full|install-spell|size|voyeur|checkmd5s))
 	        _spell_list
 		return 0
 		;;
 	    installed)
+
 	        _add_installed_spell_list
 		return 0
 		;;
-	    section)
-		_add_section_list
+		time|time-system)
+			COMPREPLY=( $( compgen -W 'last median mean weigh-last full' ${cur#--} ))
+			_dashify2
 		return 0
 		;;
-	    voyeur)
-		_spell_list
+		section)
+			_add_section_list
 		return 0
 		;;
-	    spider)
-		_spell_list
+		grimoire|html)
+			_add_grimoire_list
 		return 0
 		;;
-	    @(DETAILS|CONFIGURE|DEPENDS|CONFLICTS|PRE_BUILD|BUILD|POST_BUILD|POST_INSTALL|POST_REMOVE|HISTORY|INSTALL|FINAL))
+		@(BUILD|CONFIGURE|CONFLICTS|DETAILS|DEPENDS|DOWNLOAD|FINAL|HISTORY|INSTALL|INSTALL_EXTRAS|PATCH|POST_BUILD|POST_INSTALL|POST_REMOVE|POST_RESURRECT|PRE_BUILD|PRE_INSTALL|PRE_REMOVE|PRE_RESURRECT|PRE_SUB_DEPENDS|PREPARE|PROVIDES|SECURITY|SUB_DEPENDS|TRANSFER|TRIGGER_CHECK|TRIGGERS|UP_TRIGGERS))
 		_spell_list
 		return 0
 		;;
@@ -103,26 +128,78 @@ _gaze()
 	        COMPREPLY=( $( compgen -d $cur ) )
 		return 0
 	        ;;
+		-q)
+			_add_grimoire_list
+			return 0
+		;;
 	    *)
 		return 0
 		;;
 	esac
-    else
-        case "${COMP_WORDS[1]}" in
-	    spider)
-		_spell_list
+	elif [ $COMP_CWORD = 3 ]; then
+		preprev=${COMP_WORDS[COMP_CWORD-2]}
+		case "$prev" in
+		--last|--median|--mean|--weigh-last|--full)
+ 			if [ $preprev = time ]; then
+				_add_installed_spell_list
+ 			fi
+			return 0
+		;;
+		esac
+	fi
+	return 0
+}
+[ "$have" ] && complete -F _gaze -o default gaze
+
+
+# Source Mage GNU/Linux sorcery(8) completion
+# by Bor Kraljic (pyrobor@ver.si)
+#
+have sorcery &&
+_sorcery()
+{
+	local cur prev
+
+	COMPREPLY=()
+	cur=${COMP_WORDS[COMP_CWORD]}
+	prev=${COMP_WORDS[COMP_CWORD-1]}
+	if [ $COMP_CWORD -ge 1 -o ${prev} != ${prev#-} -o ${prev} != ${prev#--} ]; then
+	case "$cur" in
+		--*)
+			COMPREPLY=( $( compgen -W 'version help' ${cur#--} ) )
+			_dashify
+			return 0
+		;;
+		-*)
+			COMPREPLY=( $( compgen -W 'v h u s g q r rr' ${cur#-} ) )
+			_dashify
 		return 0
 		;;
 	    *)
+			COMPREPLY=( $( compgen -W 'update system-update upgrade queue queue-security \
+						rebuild rebuild-reconfigure hold unhold exile unexile add-queue \
+						remove-queue default' $cur ))
 		return 0
 		;;
 	esac
     fi
-	    
+	case "$prev" in
+		hold|unhold|exile|unexile|add-queue|remove-queue)
+			_spell_list
+			return 0
+		;;
+		default)
+			COMPREPLY=( $( compgen -W 'add remove search' $cur ) )
+			return 0
+		;;
+		*)
     return 0
+		;;
+	esac
 	
+	return 0
 }
-[ "$have" ] && complete -F _gaze -o default gaze
+[ "$have" ] && complete -F _sorcery -o default sorcery
 
 # Source Mage GNU/Linux cast(8) completion
 # by Lunar_fr (lunar@l-a-p.org)
@@ -139,7 +216,10 @@ _cast()
     if [ $COMP_CWORD -ge 1 -o ${prev} != ${prev#-} -o ${prev} != ${prev#--} ]; then
 	case "$cur" in
 	    --*)
-		COMPREPLY=( $( compgen -W 'quiet dot fix nofix download deps compile reconfigure from url pam queue' ${cur#--} ) )
+		COMPREPLY=( $( compgen -W 'quiet dot fix nofix download deps compile reconfigure \
+								from url pam queue cflags cxxflags ldflags cppflags no-opts \
+								grimoire from recast-down recast-up recast-optional lazy-updates \
+								force-base-dep help\ ' ${cur#--} ) )
 		_dashify
 		return 0
 		;;
@@ -155,12 +235,15 @@ _cast()
 	    COMPREPLY=( $( compgen -d $cur ) )
 	    return 0
 	    ;;
+	-O|--recast-optional|--lazy-updates|-Z)
+		COMPREPLY=( $( compgen -W 'ignore ask-yes ask-no always' $cur ) )
+		return 0
+		;;
 	*)
 	    _spell_list
 	    return 0
 	    ;;
     esac
-    
     return 0
 }
 [ "$have" ] && complete -F _cast -o default cast
@@ -221,22 +304,160 @@ _dispel()
     if [ $COMP_CWORD -ge 1 -o ${prev} != ${prev#-} -o ${prev} != ${prev#--} ]; then
 	case "$cur" in
 	    --*)
-		COMPREPLY=( $( compgen -W 'exile downgrade' ${cur#--} ) )
+		COMPREPLY=( $( compgen -W 'exile downgrade nosustain notriggers user-deps \
+					user-child-deps user-parent-deps recast-parent non-orphan orphan \
+					total-dispel no-reap-depends noreap noqueue child dispel-parent help' ${cur#--} ) )
 		_dashify
 		return 0
 		;;
 	    -*)
-		COMPREPLY=( $( compgen -W 'e d' ${cur#-} ) )
+		COMPREPLY=( $( compgen -W 'e d h' ${cur#-} ) )
 		_dashify
 		return 0
 		;;
 	esac
     fi
+	case "$prev" in
+	--user-child-deps|--user-parent-deps|--recast-parent|--non-orphan|--orphan|--user-deps|--dispel-parent)
+		COMPREPLY=( $( compgen -W 'ignore ask-yes ask-no always' $cur ) )
+		return 0 ;;
+	*)
     _add_installed_spell_list
-    
+		return 0 ;;
+	esac
     return 0
 }
 [ "$have" ] && complete -F _dispel -o default dispel
+
+# Source Mage GNU/Linux confmeld(8) completion
+# by Bor Kraljic (pyrobor@ver.si)
+#
+
+have confmeld &&
+_confmeld()
+{
+	local cur prev
+
+	COMPREPLY=()
+	cur=${COMP_WORDS[COMP_CWORD]}
+	prev=${COMP_WORDS[COMP_CWORD-1]}
+
+	if [ $COMP_CWORD -ge 1 -o ${prev} != ${prev#-} -o ${prev} != ${prev#--} ]; then
+	case "$cur" in
+		--*)
+		COMPREPLY=( $( compgen -W 'help list list-configs list-spells no-column force' ${cur#--} ) )
+		_dashify
+		return 0
+		;;
+		-*)
+		COMPREPLY=( $( compgen -W 'h l c s q f' ${cur#-} ) )
+		_dashify
+		return 0
+		;;
+
+	esac
+	fi
+	case "$prev" in
+	-f|--force)
+		COMPREPLY=( $( compgen -W 'discard-new discard-old use-old use-new' $cur ) )
+		_dashify
+		return 0
+		;;
+	*)
+		_spell_list
+		return 0
+		;;
+	esac
+
+	return 0
+}
+[ "$have" ] && complete -F _confmeld -o default confmeld
+
+# Source Mage GNU/Linux cleanse(8) completion
+# by Bor Kraljic (pyrobor@ver.si)
+#
+have cleanse &&
+_cleanse()
+{
+	local cur prev
+
+	COMPREPLY=()
+	cur=${COMP_WORDS[COMP_CWORD]}
+	prev=${COMP_WORDS[COMP_CWORD-1]}
+
+	if [ $COMP_CWORD -ge 1 -o ${prev} != ${prev#-} -o ${prev} != ${prev#--} ]; then
+	case "$cur" in
+		--*)
+			COMPREPLY=( $( compgen -W 'delint prune packages fix nofix nofix_quick \
+						tablet tablet_spell logs sweep sweep_all help' ${cur#--} ) )
+			_dashify
+			return 0
+		;;
+		-*)
+			COMPREPLY=( $( compgen -W 'h' ${cur#-} ) )
+			_dashify
+			return 0
+		;;
+	esac
+	fi
+	case "$prev" in
+	--fix|--nofix|--nofix_quick|--tablet_spell|*)
+		_add_installed_spell_list
+		return 0 ;;
+	--delint)
+		COMPREPLY=( $( compgen -W 'full' ${cur} ) )
+		return 0 ;;
+	--prune)
+		COMPREPLY=( $( compgen -W 'doit' ${cur} ) )
+		return 0 ;;
+	--tablet)
+		COMPREPLY=( $( compgen -W 'coalesce' ${cur} ) )
+		return 0 ;;
+	esac
+	return 0
+}
+[ "$have" ] && complete -F _cleanse -o default cleanse
+
+# Source Mage GNU/Linux resurrect(8) completion
+# by Bor Kraljic (pyrobor@ver.si)
+#
+have resurrect &&
+_resurrect()
+{
+	local cur prev
+
+	COMPREPLY=()
+	cur=${COMP_WORDS[COMP_CWORD]}
+	prev=${COMP_WORDS[COMP_CWORD-1]}
+
+	if [ $COMP_CWORD -ge 1 -o ${prev} != ${prev#-} -o ${prev} != ${prev#--} ]; then
+	case "$cur" in
+		--*)
+		COMPREPLY=( $( compgen -W 'version latest from check voyeur nosustain help' ${cur#--} ) )
+		_dashify
+		return 0
+		;;
+		-*)
+		COMPREPLY=( $( compgen -W 'v l f c V h' ${cur#-} ) )
+		_dashify
+		return 0
+		;;
+	esac
+	fi
+	case "$prev" in
+	--from)
+		COMPREPLY=( $( compgen -d $cur ) )
+		return 0
+		;;
+	*)
+		_spell_list
+		return 0
+		;;
+	esac
+
+	return 0
+}
+[ "$have" ] && complete -F _resurrect -o default resurrect
 
 # Source Mage GNU/Linux scribe(8) completion
 # by Arjan Bouter (abouter@sourcemage.org)
@@ -257,12 +478,12 @@ _scribe()
 		swap localize unlocalize' $cur ))
     elif [ $COMP_CWORD = 2 ]; then
 	case "$prev" in
-	    @(update|remove|fix|reindex|set|swap|localize|unlocalize))
+		@(update|remove|fix|reindex|reindex-keyword|reindex-version|set|swap|localize|unlocalize))
                 _add_grimoire_list
 		return 0
 		;;
 	    add)
-		COMPREPLY=( $( compgen -W 'stable games z-rejected test' $cur ) )
+		COMPREPLY=( $( compgen -W 'stable games z-rejected test binary' $cur ) )
 		return 0
 		;;
 	    *)
@@ -287,7 +508,7 @@ _scribe()
 	case "$prev" in
 	    from)
 		case "$second" in
-		  stable|test|z-rejected|games)
+		stable|test|z-rejected|games|binary)
 			COMPREPLY=( $( compgen -W 'http://codex.sourcemage.org/$second.tar.bz2 rsync://sourcemage.org::$second' $cur))
 			return 0
 			;;
@@ -304,3 +525,82 @@ _scribe()
     return 0
 }
 [ "$have" ] && complete -F _scribe -o default scribe
+
+# Source Mage GNU/Linux scribbler(8) completion
+# by Bor Kraljic (pyrobor@ver.si)
+#
+have scribbler &&
+_scribbler()
+{
+	local cur prev
+
+	COMPREPLY=()
+	cur=${COMP_WORDS[COMP_CWORD]}
+	prev=${COMP_WORDS[COMP_CWORD-1]}
+	first=${COMP_WORDS[1]}
+	second=${COMP_WORDS[2]}
+
+	if [ $COMP_CWORD = 1 ]; then
+		COMPREPLY=( $( compgen -W 'add remove' $cur ))
+		return 0
+	elif [ $COMP_CWORD = 2 ]; then
+		if [ "$prev" = add ] || [ "$prev" = remove ]; then
+			_spell_list
+			return 0
+		else
+			_add_grimoire_list
+			return 0
+		fi
+	elif [ $COMP_CWORD = 3 ]; then
+		_add_grimoire_list
+		return 0
+	elif  [ $COMP_CWORD = 4 ]; then
+		_add_grimoire_list
+		return 0
+	fi
+
+	return 0
+}
+[ "$have" ] && complete -F _scribbler -o default scribbler
+
+# Source Mage GNU/Linux quill(8) completion
+# by p3pilot
+#
+have quill &&
+_quill()
+{        
+    local cur prev
+    
+    COMPREPLY=()
+    cur=${COMP_WORDS[COMP_CWORD]}
+    prev=${COMP_WORDS[COMP_CWORD-1]}
+
+    if [ $COMP_CWORD -ge 1 -o ${prev} != ${prev#-} -o ${prev} != ${prev#--} ]; then
+	case "$cur" in
+	    --*)
+		COMPREPLY=( $( compgen -W 'update apprentice mage wizard help version reconfigure purge fmxml perlcpan rubyratt savane savannah gna fsf hackagedb' ${cur#--} ) )
+		_dashify
+		return 0
+		;;
+	    -*)
+		COMPREPLY=( $( compgen -W 'u a m w h v r p f c y s n g F H' ${cur#-} ) )
+		_dashify
+		return 0
+		;;
+	esac
+    fi
+    case "$prev" in
+	--from)
+	    COMPREPLY=( $( compgen -d $cur ) )
+	    return 0
+	    ;;
+	*)
+	    _spell_list
+	    return 0
+	    ;;
+    esac
+    
+    return 0
+}
+[ "$have" ] && complete -F _quill -o default quill
+

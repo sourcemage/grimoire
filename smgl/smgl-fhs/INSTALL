@@ -64,7 +64,7 @@ done  &&
 #
 # http://www.pathname.com/fhs/2.2/fhs-4.html
 #
-for  usr_directory  in  X11R6  bin  include  lib  local  sbin  share  src
+for  usr_directory  in  bin  include  lib  local  sbin  share  src
 do
   fhs_mkdir  /usr/$usr_directory
 done  &&
@@ -108,21 +108,9 @@ do
   fhs_mkdir  /usr/share/man/man$man_directory
 done  &&
 
-#
-# http://www.pathname.com/fhs/2.2/fhs-4.4.html
-#
-for  X11_subdir in lib include
+for  X11_directory  in  bin  lib/X11  include/X11
 do
-  fhs_mkdir  /usr/X11R6/$X11_subdir
-done  &&
-
-for  X11_directory  in  bin  lib/X11  include/X11 lib/modules
-do
-  fhs_mkdir  /usr/$X11_directory             &&
-  pushd  $INSTALL_ROOT/                      &&
-  ln  -sf  $TRACK_ROOT/usr/$X11_directory  \
-           usr/X11R6/$X11_directory          &&
-  popd
+  fhs_mkdir  /usr/$X11_directory
 done  &&
 
 #
@@ -182,7 +170,9 @@ done  &&
 # Doesn't mention permissions, but usually you don't want other users
 # able to access a different users folders, so why would root be different?
 #
-fhs_mkdir  root  0750  &&
+if ! exists_account root; then
+  fhs_mkdir  root  0750
+fi &&
 
 create_group  utmp  &&
 

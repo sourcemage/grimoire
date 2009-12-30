@@ -6,8 +6,8 @@ optional_depends   "MAIL-TRANSPORT-AGENT"                       \
                    ""                                           \
                    "to send mail"                               &&
                     
-if [ "${BRANCH}" == "cvs" ]; then 
-	depends "CVS"
+if [[ "$BRANCH" == "scm" ]]; then 
+	depends mercurial
 fi &&
 
 config_query_list TERMINAL_LIBRARY                              \
@@ -21,7 +21,7 @@ optional_depends   "gnupg"                                      \
                    "--disable-pgp"                              \
                    "to support PGP signing and encrypting messages" &&
 
-if [ "${BRANCH}" != "stable" ]; then
+if [[ "$BRANCH" != "stable" ]]; then
   # Do NOT add --with-ssl here, that only works if POP/IMAP are used.  This is
   # mostly just here to prompt for openssl if they don't have it and want
   # S/MIME.
@@ -39,7 +39,7 @@ if [ "${BRANCH}" != "stable" ]; then
     config_query_list HCACHE_BACKEND                            \
                       "Use which header cache backend?"         \
                       gdbm db                                   &&
-    if [ "${HCACHE_BACKEND}" == "db" ]; then
+    if [[ "$HCACHE_BACKEND" == "db" ]]; then
       TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --without-gdbm --with-bdb"
     fi &&
     depends "${HCACHE_BACKEND}"
@@ -58,7 +58,7 @@ if list_find "${MUTT_OPTS}" "--enable-pop" || list_find "${MUTT_OPTS}" "--enable
                    ""                                           \
                    "to enable SSL support for POP/IMAP"         &&
 
-  if [ "${BRANCH}" != "stable" ]; then
+  if [[ "$BRANCH" != "stable" ]]; then
     optional_depends "gnutls"                                   \
                      "--with-gnutls"                            \
                      ""                                         \
@@ -78,16 +78,16 @@ if list_find "${MUTT_OPTS}" "--enable-imap"; then
                    "to enable GSSAPI authentication for IMAP"
 fi &&
 
-if [ ! -z "${REAL_PATCHES}" ] || [ "${BRANCH}" == "cvs" ]; then
+if [[ ! -z "$REAL_PATCHES" ]] || [[ "$BRANCH" == "scm" ]]; then
   depends "automake"
 fi &&
 
 for PATCH in ${REAL_PATCHES}; do
-  if [ -x "${PATCH_DIRECTORY}/${PATCH}/PATCH_DEPENDS" ]; then
-    . "${PATCH_DIRECTORY}/${PATCH}/PATCH_DEPENDS"
+  if [[ -x "$PATCH_DIRECTORY/$PATCH/PATCH_DEPENDS" ]]; then
+    . "$PATCH_DIRECTORY/$PATCH/PATCH_DEPENDS"
   fi
 done
 
-if [ "${UPDATE_DOC}" == "y" ]; then
+if [[ "$UPDATE_DOC" == "y" ]]; then
   depends linuxdoc-tools
 fi

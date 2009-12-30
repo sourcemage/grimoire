@@ -1,0 +1,82 @@
+--- MainWindow.cc.orig	2007-09-25 05:07:26.000000000 +0400
++++ MainWindow.cc	2008-09-20 17:28:28.794041766 +0400
+@@ -18,7 +18,7 @@
+ 	m_menu_bar.signal_jump_to().connect(sigc::mem_fun(this, &MainWindow::onJumpTo));
+ 	m_menu_bar.signal_open_file().connect(sigc::mem_fun(this, &MainWindow::onOpenFile));
+ 	m_menu_bar.signal_save().connect(sigc::mem_fun(this, &MainWindow::onSaveFile));
+-	m_menu_bar.signal_save_as().connect(sigc::mem_fun(this, &MainWindow::onSaveFile));
++	m_menu_bar.signal_save_as().connect(sigc::mem_fun(this, &MainWindow::onSaveFileAs));
+ 	m_menu_bar.signal_header_edit().connect(sigc::mem_fun(this, &MainWindow::onHeaderEdit));
+ 	m_menu_bar.signal_switch_fuzzy().connect(sigc::mem_fun(this, &MainWindow::onSwitchFuzzy));
+ 	m_menu_bar.signal_prev_msg().connect(sigc::mem_fun(this, &MainWindow::onPreviousMessage));
+@@ -225,6 +225,19 @@
+ 	char buf[BUFSIZ];
+ 	strftime(buf, BUFSIZ, "%Y-%m-%d %H:%M%z", tmp);
+ 	m_po_reader->setHeader("PO-Revision-Date", buf);
++
++	m_po_reader->saveToFile(m_po_reader->getFilePath());
++}
++
++void MainWindow::onSaveFileAs() {
++	this->fromGui2Po();
++	m_po_reader->setHeader("X-Generator", PROGRAM_NAME" "PROGRAM_VERSION);
++	time_t t = time(NULL);
++	struct tm *tmp;
++	tmp = localtime(&t);
++	char buf[BUFSIZ];
++	strftime(buf, BUFSIZ, "%Y-%m-%d %H:%M%z", tmp);
++	m_po_reader->setHeader("PO-Revision-Date", buf);
+ 	Gtk::FileChooserDialog save_dialog(*this, _("Save file"), Gtk::FILE_CHOOSER_ACTION_SAVE);
+ 	save_dialog.add_button(Gtk::Stock::CANCEL, 0);
+ 	Gtk::Button *save_btn = save_dialog.add_button(Gtk::Stock::SAVE, 1);
+--- MainWindow.h.orig	2007-09-25 05:07:26.000000000 +0400
++++ MainWindow.h	2008-09-20 17:28:45.439041521 +0400
+@@ -42,6 +42,7 @@
+ 		void onJumpTo();
+ 		void onOpenFile();
+ 		void onSaveFile();
++		void onSaveFileAs();
+ 		void onHeaderEdit();
+ 		void onCopyMsgid();
+ 		void onSwitchFuzzy();
+--- PoReader.cc.orig	2007-09-25 05:07:26.000000000 +0400
++++ PoReader.cc	2008-09-20 17:29:18.978042298 +0400
+@@ -9,6 +9,9 @@
+ 	struct po_xerror_handler error_handler;
+ 	error_handler.xerror = xerror_handler;
+ 	error_handler.xerror2 = xerror2_handler;
++
++	m_filepath = file_path;
++
+ 	debug("Opening file %s\n", file_path.c_str());
+ 	m_pofile = po_file_read(file_path.c_str(), &error_handler);
+ 
+@@ -18,6 +21,10 @@
+ 	po_next_message(m_miter); //we skip header which is msgid
+ }
+ 
++Glib::ustring PoReader::getFilePath() {
++	return m_filepath;
++}
++
+ Glib::ustring PoReader::getEncoding() {
+ 	Glib::ustring content_type = this->getHeader("Content-Type");
+ 	
+--- PoReader.h.orig	2007-09-25 05:07:26.000000000 +0400
++++ PoReader.h	2008-09-20 17:29:09.269041934 +0400
+@@ -12,6 +12,7 @@
+ 		PoReader(const Glib::ustring &file_path);
+ 		Glib::ustring getHeader(const Glib::ustring &header_name);
+ 		void setHeader(const Glib::ustring &name, const Glib::ustring &value);
++		Glib::ustring getFilePath();
+ 		Glib::ustring getEncoding();
+ 
+ 		Glib::ustring getMsgid();
+@@ -47,6 +48,7 @@
+ 		~PoReader();
+ 	private:
+ 		po_file_t             m_pofile;
++		Glib::ustring         m_filepath;
+ 		Glib::ustring         m_file_encoding;
+ 		po_message_iterator_t m_miter;
+ 		po_message_t          m_current_msg;

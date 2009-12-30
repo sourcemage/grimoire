@@ -1,0 +1,28 @@
+default_pre_build  &&
+cd $SOURCE_DIRECTORY  &&
+if [[ $ALPINE_CHAPPA == y ]]; then
+local patchno &&
+local tmpsource &&
+for patchno in $(seq 3 21) ; do
+tmpsource="SOURCE${patchno}" &&
+verify_file $patchno &&
+cp -f $SOURCE_CACHE/${!tmpsource} . &&
+gunzip -f ${!tmpsource} &&
+if [[ ${!tmpsource} == outgoing.patch.gz ]]; then
+patch -p0 < $SPELL_DIRECTORY/outgoing.patch.diff
+fi &&
+if [[ ${!tmpsource} == rules.patch.gz ]]; then
+patch -p0 < $SPELL_DIRECTORY/rules.patch.diff
+fi &&
+if [[ ${!tmpsource} == maildir.patch.gz ]]; then
+patch -p0 < $SPELL_DIRECTORY/maildir.patch.diff
+fi &&
+patch -p1 < ${!tmpsource/.gz}
+done
+fi &&
+if [[ $ALPINE_TOPAL == y ]]; then
+unpack_file 22 &&
+patch -p1 < topal-$VERSION3/$SPELL-2.00.patch-1 &&
+patch -p1 < topal-$VERSION3/$SPELL-2.00.patch-2
+fi
+

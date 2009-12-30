@@ -1,3 +1,3 @@
-OPTS="$OPTS $WIRESHARK_SETUID" &&
+OPTS="$WIRESHARK_OPTS $OPTS" &&
 
 default_build

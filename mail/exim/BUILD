@@ -36,6 +36,16 @@ else
    grep  -v  "EXIM_MONITOR="  src/EDITME  >  Local/Makefile
 fi  &&
 
+if [[ "$EXIM_DBM" == "db" ]]; then
+:
+elif [[ "$EXIM_DBM" == "gdbm" ]]; then
+  echo "DBMLIB=-lgdbm" >> Local/Makefile
+  echo "USE_GDBM=yes" >> Local/Makefile
+elif [[ "$EXIM_DBM" == "tdb" ]]; then
+  echo "DBMLIB=-ltdb" >> Local/Makefile
+  echo "USE_TDB=yes" >> Local/Makefile
+fi  &&
+
 if  list_find  "$OPTS"  '--enable-tcp-wrappers-access';  then
   echo  "USE_TCP_WRAPPERS=yes"  >> Local/Makefile  &&
   EXTRALIBS="$EXTRALIBS  -lwrap"
@@ -177,6 +187,7 @@ echo  "EXIM_UID=`id -u exim`"            >>  Local/Makefile  &&
 echo  "EXIM_GID=`id -g exim`"            >>  Local/Makefile  &&
 echo  "EXIM_USER=exim"                   >>  Local/Makefile  &&
 echo  "EXIM_GROUP=exim"                  >>  Local/Makefile  &&
+echo  "PCRE_LIBS=-lpcre"                 >> Local/Makefile   &&
 
 sedit  's:tail \-1:tail \-n 1:'  scripts/Configure-config.h  &&
 make_single                                                  &&

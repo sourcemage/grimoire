@@ -1,5 +1,5 @@
 # prevent install of init scripts
-OPTS="$OPTS --without-rcdir"  &&
+OPTS="--without-rcdir $OPTS"  &&
 
 # set language options
 if [[ $EXTRA_LANG == n ]]; then
@@ -11,5 +11,7 @@ else
     OPTS="--with-languages=$CUPS_LANG $OPTS"
   fi
 fi &&
+
+OPTS="--libdir=$INSTALL_ROOT/usr/lib $CUPS_OPTS $OPTS"  &&
 
 default_build

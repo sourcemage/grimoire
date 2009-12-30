@@ -1,0 +1,42 @@
+This is the fix for http://bugs.winehq.org/show_bug.cgi?id=17024
+
+From 3a07a8ae6b3798ebd58b3c762dad49059d4576e3 Mon Sep 17 00:00:00 2001
+From: Shunichi Fuji <palglowr@...>
+Date: Wed, 3 Sep 2008 19:51:37 +0900
+Subject: [PATCH] Adjust FT_MulFix function to Freetype cvs head.
+
+see http://lists.nongnu.org/archive/html/freetype-cvs/2008-09/msg00003.html
+
+Signed-off-by: Shunichi Fuji <palglowr@...>
+---
+ dlls/gdi32/freetype.c |    6 ++++++
+ 1 files changed, 6 insertions(+), 0 deletions(-)
+
+diff --git a/dlls/gdi32/freetype.c b/dlls/gdi32/freetype.c
+index cb351db..74e70ea 100644
+--- a/dlls/gdi32/freetype.c
++++ b/dlls/gdi32/freetype.c
+@@ -163,7 +163,11 @@ MAKE_FUNCPTR(FT_Get_Sfnt_Table);
+ MAKE_FUNCPTR(FT_Init_FreeType);
+ MAKE_FUNCPTR(FT_Load_Glyph);
+ MAKE_FUNCPTR(FT_Matrix_Multiply);
++#ifdef FT_MULFIX_INLINED
++#define pFT_MulFix FT_MULFIX_INLINED
++#else
+ MAKE_FUNCPTR(FT_MulFix);
++#endif
+ MAKE_FUNCPTR(FT_New_Face);
+ MAKE_FUNCPTR(FT_New_Memory_Face);
+ MAKE_FUNCPTR(FT_Outline_Get_Bitmap);
+@@ -2434,7 +2438,9 @@ static BOOL init_freetype(void)
+     LOAD_FUNCPTR(FT_Init_FreeType)
+     LOAD_FUNCPTR(FT_Load_Glyph)
+     LOAD_FUNCPTR(FT_Matrix_Multiply)
++#ifndef FT_MULFIX_INLINED
+     LOAD_FUNCPTR(FT_MulFix)
++#endif
+     LOAD_FUNCPTR(FT_New_Face)
+     LOAD_FUNCPTR(FT_New_Memory_Face)
+     LOAD_FUNCPTR(FT_Outline_Get_Bitmap)
+--
+1.6.0.1

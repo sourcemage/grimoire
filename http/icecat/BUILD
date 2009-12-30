@@ -12,6 +12,8 @@ then
   OPTS="--enable-svg-renderer=$ICECAT_RENDER $OPTS"
 fi  &&
 
+  OPTS="--enable-default-toolkit=$ICECAT_TOOLKIT $OPTS"
+
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=$HOST"
 
 ./configure --prefix=${INSTALL_ROOT}/usr             \

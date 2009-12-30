@@ -47,6 +47,8 @@ OPTS="$OPTS --enable-add-ons=${ADDONS/ /,}"  &&
 
 if [ "$GLIBC_NPTL" = "y" ]
 then
+# minimise optimisation level
+  CFLAGS="${CFLAGS//-O?/}"  &&
   CFLAGS="-O2 ${CFLAGS//-Os/}"
 else
   #
@@ -67,6 +69,21 @@ unset  LD_LIBRARY_PATH  &&
 # Setup sanitised glibc-kernel-headers for the glibc compile
 # ...as well as other arch-dependend specialties
 #
+if [[ ${GLIBC_NPTL} == y ]]; then
+  cd ${GLIBC_HEADERS_DIR} &&
+  GL_ARCH=${SMGL_COMPAT_ARCHS[1]}  &&
+  if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]];then
+    if [[ ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
+      GL_ARCH=sparc64
+    fi
+  else
+    if [[ ${SMGL_COMPAT_ARCHS[1]} == ia32 ]]; then
+     GL_ARCH=i386
+    fi
+  fi &&
+  make ARCH=$GL_ARCH INSTALL_HDR_PATH=usr headers_install
+fi
+
 if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
   #
   # If we're not compiling for 64-bit SPARC then we need to use the sparc

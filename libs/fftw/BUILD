@@ -2,7 +2,7 @@ if [[ $FORTRAN == "n" ]]; then
   OPTS="$OPTS --disable-fortran"
 fi &&
 CFLAGS="${CFLAGS/-Os/}" &&
-OPTS="$OPTS $FFTW_THREADS $FFTW_OPTS"      &&
+OPTS="$OPTS $FFTW_THREADS $FFTW_OPTS --disable-fma" &&
 cd $SOURCE_DIRECTORY/fftw-single-$VERSION  &&
 ./configure  --prefix=${INSTALL_ROOT}/usr  \
              --enable-shared               \

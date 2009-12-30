@@ -1,67 +1,9 @@
            SPELL=glibc
-if  [  "$GLIBC_NPTL"  =  "y"  ];  then
-         VERSION=2.7
- HEADERS_VERSION=2.6.25
-          SOURCE=$SPELL-$VERSION.tar.bz2
-         SOURCE2=$SOURCE.sig
-case "${SMGL_COMPAT_ARCHS[1]}" in
-  ia32)
-         SOURCE3=linux-headers-${HEADERS_VERSION}-x86.tar.bz2
-         SOURCE6=${SOURCE3}.sig
-     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
-  ;;
-  x86_64)
-	 SOURCE3=linux-headers-${HEADERS_VERSION}-x86_64.tar.bz2
-         SOURCE6=${SOURCE3}.sig
-     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
-  ;;
-  ppc)
-	 SOURCE3=linux-headers-${HEADERS_VERSION}-powerpc.tar.bz2
-         SOURCE6=${SOURCE3}.sig
-     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
-  ;;
-  alpha)
-         SOURCE3=linux-headers-${HEADERS_VERSION}-alpha.tar.bz2
-         SOURCE6=${SOURCE3}.sig
-     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
-  ;;
-  sparc)
-    if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]]
-    then
-         SOURCE3=linux-headers-${HEADERS_VERSION}-sparc64.tar.bz2
-         SOURCE6=${SOURCE3}.sig
-     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
-    else
-         SOURCE3=linux-headers-${HEADERS_VERSION}-sparc.tar.bz2
-         SOURCE6=${SOURCE3}.sig
-     SOURCE3_GPG="gurus.gpg:${SOURCE6}"
-    fi
-  ;;
-  *)
-         SOURCE3=UNKNOWN
-         message "${PROBLEM_COLOR}You have an unknown architecture, you should file a bug for this${DEFAULT_COLOR}"
-         return 222
-  ;;
-esac
-   SOURCE_URL[0]=$GNU_URL/$SPELL/$SOURCE
-  SOURCE2_URL[0]=${SOURCE_URL[0]}.sig
-  SOURCE3_URL[0]=http://download.sourcemage.org/distro/kernel/headers/$SOURCE3
-  SOURCE6_URL[0]=${SOURCE3_URL[0]}.sig
-  if [ "$GLIBC_USEIDN" = "y" ]; then
-         SOURCE4=$SPELL-libidn-$VERSION.tar.bz2
-         SOURCE5=$SOURCE4.sig
-  SOURCE4_URL[0]=$GNU_URL/$SPELL/$SOURCE4
-  SOURCE5_URL[0]=${SOURCE4_URL[0]}.sig
-     SOURCE4_GPG=gnu.gpg:$SOURCE4.sig:UPSTREAM_KEY
-  SOURCE5_IGNORE=signature
-  fi
-      SOURCE_GPG=gnu.gpg:$SOURCE.sig:UPSTREAM_KEY
-  SOURCE2_IGNORE=signature
-      PATCHLEVEL=2
-else
+if  [  "$GLIBC_NPTL"  =  "n"  ];  then
          VERSION=2.3.6
  HEADERS_VERSION=2.4.24
           SOURCE=$SPELL-$VERSION.tar.bz2
+SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
          SOURCE2=$SOURCE.sig
          SOURCE3=glibc-linuxthreads-$VERSION.tar.bz2
          SOURCE4=$SOURCE3.sig
@@ -77,8 +19,57 @@ else
   SOURCE4_IGNORE=signature
     SOURCE5_HASH=sha512:c1931495915c8461de97e4156c9d0edd7b44e4b48cbce2d4c3a52b83d331a9ce48f3c7abb7dd787ed897f1e7d0e81c5cdb4eb3986bc24a5e2788708427e2dcb1
       PATCHLEVEL=1
-fi
+else
+  if [[ "$GLIBC_CVS" == "y" ]]; then
+local GLIBC_VERSION
+   GLIBC_VERSION=2.11.1
+    if [[ "${GLIBC_CVS_AUTOUPDATE}" == "y" ]]; then
+         VERSION=${GLIBC_VERSION}-$(date +%Y%m%d) && FORCE_DOWNLOAD=on
+    else 
+         VERSION=${GLIBC_VERSION}
+    fi
+          SOURCE=$SPELL-${GLIBC_VERSION}.tar.bz2
+SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-${GLIBC_VERSION}
+      SOURCE_URL=cvs://:pserver:anoncvs:anoncvs@sources.redhat.com:/cvs/glibc:libc:$SPELL-${GLIBC_VERSION/./_}-branch
+   SOURCE_IGNORE=volatile
+  else
+         VERSION=2.11.1
+          SOURCE=$SPELL-$VERSION.tar.bz2
 SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
+         SOURCE2=$SOURCE.sig
+   SOURCE_URL[0]=$GNU_URL/$SPELL/$SOURCE
+  SOURCE2_URL[0]=${SOURCE_URL[0]}.sig
+      SOURCE_GPG=gnu.gpg:$SOURCE.sig:UPSTREAM_KEY
+  SOURCE2_IGNORE=signature
+      PATCHLEVEL=0
+  fi
+  if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
+ HEADERS_VERSION=2.6.32
+         SOURCE3=linux-${HEADERS_VERSION}.tar.bz2
+         SOURCE6=${SOURCE3}.sign
+     SOURCE3_GPG="kernel.gpg:${SOURCE6}:ESTABLISHED_UPSTREAM_KEY"
+  SOURCE3_URL[0]="$KERNEL_URL/pub/linux/kernel/v2.6/$SOURCE3"
+  SOURCE6_URL[0]="${SOURCE3_URL[0]}.sign"
+  else
+    local LINUX_DIRECTORY
+ LINUX_DIRECTORY=$(gaze where -path linux | sed "s/linux -> //")
+    . $LINUX_DIRECTORY/latest.defaults
+ HEADERS_VERSION=$(echo $LATEST_maintenance_patches | sed "s/patch-//")
+ HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_2_6}
+         SOURCE3=linux-${LATEST_2_6}.tar.bz2
+         SOURCE6="${SOURCE3}.sign"
+     SOURCE3_GPG="kernel.gpg:${SOURCE6}:ESTABLISHED_UPSTREAM_KEY"
+     SOURCE3_URL="${KERNEL_URL}/pub/linux/kernel/v2.6/${SOURCE3}"
+     SOURCE6_URL="${SOURCE3_URL}.sign"
+    if [[ $HEADERS_VERSION != $LATEST_2_6 ]]; then
+         SOURCE7=patch-${HEADERS_VERSION}.bz2
+         SOURCE8="${SOURCE7}.sign"
+     SOURCE7_GPG="kernel.gpg:${SOURCE8}:ESTABLISHED_UPSTREAM_KEY"
+     SOURCE7_URL="${KERNEL_URL}/pub/linux/kernel/v2.6/${SOURCE7}"
+     SOURCE8_URL="${SOURCE7_URL}.sign"
+    fi
+  fi
+fi
         WEB_SITE=http://www.gnu.org/software/libc
       LICENSE[0]=LGPL
       LICENSE[1]=LGPL

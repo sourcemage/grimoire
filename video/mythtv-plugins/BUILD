@@ -1,0 +1,13 @@
+#stupid qt4 spell
+PATH="$PATH:/usr/bin/qt4"
+
+OPTS="$MYTHPLUG_ARCHIVE $MYTHPLUG_BROWSER $MYTHPLUG_CONTROLS \
+     $MYTHPLUG_FLIX $MYTHPLUG_GALLERY $MYTHPLUG_GAME         \
+     $MYTHPLUG_MUSIC $MYTHPLUG_NEWS $MYTHPLUG_PHONE          \
+     $MYTHPLUG_VIDEO $MYTHPLUG_WEATHER $MYTHPLUG_ZONE        \
+     $MYTHPLUG_MOVIE $MYTHPLUG_ARCHIVE_DVD                   \
+     $MYTHPLUG_ARCHIVE_NATIVE $OPTS"
+
+./configure  --prefix=/usr --qmake=$INSTALL_ROOT/usr/bin/qt4/qmake $OPTS &&
+make
+

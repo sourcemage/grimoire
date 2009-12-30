@@ -1,59 +1,56 @@
 default_pre_build &&
 cd $SOURCE_DIRECTORY &&
 
+# Patch to fix Bug 15330
+patch -p0 < $SPELL_DIRECTORY/stdlib-include-fixes.patch &&
+
 if [[ $VNC_SERVER == y ]]; then
-  . $GRIMOIRE/FUNCTIONS &&
   # building Xvnc requires the X source tree #8752
-  if check_if_xorg_modular_server; then
-    if ! test -e $SOURCE_CACHE/xorg-server-$(installed_version xorg-server)*; then
-      message -n "$PROBLEM_COLOR"
-      message "Missing installed xorg-server sources, VNC can not build!"
-      message "$DEFAULT_COLOR"
-      return 1
-    fi &&
-
-    # unpack xorg-server
-    cd unix &&
-    tar xf $SOURCE_CACHE/xorg-server-$(installed_version xorg-server)* &&
-    mv xorg-server-$(installed_version xorg-server)* xorg-server &&
-    ln -s xorg-server xorg-x11-server-source && # for patching convenience
-    mkdir xorg-server/hw/vnc &&
-    cd .. &&
-
-    # prepare the sources
-    patch -p0 -F3 < $SPELL_DIRECTORY/17_all_vnc-server-modular-xorg.patch &&
-    patch -p0 -F3 < $SPELL_DIRECTORY/43_*.patch &&
-    patch -p0 -F3 < $SPELL_DIRECTORY/44_*.patch &&
-    patch -p0 -F3 < $SPELL_DIRECTORY/45_*.patch &&
-
-    echo doing common ----------------------------------- &&
-    cd common &&
-    autoreconf --install --force &&
-    cd .. &&
-
-    cd unix &&
-    echo doing unix ----------------------------------- &&
-    autoreconf --install --force &&
-
-    # add the vnc code into the x tree and make it work
-    cp -a xc/programs/Xserver/vnc/Xvnc/xvnc.cc \
-      xc/programs/Xserver/Xvnc.man \
-      xc/programs/Xserver/vnc/*.{h,cc} \
-      xorg-server/hw/vnc &&
-    cp -a xorg-x11-server-source/{cfb/cfb.h,hw/vnc} &&
-    cp -a xorg-x11-server-source/{cfb/cfbmap.h,hw/vnc} &&
-    cp -a xorg-x11-server-source/{fb/fb.h,hw/vnc} &&
-    cp -a xorg-x11-server-source/{mfb/mfb.h,hw/vnc} &&
-    cp -a xorg-x11-server-source/{fb/fbrop.h,hw/vnc} &&
-    sed -i -e 's,xor,c_xor,' -e 's,and,c_and,' \
-		xorg-x11-server-source/hw/vnc/{cfb,fb,fbrop}.h &&
-
-    echo doing the server ----------------------------------- &&
-    cd xorg-server &&
-    autoreconf --install --force &&
-    cd ../..
-  else
-    message "{PROBLEM_COLOR}Monolithic xorg for the VNC server  is not supported!$DEFAULT_COLOR"
+  if ! test -e $SOURCE_CACHE/xorg-server-$(installed_version xorg-server)*; then
+    message -n "$PROBLEM_COLOR"
+    message "Missing installed xorg-server sources, VNC can not build!"
+    message "$DEFAULT_COLOR"
     return 1
-  fi 
+  fi &&
+
+  # unpack xorg-server
+  cd unix &&
+  tar xf $SOURCE_CACHE/xorg-server-$(installed_version xorg-server)* &&
+  mv xorg-server-$(installed_version xorg-server)* xorg-server &&
+  ln -s xorg-server xorg-x11-server-source && # for patching convenience
+  mkdir xorg-server/hw/vnc &&
+  cd .. &&
+
+  # prepare the sources
+  patch -p0 -F3 < $SPELL_DIRECTORY/17_all_vnc-server-modular-xorg.patch &&
+  patch -p0 -F3 < $SPELL_DIRECTORY/43_*.patch &&
+  patch -p0 -F3 < $SPELL_DIRECTORY/44_*.patch &&
+  patch -p0 -F3 < $SPELL_DIRECTORY/45_*.patch &&
+
+  echo doing common ----------------------------------- &&
+  cd common &&
+  autoreconf --install --force &&
+  cd .. &&
+
+  cd unix &&
+  echo doing unix ----------------------------------- &&
+  autoreconf --install --force &&
+
+  # add the vnc code into the x tree and make it work
+  cp -a xc/programs/Xserver/vnc/Xvnc/xvnc.cc \
+    xc/programs/Xserver/Xvnc.man \
+    xc/programs/Xserver/vnc/*.{h,cc} \
+    xorg-server/hw/vnc &&
+  cp -a xorg-x11-server-source/{cfb/cfb.h,hw/vnc} &&
+  cp -a xorg-x11-server-source/{cfb/cfbmap.h,hw/vnc} &&
+  cp -a xorg-x11-server-source/{fb/fb.h,hw/vnc} &&
+  cp -a xorg-x11-server-source/{mfb/mfb.h,hw/vnc} &&
+  cp -a xorg-x11-server-source/{fb/fbrop.h,hw/vnc} &&
+  sed -i -e 's,xor,c_xor,' -e 's,and,c_and,' \
+  xorg-x11-server-source/hw/vnc/{cfb,fb,fbrop}.h &&
+
+  echo doing the server ----------------------------------- &&
+  cd xorg-server &&
+  autoreconf --install --force &&
+  cd ../..
 fi

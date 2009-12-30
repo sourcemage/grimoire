@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # vim:set ts=2 sw=2 et:
 
 PROGRAM=/bin/false
@@ -83,13 +83,13 @@ start_cryptfs()
       then
         if [[ -b /dev/mapper/${parts[1]} ]]
         then
-	  builtin echo "Device already exists maybe its open already"
+          builtin echo "Device already exists maybe its open already"
         else
           cryptsetup luksOpen ${parts[0]} ${parts[1]} < /dev/console > /dev/console 2>&1
         fi
       else
         builtin echo "Error device ${parts[0]} isn't a luks partition"
-	return 1
+        return 1
       fi
     done
   fi
@@ -102,7 +102,7 @@ start()
 
   scanlvm
   evaluate_retval
-  
+
   start_cryptfs
   evaluate_retval
 
@@ -134,7 +134,7 @@ start()
 
   if [ "$CLEAN_TMP" == "yes" ] ; then
     echo "Cleaning out /tmp..."
-    [ -d /tmp ] && rm -rf /tmp/*
+    [ -d /tmp ] && shopt -s dotglob && rm -rf /tmp/* && shopt -u dotglob
     evaluate_retval
   fi
 

@@ -1,2 +1,0 @@
-    xmkmf                       &&
-    make

@@ -1,12 +1,13 @@
-local python_ver=$(installed_version python) &&
-OPTS=${OPTS//--with-python/--with-python=\/usr\/include\/python${python_ver:0:3}} &&
+# 'sqlite' stays for old semi-deprecated sqlite2 spell
 OPTS=${OPTS//sqlite/sqlite3} &&
-./configure \
-  --prefix=$INSTALL_ROOT/usr \
-  --sysconfdir=$INSTALL_ROOT/etc/bacula \
-  --localstatedir=$INSTALL_ROOT/var \
-  --mandir=$INSTALL_ROOT/usr/share/man \
-  --infodir=$INSTALL_ROOT/usr/share/info \
-  $BACULA_CLIENT \
-  $OPTS &&
-make
+
+OPTS="$BACULA_CLIENT $OPTS" &&
+OPTS="--with-scriptdir=$INSTALL_ROOT/etc/bacula \
+      --with-working-dir=$INSTALL_ROOT/var/bacula \
+      $OPTS" &&
+
+if [[ $BACULA_SCM == y ]]; then
+  cd bacula
+fi &&
+
+default_build

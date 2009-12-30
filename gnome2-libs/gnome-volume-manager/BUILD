@@ -1,2 +1,2 @@
-OPTS="--disable-multiuser ${OPTS}"  &&
+OPTS="--disable-multiuser ${GVOLUME_AUTO} ${OPTS}"  &&
 default_build

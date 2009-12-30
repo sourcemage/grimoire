@@ -1,17 +1,20 @@
 function git_install_manpages() {
   for FF in man*; do
-    cp -ra $FF $INSTALL_ROOT/usr/share/man
+    install -vm 755 -d "$INSTALL_ROOT/usr/share/man/$FF"
+    install -vm 644 $FF/* "$INSTALL_ROOT/usr/share/man/$FF"
   done
 }
 
 function git_install_htmldocs() {
-  local GIT_HTML                                &&
-  GIT_HTML=$INSTALL_ROOT/usr/share/doc/git/html &&
-  mkdir -p $GIT_HTML                            &&
-  cp -a *.html howto $GIT_HTML
+  local GIT_HTML &&
+  GIT_HTML="$INSTALL_ROOT/usr/share/doc/git/html" &&
+  install -vm 755 -d $GIT_HTML &&
+  install -vm 644 *.html $GIT_HTML &&
+  install -vm 755 -d $GIT_HTML/howto &&
+  install -vm 644 howto/* $GIT_HTML/howto
 }
 
-make  HOME="$INSTALL_ROOT/usr"  install  &&
+default_install &&
 
 case $GIT_DOC in
   manpages)
@@ -24,17 +27,20 @@ case $GIT_DOC in
     git_install_manpages &&
     git_install_htmldocs
   ;;
-esac  &&
+esac &&
 
-if  is_depends_enabled  $SPELL  bash-completion
-then
-  cp  $SOURCE_DIRECTORY/contrib/completion/git-completion.bash  \
-      $INSTALL_ROOT/etc/bash_completion.d/git-completion
-fi  &&
+if is_depends_enabled $SPELL bash-completion; then
+  install -vm 755 -d "$INSTALL_ROOT/etc/bash_completion.d" &&
 
-if  is_depends_enabled  $SPELL  vim
-then
-  VIM_VERSION=$(installed_version vim)
-  cp  $SOURCE_DIRECTORY/contrib/vim/syntax/gitcommit.vim  \
-      $INSTALL_ROOT/usr/share/vim/vim${VIM_VERSION/./}/syntax
+  install -vm 755 "$SOURCE_DIRECTORY/contrib/completion/git-completion.bash" \
+                  "$INSTALL_ROOT/etc/bash_completion.d/git-completion"
+fi &&
+
+if [[ $GIT_SYMLINKS == y ]]; then
+  message "Creating needed symlinks..." &&
+
+  for i in `ls "$INSTALL_ROOT/usr/libexec/git-core"`; do
+    ln -vsf "$TRACK_ROOT/usr/libexec/git-core/$i" \
+            "$INSTALL_ROOT/usr/bin/$i"
+  done
 fi

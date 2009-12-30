@@ -7,5 +7,3 @@ OPTS="$OPTS --with-pid-file=/var/run/hald.pid \
             --disable-policy-kit \
             $HALACPI $HALAPM $HALSONY $HALPMU"  &&    
 default_build            
-#	    --enable-sysfs-carrier --enable-hotplug-map \
-#PKG_CONFIG="/usr/bin/pkg-config"  default_build

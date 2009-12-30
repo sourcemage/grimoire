@@ -1,5 +1,2 @@
-[  "$HARBOUR" = y  ]  &&  OPTS="$OPTS --enable-harbour"
-[  "$XINERAMA" = y  ]  &&  OPTS="$OPTS --enable-xinerama"
-
-./autogen.sh
+OPTS="$PEKWM_HARBOUR $PEKWM_MENU $OPTS"
 default_build

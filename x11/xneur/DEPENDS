@@ -1,10 +1,18 @@
-depends  X11-LIBS  &&
+depends  xorg-libs  &&
 
-if list_find "$XNEUR_SOUND" "gstreamer" | list_find "$XNEUR_SOUND" "openal"; then
-  depends $XNEUR_SOUND "--with-sound=$XNEUR_SOUND"
+if list_find "$XNEUR_SOUND" "gstreamer" ; then
+  depends gstreamer "--with-sound=$XNEUR_SOUND"
+elif list_find "$XNEUR_SOUND" "openal"; then
+  depends OPENAL "--with-sound=$XNEUR_SOUND"
 elif list_find "$XNEUR_SOUND" "aplay"; then
   depends alsa-utils "--with-sound=$XNEUR_SOUND"
 fi  &&
+
+case $XNEUR_IMAGE in
+  imlib2) depends $XNEUR_IMAGE "--with-image=$XNEUR_IMAGE" ;;
+  xpm) depends libxpm "--with-image=$XNEUR_IMAGE" ;;
+  *) true ;;
+esac  &&
 
 optional_depends  aspell                \
                   "--with-aspell"       \
@@ -14,4 +22,9 @@ optional_depends  aspell                \
 optional_depends  pcre                               \
                   "--with-pcre"                      \
                   "--without-pcre"                   \
-                  "for regular expressions support"
+                  "for regular expressions support"  &&
+
+optional_depends  xosd                     \
+                  "--with-xosd=yes"        \
+                  "--with-xosd=no"         \
+                  "for OSD notifications"

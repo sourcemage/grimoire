@@ -1,18 +1,19 @@
 I_R=${INSTALL_ROOT}
 USRBIN=${I_R}/usr/bin
 
-persistent_add $(grep ^NX_DIR ${USRBIN}/nxloadconfig)
-persistent_add $(grep ^NX_HOME_DIR ${USRBIN}/nxloadconfig)
-persistent_add $(grep ^NX_SESS_DIR ${USRBIN}/nxloadconfig)
-persistent_add $(grep ^NX_ETC_DIR ${USRBIN}/nxloadconfig)
-persistent_add $(grep ^NX_LOGFILE ${USRBIN}/nxloadconfig)
-persistent_add $(grep ^SSH_AUTHORIZED_KEYS ${USRBIN}/nxloadconfig)
+FREENX_VARS="NX_DIR NX_HOME_DIR NX_SESS_DIR NX_ETC_DIR NX_LOGFILE SSH_AUTHORIZED_KEYS"
 
-touch ${I_R}${NX_ETC_DIR}/passwords \
+for var in ${FREENX_VARS}; do
+   persistent_add $var
+   eval "$(grep "^$var" ${USRBIN}/nxloadconfig)"
+done &&
+
+touch ${I_R}${NX_ETC_DIR}/passwords      \
       ${I_R}${NX_ETC_DIR}/passwords.orig \
-      ${I_R}${NX_LOGFILE}
-chmod 600 ${I_R}${NX_ETC_DIR}/pass* \
-          ${I_R}${NX_LOGFILE}
+      ${I_R}${NX_LOGFILE}               &&
+
+chmod 600 ${I_R}${NX_ETC_DIR}/pass*      \
+          ${I_R}${NX_LOGFILE}           &&
 
 if [ ! -e ${I_R}${NX_ETC_DIR}/users.id_dsa ]
 then

@@ -1,16 +1,6 @@
-make_normal  &&
+cd "$SOURCE_DIRECTORY/mozilla-1.9.1"  &&
 
-MOZILLA_HOME=$INSTALL_ROOT/usr/lib/xulrunner &&
-
-#
-# everything coming into /usr/lib/seamonkey-${VERSION/rc*}/
-# must actually go to /usr/lib/seamonkey/
-#
-mkdir -p $MOZILLA_HOME &&
-ln -fns $MOZILLA_HOME $MOZILLA_HOME-${VERSION/rc*} &&
-mkdir -p $INSTALL_ROOT/usr/share/idl/xulrunner &&
-ln -fns $TRACK_ROOT/usr/share/idl/xulrunner \
-        $INSTALL_ROOT/usr/share/idl/xulrunner-${VERSION/rc*} &&
+MOZILLA_FIVE_HOME="$INSTALL_ROOT/usr/lib/xulrunner-1.9" &&
 
 make install &&
 
@@ -28,17 +18,19 @@ cp  ${SCRIPT_DIRECTORY}/${SPELL}.sh  $INSTALL_ROOT/etc/profile.d &&
 # symlink.
 #
 if  test  -f   $INSTALL_ROOT/usr/lib/libnssckbi.so;  then
-  if  !  test  -f   $MOZILLA_HOME/libnssckbi.so  ||
-         test  -h   $MOZILLA_HOME/libnssckbi.so; then
-    ln -sf $TRACK_ROOT/usr/lib/libnssckbi.so  $MOZILLA_HOME/libnssckbi.so
+  if  !  test  -f   $MOZILLA_FIVE_HOME/libnssckbi.so  ||
+         test  -h   $MOZILLA_FIVE_HOME/libnssckbi.so; then
+    ln -sf $TRACK_ROOT/usr/lib/libnssckbi.so  $MOZILLA_FIVE_HOME/libnssckbi.so
   fi                                                                  
 fi  &&
 if [[ "$XULRUNNER_NULLPLUGIN" == "n" ]]
 then
-   rm $MOZILLA_HOME/plugins/libnullplugin.so
-fi  &&
+   rm $MOZILLA_FIVE_HOME/plugins/libnullplugin.so
+fi
 
-# make the pkgconfig files reference the nspr from the standalone nspr spell
-sedit  's/nspr/mozilla-nspr/'  ${INSTALL_ROOT}/usr/lib/pkgconfig/xulrunner-js.pc  &&
-sedit  's/nspr/mozilla-nspr/'  ${INSTALL_ROOT}/usr/lib/pkgconfig/xulrunner-nss.pc  &&
-sedit  's/nspr/mozilla-nspr/'  ${INSTALL_ROOT}/usr/lib/pkgconfig/xulrunner-xpcom.pc
+#Need ln -s to for some apps
+ln -s $INSTALL_ROOT/usr/lib/xulrunner-1.9/ $INSTALL_ROOT/usr/lib/xulrunner  &&
+
+#libxul.pc needs to include an idl compiler directory
+sed -i 's:\/xulrunner-1\.9\/idl:\/xulrunner-1\.9\/idl\/stable:' ${INSTALL_ROOT}/usr/lib/pkgconfig/libxul.pc &&
+sed -i '5ilibdir=/usr/lib/xulrunner-1.9' ${INSTALL_ROOT}/usr/lib/pkgconfig/libxul.pc 

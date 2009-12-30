@@ -1,9 +1,23 @@
 default_pre_build &&
-
-( cd $SOURCE_DIRECTORY && patch -p0 < $SCRIPT_DIRECTORY/makefile.patch ) &&
-
-sedit 's/lucidasans-10/fixed/g' ${SOURCE_DIRECTORY}/windowlab.h &&
+cd "${SOURCE_DIRECTORY}" &&
+patch -p0 < $SCRIPT_DIRECTORY/makefile.patch &&
+sedit 's/lucidasans-10/fixed/g' windowlab.h &&
 
 if echo ${OPTS} | grep -q USEMOTIF ; then
-    sedit 's/\#DEFINES\ +=\ -DMWM\_HINTS/DEFINES\ +=\ -DMWM\_HINTS/g' ${SOURCE_DIRECTORY}/Makefile
+    sedit 's/\#DEFINES\ +=\ -DMWM\_HINTS/DEFINES\ +=\ -DMWM\_HINTS/' Makefile
+fi &&
+
+if ! is_depends_enabled $SPELL libxext ; then
+  sedit 's/DEFINES += -DSHAPE/#DEFINES += -DSHAPE/' Makefile
+  if is_depends_enabled $SPELL libxft ; then
+    message "freetype support needs libxext, keeping -lXext enabled"
+  else
+    sedit 's/EXTRA_LIBS += -lXext/#EXTRA_LIBS += -lXext/' Makefile
+  fi
+fi &&
+
+if is_depends_enabled $SPELL libxft ; then
+  sedit 's/#DEFINES += -DXFT/DEFINES += -DXFT/' Makefile
+  sedit 's/#EXTRA_INC += `pkg-config --cflags xft`/EXTRA_INC += `pkg-config --cflags xft`/' Makefile
+  sedit 's/#EXTRA_LIBS += `pkg-config --libs xft`/EXTRA_LIBS += `pkg-config --libs xft`/' Makefile
 fi

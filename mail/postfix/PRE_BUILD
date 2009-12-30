@@ -1,4 +1,16 @@
-mk_source_dir  $SOURCE_DIRECTORY      &&
-unpack_file                           &&
-verify_file	3                         &&
-gunzip -c $SOURCE_CACHE/$SOURCE3 > $SOURCE_DIRECTORY/$NAME3
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+if is_depends_enabled $SPELL sqlite; then
+    if [[ "$POSTFIX_EXP" == "y" ]]; then
+        patch -p1 -i "$SPELL_DIRECTORY/postfix-2.6_sqlite.patch"
+    else
+        patch -p1 -i "$SPELL_DIRECTORY/postfix-2.5_sqlite.patch"
+    fi
+fi &&
+
+if [[ "$POSTFIX_VDA" == "y" ]] && [[ "$POSTFIX_EXP" == "n" ]];  then
+    verify_file 3 &&
+    message "${MESSAGE_COLOR}Applying VDA Patch: ${SOURCE3/.gz}${DEFAULT_COLOR}"  &&
+    gzip -cd "$SOURCE_CACHE/$SOURCE3" | patch -p1
+fi

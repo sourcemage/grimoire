@@ -14,7 +14,7 @@ dropfile=/var/tmp/keymap.drop
 start()
 {
   [[ "$TTY_NUMS" ]] && [[ "$SETFONT_ARGS" ]] &&
-    required_executable /usr/bin/setfont
+    required_executable /bin/setfont
   [[ "$KEYMAP$INCLUDEMAPS" ]] &&
     required_executable /bin/loadkeys
 
@@ -34,9 +34,9 @@ start()
   [[ "$DEVICES" == "devfs" ]] && DEV_TTY="vc/" || DEV_TTY="tty"
 
   if [[ "$UNICODE_START" ]]; then
-    required_executable /usr/bin/unicode_start
-    /usr/bin/kbd_mode -u
-    /usr/bin/dumpkeys | /bin/loadkeys --unicode
+    required_executable /bin/unicode_start
+    /bin/kbd_mode -u
+    /bin/dumpkeys | /bin/loadkeys --unicode
   fi
 
   if [[ "$TTY_NUMS" == '*' ]]; then
@@ -50,7 +50,7 @@ start()
     echo "Loading settings for $DEV_TTY$n..."
     [[ "$UNICODE_START" ]] && /bin/echo -ne "\033%G" > /dev/$DEV_TTY$n
     if [[ "$SETFONT_ARGS" ]]; then
-      /usr/bin/setfont $SETFONT_ARGS -C /dev/$DEV_TTY$n
+      /bin/setfont $SETFONT_ARGS -C /dev/$DEV_TTY$n
       evaluate_retval
     fi
   done
@@ -65,7 +65,7 @@ start()
 stop()
 {
   [[ "$TTY_NUMS" ]] && [[ "$SETFONT_ARGS" ]] &&
-    required_executable /usr/bin/setfont
+    required_executable /bin/setfont
 
   [[ -f $dropfile ]] && . $dropfile && rm $dropfile
 
@@ -74,14 +74,14 @@ stop()
     echo "$(/bin/loadkeys defkeymap 2>&1)"
 
   [[ "$UNICODE_START" ]] &&
-    required_executable /usr/bin/unicode_stop &&
-    /usr/bin/kbd_mode -a
+    required_executable /bin/unicode_stop &&
+    /bin/kbd_mode -a
 
   for n in $TTY_NUMS; do
     echo "Unloading settings for $DEV_TTY$n..."
     [[ "$UNICODE_START" ]] && /bin/echo -ne '\033%@' > /dev/$DEV_TTY$n
     if [[ "$SETFONT_ARGS" ]]; then
-      /usr/bin/setfont default8x16 -C /dev/$DEV_TTY$n
+      /bin/setfont default8x16 -C /dev/$DEV_TTY$n
       evaluate_retval
     fi
   done

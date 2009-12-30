@@ -1,0 +1,57 @@
+diff -ruN nedit.orig/source/window.c nedit/source/window.c
+--- nedit.orig/source/window.c	2008-03-03 23:32:24.000000000 +0100
++++ nedit/source/window.c	2009-01-21 13:41:14.000000000 +0100
+@@ -145,6 +145,9 @@
+    0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x84, 0x01, 0xc4, 0x00, 0x64, 0x00,
+    0xc4, 0x00, 0x84, 0x01, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00};
+ 
++/* ThOr: svrname in WM_CLASS hack */
++static const char* def_wmclass = "textShell";
++
+ extern void _XmDismissTearOff(Widget, XtPointer, XtPointer);
+ 
+ static void hideTooltip(Widget tab);
+@@ -388,8 +391,21 @@
+         XtSetArg(al[ac], XtNy, XT_IGNORE_PPOSITION); ac++;
+     }
+ 
+-    winShell = CreateWidget(TheAppShell, "textShell",
+-                topLevelShellWidgetClass, al, ac);
++    {
++        /* ThOr: I want different WM_CLASS for different servers */
++        char* wmclass = NULL;
++        if (GetPrefServerName()[0] != '\0')
++        {
++             wmclass = (char*) malloc(sizeof(char) * (strlen(def_wmclass)+strlen(GetPrefServerName())+2));
++             wmclass[0] = 0;
++             strcat(wmclass, def_wmclass);
++             strcat(wmclass, ":");
++             strcat(wmclass, GetPrefServerName());
++    	}
++    	winShell = CreateWidget(TheAppShell, wmclass == NULL ? def_wmclass : wmclass,
++                                topLevelShellWidgetClass, al, ac);
++        if(wmclass != NULL) free(wmclass);
++    }
+     window->shell = winShell;
+ 
+ #ifdef EDITRES
+@@ -2479,7 +2495,8 @@
+     	WidgetList tabs;
+ 	int tabCount;
+ 	
+-	if (strcmp(XtName(children[n]), "textShell") ||
++	/* ncmp for possible textShell:svrname */
++	if (strncmp(XtName(children[n]), def_wmclass, 9) ||
+ 	  ((topWin = WidgetToWindow(children[n])) == NULL))
+ 	    continue;   /* skip non-editor windows */ 
+ 
+@@ -3507,7 +3524,8 @@
+ 	
+ 	/* get list of tabs in all windows */
+     	for (n=0; n<nItems; n++) {
+-	    if (strcmp(XtName(children[n]), "textShell") ||
++	   /* ncmp for possible textShell:svrname */
++	   if (strncmp(XtName(children[n]), def_wmclass, 9) ||
+ 	      ((win = WidgetToWindow(children[n])) == NULL))
+ 	    	continue;   /* skip non-text-editor windows */ 
+ 	    

@@ -3,6 +3,7 @@
                --prefix=/usr \
                --sysconfdir=/etc \
                --localstatedir=/var \
-               --with-slrnpull --with-uudeview=/usr/include \
+               --with-slrnpull \
+               --with-uu \
                $OPTS &&
   make

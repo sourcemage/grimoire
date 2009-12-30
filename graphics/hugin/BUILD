@@ -1,2 +1,2 @@
-OPTS="--enable-shared --enable-static=no $OPTS" &&
-default_build
+cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr -DHUGIN_SHARED=1
+make

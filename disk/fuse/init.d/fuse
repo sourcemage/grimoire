@@ -1,0 +1,48 @@
+#!/bin/bash
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+MOUNTPOINT="/sys/fs/fuse/connections"
+
+. /etc/init.d/smgl_init
+
+start() {
+	echo "Loading fuse module"
+	if ! grep -qw fuse /proc/filesystems; then
+		/sbin/modprobe fuse >/dev/null 2>&1
+	fi
+	evaluate_retval
+
+	echo "Mounting fuse control filesystem"
+	if grep -qw fusectl /proc/filesystems && ! grep -qw $MOUNTPOINT /proc/mounts; then
+		/bin/mount -t fusectl fusectl $MOUNTPOINT >/dev/null 2>&1
+	fi
+	evaluate_retval
+}
+
+stop() {
+	echo "Unmounting fuse control filesystem"
+	if grep -qw $MOUNTPOINT /proc/mounts; then
+		/bin/umount $MOUNTPOINT >/dev/null 2>&1
+	fi
+	evaluate_retval
+
+	echo "Unloading fuse module"
+	if grep -qw "^fuse" /proc/modules; then
+		/sbin/rmmod fuse >/dev/null 2>&1
+	fi
+	evaluate_retval
+}
+
+reload() {
+	exit 3
+}
+
+status() {
+	echo -n "fuse filesystem is "
+	if ! grep -qw fuse /proc/filesystems; then
+		echo "not available."
+	else
+		echo "available."
+	fi
+}

@@ -1,12 +1,14 @@
-mk_source_dir $SOURCE_DIRECTORY &&
-unpack_file_simple $SOURCE &&
-message "${MESSAGE_COLOR}hash checking ${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} source tree...${DEFAULT_COLOR}" &&
-cd $SOURCE_DIRECTORY &&
-find . -type f ! -wholename '*/.svn/*' -exec gpg --print-md sha512 {} \; > /tmp/netpbm.hash &&
-DIFF=$(bzcat "$SCRIPT_DIRECTORY/netpbm.hash.bz2" | diff /tmp/netpbm.hash -)
-if [[ $DIFF ]]; then
-  error_message "${PROBLEM_COLOR}hash check failed!${DEFAULT_COLOR}" &&
-  hash_user_query 1 "$SPELL" spell || false
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+if [[ $NETPBM_RELEASE == stable ]] || [[ $NETPBM_RELEASE == superstable ]]; then
+  patch -p1 < "$SPELL_DIRECTORY/netpbm-10.42.0-gcc43.patch"
+fi &&
+
+# create proper .so symlink
+sed -i "s:/link:/lib:g" lib/Makefile &&
+
+# fixing paths
+if [[ $NETPBM_RELEASE != advanced ]] && [[ $NETPBM_RELEASE != trunk ]]; then
+  sed -i "s:misc:share/netpbm:;s:/man/:/share/man/:g" Makefile.common
 fi
-patch -p1 < $SCRIPT_DIRECTORY/netpbm-10.42.0-gcc43.patch &&
-sedit 's:/usr/man/web:/usr/share/man/web:' buildtools/installnetpbm.pl

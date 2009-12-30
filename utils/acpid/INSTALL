@@ -1,26 +1,24 @@
-  make    install                                                     &&
+default_install &&
 
-  if [ ! -d /etc/acpi ] ; then
-    mkdir /etc/acpi                                                   &&
-    mkdir /etc/acpi/events                                            &&
-    mkdir /etc/acpi/actions                                           &&
-    cp $SOURCE_DIRECTORY/samples/sample.conf /etc/acpi/events         &&
-    cp $SOURCE_DIRECTORY/samples/acpi_handler.sh /etc/acpi/actions
-  else
-    if [ ! -d /etc/acpi/events ] ; then
-      mkdir /etc/acpi/events
-    fi
+if [[ $INIT_INSTALLED ]]; then
+  install_config_file "$SPELL_DIRECTORY/init.d/acpid.conf" \
+                      "$INSTALL_ROOT/etc/sysconfig/acpid"
+fi &&
 
-    if [ ! -d /etc/acpi/actions ] ; then
-      mkdir /etc/acpi/actions
-    fi
+if [[ ! -d "$INSTALL_ROOT/etc/acpi" ]]; then
+  install -vm 755 -d "$INSTALL_ROOT"/etc/acpi/{events,actions} &&
 
-    if [ ! -a /etc/acpi/events/sample.conf ] ; then
-      cp $SOURCE_DIRECTORY/samples/sample.conf /etc/acpi/events
-    fi
+  install -vm 644 "$SOURCE_DIRECTORY/samples/sample.conf" \
+                  "$INSTALL_ROOT/etc/acpi/events" &&
 
-    if [ ! -a /etc/acpi/actions/acpi_handler.sh ] ; then
-      cp $SOURCE_DIRECTORY/samples/acpi_handler.sh /etc/acpi/actions
-    fi
+  install -vm 700 "$SOURCE_DIRECTORY/samples/acpi_handler.sh" \
+                  "$INSTALL_ROOT/etc/acpi/actions"
+else
+  if [[ ! -d "$INSTALL_ROOT/etc/acpi/events" ]]; then
+    install -vm 755 -d "$INSTALL_ROOT/etc/acpi/events"
+  fi &&
 
+  if [[ ! -d "$INSTALL_ROOT/etc/acpi/actions" ]]; then
+    install -vm 755 -d "$INSTALL_ROOT/etc/acpi/actions"
   fi
+fi

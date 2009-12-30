@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # mosstatd     This shell script takes care of starting and stopping \
 #              the mosstatd daemon.
 

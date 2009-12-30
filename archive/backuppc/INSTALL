@@ -1,0 +1,17 @@
+create_group backuppc
+create_account backuppc "${BACKUPPC_DATA_DIR}" "/dev/null"
+cd $SOURCE_DIRECTORY &&
+if [[ "${BACKUPPC_DATA_DIR}" == "" ]] || ! [ -f  ${BACKUPPC_DATA_DIR}/conf/config.pl ]; then
+	# New batch install!
+	perl ./configure.pl --batch \
+	   --cgi-dir ${INSTALL_ROOT}/usr/share/backuppc/cgi-bin \
+	   --html-dir ${INSTALL_ROOT}/usr/share/backuppc/htdocs \
+	   --data-dir ${INSTALL_ROOT}${BACKUPPC_DATA_DIR:-/var/backups} \
+	   --hostname `hostname` \
+	   --html-dir-url /BackupPC \
+	   --install-dir ${INSTALL_ROOT}/usr/backuppc
+else
+	# existing install, do upgrade
+	perl ./configure.pl --batch \
+	   --config-path ${BACKUPPC_DATA_DIR}/conf/config.pl
+fi

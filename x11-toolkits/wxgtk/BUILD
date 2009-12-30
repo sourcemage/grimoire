@@ -15,6 +15,8 @@ then
 fi  &&
 default_build &&
 for COMPONENT in $WX_CONTRIB; do
-  if [[ "$COMPONENT" == "xrc" ]]; then continue; fi &&
+  case "$COMPONENT" in
+    xrc|animate|mmedia|applet|canvas) continue ;;
+  esac &&
   make -C contrib/src/$COMPONENT
 done

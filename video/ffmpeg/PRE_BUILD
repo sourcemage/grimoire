@@ -1,24 +1,30 @@
 default_pre_build          &&
-cd $SOURCE_DIRECTORY 	   &&
-patch -p1 < $SCRIPT_DIRECTORY/300_c++_compliant_headers.diff &&
-sedit  's:-lpostproc:-Llibpostproc -lpostproc:'  libavcodec/Makefile  &&
-sedit  's:-Werror::'  libavformat/Makefile  &&
+cd $SOURCE_DIRECTORY       &&
 
-message amr=$FFAMR  &&
-cd libavcodec       &&
-case $FFAMR in
-    none);;
-    *)
-message amr_nb=$VERSION2         &&
-      unpack_file 2              &&
-      unzip ${VERSION2}*.zip     &&
-      mv c-code amr_float        &&
-message amr_nb-fixed=$VERSION3   &&
-      unpack_file 3              &&
-      unzip ${VERSION3}*.zip     &&
-      mv c-code amr              &&
-message amr_wb=$VERSION4         &&
-      unpack_file 4              &&
-      unzip ${VERSION4}*.zip     &&
-      mv c-code amrwb_float
-esac
+patch -p0 < "$SPELL_DIRECTORY/libmp3lame.patch" &&
+
+#fix bad pkg-config files
+sed -i \
+-e '/^pkg.*{/,/^}/ s|\$libdir|\$\{prefix\}/lib|;s|\$incdir|\$\{prefix\}/include|'\
+   configure &&
+#s|\\\$|\$|;
+sedit  '/#define LIBAVCODEC_VERSION_INT/i#if !defined INT64_C\n#if defined __WORDSIZE && __WORDSIZE == 64\n#define INT64_C(c) c ## L\n#else\n#define INT64_C(c) c ## LL\n#endif\n#endif'  libavcodec/avcodec.h
+
+#message amr=$FFAMR  &&
+#cd libavcodec       &&
+#case $FFAMR in
+#    none);;
+#    *)
+#message amr_nb=$VERSION2         &&
+#      unpack_file 2              &&
+#      unzip ${VERSION2}*.zip     &&
+#      mv c-code amr_float        &&
+#message amr_nb-fixed=$VERSION3   &&
+#      unpack_file 3              &&
+#      unzip ${VERSION3}*.zip     &&
+#      mv c-code amr              &&
+#message amr_wb=$VERSION4         &&
+#      unpack_file 4              &&
+#      unzip ${VERSION4}*.zip     &&
+#      mv c-code amrwb_float
+#esac

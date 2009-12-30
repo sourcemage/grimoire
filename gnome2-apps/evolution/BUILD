@@ -1,20 +1,5 @@
-if [ "$IPV6" == "y" ] ; then
-   OPTS="$OPTS --enable-ipv6=yes"
-else
-   OPTS="$OPTS --enable-ipv6=no"
-fi &&
-
-if [ "$NNTP" == "y" ] ; then
-   OPTS="$OPTS --enable-nntp=yes"
-else
-   OPTS="$OPTS --enable-nntp=no"
-fi &&
-
-if [ "$PLUGINS" == "y" ] ; then
-   OPTS="$OPTS --enable-plugins=all"
-else
-   OPTS="$OPTS --enable-plugins=no"
-fi &&
+OPTS="$EVOLUTION_NNTP $EVOLUTION_EXCHANGE $OPTS"  &&
+OPTS="--enable-plugins=$EVOLUTION_PLUGINS $OPTS"  &&
+OPTS="--disable-nm $OPTS" &&
 
 default_build
-

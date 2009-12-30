@@ -38,11 +38,7 @@ esac  &&
 
 #Check for xorg or xserver and pass location of xpm
 if [ "$PHP4_X11LIBS" == "y" ]; then
-   if check_if_xorg_modular_libs; then
-       OPTS="$OPTS --with-xpm-dir=/usr"
-   else
-       OPTS="$OPTS --with-xpm-dir=/usr/X11R6"
-   fi
+  OPTS="$OPTS --with-xpm-dir=/usr"
 fi &&
 
 #check to see if internal GD requested

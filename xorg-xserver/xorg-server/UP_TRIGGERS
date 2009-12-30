@@ -1,0 +1,34 @@
+#
+# Go through each provider monolithic X spells provided
+#
+local provider
+local each
+local epicfail
+
+for provider in xorg xfree86{,-devel,-libs,-4.3} xdirectfb; do
+  for each in $(gaze -q depends $provider 1); do
+    #
+    # Recast each spell still using monolithic X, if it's installed
+    # See http://bugs.sourcemage.org/show_bug.cgi?id=14373 for the "issue"
+    # with Sorcery not switching out a no longer available provider
+    #
+    up_trigger $each cast_self
+  done # Finished spell loop
+done # Finished provider loop
+
+case "$(installed_version $SPELL)" in
+  1.4.2|1.3.0.0|1.2.99.903|1.2.99.902|1.2.0|1.1.1|1.0.1|1.0.0|0.99.4) epicfail=y;;
+  *) epicfail=n;;
+esac &&
+
+for each in synaptics $(gaze -q -g "$(gaze -q grimoires | tr " " "\n" | \
+  grep -Ex "test|stable(-rc|-[0-9]+\.[0-9]+)?")" section xorg-driver) \
+  xkbutils xkbcomp xkbprint xkbevd xkeyboard-config setxkbmap; do
+  if spell_ok $each; then
+    if [[ $epicfail == y ]]; then
+      up_trigger $each cast_self
+    else
+      up_trigger $each check_self
+    fi
+  fi
+done

@@ -7,14 +7,16 @@ OPTS="--with-swatdir=/usr/share/swat  \
       $SAMBA_QUOTA                    \
       $OPTS"                          &&
 
-cd  source  &&
+if  [[  "$SAMBA_CIFS"  ==  "y"  ]];  then
+  OPTS="--with-cifsmount $OPTS"
+else
+  OPTS="--without-cifsmount $OPTS"
+fi &&
+
+cd  $SOURCE_DIRECTORY/source3  &&
 make_single    &&
 default_build  &&
-
-if  [[  "$SAMBA_CIFS"  ==  "y"  ]];  then
-  gcc  $CFLAGS  $LDFLAGS  client/mount.cifs.c  \
-       -o  client/mount.cifs
-fi  &&
+make_normal    &&
 
 if [[ "$SAMBA_VSCAN" == "y" ]] ; then
         ORG_DIR=`pwd`

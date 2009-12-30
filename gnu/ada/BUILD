@@ -9,13 +9,15 @@ persistent_read  gcc  GCC_LDFLAGS  LDFLAGS  &&
 ADA_PATH=${SOURCE3/.tar.bz2/}                   &&
 PATH=$SOURCE_DIRECTORY/$ADA_PATH/usr/bin:$PATH  &&
 
-if  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64"  ]];  then
-  OPTS="--build=x86_64-pc-linux-gnu  $OPTS"
+if [[ $CROSS_INSTALL == on ]]; then
+  OPTS="--host=$HOST $OPTS"
+else
+  OPTS="--build=$HOST $OPTS"
 fi  &&
 
 export          CC="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin/gnatgcc"                      &&
-export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gnatgcc/$HOST/4.3.0/include"  &&
-export     LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gnatgcc/$HOST/4.3.0/"         &&
+export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gnatgcc/$HOST/4.3.2/include"  &&
+export     LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gnatgcc/$HOST/4.3.2/"         &&
 export     LDFLAGS="-L${LIB_DIR}"
 
 export    LIBRARY_PATH="$LIB_DIR"                             &&
@@ -27,7 +29,6 @@ export ADA_INCLUDE_PATH="$LIB_DIR/adainclude"  &&
 
 cd $SOURCE_DIRECTORY.bld                                   &&
 $SOURCE_DIRECTORY/configure                                \
-             --host=$HOST                                  \
              --prefix=${INSTALL_ROOT}/usr                  \
              --infodir=${INSTALL_ROOT}/usr/share/info      \
              --mandir=${INSTALL_ROOT}/usr/share/man        \
@@ -35,7 +36,7 @@ $SOURCE_DIRECTORY/configure                                \
              --with-system-zlib                            \
              --program-prefix=gnat                         \
              --enable-libada                               \
-             --enable-languages="ada"                      \
+             --enable-languages="c,ada"                    \
              $GCC_MULTILIB                                 \
              $OPTS                                         &&
 
