@@ -1,0 +1,23 @@
+default_pre_build &&
+cd $SOURCE_DIRECTORY &&
+
+# Use system libevent
+message "${MESSAGE_COLOR}Patching to use system libevent${DEFAULT_COLOR}" &&
+patch -p1 < $SCRIPT_DIRECTORY/chromium-use_system_libevent-1.4.13.patch &&
+
+# Disable compiling with -Werror
+sed -i 's:-Werror::' build/common.gypi &&
+
+# Use system zlib
+sed -i -e '/^#include "mozzconf.h"$/d' third_party/zlib/zconf.h &&
+
+# Use custom CFLAGS/LDFLAGS
+mkdir -p $SOURCE_DIRECTORY/.gyp &&
+cat << EOF > $SOURCE_DIRECTORY/.gyp/include.gypi
+{
+	'target_defaults': {
+		'cflags': [ '${CFLAGS// /','}' ],
+		'ldflags': [ '${LDFLAGS// /','}' ],
+	},
+}
+EOF
