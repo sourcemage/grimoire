@@ -1,5 +1,5 @@
-OPTS="--with-demos  \
-      --disable-gallium  \
-      --with-driver=xlib  \
-      $OPTS"        &&
+OPTS="--with-demos \
+      --disable-gallium \
+      --with-driver=xlib \
+      $OPTS" &&
 default_build
