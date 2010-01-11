@@ -1,0 +1,85 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 15_kz-embed-process-pkglibexecdir.dpatch by Yavor Doganov <yavor@gnu.org>
+##
+## DP: kz-embed-process is not intended to be invoked by the user, so
+## DP: install it in pkglibexecdir.
+
+@DPATCH@
+diff -urNad kazehakase-0.5.8~/configure.ac kazehakase-0.5.8/configure.ac
+--- kazehakase-0.5.8~/configure.ac	2009-10-04 18:57:43.000000000 +0300
++++ kazehakase-0.5.8/configure.ac	2009-10-04 18:57:46.000000000 +0300
+@@ -1,8 +1,9 @@
+ dnl Process this file with autoconf to produce a configure script.
+-AC_PREREQ(2.57)
++AC_PREREQ([2.62])
+ 
+ AC_INIT(kazehakase, 0.5.8)
+-AM_INIT_AUTOMAKE(1.6)
++## The variable pkglibexecdir was introduced in Automake 1.11.
++AM_INIT_AUTOMAKE([1.11])
+ AM_CONFIG_HEADER(config.h)
+ 
+ AC_CANONICAL_HOST
+diff -urNad kazehakase-0.5.8~/dbus/Makefile.am kazehakase-0.5.8/dbus/Makefile.am
+--- kazehakase-0.5.8~/dbus/Makefile.am	2009-10-04 18:32:30.000000000 +0300
++++ kazehakase-0.5.8/dbus/Makefile.am	2009-10-04 18:57:46.000000000 +0300
+@@ -18,10 +18,8 @@
+ 	kz-dbus-embed-agent-client-bindings.h	\
+ 	kz-dbus-embed-agent-server-bindings.h
+ 
+-bin_PROGRAMS =					\
+-	kz-embed-process
+-
+ noinst_PROGRAMS =				\
++	kz-embed-process			\
+ 	sample-browser
+ 
+ EXTRA_DIST = kazehakase-embed.xml
+diff -urNad kazehakase-0.5.8~/module/embed/per-process/Makefile.am kazehakase-0.5.8/module/embed/per-process/Makefile.am
+--- kazehakase-0.5.8~/module/embed/per-process/Makefile.am	2009-10-04 18:32:30.000000000 +0300
++++ kazehakase-0.5.8/module/embed/per-process/Makefile.am	2009-10-04 18:58:13.000000000 +0300
+@@ -8,7 +8,7 @@
+ ENGINE_ID_FOR_GETTEXT = N_("Per-Process")
+ embed_LTLIBRARIES = per_process.la
+ 
+-CLEANFILES += $(BUILD_SOURCES)
++CLEANFILES += $(BUILT_SOURCES)
+ 
+ BUILT_SOURCES = 				\
+ 	kz-embed-process-client-bindings.h	\
+@@ -16,7 +16,7 @@
+ 	kz-dbus-embed-client-bindings.h		\
+ 	kz-dbus-embed-server-bindings.h
+ 
+-bin_PROGRAMS =					\
++pkglibexec_PROGRAMS =					\
+ 	kz-embed-process
+ 
+ INCLUDES =						\
+@@ -31,6 +31,7 @@
+ 	-I$(top_srcdir)/src/utils
+ 
+ per_process_la_CPPFLAGS=			\
++	-DPKGLIBEXECDIR=\"$(pkglibexecdir)\"	\
+ 	-DGTK_DISABLE_DEPRECATED=1		\
+ 	-DGDK_DISABLE_DEPRECATED=1		\
+ 	-DG_DISABLE_DEPRECATED=1		\
+diff -urNad kazehakase-0.5.8~/module/embed/per-process/kz-dbus-embed-delegate.c kazehakase-0.5.8/module/embed/per-process/kz-dbus-embed-delegate.c
+--- kazehakase-0.5.8~/module/embed/per-process/kz-dbus-embed-delegate.c	2009-10-04 18:32:30.000000000 +0300
++++ kazehakase-0.5.8/module/embed/per-process/kz-dbus-embed-delegate.c	2009-10-04 18:57:46.000000000 +0300
+@@ -154,13 +154,13 @@
+     gchar *argv[2] = {0};
+     KzDBusEmbedDelegatePrivate *priv = KZ_DBUS_EMBED_DELEGATE_GET_PRIVATE(delegate);
+ 
+-    argv[0] = "kz-embed-process";
++    argv[0] = PKGLIBEXECDIR"/kz-embed-process";
+     argv[1] = priv->socket_address;
+ 
+     success = g_spawn_async(NULL,
+                             argv,
+                             NULL,
+-                            G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
++                            G_SPAWN_DO_NOT_REAP_CHILD,
+                             NULL,
+                             NULL,
+                             &priv->process_id,

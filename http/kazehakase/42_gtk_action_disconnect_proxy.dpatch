@@ -1,0 +1,44 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 42_gtk_action_disconnect_proxy.dpatch by Yavor Doganov <yavor@gnu.org>
+## Thanks to Dimitur Kirov <dkirov@gmail.com>
+##
+## DP: Check if GTK+ is new enough to have
+## DP: gtk_activatable_set_related_action, otherwise fall back to
+## DP: gtk_action_disconnect_proxy (declaration faded by
+## DP: GTK_DISABLE_DEPRECATED). 
+
+@DPATCH@
+diff -urNad kazehakase-0.5.6~/configure.ac kazehakase-0.5.6/configure.ac
+--- kazehakase-0.5.6~/configure.ac	2009-08-19 22:52:59.000000000 +0300
++++ kazehakase-0.5.6/configure.ac	2009-08-19 22:59:48.000000000 +0300
+@@ -370,6 +370,15 @@
+   AC_DEFINE(HAVE_STRPTIME, 1, [Define strptime])
+ fi
+ 
++## This function is available only in GTK+ >= 2.15.x.
++TEMP_CFLAGS="$CFLAGS"
++TEMP_LIBS="$LIBS"
++CFLAGS="$CFLAGS $GTK_CFLAGS"
++LIBS="$LIBS $GTK_LIBS"
++AC_CHECK_FUNCS([gtk_activatable_set_related_action])
++CFLAGS="$TEMP_CFLAGS"
++LIBS="$TEMP_LIBS"
++
+ dnl **************************************************************
+ dnl Migemo
+ dnl **************************************************************
+diff -urNad kazehakase-0.5.6~/src/actions/kz-actions.c kazehakase-0.5.6/src/actions/kz-actions.c
+--- kazehakase-0.5.6~/src/actions/kz-actions.c	2009-08-17 17:24:42.000000000 +0300
++++ kazehakase-0.5.6/src/actions/kz-actions.c	2009-08-19 23:02:11.000000000 +0300
+@@ -2716,7 +2716,11 @@
+ 			{
+ 				if (p_node->data && GTK_IS_WIDGET(p_node->data))
+         	                {
++#if HAVE_GTK_ACTIVATABLE_SET_RELATED_ACTION
++					gtk_activatable_set_related_action(GTK_ACTIVATABLE(p_node->data), NULL);
++#else
+                 	                gtk_action_disconnect_proxy(action, GTK_WIDGET(p_node->data));
++#endif
+ 	                        }
+         	        }
+ 	                g_slist_free(copy);

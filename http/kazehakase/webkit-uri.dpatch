@@ -1,0 +1,39 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## webkit-uri.dpatch by Yavor Doganov <yavor@gnu.org>
+##
+## DP: Prepend http:// to URLs by default.  Do not use the deprecated
+## DP: function `webkit_web_view_open'.
+## DP: Reported by Andres Salomon at #551268.
+
+@DPATCH@
+diff -urNad kazehakase-0.5.8~/module/embed/webkit-gtk/kz-webkit-gtk.c kazehakase-0.5.8/module/embed/webkit-gtk/kz-webkit-gtk.c
+--- kazehakase-0.5.8~/module/embed/webkit-gtk/kz-webkit-gtk.c	2009-10-01 21:07:00.000000000 +0300
++++ kazehakase-0.5.8/module/embed/webkit-gtk/kz-webkit-gtk.c	2009-12-07 19:33:19.000000000 +0200
+@@ -383,7 +383,26 @@
+ static void
+ load_uri (KzEmbed *kzembed, const gchar  *uri)
+ {
+-    webkit_web_view_open(KZ_WEBKIT_GTK_GET_PRIVATE(kzembed)->web_view, uri);
++    gchar *effective_uri;
++
++    if (!uri)
++        effective_uri = g_strdup("about:blank");
++    else if (!(g_str_has_prefix(g_strchug((gchar *)uri), "http:")
++               || g_str_has_prefix(g_strchug((gchar *)uri), "https:")
++               || g_str_has_prefix(g_strchug((gchar *)uri), "ftp:")
++               || g_str_has_prefix(g_strchug((gchar *)uri), "file:")
++               || g_str_has_prefix(g_strchug((gchar *)uri), "data:")
++               || g_str_has_prefix(g_strchug((gchar *)uri), "about:")
++               || g_str_has_prefix(g_strchug((gchar *)uri), "history-search:")
++               || g_str_has_prefix(g_strchug((gchar *)uri), "gopher:")))
++        effective_uri = g_strconcat("http://", g_strstrip((gchar *)uri), NULL);
++    else
++        effective_uri = g_strdup(uri);
++
++    webkit_web_view_load_uri(KZ_WEBKIT_GTK_GET_PRIVATE(kzembed)->web_view,
++                             effective_uri);
++
++    g_free(effective_uri);
+ }
+ 
+ static void

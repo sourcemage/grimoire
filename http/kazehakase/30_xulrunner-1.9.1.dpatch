@@ -1,0 +1,67 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 30_xulrunner-1.9.1.dpatch by Mike Hommey <mh+reportbug@glandium.org>
+##   and Yavor Doganov <yavor@gnu.org
+##
+## DP: Support for xulrunner 1.9.1.
+
+@DPATCH@
+diff -urNad kazehakase-0.5.8~/macros/gecko.m4 kazehakase-0.5.8/macros/gecko.m4
+--- kazehakase-0.5.8~/macros/gecko.m4	2009-10-01 21:07:00.000000000 +0300
++++ kazehakase-0.5.8/macros/gecko.m4	2009-10-02 00:46:00.000000000 +0300
+@@ -54,26 +54,31 @@
+ 
+ gecko_version_major=`echo $gecko_version | awk '{ print $[1]; }'`
+ gecko_version_minor=`echo $gecko_version | awk '{ print $[2]; }'`
++gecko_version_micro=`echo $gecko_version | awk '{ print $[3]; }'`
+ 
+-if test -n "$gecko_version_major" -a -n "$gecko_version_minor"; then
+-	AC_MSG_RESULT([$gecko_version_major.$gecko_version_minor])
++## The test options -a and -o are not portable.
++if test -n "$gecko_version_major" && test -n "$gecko_version_minor"; then
++	AC_MSG_RESULT([$gecko_version_major.$gecko_version_minor.$gecko_version_micro])
+ else
+ 	AC_MSG_RESULT([no])
+ 	AC_MSG_ERROR([Can't detect Gecko version])
+ fi
+ 
+-if test $gecko_version_major -ne 1 -o \
+-		$gecko_version_minor -lt 7 -o \
+-		$gecko_version_minor -gt 9; then
++if test $gecko_version_major -ne 1 || \
++   test $gecko_version_minor -lt 7 || \
++   test $gecko_version_minor -gt 9; then
+ 	AC_MSG_ERROR([Unsupported Gecko version $gecko_version_major.$gecko_version_minor])
+ fi
+ 
+-if test $gecko_version_major -eq 1 -a $gecko_version_minor -ge 8; then
++if test $gecko_version_major -eq 1 && test $gecko_version_minor -ge 8; then
+ 	AC_DEFINE([HAVE_GECKO_1_8],[1],[Define if we have gecko 1.8])
+ fi
+-if test $gecko_version_major -eq 1 -a $gecko_version_minor -ge 9; then
++if test $gecko_version_major -eq 1 && test $gecko_version_minor -ge 9; then
+ 	AC_DEFINE([HAVE_GECKO_1_9],[1],[Define if we have gecko 1.9])
+ fi
++if test $gecko_version_minor -eq 9 && test $gecko_version_micro -eq 1; then
++	AC_DEFINE([HAVE_GECKO_1_9_1],[1],[Define if we have gecko 1.9.1])
++fi
+ 
+ AC_MSG_CHECKING([whether nsPIDOMWindow methods return nsPIDOMWindow*])
+ 
+diff -urNad kazehakase-0.5.8~/module/embed/gecko/mozilla.cpp kazehakase-0.5.8/module/embed/gecko/mozilla.cpp
+--- kazehakase-0.5.8~/module/embed/gecko/mozilla.cpp	2009-10-01 21:07:00.000000000 +0300
++++ kazehakase-0.5.8/module/embed/gecko/mozilla.cpp	2009-10-02 00:48:47.000000000 +0300
+@@ -131,8 +131,13 @@
+ xulrunner_init (void)
+ {
+ 	static const GREVersionRange greVersion = {
++#ifdef HAVE_GECKO_1_9_1
+ 		"1.9.1", PR_TRUE,
+-		"2.0", PR_TRUE,
++		"1.9.2", PR_FALSE
++#else
++		"1.9a", PR_TRUE,
++		"1.9.1", PR_FALSE
++#endif
+ 	};
+ 
+ 	char xpcomPath[PATH_MAX];

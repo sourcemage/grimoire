@@ -1,0 +1,41 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 07_xulrunner_init-sanity-check.dpatch by Yavor Doganov <yavor@gnu.org>
+##
+## DP: Display an error dialog and terminate the application in case
+## DP: of GRE glue failure. 
+
+@DPATCH@
+diff -urNad kazehakase-0.5.8~/module/embed/gecko/kz-gecko-embed-module.c kazehakase-0.5.8/module/embed/gecko/kz-gecko-embed-module.c
+--- kazehakase-0.5.8~/module/embed/gecko/kz-gecko-embed-module.c	2009-10-01 21:06:58.000000000 +0300
++++ kazehakase-0.5.8/module/embed/gecko/kz-gecko-embed-module.c	2009-10-03 23:37:31.000000000 +0300
+@@ -24,6 +24,8 @@
+ #include "kz-gecko-single.h"
+ #include "mozilla-prefs.h"
+ #include "mozilla.h"
++#include <glib/gi18n.h>
++#include <stdlib.h>
+ 
+ static KzGeckoSingle *gecko_single = NULL;
+ 
+@@ -31,7 +33,20 @@
+ KZ_MODULE_IMPL_INIT (GTypeModule *module)
+ {
+ #ifdef XPCOM_GLUE
+-	xulrunner_init();
++	if (!xulrunner_init())
++		{
++			GtkWidget *dialog;
++
++			dialog = gtk_message_dialog_new(NULL,
++							GTK_DIALOG_DESTROY_WITH_PARENT,
++							GTK_MESSAGE_ERROR,
++							GTK_BUTTONS_CLOSE,
++							_("Failed to initialize Gecko."));
++			gtk_dialog_run(GTK_DIALOG(dialog));
++			gtk_widget_destroy(dialog);
++
++			exit(EXIT_FAILURE);
++		}
+ #else
+ 	gtk_moz_embed_set_comp_path(MOZILLA_HOME);
+ #endif

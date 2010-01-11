@@ -1,0 +1,46 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 40_GLIB_LIBS.dpatch by Yavor Doganov <yavor@gnu.org>
+##
+## DP: Check for Glib in order to define GLIB_CFLAGS and GLIB_LIBS.
+
+@DPATCH@
+diff -urNad kazehakase-0.5.8~/configure.ac kazehakase-0.5.8/configure.ac
+--- kazehakase-0.5.8~/configure.ac	2009-10-03 19:06:38.000000000 +0300
++++ kazehakase-0.5.8/configure.ac	2009-10-03 19:08:23.000000000 +0300
+@@ -96,6 +96,14 @@
+ KAZEHAKASE_GECKO_CHECK
+ 
+ dnl **************************************************************
++dnl Check for Glib.
++dnl **************************************************************
++dnl GLIB_CFLAGS and GLIB_LIBS are needed for the search module and
++dnl kz-embed-process.
++AM_PATH_GLIB_2_0([2.13.5], [], [AC_MSG_ERROR([GLib is required.])],
++  [gmodule gobject gthread])
++
++dnl **************************************************************
+ dnl Check for Gtk+2.
+ dnl **************************************************************
+ dnl Test for GTK+, and define GTK_CFLAGS and GTK_LIBS, if gthread is specified
+diff -urNad kazehakase-0.5.8~/dbus/Makefile.am kazehakase-0.5.8/dbus/Makefile.am
+--- kazehakase-0.5.8~/dbus/Makefile.am	2009-10-01 21:06:58.000000000 +0300
++++ kazehakase-0.5.8/dbus/Makefile.am	2009-10-03 19:06:40.000000000 +0300
+@@ -36,6 +36,7 @@
+ 
+ kz_embed_process_LDADD =                        \
+         $(DBUS_GLIB_LIBS)                       \
++	$(GLIB_LIBS)				\
+         $(top_builddir)/src/libkazehakase.la 
+ sample_browser_LDADD = 				\
+         $(GTK_LIBS)	                        \
+diff -urNad kazehakase-0.5.8~/module/embed/per-process/Makefile.am kazehakase-0.5.8/module/embed/per-process/Makefile.am
+--- kazehakase-0.5.8~/module/embed/per-process/Makefile.am	2009-10-01 21:06:58.000000000 +0300
++++ kazehakase-0.5.8/module/embed/per-process/Makefile.am	2009-10-03 19:06:40.000000000 +0300
+@@ -52,6 +52,7 @@
+ 
+ kz_embed_process_LDADD =                        \
+         $(DBUS_GLIB_LIBS)                       \
++	$(GLIB_LIBS)				\
+         $(top_builddir)/src/libkazehakase.la 
+ 
+ kz_embed_process_SOURCES = kz-embed-process.c

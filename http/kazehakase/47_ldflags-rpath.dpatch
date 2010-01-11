@@ -1,0 +1,146 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 47_ldflags-rpath.dpatch by Yavor Doganov <yavor@gnu.org>
+##
+## DP: Do not use LDFLAGS directly and remove RPATH.  Misc fixes to
+## DP: avoid undefined symbols.
+
+@DPATCH@
+diff -urNad kazehakase-0.5.8~/dbus/Makefile.am kazehakase-0.5.8/dbus/Makefile.am
+--- kazehakase-0.5.8~/dbus/Makefile.am	2009-12-07 21:17:56.000000000 +0200
++++ kazehakase-0.5.8/dbus/Makefile.am	2009-12-07 21:17:59.000000000 +0200
+@@ -35,6 +35,7 @@
+ kz_embed_process_LDADD =                        \
+         $(DBUS_GLIB_LIBS)                       \
+ 	$(GLIB_LIBS)				\
++	$(GTK_LIBS)				\
+         $(top_builddir)/src/libkazehakase.la 
+ sample_browser_LDADD = 				\
+         $(GTK_LIBS)	                        \
+diff -urNad kazehakase-0.5.8~/ext/ruby/Makefile.am kazehakase-0.5.8/ext/ruby/Makefile.am
+--- kazehakase-0.5.8~/ext/ruby/Makefile.am	2009-12-07 21:17:42.000000000 +0200
++++ kazehakase-0.5.8/ext/ruby/Makefile.am	2009-12-07 21:17:59.000000000 +0200
+@@ -8,7 +8,6 @@
+ 	-DG_DISABLE_DEPRECATED=1
+ 
+ INCLUDES =						\
+-	$(MOZILLA_COMPONENT_CFLAGS)			\
+ 	$(GTK_CFLAGS)					\
+ 	$(LIBGNUTLS_CFLAGS)				\
+ 	$(RUBY_CFLAGS)					\
+@@ -47,14 +46,12 @@
+ 	kz-rb-sidebar.c				\
+ 	kz-rb-web.c
+ 
+-LDFLAGS =					\
++AM_LDFLAGS =					\
+ 	-rpath $(extdir)			\
+ 	-avoid-version				\
+ 	-module					\
+ 	-export-dynamic $(no_undefined)		\
+-	 $(LIBTOOL_EXPORT_OPTIONS)
+-
+-ruby_la_LDFLAGS =				\
++	$(LIBTOOL_EXPORT_OPTIONS)		\
+ 	$(RUBY_LDFLAGS)				\
+ 	$(RUBY_EXT_LDFLAGS)
+ 
+@@ -63,5 +60,4 @@
+ 	$(GTK_LIBS)				\
+ 	$(LIBGNUTLS_LIBS)			\
+ 	$(RUBY_LIBS)				\
+-	$(MOZILLA_COMPONENT_LIBS)		\
+ 	$(top_builddir)/src/libkazehakase.la
+diff -urNad kazehakase-0.5.8~/module/embed/gecko/Makefile.am kazehakase-0.5.8/module/embed/gecko/Makefile.am
+--- kazehakase-0.5.8~/module/embed/gecko/Makefile.am	2009-12-07 21:17:42.000000000 +0200
++++ kazehakase-0.5.8/module/embed/gecko/Makefile.am	2009-12-07 21:17:59.000000000 +0200
+@@ -99,12 +99,11 @@
+ 	$(GTK_LIBS)				\
+ 	$(top_builddir)/src/libkazehakase.la
+ 
+-LDFLAGS =					\
++AM_LDFLAGS =					\
+ 	-rpath $(embeddir)			\
+ 	-avoid-version				\
+ 	-module					\
+ 	-export-dynamic $(no_undefined)		\
+-	-R$(MOZILLA_HOME)			\
+ 	 $(LIBTOOL_EXPORT_OPTIONS)
+ 
+ AM_CXXFLAGS =				\
+diff -urNad kazehakase-0.5.8~/module/embed/gecko/gtkmozembed/Makefile.am kazehakase-0.5.8/module/embed/gecko/gtkmozembed/Makefile.am
+--- kazehakase-0.5.8~/module/embed/gecko/gtkmozembed/Makefile.am	2009-12-07 21:17:42.000000000 +0200
++++ kazehakase-0.5.8/module/embed/gecko/gtkmozembed/Makefile.am	2009-12-07 21:17:59.000000000 +0200
+@@ -59,8 +59,6 @@
+ 	-I$(top_srcdir)/src/utils \
+ 	-I$(top_srcdir)/module/embed/gecko
+ 
+-LDFLAGS = -R$(MOZILLA_HOME)
+-
+ if HAVE_GECKO_1_8
+ PROFILEDIRSERVICE_SOURCES=nsProfileDirServiceProvider2.cpp
+ else
+diff -urNad kazehakase-0.5.8~/module/embed/per-process/Makefile.am kazehakase-0.5.8/module/embed/per-process/Makefile.am
+--- kazehakase-0.5.8~/module/embed/per-process/Makefile.am	2009-12-07 21:17:56.000000000 +0200
++++ kazehakase-0.5.8/module/embed/per-process/Makefile.am	2009-12-07 21:18:48.000000000 +0200
+@@ -49,11 +49,14 @@
+ 	kz-dbus-embed-delegate.h
+ 
+ per_process_la_LIBADD = 			\
+-	$(DBUS_GLIB_LIBS)
++	$(DBUS_GLIB_LIBS)			\
++	$(GTK_LIBS)				\
++	$(top_builddir)/src/libkazehakase.la
+ 
+ kz_embed_process_LDADD =                        \
+         $(DBUS_GLIB_LIBS)                       \
+ 	$(GLIB_LIBS)				\
++	$(GTK_LIBS)				\
+         $(top_builddir)/src/libkazehakase.la 
+ 
+ kz_embed_process_SOURCES = kz-embed-process.c
+diff -urNad kazehakase-0.5.8~/module/embed/webkit-gtk/Makefile.am kazehakase-0.5.8/module/embed/webkit-gtk/Makefile.am
+--- kazehakase-0.5.8~/module/embed/webkit-gtk/Makefile.am	2009-12-07 21:17:42.000000000 +0200
++++ kazehakase-0.5.8/module/embed/webkit-gtk/Makefile.am	2009-12-07 21:17:59.000000000 +0200
+@@ -31,4 +31,5 @@
+ 	kz-webkit-gtk.h
+ 
+ webkit_gtk_la_LIBADD = 			\
+-	$(WEBKITGTK_LIBS)
++	$(WEBKITGTK_LIBS)		\
++	$(top_builddir)/src/libkazehakase.la
+diff -urNad kazehakase-0.5.8~/module/search/Makefile.am kazehakase-0.5.8/module/search/Makefile.am
+--- kazehakase-0.5.8~/module/search/Makefile.am	2009-12-07 21:17:42.000000000 +0200
++++ kazehakase-0.5.8/module/search/Makefile.am	2009-12-07 21:17:59.000000000 +0200
+@@ -20,7 +20,7 @@
+ 
+ LIBADD = $(GLIB_LIBS)
+ 
+-LDFLAGS = \
++AM_LDFLAGS = \
+ 	-rpath $(searchdir)			\
+ 	-avoid-version				\
+ 	-module					\
+@@ -39,7 +39,8 @@
+ hyper_estraier_la_SOURCES = \
+ 	$(search_common_sources) \
+ 	kz-hyper-estraier-search.c
+-hyper_estraier_la_LIBADD = $(EST_LIBS)
++hyper_estraier_la_LIBADD = $(EST_LIBS) $(GLIB_LIBS) \
++			   $(top_builddir)/src/libkazehakase.la
+ hyper_estraier_la_CPPFLAGS =					\
+ 	 $(EST_CFLAGS)						\
+ 	 $(AM_CPPFLAGS)						\
+diff -urNad kazehakase-0.5.8~/src/Makefile.am kazehakase-0.5.8/src/Makefile.am
+--- kazehakase-0.5.8~/src/Makefile.am	2009-12-07 21:17:57.000000000 +0200
++++ kazehakase-0.5.8/src/Makefile.am	2009-12-07 21:17:59.000000000 +0200
+@@ -100,10 +100,6 @@
+ 	$(KAZEHAKASE_RES)		\
+ 	$(GTK_LIBS)
+ 
+-if WITH_GECKO
+-kazehakase_LDFLAGS = -R$(MOZILLA_HOME)
+-endif
+-
+ libkazehakase_public_h_sources = 	\
+ 	kazehakase.h 			\
+ 	kz-objects.h 			\

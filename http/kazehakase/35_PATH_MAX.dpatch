@@ -1,0 +1,71 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 35_PATH_MAX.dpatch by Yavor Doganov <yavor@gnu.org>
+##
+## DP: Avoid PATH_MAX, which is undefined on GNU/Hurd.
+
+@DPATCH@
+diff -urNad kazehakase-0.5.6~/module/embed/gecko/mozilla.cpp kazehakase-0.5.6/module/embed/gecko/mozilla.cpp
+--- kazehakase-0.5.6~/module/embed/gecko/mozilla.cpp	2009-08-24 11:26:28.000000000 +0300
++++ kazehakase-0.5.6/module/embed/gecko/mozilla.cpp	2009-08-24 11:27:02.000000000 +0300
+@@ -136,32 +136,53 @@
+ #endif
+ 	};
+ 
+-	char xpcomPath[PATH_MAX];
++	char *xpcomPath, *lastSlash;
++	gsize allocated = 128;
++	nsresult rv;
++
++	while (1)
++		{
++			xpcomPath = (char *) g_malloc0(allocated);
++
++			rv = GRE_GetGREPathWithProperties(&greVersion, 1,
++							  nsnull, 0,
++							  xpcomPath,
++							  allocated);
++
++			if (strlen(xpcomPath) < allocated - 1)
++				break;
++
++			g_free(xpcomPath);
++			allocated *= 2;
++		}
+ 
+-	nsresult rv = GRE_GetGREPathWithProperties(&greVersion, 1, nsnull, 0,
+-						   xpcomPath, sizeof(xpcomPath));
+ 	if (NS_FAILED(rv))
+-		return FALSE;
++		goto out;
+ 
+ 	rv = XPCOMGlueStartup(xpcomPath);
+ 	if (NS_FAILED(rv))
+-		return FALSE;
++		goto out;
+ 
+ 	rv = GTKEmbedGlueStartup();
+ 	if (NS_FAILED(rv))
+-		return FALSE;
++		goto out;
+ 
+ 	rv = GTKEmbedGlueStartupInternal();
+ 	if (NS_FAILED(rv))
+-		return FALSE;
++		goto out;
+ 
+-	char *lastSlash = strrchr(xpcomPath, '/');
++	lastSlash = strrchr(xpcomPath, '/');
+ 	if (lastSlash)
+ 		*lastSlash = '\0';
+ 
+ 	gtk_moz_embed_set_path(xpcomPath);
+ 
++	g_free(xpcomPath);
+ 	return TRUE;
++
++ out:
++	g_free(xpcomPath);
++	return FALSE;
+ }
+ 
+ static nsresult
