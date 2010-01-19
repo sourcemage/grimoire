@@ -1,0 +1,1 @@
+CSTD=gnu99 make DESTDIR="$INSTALL_ROOT"
