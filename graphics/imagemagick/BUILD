@@ -1,2 +1,4 @@
-OPTS="--enable-shared $OPTS "  &&
+OPTS="--enable-shared \
+      --without-autotrace \
+      $OPTS" &&
 default_build
