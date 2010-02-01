@@ -14,7 +14,14 @@
   ./configure                                    \
 	--prefix=$FB_PREFIX                      \
 	$OPTS                                   &&
+
+# the first stage must be single-threaded
+make_single &&
+make Makefile.boot.gpre &&
+make_normal &&
+
 if [[ $FB_CLIENT == n ]]; then
+#  build everything else
   make                                          &&
   cd $SOURCE_DIRECTORY/gen/firebird             &&
 # fix ownership and permissions
@@ -41,11 +48,8 @@ if [[ $FB_CLIENT == n ]]; then
     chown firebird:firebird $DB
   done
 else
-  cd gen                                        &&
-  make includes                                 &&
-  make -f Makefile.boot.gpre                    &&
-  make -f Makefile.libfbclient                  &&
-  make -f Makefile.client.isql                  
+  make Makefile.libfbclient &&
+  make Makefile.client.isql                  
 # probably need to build gbak and then restore messages and help fdb
-#  make -f Makefile.client.gbak 
+#  make Makefile.client.gbak 
 fi
