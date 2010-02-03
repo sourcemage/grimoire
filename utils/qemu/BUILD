@@ -1,6 +1,6 @@
 message "Target list: $QEMU_ARCHS"          &&
 
-if [[ $QEMU_VER == "0.10.6" ]] || [[ $QEMU_VER == "0.11.1" ]]; then
+if [[ $QEMU_VER == "0.10" ]] || [[ $QEMU_VER == "0.11" ]]; then
   if [[ ! $OPTS =~ "--disable-kqemu" ]]; then
     #
     # Disable PIC if building soft MMU targets
