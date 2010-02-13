@@ -1,7 +1,7 @@
 if [[ $FULLDOCS == y ]]; then
-   OPTS="$OPTS --enable-fulldocs"
+   OPTS="$OPTS --enable-documentation"
 else
-   OPTS="$OPTS --disable-fulldocs"
+   OPTS="$OPTS --disable-documentation"
 fi &&
 
 default_build
