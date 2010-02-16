@@ -1,6 +1,4 @@
-OPTS="--prefix=$INSTALL_ROOT/usr      \
-      --exec-prefix=$INSTALL_ROOT/usr \
-      --disable-update-database       \
-      $OPTS"                          &&
+OPTS="--disable-update-databases \
+      $OPTS" &&
 
 default_build
