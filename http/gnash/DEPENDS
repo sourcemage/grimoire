@@ -10,13 +10,11 @@ depends  zlib                               &&
 #
 # Video rendering
 #
-if [[ "$GNASH_RENDERER" == "opengl" ]]; then
-  depends  OPENGL  '--enable-renderer=ogl'
-elif [[ "$GNASH_RENDERER" == "cairo" ]]; then
-  depends  cairo  '--enable-renderer=cairo'
-else
-  depends  agg  '--enable-renderer=agg'
-fi  &&
+case "$GNASH_RENDERER" in
+  opengl) depends OPENGL "--enable-renderer=ogl";;
+   cairo) depends cairo "--enable-renderer=cairo";;
+       *) depends agg "--enable-renderer=agg";;
+esac                                        &&
 
 #
 # Media rendering
@@ -43,6 +41,10 @@ elif [[ "${GNASH_GUI}" == "KDE" ]]; then
   depends  kdebase '--enable-gui=kde'  &&
   depends  kdelibs '--enable-kparts'   &&
   depends  qt-x11
+elif [[ "${GNASH_GUI}" == "KDE4" ]]; then
+  depends  kdebase4 '--enable-gui=kde4'  &&
+  depends  kdelibs4 '--enable-kparts4'   &&
+  depends  qt4
 fi  &&
 
 # no longer needed to build
@@ -50,6 +52,16 @@ suggest_depends  NS-PLUGIN-COMPATIBLE                             \
                   '--enable-npapi'                                \
                   '--disable-npapi'                               \
                   'Suggested to run the plugin from a browser'    &&
+
+optional_depends nspr                                       \
+                 "--with-nspr-incl=${INSTALL_ROOT}/usr/include/nspr --with-nspr-lib=${INSTALL_ROOT}/usr/lib"  \
+                 ""                                         \
+                 "Enable support for Netscape Portable Runtime (NSPR)" &&
+
+optional_depends  libxft                                    \
+                  "--with-Xft-incl=${INSTALL_ROOT}/usr/include/X11/Xft --with-Xft-lib=${INSTALL_ROOT}/usr/lib"  \
+                  ""                                        \
+                  'Enable support for xft library'          &&
 
 optional_depends  dbus                           \
                   '--enable-extensions=dbus'     \
