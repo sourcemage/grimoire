@@ -10,11 +10,11 @@ depends  zlib                               &&
 #
 # Video rendering
 #
-case "$GNASH_RENDERER" in
-  opengl) depends OPENGL "--enable-renderer=ogl";;
-   cairo) depends cairo "--enable-renderer=cairo";;
-       *) depends agg "--enable-renderer=agg";;
-esac                                        &&
+if [[ "$GNASH_RENDERER" == "opengl" ]]; then
+  depends OPENGL "--enable-renderer=ogl"
+else
+  depends $GNASH_RENDERER "--enable-renderer=$GNASH_RENDERER"
+fi                                          &&
 
 #
 # Media rendering
@@ -32,7 +32,9 @@ fi  &&
 #
 if   [[ "${GNASH_GUI}" == "GTK" ]]; then
   depends  atk                           &&
-  depends  cairo                         &&
+  if [[ "$GNASH_RENDERER" != "cairo" ]]; then
+    depends  cairo
+  fi                                     &&
   depends  GTK2      '--enable-gui=gtk'  &&
   depends  gtkglext  '--enable-glext'    &&
   depends  pango
