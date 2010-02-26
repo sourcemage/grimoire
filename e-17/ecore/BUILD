@@ -1,2 +1,2 @@
-OPTS="${ECORE_DESKTOP} $OPTS"  &&
+OPTS="$ECORE_DESKTOP $ECORE_TXT $OPTS" &&
 default_build
