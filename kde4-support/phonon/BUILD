@@ -1,4 +1,4 @@
-QTDIR="${QTDIR:-$INSTALL_ROOT/usr/bin/qt4}" &&
+QTDIR=$INSTALL_ROOT/usr/bin/qt4 &&
 PATH="$QTDIR:$PATH"   &&
 KDE4DIR=$INSTALL_ROOT/opt/kde4 &&
 cd $SOURCE_DIRECTORY  &&
