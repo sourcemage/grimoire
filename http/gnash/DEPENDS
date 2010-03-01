@@ -1,20 +1,20 @@
 depends  -sub "THREAD DATE_TIME"  boost     &&
 depends  curl                               &&
-depends  fontconfig  '--enable-fontconfig'  &&
+depends  fontconfig                         &&
 depends  g++                                &&
-depends  jpeg        '--enable-jpeg'        &&
-depends  libpng      '--enable-png'         &&
+depends  jpeg                               &&
+depends  libpng                             &&
 depends  libxml2                            &&
-depends  zlib        '--enable-z'           &&
+depends  zlib                               &&
 
 #
 # Video rendering
 #
-if [[ $GNASH_RENDERER == "opengl" ]]; then
-  depends  OPENGL  '--enable-renderer=ogl'
+if [[ "$GNASH_RENDERER" == "opengl" ]]; then
+  depends OPENGL "--enable-renderer=ogl"
 else
-  depends  agg  '--enable-renderer=agg'
-fi  &&
+  depends $GNASH_RENDERER "--enable-renderer=$GNASH_RENDERER"
+fi                                          &&
 
 #
 # Media rendering
@@ -27,13 +27,14 @@ elif [[ $GNASH_MEDIA == "ffmpeg" ]]; then
   depends  sdl
 fi  &&
 
-
 #
 # GUI
 #
 if   [[ "${GNASH_GUI}" == "GTK" ]]; then
   depends  atk                           &&
-  depends  cairo                         &&
+  if [[ "$GNASH_RENDERER" != "cairo" ]]; then
+    depends  cairo
+  fi                                     &&
   depends  GTK2      '--enable-gui=gtk'  &&
   depends  gtkglext  '--enable-glext'    &&
   depends  pango
@@ -41,6 +42,10 @@ elif [[ "${GNASH_GUI}" == "KDE" ]]; then
   depends  kdebase '--enable-gui=kde'  &&
   depends  kdelibs '--enable-kparts'   &&
   depends  qt-x11
+elif [[ "${GNASH_GUI}" == "KDE4" ]]; then
+  depends  kdebase4 '--enable-gui=kde4'  &&
+  depends  kdelibs4 '--enable-kparts4'   &&
+  depends  qt4
 fi  &&
 
 # no longer needed to build
@@ -48,6 +53,16 @@ suggest_depends  NS-PLUGIN-COMPATIBLE                             \
                   '--enable-npapi'                                \
                   '--disable-npapi'                               \
                   'Suggested to run the plugin from a browser'    &&
+
+optional_depends nspr                                       \
+                 "--with-nspr-incl=${INSTALL_ROOT}/usr/include/nspr --with-nspr-lib=${INSTALL_ROOT}/usr/lib"  \
+                 ""                                         \
+                 "Enable support for Netscape Portable Runtime (NSPR)" &&
+
+optional_depends  libxft                                    \
+                  "--with-Xft-incl=${INSTALL_ROOT}/usr/include/X11/Xft --with-Xft-lib=${INSTALL_ROOT}/usr/lib"  \
+                  ""                                        \
+                  'Enable support for xft library'          &&
 
 optional_depends  dbus                           \
                   '--enable-extensions=dbus'     \
@@ -64,28 +79,37 @@ optional_depends  lirc                                      \
                   '--disable-lirc'                          \
                   'for Linux infra-red controller support'  &&
 
-optional_depends  libxft                                    \
-                  '--enable-Xft'                            \
-                  '--disable-Xft'                           \
-                  'Enable support for xft library'          &&
-
 optional_depends GECKO                                      \
                  '--enable-xpcom'                           \
                  '--disable-xpcom'                          \
                  'Enable xpcom support in NPAPI plugin'     &&
 
-optional_depends nspr                                       \
-                 '--enable-nspr'                            \
-                 '--disable-nspr'                           \
-                 'Enable support for Netscape Portable Runtime (NSPR).' &&
-
 optional_depends giflib                                     \
-                 '--enable-gif'                             \
-                 '--disable-gif'                            \
+                 ''                                         \
+                 ''                                         \
                  'Enable support for gif images.'           &&
 
 optional_depends expat                                      \
-                 '--enable-expat'                           \
-                 '--disable-expat'                          \
-                 'Enable support for Expat library.'
+                 ''                                         \
+                 ''                                         \
+                 'Enable support for Expat library.'        &&
 
+optional_depends docbook-utils                              \
+                 "--enable-docbook"                         \
+                 "--disable-docbook"                        \
+                 "Enable support for building documentation"  &&
+
+optional_depends openssh                                    \
+                 "--enable-ssh"                             \
+                 "--disable-ssh"                            \
+                 "Enable using SSH for network communication"  &&
+
+optional_depends openssl                                    \
+                 "--enable-ssl"                             \
+                 "--disable-ssl"                            \
+                 "Enable using OpenSSL directly"            &&
+
+optional_depends python                                     \
+                 "--enable-python"                          \
+                 "--disable-python"                         \
+                 "Enable python wrapper support"

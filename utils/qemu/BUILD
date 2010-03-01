@@ -19,7 +19,7 @@ if [[ $QEMU_VER == "0.10" ]] || [[ $QEMU_VER == "0.11" ]]; then
         CFLAGS="$CFLAGS -march=pentium-mmx"
       fi &&
 
-      # -march=prescott was added after 
+      # -march=prescott was added after
       if [[ "$CFLAGS" =~ -march=prescott ]]; then
         message "${MESSAGE_COLOR}Reducing your $BASH_REMATCH to pentium-mmx.${DEFAULT_COLOR}" &&
         list_remove CFLAGS $BASH_REMATCH &&
