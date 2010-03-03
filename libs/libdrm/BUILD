@@ -8,6 +8,8 @@ else
 fi  &&
 if [[ $LIBDRM_RADEON == y ]]; then
   OPTS="--enable-radeon $OPTS"
+else
+  OPTS="--disable-radeon $OPTS"
 fi  &&
 
 default_build &&
