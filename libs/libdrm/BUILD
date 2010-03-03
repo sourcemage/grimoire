@@ -7,7 +7,7 @@ else
   OPTS="--enable-intel $OPTS"
 fi  &&
 if [[ $LIBDRM_RADEON == y ]]; then
-  OPTS="--enable-radeon-experimental-api $OPTS"
+  OPTS="--enable-radeon $OPTS"
 fi  &&
 
 default_build &&
