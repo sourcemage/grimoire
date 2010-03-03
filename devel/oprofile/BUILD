@@ -5,4 +5,5 @@ else
         OPROFILEOPT="--with-kernel-support"
 fi   &&
 OPTS="$OPTS $OPROFILEOPT" &&
+disable_pic               &&
 default_build
