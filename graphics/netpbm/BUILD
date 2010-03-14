@@ -17,6 +17,7 @@ LINKERISCOMPILER = Y
 CFLAGS_SHLIN += -fPIC
 NETPBM_DOCURL = http://netpbm.sourceforge.net/doc/
 PNGLIB = libpng.so
+SYMLINK = ln -sf
 EOF
 if list_find "$OPTS" yes-jpeg; then
   echo "JPEGLIB = libjpeg.so" >> $CONFIGFILE

@@ -3,9 +3,13 @@ if [[ $LIBDRM_NV == y ]]; then
 fi  &&
 if [[ $LIBDRM_INTEL == n ]]; then
   OPTS="--disable-intel $OPTS"
+else
+  OPTS="--enable-intel $OPTS"
 fi  &&
 if [[ $LIBDRM_RADEON == y ]]; then
-  OPTS="--enable-radeon-experimental-api $OPTS"
+  OPTS="--enable-radeon $OPTS"
+else
+  OPTS="--disable-radeon $OPTS"
 fi  &&
 
 default_build &&
