@@ -1,3 +1,4 @@
+OPTS="--eprefix=$INSTALL_ROOT $OPTS" &&
 
 CFLAGS="$CFLAGS -DPIC -fPIC"  &&
 

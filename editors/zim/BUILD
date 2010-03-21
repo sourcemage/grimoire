@@ -1,2 +1,2 @@
-./configure                            &&
-make
+./test.py &&
+./setup.py install
