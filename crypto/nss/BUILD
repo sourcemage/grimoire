@@ -8,7 +8,8 @@ then
   MAKE_OPTS="USE_64=1"
 fi &&
 
-cd $SOURCE_DIRECTORY/mozilla/security/coreconf &&
+#cd $SOURCE_DIRECTORY/mozilla/security/coreconf &&
+cd $SOURCE_DIRECTORY/mozilla-1.9.2/security/coreconf &&
 
 echo 'INCLUDES += -I/usr/include/nspr -I$(DIST)/include/dbm' >> headers.mk &&
 
