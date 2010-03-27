@@ -2,7 +2,9 @@ if [[ $CVS == y ]]; then
   OPTS="$OPTS --disable-mtab"
 fi &&
 
-OPTS="--exec-prefix=$INSTALL_ROOT/ $OPTS" &&
+OPTS="--exec-prefix=$INSTALL_ROOT/ \
+      --with-pkgconfigdir=$INSTALL_ROOT/usr/lib/pkgconfig \
+      $OPTS" &&
 
 default_build_configure &&
 
