@@ -1,5 +1,5 @@
 QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
 PATH="$QTDIR/bin/qt4:$PATH"
-./configure.sh &&
+./configure.sh $OPTS &&
 make
 
