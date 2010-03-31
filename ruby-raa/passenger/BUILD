@@ -1,8 +1,11 @@
-# the hack with this is it has to be installed somewhere then built there, then kept around :/
+if list_find "$OPTS" "APACHE=1"; then
+  rake apache2
+fi &&
 
-unpack_file  &&
-cd $SOURCE_DIRECTORY &&
-# apply hax to the Rakefile
-sed -i -e "s|-I/usr/local/include|-I/usr/local/include -I/usr/include/apr-1|" Rakefile &&
-rake clean apache2
+if is_depends_enabled $SPELL nginx; then
+  rake nginx
+fi &&
 
+rm -rf old.binaries old.libraries &&
+
+find "$SOURCE_DIRECTORY" -name '*.[a|o]' -delete
