@@ -1,7 +1,3 @@
-if [ "$KEYFLAGS" == "y" ]; then
-   OPTS="$OPTS --enable-flags"
-fi                                                               &&
-
 if [ "$FREQSELSUID" == "n" ]; then
    OPTS="$OPTS --enable-suid=no"
 fi                                                               &&

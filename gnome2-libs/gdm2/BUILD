@@ -6,7 +6,7 @@ else  SCHEME="auto"
 fi                                                    &&
 
 OPTS="$OPTS --enable-authentication-scheme=$SCHEME"   &&
-OPTS="${OPTS} ${GDM_SECURE} ${GDM_IPV6}"              &&
+OPTS="${OPTS} ${GDM_IPV6}"                            &&
 
 if [ "$DBUSLAUNCH" == "y" ]; then
    patch -p0 < $SCRIPT_DIRECTORY/Xsession-dbus.patch
@@ -23,4 +23,3 @@ LDFLAGS="$LDFLAGS -L/usr/X11R6/lib"                   &&
 
 sedit 's#$(LINK)#$(LINK) $(LIBS)#' daemon/Makefile    &&
 make
-
