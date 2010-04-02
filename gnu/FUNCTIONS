@@ -50,18 +50,26 @@ function default_build_configure_gcc ()
     # fixes seg-fault on libiberty/splay.c in v 4.3.2
     CFLAGS="-O1 $CFLAGS"                                      &&
 
+    OPTS="--build=$HOST $OPTS"                              &&
     if [[ $CROSS_INSTALL == on ]]; then
         OPTS="--host=$HOST $OPTS" || return 1
-    else
-        OPTS="--build=$HOST $OPTS" || return 1
-    fi  &&
+    fi &&
 
-    $SOURCE_DIRECTORY/configure                       \
-        --prefix="${INSTALL_ROOT}/usr"                \
-       --infodir="${INSTALL_ROOT}/usr/share/info"     \
-        --mandir="${INSTALL_ROOT}/usr/share/man"      \
+    PREFIX="${INSTALL_ROOT}/usr" &&
+    LIBPATH="${PREFIX}/lib"      &&
+    LIBEXECPATH="${PREFIX}/libexec/${SPELL}" &&
+    INCLUDEPATH="${LIBPATH}/include" &&
+    DATAPATH="${PREFIX}/share/${SPELL}-data/${HOST}" &&
+
+    CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" \
+      $SOURCE_DIRECTORY/configure                     \
+        --prefix="${PREFIX}"                          \
+        --libdir="${LIBPATH}"                         \
+        --mandir="${PREFIX}/share/man"                \
+        --infodir="${PREFIX}/share/info"              \
         --enable-threads=posix                        \
         --with-system-zlib                            \
+        --with-bugurl="http://bugs.sourcemage.org"    \
         $GCC_MULTILIB                                 \
         $OPTS
 }
@@ -69,10 +77,10 @@ function default_build_configure_gcc ()
 function default_build_make_gcc ()
 {
     cd ${SOURCE_DIRECTORY}.bld                                 &&
-#make_single                                                    &&
+    make_single                                                &&
     make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
-        profiledbootstrap-lean                                     
-#make_normal
+        profiledbootstrap-lean &&
+    make_normal
 }
 
 function default_build_gcc ()
@@ -81,46 +89,36 @@ function default_build_gcc ()
     default_build_make_gcc
 }
 
+#---------------------------------------------------------------------
+##
+## @params library
+##         accepted values: libada libgfortran
+##                          libstdc++-v3 libjava
+##                          libobjc
+##
+#---------------------------------------------------------------------
 function default_install_gcc ()
 {
-    local COMPILER1 &&
-    local LIBRARY   &&
-    local SPECSNAME &&
-    SPECSNAME=$SPELL
-
-    if [[ "$SPELL" == "ada" ]]; then
-        COMPILER1=gnat1
-          LIBRARY=libada
-    elif [[ "$SPELL" == "fortran" ]]; then
-        COMPILER1=f951
-          LIBRARY=libgfortran
-    elif [[ "$SPELL" == "g++" ]]; then
-        COMPILER1=cc1plus
-          LIBRARY=libstdc++-v3
-    elif [[ "$SPELL" == "gcj" ]]; then
-        COMPILER1={jc1,jvgenmain}
-          LIBRARY=libjava
-    elif [[ "$SPELL" == "objc" ]]; then
-        COMPILER1=cc1obj
-          LIBRARY=libobjc
-    else
-        message "default_install_gcc: unknown spell $SPELL"
+    if [[ "$1" == "" ]]; then
+        message "${PROBLEM_COLOR}default_install_gcc: library unspecified.${DEFAULT_COLOR}"
         return 1
     fi &&
+    local LIBRARY   &&
+
+    LIBRARY="$1"    &&
 
     cd  $SOURCE_DIRECTORY.bld  &&
 
     make_single  &&
 
-    make -C gcc lang.install-common lang.install-man                        &&
-    install gcc/${COMPILER1} ${INSTALL_ROOT}/usr/libexec/gcc/$HOST/$VERSION &&
-    make -C $HOST/$LIBRARY install &&
+    make -C gcc lang.install-common lang.install-man &&
+    make -C $HOST/$LIBRARY install                   &&
 
     make_normal  &&
 
     # specs file stuff
     local SPECSDIR=${INSTALL_ROOT}/usr/lib/gcc/$HOST/$VERSION  &&
-    if [[ -f $SPELL_DIRECTORY/specs_$SPECSNAME ]]; then
-        install $SPELL_DIRECTORY/specs_$SPECSNAME $SPECSDIR/specs-local || return 1
+    if [[ -f $SPELL_DIRECTORY/specs_$SPELL ]]; then
+        install $SPELL_DIRECTORY/specs_$SPELL $SPECSDIR/specs-local || return 1
     fi
 }
