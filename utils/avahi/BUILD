@@ -13,4 +13,12 @@ if [[ "$AVAHI_NODBUS" == 'y' ]]; then
   OPTS="${OPTS} --disable-dbus"
 fi &&
 
+if [[ "$AVAHI_COMPAT_LIBDNS_SD" == 'y' ]]; then
+  OPTS="$OPTS --enable-compat-libdns_sd"
+fi &&
+
+if [[ "$AVAHI_COMPAT_HOWL" == 'y' ]]; then
+  OPTS="$OPTS --enable-compat-howl"
+fi &&
+
 default_build
