@@ -1,6 +1,8 @@
-# On x86, if there is mpg123 >= 1.5 but < 1.11 installed, it will have libmpg123.so with 64bit off_t.
-# Since 1.11, libmpg123.so offers 32 bit off_t, consistent with pre-1.5 versions,
-# plus additional libmpg123_64.so for 64 bit offsets.
+# For a very brief period, there was mpg123 1.11.0 with the split of libmpg123
+# for 32 bit file offsets and and libmpg123_64 for 64 bit offsets.
+# 1.12.0 introduces a dualmode library instead, replacing the split ones and
+# being binary compatible with all earlier libmpg123 versions (be it for 32 or 64 bit offsets).
+# So only when updating from 1.11.0, we might need to recast users of libmpg123_64 .
 local OLD_SPELL_VERSION=""
 local MAJOR=""
 local MINOR=""
@@ -8,12 +10,13 @@ if [[ ${SMGL_COMPAT_ARCHS[0]} == 32 ]] && spell_ok  $SPELL; then
   OLD_SPELL_VERSION="$(installed_version $SPELL)"
   MAJOR=$(echo $OLD_SPELL_VERSION | cut -d . -f 1)
   MINOR=$(echo $OLD_SPELL_VERSION | cut -d . -f 2)
-  if [[ $MAJOR -eq 1 ]] && [[ $MINOR -ge 5 ]] && [[ $MINOR -lt 11 ]]; then
+  if [[ $MAJOR -eq 1 ]] && [[ $MINOR -eq 11 ]]; then
     message "This is a possibly incompatible update of libmpg123..."
     message "Figuring out what spells need to be recast, this may take a while."
     for each in $(show_up_depends $SPELL); do
+message "Checking $each."
       if gaze install $each | xargs readelf -d 2> /dev/null |
-         grep -q "NEEDED.*libmpg123.so.0"; then
+         grep -q "NEEDED.*libmpg123_64.so.0"; then
            up_trigger $each cast_self
       fi
     done

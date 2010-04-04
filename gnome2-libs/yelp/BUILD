@@ -1,11 +1,3 @@
-if [ "$YELPMAN" == "y" ]; then
-   OPTS="$OPTS --enable-man"
-fi  &&
-
-if [ "$YELPINFO" == "y" ]; then
-   OPTS="$OPTS --enable-info"
-fi  &&
-
 if [ "$YELPSEARCH" == "n" ]; then
    OPTS="$OPTS --with-search=basic"
 fi  &&
