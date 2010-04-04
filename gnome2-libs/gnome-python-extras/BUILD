@@ -3,7 +3,7 @@ if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
 elif test "$(get_spell_provider $SPELL GECKO)" = seamonkey; then
    OPTS="$OPTS --with-gtkmozembed=seamonkey"
 elif test "$(get_spell_provider $SPELL GECKO)" = xulrunner; then
-   OPTS="$OPTS --with-gtkmozembed=xulrunner"
+   OPTS="$OPTS --with-gtkmozembed=mozilla"
 else
    OPTS="$OPTS --with-gtkmozembed=mozilla"
 fi &&
