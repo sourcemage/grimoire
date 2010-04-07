@@ -3,7 +3,7 @@
 # then if not set, check it (maybe), then set it
 
 if  [ -z "$PAGER" ] ; then
-        PAGER="less"
+        PAGER="less -R"
 fi
 
 export PAGER
