@@ -1,14 +1,35 @@
            SPELL=qemu
+
+if [[ -z $QEMU_VER ]]; then
+  QEMU_VER="0.10"
+fi
+
+case ${QEMU_VER:0:4} in
+  0.10)
          VERSION=0.10.6
+  ;;
+  0.11)
+         VERSION=0.11.1
+  ;;
+  0.12)
+         VERSION=0.12.3
+  ;;
+esac
           SOURCE=$SPELL-$VERSION.tar.gz
-         SOURCE2=$SOURCE.sig
 SOURCE_DIRECTORY="$BUILD_DIRECTORY/$SPELL-$VERSION"
    SOURCE_URL[0]=http://savannah.inetbridge.net/$SPELL/$SOURCE
-  SOURCE2_URL[0]=$SOURCE_URL.sig
    SOURCE_URL[1]=http://download.savannah.gnu.org/releases/$SPELL/$SOURCE
+
+if [[ $QEMU_VER == "0.10" ]]; then
+         SOURCE2=$SOURCE.sig
+  SOURCE2_URL[0]=$SOURCE_URL.sig
   SOURCE2_URL[1]=${SOURCE_URL[1]}.sig
-      SOURCE_GPG=qemu.gpg:$SOURCE2:UPSTREAM_KEY
+      SOURCE_GPG="qemu.gpg:${SOURCE2}:UPSTREAM_KEY"
   SOURCE2_IGNORE=signature
+else
+  SOURCE_GPG="gurus.gpg:${SOURCE}.sig:WORKS_FOR_ME"
+fi
+
     DISTCC_HOSTS=
       LICENSE[0]=GPL
       LICENSE[1]=LGPL
@@ -26,5 +47,5 @@ QEMU has two operating modes:
   launch different Operating Systems without rebooting the PC or to debug
   system code.
 * User mode emulation (Linux host only). In this mode, QEMU can launch Linux
-  processes compiled for one CPU on another CPU. 
+  processes compiled for one CPU on another CPU.
 EOF

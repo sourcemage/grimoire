@@ -1,4 +1,4 @@
-cd "$SOURCE_DIRECTORY/mozilla-1.9.1" &&
+cd "$SOURCE_DIRECTORY/mozilla-1.9.2" &&
 
 XULRUNNER_HOME="$INSTALL_ROOT/usr/lib/xulrunner" &&
 export  MOZ_PHOENIX=1 &&
@@ -27,5 +27,9 @@ CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
             --enable-optimize="$CFLAGS"                      \
             $OPTS                                            &&
 make_single  &&
+# workaround for configure not handling --disable-necko-wifi correctly
+if [[ $OPTS =~ --disable-necko-wifi ]]; then
+  echo ac_add_options --disable-necko-wifi >> .mozconfig
+fi &&
 make -f client.mk build &&
 make_normal

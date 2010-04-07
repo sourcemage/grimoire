@@ -10,13 +10,6 @@ OPTS="$AUDACITY_LADSPA $OPTS"    &&
 OPTS="$AUDACITY_PORTMIXER $OPTS" &&
 OPTS="$AUDACITY_PORTAUDIO $OPTS" &&
 OPTS="$AUDACITY_NYQUIST $OPTS"
+OPTS="--with-lib-preferences=system $OPTS" &&
 
-./configure  --prefix=${INSTALL_ROOT}/usr                \
-             --sysconfdir=${INSTALL_ROOT}/etc            \
-             --localstatedir=${INSTALL_ROOT}/var         \
-             --mandir=${INSTALL_ROOT}/usr/share/man      \
-             --infodir=${INSTALL_ROOT}/usr/share/info    \
-             --with-lib-preference=system                \
-             $OPTS                                       &&
-
-make
+default_build

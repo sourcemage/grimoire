@@ -1,0 +1,227 @@
+--- maildir.patch	2009-08-31 20:01:27.000000000 +0200
++++ ../maildir.patch	2009-02-24 06:48:08.000000000 +0100
+@@ -1,6 +1,6 @@
+ diff -rc alpine-2.00/alpine/alpine.c alpine-2.00.maildir/alpine/alpine.c
+ *** alpine-2.00/alpine/alpine.c	2008-06-03 15:31:05.000000000 -0700
+---- alpine-2.00.maildir/alpine/alpine.c	2009-08-31 10:59:41.000000000 -0700
++--- alpine-2.00.maildir/alpine/alpine.c	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 553,558 ****
+ --- 553,563 ----
+@@ -17,7 +17,7 @@
+   	if(!SVAR_NNTPRANGE(pine_state, rvl, tmp_20k_buf, SIZEOF_20KBUF))
+ diff -rc alpine-2.00/alpine/confscroll.c alpine-2.00.maildir/alpine/confscroll.c
+ *** alpine-2.00/alpine/confscroll.c	2008-08-21 15:14:45.000000000 -0700
+---- alpine-2.00.maildir/alpine/confscroll.c	2009-08-31 10:59:41.000000000 -0700
++--- alpine-2.00.maildir/alpine/confscroll.c	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 5489,5494 ****
+ --- 5489,5500 ----
+@@ -35,7 +35,7 @@
+   	cur_rule_value(var, TRUE, FALSE);
+ diff -rc alpine-2.00/imap/src/c-client/mail.c alpine-2.00.maildir/imap/src/c-client/mail.c
+ *** alpine-2.00/imap/src/c-client/mail.c	2008-06-04 11:39:54.000000000 -0700
+---- alpine-2.00.maildir/imap/src/c-client/mail.c	2009-08-31 10:59:41.000000000 -0700
++--- alpine-2.00.maildir/imap/src/c-client/mail.c	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 991,997 ****
+     MAILSTREAM *ts;
+@@ -82,7 +82,7 @@
+       sprintf (tmp,"Can't create mailbox %.80s: indeterminate format",mailbox);
+ diff -rc alpine-2.00/imap/src/c-client/mail.h alpine-2.00.maildir/imap/src/c-client/mail.h
+ *** alpine-2.00/imap/src/c-client/mail.h	2008-08-08 10:34:22.000000000 -0700
+---- alpine-2.00.maildir/imap/src/c-client/mail.h	2009-08-31 10:59:41.000000000 -0700
++--- alpine-2.00.maildir/imap/src/c-client/mail.h	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 353,358 ****
+ --- 353,362 ----
+@@ -98,7 +98,7 @@
+   
+ diff -rc alpine-2.00/imap/src/osdep/unix/dummy.c alpine-2.00.maildir/imap/src/osdep/unix/dummy.c
+ *** alpine-2.00/imap/src/osdep/unix/dummy.c	2008-06-04 11:18:34.000000000 -0700
+---- alpine-2.00.maildir/imap/src/osdep/unix/dummy.c	2009-08-31 10:59:42.000000000 -0700
++--- alpine-2.00.maildir/imap/src/osdep/unix/dummy.c	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 106,116 ****
+    * Accepts: mailbox name
+@@ -169,16 +169,16 @@
+     if (!dummy_file (oldname,old) || !(s = dummy_file (mbx,newname)) ||
+         stat (oldname,&sbuf) || ((s = strrchr (s,'/')) && !s[1] &&
+ diff -rc alpine-2.00/imap/src/osdep/unix/maildir.c alpine-2.00.maildir/imap/src/osdep/unix/maildir.c
+-*** alpine-2.00/imap/src/osdep/unix/maildir.c	2009-08-31 11:01:22.000000000 -0700
+---- alpine-2.00.maildir/imap/src/osdep/unix/maildir.c	2009-08-31 11:01:17.000000000 -0700
++*** alpine-2.00/imap/src/osdep/unix/maildir.c	2008-08-26 20:56:05.000000000 -0700
++--- alpine-2.00.maildir/imap/src/osdep/unix/maildir.c	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 0 ****
+---- 1,2579 ----
++--- 1,2583 ----
+ + /*
+ +  * Maildir driver for Alpine 2.00
+ +  * 
+ +  * Written by Eduardo Chappa <chappa@washington.edu>
+-+  * Last Update: August 31, 2009
+++  * Last Update: May 16, 2008
+ +  *
+ +  */
+ + 
+@@ -1221,25 +1221,29 @@
+ +       return NULL;
+ +   }
+ + 
+-+   if (flags & FT_INTERNAL){
+-+      if(elt->private.msg.header.text.size > LOCAL->buflen){
+++   if ((flags & FT_INTERNAL) &&
+++         (elt->private.msg.header.text.size > LOCAL->buflen)){
+ +          fs_give ((void **) &LOCAL->buf);
+ +          LOCAL->buf = (char *) fs_get ((LOCAL->buflen =
+ +                                  elt->private.msg.header.text.size) + 1);
+-+      }
+-+      read (LOCAL->fd, (void *)LOCAL->buf, elt->private.msg.header.text.size);
+-+      LOCAL->buf[*length = elt->private.msg.header.text.size] = '\0';
+ +   }
+-+   else{
+++   else
+ +       s = (char *) fs_get(elt->private.msg.header.text.size+1);
+-+       read (LOCAL->fd, (void *)s, elt->private.msg.header.text.size);
+-+       s[elt->private.msg.header.text.size] = '\0';
+-+       *length = strcrlfcpy (&LOCAL->buf,&LOCAL->buflen,s,
+-+                        elt->private.msg.header.text.size);
+-+       fs_give ((void **) &s);
+++   if (LOCAL->fd >= 0){
+++      read (LOCAL->fd, ((flags & FT_INTERNAL) ? (void *)LOCAL->buf : (void *)s),
+++                                       elt->private.msg.header.text.size);
+++      if (flags & FT_INTERNAL)
+++         LOCAL->buf[*length = elt->private.msg.header.text.size] = '\0';
+++      else{
+++         s[*length = elt->private.msg.header.text.size] = '\0';
+++         *length = strcrlfcpy (&LOCAL->buf,&LOCAL->buflen,s,
+++                           elt->private.msg.header.text.size);
+++         fs_give ((void **) &s);
+++      }
+ +   }
+ +   elt->private.msg.text.offset = elt->private.msg.header.text.size;
+ +   elt->private.msg.text.text.size = MDSIZE(elt) - elt->private.msg.text.offset;
+++   if(s) fs_give((void **)&s);
+ +   close(LOCAL->fd); LOCAL->fd = -1;
+ +   return LOCAL->buf;
+ + }
+@@ -2568,6 +2572,7 @@
+ + 	|| !strncmp(d->d_name, MDUIDTEMP, strlen(MDUIDTEMP)))
+ +        break;
+ +   }
+++   closedir(dir);
+ +   rv = d ? !strncmp(d->d_name, tmp, strlen(tmp)) : 1;
+ +   createtemp = d ? 0 : 1;
+ +   if (d && rv == 0){	/* is there a temp file that is not ours? */
+@@ -2581,7 +2586,6 @@
+ + 	unlink(tmp);
+ +      }
+ +   }
+-+   closedir(dir);
+ +   if(createtemp){
+ +     FILE *fp;
+ +     sprintf(tmp,"%s/%s.%d.%lu", LOCAL->dir, MDUIDTEMP, getpid(), time(0));
+@@ -2754,8 +2758,8 @@
+ +   }
+ + }
+ diff -rc alpine-2.00/imap/src/osdep/unix/maildir.h alpine-2.00.maildir/imap/src/osdep/unix/maildir.h
+-*** alpine-2.00/imap/src/osdep/unix/maildir.h	2009-08-31 11:01:22.000000000 -0700
+---- alpine-2.00.maildir/imap/src/osdep/unix/maildir.h	2009-08-31 10:59:42.000000000 -0700
++*** alpine-2.00/imap/src/osdep/unix/maildir.h	2008-08-26 20:56:05.000000000 -0700
++--- alpine-2.00.maildir/imap/src/osdep/unix/maildir.h	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 0 ****
+ --- 1,225 ----
+@@ -2986,7 +2990,7 @@
+ + 
+ diff -rc alpine-2.00/imap/src/osdep/unix/Makefile alpine-2.00.maildir/imap/src/osdep/unix/Makefile
+ *** alpine-2.00/imap/src/osdep/unix/Makefile	2008-06-04 11:18:34.000000000 -0700
+---- alpine-2.00.maildir/imap/src/osdep/unix/Makefile	2009-08-31 10:59:42.000000000 -0700
++--- alpine-2.00.maildir/imap/src/osdep/unix/Makefile	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 144,150 ****
+   # However, mh needs to be before any sysinbox formats (such as mmdf or unix)
+@@ -3057,7 +3061,7 @@
+   
+ diff -rc alpine-2.00/imap/src/osdep/unix/os_cyg.h alpine-2.00.maildir/imap/src/osdep/unix/os_cyg.h
+ *** alpine-2.00/imap/src/osdep/unix/os_cyg.h	2008-06-04 11:18:34.000000000 -0700
+---- alpine-2.00.maildir/imap/src/osdep/unix/os_cyg.h	2009-08-31 10:59:42.000000000 -0700
++--- alpine-2.00.maildir/imap/src/osdep/unix/os_cyg.h	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 47,52 ****
+ --- 47,53 ----
+@@ -3070,7 +3074,7 @@
+   
+ diff -rc alpine-2.00/pith/conf.c alpine-2.00.maildir/pith/conf.c
+ *** alpine-2.00/pith/conf.c	2008-08-22 17:07:05.000000000 -0700
+---- alpine-2.00.maildir/pith/conf.c	2009-08-31 10:59:42.000000000 -0700
++--- alpine-2.00.maildir/pith/conf.c	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 427,432 ****
+ --- 427,435 ----
+@@ -3154,7 +3158,7 @@
+   #if defined(DOS) || defined(OS2)
+ diff -rc alpine-2.00/pith/conf.h alpine-2.00.maildir/pith/conf.h
+ *** alpine-2.00/pith/conf.h	2008-08-19 17:27:11.000000000 -0700
+---- alpine-2.00.maildir/pith/conf.h	2009-08-31 10:59:42.000000000 -0700
++--- alpine-2.00.maildir/pith/conf.h	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 249,254 ****
+ --- 249,258 ----
+@@ -3170,7 +3174,7 @@
+   #define VAR_REMOTE_ABOOK_METADATA    vars[V_REMOTE_ABOOK_METADATA].current_val.p
+ diff -rc alpine-2.00/pith/conftype.h alpine-2.00.maildir/pith/conftype.h
+ *** alpine-2.00/pith/conftype.h	2008-08-19 17:27:11.000000000 -0700
+---- alpine-2.00.maildir/pith/conftype.h	2009-08-31 10:59:42.000000000 -0700
++--- alpine-2.00.maildir/pith/conftype.h	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 114,119 ****
+ --- 114,122 ----
+@@ -3197,7 +3201,7 @@
+   	F_VERBOSE_POST,
+ diff -rc alpine-2.00/pith/init.c alpine-2.00.maildir/pith/init.c
+ *** alpine-2.00/pith/init.c	2007-08-16 15:25:10.000000000 -0700
+---- alpine-2.00.maildir/pith/init.c	2009-08-31 10:59:42.000000000 -0700
++--- alpine-2.00.maildir/pith/init.c	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 407,412 ****
+ --- 407,415 ----
+@@ -3212,7 +3216,7 @@
+   #endif
+ diff -rc alpine-2.00/pith/pattern.c alpine-2.00.maildir/pith/pattern.c
+ *** alpine-2.00/pith/pattern.c	2008-07-14 11:01:54.000000000 -0700
+---- alpine-2.00.maildir/pith/pattern.c	2009-08-31 10:59:42.000000000 -0700
++--- alpine-2.00.maildir/pith/pattern.c	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 5482,5487 ****
+ --- 5482,5495 ----
+@@ -3282,7 +3286,7 @@
+   
+ diff -rc alpine-2.00/pith/pine.hlp alpine-2.00.maildir/pith/pine.hlp
+ *** alpine-2.00/pith/pine.hlp	2008-08-22 17:07:05.000000000 -0700
+---- alpine-2.00.maildir/pith/pine.hlp	2009-08-31 10:59:42.000000000 -0700
++--- alpine-2.00.maildir/pith/pine.hlp	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 21253,21258 ****
+ --- 21253,21354 ----
+@@ -3442,7 +3446,7 @@
+   <HEAD>
+ diff -rc alpine-2.00/pith/send.c alpine-2.00.maildir/pith/send.c
+ *** alpine-2.00/pith/send.c	2008-08-06 11:25:58.000000000 -0700
+---- alpine-2.00.maildir/pith/send.c	2009-08-31 10:59:42.000000000 -0700
++--- alpine-2.00.maildir/pith/send.c	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 256,261 ****
+ --- 256,268 ----
+@@ -3460,8 +3464,8 @@
+   	    /*
+   	     * The mbox is relative to the home directory.
+ diff -rc alpine-2.00/README.maildir alpine-2.00.maildir/README.maildir
+-*** alpine-2.00/README.maildir	2009-08-31 11:01:22.000000000 -0700
+---- alpine-2.00.maildir/README.maildir	2009-08-31 10:59:42.000000000 -0700
++*** alpine-2.00/README.maildir	2008-08-26 20:56:05.000000000 -0700
++--- alpine-2.00.maildir/README.maildir	2008-08-26 20:56:05.000000000 -0700
+ ***************
+ *** 0 ****
+ --- 1,153 ----

@@ -1,0 +1,372 @@
+--- rules.patch	2008-10-05 06:27:55.000000000 +0200
++++ ../rules.patch	2009-08-04 09:36:55.000000000 +0200
+@@ -458,223 +458,167 @@
+   	}
+   
+   	return(ret);
+-diff -rc alpine-2.00/alpine/reply.c alpine-2.00.rules/alpine/reply.c
+-*** alpine-2.00/alpine/reply.c	2008-06-03 08:54:15.000000000 -0700
+---- alpine-2.00.rules/alpine/reply.c	2008-10-04 21:26:31.000000000 -0700
+-***************
+-*** 61,67 ****
+-  #include "../pith/tempfile.h"
+-  #include "../pith/busy.h"
+-  #include "../pith/ablookup.h"
+-! 
+-  
+-  /*
+-   * Internal Prototypes
+---- 61,68 ----
+-  #include "../pith/tempfile.h"
+-  #include "../pith/busy.h"
+-  #include "../pith/ablookup.h"
+-! #include "../pith/copyaddr.h"
+-! #include "../pith/rules.h"
+-  
+-  /*
+-   * Internal Prototypes
+-***************
+-*** 108,118 ****
+-      long        msgno, j, totalm, rflags, *seq = NULL;
+-      int         i, include_text = 0, times = -1, warned = 0, rv = 0,
+-  		flags = RSF_QUERY_REPLY_ALL, reply_raw_body = 0;
+-!     int         rolemsg = 0, copytomsg = 0;
+-      gf_io_t     pc;
+-      PAT_STATE   dummy;
+-      REDRAFT_POS_S *redraft_pos = NULL;
+-      ACTION_S   *role = NULL, *nrole;
+-  #if	defined(DOS) && !defined(_WINDOWS)
+-      char *reserve;
+-  #endif
+---- 109,120 ----
+-      long        msgno, j, totalm, rflags, *seq = NULL;
+-      int         i, include_text = 0, times = -1, warned = 0, rv = 0,
+-  		flags = RSF_QUERY_REPLY_ALL, reply_raw_body = 0;
+-!     int         rolemsg = 0, copytomsg = 0, do_role_early = 0;
+-      gf_io_t     pc;
+-      PAT_STATE   dummy;
+-      REDRAFT_POS_S *redraft_pos = NULL;
+-      ACTION_S   *role = NULL, *nrole;
+-+     RULE_RESULT *rule;
+-  #if	defined(DOS) && !defined(_WINDOWS)
+-      char *reserve;
+-  #endif
+-***************
+-*** 138,143 ****
+---- 140,208 ----
+-         && F_ON(F_ENABLE_FULL_HDR_AND_TEXT, ps_global))
+-        reply_raw_body = 1;
+-  
++--- re-alpine-2.01/alpine/reply.c.orig	2009-08-04 09:18:46.000000000 +0200
+++++ re-alpine-2.01/alpine/reply.c	2009-08-04 09:35:27.000000000 +0200
++@@ -61,6 +61,8 @@
++ #include "../pith/tempfile.h"
++ #include "../pith/busy.h"
++ #include "../pith/ablookup.h"
+++#include "../pith/copyaddr.h"
+++#include "../pith/rules.h"
++ 
++ 
++ /*
++@@ -107,12 +109,13 @@
++     char       *tmpfix = NULL, *prefix = NULL, *fcc = NULL, *errmsg = NULL;
++     long        msgno, j, totalm, rflags, *seq = NULL;
++     int         i, include_text = 0, times = -1, warned = 0, rv = 0,
++-		flags = RSF_QUERY_REPLY_ALL, reply_raw_body = 0;
++-    int         rolemsg = 0, copytomsg = 0;
+++    flags = RSF_QUERY_REPLY_ALL, reply_raw_body = 0;
+++    int         rolemsg = 0, copytomsg = 0, do_role_early = 0;
++     gf_io_t     pc;
++     PAT_STATE   dummy;
++     REDRAFT_POS_S *redraft_pos = NULL;
++     ACTION_S   *role = NULL, *nrole;
+++    RULE_RESULT *rule;
++ #if	defined(DOS) && !defined(_WINDOWS)
++     char *reserve;
++ #endif
++@@ -138,7 +141,71 @@
++        && F_ON(F_ENABLE_FULL_HDR_AND_TEXT, ps_global))
++       reply_raw_body = 1;
++ 
++-    /*
+ +     /* Setup possible role */
+ +     if(role_arg)
+ +       role = copy_action(role_arg);
+ + 
+ +     if(!role && F_ON(F_ENABLE_EDIT_REPLY_INDENT, pine_state)){
+-+ 	for(msgno = mn_first_cur(pine_state->msgmap);
+-+ 	    msgno > 0L;  msgno = mn_next_cur(pine_state->msgmap)){
+++   for(msgno = mn_first_cur(pine_state->msgmap);
+++       msgno > 0L;  msgno = mn_next_cur(pine_state->msgmap)){
+ + 
+-+ 	    env = pine_mail_fetchstructure(pine_state->mail_stream,
+-+ 					   mn_m2raw(pine_state->msgmap, msgno),
+-+ 					   NULL);
+-+ 	    if(!env) {
+-+ 		q_status_message1(SM_ORDER,3,4,
+-+ 			    _("Error fetching message %s. Can't reply to it."),
+-+ 				long2string(msgno));
+-+ 		goto done_early;
+-+ 	    }
+++       env = pine_mail_fetchstructure(pine_state->mail_stream,
+++              mn_m2raw(pine_state->msgmap, msgno),
+++              NULL);
+++       if(!env) {
+++     q_status_message1(SM_ORDER,3,4,
+++           _("Error fetching message %s. Can't reply to it."),
+++         long2string(msgno));
+++     goto done_early;
+++       }
+ + 
+-+ 	    if(rule = get_result_rule(V_REPLY_INDENT_RULES, FOR_COMPOSE , env)){
+-+ 	        RULELIST *list = get_rulelist_from_code(V_REPLY_INDENT_RULES,
+++       if(rule = get_result_rule(V_REPLY_INDENT_RULES, FOR_COMPOSE , env))     {
+++           RULELIST *list = get_rulelist_from_code(V_REPLY_INDENT_RULES,
+ +                                                 ps_global->rule_list);
+-+ 	        RULE_S *prule = get_rule(list, rule->number);
+-+ 		if(condition_contains_token(prule->condition, ROLE_TOKEN))
+-+ 		  do_role_early++;
+-+ 		if(rule->result)
+-+ 		  fs_give((void **)&rule->result);
+-+ 		fs_give((void **)&rule);
+-+ 	    }
+-+ 	}
+++           RULE_S *prule = get_rule(list, rule->number);
+++     if(condition_contains_token(prule->condition, ROLE_TOKEN))
+++       do_role_early++;
+++     if(rule->result)
+++       fs_give((void **)&rule->result);
+++     fs_give((void **)&rule);
+++       }
+++   }
+ +     }
+ + 
+ +     if(do_role_early){
+-+ 	rflags = ROLE_REPLY;
+-+ 	if(nonempty_patterns(rflags, &dummy)){
+-+ 	    /* setup default role */
+-+ 	    nrole = NULL;
+-+ 	    j = mn_first_cur(pine_state->msgmap);
+-+ 	    do {
+-+ 		role = nrole;
+-+ 		nrole = set_role_from_msg(pine_state, rflags,
+-+ 					  mn_m2raw(pine_state->msgmap, j),
+-+ 					  NULL);
+-+ 	    } while(nrole && (!role || nrole == role)
+-+ 		    && (j=mn_next_cur(pine_state->msgmap)) > 0L);
+-+ 
+-+ 	    if(!role || nrole == role)
+-+ 	      role = nrole;
+-+ 	    else
+-+ 	      role = NULL;
+-+ 
+-+ 	    if(confirm_role(rflags, &role))
+-+ 	      role = combine_inherited_role(role);
+-+ 	    else{				/* cancel reply */
+-+ 		role = NULL;
+-+ 		cmd_cancelled("Reply");
+-+ 		goto done_early;
+-+ 	    }
+-+ 	}
+++   rflags = ROLE_REPLY;
+++   if(nonempty_patterns(rflags, &dummy)){
+++       /* setup default role */
+++       nrole = NULL;
+++       j = mn_first_cur(pine_state->msgmap);
+++       do {
+++     role = nrole;
+++     nrole = set_role_from_msg(pine_state, rflags,
+++             mn_m2raw(pine_state->msgmap, j),
+++             NULL);
+++       } while(nrole && (!role || nrole == role)
+++         && (j=mn_next_cur(pine_state->msgmap)) > 0L);
+++ 
+++       if(!role || nrole == role)
+++         role = nrole;
+++       else
+++         role = NULL;
+++ 
+++       if(confirm_role(rflags, &role))
+++         role = combine_inherited_role(role);
+++       else{       /* cancel reply */
+++     role = NULL;
+++     cmd_cancelled("Reply");
+++     goto done_early;
+++       }
+++   }
+ +     }
+ + 
+ +     if (role)
+-+ 	ps_global->role = cpystr(role->nick); /* remember the role */
+-+ 
+-      /*
+-       * We may have to loop through first to figure out what default
+-       * reply-indent-string to offer...
+-***************
+-*** 285,292 ****
+-  		outgoing->subject = cpystr("Re: several messages");
+-  	    }
+-  	}
+-! 	else
+-! 	  outgoing->subject = reply_subject(env->subject, NULL, 0);
+-      }
+-  
+-      /* fill reply header */
+---- 350,367 ----
+-  		outgoing->subject = cpystr("Re: several messages");
+-  	    }
+-  	}
+-! 	else{
+-! 	   RULE_RESULT *rule;
+-! 	   rule = get_result_rule(V_RESUB_RULES,FOR_RESUB|FOR_TRIM , env);
+-! 	   if (rule){
+-! 	     outgoing->subject = reply_subject(rule->result, NULL, 0);
+-! 	     if (rule->result)
+-! 	        fs_give((void **)&rule->result);
+-! 	     fs_give((void **)&rule);
+-! 	   }
+-! 	   else
+-! 	       outgoing->subject = reply_subject(env->subject, NULL, 0);
+-! 	}
+-      }
+-  
+-      /* fill reply header */
+-***************
+-*** 305,315 ****
+-      if(sp_expunge_count(pine_state->mail_stream))	/* cur msg expunged */
+-        goto done_early;
+-  
+-!     /* Setup possible role */
+-!     if(role_arg)
+-!       role = copy_action(role_arg);
+-! 
+-!     if(!role){
+-  	rflags = ROLE_REPLY;
+-  	if(nonempty_patterns(rflags, &dummy)){
+-  	    /* setup default role */
+---- 380,386 ----
+-      if(sp_expunge_count(pine_state->mail_stream))	/* cur msg expunged */
+-        goto done_early;
+-  
+-!     if(!do_role_early){
+-  	rflags = ROLE_REPLY;
+-  	if(nonempty_patterns(rflags, &dummy)){
+-  	    /* setup default role */
+-***************
+-*** 720,725 ****
+---- 791,799 ----
+-      if(prefix)
+-        fs_give((void **)&prefix);
+-  
+-+     if (ps_global->role)
+-+ 	fs_give((void **)&ps_global->role);
+-+ 
+-      if(fcc)
+-        fs_give((void **) &fcc);
+-  
+-***************
+-*** 1440,1448 ****
+-  	}
+-      }
+-  
+-!     if(role)
+-        q_status_message1(SM_ORDER, 3, 4,
+-  			_("Forwarding using role \"%s\""), role->nick);
+-  
+-      if(role && role->template){
+-  	char *filtered;
+---- 1514,1527 ----
+-  	}
+-      }
+-  
+-!     if (ps_global->role)
+-!       fs_give((void **)&ps_global->role);
+-! 
+-!     if(role){
+-        q_status_message1(SM_ORDER, 3, 4,
+-  			_("Forwarding using role \"%s\""), role->nick);
+-+       ps_global->role = cpystr(role->nick);
+++   ps_global->role = cpystr(role->nick); /* remember the role */
+++   
+++
+++    /*		
++      * We may have to loop through first to figure out what default
++      * reply-indent-string to offer...
++      */
++@@ -285,8 +352,18 @@
++ 		outgoing->subject = cpystr("Re: several messages");
++ 	    }
++ 	}
++-	else
++-	  outgoing->subject = reply_subject(env->subject, NULL, 0);
+++  else{
+++     RULE_RESULT *rule;
+++     rule = get_result_rule(V_RESUB_RULES,FOR_RESUB|FOR_TRIM , env);
+++     if (rule){
+++       outgoing->subject = reply_subject(rule->result, NULL, 0);
+++       if (rule->result)
+++          fs_give((void **)&rule->result);
+++       fs_give((void **)&rule);
+ +     }
+-  
+-      if(role && role->template){
+-  	char *filtered;
+-***************
+-*** 1674,1679 ****
+---- 1753,1759 ----
+-  #if	defined(DOS) && !defined(_WINDOWS)
+-      free((void *)reserve);
+-  #endif
+-+     outgoing->sparep = env && env->from ? copyaddr(env->from) : NULL;
+-      pine_send(outgoing, &body, "FORWARD MESSAGE",
+-  	      role, NULL, &reply, redraft_pos,
+-  	      NULL, NULL, 0);
+++     else
+++         outgoing->subject = reply_subject(env->subject, NULL, 0);
+++  }
++     }
++ 
++     /* fill reply header */
++@@ -305,13 +382,7 @@
++     if(sp_expunge_count(pine_state->mail_stream))	/* cur msg expunged */
++       goto done_early;
++ 
++-    /* Setup possible role */
++-     if (ps_global->reply.role_chosen)
++-	role = ps_global->reply.role_chosen;
++-     else if(role_arg)
++-	role = copy_action(role_arg);
++-
++-    if(!role){
+++    if(!do_role_early){
++ 	rflags = ROLE_REPLY;
++ 	if(!ps_global->reply.role_chosen && nonempty_patterns(rflags, &dummy)){
++ 	    /* setup default role */
++@@ -1583,9 +1654,15 @@
++ 	}
++     }
++ 
++-    if(role)
+++    if (ps_global->role)
+++      fs_give((void **)&ps_global->role);
+++
+++    if(role){
++       q_status_message1(SM_ORDER, 3, 4,
++ 			_("Forwarding using role \"%s\""), role->nick);
+++      ps_global->role = cpystr(role->nick);
+++    }
+++
++ 
++     if(role && role->template){
++ 	char *filtered;
++@@ -1817,6 +1894,7 @@
++ #if	defined(DOS) && !defined(_WINDOWS)
++     free((void *)reserve);
++ #endif
+++    outgoing->sparep = env && env->from ? copyaddr(env->from) : NULL;
++     pine_send(outgoing, &body, "FORWARD MESSAGE",
++ 	      role, NULL, &reply, redraft_pos,
++ 	      NULL, NULL, 0);
+ diff -rc alpine-2.00/alpine/roleconf.c alpine-2.00.rules/alpine/roleconf.c
+ *** alpine-2.00/alpine/roleconf.c	2008-02-27 17:04:46.000000000 -0800
+ --- alpine-2.00.rules/alpine/roleconf.c	2008-10-04 21:26:31.000000000 -0700

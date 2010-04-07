@@ -10,6 +10,9 @@ else
    OPTS="$OPTS --enable-nntp=no"
 fi &&
 
+OPTS="$CAL     \
+      $OPTS"   &&
+
 make_single    &&
 default_build  &&
 make_normal

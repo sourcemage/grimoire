@@ -47,10 +47,12 @@ optional_depends pth \
                  "--with-tsrm-pth=${INSTALL_ROOT}/usr" "--with-tsrm-pthreads" \
                  "use GNU Portable Threads instead of POSIX threads" &&
 
-case "${PHP5_APACHE}" in
+if [[ $PHP5_SAPI == apache ]]; then
+  case "${PHP5_APACHE}" in
     handler) depends APACHE;;
     filter) depends APACHE2;;
-esac &&
+  esac
+fi &&
 
 if [[ "$PHP5_PCRE" == "none" ]]; then
 	PHP5_OPTS="$PHP5_OPTS --without-pcre-regex --without-pcre"
@@ -134,7 +136,7 @@ optional_depends icu \
 # DB_DRIVERS="mysql mysqli pgsql sqlite sqlite3 firebird unixODBC iODBC"
 # PDO_DRIVERS="mysql pgsql firebird unixODBC iODBC"
 if list_find "$PHP5_DATABASE_DRIVERS" "mysql" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
-	depends mysql "" &&
+	depends MYSQL "" &&
 	if [[ "${VERSION:0:3}" == "5.3" ]]; then
 		config_query PHP5_MYSQLND "Do you want to use the MySQL Native Driver [mysqlnd]? (expiremental)" n &&
 		if [[ "${PHP5_MYSQLND}" == "y" ]]; then
@@ -179,11 +181,14 @@ optional_depends openldap \
                  "--with-ldap" "--without-ldap" \
                  "for LDAP support" &&
 
-if list_find "${PHP5_OPTS}" "--with-ldap"; then
+if is_depends_enabled $SPELL openldap; then
   optional_depends LIBSASL \
                  "--with-ldap-sasl" "--without-ldap-sasl" \
                  "for LDAP with Cyrus SASL support" &&
-  depends -sub openldap SASL
+
+  if list_find "${PHP5_OPTS}" "--with-ldap-sasl"; then
+    depends -sub openldap SASL
+  fi
 fi &&
 
 optional_depends mm \

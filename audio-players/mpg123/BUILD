@@ -4,5 +4,5 @@ fi &&
 if [[ "$MPG123_SEEKTABLE" != "" ]]; then
   OPTS="--with-seektable=$MPG123_SEEKTABLE $OPTS" 
 fi &&
-OPTS="$MPG123_MODULES $OPTS"
+OPTS="$MPG123_MODULES $OPTS" &&
 default_build
