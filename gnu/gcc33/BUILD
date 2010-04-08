@@ -24,7 +24,7 @@ case $ARCHITECTURE in
       CFLAGS=${CFLAGS/-march=native -mtune=native/-march=x86-64 -fPIC -DPIC}   &&
     CXXFLAGS=${CXXFLAGS/-march=native -mtune=native/-march=x86-64 -fPIC -DPIC}
     ;;
-  cative-x86_64-32)
+  native-x86_64-32)
       CFLAGS=${CFLAGS/-march=native -mtune=native/-march=i486 -m32} &&
     CXXFLAGS=${CXXFLAGS/-march=native -mtune=native/-march=i486 -m32}
     ;;
