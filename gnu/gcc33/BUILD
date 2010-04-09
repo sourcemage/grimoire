@@ -4,6 +4,7 @@ sedit  's:#!/bin/sh:#!/bin/bash:'  $SOURCE_DIRECTORY/configure  &&
 # GCC 3.3 doesn't know arch=pentium4m, replace with pentium4,
 # same for pentium3m
 # Doesn't know core2, replace with nocona, nor does it no -mssse3, remove it
+# Doesn't know native -march nor -mtune (GCC 4.2+)
 # See http://gcc.gnu.org/onlinedocs/gcc-3.3.6/gcc/i386-and-x86_002d64-Options.html
 CFLAGS=${CFLAGS/pentium4m/pentium4}      &&
 CXXFLAGS=${CXXFLAGS/pentium4m/pentium4}  &&
@@ -13,6 +14,24 @@ CFLAGS=${CFLAGS/core2/nocona}            &&
 CXXFLAGS=${CFLAGS/core2/nocona}          &&
 CFLAGS=${CFLAGS/-mssse3/}                &&
 CXXFLAGS=${CXXFLAGS/-mssse3/}            &&
+
+echo ARCHITECTURE = $ARCHITECTURE > /tmp/gcc33.opt &&
+echo CFLAGS = $CFLAGS >> /tmp/gcc33.opt &&
+echo CXXFLAGS = $CXXFLAGS >> /tmp/gcc33.opt &&
+
+case $ARCHITECTURE in
+  native-x86_64-64)
+      CFLAGS=${CFLAGS/-march=native -mtune=native/-march=x86-64 -fPIC -DPIC}   &&
+    CXXFLAGS=${CXXFLAGS/-march=native -mtune=native/-march=x86-64 -fPIC -DPIC}
+    ;;
+  native-x86_64-32)
+      CFLAGS=${CFLAGS/-march=native -mtune=native/-march=i486 -m32} &&
+    CXXFLAGS=${CXXFLAGS/-march=native -mtune=native/-march=i486 -m32}
+    ;;
+esac &&
+
+echo CFLAGS = $CFLAGS >> /tmp/gcc33.opt &&
+echo CXXFLAGS = $CXXFLAGS >> /tmp/gcc33.opt &&
 
 cd $SOURCE_DIRECTORY.bld                                  &&
 $SOURCE_DIRECTORY/configure                               \
