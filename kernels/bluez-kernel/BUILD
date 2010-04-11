@@ -11,7 +11,7 @@ C=`expr $C + 1`
 done
 }
 (
-./configure --with-kernel=/usr/src/linux		\
+./configure --with-kernel=/lib/modules/$(get_kernel_version)/build \
 		--prefix=/usr				\
 		$OPTS					&&
 cd $SOURCE_DIRECTORY/drivers				&&
