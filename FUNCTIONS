@@ -367,17 +367,15 @@ function devoke_uname_change()
 }
 
 #-----------------------------------------------------------------------
-## Get the running kernel config status of the running kernel option
-## given by $1.
-##
+## Get the kernel config status of the kernel option specified by $2.
+## Kernel version is given by $1.
+## 
 ## If a configure file is found print the requested config status (if
 ## any) and return 0, otherwise return 1.
-#-----------------------------------------------------------------------
-function get_running_kernel_config()
+##-----------------------------------------------------------------------
+function get_kernel_config_ver()
 {
-	local KVER=$(get_running_kernel_version)
-
-	for i in /proc/config /boot/config-$KVER /lib/modules/$KVER/build/.config
+	for i in /proc/config /boot/config-"$1" /lib/modules/"$1"/build/.config
 	do
 		if [ -f "$i" ]; then
 			cat "$i"        && break
@@ -390,7 +388,18 @@ function get_running_kernel_config()
 		elif [ -f "$i.lzma" ]; then
 			xzcat "$i.lzma" && break
 		fi
-	done | grep "^$1=" | awk -F= '{ if ($2) { print $2 }; exit (!$2) }'
+	done | grep "^$2=" | awk -F= '{ if ($2) { print $2 }; exit (!$2) }'
+}
+
+#-----------------------------------------------------------------------
+## Get the running kernel config status of the running kernel option
+## given by $1.
+##
+## See also: get_specified_kernel_config
+#-----------------------------------------------------------------------
+function get_running_kernel_config()
+{
+	get_kernel_config_ver $(get_running_kernel_version) "$1"
 }
 
 #-------------------------------------------------------------------------
@@ -401,14 +410,7 @@ function get_running_kernel_config()
 #-------------------------------------------------------------------------
 function get_sorcery_kernel_config()
 {
-	local KVER=$(get_kernel_version)
-	if [ -f /boot/config-$KVER ] ; then
-		echo $(grep "^$1=" /boot/config-$KVER | awk -F= '{ print $2 }')
-	elif [ -f /usr/src/linux-$KVER/.config ] ; then
-		echo $(grep "^$1=" /usr/src/linux-$KVER/.config | awk -F= '{ print $2 }')
-	else
-		echo "-1"
-	fi
+	get_kernel_config_ver $(get_kernel_version) || echo "-1"
 }
 
 
@@ -600,15 +602,7 @@ function get_sorcery_kernel_config()
   local KVER="$(installed_version linux)"
   if [[ $KVER ]]
   then
-    if [[ -f "/boot/config-$KVER" ]]
-    then
-      grep "^$1=" "/boot/config-$KVER" | cut -d= -f2
-    elif [[ -f "/usr/src/linux-$KVER/.config" ]]
-    then
-      grep "^$1=" "/usr/src/linux-$KVER/.config" | cut -d= -f2
-    else
-      return 1
-    fi
+    get_kernel_config_ver "$KVER" "$1"
   else
     return 1
   fi
@@ -625,15 +619,7 @@ function get_kernel_config()
 {
   if [[ $USE_KERNEL_VERSION ]]
   then
-    if [[ -f "/boot/config-$USE_KERNEL_VERSION" ]]
-    then
-      grep "^$1=" "/boot/config-$USE_KERNEL_VERSION" | cut -d= -f2
-    elif [[ -f "/usr/src/linux-$USE_KERNEL_VERSION/.config" ]]
-    then
-      grep "^$1=" "/usr/src/linux-$USE_KERNEL_VERSION/.config" | cut -d= -f2
-    else
-      return 1
-    fi
+    get_kernel_config_ver "$USE_KERNEL_VERSION" "$1"
   else
     get_sorcery_kernel_config "$1" || get_running_kernel_config "$1"
   fi
