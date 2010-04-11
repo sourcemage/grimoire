@@ -367,10 +367,11 @@ function devoke_uname_change()
 }
 
 #-----------------------------------------------------------------------
-## Get the running kernel config status of a some part of the kernel
-## given by $1. Used for spells that don't have linux triggers
+## Get the running kernel config status of the running kernel option
+## given by $1.
 ##
-## $1 string Config variable to look for
+## If a configure file is found print the requested config status (if
+## any) and return 0, otherwise return 1.
 #-----------------------------------------------------------------------
 function get_running_kernel_config()
 {
@@ -383,15 +384,21 @@ function get_running_kernel_config()
 		# apparently you don't have proc mount
 		KVER=$(uname -r)
 	fi
-	if [ -f /proc/config.gz ] ; then
-		echo $(zgrep "^$1=" /proc/config.gz | awk -F= '{ print $2 }')
-	elif [ -f /boot/config-$KVER ] ; then
-		echo $(grep "^$1=" /boot/config-$KVER | awk -F= '{ print $2 }')
-	elif [ -f /usr/src/linux-$KVER/.config ] ; then
-		echo $(grep "^$1=" /usr/src/linux-$KVER/.config | awk -F= '{ print $2 }')
-	else
-		echo "-1"
-	fi
+
+	for i in /proc/config /boot/config-$KVER /lib/modules/$KVER/build/.config
+	do
+		if [ -f "$i" ]; then
+			cat "$i"        && break
+		elif [ -f "$i.gz" ]; then
+			zcat "$i.gz"    && break
+		elif [ -f "$i.bz2" ]; then
+			bzcat "$i.bz2"  && break
+		elif [ -f "$i.xz" ]; then
+			xzcat "$i.xz"   && break
+		elif [ -f "$i.lzma" ]; then
+			xzcat "$i.lzma" && break
+		fi
+	done | grep "^$1=" | awk -F= '{ if ($2) { print $2 }; exit (!$2) }'
 }
 
 #-------------------------------------------------------------------------
