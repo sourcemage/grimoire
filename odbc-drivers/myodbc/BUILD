@@ -1,4 +1,5 @@
 OPTS="$OPTS --with-mysql-path=/usr" &&
+CFLAGS="${CFLAGS//-ffast-math}" &&
 
 if is_depends_enabled $SPELL libiodbc; then
     OPTS="$OPTS --with-iODBC=/usr"
