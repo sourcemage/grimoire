@@ -13,7 +13,7 @@ cd $SOURCE_DIRECTORY/mozilla/security/coreconf &&
 
 echo 'INCLUDES += -I/usr/include/nspr -I$(DIST)/include/dbm' >> headers.mk &&
 
-if [[ $NSS_BRANCH != 3.12 ]]; then
+if [[ $NSS_BRANCH == 3.11 ]]; then
   sedit 's:$(DIST)/lib:/usr/lib/nspr:' location.mk
 fi &&
 
