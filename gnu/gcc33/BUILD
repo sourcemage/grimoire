@@ -5,6 +5,7 @@ sedit  's:#!/bin/sh:#!/bin/bash:'  $SOURCE_DIRECTORY/configure  &&
 # same for pentium3m
 # Doesn't know core2, replace with nocona, nor does it no -mssse3, remove it
 # Doesn't know native -march nor -mtune (GCC 4.2+)
+# Doesn't know -msse4* nor -msse5
 # See http://gcc.gnu.org/onlinedocs/gcc-3.3.6/gcc/i386-and-x86_002d64-Options.html
 CFLAGS=${CFLAGS/pentium4m/pentium4}      &&
 CXXFLAGS=${CXXFLAGS/pentium4m/pentium4}  &&
@@ -14,6 +15,16 @@ CFLAGS=${CFLAGS/core2/nocona}            &&
 CXXFLAGS=${CFLAGS/core2/nocona}          &&
 CFLAGS=${CFLAGS/-mssse3/}                &&
 CXXFLAGS=${CXXFLAGS/-mssse3/}            &&
+CFLAGS=${CFLAGS/-msse4a/}                &&
+CXXFLAGS=${CXXFLAGS/-msse4a/}            &&
+CFLAGS=${CFLAGS/-msse4.1/}               &&
+CXXFLAGS=${CXXFLAGS/-msse4.1/}           &&
+CFLAGS=${CFLAGS/-msse4.2/}               &&
+CXXFLAGS=${CXXFLAGS/-msse4.2/}           &&
+CFLAGS=${CFLAGS/-msse4/}                 &&
+CXXFLAGS=${CXXFLAGS/-msse4/}             &&
+CFLAGS=${CFLAGS/-msse5/}                 &&
+CXXFLAGS=${CXXFLAGS/-msse5/}             &&
 
 case $ARCHITECTURE in
   native-x86_64-64)
