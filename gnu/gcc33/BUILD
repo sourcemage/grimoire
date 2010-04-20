@@ -15,10 +15,6 @@ CXXFLAGS=${CFLAGS/core2/nocona}          &&
 CFLAGS=${CFLAGS/-mssse3/}                &&
 CXXFLAGS=${CXXFLAGS/-mssse3/}            &&
 
-echo ARCHITECTURE = $ARCHITECTURE > /tmp/gcc33.opt &&
-echo CFLAGS = $CFLAGS >> /tmp/gcc33.opt &&
-echo CXXFLAGS = $CXXFLAGS >> /tmp/gcc33.opt &&
-
 case $ARCHITECTURE in
   native-x86_64-64)
       CFLAGS=${CFLAGS/-march=native -mtune=native/-march=x86-64 -fPIC -DPIC}   &&
@@ -29,9 +25,6 @@ case $ARCHITECTURE in
     CXXFLAGS=${CXXFLAGS/-march=native -mtune=native/-march=i486 -m32}
     ;;
 esac &&
-
-echo CFLAGS = $CFLAGS >> /tmp/gcc33.opt &&
-echo CXXFLAGS = $CXXFLAGS >> /tmp/gcc33.opt &&
 
 cd $SOURCE_DIRECTORY.bld                                  &&
 $SOURCE_DIRECTORY/configure                               \
