@@ -1,5 +1,10 @@
 disable_pic  &&
 
+#
+# Cannot find -lxvid with -Wl,--as-needed in LDFLAGS
+#
+LDFLAGS=${LDFLAGS/-Wl,--as-needed} &&
+
 #if [ $FFAMR != none ];then
 #  OPTS="--enable-lib$FFAMR $FFMPEG_SWSCALE $OPTS"
 #fi  &&
