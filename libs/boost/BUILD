@@ -20,7 +20,6 @@ if list_find "${BOOST_LIBS}" "graph"              ||
    local EXPAT_LIBPATH=/usr/include
 fi &&
 OPTS="$OPTS $BLIST"                               &&
-echo $OPTS
 CXXFLAGS="$CXXFLAGS"                              \
 EXPAT_INCLUDE=$EXPAT_INCLUDE                      \
 EXPAT_LIBPATH=$EXPAT_LIBPATH                      \
