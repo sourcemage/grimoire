@@ -1,3 +1,8 @@
+#
+# Fix compilation with GCC 4.4
+#
+CXXFLAGS="-Wno-strict-aliasing $CXXFLAGS" &&
+
 local BLIST=""                                    &&
 local BL                                          &&
 if list_find "${BOOST_LIBS}" "all" ; then
