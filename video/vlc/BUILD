@@ -30,6 +30,10 @@ if is_depends_enabled $SPELL qt4; then
         export UIC="${INSTALL_ROOT}/usr/bin/qt4/uic"
 fi  &&
 
+if is_depends_enabled $SPELL goom; then
+  LDFLAGS=${LDFLAGS/-Wl,--as-needed}
+fi &&
+
 default_build  &&
 
 export -n MOC RCC UIC  &&
