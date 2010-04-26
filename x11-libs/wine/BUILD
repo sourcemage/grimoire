@@ -10,10 +10,12 @@ if grep -q "\-O3" <<< $CFLAGS; then
 fi  &&
 
 #
-# Fixes http://bugs.winehq.org/show_bug.cgi?id=22475
+# Fixes http://bugs.winehq.org/show_bug.cgi?id=22316
 #
-  CFLAGS=${CFLAGS/-mfpmath=sse/} &&
-CXXFLAGS=${CXXFLAGS/-mfpmath=sse/} &&
+if [[ ${SMGL_COMPAT_ARCHS[1]} == "ia32" ]] && $(grep -q "mfpmath=sse" <<< $CFLAGS); then
+  CFLAGS="-mincoming-stack-boundary=2 $CFLAGS" &&
+  CXXFLAGS="-mincoming-stack-boundary=2 $CXXFLAGS"
+fi &&
 
 OPTS="${OPTS} ${WINE64}" &&
 
