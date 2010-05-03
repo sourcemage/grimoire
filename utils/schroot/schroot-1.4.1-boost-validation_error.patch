@@ -1,0 +1,147 @@
+diff -Naur schroot-1.4.1.orig//bin/csbuild/csbuild-options.cc schroot-1.4.1//bin/csbuild/csbuild-options.cc
+--- schroot-1.4.1.orig//bin/csbuild/csbuild-options.cc	2010-02-21 01:17:31.000000000 +0300
++++ schroot-1.4.1//bin/csbuild/csbuild-options.cc	2010-03-06 11:22:25.393248289 +0300
+@@ -220,9 +220,9 @@
+   if (vm.count("binNMU") && vm.count("make-binNMU"))
+     this->bin_nmu = true;
+   else if (vm.count("binNMU"))
+-    throw opt::validation_error(_("--makebinNMU missing"));
++    throw opt::error(_("--makebinNMU missing"));
+   else if (vm.count("make-binNMU"))
+-    throw opt::validation_error(_("--binNMU missing"));
++    throw opt::error(_("--binNMU missing"));
+ 
+   if (!deb_build_options_string.empty())
+     {
+diff -Naur schroot-1.4.1.orig//bin/dchroot-dsa/dchroot-dsa-options.cc schroot-1.4.1//bin/dchroot-dsa/dchroot-dsa-options.cc
+--- schroot-1.4.1.orig//bin/dchroot-dsa/dchroot-dsa-options.cc	2010-02-21 01:17:31.000000000 +0300
++++ schroot-1.4.1//bin/dchroot-dsa/dchroot-dsa-options.cc	2010-03-06 11:23:37.476575149 +0300
+@@ -90,11 +90,11 @@
+ 
+   // dchroot-dsa only allows one command.
+   if (this->command.size() > 1)
+-    throw opt::validation_error(_("Only one command may be specified"));
++    throw opt::error(_("Only one command may be specified"));
+ 
+   if (!this->command.empty() &&
+       !sbuild::is_absname(this->command[0]))
+-    throw opt::validation_error(_("Command must have an absolute path"));
++    throw opt::error(_("Command must have an absolute path"));
+ 
+   if (this->chroots.empty() && !all_used() &&
+       (this->action != ACTION_CONFIG &&
+@@ -103,5 +103,5 @@
+        this->action != ACTION_LOCATION &&
+        this->action != ACTION_HELP &&
+        this->action != ACTION_VERSION))
+-    throw opt::validation_error(_("No chroot specified"));
++    throw opt::error(_("No chroot specified"));
+ }
+diff -Naur schroot-1.4.1.orig//bin/schroot/schroot-options-base.cc schroot-1.4.1//bin/schroot/schroot-options-base.cc
+--- schroot-1.4.1.orig//bin/schroot/schroot-options-base.cc	2010-02-21 01:17:31.000000000 +0300
++++ schroot-1.4.1//bin/schroot/schroot-options-base.cc	2010-03-06 11:23:02.639911148 +0300
+@@ -200,7 +200,7 @@
+       this->load_chroots = true;
+       this->load_sessions = false;
+       if (this->chroots.size() != 1 || all_used())
+-	throw opt::validation_error
++	throw opt::error
+ 	  (_("Exactly one chroot must be specified when beginning a session"));
+ 
+       this->all = this->all_chroots = this->all_sessions = false;
+@@ -213,7 +213,7 @@
+       this->load_chroots = this->load_sessions = true;
+ 
+       if (!this->session_name.empty())
+-        throw opt::validation_error
++        throw opt::error
+ 	  (_("--session-name is not permitted for the specified action; did you mean to use --chroot?"));
+     }
+   else if (this->action == ACTION_HELP ||
+@@ -234,7 +234,7 @@
+       if (this->all_sessions)
+ 	this->load_sessions = true;
+       if (!this->chroots.empty())
+-	throw opt::validation_error(_("--chroot may not be used with --list"));
++	throw opt::error(_("--chroot may not be used with --list"));
+     }
+   else if (this->action == ACTION_INFO ||
+ 	   this->action == ACTION_LOCATION ||
+@@ -259,6 +259,6 @@
+       // Something went wrong
+       this->load_chroots = this->load_sessions = false;
+       this->all = this->all_chroots = this->all_sessions = false;
+-      throw opt::validation_error(_("Unknown action specified"));
++      throw opt::error(_("Unknown action specified"));
+     }
+ }
+diff -Naur schroot-1.4.1.orig//bin/schroot-base/schroot-base-option-action.cc schroot-1.4.1//bin/schroot-base/schroot-base-option-action.cc
+--- schroot-1.4.1.orig//bin/schroot-base/schroot-base-option-action.cc	2010-02-21 01:17:31.000000000 +0300
++++ schroot-1.4.1//bin/schroot-base/schroot-base-option-action.cc	2010-03-06 11:24:09.682901202 +0300
+@@ -82,7 +82,7 @@
+       if (this->current_action == "")
+ 	this->current_action = action;
+       else
+-	throw opt::validation_error(_("Only one action may be specified"));
++	throw opt::error(_("Only one action may be specified"));
+     }
+   else
+     throw std::logic_error((format(_("%1%: invalid action")) % action).str());
+diff -Naur schroot-1.4.1.orig//bin/schroot-base/schroot-base-options.cc schroot-1.4.1//bin/schroot-base/schroot-base-options.cc
+--- schroot-1.4.1.orig//bin/schroot-base/schroot-base-options.cc	2010-02-21 01:17:31.000000000 +0300
++++ schroot-1.4.1//bin/schroot-base/schroot-base-options.cc	2010-03-06 11:24:04.516571747 +0300
+@@ -155,7 +155,7 @@
+       else if (this->debug_level == "critical")
+ 	sbuild::debug_log_level = sbuild::DEBUG_CRITICAL;
+       else
+-	throw opt::validation_error(_("Invalid debug level"));
++	throw opt::error(_("Invalid debug level"));
+     }
+   else
+     sbuild::debug_log_level = sbuild::DEBUG_NONE;
+diff -Naur schroot-1.4.1.orig//bin/schroot-listmounts/schroot-listmounts-options.cc schroot-1.4.1//bin/schroot-listmounts/schroot-listmounts-options.cc
+--- schroot-1.4.1.orig//bin/schroot-listmounts/schroot-listmounts-options.cc	2010-02-21 01:17:31.000000000 +0300
++++ schroot-1.4.1//bin/schroot-listmounts/schroot-listmounts-options.cc	2010-03-06 11:22:45.059911238 +0300
+@@ -86,5 +86,5 @@
+ 
+   if (this->action == ACTION_LISTMOUNTS &&
+       this->mountpoint.empty())
+-    throw opt::validation_error(_("No mount point specified"));
++    throw opt::error(_("No mount point specified"));
+ }
+diff -Naur schroot-1.4.1.orig//bin/schroot-mount/schroot-mount-options.cc schroot-1.4.1//bin/schroot-mount/schroot-mount-options.cc
+--- schroot-1.4.1.orig//bin/schroot-mount/schroot-mount-options.cc	2010-02-21 01:17:31.000000000 +0300
++++ schroot-1.4.1//bin/schroot-mount/schroot-mount-options.cc	2010-03-06 11:23:22.253241091 +0300
+@@ -99,5 +99,5 @@
+ 
+   if (this->action == ACTION_MOUNT &&
+       this->mountpoint.empty())
+-    throw opt::validation_error(_("No mount point specified"));
++    throw opt::error(_("No mount point specified"));
+ }
+diff -Naur schroot-1.4.1.orig//bin/schroot-releaselock/schroot-releaselock-options.cc schroot-1.4.1//bin/schroot-releaselock/schroot-releaselock-options.cc
+--- schroot-1.4.1.orig//bin/schroot-releaselock/schroot-releaselock-options.cc	2010-02-21 01:17:31.000000000 +0300
++++ schroot-1.4.1//bin/schroot-releaselock/schroot-releaselock-options.cc	2010-03-06 11:25:02.019899016 +0300
+@@ -89,5 +89,5 @@
+ 
+   if (this->action == ACTION_RELEASELOCK &&
+       this->device.empty())
+-    throw opt::validation_error(_("No device specified"));
++    throw opt::error(_("No device specified"));
+ }
+diff -Naur schroot-1.4.1.orig//test/schroot-base-option-action.cc schroot-1.4.1//test/schroot-base-option-action.cc
+--- schroot-1.4.1.orig//test/schroot-base-option-action.cc	2010-02-21 01:17:31.000000000 +0300
++++ schroot-1.4.1//test/schroot-base-option-action.cc	2010-03-06 11:25:17.070467289 +0300
+@@ -37,10 +37,10 @@
+   CPPUNIT_TEST(test_current);
+   CPPUNIT_TEST_EXCEPTION(test_current_fail, std::logic_error);
+   CPPUNIT_TEST_EXCEPTION(test_current_fail_multipleset,
+-			 opt::validation_error);
++			 opt::error);
+   CPPUNIT_TEST(test_operators);
+   CPPUNIT_TEST_EXCEPTION(test_operators_fail_multipleset,
+-			 opt::validation_error);
++			 opt::error);
+   CPPUNIT_TEST_SUITE_END();
+ 
+ protected:
