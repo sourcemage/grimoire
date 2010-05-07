@@ -1,0 +1,169 @@
+# http://appdb.winehq.org/objectManager.php?sClass=version&iId=19376
+# http://www.winehq.org/pipermail/wine-patches/2010-March/085817.html
+---
+ dlls/kernel32/tests/debugger.c |   98 +++++++++++++++++++++++++++++++++++++++-
+ dlls/ntdll/loader.c            |    7 ++-
+ 2 files changed, 101 insertions(+), 4 deletions(-)
+
+diff --git a/dlls/kernel32/tests/debugger.c b/dlls/kernel32/tests/debugger.c
+index 057b977..f9b3889 100644
+--- a/dlls/kernel32/tests/debugger.c
++++ b/dlls/kernel32/tests/debugger.c
+@@ -555,8 +555,10 @@ static void doChild(int argc, char **argv)
+ static void test_debug_loop(int argc, char **argv)
+ {
+     const char *arguments = " debugger child ";
++    IMAGE_DATA_DIRECTORY import_dir = {0};
+     struct child_blackbox blackbox;
+     char blackbox_file[MAX_PATH];
++    const char *base = NULL;
+     PROCESS_INFORMATION pi;
+     STARTUPINFOA si;
+     BOOL debug;
+@@ -597,13 +599,107 @@ static void test_debug_loop(int argc, char **argv)
+         ok(ret, "WaitForDebugEvent failed, last error %#x.\n", GetLastError());
+         if (!ret) break;
+ 
+-        if (ev.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT) break;
++        switch (ev.dwDebugEventCode)
++        {
++            case CREATE_PROCESS_DEBUG_EVENT:
++            {
++                IMAGE_THUNK_DATA *imports, *thunks;
++                IMAGE_IMPORT_DESCRIPTOR *desc;
++                IMAGE_DOS_HEADER dos;
++                IMAGE_NT_HEADERS nt;
++                unsigned int i, j;
++                char *data;
++
++                base = ev.u.CreateProcessInfo.lpBaseOfImage;
++
++                ret = ReadProcessMemory(pi.hProcess, base, &dos, sizeof(dos), NULL);
++                ok(ret, "ReadProcessMemory failed, last error %#x.\n", GetLastError());
++                ok(dos.e_magic == IMAGE_DOS_SIGNATURE, "Wrong DOS signature %#x.\n", dos.e_magic);
++
++                ret = ReadProcessMemory(pi.hProcess, base + dos.e_lfanew, &nt, sizeof(nt), NULL);
++                ok(ret, "ReadProcessMemory failed, last error %#x.\n", GetLastError());
++                ok(nt.Signature == IMAGE_NT_SIGNATURE, "Wrong NT signature %#x.\n", nt.Signature);
++
++                import_dir = nt.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
++
++                data = HeapAlloc(GetProcessHeap(), 0, import_dir.Size);
++                ret = ReadProcessMemory(pi.hProcess, base + import_dir.VirtualAddress, data, import_dir.Size, NULL);
++                ok(ret, "ReadProcessMemory failed, last error %#x.\n", GetLastError());
++                desc = (IMAGE_IMPORT_DESCRIPTOR *)data;
++
++                i = 0;
++                while (desc[i].Name && desc[i].FirstThunk)
++                {
++                    thunks = (IMAGE_THUNK_DATA *)(data + (desc[i].FirstThunk - import_dir.VirtualAddress));
++                    imports = (IMAGE_THUNK_DATA *)(data + (U(desc[i]).OriginalFirstThunk - import_dir.VirtualAddress));
++
++                    j = 0;
++                    while (imports[j].u1.Ordinal)
++                    {
++                        ok(!thunks[j].u1.Function || thunks[j].u1.Function == imports[j].u1.Function,
++                                "desc %u, import %u is already resolved, %#x -> %#x.\n",
++                                i, j, imports[j].u1.Function, thunks[j].u1.Function);
++                        ++j;
++                    }
++                    ++i;
++                }
++
++                HeapFree(GetProcessHeap(), 0, data);
++                break;
++            }
++
++            case EXCEPTION_DEBUG_EVENT:
++            {
++                IMAGE_THUNK_DATA *imports, *thunks;
++                IMAGE_IMPORT_DESCRIPTOR *desc;
++                unsigned int i, j;
++                char *data;
++
++                if (ev.u.Exception.ExceptionRecord.ExceptionCode != EXCEPTION_BREAKPOINT)
++                {
++                    ok(0, "Received unexpected exception %#x.\n", ev.u.Exception.ExceptionRecord.ExceptionCode);
++                    break;
++                }
++
++                data = HeapAlloc(GetProcessHeap(), 0, import_dir.Size);
++                ret = ReadProcessMemory(pi.hProcess, base + import_dir.VirtualAddress, data, import_dir.Size, NULL);
++                ok(ret, "ReadProcessMemory failed, last error %#x.\n", GetLastError());
++                desc = (IMAGE_IMPORT_DESCRIPTOR *)data;
++
++                i = 0;
++                while (desc[i].Name && desc[i].FirstThunk)
++                {
++                    thunks = (IMAGE_THUNK_DATA *)(data + (desc[i].FirstThunk - import_dir.VirtualAddress));
++                    imports = (IMAGE_THUNK_DATA *)(data + (U(desc[i]).OriginalFirstThunk - import_dir.VirtualAddress));
++
++                    j = 0;
++                    while (imports[j].u1.Ordinal)
++                    {
++                        ok(thunks[j].u1.Function && thunks[j].u1.Function != imports[j].u1.Function,
++                                "desc %u, import %u isn't resolved yet, %#x -> %#x.\n",
++                                i, j, imports[j].u1.Function, thunks[j].u1.Function);
++                        ++j;
++                    }
++                    ++i;
++                }
++
++                HeapFree(GetProcessHeap(), 0, data);
++                break;
++            }
++
++            case EXIT_PROCESS_DEBUG_EVENT:
++                goto done;
++
++            default:
++                break;
++        }
+ 
+         ret = ContinueDebugEvent(ev.dwProcessId, ev.dwThreadId, DBG_CONTINUE);
+         ok(ret, "ContinueDebugEvent failed, last error %#x.\n", GetLastError());
+         if (!ret) break;
+     }
+ 
++done:
+     ret = CloseHandle(pi.hThread);
+     ok(ret, "CloseHandle failed, last error %#x.\n", GetLastError());
+     ret = CloseHandle(pi.hProcess);
+diff --git a/dlls/ntdll/loader.c b/dlls/ntdll/loader.c
+index 1723f18..fbdda00 100644
+--- a/dlls/ntdll/loader.c
++++ b/dlls/ntdll/loader.c
+@@ -2533,10 +2533,14 @@ PIMAGE_NT_HEADERS WINAPI RtlImageNtHeader(HMODULE hModule)
+  */
+ static NTSTATUS attach_process_dlls( void *wm )
+ {
++    LPCWSTR load_path;
+     NTSTATUS status;
+ 
+     pthread_sigmask( SIG_UNBLOCK, &server_block_set, NULL );
+ 
++    load_path = NtCurrentTeb()->Peb->ProcessParameters->DllPath.Buffer;
++    if ((status = fixup_imports( wm, load_path )) != STATUS_SUCCESS) return status;
++
+     RtlEnterCriticalSection( &loader_section );
+     if ((status = process_attach( wm, (LPVOID)1 )) != STATUS_SUCCESS)
+     {
+@@ -2622,7 +2626,6 @@ void WINAPI LdrInitializeThunk( void *kernel_start, ULONG_PTR unknown2,
+     static const WCHAR globalflagW[] = {'G','l','o','b','a','l','F','l','a','g',0};
+     NTSTATUS status;
+     WINE_MODREF *wm;
+-    LPCWSTR load_path;
+     PEB *peb = NtCurrentTeb()->Peb;
+     IMAGE_NT_HEADERS *nt = RtlImageNtHeader( peb->ImageBaseAddress );
+ 
+@@ -2652,8 +2655,6 @@ void WINAPI LdrInitializeThunk( void *kernel_start, ULONG_PTR unknown2,
+     if ((status = server_init_process_done()) != STATUS_SUCCESS) goto error;
+ 
+     actctx_init();
+-    load_path = NtCurrentTeb()->Peb->ProcessParameters->DllPath.Buffer;
+-    if ((status = fixup_imports( wm, load_path )) != STATUS_SUCCESS) goto error;
+     if ((status = alloc_process_tls()) != STATUS_SUCCESS) goto error;
+     if ((status = alloc_thread_tls()) != STATUS_SUCCESS) goto error;
+     heap_set_debug_flags( GetProcessHeap() );
+-- 
+1.6.4.4
