@@ -1,6 +1,3 @@
-# disable emacs, bug #8592
-sedit  's/EMACS = @EMACS@/EMACS = no/'  gettext-tools/misc/Makefile.in  &&
-
 export  CC=gcc  &&
 
 make_single  &&
