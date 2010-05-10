@@ -1,1 +1,1 @@
-make OPTS="$CFLAGS"
+make CFLAGS="$CFLAGS"

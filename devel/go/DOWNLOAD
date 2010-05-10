@@ -1,0 +1,31 @@
+function url_hg_crack() {
+
+  URL=${SOURCE_URL}
+  HG_MODULE=${SPELL}
+  HG_TAG=${VERSION}
+
+}
+url_hg_crack 
+message "${MESSAGE_COLOR}Starting Mercurial checkout of" \
+        "${FILE_COLOR}${SOURCE}${MESSAGE_COLOR}...${DEFAULT_COLOR}"  &&
+if [[ -f $SOURCE_CACHE/${SOURCE} ]]
+then
+  message "${MESSAGE_COLOR}Previous source found unpacking...${DEFAULT_COLOR}"  &&
+  tar -jxf $SOURCE_CACHE/${SOURCE}  &&
+  cd ${HG_MODULE}  &&
+  message "${MESSAGE_COLOR}Running Mercurial update...${DEFAULT_COLOR}"  &&
+  hg pull -u -r ${HG_TAG}
+  cd ..
+  message "${MESSAGE_COLOR}Done...${DEFAULT_COLOR}"
+else
+  message "${MESSAGE_COLOR}Running initial Mercurial clone...${DEFAULT_COLOR}"  &&
+  hg clone -r${HG_TAG} ${URL} ${HG_MODULE}
+  message "${MESSAGE_COLOR}Done...${DEFAULT_COLOR}"
+fi   &&
+message "${MESSAGE_COLOR}Generating tarball...${DEFAULT_COLOR}" &&
+tar -jcf                                                        \
+    ${SOURCE}                                                   \
+    ${HG_MODULE}                                                &&
+cp  ${SOURCE} ${SOURCE_CACHE}/${SOURCE}                         &&
+rm  ${SOURCE}                                                   &&
+message "${MESSAGE_COLOR}Mercurial checkout complete...${DEFAULT_COLOR}"
