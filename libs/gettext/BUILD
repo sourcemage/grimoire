@@ -1,5 +1,8 @@
 export  CC=gcc  &&
 
+# pth support is semi-broken, so force POSIX threads
+OPTS="--enable-threads=posix $OPTS" &&
+
 make_single  &&
 
 ./configure  --build=$BUILD                           \
