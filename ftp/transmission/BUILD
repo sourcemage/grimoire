@@ -1,5 +1,3 @@
-OPTS="${TRANSM_CLI}    \
-      ${TRANSM_DAEMON} \
-      ${OPTS}"         &&
+OPTS="$TRANSMISSION_OPTS $OPTS" &&
 
 default_build
