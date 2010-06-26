@@ -4,9 +4,6 @@ local TCLHDIR="${INSTALL_ROOT}/usr/lib/tcl${TCLVERSION}/include" &&
 CFLAGS="${CFLAGS} -I${TCLHDIR}/generic -I${TCLHDIR}/unix"            &&
 
 cd  $SOURCE_DIRECTORY/unix        &&
-OPTS="$OPTS --enable-threads"      &&
-if [ "$DEVEL" = "y" ]; then
-  OPTS="$OPTS --enable-xft"
-fi  &&
+OPTS="$OPTS --enable-threads --enable-xft"      &&
 
 default_build

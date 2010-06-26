@@ -25,6 +25,8 @@ if  echo $LDFLAGS | grep  -q  '\-s'; then
   OPTS="$OPTS  --enable-strip"
 fi  &&
 
+LDFLAGS="${LDFLAGS/-Wl,--as-needed/}" &&
+
 if [[ $THUNDERBIRD_OFFICIAL == y ]]; then
   OPTS="$OPTS --enable-official-branding"
 fi

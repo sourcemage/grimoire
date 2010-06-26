@@ -22,8 +22,4 @@ else
   OPTS="$OPTS --without-long-double"  
 fi &&
 
-if [[ $GNUMERIC_DEVEL != y ]]; then
-  make_single
-fi &&
-default_build  &&
-make_normal
+default_build

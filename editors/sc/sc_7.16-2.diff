@@ -1,0 +1,56 @@
+--- Makefile.orig	2010-06-14 18:12:15.893507309 -0500
++++ Makefile	2010-06-14 18:50:20.843512915 -0500
+@@ -26,13 +26,13 @@
+ EXDIR=${prefix}/bin
+ 
+ # This is where the man page goes.
+-MANDIR=${prefix}/man/man1
++MANDIR=${prefix}/share/man/man1
+ MANEXT=1
+ MANMODE=644
+ 
+ # This is where the library file (tutorial) goes.
+ #LIBDIR=/usr/local/share/$(name) # reno
+-LIBDIR=${prefix}/lib/$(name)
++LIBDIR=${prefix}/share/$(name)
+ LIBRARY=-DLIBDIR=\"${LIBDIR}\"
+ 
+ # Set SIMPLE for lex.c if you don't want arrow keys or lex.c blows up
+--- lex.c.orig
++++ lex.c
+@@ -34,6 +34,8 @@
+ #include <signal.h>
+ #include <setjmp.h>
+ #include <ctype.h>
++#include <unistd.h>
++#include <math.h>
+ #include "sc.h"
+ 
+ #ifdef NONOTIMEOUT
+@@ -107,7 +109,7 @@
+ yylex()
+ {
+     char *p = line + linelim;
+-    int ret;
++    int ret=0;
+     static int isfunc = 0;
+     static bool isgoto = 0;
+     static bool colstate = 0;
+@@ -326,7 +328,7 @@
+ 	strcpy((char *)path, HomeDir);
+ 	strcat((char *)path, "/.sc/plugins/");
+ 	strncat((char *)path, name, len);
+-	if (fp = fopen((char *)path, "r")) {
++	if ((fp = fopen((char *)path, "r"))) {
+ 	    fclose(fp);
+ 	    return 1;
+ 	}
+@@ -334,7 +336,7 @@
+     strcpy((char *)path, LIBDIR);
+     strcat((char *)path, "/plugins/");
+     strncat((char *)path, name, len);
+-    if (fp = fopen((char *)path, "r")) {
++    if ((fp = fopen((char *)path, "r"))) {
+ 	fclose(fp);
+ 	return 1;
+     }

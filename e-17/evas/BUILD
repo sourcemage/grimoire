@@ -28,4 +28,8 @@ else
   OPTS="--disable-small-dither-mask  $OPTS"
 fi  &&
 
+if  [  "$EVAS_ASYNC_RENDER" = "y"   ];  then
+  OPTS="--enable-async-render $OPTS"
+fi &&
+
 default_build

@@ -10,5 +10,6 @@ CXXFLAGS=${CXXFLAGS/-DPIC}   &&
 #
 LDFLAGS=${LDFLAGS/-Wl,-O1}   &&
 LDFLAGS=${LDFLAGS/-Wl,--hash-style=gnu}   &&
+LDFLAGS=${LDFLAGS/-Wl,--as-needed}   &&
 
 make

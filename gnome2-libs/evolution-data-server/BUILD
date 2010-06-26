@@ -10,8 +10,9 @@ else
    OPTS="$OPTS --enable-nntp=no"
 fi &&
 
-OPTS="$CAL     \
-      $OPTS"   &&
+OPTS="$CAL       \
+      $EDS_LARGE \
+      $OPTS"     &&
 
 make_single    &&
 default_build  &&

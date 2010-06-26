@@ -13,13 +13,24 @@ fi &&
 config_query_list TERMINAL_LIBRARY                              \
                   "Build against which terminal library?"       \
                   ncurses slang                                 &&
-TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --with-${TERMINAL_LIBRARY}"     &&
+
+if [[ ${TERMINAL_LIBRARY} = "ncurses" ]]; then
+  TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --with-curses"
+else
+  TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --with-${TERMINAL_LIBRARY}"
+fi &&
+
 depends "${TERMINAL_LIBRARY}"                                   &&
 
 optional_depends   "gnupg"                                      \
                    ""                                           \
                    "--disable-pgp"                              \
                    "to support PGP signing and encrypting messages" &&
+
+optional_depends   "ispell"                                     \
+                   ""                                           \
+                   ""                                           \
+                   "for spell checking"                         &&
 
 if [[ "$BRANCH" != "stable" ]]; then
   # Do NOT add --with-ssl here, that only works if POP/IMAP are used.  This is
@@ -65,7 +76,7 @@ if list_find "${MUTT_OPTS}" "--enable-pop" || list_find "${MUTT_OPTS}" "--enable
                      "to enable SSL support for POP/IMAP via gnutls" &&
 
     optional_depends "cyrus-sasl"                               \
-                     "--with-sasl2"                             \
+                     "--with-sasl"                             \
                      ""                                         \
                      "to enable SASL2 authentication for POP/IMAP"
   fi

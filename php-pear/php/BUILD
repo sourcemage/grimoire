@@ -30,6 +30,8 @@ if [[ "${PHP5_GD}" == "internal" ]]; then
     OPTS="--with-gd --enable-gd-native-ttf ${OPTS}"
 fi &&
 
+CFLAGS="${CFLAGS//-ffast-math}" &&
+
 OPTS="   --with-exec-dir=${INSTALL_ROOT}/usr/bin \
  --with-config-file-path=${INSTALL_ROOT}/etc \
                --disable-rpath \
