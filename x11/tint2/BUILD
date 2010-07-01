@@ -1,2 +1,3 @@
 OPTS="$TINT2_OPTS $OPTS" &&
-default_build
+
+cmake_build
