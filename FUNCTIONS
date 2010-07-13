@@ -514,6 +514,7 @@ cmake_build() {
   cd $SOURCE_DIRECTORY  &&
   mkdir -p build        &&
   cd build              &&
+  prepare_cmake_flags   &&
   cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr -DSYSCONFDIR=$INSTALL_ROOT/etc $OPTS ../  &&
   make
 }
@@ -662,17 +663,23 @@ function default_kde3_build() {
 
 }
 
+# Move SPELL_OPTS to OPTS
+# basicly generic OPTS="$SPELL_OPTS $OPTS"
+function prepare_opts() {
+  # this is here so that config_query_option can be used without
+  # extra junk
+  local up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")     &&
+  local up_spell_name=$(echo $up_spell_name | tr "-" "_") &&
+  local tempopts="${up_spell_name}_OPTS"                  &&
+  OPTS="${!tempopts} $OPTS"
+}
+
 #---
 ## Default configure
 #---
 
 function default_build_configure() {
-  # this is here so that config_query_option can be used without
-  # extra junk
-  local up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")     &&
-  local up_spell_name=$(echo $SPELL | tr "-" "_")         &&
-  local tempopts="${up_spell_name}_OPTS"                  &&
-  OPTS="${!tempopts} $OPTS"                               &&
+  prepare_opts                                            &&
   OPTS="$OPTS --build=${BUILD}"                           &&
   #If these switches are used, they _may_ stop distcc and ccache from working
   # for some spells (bug 3798)
