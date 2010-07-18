@@ -1,18 +1,20 @@
 if [[ $LIBDRM_NV == y ]]; then
   OPTS="--enable-nouveau-experimental-api $OPTS"
 fi  &&
+if [[ $LIBDRM_INTEL == n ]]; then
+  OPTS="--disable-intel $OPTS"
+else
+  OPTS="--enable-intel $OPTS"
+fi  &&
 if [[ $LIBDRM_RADEON == y ]]; then
-  OPTS="--enable-radeon-experimental-api $OPTS"
+  OPTS="--enable-radeon $OPTS"
+else
+  OPTS="--disable-radeon $OPTS"
 fi  &&
 
 default_build &&
 
 if [[ $LIBDRM_LIBS == y ]]; then
-  cd ${SOURCE_DIRECTORY}/libdrm/radeon &&
-  make
-fi &&
-
-if [[ $LIBDRM_KERNEL == y ]]; then
-  cd ${SOURCE_DIRECTORY}/linux-core &&
+  cd ${SOURCE_DIRECTORY}/radeon &&
   make
 fi

@@ -22,10 +22,6 @@ if [ "$GTKENGINE_REDMOND" == "n" ]; then
    OPTS="$OPTS --disable-redmond"
 fi                                        &&
 
-if [ "$GTKENGINE_SMOOTH" == "n" ]; then
-   OPTS="$OPTS --disable-smooth"
-fi                                        &&
-
 if [ "$GTKENGINE_GLIDE" == "n" ]; then
    OPTS="$OPTS --disable-glide"
 fi                                        &&

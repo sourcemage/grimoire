@@ -1,5 +1,4 @@
-OPTS="$HYDROGEN_OSS $OPTS"  &&
-if [[ -f /etc/profile.d/qt.sh ]]; then
-  . /etc/profile.d/qt.sh
-fi &&
-default_build
+  QTDIR=/usr    &&
+  PATH=$QTDIR/bin/qt4:$PATH &&
+  export QTDIR=/usr &&
+  scons prefix=$INSTALL_ROOT/usr

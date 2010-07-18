@@ -1,5 +1,3 @@
-OPTS="--enable-security $OPTS"    &&
-OPTS="--disable-unix98test $OPTS" &&
-OPTS="--enable-libpcsclite $OPTS" &&
-OPTS="--with-sms --with-smsd $OPTS" &&
+OPTS="$GNOKII_OPTS $OPTS" &&
+
 default_build

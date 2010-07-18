@@ -6,8 +6,14 @@ unpack_file '4' &&
 if [[ "${OOO_BINFILTER}" = 'y' ]]; then
   unpack_file '5'
 fi &&
-if [[ "${OOO_TEST}" = 'y' ]]; then
-  unpack_file '6'
-fi &&
+
 cd ${SOURCE_DIRECTORY} &&
-patch -p0 < ${SPELL_DIRECTORY}/getline.patch
+#
+# Fix finding location of QT4 binaries to our setup
+#
+sed -i 's:QT4DIR/bin:QT4DIR:' $SOURCE_DIRECTORY/configure.in &&
+autoconf &&
+
+#somehow they forgot that db versions above 4.7 could be written one day ;)
+sedit 's#1 7#1 9#' configure
+

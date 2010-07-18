@@ -1,53 +1,57 @@
-# good old fashioned hard dependencies, with or without options
-depends  gmp           &&
-depends  freetype2     &&
-depends  archive-zip   &&
-depends  zip  '--with-zip-home=/usr/bin/zip' &&
-depends  unzip  '--with-unzip-home=/usr/bin/uzip' &&
+# good old fashioned hard dependencies
+depends  autoconf &&
+depends  freetype2  &&
+depends  archive-zip  &&
+depends  zip &&
+depends  unzip &&
 
-# dependencies that are required but will use local versions when missing
-optional_depends  libwpd  '--with-system-libwpd' '' 'use system libpwd' &&
-optional_depends  icu  '--with-system-icu' '' 'use system ICU?' &&
-optional_depends  python  '--with-system-python' '' 'use system python?'  &&
-optional_depends  db  '--with-system-db' '--without-system-db' 'use system db?' &&
-#optional_depends  lucene  '--with-system-lucene' '' 'use system Lucene?' &&
-optional_depends  expat  '--with-system-expat' '' 'use system expat?' &&
-optional_depends  libxml2  '--with-system-libxml' '' 'use system libxml2? (recommended)' &&
-optional_depends  libxslt  '--with-system-libxslt' '' 'use system libxslt? (recommended)' &&
-optional_depends  jpeg  '--with-system-jpeg' '' 'use system JPEG?' &&
-optional_depends  openssl  '--with-system-openssl' '' 'use system OpenSSL? (recommended)' &&
-optional_depends  zlib  '--with-system-zlib' '' 'use system zlib? (recommended)' &&
-optional_depends  poppler  '--with-system-poppler' '' 'use system poppler?' &&
-optional_depends curl '--with-system-curl' '' 'use system curl?' &&
-optional_depends boost '--with-system-boost' '' 'use system boost?' &&
-optional_depends hunspell '--with-system-hunspell' '' 'enable system hunspell?' &&
-optional_depends stlport "--with-stlport=${INSTALL_ROOT}/usr" '--without-stlport' 'use system stlport? (not recommended)' &&
-optional_depends ant "--with-ant-home=${INSTALL_ROOT}/usr" '' 'enable system ant?' &&
-optional_depends vigra '--with-system-vigra' '--without-system-vigra' 'enable system vigra?' &&
+# dependencies that are required but will use included
+# OOo versions when missing (some of them might be in the openoffice 'system' tarball)
+depends  libwpd '--with-system-libwpd' &&
+depends  icu  '--with-system-icu' &&
+depends  python '--with-system-python' &&
+depends  db  '--with-system-db' &&
+depends  expat '--with-system-expat'  &&
+depends  libxml2 '--with-system-libxml' &&
+depends  libxslt '--with-system-libxslt' &&
+depends  jpeg  '--with-system-jpeg' &&
+depends  openssl  '--with-system-openssl' &&
+depends  zlib  '--with-system-zlib' &&
+depends  poppler '--with-system-poppler' &&
+depends  curl '--with-system-curl' &&
+depends  boost '--with-system-boost' &&
+depends  hunspell '--with-system-hunspell' &&
+depends  hyphen '--with-system-altlinuxhyph' &&
+depends  mythes '--with-system-mythes' &&
+# just weird, it needs to be installed but OOo won't build when you specify --with-stlport
+depends  stlport  "--without-stlport"  &&
+depends  vigra  '--with-system-vigra' &&
+depends  sane-backends '--with-system-sane-header'  &&
+depends  lp_solve '--with-system-lpsolve' &&
+depends libxrender '--with-system-xrender-headers' &&
+depends ttf-bitstream-vera '--without-fonts --without-afms' &&
 
 # regular optional dependencies
-optional_depends tcsh \
-                 '--with-use-shell=tcsh' \
-                 '--with-use-shell=bash' \
-                 'use TCSH instead of BASH (default)' &&
 optional_depends ODBC-MGR \
                  '--with-system-odbc --with-system-odbc-headers' \
                  '' \
                  'enable ODBC database access? (recommended)' &&
 optional_depends JAVA \
                  '--with-java --with-system-jars' \
-                 '--without-java --without-system-jars' \
+                 '--without-java' \
                  'enable JAVA support?' &&
-if (is_depends_enabled ${SPELL} JAVA); then
+if is_depends_enabled $SPELL $(get_spell_provider $SPELL JAVA); then
+   depends  ant "--with-ant-home=${INSTALL_ROOT}/opt/ant/"  &&
+#   depends lucene '--with-system-lucene' &&
    optional_depends gcj \
                     '--enable-gcjaot' \
                     '--disable-gcjaot' \
                     'Build with[out] using Ahead of Time java compilation?'
 fi &&
-optional_depends GTK2 \
-                 '--enable-gtk' \
-                 '--disable-gtk' \
-                 'use GTK vclplug? (recommended)' &&
+optional_depends  GTK2 \
+                  '--enable-gtk' \
+                  '--disable-gtk' \
+                  'use GTK vclplug? (recommended)'  &&
 if [[ "$(get_spell_provider ${SPELL} GTK2)" = 'gtk+2' ]] || \
    [[ "$(get_spell_provider ${SPELL} GTK2)" = 'gtk+2-directfb' ]]; then
 optional_depends gconf2 \
@@ -57,15 +61,16 @@ optional_depends gconf2 \
 optional_depends evolution \
                  '--enable-evolution2' \
                  '--disable-evolution2' \
-                 'use evolution?' &&
+                 'enable use of evolution addressbook?' &&
 optional_depends gnome-vfs2 \
                  '--enable-gnome-vfs' \
                  '--disable-gnome-vfs' \
                  'enable GNOME virtual filesystem support?'
 fi &&
+#probably wrong, but I have no idea what to include for KDE and which version ;)
 optional_depends kdebase4 \
-                 '--enable-kde --enable-kdeab' \
-                 '--disable-kde --disable-kdeab' \
+                 '--enable-kde4 --enable-kdeab' \
+                 '--disable-kde4 --disable-kdeab' \
                  'enable KDE addressbook and vclplugin' &&
 optional_depends cairo \
                  '--enable-cairo --with-system-cairo' \
@@ -79,28 +84,20 @@ optional_depends libxrandr \
                  '--enable-randr' \
                  '--disable-randr' \
                  'enable RandR support in the vcl project?' &&
-optional_depends libxrender \
-                 '--with-system-xrender-headers' \
-                 '' \
-                 'use system libxrender?' &&
 optional_depends agg \
-                 '--with-agg --with-system-agg' \
+                 '--with-agg' \
                  '--without-agg' \
                  'enable agg support?' &&
 # I'm only testing with xulrunner, feel free to add others ;)
 optional_depends xulrunner \
-                 '--disable-mozilla --with-system-mozilla=xulrunner' \
-                 '--disable-build-mozilla' \
+                 '--with-system-mozilla=xulrunner' \
+                 '--disable-mozilla' \
                  "use xulrunner instead of 'strangely hacked up mozilla binary'? (recommended)" &&
-#always --without-ppds. not needed without and provided with cups
+#always --without-ppds. not needed without cups or provided by cups
 optional_depends CUPS \
                  '--enable-cups --without-ppds' \
                  '--disable-cups --without-ppds' \
                  'use CUPS in the psprint project?' &&
-optional_depends sane-backends \
-                 '--with-system-sane-header' \
-                 '' \
-                 'use sane backends?' &&
 optional_depends fontconfig \
                  '--enable-fontconfig --disable-fontooo' \
                  '--disable-fontconfig --enable-fontooo' \
@@ -109,11 +106,10 @@ optional_depends dbus \
                  '--enable-dbus' \
                  '--disable-dbus' \
                  'use D-BUS for screensaver control?' &&
-#probably wrong, but I have no idea what to include for KDE and which version ;)
 optional_depends linux-pam \
                  '--enable-pam' \
                  '--disable-pam' \
-                 'use Linux-PAM?' &&
+                 'enable PAM support?' &&
 optional_depends neon \
                  '--enable-neon --with-system-neon' \
                  '--disable-neon' \
@@ -125,13 +121,4 @@ optional_depends libxaw \
 optional_depends openldap \
                  '--enable-ldap --with-openldap' \
                  '--disable-ldap --without-openldap' \
-                 "enable the use of the OpenLDAP LDAP SDK?" &&
-optional_depends rpm \
-                 '--enable-epm' \
-                 '--disable-epm' \
-                 "enable self-packaging code? (not recommended)" &&
-# this one is intentionally reversed
-optional_depends ttf-bitstream-vera \
-                 '--without-fonts' \
-                 '--with-fonts' \
-                 'use system provided font instead of packaged version? (recommended)'
+                 "enable the use of the OpenLDAP LDAP SDK?"

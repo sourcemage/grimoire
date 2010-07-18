@@ -1,3 +1,3 @@
-make_single                                            &&
-make  KERNELPATH=/usr/src/linux-$(get_kernel_version)  &&
+make_single                                                &&
+make  KERNELPATH=/lib/modules/$(get_kernel_version)/build  &&
 make_normal

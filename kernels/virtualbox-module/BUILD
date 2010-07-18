@@ -1,1 +1,1 @@
-make KERN_DIR=${INSTALL_ROOT}/usr/src/linux-$(get_kernel_version)
+make KERN_DIR=${INSTALL_ROOT}/lib/modules/$(get_kernel_version)/build

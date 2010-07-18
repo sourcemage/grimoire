@@ -26,13 +26,24 @@ config_query_option PHP5_OPTS "Enable calendar support?" y \
 config_query_option PHP5_OPTS "Enable pcntl support (Only affects CLI/CGI)" n \
                     "--enable-pcntl" "--disable-pcntl" &&
 
-message "${MESSAGE_COLOR}Both FastCGI and CGI can be enabled at the same time${DEFAULT_COLOR}" &&
+message "${MESSAGE_COLOR}Apache-based and *CGI SAPIs are mutually exclusive (though both FastCGI and CGI can be enabled at the same time)${DEFAULT_COLOR}" &&
 
-config_query_option PHP5_OPTS "Enable FastCGI SAPI?" n \
-                    "--enable-fastcgi" "--disable-fastcgi" &&
+config_query_list PHP5_SAPI "What SAPI do you want to use?" \
+                            apache cgi &&
 
-config_query_option PHP5_OPTS "Enable CGI SAPI?" y \
-                    "--enable-cgi" "--disable-cgi" &&
+if [[ $PHP5_SAPI == cgi ]]; then
+  PHP5_OPTS="${PHP5_OPTS} --enable-cgi" &&
+
+  if [[ $PHP5_BRANCH == legacy ]]; then
+    config_query_option PHP5_OPTS "Enable FastCGI SAPI?" n \
+                        "--enable-fastcgi" "--disable-fastcgi"
+  else
+    message "${MESSAGE_COLOR}The FastCGI SAPI is now always enabled since PHP 5.3.0${DEFAULT_COLOR}"
+  fi
+else
+  config_query_list PHP5_APACHE "Which Apache module to build?" \
+                    none handler filter
+fi &&
 
 if [[ "${PHP5_PEAR}" == "y" ]] || list_find "$PHP5_OPTS" "--enable-cgi" || list_find "$PHP5_OPTS" "--enable-fastcgi" ; then
 	message "${MESSAGE_COLOR}Enabling CLI version for PEAR/CGI/FastCGI support${DEFAULT_COLOR}" &&
@@ -112,9 +123,6 @@ config_query_option PHP5_OPTS "Enable System V semaphore support?" n \
 
 config_query_option PHP5_OPTS "Enable System V shared memory support?" n \
                     "--enable-sysvshm" "--disable-sysvshm" &&
-
-config_query_list PHP5_APACHE "Which Apache module to build?" \
-                  none handler filter &&
 
 config_query_list PHP5_GD "Which GD library to use?" \
                   none internal external &&

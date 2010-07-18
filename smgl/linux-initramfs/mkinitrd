@@ -46,7 +46,7 @@ EOF
 function linuxrc_pre()
 {
 	cat <<-EOF
-#!/bin/sh.shared
+#!/bin/sh
 
 for module in \`cat /modules.lst\`
 do
@@ -107,8 +107,11 @@ function linuxrc_pre_kinit()
 
 function linuxrc_post()
 {
+local rootdev;
+rootdev=$(awk '$2=="/" {print $1}' /etc/fstab)
 	cat <<-EOF
-exec /bin/kinit "\$@"
+/bin/mount $rootdev /root
+exec /bin/switch_root /root /sbin/init
 EOF
 }
 
@@ -1064,13 +1067,25 @@ function module_parts()
 function klibc_parts()
 {
 	local file
-	for file in /usr/lib/klibc/bin/*
+	for file in $(find /usr/lib/klibc/bin/ )
 	do
+		echo "#file b"
 		echo "file /bin/$(basename $file) $file 0755 0 0"
 	done
 	for file in /usr/lib/klibc/lib/*
 	do
+		echo "#file i"
 		echo "file /lib/$(basename $file) $file 0755 0 0"
+	done
+}
+
+function busybox_parts()
+{
+	local file
+	echo "file /bin/busybox /sbin/busybox 0755 0 0"
+	for file in pivot_root mount switch_root cat chroot cpio dd false gzip halt insmod ln mkdir mknod sh less ls 
+	do
+		echo "link /bin/$file /bin/busybox 0755 0 0"
 	done
 }
 
@@ -1336,7 +1351,8 @@ fill_modules
 	dev_parts
 	dir_parts
 	module_parts
-	klibc_parts
+	#klibc_parts
+	busybox_parts
 	raid_parts
 	crypto_parts
 	lvm_parts

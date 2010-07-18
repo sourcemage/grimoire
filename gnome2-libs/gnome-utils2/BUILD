@@ -1,4 +1,4 @@
-OPTS="$GUTILS_IPV6 $GUTILS_FLOPPY $OPTS"  &&
+OPTS="$GUTILS_IPV6 $OPTS"  &&
 
 make_single    &&
 default_build  &&

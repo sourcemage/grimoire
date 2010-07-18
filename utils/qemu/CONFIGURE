@@ -1,13 +1,12 @@
 local QEMU_ARCH_LIST=`cat $SPELL_DIRECTORY/archs` &&
-
 persistent_add QEMU_ARCHS &&
-
-BACKTITLE="Qemu Archs Configuration"           &&
-    TITLE="Arch Selection"                     &&
-     HELP="Select Arch you want to build qemu" &&
 
 # deliberately uses query, see locale CONFIGURE note
 if query "Handpick architectures to emulate (y/n)?" n; then
+  BACKTITLE="Qemu Archs Configuration"           &&
+      TITLE="Arch Selection"                     &&
+       HELP="Select Arch you want to build qemu" &&
+
   QEMU_ARCHS=`dialog --backtitle  "$BACKTITLE"  \
                      --title      "$TITLE"      \
                      --stdout                   \
@@ -19,3 +18,14 @@ fi &&
 if [[ -z $QEMU_ARCHS ]]; then
   QEMU_ARCHS=$(cut -f 1 $SPELL_DIRECTORY/archs | sed -e 's/^/"/' -e 's/\s*$/"/' | tr '\n' ' ')
 fi
+
+. $GRIMOIRE/config_query_multi.function                              &&
+
+config_query_multi QEMU_AUDIO "Select sound system(s) to support"    \
+     oss alsa sdl esd pa fmod                                        &&
+
+config_query_multi QEMU_CARDS "Select sound card(s) to emulate" \
+     ac97 es1370 sb16 cs4231a adlib gus                              &&
+
+config_query_option QEMU_KVM "Enable KVM acceleration support" y     \
+                    "" "--disable-kvm"

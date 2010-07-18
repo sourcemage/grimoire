@@ -1,4 +1,5 @@
 OPTS="$BIND_CAPS  \
+      $BIND_IPV6  \
       $OPTS"      &&
 
 create_account  bind  &&

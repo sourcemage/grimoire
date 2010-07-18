@@ -1,2 +1,3 @@
-OPTS="$OPTS --disable-Werror"
+OPTS="--disable-Werror $OPTS" &&
+
 default_build
