@@ -18,3 +18,107 @@ function default_configure_gcc ()
                       '--disable-multilib'
   fi
 }
+
+function default_build_configure_gcc ()
+{
+    cd ${SOURCE_DIRECTORY}.bld                                &&
+    persistent_read gmp GMP_BUILD_ARCH GMP_BUILD_ARCH         &&
+    persistent_read mpfr MPFR_BUILD_ARCH MPFR_BUILD_ARCH      &&
+
+    if [[ $GMP_BUILD_ARCH  != ${SMGL_COMPAT_ARCHS[4]}
+       || $MPFR_BUILD_ARCH != ${SMGL_COMPAT_ARCHS[4]} ]]; then
+      message "${PROBLEM_COLOR}" 1>&2 &&
+      message "gmp and/or mpfr have been built with a different archspec, building gcc now" 1>&2 &&
+      message "would result in a broken compiler" 1>&2 &&
+      message "${DEFAULT_COLOR}" 1>&2
+      return 1
+    fi                                                        &&
+
+    # install gcc libraries to /lib instead of /lib64
+    sedit "s/lib64/lib/" ${SOURCE_DIRECTORY}/gcc/config/i386/linux64.h &&
+    if [[ "$GCC_NOLIB64" == 'y' ]]; then
+      # tell gcc to target binaries to expect the linker in /lib instead of /lib64
+      sedit "s/lib64/lib/" ${SOURCE_DIRECTORY}gcc/config/i386/t-linux64 || return 1
+    fi                                                        &&
+
+    if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
+           "$ARCHITECTURE"  ==  "pentium-m"  ]];  then
+       CFLAGS=${CFLAGS//-ffast-math/}     &&
+       CXXFLAGS=${CXXFLAGS//-ffast-math/} || return 1
+    fi  &&
+
+    # fixes seg-fault on libiberty/splay.c in v 4.3.2
+    CFLAGS="-O1 $CFLAGS"                                      &&
+
+    OPTS="--build=$HOST $OPTS"                              &&
+    if [[ $CROSS_INSTALL == on ]]; then
+        OPTS="--host=$HOST $OPTS" || return 1
+    fi &&
+
+    PREFIX="${INSTALL_ROOT}/usr" &&
+    LIBPATH="${PREFIX}/lib"      &&
+    LIBEXECPATH="${PREFIX}/libexec/${SPELL}" &&
+    INCLUDEPATH="${LIBPATH}/include" &&
+    DATAPATH="${PREFIX}/share/${SPELL}-data/${HOST}" &&
+
+    CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS" \
+      $SOURCE_DIRECTORY/configure                     \
+        --prefix="${PREFIX}"                          \
+        --libdir="${LIBPATH}"                         \
+        --mandir="${PREFIX}/share/man"                \
+        --infodir="${PREFIX}/share/info"              \
+        --enable-threads=posix                        \
+        --with-system-zlib                            \
+        --with-bugurl="http://bugs.sourcemage.org"    \
+        $GCC_MULTILIB                                 \
+        $OPTS
+}
+
+function default_build_make_gcc ()
+{
+    cd ${SOURCE_DIRECTORY}.bld                                 &&
+    make_single                                                &&
+    make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" \
+        profiledbootstrap-lean &&
+    make_normal
+}
+
+function default_build_gcc ()
+{
+    default_build_configure_gcc &&
+    default_build_make_gcc
+}
+
+#---------------------------------------------------------------------
+##
+## @params library
+##         accepted values: libada libgfortran
+##                          libstdc++-v3 libjava
+##                          libobjc
+##
+#---------------------------------------------------------------------
+function default_install_gcc ()
+{
+    if [[ "$1" == "" ]]; then
+        message "${PROBLEM_COLOR}default_install_gcc: library unspecified.${DEFAULT_COLOR}"
+        return 1
+    fi &&
+    local LIBRARY   &&
+
+    LIBRARY="$1"    &&
+
+    cd  $SOURCE_DIRECTORY.bld  &&
+
+    make_single  &&
+
+    make -C gcc lang.install-common lang.install-man &&
+    make -C $HOST/$LIBRARY install                   &&
+
+    make_normal  &&
+
+    # specs file stuff
+    local SPECSDIR=${INSTALL_ROOT}/usr/lib/gcc/$HOST/$VERSION  &&
+    if [[ -f $SPELL_DIRECTORY/specs_$SPELL ]]; then
+        install $SPELL_DIRECTORY/specs_$SPELL $SPECSDIR/specs-local || return 1
+    fi
+}

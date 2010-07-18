@@ -1,3 +1,6 @@
+# use user-specific worker
+APACHE22_EXTRA="${APACHE22_EXTRA} --with-mpm=${APACHE22_MPM}" &&
+
 # remove APR and APU and reconfigure to use external ones
 rm  -fr  srclib/apr*/  &&
 

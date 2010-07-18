@@ -26,6 +26,10 @@ if [[ "$FIREFOX_CVS" == "y" ]]; then
 autoconf-2.13
 fi &&
 
+# necko-wifi is part of xulrunner if enabled, but firefox
+# compile fails without wireless_tools without this option
+echo ac_add_options --disable-necko-wifi >> .mozconfig  &&
+
 make_single  &&
 make -f client.mk build &&
 make_normal

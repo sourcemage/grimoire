@@ -1,4 +1,2 @@
-local KVERS                                             &&
-KVERS=$(get_kernel_version)                             &&
-./configure --kernelsrcdir=/usr/src/linux-$KVERS $OPTS  &&
+./configure --kernelsrcdir=/lib/modules/$(get_kernel_version)/build $OPTS &&
 make

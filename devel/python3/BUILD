@@ -1,5 +1,3 @@
-OPT="$CFLAGS" &&
-
 OPTS="--enable-shared $PYTHON3_OPTS $OPTS" &&
 
 # The following file from kdebindings has a syntax error that
@@ -11,7 +9,7 @@ if [[ -f $INSTALL_ROOT/usr/lib/python$PYTHON_VERSION/pydcop.py ]]; then
     "$SOURCE_DIRECTORY/spell-tmp"
 fi &&
 
-default_build &&
+EXTRA_CFLAGS="$CFLAGS" default_build &&
 
 if [[ $PY3K == y ]]; then
   # python3 -c 'print ("(c)", "lynx"*3)'

@@ -1,2 +1,0 @@
-  make    libs     &&
-  make    aldo

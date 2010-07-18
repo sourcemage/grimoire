@@ -1,2 +1,1 @@
-cp  $SCRIPT_DIRECTORY/Makefile  $SOURCE_DIRECTORY  &&
-make
+default_build_make

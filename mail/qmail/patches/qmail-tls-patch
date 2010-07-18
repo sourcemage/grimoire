@@ -1,0 +1,1361 @@
+Frederik Vermeulen <qmail-tls akrul inoa.net> 20021228-renato
+http://inoa.net/qmail/qmail-1.03-tls.patch
+
+This patch implements RFC2487 in qmail. This means you can 
+get SSL or TLS encrypted and authenticated SMTP between 
+the MTAs and from MUA to MTA. 
+The code is considered experimental (but has worked for
+many since its first release on 1999-03-21).
+
+Usage: - install OpenSSL-0.9.6g http://www.openssl.org/
+         (any 0.9.6 version is presumed to work)
+       - apply patch to qmail-1.03 http://www.qmail.org/ 
+         The patches to qmail-remote.c
+         and qmail-smtpd.c can be applied separately.
+       - provide a server certificate in /var/qmail/control/servercert.pem.
+         "make cert" makes a self-signed certificate.
+         "make cert-req" makes a certificate request.
+         Note: you can add the CA certificate and intermediate
+         certs to the end of servercert.pem.
+       - replace qmail-smtpd and/or qmail-remote binary
+       - verify operation (header information should show
+         something like
+         "Received [..] with DES-CBC3-SHA encrypted SMTP;")
+         If you don't have a server to test with, you can test
+         by sending mail to tag-ping@tbs-internet.com,
+         which will bounce your mail.
+
+Optional: - when DEBUG is defined, some extra TLS info will be logged
+          - qmail-remote will authenticate with the certificate in
+            /var/qmail/control/clientcert.pem. By preference this is
+            the same as servercert.pem, where nsCertType should be 
+            == server,client or be a generic certificate (no usage specified). 
+          - when a 512 RSA key is provided in /var/qmail/control/rsa512.pem,
+            this key will be used instead of on-the-fly generation by
+       	    qmail-smtpd. Periodical replacement can be done by crontab:
+       	    01 01 * * *  umask 0077; /usr/local/ssl/bin/openssl genrsa \
+       	     -out /var/qmail/control/rsa512.new 512 > /dev/null 2>&1 &&\
+       	     chown qmaild.qmail /var/qmail/control/rsa512.new && /bin/mv -f \
+       	     /var/qmail/control/rsa512.new /var/qmail/control/rsa512.pem
+          - server authentication:
+            qmail-remote requires authentication from servers for which
+            /var/qmail/control/tlshosts/host.dom.ain.pem exists.
+            The .pem file contains the validating CA certificates
+            (or self-signed server certificate).
+            CommonName has to match.
+            WARNING: this option may cause mail to be delayed, bounced,
+            doublebounced, and lost.
+          - client authentication:
+            when relay rules would reject an incoming mail, 
+            qmail-smtpd can allow the mail based on a presented cert.
+            Certs are verified against a CA list in 
+            /var/qmail/control/clientca.pem (eg. http://www.modssl.org/
+            source/cvs/exp/mod_ssl/pkg.mod_ssl/pkg.sslcfg/ca-bundle.crt)
+            and the cert email-address has to match a line in
+            /var/qmail/control/tlsclients. This email-address is logged
+            in the headers.
+          - cipher selection:
+            qmail-remote: 
+              openssl cipher string (`man ciphers`) read from 
+              /var/qmail/control/tlsclientciphers
+            qmail-smtpd: 
+              openssl cipher string read from TLSCIPHERS environment variable
+              (can vary based on client IP address e.g.)
+              or if that is not available /var/qmail/control/tlsserverciphers
+          - smtps (deprecated SMTP over TLS via port 465):
+            qmail-remote: when connecting to port 465 
+            qmail-smtpd: when SMTPS environment variable is not empty
+
+Caveats: - do a `make clean` after patching
+         - binaries dynamically linked with current openssl versions need
+           recompilation when the shared openssl libs are upgraded.
+         - this patch could conflict with other patches (notably those
+           replacing \n with \r\n, which is a bad idea on encrypted links).
+         - some broken servers have a problem with TLSv1 compatibility.
+           Uncomment the line where we set the SSL_OP_NO_TLSv1 option.
+         - needs working /dev/urandom (or EGD for openssl versions >0.9.7)
+           for seeding random number generator.
+         - packagers should make sure that installing without a valid 
+           servercert is impossible
+         - when applied in combination with AUTH patch, AUTH patch
+           should be applied first and first part of this patch
+           will fail. This error can be ignored. Packagers should
+           cut the first 12 lines of this patch to make a happy
+           patch
+
+Copyright: GPL
+           Links with OpenSSL
+           Inspiration and code from examples in SSLeay (E. Young
+           <eay@cryptsoft.com> and T. Hudson <tjh@cryptsoft.com>),
+           stunnel (M. Trojnara <mtrojnar@ddc.daewoo.com.pl>),
+           Postfix/TLS (L. Jaenicke <Lutz.Jaenicke@aet.tu-cottbus.de>),
+           modssl (R. Engelschall <rse@engelschall.com>),
+           openssl examples of E. Rescorla <ekr@rtfm.com>.
+           Debug code, tlscipher selection, many feature suggestions,
+           French docs https://www.TBS-internet.com/ssl/qmail-tls.html 
+           from Jean-Philippe Donnio <tag-ssl@tbs-internet.com>.
+           Openssl usage consulting from B. M"oller <bmoeller@acm.org>.
+           Bug report from A. Dustman <adustman@comstar.net>.
+           Ssl_timeoutio functions (non-blocking io, timeouts), smtps, 
+           auth, qmtp, mxps patch compatibility, man pages, code cleanup,
+           improved error reporting, RFC2595 server identity check
+           from A. Meltzer <albertikm (a) hotmail.com>.
+           Bug report from Niall Richard Murphy, Tim Helton.
+
+Bug reports: mailto:<qmail-tls@inoa.net>
+
+
+>----< Cut the next 12 lines if applying over AUTH server patch >---<
+--- qmail-1.03-orig/qmail-smtpd.c	Mon Jun 15 03:53:16 1998
++++ qmail-1.03/qmail-smtpd.c	Tue Jun 18 09:49:38 2002
+@@ -229,7 +229,8 @@
+ }
+ void smtp_ehlo(arg) char *arg;
+ {
+-  smtp_greet("250-"); out("\r\n250-PIPELINING\r\n250 8BITMIME\r\n");
++  smtp_greet("250-");
++  out("\r\n250-PIPELINING\r\n250 8BITMIME\r\n");
+   seenmail = 0; dohelo(arg);
+ }
+ void smtp_rset()
+>----< Cut previous 12 lines if applying over AUTH server patch >---<
+
+
+
+>----< The next 89 lines are the qmail-remote EHLO patch >---<
+--- qmail-1.03-orig/qmail-remote.c	Mon Jun 15 03:53:16 1998
++++ qmail-1.03/qmail-remote.c	Sun Nov 24 13:05:20 2002
+@@ -163,6 +163,59 @@ unsigned long smtpcode()
+   return code;
+ }
+ 
++#ifdef EHLO
++saa ehlokw = {0}; /* list of EHLO keywords and parameters */
++int maxehlokwlen = 0;
++
++unsigned long ehlo()
++{
++  stralloc *sa;
++  char *s, *e, *p;
++  unsigned long code;
++
++  if (ehlokw.len > maxehlokwlen) maxehlokwlen = ehlokw.len;
++  ehlokw.len = 0;
++
++# ifdef MXPS
++  if (type == 's') return 0;
++# endif
++
++  substdio_puts(&smtpto, "EHLO ");
++  substdio_put(&smtpto, helohost.s, helohost.len);
++  substdio_puts(&smtpto, "\r\n");
++  substdio_flush(&smtpto);
++
++  code = smtpcode();
++  if (code != 250) return code;
++
++  s = smtptext.s;
++  while (*s++ != '\n') ; /* skip the first line: contains the domain */
++
++  e = smtptext.s + smtptext.len - 6; /* 250-?\n */
++  while (s <= e)
++  {
++    if (!saa_readyplus(&ehlokw, 1)) temp_nomem();
++    sa = ehlokw.sa + ehlokw.len++;
++    if (ehlokw.len > maxehlokwlen) *sa = sauninit; else sa->len = 0;
++
++    /* smtptext is known to end in a '\n' */
++    for (p = (s += 4); ; ++p)
++      if (*p == '\n' || *p == ' ' || *p == '\t') {
++        if (!stralloc_catb(sa, s, p - s) || !stralloc_0(sa)) temp_nomem();
++        if (*p++ == '\n') break;
++        while (*p == ' ' || *p == '\t') ;
++        s = p;
++      }
++    s = p;
++    /* keyword should consist of alpha-num and '-'
++     * broken AUTH might use '=' instead of space */
++    for (p = sa->s; *p; ++p) if (*p == '=') { *p = 0; break; }
++  }
++
++  return 250;
++}
++#endif
++
+ void outsmtptext()
+ {
+   int i; 
+@@ -224,12 +277,26 @@ void smtp()
+  
+   if (smtpcode() != 220) quit("ZConnected to "," but greeting failed");
+  
++#ifdef EHLO
++  code = ehlo();
++
++  if (code == 250) {
++    /* add EHLO response checks here */
++
++    /* and if EHLO failed, use HELO */
++  } else {
++#endif
++ 
+   substdio_puts(&smtpto,"HELO ");
+   substdio_put(&smtpto,helohost.s,helohost.len);
+   substdio_puts(&smtpto,"\r\n");
+   substdio_flush(&smtpto);
+   if (smtpcode() != 250) quit("ZConnected to "," but my name was rejected");
+  
++#ifdef EHLO
++  }
++#endif
++ 
+   substdio_puts(&smtpto,"MAIL FROM:<");
+   substdio_put(&smtpto,sender.s,sender.len);
+   substdio_puts(&smtpto,">\r\n");
+>----< Previous 89 lines are the qmail-remote EHLO patch >---<
+
+
+
+--- qmail-1.03-orig/qmail-smtpd.c	Mon Jun 15 03:53:16 1998
++++ qmail-1.03/qmail-smtpd.c	Mon Jul  1 10:47:54 2002
+@@ -227,6 +227,7 @@ void smtp_helo(arg) char *arg;
+   smtp_greet("250 "); out("\r\n");
+   seenmail = 0; dohelo(arg);
+ }
++/* ESMTP extensions are published here */
+ void smtp_ehlo(arg) char *arg;
+ {
+   smtp_greet("250-");
+@@ -231,2 +232,5 @@ void smtp_ehlo(arg) char *arg;
+ {
+   smtp_greet("250-");
++#ifdef TLS
++  if (!ssl) out("\r\n250-STARTTLS");
++#endif
+--- qmail-1.03-orig-orig/qmail-smtpd.c	Sat Dec 28 14:11:34 2002
++++ qmail-1.03/qmail-smtpd.c	Sun Dec  8 18:27:20 2002
+@@ -28,9 +28,26 @@
+ unsigned int databytes = 0;
+ int timeout = 1200;
+ 
++const char *protocol = "SMTP";
++
++#ifdef TLS
++# include "tls.h"
++# include "ssl_timeoutio.h"
++
++void tls_init();
++int tls_verify();
++void tls_nogateway();
++int ssl_rfd = -1, ssl_wfd = -1; /* SSL_get_Xfd() are broken */
++#endif
++
+ int safewrite(fd,buf,len) int fd; char *buf; int len;
+ {
+   int r;
++#ifdef TLS
++  if (ssl && fd == ssl_wfd)
++    r = ssl_timeoutwrite(timeout, ssl_rfd, ssl_wfd, ssl, buf, len);
++  else
++#endif
+   r = timeoutwrite(timeout,fd,buf,len);
+   if (r <= 0) _exit(1);
+   return r;
+@@ -50,7 +67,16 @@ void die_ipme() { out("421 unable to fig
+ void straynewline() { out("451 See http://pobox.com/~djb/docs/smtplf.html.\r\n"); flush(); _exit(1); }
+ 
+ void err_bmf() { out("553 sorry, your envelope sender is in my badmailfrom list (#5.7.1)\r\n"); }
++#ifndef TLS
+ void err_nogateway() { out("553 sorry, that domain isn't in my list of allowed rcpthosts (#5.7.1)\r\n"); }
++#else
++void err_nogateway()
++{
++  out("553 sorry, that domain isn't in my list of allowed rcpthosts");
++  tls_nogateway();
++  out(" (#5.7.1)\r\n");
++}
++#endif
+ void err_unimpl() { out("502 unimplemented (#5.5.1)\r\n"); }
+ void err_syntax() { out("555 syntax error (#5.5.4)\r\n"); }
+ void err_wantmail() { out("503 MAIL first (#5.5.1)\r\n"); }
+@@ -131,6 +157,11 @@ void setup()
+   if (!remotehost) remotehost = "unknown";
+   remoteinfo = env_get("TCPREMOTEINFO");
+   relayclient = env_get("RELAYCLIENT");
++
++#ifdef TLS
++  if (env_get("SMTPS")) { smtps = 1; tls_init(); }
++  else
++#endif
+   dohelo(remotehost);
+ }
+ 
+@@ -213,6 +244,9 @@ int addrallowed()
+   int r;
+   r = rcpthosts(addr.s,str_len(addr.s));
+   if (r == -1) die_control();
++#ifdef TLS
++  if (r == 0) if (tls_verify()) r = -2;
++#endif
+   return r;
+ }
+ 
+@@ -274,6 +308,11 @@ int saferead(fd,buf,len) int fd; char *b
+ {
+   int r;
+   flush();
++#ifdef TLS
++  if (ssl && fd == ssl_rfd)
++    r = ssl_timeoutread(timeout, ssl_rfd, ssl_wfd, ssl, buf, len);
++  else
++#endif
+   r = timeoutread(timeout,fd,buf,len);
+   if (r == -1) if (errno == error_timeout) die_alarm();
+   if (r <= 0) die_read();
+@@ -383,7 +422,7 @@ void smtp_data() {
+   qp = qmail_qp(&qqt);
+   out("354 go ahead\r\n");
+  
+-  received(&qqt,"SMTP",local,remoteip,remotehost,remoteinfo,fakehelo);
++  received(&qqt,protocol,local,remoteip,remotehost,remoteinfo,fakehelo);
+   blast(&hops);
+   hops = (hops >= MAXHOPS);
+   if (hops) qmail_fail(&qqt);
+@@ -399,6 +438,203 @@ void smtp_data() {
+   out("\r\n");
+ }
+ 
++#ifdef TLS
++stralloc proto = {0};
++int ssl_verified = 0;
++const char *ssl_verify_err = 0;
++
++void smtp_tls(char *arg)
++{
++  if (ssl) err_unimpl();
++  else if (*arg) out("501 Syntax error (no parameters allowed) (#5.5.4)\r\n");
++  else tls_init();
++}
++
++RSA *tmp_rsa_cb(SSL *ssl, int export, int keylen)
++{
++  if (!export) keylen = 512;
++  if (keylen == 512) {
++    BIO *in = BIO_new_file("control/rsa512.pem", "r");
++    if (in) {
++      RSA *rsa = PEM_read_bio_RSAPrivateKey(in, NULL, NULL, NULL);
++      BIO_free(in);
++      if (rsa) return rsa;
++    }
++  }
++  return RSA_generate_key(keylen, RSA_F4, NULL, NULL);
++}
++
++/* don't want to fail handshake if cert isn't verifiable */
++int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) { return 1; }
++
++void tls_nogateway()
++{
++  /* there may be cases when relayclient is set */
++  if (!ssl || relayclient) return;
++  out("; no valid cert for gatewaying");
++  if (ssl_verify_err) { out(": "); out(ssl_verify_err); }
++}
++void tls_out(const char *s1, const char *s2)
++{
++  out("454 TLS "); out(s1);
++  if (s2) { out(": "); out(s2); }
++  out(" (#4.3.0)\r\n"); flush();
++}
++void tls_err(const char *s) { tls_out(s, ssl_error()); if (smtps) die_read(); }
++
++# define CLIENTCA "control/clientca.pem"
++# define SERVERCERT "control/servercert.pem"
++
++int tls_verify()
++{
++  stralloc clients = {0};
++  struct constmap mapclients;
++
++  if (!ssl || relayclient || ssl_verified) return 0;
++  ssl_verified = 1; /* don't do this twice */
++
++  /* request client cert to see if it can be verified by one of our CAs
++   * and the associated email address matches an entry in tlsclients */
++  switch (control_readfile(&clients, "control/tlsclients", 0))
++  {
++  case 1:
++    if (constmap_init(&mapclients, clients.s, clients.len, 0)) {
++      /* if CLIENTCA contains all the standart root certificates, a
++       * 0.9.6b client might fail with SSL_R_EXCESSIVE_MESSAGE_SIZE;
++       * it is probably due to 0.9.6b supporting only 8k key exchange
++       * data while the 0.9.6c release increases that limit to 100k */
++      STACK_OF(X509_NAME) *sk = SSL_load_client_CA_file(CLIENTCA);
++      if (sk) {
++        SSL_set_client_CA_list(ssl, sk);
++        SSL_set_verify(ssl, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE, NULL);
++        break;
++      }
++      constmap_free(&mapclients);
++    }
++  case 0: alloc_free(clients.s); return 0;
++  case -1: die_control();
++  }
++
++  if (ssl_timeoutrehandshake(timeout, ssl_rfd, ssl_wfd, ssl) <= 0) {
++    const char *err = ssl_strerror();
++    tls_out("rehandshake failed", err); die_read();
++  }
++
++  do { /* one iteration */
++    X509 *peercert;
++    X509_NAME *subj;
++    stralloc email = {0};
++
++    int n = SSL_get_verify_result(ssl);
++    if (n != X509_V_OK)
++      { ssl_verify_err = X509_verify_cert_error_string(n); break; }
++    peercert = SSL_get_peer_certificate(ssl);
++    if (!peercert) break;
++
++    subj = X509_get_subject_name(peercert);
++    n = X509_NAME_get_index_by_NID(subj, NID_pkcs9_emailAddress, -1);
++    if (n >= 0) {
++      const ASN1_STRING *s = X509_NAME_get_entry(subj, n)->value;
++      if (s) { email.len = s->length; email.s = s->data; }
++    }
++
++    if (email.len <= 0)
++      ssl_verify_err = "contains no email address";
++    else if (!constmap(&mapclients, email.s, email.len))
++      ssl_verify_err = "email address not in my list of tlsclients";
++    else {
++      /* add the cert email to the proto if it helped allow relaying */
++      --proto.len;
++      if (!stralloc_cats(&proto, "\n  cert ") /* continuation line */
++        || !stralloc_catb(&proto, email.s, email.len)
++        || !stralloc_0(&proto)) die_nomem();
++      relayclient = "";
++      protocol = proto.s;
++    }
++
++    X509_free(peercert);
++  } while (0);
++  constmap_free(&mapclients); alloc_free(clients.s);
++
++  /* we are not going to need this anymore: free the memory */
++  SSL_set_client_CA_list(ssl, NULL);
++  SSL_set_verify(ssl, SSL_VERIFY_NONE, NULL);
++
++  return relayclient ? 1 : 0;
++}
++
++void tls_init()
++{
++  SSL *myssl;
++  SSL_CTX *ctx;
++  const char *ciphers;
++  stralloc saciphers = {0};
++
++  SSL_library_init();
++
++  /* a new SSL context with the bare minimum of options */
++  ctx = SSL_CTX_new(SSLv23_server_method());
++  if (!ctx) { tls_err("unable to initialize ctx"); return; }
++
++  if (!SSL_CTX_use_certificate_chain_file(ctx, SERVERCERT))
++    { SSL_CTX_free(ctx); tls_err("missing certificate"); return; }
++  SSL_CTX_load_verify_locations(ctx, CLIENTCA, NULL);
++  /* set the callback here; SSL_set_verify didn't work before 0.9.6c */
++  SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, verify_cb);
++
++  /* a new SSL object, with the rest added to it directly to avoid copying */
++  myssl = SSL_new(ctx);
++  SSL_CTX_free(ctx);
++  if (!myssl) { tls_err("unable to initialize ssl"); return; }
++
++  /* this will also check whether publc and private keys match */
++  if (!SSL_use_RSAPrivateKey_file(myssl, SERVERCERT, SSL_FILETYPE_PEM))
++    { SSL_free(myssl); tls_err("no valid RSA private key"); return; }
++
++  ciphers = env_get("TLSCIPHERS");
++  if (!ciphers) {
++    if (control_readfile(&saciphers, "control/tlsserverciphers") == -1)
++      { SSL_free(myssl); die_control(); }
++    if (saciphers.len) { /* convert all '\0's except the last one to ':' */
++      int i;
++      for (i = 0; i < saciphers.len - 1; ++i)
++        if (!saciphers.s[i]) saciphers.s[i] = ':';
++      ciphers = saciphers.s;
++    }
++  }
++  if (!ciphers || !*ciphers) ciphers = "DEFAULT";
++  SSL_set_cipher_list(myssl, ciphers);
++  alloc_free(saciphers.s);
++
++  SSL_set_tmp_rsa_callback(myssl, tmp_rsa_cb);
++  SSL_set_rfd(myssl, ssl_rfd = substdio_fileno(&ssin));
++  SSL_set_wfd(myssl, ssl_wfd = substdio_fileno(&ssout));
++
++  if (!smtps) { out("220 ready for tls\r\n"); flush(); }
++
++  if (ssl_timeoutaccept(timeout, ssl_rfd, ssl_wfd, myssl) <= 0) {
++    /* neither cleartext nor any other response here is part of a standard */
++    const char *err = ssl_strerror();
++    ssl_free(myssl); tls_out("connection failed", err); die_read();
++  }
++  ssl = myssl;
++
++  /* populate the protocol string, used in Received */
++  if (!stralloc_copys(&proto, SSL_get_cipher(ssl))
++    || !stralloc_cats(&proto, " encrypted SMTP")) die_nomem();
++  if (smtps) if (!stralloc_append(&proto, "S")) die_nomem();
++  if (!stralloc_0(&proto)) die_nomem();
++  protocol = proto.s;
++
++  /* have to discard the pre-STARTTLS HELO/EHLO argument, if any */
++  dohelo(remotehost);
++}
++
++# undef SERVERCERT
++# undef CLIENTCA
++
++#endif
++
+ struct commands smtpcommands[] = {
+   { "rcpt", smtp_rcpt, 0 }
+ , { "mail", smtp_mail, 0 }
+@@ -408,6 +644,9 @@ struct commands smtpcommands[] = {
+ , { "ehlo", smtp_ehlo, flush }
+ , { "rset", smtp_rset, 0 }
+ , { "help", smtp_help, flush }
++#ifdef TLS
++, { "starttls", smtp_tls, flush }
++#endif
+ , { "noop", err_noop, flush }
+ , { "vrfy", err_vrfy, flush }
+ , { 0, err_unimpl, flush }
+--- qmail-1.03-orig-orig/qmail-remote.c	Sat Dec 28 14:11:34 2002
++++ qmail-1.03/qmail-remote.c	Sun Dec  8 18:27:20 2002
+@@ -48,6 +48,17 @@ saa reciplist = {0};
+ 
+ struct ip_address partner;
+ 
++#ifdef TLS
++# include <sys/stat.h>
++# include "tls.h"
++# include "ssl_timeoutio.h"
++# include <openssl/x509v3.h>
++# define EHLO 1
++
++int tls_init();
++const char *ssl_err_str = 0;
++#endif 
++
+ void out(s) char *s; { if (substdio_puts(subfdoutsmall,s) == -1) _exit(0); }
+ void zero() { if (substdio_put(subfdoutsmall,"\0",1) == -1) _exit(0); }
+ void zerodie() { zero(); substdio_flush(subfdoutsmall); _exit(0); }
+@@ -99,6 +110,9 @@ void dropped() {
+   outhost();
+   out(" but connection died. ");
+   if (flagcritical) out("Possible duplicate! ");
++#ifdef TLS
++  if (ssl_err_str) { out(ssl_err_str); out(" "); }
++#endif
+   out("(#4.4.2)\n");
+   zerodie();
+ }
+@@ -110,6 +124,12 @@ int timeout = 1200;
+ int saferead(fd,buf,len) int fd; char *buf; int len;
+ {
+   int r;
++#ifdef TLS
++  if (ssl) {
++    r = ssl_timeoutread(timeout, smtpfd, smtpfd, ssl, buf, len);
++    if (r < 0) ssl_err_str = ssl_strerror();
++  } else
++#endif
+   r = timeoutread(timeout,smtpfd,buf,len);
+   if (r <= 0) dropped();
+   return r;
+@@ -117,6 +137,12 @@ int saferead(fd,buf,len) int fd; char *b
+ int safewrite(fd,buf,len) int fd; char *buf; int len;
+ {
+   int r;
++#ifdef TLS
++  if (ssl) {
++    r = ssl_timeoutwrite(timeout, smtpfd, smtpfd, ssl, buf, len);
++    if (r < 0) ssl_err_str = ssl_strerror();
++  } else
++#endif 
+   r = timeoutwrite(timeout,smtpfd,buf,len);
+   if (r <= 0) dropped();
+   return r;
+@@ -232,6 +258,11 @@ void quit(prepend,append)
+ char *prepend;
+ char *append;
+ {
++#ifdef TLS
++  /* shouldn't talk to the client unless in an appropriate state */
++  int state = ssl ? ssl->state : SSL_ST_BEFORE;
++  if (state & SSL_ST_OK || !smtps && state & SSL_ST_BEFORE)
++#endif
+   substdio_putsflush(&smtpto,"QUIT\r\n");
+   /* waiting for remote side is just too ridiculous */
+   out(prepend);
+@@ -239,6 +270,30 @@ char *append;
+   out(append);
+   out(".\n");
+   outsmtptext();
++
++#if defined(TLS) && defined(DEBUG)
++  if (ssl) {
++    X509 *peercert;
++
++    out("STARTTLS proto="); out(SSL_get_version(ssl));
++    out("; cipher="); out(SSL_get_cipher(ssl));
++
++    /* we want certificate details */
++    if (peercert = SSL_get_peer_certificate(ssl)) {
++      char *str;
++
++      str = X509_NAME_oneline(X509_get_subject_name(peercert), NULL, 0);
++      out("; subject="); out(str); OPENSSL_free(str);
++
++      str = X509_NAME_oneline(X509_get_issuer_name(peercert), NULL, 0);
++      out("; issuer="); out(str); OPENSSL_free(str);
++
++      X509_free(peercert);
++    }
++    out(";\n");
++  }
++#endif
++
+   zerodie();
+ }
+ 
+@@ -267,6 +322,182 @@ void blast()
+   substdio_flush(&smtpto);
+ }
+ 
++#ifdef TLS
++char *partner_fqdn = 0;
++
++# define TLS_QUIT quit(ssl ? "; connected to " : "; connecting to ", "")
++void tls_quit(const char *s1, const char *s2)
++{
++  out(s1); if (s2) { out(": "); out(s2); } TLS_QUIT;
++}
++# define tls_quit_error(s) tls_quit(s, ssl_error())
++
++int match_partner(const char *s, int len)
++{
++  if (!case_diffb(partner_fqdn, len, s) && !partner_fqdn[len]) return 1;
++  /* we also match if the name is *.domainname */
++  if (*s == '*') {
++    const char *domain = partner_fqdn + str_chr(partner_fqdn, '.');
++    if (!case_diffb(domain, --len, ++s) && !domain[len]) return 1;
++  }
++  return 0;
++}
++
++/* don't want to fail handshake if certificate can't be verified */
++int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) { return 1; }
++
++int tls_init()
++{
++  int i;
++  SSL *myssl;
++  SSL_CTX *ctx;
++  stralloc saciphers = {0};
++  const char *ciphers, *servercert = 0;
++
++  if (partner_fqdn) {
++    struct stat st;
++    stralloc tmp = {0};
++    if (!stralloc_copys(&tmp, "control/tlshosts/")
++      || !stralloc_catb(&tmp, partner_fqdn, str_len(partner_fqdn))
++      || !stralloc_catb(&tmp, ".pem", 5)) temp_nomem();
++    if (stat(tmp.s, &st)) alloc_free(tmp.s); else servercert = tmp.s;
++  }
++ 
++  if (!smtps) {
++    stralloc *sa = ehlokw.sa;
++    unsigned int len = ehlokw.len;
++    /* look for STARTTLS among EHLO keywords */
++    for ( ; len && case_diffs(sa->s, "STARTTLS"); ++sa, --len) ;
++    if (!len) {
++      if (!servercert) return 0;
++      out("ZNo TLS achieved while "); out(servercert);
++      out(" exists"); smtptext.len = 0; TLS_QUIT;
++    }
++  }
++
++  SSL_library_init();
++  ctx = SSL_CTX_new(SSLv23_client_method());
++  if (!ctx) {
++    if (!smtps && !servercert) return 0;
++    smtptext.len = 0;
++    tls_quit_error("ZTLS error initializing ctx");
++  }
++
++  if (servercert) {
++    if (!SSL_CTX_load_verify_locations(ctx, servercert, NULL)) {
++      SSL_CTX_free(ctx);
++      smtptext.len = 0;
++      out("ZTLS unable to load "); tls_quit_error(servercert);
++    }
++    /* set the callback here; SSL_set_verify didn't work before 0.9.6c */
++    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_cb);
++  }
++
++  /* let the other side complain if it needs a cert and we don't have one */
++# define CLIENTCERT "control/clientcert.pem"
++  if (SSL_CTX_use_certificate_chain_file(ctx, CLIENTCERT))
++    SSL_CTX_use_RSAPrivateKey_file(ctx, CLIENTCERT, SSL_FILETYPE_PEM);
++# undef CLIENTCERT
++
++  myssl = SSL_new(ctx);
++  SSL_CTX_free(ctx);
++  if (!myssl) {
++    if (!smtps && !servercert) return 0;
++    smtptext.len = 0;
++    tls_quit_error("ZTLS error initializing ssl");
++  }
++
++  if (!smtps) substdio_putsflush(&smtpto, "STARTTLS\r\n");
++
++  /* while the server is preparing a responce, do something else */
++  if (control_readfile(&saciphers, "control/tlsclientciphers", 0) == -1)
++    { SSL_free(myssl); temp_control(); }
++  if (saciphers.len) {
++    for (i = 0; i < saciphers.len - 1; ++i)
++      if (!saciphers.s[i]) saciphers.s[i] = ':';
++    ciphers = saciphers.s;
++  }
++  else ciphers = "DEFAULT";
++  SSL_set_cipher_list(myssl, ciphers);
++  alloc_free(saciphers.s);
++
++  /* SSL_set_options(myssl, SSL_OP_NO_TLSv1); */
++  SSL_set_fd(myssl, smtpfd);
++
++  /* read the responce to STARTTLS */
++  if (!smtps) {
++    if (smtpcode() != 220) {
++      SSL_free(myssl);
++      if (!servercert) return 0;
++      out("ZSTARTTLS rejected while ");
++      out(servercert); out(" exists"); TLS_QUIT;
++    }
++    smtptext.len = 0;
++  }
++
++  ssl = myssl;
++  if (ssl_timeoutconn(timeout, smtpfd, smtpfd, ssl) <= 0)
++    tls_quit("ZTLS connect failed", ssl_strerror());
++
++  if (servercert) {
++    X509 *peercert;
++    STACK_OF(GENERAL_NAME) *gens;
++
++    int r = SSL_get_verify_result(ssl);
++    if (r != X509_V_OK) {
++      out("ZTLS unable to verify server with ");
++      tls_quit(servercert, X509_verify_cert_error_string(r));
++    }
++    alloc_free(servercert);
++
++    peercert = SSL_get_peer_certificate(ssl);
++    if (!peercert) {
++      out("ZTLS unable to verify server ");
++      tls_quit(partner_fqdn, "no certificate provided");
++    }
++
++    /* RFC 2595 section 2.4: find a matching name
++     * first find a match among alternative names */
++    gens = X509_get_ext_d2i(peercert, NID_subject_alt_name, 0, 0);
++    if (gens) {
++      for (i = 0, r = sk_GENERAL_NAME_num(gens); i < r; ++i)
++      {
++        const GENERAL_NAME *gn = sk_GENERAL_NAME_value(gens, i);
++        if (gn->type == GEN_DNS)
++          if (match_partner(gn->d.ia5->data, gn->d.ia5->length)) break;
++      }
++      sk_GENERAL_NAME_free(gens);
++    }
++
++    /* no alternative name matched, look up commonName */
++    if (!gens || i >= r) {
++      stralloc peer = {0};
++      X509_NAME *subj = X509_get_subject_name(peercert);
++      i = X509_NAME_get_index_by_NID(subj, NID_commonName, -1);
++      if (i >= 0) {
++        const ASN1_STRING *s = X509_NAME_get_entry(subj, i)->value;
++        if (s) { peer.len = s->length; peer.s = s->data; }
++      }
++      if (peer.len <= 0) {
++        out("ZTLS unable to verify server ");
++        tls_quit(partner_fqdn, "certificate contains no valid commonName");
++      }
++      if (!match_partner(peer.s, peer.len)) {
++        out("ZTLS unable to verify server "); out(partner_fqdn);
++        out(": received certificate for "); outsafe(&peer); TLS_QUIT;
++      }
++    }
++
++    X509_free(peercert);
++  }
++
++  if (smtps) if (smtpcode() != 220)
++    quit("ZTLS Connected to "," but greeting failed");
++
++  return 1;
++}
++#endif
++
+ stralloc recip = {0};
+ 
+ void smtp()
+@@ -274,12 +505,37 @@ void smtp()
+   unsigned long code;
+   int flagbother;
+   int i;
++
++#ifndef PORT_SMTP
++  /* the qmtpc patch uses smtp_port and undefines PORT_SMTP */
++# define port smtp_port
++#endif
++
++#ifdef TLS
++# ifdef MXPS
++  if (type == 'S') smtps = 1;
++  else if (type != 's')
++# endif
++    if (port == 465) smtps = 1;
++  if (!smtps)
++#endif
+  
+   if (smtpcode() != 220) quit("ZConnected to "," but greeting failed");
+  
+ #ifdef EHLO
++# ifdef TLS
++  if (!smtps)
++# endif
+   code = ehlo();
+ 
++# ifdef TLS
++  if (tls_init())
++    /* RFC2487 says we should issue EHLO (even if we might not need
++     * extensions); at the same time, it does not prohibit a server
++     * to reject the EHLO and make us fallback to HELO */
++    code = ehlo();
++# endif
++
+   if (code == 250) {
+     /* add EHLO response checks here */
+ 
+@@ -484,6 +740,9 @@ char **argv;
+     if (timeoutconn(smtpfd,&ip.ix[i].ip,(unsigned int) port,timeoutconnect) == 0) {
+       tcpto_err(&ip.ix[i].ip,0);
+       partner = ip.ix[i].ip;
++#ifdef TLS
++      partner_fqdn = ip.ix[i].fqdn;
++#endif
+       smtp(); /* does not return */
+     }
+     tcpto_err(&ip.ix[i].ip,errno == error_timeout);
+--- qmail-1.03-orig/qmail-smtpd.8	Mon Jun 15 10:53:16 1998
++++ qmail-1.03/qmail-smtpd.8	Sun Dec  8 18:27:20 2002
+@@ -14,6 +14,15 @@ must be supplied several environment var
+ see
+ .BR tcp-environ(5) .
+ 
++If the environment variable
++.B SMTPS
++is non-empty,
++.B qmail-smtpd
++starts a TLS session (to support the deprecated SMTPS protocol,
++normally on port 465). Otherwise,
++.B qmail-smtpd
++offers the STARTTLS extension to ESMTP.
++
+ .B qmail-smtpd
+ is responsible for counting hops.
+ It rejects any message with 100 or more 
+@@ -49,6 +58,12 @@ may be of the form
+ .BR @\fIhost ,
+ meaning every address at
+ .IR host .
++
++.TP 5
++.I clientca.pem
++A list of Certifying Authority (CA) certificates that are used to verify
++the client-presented certificates during a TLS-encrypted session.
++
+ .TP 5
+ .I databytes
+ Maximum number of bytes allowed in a message,
+@@ -151,6 +166,19 @@ may include wildcards:
+ 
+ Envelope recipient addresses without @ signs are
+ always allowed through.
++
++.TP 5
++.I rsa512.pem
++If this 512 RSA key is provided,
++.B qmail-smtpd
++will use it for TLS sessions instead of generaring one on-the-fly.
++
++.TP 5
++.I servercert.pem
++SSL certificate to be presented to clients in
++TLS-encrypted sessions. Certifying Authority
++(CA) and intermediate certificates can be added at the end of the file.
++
+ .TP 5
+ .I smtpgreeting
+ SMTP greeting message.
+@@ -169,6 +197,24 @@ Number of seconds
+ .B qmail-smtpd
+ will wait for each new buffer of data from the remote SMTP client.
+ Default: 1200.
++
++.TP 5
++.I tlsclients
++A list of email addresses. When relay rules would reject an incoming message,
++.B qmail-smtpd
++can allow it if the client presents a certificate that can be verified against
++the CA list in
++.I clientca.pem
++and the certificate email address is in
++.IR tlsclients .
++
++.TP 5
++.I tlsserverciphers
++A set of OpenSSL cipher strings. Multiple ciphers contained in a
++string should be separated by a colon. If the environment variable
++.B TLSCIPHERS
++is set to such a string, it takes precedence.
++
+ .SH "SEE ALSO"
+ tcp-env(1),
+ tcp-environ(5),
+--- qmail-1.03-orig/qmail-remote.8	Mon Jun 15 10:53:16 1998
++++ qmail-1.03/qmail-remote.8	Sun Dec  8 18:27:20 2002
+@@ -114,6 +114,10 @@ arguments.
+ always exits zero.
+ .SH "CONTROL FILES"
+ .TP 5
++.I clientcert.pem
++SSL certificate that is used to authenticate with the remote server
++during a TLS session.
++.TP 5
+ .I helohost
+ Current host name,
+ for use solely in saying hello to the remote SMTP server.
+@@ -156,6 +160,8 @@ may be empty;
+ this tells
+ .B qmail-remote
+ to look up MX records as usual.
++.I port 
++value of 465 (deprecated smtps port) causes TLS session to be started.
+ .I smtproutes
+ may include wildcards:
+ 
+@@ -195,6 +201,26 @@ Number of seconds
+ .B qmail-remote
+ will wait for each response from the remote SMTP server.
+ Default: 1200.
++
++.TP 5
++.I tlsclientciphers
++A set of OpenSSL client cipher strings. Multiple ciphers
++contained in a string should be separated by a colon.
++
++.TP 5
++.I tlshosts/<FQDN>.pem
++.B qmail-remote
++requires authentication from servers for which this certificate exists
++.RB ( <FQDN>
++is the fully-qualified domain name of the server). One of the
++.I dNSName
++or the
++.I CommonName
++attributes have to match.
++
++.B WARNING:
++this option may cause mail to be delayed, bounced, doublebounced, or lost.
++
+ .SH "SEE ALSO"
+ addresses(5),
+ envelopes(5),
+--- qmail-1.03-orig/qmail-control.9	Mon Jun 15 10:53:16 1998
++++ qmail-1.03/qmail-control.9	Sun Dec  8 18:27:20 2002
+@@ -43,6 +43,8 @@ control	default	used by
+ .I badmailfrom	\fR(none)	\fRqmail-smtpd
+ .I bouncefrom	\fRMAILER-DAEMON	\fRqmail-send
+ .I bouncehost	\fIme	\fRqmail-send
++.I clientca.pem	\fR(none)	\fRqmail-smtpd
++.I clientcert.pem	\fR(none)	\fRqmail-remote
+ .I concurrencylocal	\fR10	\fRqmail-send
+ .I concurrencyremote	\fR20	\fRqmail-send
+ .I defaultdomain	\fIme	\fRqmail-inject
+@@ -61,11 +63,17 @@ control	default	used by
+ .I qmqpservers	\fR(none)	\fRqmail-qmqpc
+ .I queuelifetime	\fR604800	\fRqmail-send
+ .I rcpthosts	\fR(none)	\fRqmail-smtpd
++.I rsa512.pem	\fR(none)	\fRqmail-smtpd
++.I servercert.pem	\fR(none)	\fRqmail-smtpd
+ .I smtpgreeting	\fIme	\fRqmail-smtpd
+ .I smtproutes	\fR(none)	\fRqmail-remote
+ .I timeoutconnect	\fR60	\fRqmail-remote
+ .I timeoutremote	\fR1200	\fRqmail-remote
+ .I timeoutsmtpd	\fR1200	\fRqmail-smtpd
++.I tlsclients	\fR(none)	\fRqmail-smtpd
++.I tlsclientciphers	\fR(none)	\fRqmail-remote
++.I tlshosts/FQDN.pem	\fR(none)	\fRqmail-remote
++.I tlsserverciphers	\fR(none)	\fRqmail-smtpd
+ .I virtualdomains	\fR(none)	\fRqmail-send
+ .fi
+ .RE
+--- qmail-1.03-orig/dns.c	Mon Jun 15 10:53:16 1998
++++ qmail-1.03/dns.c	Sun Dec  8 18:27:20 2002
+@@ -269,12 +269,11 @@ stralloc *sa;
+ int pref;
+ {
+  int r;
+- struct ip_mx ix;
++ struct ip_mx ix = {0};
+ 
+  if (!stralloc_copy(&glue,sa)) return DNS_MEM;
+  if (!stralloc_0(&glue)) return DNS_MEM;
+  if (glue.s[0]) {
+-   ix.pref = 0;
+    if (!glue.s[ip_scan(glue.s,&ix.ip)] || !glue.s[ip_scanbracket(glue.s,&ix.ip)])
+     {
+      if (!ipalloc_append(ia,&ix)) return DNS_MEM;
+@@ -293,9 +292,16 @@ int pref;
+    ix.ip = ip;
+    ix.pref = pref;
+    if (r == DNS_SOFT) return DNS_SOFT;
+-   if (r == 1)
++   if (r == 1) {
++#ifdef IX_FQDN
++     ix.fqdn = glue.s;
++#endif
+      if (!ipalloc_append(ia,&ix)) return DNS_MEM;
+   }
++  }
++#ifdef IX_FQDN
++ glue.s = 0;
++#endif
+  return 0;
+ }
+ 
+@@ -315,7 +321,7 @@ unsigned long random;
+ {
+  int r;
+  struct mx { stralloc sa; unsigned short p; } *mx;
+- struct ip_mx ix;
++ struct ip_mx ix = {0};
+  int nummx;
+  int i;
+  int j;
+@@ -327,7 +333,6 @@ unsigned long random;
+  if (!stralloc_copy(&glue,sa)) return DNS_MEM;
+  if (!stralloc_0(&glue)) return DNS_MEM;
+  if (glue.s[0]) {
+-   ix.pref = 0;
+    if (!glue.s[ip_scan(glue.s,&ix.ip)] || !glue.s[ip_scanbracket(glue.s,&ix.ip)])
+     {
+      if (!ipalloc_append(ia,&ix)) return DNS_MEM;
+--- qmail-1.03-orig/ipalloc.h	Mon Jun 15 10:53:16 1998
++++ qmail-1.03/ipalloc.h	Sun Dec  8 18:27:20 2002
+@@ -3,7 +3,15 @@
+ 
+ #include "ip.h"
+ 
++#ifdef TLS
++# define IX_FQDN 1
++#endif
++
++#ifdef IX_FQDN
++struct ip_mx { struct ip_address ip; int pref; char *fqdn; } ;
++#else
+ struct ip_mx { struct ip_address ip; int pref; } ;
++#endif
+ 
+ #include "gen_alloc.h"
+ 
+--- qmail-1.03-orig/tls.c	Sat Dec 28 14:11:34 2002
++++ qmail-1.03/tls.c	Sun Dec  8 18:27:20 2002
+@@ -0,0 +1,26 @@
++#include "exit.h"
++#include "error.h"
++#include <string.h>
++#include <openssl/ssl.h>
++#include <openssl/err.h>
++
++int smtps = 0;
++SSL *ssl = NULL;
++
++void ssl_free(SSL *myssl) { SSL_shutdown(myssl); SSL_free(myssl); }
++void ssl_exit(int status) { if (ssl) ssl_free(ssl); _exit(status); }
++
++const char *ssl_error()
++{
++  int r = ERR_get_error();
++  if (!r) return NULL;
++  SSL_load_error_strings();
++  return ERR_error_string(r, NULL);
++}
++const char *ssl_strerror()
++{
++  const char *err = ssl_error();
++  if (err) return err;
++  if (!errno) return 0;
++  return errno == error_timeout ? "timed out" : strerror(errno);
++}
+--- qmail-1.03-orig/tls.h	Sat Dec 28 14:11:34 2002
++++ qmail-1.03/tls.h	Sun Dec  8 18:27:20 2002
+@@ -0,0 +1,16 @@
++#ifndef TLS_H
++#define TLS_H
++
++#include <openssl/ssl.h>
++
++extern int smtps;
++extern SSL *ssl;
++
++void ssl_free(SSL *myssl);
++void ssl_exit(int status);
++# define _exit ssl_exit
++
++const char *ssl_error();
++const char *ssl_strerror();
++
++#endif
+--- qmail-1.03-orig/ssl_timeoutio.c	Sat Dec 28 14:11:34 2002
++++ qmail-1.03/ssl_timeoutio.c	Sun Dec  8 18:27:20 2002
+@@ -0,0 +1,94 @@
++#include "select.h"
++#include "error.h"
++#include "ndelay.h"
++#include "ssl_timeoutio.h"
++
++int ssl_timeoutio(int (*fun)(),
++  long t, int rfd, int wfd, SSL *ssl, char *buf, int len)
++{
++  int n;
++  const long end = t + time(NULL);
++
++  do {
++    fd_set fds;
++    struct timeval tv;
++
++    const int r = buf ? fun(ssl, buf, len) : fun(ssl);
++    if (r > 0) return r;
++
++    t = end - time(NULL);
++    if (t < 0) break;
++    tv.tv_sec = t; tv.tv_usec = 0;
++
++    FD_ZERO(&fds);
++    switch (SSL_get_error(ssl, r))
++    {
++    default: return r; /* some other error */
++    case SSL_ERROR_WANT_READ:
++      FD_SET(rfd, &fds); n = select(rfd + 1, &fds, NULL, NULL, &tv);
++      break;
++    case SSL_ERROR_WANT_WRITE:
++      FD_SET(wfd, &fds); n = select(wfd + 1, NULL, &fds, NULL, &tv);
++      break;
++    }
++
++    /* n is the number of descriptors that changed status */
++  } while (n > 0);
++
++  if (n != -1) errno = error_timeout;
++  return -1;
++}
++
++int ssl_timeoutaccept(long t, int rfd, int wfd, SSL *ssl)
++{
++  int r;
++
++  /* if connection is established, keep NDELAY */
++  if (ndelay_on(rfd) == -1 || ndelay_on(wfd) == -1) return -1;
++  r = ssl_timeoutio(SSL_accept, t, rfd, wfd, ssl, NULL, 0);
++
++  if (r <= 0) { ndelay_off(rfd); ndelay_off(wfd); }
++  else SSL_set_mode(ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
++
++  return r;
++}
++
++int ssl_timeoutconn(long t, int rfd, int wfd, SSL *ssl)
++{
++  int r;
++
++  /* if connection is established, keep NDELAY */
++  if (ndelay_on(rfd) == -1 || ndelay_on(wfd) == -1) return -1;
++  r = ssl_timeoutio(SSL_connect, t, rfd, wfd, ssl, NULL, 0);
++
++  if (r <= 0) { ndelay_off(rfd); ndelay_off(wfd); }
++  else SSL_set_mode(ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
++
++  return r;
++}
++
++int ssl_timeoutrehandshake(long t, int rfd, int wfd, SSL *ssl)
++{
++  int r;
++
++  SSL_renegotiate(ssl);
++  r = ssl_timeoutio(SSL_do_handshake, t, rfd, wfd, ssl, NULL, 0);
++  if (r <= 0 || ssl->type == SSL_ST_CONNECT) return r;
++
++  /* this is for the server only */
++  ssl->state = SSL_ST_ACCEPT;
++  return ssl_timeoutio(SSL_do_handshake, t, rfd, wfd, ssl, NULL, 0);
++}
++
++int ssl_timeoutread(long t, int rfd, int wfd, SSL *ssl, char *buf, int len)
++{
++  if (!buf) return 0;
++  if (SSL_pending(ssl)) return SSL_read(ssl, buf, len);
++  return ssl_timeoutio(SSL_read, t, rfd, wfd, ssl, buf, len);
++}
++
++int ssl_timeoutwrite(long t, int rfd, int wfd, SSL *ssl, char *buf, int len)
++{
++  if (!buf) return 0;
++  return ssl_timeoutio(SSL_write, t, rfd, wfd, ssl, buf, len);
++}
+--- qmail-1.03-orig/ssl_timeoutio.h	Sat Dec 28 14:11:34 2002
++++ qmail-1.03/ssl_timeoutio.h	Sun Dec  8 18:27:20 2002
+@@ -0,0 +1,21 @@
++#ifndef SSL_TIMEOUTIO_H
++#define SSL_TIMEOUTIO_H
++
++#include <openssl/ssl.h>
++
++/* the version is like this: 0xMNNFFPPS: major minor fix patch status */
++#if OPENSSL_VERSION_NUMBER < 0x00906000L
++# error "Need OpenSSL version at least 0.9.6"
++#endif
++
++int ssl_timeoutconn(long t, int rfd, int wfd, SSL *ssl);
++int ssl_timeoutaccept(long t, int rfd, int wfd, SSL *ssl);
++int ssl_timeoutrehandshake(long t, int rfd, int wfd, SSL *ssl);
++
++int ssl_timeoutread(long t, int rfd, int wfd, SSL *ssl, char *buf, int len);
++int ssl_timeoutwrite(long t, int rfd, int wfd, SSL *ssl, char *buf, int len);
++
++int ssl_timeoutio(
++  int (*fun)(), long t, int rfd, int wfd, SSL *ssl, char *buf, int len);
++
++#endif
+--- qmail-1.03-orig/TARGETS	Mon Jun 15 10:53:16 1998
++++ qmail-1.03/TARGETS	Sun Dec  8 18:27:20 2002
+@@ -168,6 +168,8 @@ control.o
+ constmap.o
+ timeoutread.o
+ timeoutwrite.o
++tls.o
++ssl_timeoutio.o
+ timeoutconn.o
+ tcpto.o
+ dns.o
+@@ -320,6 +322,7 @@ binm2
+ binm2+df
+ binm3
+ binm3+df
++Makefile-cert
+ it
+ qmail-local.0
+ qmail-lspawn.0
+--- qmail-1.03-orig/Makefile-cert.mk	Sat Dec 28 14:11:34 2002
++++ qmail-1.03/Makefile-cert.mk	Sat Aug 17 18:30:01 2002
+@@ -0,0 +1,21 @@
++cert-req: req.pem
++cert cert-req: QMAIL/control/clientcert.pem
++	@:
++
++QMAIL/control/clientcert.pem: QMAIL/control/servercert.pem
++	ln -s $< $@
++
++QMAIL/control/servercert.pem:
++	PATH=$$PATH:/usr/local/ssl/bin \
++		openssl req -new -x509 -nodes -days 366 -out $@ -keyout $@
++	chmod 640 $@
++	chown qmaild.qmail $@
++
++req.pem:
++	PATH=$$PATH:/usr/local/ssl/bin openssl req \
++		-new -nodes -out $@ -keyout QMAIL/control/servercert.pem
++	chmod 640 QMAIL/control/servercert.pem
++	chown qmaild.qmail QMAIL/control/servercert.pem
++	@echo
++	@echo "Send req.pem to your CA to obtain signed_req.pem, and do:"
++	@echo "cat signed_req.pem >> QMAIL/control/servercert.pem"
+--- qmail-1.03-orig/conf-cc	Mon Jun 15 10:53:16 1998
++++ qmail-1.03/conf-cc	Sat Dec 28 13:59:33 2002
+@@ -1,3 +1,3 @@
+-cc -O2
++cc -O2 -DTLS=20021228 -I/usr/local/ssl/include
+ 
+ This will be used to compile .c files.
+--- qmail-1.03-orig/Makefile	Mon Jun 15 10:53:16 1998
++++ qmail-1.03/Makefile	Sun Dec  8 18:27:20 2002
+@@ -1444,6 +1444,7 @@ ndelay.a case.a sig.a open.a lock.a seek
+ substdio.a error.a str.a fs.a auto_qmail.o dns.lib socket.lib
+ 	./load qmail-remote control.o constmap.o timeoutread.o \
+ 	timeoutwrite.o timeoutconn.o tcpto.o now.o dns.o ip.o \
++	tls.o ssl_timeoutio.o -L/usr/local/ssl/lib -lssl -lcrypto \
+ 	ipalloc.o ipme.o quote.o ndelay.a case.a sig.a open.a \
+ 	lock.a seek.a getln.a stralloc.a alloc.a substdio.a error.a \
+ 	str.a fs.a auto_qmail.o  `cat dns.lib` `cat socket.lib`
+@@ -1539,6 +1540,7 @@ open.a sig.a case.a env.a stralloc.a all
+ fs.a auto_qmail.o socket.lib
+ 	./load qmail-smtpd rcpthosts.o commands.o timeoutread.o \
+ 	timeoutwrite.o ip.o ipme.o ipalloc.o control.o constmap.o \
++	tls.o ssl_timeoutio.o ndelay.a -L/usr/local/ssl/lib -lssl -lcrypto \
+ 	received.o date822fmt.o now.o qmail.o cdb.a fd.a wait.a \
+ 	datetime.a getln.a open.a sig.a case.a env.a stralloc.a \
+ 	alloc.a substdio.a error.a str.a fs.a auto_qmail.o  `cat \
+@@ -2108,6 +2110,19 @@ timeoutwrite.o: \
+ compile timeoutwrite.c timeoutwrite.h select.h error.h readwrite.h
+ 	./compile timeoutwrite.c
+ 
++qmail-smtpd: tls.o ssl_timeoutio.o ndelay.a
++qmail-remote: tls.o ssl_timeoutio.o
++qmail-smtpd.o: tls.h ssl_timeoutio.h
++qmail-remote.o: tls.h ssl_timeoutio.h
++
++tls.o: \
++compile tls.c exit.h error.h
++	./compile tls.c
++
++ssl_timeoutio.o: \
++compile ssl_timeoutio.c ssl_timeoutio.h select.h error.h ndelay.h
++	./compile ssl_timeoutio.c
++
+ token822.o: \
+ compile token822.c stralloc.h gen_alloc.h alloc.h str.h token822.h \
+ gen_alloc.h gen_allocdefs.h
+@@ -2139,3 +2154,13 @@ compile wait_nohang.c haswaitp.h
+ wait_pid.o: \
+ compile wait_pid.c error.h haswaitp.h
+ 	./compile wait_pid.c
++
++cert cert-req: \
++Makefile-cert
++	@$(MAKE) -sf $< $@
++
++Makefile-cert: \
++conf-qmail Makefile-cert.mk
++	@cat Makefile-cert.mk \
++	| sed s}QMAIL}"`head -1 conf-qmail`"}g \
++	> $@

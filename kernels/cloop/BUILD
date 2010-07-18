@@ -1,1 +1,1 @@
-make KERNEL_DIR=/usr/src/linux-$(get_kernel_version)
+make KERNEL_DIR=/lib/modules/$(get_kernel_version)/build

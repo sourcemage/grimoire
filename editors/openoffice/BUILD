@@ -1,31 +1,29 @@
-#              --with-vendor=\"Source Mage GNU/Linux\" \
-#              --with-build-version="\"$(head -n1 ${SPELL_DIRECTORY}/HISTORY |awk '{print $2, $3}' )\"" \
-#              --with-system-headers \
-#              --with-system-libs \
-#              --with-system-stdlibs \
- 
 OPTS="${OPTS} ${OOO_OPTS}" &&
 if [[ "${OOO_BINFILTER}" = 'n' ]]; then
   OPTS="${OPTS} --disable-binfilter"
 fi &&
-export PKGFORMAT="installed" &&
-export SRC_ROOT="${SOURCE_DIRECTORY}" &&
+
+if [[ "${MAKE_NJOBS}" = "" ]]; then
+  MAKE_NJOBS=1
+fi
 
 cd ${SOURCE_DIRECTORY} &&
-./configure   --prefix=${INSTALL_ROOT}/usr \
+
+./configure   --prefix=${INSTALL_ROOT}/opt \
               --sysconfdir=${INSTALL_ROOT}/etc \
               --localstatedir=${INSTALL_ROOT}/var \
               --mandir=${INSTALL_ROOT}/usr/share/man \
               --infodir=${INSTALL_ROOT}/usr/share/info \
-              --with-dict \
-              --with-x \
+              --with-vendor="Source Mage GNU/Linux" \
               --disable-epm \
-              --disable-odk \
-              --disable-mathmldtd \
-              --disable-qadevooo \
-              --with-vendor="Source\ Mage\ GNU/Linux" \
+              --with-use-shell=bash \
+              --with-system-stdlibs \
+              --without-myspell-dicts \
+              --with-system-dicts \
+              --with-lang="$OOO_LANG" \
               $OPTS &&
 
-./bootstrap &&
 source Linux*Env.Set.sh &&
-dmake
+./bootstrap &&
+echo "building with $MAKE_NJOBS make jobs"
+nodep=TRUE NO_HIDS=TRUE dmake -P${MAKE_NJOBS}

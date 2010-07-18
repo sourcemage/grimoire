@@ -1,7 +1,7 @@
-# disable emacs, bug #8592
-sedit  's/EMACS = @EMACS@/EMACS = no/'  gettext-tools/misc/Makefile.in  &&
-
 export  CC=gcc  &&
+
+# pth support is semi-broken, so force POSIX threads
+OPTS="--enable-threads=posix $OPTS" &&
 
 make_single  &&
 

@@ -1,3 +1,4 @@
 aclocal  &&
 automake &&
-default_build
+./configure &&
+make top_builddir=${SOURCE_DIRECTORY}

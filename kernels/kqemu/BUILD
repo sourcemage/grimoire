@@ -1,5 +1,5 @@
-OPTS="--kernel-path=$INSTALL_ROOT/usr/src/linux-$(get_kernel_version)  \
-      $OPTS"                                                           &&
+OPTS="--kernel-path=$INSTALL_ROOT/lib/modules/$(get_kernel_version)/build \
+      $OPTS" &&
 
 make_single &&
 default_build &&

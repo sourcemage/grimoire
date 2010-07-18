@@ -1,4 +1,4 @@
-cd  $SOURCE_DIRECTORY/mozilla  &&
+cd  $SOURCE_DIRECTORY/comm-1.9.2  &&
 
 THUNDERBIRD_HOME=${INSTALL_ROOT}/usr/lib/thunderbird &&
 export  MOZ_THUNDERBIRD="1"   &&
@@ -25,6 +25,8 @@ if  echo $LDFLAGS | grep  -q  '\-s'; then
   OPTS="$OPTS  --enable-strip"
 fi  &&
 
+LDFLAGS="${LDFLAGS/-Wl,--as-needed/}" &&
+
 if [[ $THUNDERBIRD_OFFICIAL == y ]]; then
   OPTS="$OPTS --enable-official-branding"
 fi
@@ -32,12 +34,7 @@ fi
 ./configure --prefix=${INSTALL_ROOT}/usr     \
             --with-user-appdir=.thunderbird  \
             --enable-application=mail        \
-            --enable-optimize="$CFLAGS"      \
+            --enable-static                  \
               $OPTS                          &&
 
-make  &&
-
-if [[ "$BUILD_ENIGMAIL" == 'y' ]]; then
-   build/autoconf/make-makefile mailnews/extensions/enigmail &&
-   make -C mailnews/extensions/enigmail
-fi
+make

@@ -219,7 +219,7 @@ function get_install_www_files_dir ()
 ## @param Directory with files we might want to install
 ## @param Destination directory (optional)
 ##
-## Installs files to WWW_DEST ($INSTALL_ROOT/usr/share/www/$SPELL) and
+## Installs files to WWW_DEST ($INSTALL_ROOT/usr/share/www/$SPELL-$VERSION) and
 ## sets up proper www-data permissions
 ## Optionally the second parameter will override WWW_DATA (and make
 ## sure INSTALL_ROOT exists only once in the WWW_DATA)
@@ -232,7 +232,7 @@ function  install_www_files ()
     #
     local  WWW_DEST="$INSTALL_ROOT/${2/\$INSTALL_ROOT/}"
   else
-    local  WWW_DEST="$INSTALL_ROOT$(get_install_www_files_dir)$SPELL"
+    local  WWW_DEST="$INSTALL_ROOT$(get_install_www_files_dir)$SPELL-$VERSION"
   fi  &&
 
   #
@@ -244,10 +244,10 @@ function  install_www_files ()
   # Make sure WWW_DEST exists
   #
   if  [  !  -d  "$WWW_DEST"  ];  then
-    if  [  !  -d  "${WWW_DEST/\/$SPELL/}"  ];  then
-      mkdir  -p  "${WWW_DEST/\/$SPELL/}"                   &&
-      chmod  0755                 "${WWW_DEST/\/$SPELL/}"  &&
-      chown  www-data:www-data    "${WWW_DEST/\/$SPELL/}"
+    if  [  !  -d  "${WWW_DEST/\/$SPELL-$VERSION/}"  ];  then
+      mkdir  -p  "${WWW_DEST/\/$SPELL-$VERSION/}"                   &&
+      chmod  0755                 "${WWW_DEST/\/$SPELL-$VERSION/}"  &&
+      chown  www-data:www-data    "${WWW_DEST/\/$SPELL-$VERSION/}"
     fi  &&
 
     mkdir  -p  "$WWW_DEST"                   &&
@@ -308,23 +308,23 @@ function mozilla_remove_nspr_nss() {
 #-------------------------------------------------------------------------
 function get_kernel_version()
 {
-	local KVER=$(installed_version linux)
-	if [[ $KVER ]] ; then
-		echo $KVER
-	else
-		KVER=$(installed_version linux-new)
-		if [[ $KVER ]] ; then
-			echo $KVER
-		else
-			KVER=$(grep version /usr/src/linux/.config | cut -d: -f2 | cut -d ' ' -f2)
-			if [ $KVER ] && [ -d "/lib/modules/${KVER}/build" ] ; then
-				 echo $KVER
-			else
-				KVER=$(uname -r)
-				echo $KVER
-			fi
-		fi
-	fi
+  local KVER=$(installed_version linux)
+  if [[ $KVER ]] ; then
+    echo $KVER
+  else
+    KVER=$(installed_version linux-new)
+    if [[ $KVER ]] ; then
+      echo $KVER
+    else
+      KVER=$(grep version /usr/src/linux/.config | cut -d: -f2 | cut -d ' ' -f2)
+      if [ $KVER ] && [ -d "/lib/modules/${KVER}/build" ] ; then
+         echo $KVER
+      else
+        KVER=$(uname -r)
+        echo $KVER
+      fi
+    fi
+  fi
 }
 
 #---------------------------------------------------------------------------
@@ -335,16 +335,16 @@ function get_kernel_version()
 #--------------------------------------------------------------------------
 function invoke_uname_change()
 {
-	if [[ $(installed_version unamechange) ]] ; then
-		export UNAME_CHANGE_SYSNAME=$(uname -s)
-		export UNAME_CHANGE_NODENAME=$(uname -n)
-		export UNAME_CHANGE_RELEASE=$(uname -r)
-		export UNAME_CHANGE_VERSION=$(uname -v)
-		export UNAME_CHANGE_MACHINE=$(uname -m)
-		export UNAME_CHANGE_DOMAINNAME=$(uname -o)
-	
-		export LD_PRELOAD="${LD_PRELOAD} /usr/lib/unamechange.so"
-	fi
+  if [[ $(installed_version unamechange) ]] ; then
+    export UNAME_CHANGE_SYSNAME=$(uname -s)
+    export UNAME_CHANGE_NODENAME=$(uname -n)
+    export UNAME_CHANGE_RELEASE=$(uname -r)
+    export UNAME_CHANGE_VERSION=$(uname -v)
+    export UNAME_CHANGE_MACHINE=$(uname -m)
+    export UNAME_CHANGE_DOMAINNAME=$(uname -o)
+
+    export LD_PRELOAD="${LD_PRELOAD} /usr/lib/unamechange.so"
+  fi
 }
 
 #-------------------------------------------------------------------------
@@ -354,44 +354,53 @@ function invoke_uname_change()
 #-------------------------------------------------------------------------
 function devoke_uname_change()
 {
-	if [[ $(installed_version unamechange) ]] ; then
-		unset UNAME_CHANGE_SYSNAME
-		unset UNAME_CHANGE_NODENAME
-		unset UNAME_CHANGE_RELEASE
-		unset UNAME_CHANGE_VERSION
-		unset UNAME_CHANGE_MACHINE
-		unset UNAME_CHANGE_DOMAINNAME
-	
-		export LD_PRELOAD="${LD_PRELOAD/\/usr\/lib\/unamechange.so/}"
-	fi
+  if [[ $(installed_version unamechange) ]] ; then
+    unset UNAME_CHANGE_SYSNAME
+    unset UNAME_CHANGE_NODENAME
+    unset UNAME_CHANGE_RELEASE
+    unset UNAME_CHANGE_VERSION
+    unset UNAME_CHANGE_MACHINE
+    unset UNAME_CHANGE_DOMAINNAME
+
+    export LD_PRELOAD="${LD_PRELOAD/\/usr\/lib\/unamechange.so/}"
+  fi
 }
 
 #-----------------------------------------------------------------------
-## Get the running kernel config status of a some part of the kernel
-## given by $1. Used for spells that don't have linux triggers
+## Get the kernel config status of the kernel option specified by $2.
+## Kernel version is given by $1.
+## 
+## If a configure file is found print the requested config status (if
+## any) and return 0, otherwise return 1.
+##-----------------------------------------------------------------------
+function get_kernel_config_ver()
+{
+  local i
+  for i in /proc/config /boot/config-"$1" /lib/modules/"$1"/build/.config
+  do
+    if [ -f "$i" ]; then
+      cat "$i" && break
+    elif [ -f "$i.gz" ]; then
+      zcat "$i.gz" && break
+    elif [ -f "$i.bz2" ]; then
+      bzcat "$i.bz2" && break
+    elif [ -f "$i.xz" ]; then
+      xzcat "$i.xz" && break
+    elif [ -f "$i.lzma" ]; then
+      xzcat "$i.lzma" && break
+    fi
+  done | grep "^$2=" | awk -F= '{ if ($2) { print $2 }; exit (!$2) }'
+}
+
+#-----------------------------------------------------------------------
+## Get the running kernel config status of the running kernel option
+## given by $1.
 ##
-## $1 string Config variable to look for
+## See also: get_specified_kernel_config
 #-----------------------------------------------------------------------
 function get_running_kernel_config()
 {
-	local KVER
-	# use proc interface because even inside a uname change invoke this
-	# still returns the version of the running kernel
-	if [ -f /proc/sys/kernel/osrelease ] ; then
-		KVER=$(cat /proc/sys/kernel/osrelease)
-	else
-		# apparently you don't have proc mount
-		KVER=$(uname -r)
-	fi
-	if [ -f /proc/config.gz ] ; then
-		echo $(zgrep "^$1=" /proc/config.gz | awk -F= '{ print $2 }')
-	elif [ -f /boot/config-$KVER ] ; then
-		echo $(grep "^$1=" /boot/config-$KVER | awk -F= '{ print $2 }')
-	elif [ -f /usr/src/linux-$KVER/.config ] ; then
-		echo $(grep "^$1=" /usr/src/linux-$KVER/.config | awk -F= '{ print $2 }')
-	else
-		echo "-1"
-	fi
+  get_kernel_config_ver $(get_running_kernel_version) "$1"
 }
 
 #-------------------------------------------------------------------------
@@ -402,14 +411,7 @@ function get_running_kernel_config()
 #-------------------------------------------------------------------------
 function get_sorcery_kernel_config()
 {
-	local KVER=$(get_kernel_version)
-	if [ -f /boot/config-$KVER ] ; then
-		echo $(grep "^$1=" /boot/config-$KVER | awk -F= '{ print $2 }')
-	elif [ -f /usr/src/linux-$KVER/.config ] ; then
-		echo $(grep "^$1=" /usr/src/linux-$KVER/.config | awk -F= '{ print $2 }')
-	else
-		echo "-1"
-	fi
+  get_kernel_config_ver $(get_kernel_version) || echo "-1"
 }
 
 
@@ -512,7 +514,8 @@ cmake_build() {
   cd $SOURCE_DIRECTORY  &&
   mkdir -p build        &&
   cd build              &&
-  cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr $OPTS ../  &&
+  prepare_cmake_flags   &&
+  cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr -DSYSCONFDIR=$INSTALL_ROOT/etc $OPTS ../  &&
   make
 }
 
@@ -590,31 +593,6 @@ function get_sorcery_kernel_version()
 }
 
 #-----------------------------------------------------------------------
-## Print the kernel config status of the running kernel for the option 
-## defined in $1.
-## If a configure file is found print the requested config status (if
-## any) and return 0, otherwise return 1.
-#-----------------------------------------------------------------------
-function get_running_kernel_config()
-{
-  if [[ -f /proc/config.gz ]]
-  then
-    zgrep "^$1=" /proc/config.gz | cut -d= -f2
-  else
-    local KVER="$(get_running_kernel_version)"
-    if [[ -f "/boot/config-$KVER" ]]
-    then
-      grep "^$1=" "/boot/config-$KVER" | cut -d= -f2
-    elif [[ -f "/usr/src/linux-$KVER/.config" ]]
-    then
-      grep "^$1=" "/usr/src/linux-$KVER/.config" | cut -d= -f2
-    else
-      return 1
-    fi
-  fi
-}
-
-#-----------------------------------------------------------------------
 ## Print the kernel config status of the installed linux spell for the 
 ## option defined in $1.
 ## If the linux spell is installed and a configure file is found print
@@ -626,15 +604,7 @@ function get_sorcery_kernel_config()
   local KVER="$(installed_version linux)"
   if [[ $KVER ]]
   then
-    if [[ -f "/boot/config-$KVER" ]]
-    then
-      grep "^$1=" "/boot/config-$KVER" | cut -d= -f2
-    elif [[ -f "/usr/src/linux-$KVER/.config" ]]
-    then
-      grep "^$1=" "/usr/src/linux-$KVER/.config" | cut -d= -f2
-    else
-      return 1
-    fi
+    get_kernel_config_ver "$KVER" "$1"
   else
     return 1
   fi
@@ -651,15 +621,7 @@ function get_kernel_config()
 {
   if [[ $USE_KERNEL_VERSION ]]
   then
-    if [[ -f "/boot/config-$USE_KERNEL_VERSION" ]]
-    then
-      grep "^$1=" "/boot/config-$USE_KERNEL_VERSION" | cut -d= -f2
-    elif [[ -f "/usr/src/linux-$USE_KERNEL_VERSION/.config" ]]
-    then
-      grep "^$1=" "/usr/src/linux-$USE_KERNEL_VERSION/.config" | cut -d= -f2
-    else
-      return 1
-    fi
+    get_kernel_config_ver "$USE_KERNEL_VERSION" "$1"
   else
     get_sorcery_kernel_config "$1" || get_running_kernel_config "$1"
   fi
@@ -701,17 +663,23 @@ function default_kde3_build() {
 
 }
 
+# Move SPELL_OPTS to OPTS
+# basicly generic OPTS="$SPELL_OPTS $OPTS"
+function prepare_opts() {
+  # this is here so that config_query_option can be used without
+  # extra junk
+  local up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")     &&
+  local up_spell_name=$(echo $up_spell_name | tr "-" "_") &&
+  local tempopts="${up_spell_name}_OPTS"                  &&
+  OPTS="${!tempopts} $OPTS"
+}
+
 #---
 ## Default configure
 #---
 
 function default_build_configure() {
-  # this is here so that config_query_option can be used without
-  # extra junk
-  local up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")     &&
-  local up_spell_name=$(echo $SPELL | tr "-" "_")         &&
-  local tempopts="${up_spell_name}_OPTS"                  &&
-  OPTS="${!tempopts} $OPTS"                               &&
+  prepare_opts                                            &&
   OPTS="$OPTS --build=${BUILD}"                           &&
   #If these switches are used, they _may_ stop distcc and ccache from working
   # for some spells (bug 3798)

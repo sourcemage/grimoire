@@ -1,1 +1,89 @@
-depends xorg-server 
+depends xorg-server &&
+
+optional_depends libvncserver \
+                 "--with-system-libvncserver" \
+                 "--without-system-libvncserver" \
+                 "to use system libvncserver instead of bundled" &&
+
+if ! is_depends_enabled $SPELL libvncserver; then
+  optional_depends jpeg \
+                   "--with-jpeg" \
+                   "--without-jpeg" \
+                   "for jpeg support" &&
+
+  optional_depends zlib \
+                   "--with-zlib" \
+                   "--without-zlib" \
+                   "for deflate support" &&
+
+  config_query_option X11VNC_OPTS \
+                      "Enable libpthread support?" y \
+                      "--with-pthread" \
+                      "--without-pthread" &&
+
+  config_query_option X11VNC_OPTS \
+                      "Enable 24 bpp framebuffers?" y \
+                      "--with-24bpp" \
+                      "--without-24bpp"
+fi &&
+
+optional_depends openssl \
+                 "--with-ssl" \
+                 "--without-ssl" \
+                 "for SSL support" &&
+
+if is_depends_enabled $SPELL openssl; then
+  config_query_option X11VNC_OPTS \
+                      "Enable libcrypto usage in OpenSSL?" y \
+                      "--with-crypto" \
+                      "--without-crypto"
+fi &&
+
+optional_depends avahi \
+                 "--with-avahi" \
+                 "--without-avahi" \
+                 "for Avahi/mDNS support" &&
+
+optional_depends LIBAVCODEC \
+                 "--with-ffmpeg" \
+                 "--without-ffmpeg" \
+                 "for FFMPEG support" &&
+
+optional_depends libxtrap \
+                 "--with-xtrap" \
+                 "--without-xtrap" \
+                 "for xtrap extension support" &&
+
+optional_depends libxdamage \
+                 "--with-xdamage" \
+                 "--without-xdamage" \
+                 "for xdamage extension support" &&
+
+optional_depends libxfixes \
+                 "--with-xfixes" \
+                 "--without-xfixes" \
+                 "for xfixes extension support" &&
+
+optional_depends libxrandr \
+                 "--with-xrandr" \
+                 "--without-xrandr" \
+                 "for xrandr extension support" &&
+
+optional_depends libxinerama \
+                 "--with-xinerama" \
+                 "--without-xinerama" \
+                 "for xinerama extension support" &&
+
+optional_depends -sub DPMS xorg-server \
+                 "--with-dpms" \
+                 "--without-dpms" \
+                 "for dpms extension support" &&
+
+persistent_read xorg-server XORG_SERVER_OPTS XORG_SERVER_OPTS &&
+
+if list_find "$XORG_SERVER_OPTS" "--enable-record"; then
+  config_query_option X11VNC_OPTS \
+                      "Enable xrecord extension support?" y \
+                      "--with-xrecord" \
+                      "--without-xrecord"
+fi

@@ -8,6 +8,8 @@ fi                                                          &&
 OPTS="$OPENSSL_TLSEXT $OPTS"                                &&
 OPTS="--prefix=${INSTALL_ROOT}/usr                          \
       --openssldir=${INSTALL_ROOT}/etc/ssl                  \
+      --libdir=lib                                          \
+      enable-md2                                            \
       shared                                                \
       threads                                               \
       $OPTS"

@@ -2,20 +2,31 @@ depends automake    &&
 depends cairo       &&
 depends fontconfig  &&
 depends glib2       &&
-depends libx11      &&
-depends libxau      &&
-depends libxft      &&
-depends libxdmcp    &&
-depends libxrender
 
-if spell_ok cairo && [[ $(installed_version cairo) < 1.8 ]]; then
-  force_depends cairo
+optional_depends libx11 \
+                 "--with-x11" \
+                 "--without-x11" \
+                 "for XFT and X11 support" &&
+
+if is_depends_enabled $SPELL libx11; then
+  depends libxau      &&
+  depends libxft      &&
+  depends libxdmcp    &&
+  depends libxrender  &&
+  if spell_ok cairo && [[ $(installed_version cairo) < 1.8 ]]; then
+    force_depends cairo
+  fi
 fi &&
 
 optional_depends gtk-doc \
                  "--enable-gtk-doc" \
                  "--disable-gtk-doc" \
-                 "Build documentation with gtk-doc"
+                 "Build documentation with gtk-doc" &&
+
+optional_depends gobject-introspection        \
+                 "--enable-introspection=yes" \
+                 "--enable-introspection=no"  \
+                 "to enable introspection"
 
 #
 # For DirectFB support with gtk+-directfb

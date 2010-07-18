@@ -1,3 +1,3 @@
-/usr/bin/qt4/qmake &&
+export PATH=/usr/bin/qt4:$PATH &&
+cmake . &&
 make
-
