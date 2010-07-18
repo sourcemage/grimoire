@@ -12,16 +12,16 @@ LIBS="-lpng" $SOURCE_DIRECTORY/configure --prefix=${INSTALL_ROOT}/usr \
                             --with-pdftex \
                             --with-tetex \
                             --with-pdfetex \
-                            --without-gsftopk \
-                            --without-xindy \
-                            --without-etex \
-                            --without-omega \
-                            --without-aleph \
-                            --without-luatex \
+                            --disable-gsftopk \
+                            --disable-xindy \
+                            --disable-etex \
+                            --disable-omega \
+                            --disable-aleph \
+                            --disable-luatex \
                             --without-graphite \
                             --disable-multiplatform \
-			    --disable-native-texlive-build \
                             --without-x \
+                            --disable-native-texlive-build \
                             $OPTS &&
 make_single &&
 make &&
