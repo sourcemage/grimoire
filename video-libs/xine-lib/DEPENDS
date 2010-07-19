@@ -1,66 +1,203 @@
-depends  zlib    &&
+depends zlib &&
+depends LIBAVCODEC '--with-external-ffmpeg' &&
 
-optional_depends  libx11                   \
-                  "--with-x"               \
-                  ""                       \
-                  "To support X display"   &&
+optional_depends gettext \
+                 "--enable-nls" \
+                 "--disable-nls" \
+                 "for alternate language support" &&
 
-# output devices
-optional_depends  "alsa-lib"               \
-                  "--with-alsa"            \
-                  "--without-alsa"         \
-                  "for ALSA audio output"  &&
+# X support
+optional_depends libx11 \
+                 "--with-x" \
+                 "--without-x" \
+                 "to support X display" &&
 
-optional_depends  "esound"  ""  ""  "for esd audio output"  &&
-optional_depends  "arts"                   \
-                  "--with-arts"            \
-                  "--without-arts"         \
-                  "for arts audio output"  &&
+if is_depends_enabled $SPELL libx11; then
+  depends libxv &&
+  depends libxext &&
 
-optional_depends  "pulseaudio"  "--with-pulseaudio"  "--without-pulseaudio"  "for pulseaudio output"  &&
-optional_depends  "aalib"  ""  ""  "for ascii art video output"  &&
-optional_depends  "sdl"  "--with-sdl"  "--without-sdl"  "for SDL video output"  &&
-optional_depends  "libcaca" "--with-caca" "--without-caca" "for colored ascii art video output"  &&
-# unused in the source
-#optional_depends  "GLUT"  ""  ""  "for (experimental) OpenGL video output"  &&
+  optional_depends libxcb \
+                   "--with-xcb" \
+                   "--without-xcb" \
+                   "build XCB video out plugins" &&
 
+  optional_depends libxinerama \
+                   "--enable-xinerama" \
+                   "--disable-xinerama" \
+                   "build Xinerama support" &&
+
+  optional_depends libxvmc \
+                   "--with-xvmc-lib=${INSTALL_ROOT}/usr/lib \
+                    --with-xxmc-lib=${INSTALL_ROOT}/usr/lib" \
+                   "--disable-xvmc" \
+                   "for XvMC plugin"
+fi &&
+
+# output devices (audio)
+optional_depends alsa-lib \
+                 "--with-alsa" \
+                 "--without-alsa" \
+                 "for ALSA audio output" &&
+
+optional_depends esound \
+                 "--with-esound" \
+                 "--without-esound" \
+                 "for esd audio output" &&
+
+optional_depends arts \
+                 "--with-arts" \
+                 "--without-arts" \
+                 "for arts audio output" &&
+
+optional_depends pulseaudio \
+                 "--with-pulseaudio" \
+                 "--without-pulseaudio" \
+                 "for PulseAudio output" &&
+
+optional_depends JACK-DRIVER \
+                 "--with-jack" \
+                 "--without-jack" \
+                 "for Jack audio output" &&
+
+optional_depends oss \
+                 "--enable-oss" \
+                 "--disable-oss" \
+                 "for OSS audio output" &&
+
+# output devices (video)
+optional_depends sdl \
+                 "--with-sdl" \
+                 "--without-sdl" \
+                 "for SDL video output" &&
+
+optional_depends aalib \
+                 "--enable-aalib" \
+                 "--disable-aalib" \
+                 "for ascii art video output" &&
+
+optional_depends libcaca \
+                 "--with-caca" \
+                 "--without-caca" \
+                 "for colored ascii art video output" &&
 
 # input codecs
-optional_depends  "jpeg"  '' ''   'JPEG support' && 
-optional_depends  "flac"  ""  ""  "for FLAC audio decoding"  &&
-optional_depends  "libogg"  ""  ""  "for OGG/OGM file support"  &&
-optional_depends  "libvorbis"  ""  ""  "for OGG/Vorbis audio support"  &&
-optional_depends  "libmng"  ""  ""  "for MNG file support"  &&
-optional_depends  "win32codecs"  ""  ""  "to use win32 dlls for video/audio decoding" "z-rejected" &&
-optional_depends  "quicktime-codecs" "" "" "for addtional video/audio codecs used in quicktime files" "z-rejected"  &&
-optional_depends  "real-codecs" "" "" "for RealMedia decoding" "z-rejected" &&
-depends  LIBAVCODEC &&
-optional_depends  "libtheora" "" "" "for OGG/Theora video support"  &&
-optional_depends  "libdvdcss"  ""  ""  "to play encrypted DVDs"  &&
-optional_depends  "speex"  ""  ""  "for speech compression"  &&
-optional_depends  "libmodplug"  ""  ""  "for mod playback support"  &&
-optional_depends  "imagemagick"            \
-                  "--with-imagemagick" \
-                  "--without-imagemagick" \
-                  "for image loader"       &&
+optional_depends libmng \
+                 "--enable-mng" \
+                 "--disable-mng" \
+                 "for MNG file support" &&
+
+optional_depends flac \
+                 "--with-libflac" \
+                 "--without-libflac" \
+                 "for FLAC audio decoding" &&
+
+optional_depends libvorbis \
+                 "--with-vorbis" \
+                 "--without-vorbis" \
+                 "for OGG/Vorbis audio support" &&
+
+optional_depends libtheora \
+                 "--with-theora" \
+                 "--without-theora" \
+                 "for OGG/Theora video support" &&
+
+optional_depends speex \
+                 "--with-speex" \
+                 "--without-speex" \
+                 "for speech compression support"  &&
+
+if is_depends_enabled $SPELL speex; then
+  depends libogg
+fi &&
+
+optional_depends libmpcdec \
+                 "--with-external-libmpcdec" "" \
+                 "use system library for MusePack decoding" &&
+
+optional_depends faad2 \
+                 "--with-external-libfaad" "" \
+                 "use system libfaad (recommended)" &&
+
+# not recommended as system libraries
+#
+# a52dec: --with-external-a52dec
+# libmad: --with-external-libmad
+# libdvdnav: --with-external-dvdnav
+# libdts: --with-external-libdts
+
+optional_depends libmodplug \
+                 "--enable-modplug" \
+                 "--disable-modplug" \
+                 "for mod playback support" &&
+
+optional_depends wavpack \
+                 "--with-wavpack" \
+                 "--without-wavpack" \
+                 "for Wavpack decoder" &&
+
+optional_depends imagemagick \
+                 "--with-imagemagick" \
+                 "--without-imagemagick" \
+                 "for ImageMagick image decoder" &&
+
+optional_depends freetype2 \
+                 "--with-freetype" \
+                 "--without-freetype" \
+                 "for FreeType2 support" &&
+
+if is_depends_enabled $SPELL freetype2; then
+  optional_depends fontconfig \
+                   "--with-fontconfig" \
+                   "--without-fontconfig" \
+                   "for fontconfig support" &&
+
+  config_query_option XINE_LIB_OPTS "Enable font antialiasing?" y \
+                                    "--enable-antialiasing" \
+                                    "--disable-antialiasing"
+fi &&
+
+optional_depends libdvdcss "" "" "to play encrypted DVDs" &&
+
+optional_depends real-codecs \
+                 "--enable-real-codecs" \
+                 "--disable-real-codecs" \
+                 "for RealMedia decoding" \
+                 "z-rejected" &&
+
+optional_depends win32codecs \
+                 "--enable-w32dll" \
+                 "--disable-w32dll" \
+                 "to use win32 dlls for video/audio decoding" \
+                 "z-rejected" &&
+
+optional_depends quicktime-codecs \
+                 "" "" \
+                 "for addtional video/audio codecs used in quicktime files" \
+                 "z-rejected" &&
 
 # input plugins
-optional_depends  "gnome-vfs2"  ""  ""  "for gnome-vfs input support"  &&
-optional_depends  "samba"  ""  ""  "for samba input support"  &&
-optional_depends  "vcdimager-unstable"      \
-                  "--with-external-vcdnav"  \
-                  ""                        \
-                  "for dynamically linked vcd plugin"         &&
-# all xorg stuff
-if is_depends_enabled $SPELL libx11;then
-optional_depends  libxcb  "--with-xcb"  "--without-xcb"  "Build XCB video out plugins" &&
-optional_depends  libxinerama "" "" "" &&
-optional_depends  libxext "" "" "" &&
-optional_depends  libice "" "" "" &&
-optional_depends  libxv "" "" "" &&
-optional_depends  libxvmc                                    \
-                  "--with-xvmc-lib=${INSTALL_ROOT}/usr/lib   \
-                   --with-xxmc-lib=${INSTALL_ROOT}/usr/lib"  \
-                  ""                                         \
-                  "For XvMC plugin"
-fi
+if list_find "$XINE_LIB_OPTS" "--enable-v4l"; then
+  optional_depends libv4l \
+                   "--enable-libv4l" \
+                   "--disable-libv4l" \
+                   "for libv4l support"
+fi &&
+
+optional_depends gnome-vfs2 \
+                 "--enable-gnomevfs" \
+                 "--disable-gnomevfs" \
+                 "for gnome-vfs input support" &&
+
+optional_depends samba \
+                 "--enable-samba" \
+                 "--disable-samba" \
+                 "for Samba input support" &&
+
+optional_depends vcdimager-unstable \
+                 "--with-external-vcdnav" "" \
+                 "for dynamically linked vcd plugin (not recommended)" &&
+
+optional_depends libfame \
+                 "--enable-dxr3" \
+                 "--disable-dxr3" \
+                 "build DXR3/HW+ plugins"
