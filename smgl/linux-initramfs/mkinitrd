@@ -110,8 +110,10 @@ function linuxrc_post()
 local rootdev;
 rootdev=$(awk '$2=="/" {print $1}' /etc/fstab)
 	cat <<-EOF
-/bin/mount $rootdev /root
-exec /bin/switch_root /root /sbin/init
+ROOTDEV=\$(busybox sed -n 's:^.*root=\([^ ]*\).*$:\1:p' /proc/cmdline )
+/bin/mount \${ROOTDEV:-$rootdev} /root
+INIT=\$(busybox sed -n 's:^.*init=\([^ ]*\).*$:\1:p' /proc/cmdline )
+exec /bin/switch_root /root \${INIT:-/sbin/init}
 EOF
 }
 
