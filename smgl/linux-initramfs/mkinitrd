@@ -1107,7 +1107,7 @@ function lvm_parts()
 	cat <<-EOF
 dir /etc/lvm 0755 0 0
 file /etc/lvm/lvm.conf /etc/lvm/lvm.conf 0644 0 0
-file /bin/lvm /usr/sbin/lvm.static 0755 0 0
+file /bin/lvm $(which lvm.static) 0755 0 0
 EOF
 	local link
 	for link in lvs pvs vgs vgck lvconvert lvdisplay pvchange pvcreate \
@@ -1120,7 +1120,7 @@ EOF
 	do
 		echo "link /bin/$link /bin/lvm 0755 0 0"
 	done
-	echo "file /bin/dmsetup /sbin/dmsetup.static 0755 0 0"
+	echo "file /bin/dmsetup $(which dmsetup.static 2>/dev/null) 0755 0 0"
 	fi
 }
 
@@ -1130,7 +1130,7 @@ function crypto_parts()
 	then
 	echo "file /crypttab /etc/crypttab 0644 0 0"
 	echo "file /bin/cryptsetup /usr/sbin/cryptsetup.static 0755 0 0"
-	echo "file /bin/dmsetup /sbin/dmsetup.static 0755 0 0"
+	echo "file /bin/dmsetup $(which dmsetup.static 2>/dev/null) 0755 0 0"
 	fi
 }
 
@@ -1258,7 +1258,9 @@ function check_raid()
 
 function check_lvm()
 {
-	if [[ -f /etc/lvm/lvm.conf && -x /usr/sbin/lvm.static && -x /sbin/dmsetup.static ]]
+	LVM_STATIC=$(which lvm.static 2>/dev/null)
+	DMSETUP_STATIC=$(which dmsetup.static 2>/dev/null)
+	if [[ -f /etc/lvm/lvm.conf && -x $LVM_STATIC && -x $DMSETUP_STATIC ]]
 	then
 		USE_LVM=true
 	else
@@ -1268,7 +1270,9 @@ function check_lvm()
 
 function check_crypto()
 {
-	if [[ -f /etc/crypttab && -x /usr/sbin/cryptsetup.static && -x /sbin/dmsetup.static ]]
+	LVM_STATIC=$(which lvm.static 2>/dev/null)
+	DMSETUP_STATIC=$(which dmsetup.static 2>/dev/null)
+	if [[ -f /etc/crypttab && -x $LVM_STATIC && -x $DMSETUP_STATIC ]]
 	then
 		USE_CRYPTO=true
 	else
