@@ -9,4 +9,12 @@ cd "${SOURCE_DIRECTORY}" &&
           --audio-drv-list="${KVM_DRV}"                         \
           --audio-card-list="${KVM_CARD}"                       \
             $OPTS                                               &&
-make
+make  &&
+
+if [[ "$KVM_DIAGTOOLS" == "y" ]]; then
+  message "${MESSAGE_COLOR}Building KVM diagnostic/debugging tools...${DEFAULT_COLOR}" &&
+  pushd "$SOURCE_DIRECTORY/kvm/user" &&
+  ./configure --prefix=$INSTALL_ROOT/usr &&
+  make &&
+  popd
+fi
