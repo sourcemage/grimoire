@@ -1,4 +1,4 @@
-cd "${SOURCE_DIRECTORY}" &&
+message "Target list: $KVM_ARCHS"          &&
 
 ./configure --prefix=${INSTALL_ROOT}/usr                        \
       --extra-cflags="${CFLAGS}"                                \
@@ -6,6 +6,7 @@ cd "${SOURCE_DIRECTORY}" &&
          --kerneldir="/lib/modules/$(get_kernel_version)/build" \
           --disable-werror                                      \
           --disable-xen                                         \
+          --target-list="$KVM_ARCHS"     \
           --audio-drv-list="${KVM_DRV}"                         \
           --audio-card-list="${KVM_CARD}"                       \
             $OPTS                                               &&

@@ -1,3 +1,24 @@
+local KVM_ARCH_LIST=`cat $SPELL_DIRECTORY/archs` &&
+persistent_add KVM_ARCHS &&
+
+# deliberately uses query, see locale CONFIGURE note
+if query "Handpick architectures to emulate (y/n)?" n; then
+  BACKTITLE="Qemu Archs Configuration"           &&
+      TITLE="Arch Selection"                     &&
+       HELP="Select Arch you want to build qemu" &&
+
+  KVM_ARCHS=`dialog --backtitle  "$BACKTITLE"  \
+                     --title      "$TITLE"      \
+                     --stdout                   \
+                     --checklist  "$HELP"       \
+                     0 0 0                      \
+                     $KVM_ARCH_LIST`
+fi &&
+
+if [[ -z $KVM_ARCHS ]]; then
+  KVM_ARCHS=$(cut -f 1 $SPELL_DIRECTORY/archs | sed -e 's/^/"/' -e 's/\s*$/"/' | tr '\n' ' ')
+fi
+
 .  $GRIMOIRE/config_query_multi.function  &&
 
 config_query_multi  KVM_DRV  "Enable which sound system(s)?"  \
