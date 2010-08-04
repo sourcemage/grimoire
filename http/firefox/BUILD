@@ -13,6 +13,8 @@ fi  &&
 #
 # No fast optimization for Mozilla, bit us so many times...
 #
+CFLAGS="${CFLAGS//-Os/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
 CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
@@ -29,6 +31,7 @@ fi &&
 # necko-wifi is part of xulrunner if enabled, but firefox
 # compile fails without wireless_tools without this option
 echo ac_add_options --disable-necko-wifi >> .mozconfig  &&
+echo ac_add_options --enable-optimize=-O2 >> .mozconfig  &&
 
 make_single  &&
 make -f client.mk build &&
