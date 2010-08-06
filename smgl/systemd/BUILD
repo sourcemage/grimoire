@@ -1,5 +1,3 @@
 cd $SOURCE_DIRECTORY &&
-aclocal &&
-autoconf &&
-automake &&
-default_build
+./bootstrap.sh --prefix=${INSTALL_ROOT}/usr &&
+make -j$MAKE_NJOBS
