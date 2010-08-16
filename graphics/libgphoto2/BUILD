@@ -1,3 +1,3 @@
+OPTS="--with-drivers=$DRIVER $OPTS" &&
 
-  OPTS="$OPTS  --with-drivers=$DRIVER"  &&
-  default_build  
+default_build  

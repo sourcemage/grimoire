@@ -9,10 +9,13 @@ then
 fi &&
 
 cd $SOURCE_DIRECTORY/mozilla/security/coreconf &&
+#cd $SOURCE_DIRECTORY/mozilla-1.9.2/security/coreconf &&
 
 echo 'INCLUDES += -I/usr/include/nspr -I$(DIST)/include/dbm' >> headers.mk &&
 
-sed -e 's:$(DIST)/lib:/usr/lib/nspr:' -i location.mk &&
+if [[ $NSS_BRANCH == 3.11 ]]; then
+  sedit 's:$(DIST)/lib:/usr/lib/nspr:' location.mk
+fi &&
 
 make_single &&
 

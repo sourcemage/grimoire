@@ -1,6 +1,11 @@
 default_pre_build                                            &&
 cd ${SOURCE_DIRECTORY}                                       &&
-patch -p1 < $SPELL_DIRECTORY/gl_select.patch                 &&
+if  [[  "$MESALIB_VER"  ==  "stable"  ]];  then
+  patch -p1 < $SPELL_DIRECTORY/gl_select.patch
+else
+  patch -p1 < $SPELL_DIRECTORY/gl_select-scm.patch
+
+fi                                                           &&
 cd ${SOURCE_DIRECTORY}/configs                               &&
 sedit "s:/usr/local:/usr:g" default                          &&
 
@@ -25,12 +30,10 @@ cd ${SOURCE_DIRECTORY}/docs                                  &&
 sedit "s:/X11R6::g" install.html                             &&
 cd ${SOURCE_DIRECTORY}/src/mesa/drivers/dri                  &&
 sedit "s:/X11R6::g" Makefile.template                        &&
-cd ${SOURCE_DIRECTORY}/src/glx/x11                           &&
-sedit "s:/X11R6::g" dri_glx.c                                &&
 cd ${SOURCE_DIRECTORY}/src/glw                               &&
 sedit "s:/X11R6::g" Makefile                                 &&
 
-if [[ $MESALIB_GIT == y ]]; then
+if [[ $MESALIB_VER == "git" ]]; then
   cd "$SOURCE_DIRECTORY"                                     &&
   sedit "/.*configure.*/d" autogen.sh                        &&
   ./autogen.sh

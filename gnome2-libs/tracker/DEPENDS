@@ -1,40 +1,129 @@
-depends dbus-glib                              &&
-depends bzip2                                  &&
-depends zlib                                   &&
-depends libpng                                 &&
-depends intltool                               &&
-depends perl                                   &&
-depends xml-parser-expat                       &&
-depends pango                                  &&
-depends gmime                                  &&
-depends sqlite  "--enable-external-sqlite"     &&
-optional_depends libgsf                        \
-                 "--enable-gsf"                \
-                 "--disable-gsf"               \
-                 "GSF data extractor"          &&
-optional_depends libexif                       \
-                 "--enable-exif"               \
-                 "--disable-exif"              \
-                 "exif data extractor"         &&
-optional_depends poppler                       \
-                 "--enable-pdf"                \
-                 "--disable-pdf"               \
-                 "PDF data extractor support"  &&
+depends dbus             &&
+depends dbus-glib        &&
+depends zlib             &&
+depends libpng           &&
+depends intltool         &&
+depends perl             &&
+depends xml-parser-expat &&
+depends pango            &&
+depends -sub TSAFE sqlite &&
+depends data-uuid        &&
+depends glib2            &&
 
-if [[ ${TRACKER_GUI} == y ]]; then
-depends gtk+2  &&
-depends gnome-vfs2 &&
-depends gnome-desktop  &&
-optional_depends  xdg-utils  ""  ""  "for automatic adaption of programs used by tracker-search-tool to the desktop environment"
-fi &&
+optional_depends id3lib                                        \
+                 "--enable-id3lib"                             \
+                 "--disable-id3lib"                            \
+                 "for writeback for MP3 data"                  &&
+
+optional_depends libxml2                                       \
+                 "--enable-libxml2"                            \
+                 "--disable-libxml2"                           \
+                 "for HTML/XML extractors"                     &&
+
+optional_depends libnotify                                     \
+                 "--enable-libinotify"                         \
+                 "--disable-libinotify"                        \
+                 "for the filesystem monitoring"               &&
+
+optional_depends libgnome-keyring                              \
+                 "--enable-gnome-keyring"                      \
+                 "--disable-gnome-keyring"                     \
+                 "for Gnome Keyring support"                   &&
+
+optional_depends libgsf                                        \
+                 "--enable-libgsf"                             \
+                 "--disable-libgsf"                            \
+                 "GSF data extractor"                          &&
+
+optional_depends libexif                                       \
+                 "--enable-libexif"                            \
+                 "--disable-libexif"                           \
+                 "exif data extractor"                         &&
+
+optional_depends poppler                                       \
+                 "--enable-poppler-glib"                       \
+                 "--disable-poppler-glib"                      \
+                 "PDF data extractor support"                  &&
+
+optional_depends gtk-doc                                       \
+                 "--enable-gtk-doc"                            \
+                 "--disable-gtk-doc"                           \
+                 "to build documentation"                      &&
+
+if is_depends_enabled $SPELL gtk-doc; then
+  depends graphviz
+fi                                                             &&
+
+optional_depends enca                                          \
+                 "--with-enca"                                 \
+                 "--without-enca"                              \
+                 "for Cyrillic language detection in MP3s"     &&
+
+optional_depends libvorbis                                     \
+                 "--enable-libvorbis"                          \
+                 "--disable-libvorbis"                         \
+                 "for vorbis data (ogg) extractor"             &&
+
+optional_depends flac                                          \
+                 "--enable-libflac"                            \
+                 "--disable-libflac"                           \
+                 "for flac data extractor"                     &&
+
+optional_depends totem-pl-parser                               \
+                 "--enable-playlist"                           \
+                 "--disable-playlist"                          \
+                 "to enable playlist support"                  &&
+
+optional_depends nautilus2                                     \
+                 "--enable-nautilus-extension"                 \
+                 "--disable-nautilus-extension"                \
+                 "for the nautilus extension (tagging widget)" &&
+
+optional_depends exempi                                        \
+                 "--enable-exempi"                             \
+                 "--disable-exempi"                            \
+                 "for XMP data extractor"                      &&
+
+optional_depends jpeg                                          \
+                 "--enable-libjpeg"                            \
+                 "--disable-libjpeg"                           \
+                 "for JPEG data extractor"                     &&
+
+optional_depends tiff                                          \
+                 "--enable-libtiff"                            \
+                 "--disable-libtiff"                           \
+                 "for TIFF data extractor"                     &&
+
+optional_depends libiptcdata                                   \
+                 "--enable-libiptcdata"                        \
+                 "--disable-libiptcdata"                       \
+                 "for iptc data extractor"                     &&
 
 if [[ "${TRACKER_EXTRACTOR}" == "gstreamer" ]]; then
-depends gstreamer
+  depends gstreamer
 elif [[ "${TRACKER_EXTRACTOR}" == "xine" ]]; then
-depends xine-lib
-fi &&
+  depends xine-lib
+fi                                                             &&
 
-if [[ "${TRACKER_MONITOR}" == "fam" ]]; then
-depends FAM
+if [[ "${TRACKER_AC}" == "devicekit-power" ]]; then
+  depends devicekit-power
+else
+  depends hal
+fi                                                             &&
+
+if [[ "${TRACKER_SEARCH_TOOL}" == "--enable-tracker-search-tool" ]] ||
+   [[ "${TRACKER_PREFERENCES}" == "--enable-tracker-preferences" ]] ||
+   [[ "${TRACKER_STATUS}" == "--enable-tracker-status-icon" ]] ||
+   [[ "${TRACKER_EXPLORER}" == "--enable-tracker-explorer" ]] ||
+   [[ "${TRACKER_SEARCH_BAR}" == "--enable-tracker-search-bar" ]]; then
+  depends gtk+2
+fi                                                             &&
+
+if [[ "${TRACKER_SEARCH_TOOL}" == "--enable-tracker-search-tool" ]] ||
+   [[ "${TRACKER_EXPLORER}" == "--enable-tracker-explorer" ]]; then
+  depends libgee
+fi                                                             &&
+
+if [[ "${TRACKER_SEARCH_BAR}" == "--enable-tracker-search-bar" ]]; then
+  depends gnome-panel
 fi
-                 

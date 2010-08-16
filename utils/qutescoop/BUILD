@@ -1,1 +1,1 @@
-make
+qt4_build

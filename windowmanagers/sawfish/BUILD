@@ -1,5 +1,2 @@
-export CPPFLAGS="-I/usr/include/freetype2" &&
-if [ "${SAWFISH_CVS}" == "y" ] ; then
-  ./autogen.sh $OPTS
-fi &&
+OPTS="${OPTS} $SAWFISH_9B" &&
 default_build

@@ -1,4 +1,4 @@
-scons  "PREFIX=$INSTALL_ROOT/usr" $OPTS  \
+scons -j$MAKE_NJOBS "PREFIX=$INSTALL_ROOT/usr" $OPTS  \
        $ARDOUR2_SYSLIBS                  \
        $ARDOUR2_SURFACES                 \
        $ARDOUR2_WIIMOTE                  \

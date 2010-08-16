@@ -4,13 +4,14 @@
 # $1 is the driver name
 # $2 is the spell name (for depending)
 function db_driver_depends() {
-	local db_driver="$1"
-	local db_spell="$2"
-	if list_find "$PHP5_DATABASE_DRIVERS" "$db_driver" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
-		depends $db_spell "--with-$db_driver"
-	else
-		OPTS="$OPTS --without-$db_driver"
-	fi
+  local db_driver="$1"
+  local db_spell="$2"
+
+  if list_find "$PHP5_DATABASE_DRIVERS" "$db_driver" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
+    depends $db_spell "--with-$db_driver"
+  else
+    OPTS="$OPTS --without-$db_driver"
+  fi
 }
 
 depends flex &&
@@ -24,12 +25,12 @@ optional_depends bzip2 \
                  "for compression support" &&
 
 if [[ "$PHP5_PEAR" == "y" ]]; then
-	depends libxml2 '--enable-xml --enable-dom --with-xmlrpc'
+  depends libxml2 '--enable-xml --enable-dom --with-xmlrpc'
 else
-	optional_depends libxml2 \
-					 '--enable-xml --enable-dom --with-xmlrpc' \
-					 '--disable-xml --disable-dom --without-xmlrpc --disable-xmlreader --disable-xmlwriter --disable-simplexml' \
-					 'For XML support (required for SOAP)'
+  optional_depends libxml2 \
+                   "--enable-xml --enable-dom --with-xmlrpc" \
+                   "--disable-xml --disable-dom --without-xmlrpc --disable-xmlreader --disable-xmlwriter --disable-simplexml" \
+                   "For XML support (required for SOAP)"
 fi
 
 optional_depends libxslt \
@@ -47,15 +48,17 @@ optional_depends pth \
                  "--with-tsrm-pth=${INSTALL_ROOT}/usr" "--with-tsrm-pthreads" \
                  "use GNU Portable Threads instead of POSIX threads" &&
 
-case "${PHP5_APACHE}" in
+if [[ $PHP5_SAPI == apache ]]; then
+  case "${PHP5_APACHE}" in
     handler) depends APACHE;;
     filter) depends APACHE2;;
-esac &&
+  esac
+fi &&
 
 if [[ "$PHP5_PCRE" == "none" ]]; then
-	PHP5_OPTS="$PHP5_OPTS --without-pcre-regex --without-pcre"
+  PHP5_OPTS="$PHP5_OPTS --without-pcre-regex --without-pcre"
 elif [[ "$PHP5_PCRE" == "external" ]]; then
-	depends pcre "--with-pcre-regex=${INSTALL_ROOT}/usr --with-pcre=${INSTALL_ROOT}/usr"
+  depends pcre "--with-pcre-regex=${INSTALL_ROOT}/usr --with-pcre=${INSTALL_ROOT}/usr"
 fi &&
 
 optional_depends C-CLIENT \
@@ -67,17 +70,17 @@ optional_depends openssl \
                  "for OpenSSL support" &&
 
 if list_find "${OPTS}" "--with-imap"; then
-	if is_depends_enabled $SPELL openssl; then
-		OPTS="$OPTS --with-imap-ssl"
-	else
-		optional_depends openssl "--with-imap-ssl" "--without-imap-ssl" \
-								 "for SSL support with IMAP (but not elsewhere)"
-	fi
+  if is_depends_enabled $SPELL openssl; then
+    OPTS="$OPTS --with-imap-ssl"
+  else
+    optional_depends openssl \
+                     "--with-imap-ssl" \
+                     "--without-imap-ssl" \
+                     "for SSL support with IMAP (but not elsewhere)"
+  fi
 fi &&
 
-optional_depends MAIL-TRANSPORT-AGENT \
-                  "" "" \
-                  "for SMTP support" &&
+optional_depends MAIL-TRANSPORT-AGENT "" "" "for SMTP support" &&
 
 optional_depends enchant \
                  "--with-enchant" "--without-enchant" \
@@ -134,17 +137,19 @@ optional_depends icu \
 # DB_DRIVERS="mysql mysqli pgsql sqlite sqlite3 firebird unixODBC iODBC"
 # PDO_DRIVERS="mysql pgsql firebird unixODBC iODBC"
 if list_find "$PHP5_DATABASE_DRIVERS" "mysql" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
-	depends mysql "" &&
-	if [[ "${VERSION:0:3}" == "5.3" ]]; then
-		config_query PHP5_MYSQLND "Do you want to use the MySQL Native Driver [mysqlnd]? (expiremental)" n &&
-		if [[ "${PHP5_MYSQLND}" == "y" ]]; then
-			PHP5_OPTS="$PHP5_OPTS --with-mysql=mysqlnd"
-		else
-			PHP5_OPTS="$PHP5_OPTS --with-mysql"
-		fi
-	fi
+  depends MYSQL &&
+
+  if [[ "${VERSION:0:3}" == "5.3" ]]; then
+    config_query PHP5_MYSQLND "Do you want to use the MySQL Native Driver [mysqlnd]? (expiremental)" n &&
+
+    if [[ "${PHP5_MYSQLND}" == "y" ]]; then
+      PHP5_OPTS="$PHP5_OPTS --with-mysql=mysqlnd"
+    else
+      PHP5_OPTS="$PHP5_OPTS --with-mysql"
+    fi
+  fi
 else
-	OPTS="$OPTS --without-mysql"
+  OPTS="$OPTS --without-mysql"
 fi &&
 db_driver_depends "mysqli" "mysql" &&
 db_driver_depends "pgsql" "postgresql" &&
@@ -153,37 +158,39 @@ db_driver_depends "sqlite3" "sqlite" &&
 db_driver_depends "firebird" "firebird" &&
 # unixODBC and iODBC are mutually exclusive... first one in wins?
 if list_find "$PHP5_DATABASE_DRIVERS" "unixODBC" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
-	depends unixodbc "--with-unixODBC=${INSTALL_ROOT}/usr --without-iodbc"
+  depends unixodbc "--with-unixODBC=${INSTALL_ROOT}/usr --without-iodbc"
 elif list_find "$PHP5_DATABASE_DRIVERS" "iODBC"; then
-	depends unixodbc "--with-iodbc=${INSTALL_ROOT}/usr --without-unixODBC"
+  depends unixodbc "--with-iodbc=${INSTALL_ROOT}/usr --without-unixODBC"
 else
-	OPTS="$OPTS --without-iodbc --without-unixODBC"
+  OPTS="$OPTS --without-iodbc --without-unixODBC"
 fi &&
-#ND
 
-#DBA drivers
+# DBA drivers
 if list_find "${PHP5_OPTS}" "--enable-dba"; then
-	for foo in $PHP5_DBA_DRIVERS; do
-	  if [[ $foo != none ]]; then
-		# handle the few special cases
-		if [[ "$foo" == "db4" ]]; then
-			depends db "--with-db4"
-		elif [[ "$foo" != "flatfile" ]] && [[ "$foo" != "inifile" ]]; then
-			depends $foo "--with-$foo"
-		fi
-	  fi
-	done
+  for foo in $PHP5_DBA_DRIVERS; do
+    if [[ $foo != none ]]; then
+      # handle the few special cases
+      if [[ "$foo" == "db4" ]]; then
+        depends db "--with-db4"
+      elif [[ "$foo" != "flatfile" ]] && [[ "$foo" != "inifile" ]]; then
+        depends $foo "--with-$foo"
+      fi
+    fi
+  done
 fi &&
 
 optional_depends openldap \
                  "--with-ldap" "--without-ldap" \
                  "for LDAP support" &&
 
-if list_find "${PHP5_OPTS}" "--with-ldap"; then
+if is_depends_enabled $SPELL openldap; then
   optional_depends LIBSASL \
                  "--with-ldap-sasl" "--without-ldap-sasl" \
                  "for LDAP with Cyrus SASL support" &&
-  depends -sub openldap SASL
+
+  if list_find "${PHP5_OPTS}" "--with-ldap-sasl"; then
+    depends -sub openldap SASL
+  fi
 fi &&
 
 optional_depends mm \

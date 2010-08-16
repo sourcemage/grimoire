@@ -1,5 +1,18 @@
 # kernel < 2.6.15 can't use udev > 092 because udevsend has been removed
 
+if list_find "$UDEV_OPTS" "--enable-extras"
+then
+  local _UDEV_SYSFS_DEPRECATED=$(get_kernel_config CONFIG_SYSFS_DEPRECATED_V2) &&
+  if [[ $_UDEV_SYSFS_DEPRECATED == y ||
+        $_UDEV_SYSFS_DEPRECATED == m ]]
+  then
+    message "${PROBLEM_COLOR}You have CONFIG_SYSFS_DEPRECATED_V2" \
+            "enabled in your kernel configuration, will not build" \
+            "${SPELL_COLOR}$SPELL${MESSAGE_COLOR}.${DEFAULT_COLOR}" &&
+    return 1
+  fi
+fi &&
+
 local KVER=$(get_kernel_version) &&
 local VER2=$(echo $KVER | cut -d. -f2) &&
 local VER3=$(echo $KVER | cut -d. -f3) &&
@@ -15,5 +28,4 @@ else
   default_pre_build &&
   cd "$SOURCE_DIRECTORY"
 fi &&
-
 sed -i "s:install-dist_udevconfDATA::g" Makefile.in

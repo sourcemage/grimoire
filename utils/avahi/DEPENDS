@@ -1,7 +1,4 @@
-optional_depends glib2 \
-                 "--enable-glib" "--disable-glib" \
-                 "Use GLib2?" &&
-
+# stuff from SUB_DEPENDS
 optional_depends qt-x11 \
                  "--enable-qt3" "--disable-qt3" \
                  "Build Qt3 mainloop integration?" &&
@@ -10,42 +7,70 @@ optional_depends qt4 \
                  "--enable-qt4" "--disable-qt4" \
                  "Build Qt4Core mainloop integration?" &&
 
-optional_depends gtk+2 \
-                 "--enable-gtk" "--disable-gtk" \
-                 "Use GTK+2?" &&
-
-if is_depends_enabled $SPELL gtk+2; then
-   depends libglade2
-fi &&
-
-optional_depends dbus-python \
-                 "--enable-dbus" "--disable-dbus" \
-                 "Use D-BUS?" &&
-
-optional_depends expat \
-                 "--enable-expat" "--disable-expat" \
-                 "Use Expat?" &&
-
-optional_depends gdbm \
-                 "--enable-gdbm" "--disable-gdbm" \
-                 "Use GDBM?" &&
-
-optional_depends libdaemon \
-                 "--enable-libdaemon" "--disable-libdaemon" \
-                 "Use libdaemon?" &&
-
-optional_depends python \
-                 "--enable-python" "--disable-python" \
-                 "Enable scripts that depends on python?" &&
-
-optional_depends pygtk2 \
-                 "--enable-pygtk" "--disable-pygtk" \
-                 "Make use of GTK in Python?" &&
-
 optional_depends mono \
                  "--enable-mono" "--disable-mono" \
                  "Enable mono bindings?" &&
 
-optional_depends monodoc \
+optional_depends gtk+2 \
+                 "--enable-gtk" "--disable-gtk" \
+                 "Use GTK+2?" &&
+
+optional_depends glib2 \
+                 "--enable-glib" "--disable-glib" \
+                 "Enable glib bindings?" &&
+
+if ( is_depends_enabled $SPELL qt-x11 ) || ( is_depends_enabled $SPELL qt4 ) || \
+   ( is_depends_enabled $SPELL mono ) || ( is_depends_enabled $SPELL gtk+2 ) || \
+   ( is_depends_enabled $SPELL glib2 ); then
+    AVAHI_CLIENT=y
+fi &&
+
+optional_depends doxygen '' '--disable-doxygen-doc' 'install documentation?' &&
+
+if [[ "$AVAHI_DISCOVER" == 'y' ]]; then
+   depends libglade2
+fi &&
+
+# for the daemon it's technically optional, but that would make the spell unreliable
+if [[ "$AVAHI_DISCOVER" == 'y' ]] || [[ "$AVAHI_DAEMON" == 'y' ]] || \
+   [[ "$AVAHI_CLIENT" == 'y' ]] || [[ "$AVAHI_BOOKMARKS" == 'y' ]]; then
+   depends dbus --enable-dbus
+else
+   AVAHI_NODBUS=y
+fi &&
+
+
+if [[ "$AVAHI_DISCOVER" == 'y' ]] || [[ "$AVAHI_BOOKMARKS" == 'y' ]]; then
+   depends dbus-python '--enable-dbus' &&
+   depends pygtk2 '--enable-pygtk'
+fi &&
+
+if [[ "$AVAHI_BOOKMARKS" == 'y' ]]; then
+   depends twisted
+fi &&
+
+if [[ "$AVAHI_DISCOVER" == 'y' ]] || [[ "$AVAHI_UTILS" == 'y' ]]; then
+   optional_depends gdbm "--enable-gdbm" "--disable-gdbm" "Use GDBM?"
+fi &&
+
+if [[ "$AVAHI_DISCOVER" == 'y' ]] && ( is_depends_enabled $SPELL gdbm ); then
+   depends python '--enable-python' &&
+   depends -sub GDBM python
+fi &&
+
+if [[ "$AVAHI_DAEMON" == 'y' ]]; then
+  depends libdaemon --enable-libdaemon &&
+  depends expat  --with-xml=expat &&
+  optional_depends libcap '' '' 'for chroot support'
+fi &&
+
+# avahi depends on gtk-sharp-2 when both the dbus and mono dependencies are enabled
+if ( is_depends_enabled $SPELL dbus ) && ( is_depends_enabled $SPELL mono ); then
+  depends gtk-sharp-2
+fi &&
+
+if ( is_depends_enabled $SPELL mono ); then
+   optional_depends monodoc \
                  "--enable-monodoc" "--disable-monodoc" \
                  "Enable documentation for mono bindings?"
+fi

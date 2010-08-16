@@ -1,1 +1,1 @@
-make DESTDIR=${INSTALL_ROOT}
+make PREFIX=${INSTALL_ROOT}/usr

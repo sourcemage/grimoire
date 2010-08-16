@@ -1,11 +1,16 @@
 depends  libole2-2    &&
 depends  libgsf       &&
+
 if [[ $GNUMERIC_DEVEL == y ]]; then
          depends goffice-dev &&
          depends rarian
 else
-         depends goffice
+         depends goffice &&
+         if spell_ok goffice && [[ $(installed_version goffice) < 0.8.5 ]]; then
+           force_depends goffice
+         fi
 fi &&
+
 depends  libxml2      &&
 
 depends  cairo &&
@@ -21,14 +26,18 @@ optional_depends  libgnomeui                           \
                   "--without-gnome"                    \
                   "Build GNOME extensions?"            &&
 
-if ( is_depends_enabled ${SPELL} libgnomeui ); then
-  depends  -sub GNOME libgsf
+if is_depends_enabled $SPELL libgnomeui; then
+  depends -sub GNOME libgsf
 fi &&
 
 optional_depends  perl                                 \
                   "--with-perl"                        \
                   "--without-perl"                     \
                   "Compile the Perl plugin loader?"    &&
+
+if is_depends_enabled $SPELL perl; then
+  depends xml-parser-expat
+fi &&
 
 optional_depends  psiconv                              \
                   "--with-psiconv"                     \

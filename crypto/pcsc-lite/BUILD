@@ -1,9 +1,9 @@
-OPTS="$PCSC_MUSCLE                                  \
-      $PCSC_EXADPU                                  \
-      --enable-confdir=$INSTALL_ROOT/etc/pcsc-lite  \
-      --enable-ipcdir=/var/run/ipc                  \
-      --enable-runpid=/var/run                      \
-      $OPTS"                                        &&
+if [[ $PCSC_DEVICE_ACCESS != hal ]]; then
+  OPTS="--disable-libhal $OPTS"
+fi &&
+if [[ $PCSC_DEVICE_ACCESS != libusb ]]; then
+  OPTS="--disable-libusb $OPTS"
+fi &&
 
 make_single    &&
 default_build  &&

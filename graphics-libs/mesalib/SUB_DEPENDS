@@ -1,4 +1,14 @@
 case $THIS_SUB_DEPENDS in
+  NONSTABLE)
+    if [[ "$MESALIB_VER" == "stable" ]]; then
+      MESALIB_VER="feature" &&
+      persistent_add MESALIB_VER &&
+      message "${MESSAGE_COLOR}Non-stable branch of ${SPELL_COLOR}mesalib${DEFAULT_COLOR}" \
+              "${MESSAGE_COLOR}requested, upgrading to ${SPELL_COLOR}feature${DEFAULT_COLOR}" \
+              "${MESSAGE_COLOR}branch."
+    fi
+    ;;
+
   DRI)
     MESALIB_BUILD=dri              &&
     persistent_add  MESALIB_BUILD  &&
@@ -6,36 +16,25 @@ case $THIS_SUB_DEPENDS in
     message "${MESSAGE_COLOR}DRI support requested, forcing build type"  \
             "$MESALIB_BUILD for architecture\n${SMGL_COMPAT_ARCHS[1]}."  \
             "$DEFAULT_COLOR"                                             &&
-    list_remove  MESALIB_DRIVERS  nouveau  || true
     list_remove  MESALIB_DRIVERS  i915tex  || true
 
     . $GRIMOIRE/config_query_multi.function                              &&
    if [[ $MESALIB_BUILD == dri ]]; then
+      if  [[  "$MESALIB_VER"  ==  "stable"  ]];  then
+         AVAILABLE_DRIVERS="i810 i915 i965 mach64 mga r128 r200 r300 radeon s3v savage sis tdfx trident unichrome ffb swrast"
+      elif  [[  "$MESALIB_VER"  ==  "feature"  ]];  then
+         AVAILABLE_DRIVERS="i810 i915 i965 mach64 mga r128 r200 r300 r600 radeon s3v savage sis tdfx trident unichrome ffb swrast"
+      else
+         AVAILABLE_DRIVERS="i810 i915 i965 mach64 mga nouveau r128 r200 r300 r600 radeon s3v savage sis tdfx trident unichrome ffb swrast"
+      fi
    config_query_multi MESALIB_DRIVERS                                    \
                       "What drivers would you like to build?"            \
-                      swrast                                             \
-                      all                                                \
-                      i810                                               \
-                      i915                                               \
-                      i965                                               \
-                      mach64                                             \
-                      mga                                                \
-                      r128                                               \
-                      r200                                               \
-                      r300                                               \
-                      radeon                                             \
-                      s3v                                                \
-                      savage                                             \
-                      sis                                                \
-                      tdfx                                               \
-                      trident                                            \
-                      unichrome                                          \
-                      ffb                                                &&
+                      $AVAILABLE_DRIVERS                                 &&
      if list_find "$MESALIB_DRIVERS" all
      then
-     MESALIB_DRIVERS="i810 i915 i965 mach64 mga r128 r200 r300 radeon s3v savage sis tdfx trident unichrome ffb swrast"
+     MESALIB_DRIVERS="$AVAILABLE_DRIVERS"
      fi
    fi                                                                    ;;
 
-  *) echo "Unknown sub_depends!"; return 1 ;;
+  *) echo "Unknown sub_depends $THIS_SUB_DEPENDS!"; return 1 ;;
 esac

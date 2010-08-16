@@ -1,2 +1,4 @@
 patch  -p1  <  $SCRIPT_DIRECTORY/Makefile.diff &&
-default_build_perl
+make_single        &&
+default_build_perl &&
+make_normal

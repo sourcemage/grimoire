@@ -1,4 +1,4 @@
-cd  $SOURCE_DIRECTORY/mozilla                 &&
+cd  $SOURCE_DIRECTORY/comm-1.9.1      &&
 MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey  &&
 
 #
@@ -14,21 +14,6 @@ fi  &&
 CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
-./configure --prefix=$INSTALL_ROOT/usr                       \
-            --mandir=$INSTALL_ROOT/usr/share/man             \
-            --with-default-mozilla-five-home=$MOZILLA_HOME   \
-            --with-user-appdir=.seamonkey                    \
-            --enable-extensions=all${MOZILLA_EXT}            \
-            --enable-optimize="$CFLAGS"                      \
-            --enable-application=suite                       \
-            --disable-tests                                  \
-            $SEAMONKEY_MAILNEWS                              \
-            $SEAMONKEY_CHAT                                  \
-            $SEAMONKEY_COMPOSER                              \
-            $SEAMONKEY_MATHML                                \
-            $SEAMONKEY_JS                                    \
-            $SEAMONKEY_XINERAMA                              \
-            $OPTS                                            &&
 make_single                                                  &&
-make                                                         &&
+make -f client.mk build                                      &&
 make_normal

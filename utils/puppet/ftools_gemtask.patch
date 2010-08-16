@@ -1,0 +1,40 @@
+--- tasks/rake/gem-orig.rake	2010-05-16 23:10:24.000000000 -0500
++++ tasks/rake/gem.rake	2010-06-18 05:28:29.000000000 -0500
+@@ -1,4 +1,10 @@
+-require 'ftools'
++begin
++  require 'ftools'
++  $haveftools = true
++rescue LoadError
++  puts "ftools not found.  Using FileUtils instead.."
++  $haveftools = false
++end
+ 
+ GEM_FILES = FileList[
+     '[A-Z]*',
+@@ -44,7 +50,11 @@
+ desc "Prepare binaries for gem creation"
+ task :prepare_gem do
+     SBIN.each do |f|
+-      File.copy(f,"bin")
++      if $haveftools
++        FileUtils.copy(f,"bin")
++      else
++        File.copy(f,"bin")
++      end
+     end
+ end
+ 
+@@ -52,7 +62,11 @@
+ task :create_gem => :prepare_gem do
+     Dir.mkdir("pkg") rescue nil
+     Gem::Builder.new(spec).build
+-    File.move("puppet-#{Puppet::PUPPETVERSION}.gem", "pkg")
++    if $haveftools
++      FileUtils.move("puppet-#{Puppet::PUPPETVERSION}.gem", "pkg")
++    else
++      File.move("puppet-#{Puppet::PUPPETVERSION}.gem", "pkg")
++    end
+     SBIN.each do |f|
+        File.unlink("bin/" + f.gsub(/sbin\//, ''))
+     end

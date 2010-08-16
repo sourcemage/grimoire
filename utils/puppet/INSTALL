@@ -1,0 +1,54 @@
+cd ${SOURCE_DIRECTORY} && ruby install.rb --destdir="${INSTALL_ROOT}" &&
+echo "***************** COMPLETED RUBY INSTALL *************************" &&
+
+install_config_file "$SPELL_DIRECTORY/puppet.conf" \
+                    "${INSTALL_ROOT}/etc/sysconfig/puppet.conf" &&
+
+if [[ "$CLIENT_ONLY" != 'y' ]]; then
+   echo "************* NOT CLIENT_ONLY (${CLIENT_ONLY}) - installing puppetmaster config ***************" &&
+   install_config_file "$SPELL_DIRECTORY/puppetmaster.conf" \
+                       "${INSTALL_ROOT}/etc/sysconfig/puppetmaster.conf"
+fi &&
+
+if [[ ! -d "${INSTALL_ROOT}/etc/puppet" ]]; then
+   echo "************* /etc/puppet DOES NOT EXIST, CREATING *************" &&
+   install -vdm 755 "${INSTALL_ROOT}/etc/puppet"
+fi &&
+
+echo "**************** INSTALLING CONFIG FILES ********************" &&
+install_config_file "${SOURCE_DIRECTORY}/conf/auth.conf" \
+                    "${INSTALL_ROOT}/etc/puppet/auth.conf" &&
+install_config_file "${SOURCE_DIRECTORY}/conf/namespaceauth.conf" \
+                    "${INSTALL_ROOT}/etc/puppet/namespaceauth.conf" &&
+
+if [[ "$CLIENT_ONLY" != 'y' ]]; then
+   echo "************* NOT CLIENT_ONLY (${CLIENT_ONLY}) - installing manifests/modules ***************" &&
+   install -vdm 755 "${INSTALL_ROOT}"/etc/puppet/{manifests,modules}
+fi &&
+
+if [[ "$VIM_SYNTAX" == 'y' ]]; then
+   echo "************** VIM_SYNTAX set (${VIM_SYNTAX}) - installing **********" &&
+   install -vm 644 "${SOURCE_DIRECTORY}/ext/vim/syntax/puppet.vim" \
+                   "${INSTALL_ROOT}/usr/share/vim/vimfiles/syntax" &&
+   install -vm 644 "${SOURCE_DIRECTORY}/ext/vim/ftdetect/puppet.vim"  \
+                   "${INSTALL_ROOT}/usr/share/vim/vimfiles/ftdetect"
+fi  &&
+
+if [[ "$INSTALL_EXAMPLES" == 'y' ]]; then
+   echo "************ INSTALL_EXAMPLES set ($INSTALL_EXAMPLES) - installing ************" &&
+   if [[ ! -d "${INSTALL_ROOT}/usr/share/doc/puppet" ]]; then
+      install -vdm 755 "${INSTALL_ROOT}/usr/share/doc/puppet"
+   fi
+   for f in $(find ext examples -type f); do
+      if [[ ! -d "${INSTALL_ROOT}"/usr/share/doc/puppet/$(dirname ${f}) ]]; then
+         install -vdm 755 "${INSTALL_ROOT}"/usr/share/doc/puppet/$(dirname ${f})
+      fi
+      install -vm 644 "$f" "${INSTALL_ROOT}/usr/share/doc/puppet/${f}"
+   done
+fi &&
+
+if [[ "$CLIENT_ONLY" == 'y' ]]; then
+   echo "******************* CLIENT ONLY FLAG SET (${CLIENT_ONLY}) *********************" &&
+   rm -f "${INSTALL_ROOT}"/usr/sbin/{puppetmasterd,puppetqd,puppetrun}
+fi
+

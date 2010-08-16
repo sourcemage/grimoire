@@ -1,4 +1,4 @@
-cd "$SOURCE_DIRECTORY/mozilla-1.9.1" &&
+cd "$SOURCE_DIRECTORY/mozilla-1.9.2" &&
 
 XULRUNNER_HOME="$INSTALL_ROOT/usr/lib/xulrunner" &&
 export  MOZ_PHOENIX=1 &&
@@ -13,6 +13,8 @@ fi  &&
 #
 # No fast optimization for Mozilla, bit us so many times...
 #
+CFLAGS="${CFLAGS//-Os/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
 CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
@@ -22,10 +24,15 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 CFLAGS="${CFLAGS//-ffast-math/}"      &&
 CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
+OPTS="${OPTS} --enable-optimize=-O2" &&
+
 ./configure --prefix=$INSTALL_ROOT/usr                       \
             --mandir=$INSTALL_ROOT/usr/share/man             \
-            --enable-optimize="$CFLAGS"                      \
             $OPTS                                            &&
 make_single  &&
+# workaround for configure not handling --disable-necko-wifi correctly
+if [[ $OPTS =~ --disable-necko-wifi ]]; then
+  echo ac_add_options --disable-necko-wifi >> .mozconfig
+fi &&
 make -f client.mk build &&
 make_normal

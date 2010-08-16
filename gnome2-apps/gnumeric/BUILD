@@ -22,6 +22,4 @@ else
   OPTS="$OPTS --without-long-double"  
 fi &&
 
-make_single    &&
-default_build  &&
-make_normal
+default_build
