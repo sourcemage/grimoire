@@ -60,9 +60,6 @@ fi &&
 export  CFLAGS="${CFLAGS/-ffast-math/}"  &&
 export  CC=gcc                           &&
 
-# don't strip, so thread debugging works #15017
-export LDFLAGS="${LDFLAGS//-s/}"  &&
-
 #
 # LD_LIBRARY_PATH includes $PWD bug
 #
