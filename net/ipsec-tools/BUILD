@@ -1,8 +1,8 @@
-OPTS="$OPTS --with-kernel-headers=/usr/include"
+OPTS="--with-kernel-headers=$TRACK_ROOT/usr/include \
+      --enable-shared \
+      $OPTS" &&
 
-unset  LDFLAGS   &&
-unset  CFLAGS    &&
-unset  CXXFLAGS  &&
-make_single      &&
-default_build    &&
-make_normal
+# fixes compilation with GCC 4.4
+CFLAGS="-fno-strict-aliasing $CFLAGS" &&
+
+default_build

@@ -1,1 +1,1 @@
-make
+make MYCFLAGS="$CFLAGS" MYLDFLAGS="$LDFLAGS"

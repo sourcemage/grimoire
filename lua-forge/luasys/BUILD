@@ -1,1 +1,1 @@
-cd src && make T=sys.so
+cd src && make linux T="sys.so"
