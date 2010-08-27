@@ -71,6 +71,9 @@ $SOURCE_DIRECTORY/configure                                           \
              --enable-threads=posix                                   \
              --enable-languages=$(echo ${GCC_COMPILER} | tr " " ",")  \
              --with-system-zlib                                       \
+             --with-bugurl=http://bugs.sourcemage.org                 \
+             --enable-bootstrap                                       \
+             --enable-checking=release                                \
              $GCC_MULTILIB $OPTS                                      &&
 
 if [[ "$GCC_TARGET" == "profiledbootstrap" ]] ||
