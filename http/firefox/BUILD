@@ -25,7 +25,12 @@ CFLAGS="${CFLAGS//-ffast-math/}"      &&
 CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
 if [[ "$FIREFOX_CVS" == "y" ]]; then
-autoconf-2.13
+  autoconf-2.13 &&
+ 
+# workaround for configure not handling --disable-webm correctly
+  if [[ $OPTS =~ --disable-webm ]]; then
+   echo ac_add_options --disable-webm >> .mozconfig
+  fi
 fi &&
 
 # necko-wifi is part of xulrunner if enabled, but firefox
