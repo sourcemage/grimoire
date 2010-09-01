@@ -1,4 +1,4 @@
-if [[ $XFBURN_SVN == y ]]; then
+if [[ $XFBURN_GIT == y ]]; then
   ./autogen.sh --prefix=${INSTALL_ROOT}/usr  \
            --sysconfdir=${INSTALL_ROOT}/etc  \
         --localstatedir=${INSTALL_ROOT}/var  \
