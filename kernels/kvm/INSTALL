@@ -1,16 +1,10 @@
-# install kernel modules
-local kinstalldir="${INSTALL_ROOT}/lib/modules/$(get_kernel_version)/kernel/drivers/kvm"
-mkdir -p "$kinstalldir" &&
+make install DESTDIR=${INSTALL_ROOT} &&
+ln -f $INSTALL_ROOT/usr/bin/qemu-system-x86_64 \
+      $INSTALL_ROOT/usr/bin/qemu-kvm  &&
 
-case $(uname -m) in
-  i*86) local KVM_ARCH=x86;;
-  x86_64) local KVM_ARCH=x86;;
-  ia64) local KVM_ARCH=ia64;;
-esac &&
-
-for kmod in kvm/kernel/$KVM_ARCH/*.ko; do
-  install -v -o root -g root -m 644 $kmod $kinstalldir
-done &&
-
-depmod -a $(get_kernel_version) &&
-make install DESTDIR=${INSTALL_ROOT}
+if [[ "$KVM_DIAGTOOLS" == "y" ]]; then
+  message "${MESSAGE_COLOR}Installing KVM diagnostic/debugging tools...${DEFAULT_COLOR}" &&
+  install -m 0755 kvm/user/kvmtrace $INSTALL_ROOT/usr/bin/kvmtrace &&
+  install -m 0755 kvm/user/kvmtrace_format $INSTALL_ROOT/usr/bin/kvmtrace_format &&
+  install -m 0755 kvm/kvm_stat $INSTALL_ROOT/usr/bin/kvm_stat
+fi

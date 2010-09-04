@@ -35,6 +35,7 @@ fi
             --with-user-appdir=.thunderbird  \
             --enable-application=mail        \
             --enable-static                  \
+            --disable-crashreporter          \
               $OPTS                          &&
 
 make

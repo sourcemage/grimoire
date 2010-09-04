@@ -1,2 +1,1 @@
-sedit 's/\/usr\/man/\/usr\/share\/man/' Makefile &&
-make  ROOT=$INSTALL_ROOT all
+make DESTDIR="$INSTALL_ROOT" OPT="$CFLAGS" all
