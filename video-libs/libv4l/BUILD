@@ -1,1 +1,1 @@
-make
+make -C lib all
