@@ -84,7 +84,7 @@ CXXFLAGS =-DIBPP_LINUX -DIBPP_GCC -fPIC -I./ -I./fbheaders $(CFLAGS)
 	# -lfbclient (or -lgds) is for Firebird 1.5 SS and higher
 	# -lfbembed is for Firebird 1.5 CS and higher
 	#
-LIBS+=-lfbclient -lcrypt -lm -ldl -lpthread # dependancies for shared library
+LIBS+=-L/opt/firebird/lib -lfbclient -lcrypt -lm -ldl -lpthread # dependancies for shared library
 	#
 	TARGETS =	$(TARGETDIR)/libibpp$(DS).a \
 				$(TARGETDIR)/libibpp$(DS).so 
