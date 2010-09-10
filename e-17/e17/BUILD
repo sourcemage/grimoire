@@ -1,4 +1,6 @@
 OPTS="--enable-fsstd  \
-      $OPTS"          &&
+      --disable-illume \
+      --disable-illume2 \
+      $OPTS" &&
 
 default_build
