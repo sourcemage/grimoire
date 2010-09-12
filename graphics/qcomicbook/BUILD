@@ -1,4 +1,5 @@
-QTDIR=/usr    &&
+QTDIR=$INSTALL_ROOT/usr &&
 PATH=$QTDIR/bin/qt4:$PATH &&
-export QTDIR=/usr && 
-default_build
+
+cmake . -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr -DCMAKE_BUILD_TYPE=Release
+make

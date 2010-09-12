@@ -1,3 +1,2 @@
-./bootstrap                                      &&
-./configure --prefix=/usr --enable-contrib $OPTS &&
-make
+OPTS="--enable-contrib $OPTS" &&
+default_build
