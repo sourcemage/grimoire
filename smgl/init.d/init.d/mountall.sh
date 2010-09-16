@@ -50,6 +50,8 @@ checkfs()
     /sbin/sulogin
     /sbin/reboot  -f
   fi
+
+  rm -f /forcefsck
 }
 
 scanlvm()
