@@ -26,7 +26,10 @@ function recursive_rm() {
 
 checkfs()
 {
-  [ -e /fastboot     ]  &&  return
+  if [ -e /fastboot ]; then
+    rm -f /fastboot;
+    return;
+  fi
   [ -e /forcefsck    ]  &&  FORCE="-f"
   [ "$NOSOFTFIX" != yes ]  &&  FIX="-a"
   [ "$FSCKFIX" = yes ]  &&  FIX="-y"
@@ -48,7 +51,7 @@ checkfs()
     /sbin/reboot  -f
   fi
 
-  rm -f /fastboot /forcefsck
+  rm -f /forcefsck
 }
 
 scanlvm()
