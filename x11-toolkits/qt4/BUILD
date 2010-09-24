@@ -20,6 +20,7 @@ OPTS="$QT_DEBUG               \
       $QT_MEDIA               \
       $QT_GTK                 \
       $QT_ACCESS              \
+      $QT_PHONON              \
       $OPTS"                  &&
 
 ./configure  -opensource -confirm-license                                     \
