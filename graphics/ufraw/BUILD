@@ -1,2 +1,2 @@
-OPTS="$UFR_EXT $UFR_CRTST $UFR_HTPX $OPTS" &&
+OPTS="$UFRAW_OPTS $OPTS" &&
 default_build
