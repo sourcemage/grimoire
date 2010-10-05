@@ -31,17 +31,20 @@ config_query_list MESALIB_BUILD                                          \
                   xlib                                                   \
                   dri                                                    \
                   osmesa                                                 &&
-
 if [[ $MESALIB_BUILD == dri ]]; then
-  AVAILABLE_DRIVERS="i915 i965 mach64 mga r128 r200 r300 r600 radeon \
-                    savage tdfx unichrome swrast" &&
-
+  if  [[  "$MESALIB_VER"  ==  "stable"  ]];  then
+    AVAILABLE_DRIVERS="i810 i915 i965 mach64 mga r128 r200 r300 radeon s3v savage sis tdfx trident unichrome ffb swrast"
+  elif  [[  "$MESALIB_VER"  ==  "feature"  ]];  then
+    AVAILABLE_DRIVERS="i810 i915 i965 mach64 mga r128 r200 r300 r600 radeon s3v savage sis tdfx trident unichrome ffb swrast"
+  else
+    AVAILABLE_DRIVERS="i810 i915 i965 mach64 mga nouveau r128 r200 r300 r600 radeon s3v savage sis tdfx trident unichrome ffb swrast"
+  fi
 config_query_multi MESALIB_DRIVERS                                       \
                    "What drivers would you like to build?"               \
-                   all $AVAILABLE_DRIVERS                                &&
-
-  if list_find "$MESALIB_DRIVERS" all; then
-    MESALIB_DRIVERS="$AVAILABLE_DRIVERS"
+                   $AVAILABLE_DRIVERS                                    &&
+  if list_find "$MESALIB_DRIVERS" all
+  then
+  MESALIB_DRIVERS="$AVAILABLE_DRIVERS"
   fi
 fi                                                                       &&
 
@@ -49,53 +52,8 @@ if [[ $MESALIB_BUILD == xlib ]]; then
 config_query_multi MESALIB_DRIVERS                                       \
                    "What drivers would you like to build?"               \
                    swrast
+fi                                                                       &&
 
-if [[ "$MESALIB_VER" == "stable" ]]; then
 config_query_multi MESALIB_GALLIUM                                       \
                    "What Gallium3D drivers woulld you like to build?"    \
-                   none svga intel radeon nouveau
-
-elif [[ "$MESALIB_VER" == "feature" ]]; then
-config_query_multi MESALIB_GALLIUM                                       \
-                   "What Gallium3D drivers woulld you like to build?"    \
-                   none svga intel radeon nouveau swrast
-
-elif [[ "$MESALIB_VER" == "developement" ]]; then
-config_query_multi MESALIB_GALLIUM                                       \
-                   "What Gallium3D drivers woulld you like to build?"    \
-                   none llvm svga i915 i965 radeon r600 nouveau swrast
-
-fi
-fi &&
-
-config_query_option MESALIB_OPTS "enable TLS support in GLX" n \
-                    "--enable-glx-tls" "--disable-glx-tls" &&
-
-config_query_option MESALIB_OPTS "enable EGL library?" y \
-                    "--enable-egl" "--disable-egl" &&
-
-config_query_option MESALIB_OPTS "enable OpenGL Utility library?" y \
-                    "--enable-glu" "--disable-glu" &&
-
-config_query_option MESALIB_OPTS "enable Xt/Motif widget library?" y \
-                    "--enable-glw" "--disable-glw" &&
-
-# config_query_option MESALIB_OPTS "enable GLUT library" y \
-#                     "--enable-glut" "--disable-glut"
-
-if [[ "$MESALIB_VER" == "developement" ]] || \
-   [[ "$MESALIB_VER" == "git" ]]; then
-
-config_query_option MESALIB_OPTS "enable support for OpenGL ES 1.x API?" n \
-                    "--enable-gles1" "--disable-gles1" &&
-
-config_query_option MESALIB_OPTS "enable support for OpenGL ES 2.x API?" n \
-                    "--enable-gles2" "--disable-gles2" &&
-
-if ( list_find "--enable-gles1" $MESALIB_OPTS ) || \
-   ( list_find "--enable-gles2" $MESALIB_OPTS ); then
-config_query_option MESALIB_OPTS "build separate OpenGL ES only libraries?" n \
-                    "--enable-gles-overlay" "--disable-gles-overlay"
-fi
-
-fi
+                   none intel radeon nouveau all
