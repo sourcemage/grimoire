@@ -3,9 +3,9 @@ create_group scanner &&
 LDFLAGS="-pthread $LDFLAGS"
 
 if [[ $USEFORK == y ]]; then
-  OPTS="$OPTS --enable-fork-process"
+  OPTS="$OPTS --disable-pthread"
 else
-  OPTS="$OPTS --disable-fork-process"
+  OPTS="$OPTS --enable-pthread"
 fi &&
 
 if [[ $IPV6 == y ]]; then
