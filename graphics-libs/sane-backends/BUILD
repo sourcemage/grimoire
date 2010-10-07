@@ -24,6 +24,8 @@ if [[ "$SANE_BUILD_LOCAL" == n ]]; then
   OPTS="$OPTS --disable-local-backends"
 fi &&
 
-OPTS="$OPTS --with-docdir=$INSTALL_ROOT/usr/share/doc/sane-backends" &&
+OPTS="$OPTS \
+      --disable-latex \
+      --with-docdir=$INSTALL_ROOT/usr/share/doc/sane-backends" &&
 
 default_build
