@@ -24,8 +24,6 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 CFLAGS="${CFLAGS//-ffast-math/}"      &&
 CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
-unset CFLAGS CXXFLAGS &&
-
 if [[ "$FIREFOX_CVS" == "y" ]]; then
   autoconf-2.13 &&
  
