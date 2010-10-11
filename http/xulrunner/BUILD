@@ -24,6 +24,8 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 CFLAGS="${CFLAGS//-ffast-math/}"      &&
 CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
+unset CFLAGS CXXFLAGS &&
+
 OPTS="${OPTS} --enable-optimize=-O2" &&
 
 ./configure --prefix=$INSTALL_ROOT/usr                       \
