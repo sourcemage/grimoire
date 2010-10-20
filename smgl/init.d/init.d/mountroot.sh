@@ -61,7 +61,7 @@ start()
   #
   if   [ -f /etc/mdadm.conf ] ; then
     mdadm  --assemble  --scan
-    mdadm  --follow    --scan  --delay=120  --daemonise  >  /var/run/mdadm.pid
+    mdadm  --follow    --scan  --delay=120  --daemonise
   elif [ -f /etc/raidtab    ] ; then
     raidstart  --all
   fi
