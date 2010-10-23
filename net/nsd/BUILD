@@ -1,7 +1,6 @@
 create_account nsd &&
 
 OPTS="--enable-bind8-stats \
-      --enable-nsid \
       --with-ssl=$INSTALL_ROOT/usr \
       --with-pidfile=$INSTALL_ROOT/var/nsd/nsd.pid \
       --with-zonesdir=$INSTALL_ROOT/var/nsd/zones \

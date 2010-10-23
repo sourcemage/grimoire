@@ -1,27 +1,23 @@
-OPTS="$OPTS $DSPAM_DAEMON $DSPAM_PREFS" &&
-
+OPTS="$DSPAM_OPTS $OPTS" &&
 STORAGE_DRIVERS='hash_drv' &&
-if [[ "$DSPAM_SQLITE" == y ]]; then STORAGE_DRIVERS="$STORAGE_DRIVERS,sqlite3_drv"; fi &&
-if [[ "$DSPAM_DB"     == y ]]; then STORAGE_DRIVERS="$STORAGE_DRIVERS,libdb4_drv" ; fi &&
-if [[ "$DSPAM_MYSQL"  == y ]]; then 
-  STORAGE_DRIVERS="$STORAGE_DRIVERS,mysql_drv" &&
-  OPTS="$OPTS --with-mysql-includes=/usr/include/mysql"
+if is_depends_enabled $SPELL sqlite ; then
+STORAGE_DRIVERS="$STORAGE_DRIVERS,sqlite3_drv"
 fi &&
-if [[ "$DSPAM_PGSQL"  == y ]]; then 
-  STORAGE_DRIVERS="$STORAGE_DRIVERS,pgsql_drv"  &&
-  OPTS="$OPTS --with-pgsql-includes=/usr/include/postgresql"
+if is_depends_enabled $SPELL db ; then
+STORAGE_DRIVERS="$STORAGE_DRIVERS,libdb4_drv"
 fi &&
-OPTS="$OPTS --with-storage-driver=$STORAGE_DRIVERS" &&
-
-if [[ "$DSPAM_VIRTUAL_USERS" == 'y' ]]; then OPTS="$OPTS --enable-virtual-users" ; fi &&
+if is_depends_enabled $SPELL $(get_spell_provider $SPELL MYSQL) ; then
+STORAGE_DRIVERS="$STORAGE_DRIVERS,mysql_drv"
+fi &&
+if is_depends_enabled $SPELL postgresql ; then
+STORAGE_DRIVERS="$STORAGE_DRIVERS,pgsql_drv"
+fi &&
+OPTS="--with-storage-driver=$STORAGE_DRIVERS $OPTS" &&
 
 case "$DSPAM_SCALE" in
   "none") ;;
   "Large Scale") OPTS="$OPTS --enable-large-scale" ;;
   "Domain Scale") OPTS="$OPTS --enable-domain-scale" ;;
 esac  &&
-
-# no need for $INSTALL_ROOT here
-OPTS="$OPTS --with-logdir=/var/log" &&
 
 default_build
