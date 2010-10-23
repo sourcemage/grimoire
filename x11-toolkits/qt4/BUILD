@@ -1,3 +1,7 @@
+# Remove -ffast-math from CFLAGS, gives problems when building internal SQLite,
+# or QtWebkit which forces building it... probably a buildsystem bug.
+CFLAGS="${CFLAGS/-ffast-math}"
+
 QTDIR=$INSTALL_ROOT/usr &&
 
 OPTS="$QT_DEBUG               \
@@ -16,6 +20,7 @@ OPTS="$QT_DEBUG               \
       $QT_MEDIA               \
       $QT_GTK                 \
       $QT_ACCESS              \
+      $QT_PHONON              \
       $OPTS"                  &&
 
 ./configure  -opensource -confirm-license                                     \

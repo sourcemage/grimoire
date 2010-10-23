@@ -12,4 +12,8 @@ if [[ "${SMGL_COMPAT_ARCHS[1]}" == "ia32" ]] ; then
   export CFLAGS=${CFLAGS/-march=em64t/-march=i686}
 fi  &&
 
+# Fix from lunar that allows beecrypt to work with rpm
+OPTS="$OPTS --disable-openmp" &&
+
+
 default_build

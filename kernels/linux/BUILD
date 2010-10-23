@@ -26,8 +26,8 @@ if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
       make dep    
     ;;
   esac &&
-  make $EXTRA_MAKE_OPTIONS $IMAGE_TARGET &&
-  make $EXTRA_MAKE_OPTIONS modules &&
+  eval make $EXTRA_MAKE_OPTIONS $IMAGE_TARGET &&
+  eval make $EXTRA_MAKE_OPTIONS modules &&
   if grep -q CONFIG_BONDING=m ./.config || grep -q CONFIG_BONDING=y ./.config
   then
     gcc -Wall -O -I/usr/src/linux/include ./Documentation/networking/ifenslave.c -o ifenslave

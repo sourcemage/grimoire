@@ -1,4 +1,3 @@
-prepare_cmake_flags &&
 qt4_cmake_build &&
 
 if ! list_find "$QUTIM_PLUGINS" "none"

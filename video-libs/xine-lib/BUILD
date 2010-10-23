@@ -1,3 +1,3 @@
-# breaks with lots of stuff, let it use its own CFLAGS
-export  CFLAGS=""  &&
+OPTS="$XINE_LIB_OPTS $OPTS" &&
+
 default_build

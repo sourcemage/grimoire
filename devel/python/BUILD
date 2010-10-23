@@ -1,6 +1,4 @@
-OPT="$CFLAGS" &&
-
-OPTS="--enable-shared $OPTS $PYTHON_OPTS" &&
+OPTS="--enable-shared $PYTHON_OPTS $OPTS" &&
 
 # The following file from kdebindings has a syntax error that
 # makes Python compilation fail
