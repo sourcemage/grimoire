@@ -1,0 +1,1 @@
+make INST_LOCATION="$INSTALL_ROOT/usr"
