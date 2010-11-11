@@ -1,6 +1,3 @@
-sedit  "s/-O2/${CFLAGS}/"  Makefile          &&
-sedit  "s/^lib64 .*/lib64 := lib/"  Makefile &&
-sedit  "s/-ffast-math//" Makefile            &&
-sedit 's/\#\(SKIP     := \$(bin)kill \$(man1)kill.1\)/\1/' Makefile &&
 make_single                                  &&
-make  -e  XSCPT=''  DESTDIR=${INSTALL_ROOT}
+make  -e  XSCPT=''  DESTDIR=${INSTALL_ROOT}  &&
+make_normal

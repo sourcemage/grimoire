@@ -1,7 +1,7 @@
 OPTS="$OPTS --build=${BUILD}"
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
-./configure --prefix=${INSTALL_ROOT}/usr  \
+FORCE_UNSAFE_CONFIGURE=1 ./configure --prefix=${INSTALL_ROOT}/usr  \
         --sysconfdir=${INSTALL_ROOT}/etc  \
             --bindir=${INSTALL_ROOT}/bin  \
         --libexecdir=${INSTALL_ROOT}/bin  \
