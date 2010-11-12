@@ -12,7 +12,11 @@ then
   OPTS="--enable-svg-renderer=$ICECAT_RENDER $OPTS"
 fi  &&
 
-  OPTS="--enable-default-toolkit=$ICECAT_TOOLKIT $OPTS"
+case $ICECAT_TOOLKIT in
+  gtk2) OPTS="--enable-default-toolkit=cairo-gtk2" ;;
+  qt-x11) OPTS="--enable-default-toolkit=cairo-qt" ;;
+  *) message "unknown toolkit selected!" ; false ;;
+esac
 
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=$HOST"
 
@@ -34,7 +38,7 @@ fi  &&
  --disable-installer                                 \
   --disable-pedantic                                 \
   --enable-single-profile                            \
- --enable-extensions="default,typeaheadfind"         \
+ --enable-extensions="default"                       \
      --enable-canvas                                 \
                $OPTS                                           &&
 
