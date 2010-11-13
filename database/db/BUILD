@@ -22,7 +22,6 @@ cd  build_unix                         &&
 
 ../dist/configure  --prefix=$INSTALL_ROOT/usr  \
                    --build=$BUILD              \
-                   --enable-dynamic            \
                    --enable-compat185          \
                    $OPTS                       &&
 make
