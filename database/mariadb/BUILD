@@ -1,6 +1,6 @@
 create_account mariadb &&
 
-OPTS="$MADB_SERVER $MADB_EMBED $OPTS" &&
+OPTS="$MADB_OPTS $OPTS" &&
 CFLAGS="${CFLAGS//-ffast-math}" &&
 
 local LD_PRELOAD_OLD="$LD_PRELOAD" &&
