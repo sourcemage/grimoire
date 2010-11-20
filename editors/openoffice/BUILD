@@ -21,9 +21,9 @@ cd ${SOURCE_DIRECTORY} &&
               --without-myspell-dicts \
               --with-system-dicts \
               --with-lang="$OOO_LANG" \
-              $OPTS &&
+              $OPTS 
 
+sedit 's/testautomation//' instsetoo_native/prj/build.lst &&
 source Linux*Env.Set.sh &&
 ./bootstrap &&
-echo "building with $MAKE_NJOBS make jobs"
 nodep=TRUE NO_HIDS=TRUE dmake -P${MAKE_NJOBS}

@@ -10,10 +10,13 @@ depends libxdamage &&
 depends libx11 &&
 depends libxext &&
 depends libxxf86vm &&
-depends libxt &&
 depends libxau &&
 depends libxfixes &&
 depends glproto &&
+
+if list_find "--enable-glw" $MESALIB_OPTS; then
+  depends libxt
+fi &&
 
 optional_depends libxcb \
                  '--enable-xcb' \
@@ -28,7 +31,22 @@ if spell_ok libdrm && [[ $(installed_version libdrm|sed 's:\.::g') -lt 243 ]]; t
   force_depends libdrm
 fi &&
 
+if ( list_find "i915" $MESALIB_DRIVERS ) || \
+   ( list_find "i965" $MESALIB_DRIVERS ); then
+  sub_depends libdrm INTEL
+fi &&
+
+if ( list_find "r200" $MESALIB_DRIVERS ) || \
+   ( list_find "r300" $MESALIB_DRIVERS ) || \
+   ( list_find "r600" $MESALIB_DRIVERS ); then
+  sub_depends libdrm RADEON
+fi &&
+
+if [[ $MESALIB_VER == "developement" ]]; then
+  depends talloc
+fi &&
 
 if [[ $MESALIB_VER == "git" ]]; then
-  depends git
+  depends  git  &&
+  depends  talloc
 fi

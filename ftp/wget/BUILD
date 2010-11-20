@@ -1,4 +1,4 @@
-OPTS="$OPTS --build=${BUILD}"
+OPTS="$WGET_OPTS $OPTS --build=${BUILD}"
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
 if use_gcc 4.0; then

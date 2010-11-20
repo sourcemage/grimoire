@@ -13,6 +13,8 @@ fi  &&
 #
 # No fast optimization for Mozilla, bit us so many times...
 #
+CFLAGS="${CFLAGS//-Os/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
 CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
@@ -23,12 +25,18 @@ CFLAGS="${CFLAGS//-ffast-math/}"      &&
 CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
 if [[ "$FIREFOX_CVS" == "y" ]]; then
-autoconf-2.13
+  autoconf-2.13 &&
+ 
+# workaround for configure not handling --disable-webm correctly
+  if [[ $OPTS =~ --disable-webm ]]; then
+   echo ac_add_options --disable-webm >> .mozconfig
+  fi
 fi &&
 
 # necko-wifi is part of xulrunner if enabled, but firefox
 # compile fails without wireless_tools without this option
 echo ac_add_options --disable-necko-wifi >> .mozconfig  &&
+echo ac_add_options --enable-optimize=-O2 >> .mozconfig  &&
 
 make_single  &&
 make -f client.mk build &&
