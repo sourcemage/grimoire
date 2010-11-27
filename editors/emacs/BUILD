@@ -9,8 +9,8 @@ export  LDFLAGS="${LDFLAGS/-z combreloc/}"  &&
 #
 export LDFLAGS="${LDFLAGS//-Wl,-O1/}"  &&
 
-if [ "$CVS" == "y" ]; then
-  # Crashes with -03
+if [ "$VCS" == "y" ]; then
+  # Crashes with -O3
   export  CFLAGS="${CFLAGS//-O3/-O2}"      &&
 
   OPTS="$OPTS --build=${BUILD}"
