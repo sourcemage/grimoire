@@ -3,9 +3,9 @@ create_group scanner &&
 LDFLAGS="-pthread $LDFLAGS"
 
 if [[ $USEFORK == y ]]; then
-  OPTS="$OPTS --enable-fork-process"
+  OPTS="$OPTS --disable-pthread"
 else
-  OPTS="$OPTS --disable-fork-process"
+  OPTS="$OPTS --enable-pthread"
 fi &&
 
 if [[ $IPV6 == y ]]; then
@@ -24,6 +24,8 @@ if [[ "$SANE_BUILD_LOCAL" == n ]]; then
   OPTS="$OPTS --disable-local-backends"
 fi &&
 
-OPTS="$OPTS --with-docdir=$INSTALL_ROOT/usr/share/doc/sane-backends" &&
+OPTS="--disable-latex \
+      --with-docdir=$INSTALL_ROOT/usr/share/doc/sane-backends \
+      $OPTS" &&
 
 default_build

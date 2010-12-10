@@ -1,0 +1,37 @@
+From ca2e8b6dc176576f7217f4b7209994eddad1a358 Mon Sep 17 00:00:00 2001
+From: Mike McQuaid <mike@mikemcquaid.com>
+Date: Thu, 18 Nov 2010 05:40:36 +0000
+Subject: [PATCH] Check correctly before including SSE4.2 header.
+
+Previously, this failed machines that only had SSE4.1 but not
+SSE4.2 due to an assumption that nmmintrin.h could be included
+when only using SSE4.1.
+
+Fixes http://bugreports.qt.nokia.com/browse/QTBUG-13623.
+---
+ src/corelib/tools/qsimd_p.h |    8 ++++++--
+ 1 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/corelib/tools/qsimd_p.h b/src/corelib/tools/qsimd_p.h
+index 664543b..08da700 100644
+--- a/src/corelib/tools/qsimd_p.h
++++ b/src/corelib/tools/qsimd_p.h
+@@ -87,9 +87,13 @@ QT_BEGIN_HEADER
+ #include <tmmintrin.h>
+ #endif
+ 
+-// SSE4.1 and SSE4.2 intrinsics
+-#if (defined(QT_HAVE_SSE4_1) || defined(QT_HAVE_SSE4_2)) && (defined(__SSE4_1__) || defined(Q_CC_MSVC))
++// SSE4.1 intrinsics
++#if defined(QT_HAVE_SSE4_1) && (defined(__SSE4_1__) || defined(Q_CC_MSVC))
+ #include <smmintrin.h>
++#endif
++
++// SSE4.2 intrinsics
++#if defined(QT_HAVE_SSE4_2) && (defined(__SSE4_2__) || defined(Q_CC_MSVC))
+ #include <nmmintrin.h>
+ #endif
+ 
+-- 
+1.6.1
+
