@@ -1,11 +1,4 @@
 default_pre_build &&
-
-if [[ $CACTI_PA == y ]]; then
-  mk_source_dir "$SOURCE_DIRECTORY2"
-  cd "$SOURCE_DIRECTORY2" &&
-  unpack_file 2
-fi &&
-
 cd "$SOURCE_DIRECTORY" &&
 
 if [[ -d "$SPELL_DIRECTORY/patches" ]]; then
@@ -15,6 +8,17 @@ if [[ -d "$SPELL_DIRECTORY/patches" ]]; then
 fi &&
 
 if [[ $CACTI_PA == y ]]; then
+  mk_source_dir "$SOURCE_DIRECTORY2"
+  cd "$SOURCE_DIRECTORY2" &&
+  unpack_file 2 &&
+
+  patch -p1 < "$SPELL_DIRECTORY/pa.patch" &&
+
+  cd "$SOURCE_DIRECTORY" &&
+
   cat "$SOURCE_DIRECTORY2/cacti-plugin-arch/pa.sql" >> cacti.sql &&
-  patch -p1 < "$SOURCE_DIRECTORY2/cacti-plugin-arch/$SPELL-plugin-$VERSION-PA-v${VERSION_PA}.diff"
+  patch -p1 < "$SOURCE_DIRECTORY2/cacti-plugin-arch/$SPELL-plugin-$VERSION-PA-v${VERSION_PA}.diff" &&
+
+  # cleaning up post-patching
+  rm -f *.orig
 fi
