@@ -1,0 +1,31 @@
+--- cacti-PA-2.8/cacti-plugin-arch/cacti-plugin-0.8.7g-PA-v2.8.diff	2010-07-10 02:40:54.000000000 +0400
++++ cacti-PA-2.8-patched/cacti-plugin-arch/cacti-plugin-0.8.7g-PA-v2.8.diff	2010-12-09 15:17:56.372139350 +0300
+@@ -203,9 +203,9 @@
+  	if (sizeof($data_sources) > 0) {
+  		foreach ($data_sources as $data_source) {
+ +			$data_source = api_plugin_hook_function('data_sources_table', $data_source);
+- 			$data_template_name = ((empty($data_source["data_template_name"])) ? "<em>None</em>" : $data_source["data_template_name"]);
+- 			$data_input_name    = ((empty($data_source["data_input_name"])) ? "<em>External</em>" : $data_source["data_input_name"]);
+- 			$poller_interval    = ((isset($poller_intervals[$data_source["local_data_id"]])) ? $poller_intervals[$data_source["local_data_id"]] : 0);
++ 			/* we're escaping strings here, so no need to escape them on form_selectable_cell */
++ 			$data_template_name = ((empty($data_source["data_template_name"])) ? "<em>None</em>" : htmlspecialchars($data_source["data_template_name"]));
++ 			$data_input_name    = ((empty($data_source["data_input_name"])) ? "<em>External</em>" : htmlspecialchars($data_source["data_input_name"]));
+ diff -Naur cacti-0.8.7g-old/graph_image.php cacti-0.8.7g/graph_image.php
+ --- cacti-0.8.7g-old/graph_image.php	2010-07-09 18:33:46.000000000 -0400
+ +++ cacti-0.8.7g/graph_image.php	2010-07-09 18:34:11.000000000 -0400
+@@ -2395,14 +2395,12 @@
+  		/* Populate each execution file with appropriate information */
+  		foreach ($polling_hosts as $item) {
+  			if ($host_count == 1) {
+-@@ -446,9 +450,11 @@
++@@ -446,7 +450,9 @@
+  
+  		/* sleep the appripriate amount of time */
+  		if ($poller_runs_completed < $poller_runs) {
+ +			api_plugin_hook('poller_bottom');
+- 			db_close();
+  			usleep($sleep_time * 1000000);
+- 			db_connect_real($database_hostname, $database_username, $database_password, $database_default, $database_type, $database_port);
+ +			api_plugin_hook('poller_top');
+  		}
+  	}else if (read_config_option('log_verbosity') >= POLLER_VERBOSITY_MEDIUM || $debug) {
