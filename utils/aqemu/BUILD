@@ -1,5 +1,1 @@
-QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
-PATH="$QTDIR/bin/qt4:$PATH"
-./configure.sh $OPTS &&
-make
-
+qt4_cmake_build
