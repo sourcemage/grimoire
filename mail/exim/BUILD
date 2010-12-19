@@ -181,6 +181,7 @@ fi  &&
 echo  "BIN_DIRECTORY=/usr/sbin"          >>  Local/Makefile  &&
 echo  "CONFIGURE_FILE=/etc/exim.conf"    >>  Local/Makefile  &&
 echo  "SPOOL_DIRECTORY=/var/spool/mail"  >>  Local/Makefile  &&
+echo  "PID_FILE_PATH=/var/run/exim.pid"  >>  Local/Makefile  &&
 echo  "LOG_FILE_PATH=/var/log/exim_%s:"  >>  Local/Makefile  &&
 echo  "CFLAGS=$CFLAGS"                   >>  Local/Makefile  &&
 echo  "EXIM_UID=`id -u exim`"            >>  Local/Makefile  &&
