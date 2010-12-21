@@ -1,0 +1,71 @@
+--- cacti-0.8.7g/lib/html_form.php	2010-07-09 18:33:46.000000000 -0400
++++ cacti-0.8.7g-patched/lib/html_form.php	2010-07-27 21:30:31.000000000 -0400
+@@ -65,7 +65,7 @@
+ 					form_alternate_row_color($colors["form_alternate1"], $colors["form_alternate2"], $i, 'row_' . $field_name);
+ 				}
+ 
+-				print "<td width='" . ((isset($config_array["left_column_width"])) ? $config_array["left_column_width"] : "50%") . "'>\n<font class='textEditTitle'>" . htmlspecialchars($field_array["friendly_name"]) . "</font><br>\n";
++				print "<td width='" . ((isset($config_array["left_column_width"])) ? $config_array["left_column_width"] : "50%") . "'>\n<font class='textEditTitle'>" . $field_array["friendly_name"] . "</font><br>\n";
+ 
+ 				if (isset($field_array["sub_checkbox"])) {
+ 					form_checkbox($field_array["sub_checkbox"]["name"], $field_array["sub_checkbox"]["value"],
+--- cacti-0.8.7g/lib/data_query.php	2010-07-09 18:33:46.000000000 -0400
++++ cacti-0.8.7g-patched/lib/data_query.php	2010-07-27 21:30:31.000000000 -0400
+@@ -620,6 +620,7 @@
+ 	}
+ 
+ 	/* update the cache */
++	/* TODO: if both $sort field and $title_format are empty, this yields funny results */
+ 	db_execute("update host_snmp_query set sort_field = '$sort_field', title_format = '$title_format' where host_id = '$host_id' and snmp_query_id = '$data_query_id'");
+ }
+ 
+--- cacti-0.8.7g/data_sources.php	2010-07-09 18:33:46.000000000 -0400
++++ cacti-0.8.7g-patched/data_sources.php	2010-07-27 21:30:31.000000000 -0400
+@@ -899,7 +899,7 @@
+ 				<td bgcolor='#" . $colors["header"] . "' class='textHeaderDark'>
+ 					<strong>Data Source Item</strong> $header_label
+ 				</td>
+-				<td class='textHeaderDark' align='right' bgcolor='" . $colors["header"] . "'>
++				<td class='textHeaderDark' align='right' bgcolor='#" . $colors["header"] . "'>
+ 					" . ((!empty($_GET["id"]) && (empty($data_template["id"]))) ? "<strong><a class='linkOverDark' href='" . htmlspecialchars("data_sources.php?action=rrd_add&id=" . $_GET["id"]) . "'>New</a>&nbsp;</strong>" : "") . "
+ 				</td>
+ 			</tr>\n";
+@@ -1310,16 +1310,17 @@
+ 	$i = 0;
+ 	if (sizeof($data_sources) > 0) {
+ 		foreach ($data_sources as $data_source) {
+-			$data_template_name = ((empty($data_source["data_template_name"])) ? "<em>None</em>" : $data_source["data_template_name"]);
+-			$data_input_name    = ((empty($data_source["data_input_name"])) ? "<em>External</em>" : $data_source["data_input_name"]);
++			/* we're escaping strings here, so no need to escape them on form_selectable_cell */
++			$data_template_name = ((empty($data_source["data_template_name"])) ? "<em>None</em>" : htmlspecialchars($data_source["data_template_name"]));
++			$data_input_name    = ((empty($data_source["data_input_name"])) ? "<em>External</em>" : htmlspecialchars($data_source["data_input_name"]));
+ 			$poller_interval    = ((isset($poller_intervals[$data_source["local_data_id"]])) ? $poller_intervals[$data_source["local_data_id"]] : 0);
+ 			form_alternate_row_color($colors["alternate"], $colors["light"], $i, 'line' . $data_source["local_data_id"]); $i++;
+ 			form_selectable_cell("<a class='linkEditMain' href='" . htmlspecialchars("data_sources.php?action=ds_edit&id=" . $data_source["local_data_id"]) . "' title='" . $data_source["name_cache"] . "'>" . ((get_request_var_request("filter") != "") ? eregi_replace("(" . preg_quote(get_request_var_request("filter")) . ")", "<span style='background-color: #F8D93D;'>\\1</span>", title_trim(htmlspecialchars($data_source["name_cache"]), read_config_option("max_title_data_source"))) : title_trim(htmlspecialchars($data_source["name_cache"]), read_config_option("max_title_data_source"))) . "</a>", $data_source["local_data_id"]);
+ 			form_selectable_cell($data_source['local_data_id'], $data_source['local_data_id']);
+-			form_selectable_cell(((get_request_var_request("filter") != "") ? eregi_replace("(" . preg_quote(get_request_var_request("filter")) . ")", "<span style='background-color: #F8D93D;'>\\1</span>", htmlspecialchars($data_input_name)) : htmlspecialchars($data_input_name)), $data_source["local_data_id"]);
++			form_selectable_cell(((get_request_var_request("filter") != "") ? eregi_replace("(" . preg_quote(get_request_var_request("filter")) . ")", "<span style='background-color: #F8D93D;'>\\1</span>", $data_input_name) : $data_input_name), $data_source["local_data_id"]);
+ 			form_selectable_cell(get_poller_interval($poller_interval), $data_source["local_data_id"]);
+ 			form_selectable_cell(($data_source['active'] == "on" ? "Yes" : "No"), $data_source["local_data_id"]);
+-			form_selectable_cell(((get_request_var_request("filter") != "") ? eregi_replace("(" . preg_quote(get_request_var_request("filter")) . ")", "<span style='background-color: #F8D93D;'>\\1</span>", htmlspecialchars($data_source['data_template_name'])) : htmlspecialchars($data_source['data_template_name'])), $data_source["local_data_id"]);
++			form_selectable_cell(((get_request_var_request("filter") != "") ? eregi_replace("(" . preg_quote(get_request_var_request("filter")) . ")", "<span style='background-color: #F8D93D;'>\\1</span>", $data_template_name) : $data_template_name), $data_source["local_data_id"]);
+ 			form_checkbox_cell($data_source["name_cache"], $data_source["local_data_id"]);
+ 			form_end_row();
+ 		}
+--- cacti-0.8.7g/graphs.php	2010-07-09 18:33:46.000000000 -0400
++++ cacti-0.8.7g-patched/graphs.php	2010-07-27 21:30:31.000000000 -0400
+@@ -1317,11 +1317,12 @@
+ 	$i = 0;
+ 	if (sizeof($graph_list) > 0) {
+ 		foreach ($graph_list as $graph) {
+-			$template_name = ((empty($graph["name"])) ? "<em>None</em>" : $graph["name"]);
++			/* we're escaping strings here, so no need to escape them on form_selectable_cell */
++			$template_name = ((empty($graph["name"])) ? "<em>None</em>" : htmlspecialchars($graph["name"]));
+ 			form_alternate_row_color($colors["alternate"], $colors["light"], $i, 'line' . $graph["local_graph_id"]); $i++;
+ 			form_selectable_cell("<a class='linkEditMain' href='" . htmlspecialchars("graphs.php?action=graph_edit&id=" . $graph["local_graph_id"]) . "' title='" . htmlspecialchars($graph["title_cache"]) . "'>" . ((get_request_var_request("filter") != "") ? eregi_replace("(" . preg_quote(get_request_var_request("filter")) . ")", "<span style='background-color: #F8D93D;'>\\1</span>", title_trim(htmlspecialchars($graph["title_cache"]), read_config_option("max_title_graph"))) : title_trim(htmlspecialchars($graph["title_cache"]), read_config_option("max_title_graph"))) . "</a>", $graph["local_graph_id"]);
+ 			form_selectable_cell($graph["local_graph_id"], $graph["local_graph_id"]);
+-			form_selectable_cell(((get_request_var_request("filter") != "") ? eregi_replace("(" . preg_quote(get_request_var_request("filter")) . ")", "<span style='background-color: #F8D93D;'>\\1</span>", htmlspecialchars($template_name)) : htmlspecialchars($template_name)), $graph["local_graph_id"]);
++			form_selectable_cell(((get_request_var_request("filter") != "") ? eregi_replace("(" . preg_quote(get_request_var_request("filter")) . ")", "<span style='background-color: #F8D93D;'>\\1</span>", $template_name) : $template_name), $graph["local_graph_id"]);
+ 			form_selectable_cell($graph["height"] . "x" . $graph["width"], $graph["local_graph_id"]);
+ 			form_checkbox_cell($graph["title_cache"], $graph["local_graph_id"]);
+ 			form_end_row();

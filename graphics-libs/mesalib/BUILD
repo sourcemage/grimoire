@@ -6,7 +6,8 @@ case $MESALIB_GALLIUM in
   intel)   OPTS="${OPTS} --enable-gallium-intel" ;;
   i915)    OPTS="${OPTS} --enable-gallium-i915" ;;
   i965)    OPTS="${OPTS} --enable-gallium-i965" ;;
-  radeon)  OPTS="${OPTS} --enable-gallium-radeon --disable-gallium-intel" ;;
+  radeon)  OPTS="${OPTS} --enable-gallium-radeon --disable-gallium-intel"
+     LDFLAGS="${LDFLAGS/-s/}" ;;
   r600)    OPTS="${OPTS} --enable-gallium-r600" ;;
   nouveau) OPTS="${OPTS} --enable-gallium-nouveau --disable-gallium-intel" ;;
   swrast)  OPTS="${OPTS} --enable-gallium-swrast" ;;
