@@ -1,0 +1,12 @@
+local OLD_SPELL_VERSION=""
+spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)"
+if [ "${VERSION:1:2}" != "${OLD_SPELL_VERSION:1:2}" ]; then
+  message "This is a possibly incompatible update of libpthread-stubs..."
+  message "Figuring out what spells need to be recast, this may take a while."
+  for each in $(show_up_depends $SPELL 3); do
+    if gaze install-spell $each | xargs ldd 2> /dev/null | 
+       grep -q libpthread-stubs; then
+      up_trigger $each cast_self
+    fi
+  done
+fi
