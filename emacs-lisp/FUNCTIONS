@@ -1,0 +1,52 @@
+#-------------------------------------------------------------------------
+## Helper to install extra directories and files.
+#-------------------------------------------------------------------------
+function emacs_lisp_install() {
+  cp -vr "${@/#/$SOURCE_DIRECTORY/}" \
+    "$INSTALL_ROOT/usr/share/emacs/site-lisp/$SPELL/"
+}
+
+#-------------------------------------------------------------------------
+## Section-default build script.
+#-------------------------------------------------------------------------
+function default_build_emacs_lisp() {
+  shopt -s nullglob
+
+  local texi_files=("$SOURCE_DIRECTORY"/*.texi)
+
+  emacs -batch -f batch-byte-compile "$SOURCE_DIRECTORY"/*.el &&
+  if [ ${#texi_files[@]} -gt 0 ]
+  then
+    makeinfo "${texi_files[@]}" &&
+    gzip -9 "$BUILD_DIRECTORY"/*.info
+  fi
+}
+
+#-------------------------------------------------------------------------
+## Section-default install script.
+#-------------------------------------------------------------------------
+function default_install_emacs_lisp() {
+  shopt -s nullglob
+
+  local dir="$INSTALL_ROOT/usr/share/emacs/site-lisp/$SPELL"
+  local info_dir="$INSTALL_ROOT/usr/share/info"
+
+  local info_files=("$BUILD_DIRECTORY"/*.info.gz)
+
+  install -d -m755 "$dir" &&
+  install -m644 "$SOURCE_DIRECTORY"/*.el "$BUILD_DIRECTORY"/*.elc "$dir" &&
+
+  if [ ${#info_files[@]} -gt 0 ]
+  then
+    install -m644 "${info_files[@]}" "$info_dir" &&
+    install-info --info-dir="$info_dir" "${info_files[@]/#*\//$info_dir/}"
+  fi
+}
+
+function default_build() {
+   default_build_emacs_lisp
+}
+
+function default_install() {
+   default_install_emacs_lisp
+}
