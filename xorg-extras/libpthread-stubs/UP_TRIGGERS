@@ -1,12 +1,18 @@
-local OLD_SPELL_VERSION=""
-spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)"
-if [ "${VERSION:1:2}" != "${OLD_SPELL_VERSION:1:2}" ]; then
-  message "This is a possibly incompatible update of libpthread-stubs..."
-  message "Figuring out what spells need to be recast, this may take a while."
-  for each in $(show_up_depends $SPELL 3); do
-    if gaze install-spell $each | xargs readelf -d 2> /dev/null | 
-       grep -q libpthread-stubs; then
-      up_trigger $each cast_self
-    fi
-  done
+if spell_ok $SPELL; then
+  local OLD_SPELL_VERSION="$(installed_version $SPELL)"
+  if [[ "${VERSION}" != "${OLD_SPELL_VERSION}" ]]; then
+    message "This is an ABI incompatible update of libpthread-stubs..."
+    message "Determining which spells need to be recast, this may take a while."
+
+    for other_spell in $(gaze installed | cut -d: -f1); do
+      if gaze install $other_spell \
+         | xargs file -e apptype -e ascii -e compress -e tar \
+         | grep '\<ELF\>.*\<dynamically linked\>' \
+         | cut -d: -f1 \
+         | xargs readelf -d 2> /dev/null \
+         | grep -q -P 'NEEDED\)\s*Shared library: \[libpthread-stubs.so.0'; then
+        up_trigger $other_spell cast_self
+      fi
+    done
+  fi
 fi
