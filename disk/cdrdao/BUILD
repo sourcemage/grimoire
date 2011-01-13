@@ -1,11 +1,13 @@
-##### Patch needed for building on x86_64 ######
-ARCH=$(uname -m)                                                        &&
-if [ "${ARCH:0:6}" = "x86_64" ]; then 
-    cd scsilib/RULES                                                    && 
-    cp i686-linux-cc.rul x86_64-linux-cc.rul                            && 
-    cd $SOURCE_DIRECTORY 
-fi                                                                      &&
-################################################
+if [ "$CVS" == "n" ]; then
+   ##### Patch needed for building on x86_64 ######
+   ARCH=$(uname -m)                                                        &&
+   if [ "${ARCH:0:6}" = "x86_64" ]; then 
+       cd scsilib/RULES                                                    && 
+       cp i686-linux-cc.rul x86_64-linux-cc.rul                            && 
+       cd $SOURCE_DIRECTORY 
+   fi                                                                      
+   ################################################
+fi  &&
 
 if  [  "$CVS"  ==  "y"  ]
 then
