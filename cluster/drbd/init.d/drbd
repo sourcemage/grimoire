@@ -1,0 +1,171 @@
+#!/bin/bash
+
+# Distributed under the terms of the GNU General Public License v2
+#
+# Copyright 2001-2010 LINBIT Information Technologies
+# Philipp Reisner, Lars Ellenberg
+#
+# Copyright 2010-2011 Source Mage Team
+# Vlad Glagolev
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+local_fs +network"
+
+. /etc/init.d/smgl_init
+
+DRBDADM="/sbin/drbdadm"
+DRBDSETUP="/sbin/drbdsetup"
+PROC_DRBD="/proc/drbd"
+MODPROBE="/sbin/modprobe"
+RMMOD="/sbin/rmmod"
+UDEV_TIMEOUT=10
+ADD_MOD_PARAM=""
+
+function assure_module_is_loaded {
+  [ -e "$PROC_DRBD" ] && return
+  echo "Loading drbd module..."
+
+  $MODPROBE -s drbd `$DRBDADM sh-mod-parms` $ADD_MOD_PARAM || return 1
+
+  return 0
+}
+
+function adjust_with_progress {
+  local IFS_O=$IFS
+  local IFS=$'\n'
+  local res out
+
+  COMMANDS=`$DRBDADM -d -n res adjust all` || return 1
+
+  echo -n "[ "
+
+  for CMD in $COMMANDS; do
+    IFS=$IFS_O
+
+    case "$CMD" in
+      res=*)
+        eval "$CMD"
+      ;;
+      *\ disk\ *)
+        # Check for offline resize. If using internal meta data,
+        # we may need to move it first to its expected location.
+        out=$($DRBDADM check-resize "$res" 2>&1)
+        [[ -z $out ]] ||
+        printf "\n%s\n%s\n" "$res" "$out"
+        echo -n "d($res) "
+      ;;
+      *\ syncer\ *)
+        echo -n "s($res) "
+      ;;
+      *\ net\ *)
+        echo -n "n($res) "
+      ;;
+      *)
+        echo ".. "
+      ;;
+    esac
+
+    if ! eval "$CMD"; then
+       printf "[%s] cmd %s failed - continuing!\n" "$res" "$CMD"
+    fi
+  done
+
+  echo -n "]"
+
+  return 0
+}
+
+start() {
+  # Just in case drbdadm want to display any errors in the configuration
+  # file, or we need to ask the user about registering this installation
+  # at http://usage.drbd.org, we call drbdadm here without any IO
+  # redirection.
+  $DRBDADM sh-nop
+
+  assure_module_is_loaded
+  evaluate_retval
+
+  echo "Starting DRBD resources:"
+
+  adjust_with_progress
+  evaluate_retval
+
+  # make sure udev has time to create the device files
+  echo "Waiting for udev device creation..."
+
+  for RESOURCE in `$DRBDADM sh-resources`; do
+    for DEVICE in `$DRBDADM sh-dev $RESOURCE`; do
+      UDEV_TIMEOUT_LOCAL=$UDEV_TIMEOUT
+      while [[ ! -e $DEVICE ]] && [[ $UDEV_TIMEOUT_LOCAL -gt 0 ]]; do
+        sleep 1
+        UDEV_TIMEOUT_LOCAL=$(( $UDEV_TIMEOUT_LOCAL-1 ))
+      done
+    done
+  done
+
+  echo "Waiting for connection "
+  $DRBDADM wait-con-int # User interruptible version of wait-connect all
+  $DRBDADM sh-b-pri all # Become primary if configured
+
+  evaluate_retval
+}
+
+stop() {
+  $DRBDADM sh-nop
+  echo "Stopping all DRBD resources..."
+
+  if [ -e $PROC_DRBD ]; then
+    # bypass drbdadm and drbd config file and everything,
+    # to avoid leaving devices around that are not referenced by
+    # the current config file, or in case the current config file
+    # does not parse for some reason.
+    for d in /dev/drbd* ; do
+      [ -L "$d" ] && continue
+      [ -b "$d" ] || continue
+
+      M=$(umount "$d" 2>&1)
+
+      case $M in
+        *" not mounted")
+          :
+        ;;
+        *)
+          echo "$M" >&2
+        ;;
+      esac
+
+      $DRBDSETUP "$d" down
+    done
+
+    $RMMOD drbd
+  fi
+
+  evaluate_retval
+}
+
+status() {
+  if [ -e $PROC_DRBD ]; then
+    echo "device status:"
+    cat $PROC_DRBD
+  else
+    echo "drbd module not loaded"
+    return 1
+  fi
+}
+
+restart() {
+  echo "Restarting all DRBD resources..."
+
+  stop
+  sleep 1
+  start
+}
+
+reload() {
+  $DRBDADM sh-nop
+  echo "Reloading DRBD configuration..."
+  $DRBDADM adjust all
+
+  evaluate_retval
+}
