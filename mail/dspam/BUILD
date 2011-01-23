@@ -1,4 +1,8 @@
-OPTS="$DSPAM_OPTS $OPTS" &&
+OPTS="--with-dspam-home=$INSTALL_ROOT/var/spool/dspam \
+          --with-logdir=$INSTALL_ROOT/var/log/dspam \
+                        $DSPAM_OPTS \
+                        $OPTS" &&
+
 STORAGE_DRIVERS='hash_drv' &&
 if is_depends_enabled $SPELL sqlite ; then
 STORAGE_DRIVERS="$STORAGE_DRIVERS,sqlite3_drv"
