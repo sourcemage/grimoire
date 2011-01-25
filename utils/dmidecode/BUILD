@@ -1,2 +1,1 @@
-sedit "s:/local::" Makefile  &&
-make
+make LDFLAGS="${LDFLAGS}"

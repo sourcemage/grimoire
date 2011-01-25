@@ -1,0 +1,17 @@
+# up_trigger everything on minor version updates
+
+if spell_ok $SPELL; then
+  local OLD_SPELL_VERSION="$(installed_version $SPELL)"
+  if [[ ${VERSION%.*} > ${OLD_SPELL_VERSION%.*} ]]; then
+    message "This is a possibly incompatible update of xfce4-panel..."
+    message "Figuring out what spells need to be recast, this may take a while."
+
+    for each in $(show_up_depends $SPELL 1); do
+      # Check if the binaries link against libpython.so
+      if gaze install $each | xargs readelf -d 2> /dev/null |
+         grep -q "NEEDED.*libxfce4panel.so"; then
+          up_trigger $each cast_self
+      fi
+    done
+  fi
+fi
