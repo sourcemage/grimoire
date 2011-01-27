@@ -1,4 +1,8 @@
+create_account dspam &&
+
 OPTS="--with-dspam-home=$INSTALL_ROOT/var/spool/dspam \
+     --with-dspam-group=dspam \
+--with-dspam-home-group=dspam \
           --with-logdir=$INSTALL_ROOT/var/log/dspam \
                         $DSPAM_OPTS \
                         $OPTS" &&
