@@ -7,6 +7,10 @@ OPTS="--with-dspam-home=$INSTALL_ROOT/var/spool/dspam \
                         $DSPAM_OPTS \
                         $OPTS" &&
 
+if is_depends_enabled $SPELL $(get_spell_provider $SPELL MAIL-TRANSPORT-AGENT) ; then
+  OPTS="--with-dspam-mode=4511 $OPTS"
+fi &&
+
 STORAGE_DRIVERS='hash_drv' &&
 if is_depends_enabled $SPELL sqlite ; then
 STORAGE_DRIVERS="$STORAGE_DRIVERS,sqlite3_drv"
