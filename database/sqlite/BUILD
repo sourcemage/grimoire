@@ -8,6 +8,10 @@ fi &&
 
 LDFLAGS="-ldl $LDFLAGS" &&
 CFLAGS="${CFLAGS//-ffast-math}" &&
-OPTS="--enable-load-extension $SQLITE_TSAFE $OPTS" &&
+OPTS="$SQLITE_TSAFE $OPTS" &&
+
+if [[ $SQLITE_VERSION != tea ]]; then
+  OPTS="--enable-dynamic-extensions $OPTS"
+fi &&
 
 default_build

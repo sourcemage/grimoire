@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# Copyright (c) 2005 Oracle
+# All rights reserved.
+#
+# Copyright (c) 2011 Source Mage Team
+# Vlad Glagolev
+
+. /etc/sysconfig/ocfs2
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+local_fs +network"
+
+. /etc/init.d/smgl_init
+
+MOUNT="/bin/mount"
+UMOUNT="/bin/umount"
+O2CB_CTL="/sbin/o2cb_ctl"
+
+OCFS2_CLUSTER=$( sed -re 's/[[:space:]]+//g' $OCFS2_CONFIG | grep -A4 "cluster:" | grep 'name=' | cut -d= -f2 )
+
+function check_pseudofs() {
+  if [ -z "`$MOUNT -l -t configfs`" ] || [ -z "`$MOUNT -l -t ocfs2_dlmfs`" ]; then
+    echo "One or more pseudo-filesystems required for OCFS2 are not mounted."
+    echo "Make sure you have following lines in your /etc/fstab:"
+    echo "none		/config		configfs	defaults	0 0"
+    echo "none		/dlm		ocfs2_dlmfs	defaults	0 0"
+
+    return 1
+  fi
+}
+
+function ocfs2mounts() {
+    LC_ALL=C awk '$3 == "ocfs2" { print $2 }' /proc/mounts
+}
+
+function ocfs2fstab() {
+    LC_ALL=C awk '!/^#/ && $3 == "ocfs2" && $4 !~ /noauto/ { print $2 }' /etc/fstab
+}
+
+start() {
+  check_pseudofs || exit 1
+
+  echo "Starting OCFS2 cluster..."
+
+  for cluster in ${OCFS2_CLUSTER}; do
+    $O2CB_CTL -H -n ${cluster} -t cluster -a online=yes >/dev/null 2>&1
+    evaluate_retval
+  done
+}
+
+stop() {
+  echo "Unmounting OCFS2 filesystems..."
+
+  remaining="`ocfs2mounts`"
+  retry=3
+
+  while [ -n "$remaining" -a "$retry" -gt 0 ]; do
+    $UMOUNT -a -t ocfs2 2>/dev/null
+    sleep 1
+
+    remaining="`ocfs2mounts`"
+
+    [ -z "$remaining" ] && break
+
+    retry=$(($retry - 1))
+  done
+
+  if [ ! -z "$remaining" ]; then
+    print_status failure
+    exit 1
+  fi
+
+  echo "Stopping OCFS2 cluster..."
+
+  for cluster in ${OCFS2_CLUSTER}; do
+    $O2CB_CTL -H -n ${cluster} -t cluster -a online=no >/dev/null 2>&1
+    evaluate_retval
+  done
+}
+
+restart() {
+  echo "Restarting OCFS2 cluster..."
+
+  stop
+  sleep 1
+  start
+}
+
+status() {
+  if [ -f /proc/mounts ]; then
+    [ -n "`ocfs2fstab`" ] && echo "Configured OCFS2 mountpoints: " `ocfs2fstab`
+    [ -n "`ocfs2mounts`" ] && echo "Active OCFS2 mountpoints: " `ocfs2mounts`
+  fi
+}
