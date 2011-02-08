@@ -1,23 +1,29 @@
 --- murmur/murmur.orig	2008-12-15 14:51:42.000000000 +0300
 +++ murmur/murmur	2011-02-08 02:54:47.000000000 +0300
-@@ -2418,7 +2418,16 @@
+@@ -2418,7 +2418,22 @@
  		
  		self.Encoding_List = gtk.ListStore(gobject.TYPE_STRING)
  		self.Encoding = gtk.ComboBox()
 +
-+		if self.frame.Networking.config.has_key("encoding.users") and self.user in self.frame.Networking.config["encoding.users"]:
-+			active = Settings.encodings.index(self.frame.Networking.config["encoding.users"][self.user])
-+		else:
-+			active = Settings.encodings.index(self.frame.Networking.config["encoding"]["network"].upper())
++		active = Settings.encodings[0] # UTF-8
++		if self.frame.Networking.config.has_key("encoding") and self.frame.Networking.config["encoding"].has_key("network"):
++			network_encoding = self.frame.Networking.config["encoding"]["network"].upper()
++			if network_encoding in Settings.encodings:
++				active = network_encoding
 +
-+		self.Encoding.set_active(active)
++		if self.frame.Networking.config.has_key("encoding.users") and self.user in self.frame.Networking.config["encoding.users"]:
++			user_encoding = self.frame.Networking.config["encoding.users"][self.user].upper()
++			if user_encoding in Settings.encodings:
++				active = user_encoding
++
++		self.Encoding.set_active(Settings.encodings.index(active))
  		self.Encoding.show()
 +		for encoding in Settings.encodings:
 +			self.Encoding_List.append([encoding])
  		self.Encoding.connect("changed", self.OnEncodingChanged)
  	
  		self.Encoding.set_model(self.Encoding_List)
-@@ -2566,8 +2575,18 @@
+@@ -2566,8 +2581,24 @@
  				self.frame.Config["logging"]["private"].remove(self.user)
  
  	def OnEncodingChanged(self, widget):
@@ -26,8 +32,14 @@
 +		if not self.frame.Networking.config.has_key("encoding.users"):
 +			return
 +
++		network_encoding = Settings.encodings[0] # UTF-8
++		if self.frame.Networking.config.has_key("encoding") and self.frame.Networking.config["encoding"].has_key("network"):
++			conf_network_encoding = self.frame.Networking.config["encoding"]["network"].upper()
++			if conf_network_encoding not in Settings.encodings:
++				network_encoding = conf_network_encoding
++
 +		active = self.Encoding.get_active_text()
-+		if active == self.frame.Networking.config["encoding"]["network"].upper():
++		if active == network_encoding:
 +			# removing duplicates on network level
 +			if self.user in self.frame.Networking.config["encoding.users"]:
 +				self.frame.Networking.ConfigRemove("encoding.users", self.user)
