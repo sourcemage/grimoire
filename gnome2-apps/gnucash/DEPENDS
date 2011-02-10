@@ -1,17 +1,44 @@
-depends  goffice                        &&
-depends  gtkhtml2                       &&
+if [ "$GNUCASH_DEVEL" == "y" ]; then
+  depends webkitgtk "--with-html-engine=webkit" &&
+  optional_depends  libdbi \
+                    ""     \
+                    "--disable-dbi" \
+                    "to build the libdbi backed"
+else
+depends  -sub "GUILE" swig              &&
+depends  gtkhtml2
+fi &&
+optional_depends  aqbanking                 \
+                  '--enable-hbci'           \
+                  '--disable-hbci'          \
+                  'to enable HBCI support'  &&
+
+depends  gconf2                         &&
+depends  glib2                          &&
+depends  gtk+2                          &&
 depends  guile                          &&
 depends  libart_lgpl                    &&
+depends  libglade2                      &&
 depends  libgnomeprint                  &&
-depends  libgsf                         &&
-depends  libtool                        &&
-depends  libxml2                        &&
-depends  perl                           &&
-depends  pkgconfig                      &&
-depends  slib                           &&
-depends  gtk+2                          &&
-depends  gnome-vfs2                     &&
 depends  libgnomeui                     &&
+depends  -sub "GTK2" goffice            &&
+depends  libgsf                         &&
+
+optional_depends  libofx                         \
+                  '--enable-ofx'                 \
+                  '--disable-ofx'                \
+                  'to compile with ofx support'  &&
+
+depends  libxml2                        &&
+depends  pango                          &&
+
+
+### ALL PAST THIS POINT NOT UPSTREAM DEPENDENCY###
+
+#Required, upstream provider states this may be needed
+# if guile and gnucash are not acting nice together:
+# http://wiki.gnucash.org/wiki/Building#slib_Issues
+depends  slib                           &&
 
 optional_depends  texinfo                        \
                   ''                             \
@@ -23,20 +50,12 @@ optional_depends  bzip2                          \
                   ''                             \
                   'to build with BZip2 support'  &&
 
-optional_depends  libofx                         \
-                  '--enable-ofx'                 \
-                  '--disable-ofx'                \
-                  'to compile with ofx support'  &&
-
-optional_depends  aqbanking                 \
-                  '--enable-hbci'           \
-                  '--disable-hbci'          \
-                  'to enable HBCI support'  &&
-
-optional_depends  postgresql         \
-                  '--enable-sql'     \
-                  '--disable-sql'    \
-                  'for SQL support'  &&
+if [ "$GNUCASH_DEVEL" == "n" ]; then
+  optional_depends  postgresql         \
+                    '--enable-sql'     \
+                    '--disable-sql'    \
+                    'for SQL support'
+fi  &&
 
 optional_depends  doxygen                               \
                   '--enable-doxygen'                    \

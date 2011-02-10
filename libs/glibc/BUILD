@@ -156,5 +156,6 @@ $SOURCE_DIRECTORY/configure  --host=$HOST                       \
                            --enable-shared                      \
                           --disable-profile                     \
                      --with-headers=$GLIBC_HEADERS_DIR/usr/include  \
+                          --disable-multi-arch                  \
                                     $OPTS                       &&
 make

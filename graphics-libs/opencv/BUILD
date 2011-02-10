@@ -1,1 +1,2 @@
+CXXFLAGS=-D__STDC_CONSTANT_MACROS &&
 cmake_build
