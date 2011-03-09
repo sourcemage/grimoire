@@ -26,18 +26,25 @@ start_devfs()
   fi
 }
 
+udev_mknodes()
+{
+  if [ ! -d $udev_root/fd ]; then
+    ln -fs /proc/self/fd $udev_root/fd
+  fi
+  ln -s /dev/fd/0 $udev_root/stdin
+  ln -s /dev/fd/1 $udev_root/stdout
+  ln -s /dev/fd/2 $udev_root/stderr
+  mkdir $udev_root/shm
+  mkdir $udev_root/pts
+}
+
 start_udev()
 { (
   . /etc/udev/udev.conf
   echo "Mounting ramfs at $udev_root"
   mount -n -t ramfs none $udev_root
   # create some needed stuff
-  ln -s /proc/self/fd $udev_root/fd
-  ln -s /dev/fd/0 $udev_root/stdin
-  ln -s /dev/fd/1 $udev_root/stdout
-  ln -s /dev/fd/2 $udev_root/stderr
-  mkdir $udev_root/shm
-  mkdir $udev_root/pts
+  udev_mknodes
 
 # strip out kernel sublevel and patchlevel so we can check against them
 # since we don't support 1.x linux kernels then we don't have to check that
@@ -85,14 +92,7 @@ start_static_udev()
 { (
   . /etc/udev/udev.conf
   # create some needed stuff - and insist on it
-  if [ ! -d $udev_root/fd ]; then
-    ln -fs /proc/self/fd $udev_root/fd
-  fi
-  ln -fs /dev/fd/0 $udev_root/stdin
-  ln -fs /dev/fd/1 $udev_root/stdout
-  ln -fs /dev/fd/2 $udev_root/stderr
-  mkdir -p $udev_root/shm
-  mkdir -p $udev_root/pts
+  udev_mknodes
 
   # strip out kernel sublevel and patchlevel so we can check against them
   # since we don't support 1.x linux kernels then we don't have to check that
