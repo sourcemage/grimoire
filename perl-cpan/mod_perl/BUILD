@@ -1,5 +1,4 @@
 if [ "$MOD_PERL_2" == "y" ]; then
-  patch  -p0  <  $SCRIPT_DIRECTORY/upgrade.patch  &&
   OPTIONS="MP_APXS=$(which apxs) MP_APR_CONFIG=$(which apr-config)"
 fi &&
 make_single                              &&
