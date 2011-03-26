@@ -1,4 +1,4 @@
-cd "$SOURCE_DIRECTORY/mozilla-1.9.2" &&
+cd "$SOURCE_DIRECTORY/mozilla-2.0" &&
 
 XULRUNNER_HOME="$INSTALL_ROOT/usr/lib/xulrunner" &&
 export  MOZ_PHOENIX=1 &&
@@ -26,9 +26,7 @@ CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
 OPTS="${OPTS} --enable-optimize=-O2" &&
 
-./configure --prefix=$INSTALL_ROOT/usr                       \
-            --mandir=$INSTALL_ROOT/usr/share/man             \
-            $OPTS                                            &&
+
 make_single  &&
 # workaround for configure not handling --disable-necko-wifi correctly
 if [[ $OPTS =~ --disable-necko-wifi ]]; then
