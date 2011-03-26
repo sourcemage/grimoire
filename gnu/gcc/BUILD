@@ -70,7 +70,6 @@ $SOURCE_DIRECTORY/configure                                           \
              --mandir=${INSTALL_ROOT}/usr/share/man                   \
              --enable-threads=posix                                   \
              --enable-languages=$(echo ${GCC_COMPILER} | tr " " ",")  \
-             --with-system-zlib                                       \
              --with-bugurl=http://bugs.sourcemage.org                 \
              --enable-bootstrap                                       \
              --enable-checking=release                                \
@@ -80,5 +79,6 @@ if [[ "$GCC_TARGET" == "profiledbootstrap" ]] ||
    [[ "$GCC_TARGET" == "profiledbootstrap-lean" ]] ; then
   make_single 
 fi  &&
-echo "$MAKE_NJOBS  $JOBS_PER_HOST"
-make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET
+echo "$MAKE_NJOBS  $JOBS_PER_HOST" &&
+make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET &&
+make_normal
