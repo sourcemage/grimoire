@@ -1,2 +1,2 @@
-cd  build/generic          &&
+cd build/generic &&
 default_build

@@ -5,7 +5,7 @@ MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey  &&
 # Only strip if the user wants us to
 #
 if  echo  $LDFLAGS  |  grep  -q  --  '-s';  then
-  OPTS="$OPTS  --enable-strip"
+  OPTS="--enable-strip $OPTS"
 fi  &&
 
 #

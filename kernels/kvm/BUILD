@@ -14,8 +14,9 @@ make  &&
 
 if [[ "$KVM_DIAGTOOLS" == "y" ]]; then
   message "${MESSAGE_COLOR}Building KVM diagnostic/debugging tools...${DEFAULT_COLOR}" &&
-  pushd "$SOURCE_DIRECTORY/kvm/user" &&
+  pushd "$SOURCE_DIRECTORY/kvm/test" &&
   ./configure --prefix=$INSTALL_ROOT/usr &&
   make &&
+  make kvmtrace
   popd
 fi
