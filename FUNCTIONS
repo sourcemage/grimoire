@@ -532,6 +532,109 @@ qt4_build() {
   make
 }
 
+mozilla_build() {
+  #
+  # Only strip if the user wants us to
+  #
+  if  echo  $LDFLAGS  |  grep  -q  --  '-s';  then
+    echo "ac_add_options --enable-strip" >> .mozconfig || return 1
+  fi  &&
+
+  #
+  # No fast optimization for Mozilla, bit us so many times...
+  #
+  CFLAGS="${CFLAGS/-O?/-O2}"      &&
+  CXXFLAGS="${CXXFLAGS/-O?/-O2}"  &&
+  CFLAGS="${CFLAGS/-ffast-math/}"      &&
+  CXXFLAGS="${CXXFLAGS/-ffast-math/}"  &&
+  CFLAGS="${CFLAGS/-mfpmath=sse/}"      &&
+  CXXFLAGS="${CXXFLAGS/-mfpmath=sse/}"  &&
+
+#unset CFLAGS CXXFLAGS CPPFLAGS &&
+  CFLAGS="-fpermissive $CFLAGS"     &&
+  CXXFLAGS="-fpermissive $CXXFLAGS" &&
+
+  CFLAGS="-fno-tree-vectorize $CFLAGS"     &&
+  CXXFLAGS="-fno-tree-vectorize $CXXFLAGS" &&
+
+  echo "ac_add_options --enable-optimize=\"-O2\"" >> .mozconfig   &&
+  echo "ac_add_options --enable-debug" >> .mozconfig   &&
+  echo "ac_add_options --disable-strip" >> .mozconfig   &&
+  echo "ac_add_options --disable-install-strip" >> .mozconfig   &&
+  echo "ac_add_options --enable-svg" >> .mozconfig   &&
+  echo "ac_add_options --enable-canvas" >> .mozconfig   &&
+  echo "ac_add_options --enable-extensions=default" >> .mozconfig   &&
+  echo "ac_add_options --with-pthreads" >> .mozconfig &&
+  echo "ac_add_options --disable-dbus" >> .mozconfig &&
+#  echo "ac_add_options --disable-freetype2" >> .mozconfig &&
+  echo "ac_add_options --disable-installer" >> .mozconfig &&
+  echo "ac_add_options --disable-tests" >> .mozconfig &&
+  echo "ac_add_options --disable-ipdl-tests" >> .mozconfig &&
+# broken with cairo 1.10
+#  echo "ac_add_options --enable-system-cairo" >> .mozconfig &&
+#  echo "ac_add_options --enable-svg-renderer=cairo" >> .mozconfig &&
+  echo "ac_add_options --enable-default-toolkit=cairo-gtk2" >> .mozconfig &&
+  echo "ac_add_options --enable-safe-browsing" >> .mozconfig &&
+#  echo "ac_add_options --enable-xpctools" >> .mozconfig &&
+#  echo "ac_add_options --enable-js-binary" >> .mozconfig &&
+#  echo "ac_add_options --enable-image-encoder=all" >> .mozconfig &&
+#  echo "ac_add_options --enable-lcms" >> .mozconfig &&
+#  echo "ac_add_options --enable-storage" >> .mozconfig &&
+#  echo "ac_add_options --enable-webservices" >> .mozconfig &&
+  echo "ac_add_options --enable-pango" >> .mozconfig &&
+#  echo "ac_add_options --enable-xft" >> .mozconfig &&
+  echo "ac_add_options --prefix=${INSTALL_ROOT}/usr" >> .mozconfig &&
+#  echo "ac_add_options --build=${BUILD}" >> .mozconfig &&
+  if [[ $CROSS_INSTALL == on ]]; then
+    echo "ac_add_options --host=${HOST}" >> .mozconfig || return 1
+  fi &&
+  for opt in $OPTS; do
+    echo "ac_add_options ${opt}" >> .mozconfig || return 1
+  done &&
+  echo "ac_add_options --disable-crashreporter" >> .mozconfig             &&
+#  echo "ac_add_options --disable-xprint" >> .mozconfig             &&
+#  echo "ac_add_options --with-system-sqlite" >> .mozconfig               &&
+  echo "ac_add_options --with-system-jpeg=/usr/lib" >> .mozconfig        &&
+  echo "ac_add_options --with-system-bz2" >> .mozconfig                  &&
+#  echo "ac_add_options --with-system-hunspell" >> .mozconfig             &&
+#  echo "ac_add_options --with-system-png=/usr/lib" >> .mozconfig         &&
+#  echo "ac_add_options --with-system-mng=/usr/lib" >> .mozconfig         &&
+  echo "ac_add_options --with-system-nss" >> .mozconfig                  &&
+  echo "ac_add_options --with-system-nspr" >> .mozconfig                 &&
+  echo "ac_add_options --with-system-zlib=/usr/lib" >> .mozconfig        &&
+  echo "ac_add_options --with-distribution-id=org.sourcemage" >> .mozconfig        &&
+
+  message "${MESSAGE_COLOR}$(cat .mozconfig)${DEFAULT_COLOR}" &&
+
+  make_single             &&
+  make -f client.mk build &&
+  make_normal
+}
+
+mozilla_depends() {
+  depends cairo                                                           &&
+  depends gtk+2                                                           &&
+  depends glib2                                                           &&
+  depends pango                                                           &&
+  depends libxft                                                          &&
+  depends python                                                          &&
+  depends perl                                                            &&
+  depends libidl                                                          &&
+  depends zip                                                             &&
+  depends libnotify                                                       &&
+#  depends curl                                                            &&
+  depends -sub SECURE_DELETE sqlite                                       &&
+  depends JPEG                                                            &&
+  depends bzip2                                                           &&
+  depends hunspell                                                        &&
+  depends -sub APNG libpng                                                &&
+  depends -sub "3.12.x" nss                                               &&
+  depends nspr                                                            &&
+#  depends libevent                                                        &&
+  depends  libmng                                                         &&
+  depends zlib
+}
+
 # check whether the QT provider is qt4
 function check_if_qt4_provider()
 {
