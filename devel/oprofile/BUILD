@@ -4,6 +4,6 @@ if [[ $(installed_version "linux") == 2.4.* ]] ; then
 else
         OPROFILEOPT="--with-kernel-support"
 fi   &&
-OPTS="$OPTS $OPROFILEOPT" &&
-disable_pic               &&
+OPTS="$OPTS $OPROFILEOPT"     &&
+disable_pic                   &&
 default_build
