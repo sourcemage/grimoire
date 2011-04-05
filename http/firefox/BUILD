@@ -3,19 +3,41 @@ cd $SOURCE_DIRECTORY/mozilla* &&
 FIREFOX_HOME="$INSTALL_ROOT/usr/lib/firefox" &&
 export  MOZ_PHOENIX=1 &&
 
+#
+# Only strip if the user wants us to
+#
+if  echo  $LDFLAGS  |  grep  -q  --  '-s';  then
+  OPTS="$OPTS  --enable-strip"
+fi  &&
+
+#
+# No fast optimization for Mozilla, bit us so many times...
+#
+CFLAGS="${CFLAGS//-Os/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
+CFLAGS="${CFLAGS//-O3/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
+
+#
+# -ffast-math breaks plugins
+#
+CFLAGS="${CFLAGS//-ffast-math/}"      &&
+CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 
 if [[ "$FIREFOX_CVS" == "y" ]]; then
-  autoconf-2.13 || return 1
+  autoconf-2.13 &&
+ 
+# workaround for configure not handling --disable-webm correctly
+  if [[ $OPTS =~ --disable-webm ]]; then
+   echo ac_add_options --disable-webm >> .mozconfig
+  fi
 fi &&
 
-echo ac_add_options --enable-application=browser >> .mozconfig &&
-echo ac_add_options --disable-necko-wifi >> .mozconfig &&
-echo ac_add_options --disable-mailnews >> .mozconfig &&
-echo "ac_add_options --disable-updater" >> .mozconfig &&
-echo ac_add_options --with-system-libxul --with-libxul-sdk=/usr/lib/xulrunner-1.9 >> .mozconfig &&
-if [[ $FIREFOX_OFFICIAL == y ]]; then
-  echo "ac_add_options --enable-official-branding" >> .mozconfig || return 1
-fi &&
+# necko-wifi is part of xulrunner if enabled, but firefox
+# compile fails without wireless_tools without this option
+echo ac_add_options --disable-necko-wifi >> .mozconfig  &&
+echo ac_add_options --enable-optimize=-O2 >> .mozconfig  &&
 
-mozilla_build
-
+make_single  &&
+make -f client.mk build &&
+make_normal
