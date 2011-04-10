@@ -1,6 +1,6 @@
 depends g++ &&
 
-message "NOTE: ZNC needs swig enabled for modperl support" &&
+message "NOTE: ZNC needs swig enabled for modperl/modpython support" &&
 
 optional_depends perl \
                  "--enable-perl" \
@@ -8,13 +8,27 @@ optional_depends perl \
                  "to use perl" &&
 
 if is_depends_enabled $SPELL perl; then
-  depends swig '--enable-swig'
+  depends -sub PERL swig '--enable-swig'
+fi &&
+
+optional_depends python \
+                 "--enable-python=python-config" \
+                 "--disable-python" \
+                 "to use Python" &&
+
+if is_depends_enabled $SPELL python; then
+  depends -sub PYTHON swig '--enable-swig'
 fi &&
 
 optional_depends tcl \
                  "--enable-tcl" \
                  "--disable-tcl" \
                  "to use TCL" &&
+
+if is_depends_enabled $SPELL tcl && list_find "--disable-extra" "$ZNC_OPTS"; then
+  message "Requested TCL support, forcing build of extra modules" &&
+  ZNC_OPTS="--enable-extra $ZNC_OPTS"
+fi &&
 
 optional_depends cyrus-sasl \
                  "--enable-sasl" \
