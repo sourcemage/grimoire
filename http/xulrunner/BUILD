@@ -1,14 +1,38 @@
-cd "$SOURCE_DIRECTORY/mozilla-2.0" &&
+cd "$SOURCE_DIRECTORY/mozilla-1.9.2" &&
 
 XULRUNNER_HOME="$INSTALL_ROOT/usr/lib/xulrunner" &&
 export  MOZ_PHOENIX=1 &&
 
-#echo "ac_add_options --with-system-libevent" >> .mozconfig             &&
-echo "ac_add_options --disable-javaxpcom" >> .mozconfig &&
-echo "ac_add_options --disable-mochitest" >> .mozconfig &&
-echo "ac_add_options --enable-jemalloc" >> .mozconfig &&
-echo "ac_add_options --enable-jsd" >> .mozconfig &&
-echo "ac_add_options --enable-libnotify" >> .mozconfig        &&
+#
+# Only strip if the user wants us to
+#
+if  echo  $LDFLAGS  |  grep  -q  --  '-s';  then
+  OPTS="$OPTS  --enable-strip"
+fi  &&
 
+#
+# No fast optimization for Mozilla, bit us so many times...
+#
+CFLAGS="${CFLAGS//-Os/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
+CFLAGS="${CFLAGS//-O3/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
-mozilla_build
+#
+# -ffast-math breaks plugins
+#
+CFLAGS="${CFLAGS//-ffast-math/}"      &&
+CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
+
+OPTS="${OPTS} --enable-optimize=-O2" &&
+
+./configure --prefix=$INSTALL_ROOT/usr                       \
+            --mandir=$INSTALL_ROOT/usr/share/man             \
+            $OPTS                                            &&
+make_single  &&
+# workaround for configure not handling --disable-necko-wifi correctly
+if [[ $OPTS =~ --disable-necko-wifi ]]; then
+  echo ac_add_options --disable-necko-wifi >> .mozconfig
+fi &&
+make -f client.mk build &&
+make_normal

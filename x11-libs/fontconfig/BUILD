@@ -7,6 +7,5 @@ OPTS="--with-add-fonts=/usr/lib/X11/fonts/TTF,\
 /usr/share/fonts/X11/misc,\
 /usr/share/fonts/X11/local \
 $OPTS" &&
-CFLAGS="$CFLAGS -fno-tree-vectorize" &&
 
 default_build
