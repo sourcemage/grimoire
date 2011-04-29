@@ -18,4 +18,9 @@ if [[ $SQLITE_VERSION != tea ]]; then
   OPTS="--enable-dynamic-extensions $OPTS"
 fi &&
 
-default_build
+default_build &&
+
+if [[ $SQLITE_VERSION = tea ]]; then
+  cd tea &&
+  default_build
+fi
