@@ -5,9 +5,7 @@ if  gaze installed xfree86|grep -c -q 4.4;  then
 fi &&
 
 export FPICFLAGS="-fPIC" &&
-OPTS="--enable-linux-fs  \
-      --enable-R-shlib   \
-      $R_UTF8            \
+OPTS="--enable-R-shlib   \
       $OPTS"             &&
 
-default_build
+LIBnn=lib default_build
