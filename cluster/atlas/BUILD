@@ -2,13 +2,6 @@ cd  $SOURCE_DIRECTORY/bld                            &&
 if is_depends_enabled $SPELL lapack; then
   OPTS="--with-netlib-lapack=$INSTALL_ROOT/usr/lib/liblapack.a $OPTS"
 fi                                                   &&
-if [ $WALL_TIMER == y ]; then
-  if [[ ${SMGL_COMPAT_ARCHS[1]} == "ia32" || ${SMGL_COMPAT_ARCHS[1]} == "x86_64" ]]; then
-    OPTS="-D c -DPentiumCPS=$CPU_FREQ $OPTS"
-  else
-    OPTS="-D c -DWALL $OPTS"
-  fi
-fi                                                   &&
 
 ../configure -Si cputhrchk 0 \
              -Fa alg -fPIC \
