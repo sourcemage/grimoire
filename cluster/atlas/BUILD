@@ -6,7 +6,7 @@ fi                                                   &&
 ../configure -Si cputhrchk 0 \
              -Fa alg -fPIC \
              -b ${SMGL_COMPAT_ARCHS[0]} \
-             --prefix=$INSTALL_ROOT/usr              &&
+             --prefix=$INSTALL_ROOT/usr  ${OPTS}     &&
 sedit '/RANLIB/s/echo/ranlib/' Make.inc              &&
 
 make_single &&
