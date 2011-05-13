@@ -1,1 +1,0 @@
-make  PREFIX=$INSTALL_ROOT/usr

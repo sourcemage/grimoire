@@ -6,6 +6,4 @@ if [[ $BUILDUTF8 == y ]]; then
  
 fi &&
 
-make_single    &&
-default_build  &&
-make_normal
+default_build

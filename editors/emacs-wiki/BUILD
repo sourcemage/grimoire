@@ -1,1 +1,0 @@
-makeinfo emacs-wiki.texi

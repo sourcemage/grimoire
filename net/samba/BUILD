@@ -14,9 +14,7 @@ else
 fi &&
 
 cd  $SOURCE_DIRECTORY/source3  &&
-make_single    &&
 default_build  &&
-make_normal    &&
 
 if [[ "$SAMBA_VSCAN" == "y" ]] ; then
         ORG_DIR=`pwd`

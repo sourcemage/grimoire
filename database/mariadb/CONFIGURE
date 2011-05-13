@@ -1,10 +1,18 @@
-source $GRIMOIRE/config_query_multi.function                      &&
+source $GRIMOIRE/config_query_multi.function &&
 
-config_query_option  MADB_SERVER                                  \
-                     "Install client only?"                       \
-                     n                                            \
-                     "--without-server"                           \
-                     "--with-server"                              &&
+config_query_option MADB_OPTS "Install client only?" n \
+                              "--without-server" \
+                              "--with-server" &&
+
+config_query_option MADB_OPTS "Build the embedded server (libmysqld)?" n \
+                              "--with-embedded-server" \
+                              "--without-embedded-server" &&
+
+if list_find "$MADB_OPTS" "--with-server"; then
+  config_query_option MADB_OPTS "Use libevent and have connection pooling?" n \
+                                "--with-libevent=yes" \
+                                "--with-libevent=no"
+fi &&
 
 config_query_list    MADB_CHARSET "Select default character set"  \
                      latin1                                       \
@@ -48,21 +56,30 @@ config_query_multi   MADB_ENGINES                                 \
                      "What additional storage engines to build?"  \
                      none                                         \
                      all                                          \
-                     ARCHIVE                                      \
-                     BerkeleyDB                                   \
-                     BLACKHOLE                                    \
-                     EXAMPLE                                      \
-                     FEDERATED                                    \
-                     InnoDB                                       \
-                     ndbcluster                                   &&
+                     archive                                      \
+                     xtradb                                       \
+                     blackhole                                    \
+                     example                                      \
+                     federated                                    \
+                     innodb_plugin                                \
+                     ndbcluster                                   \
+                     myisam                                       \
+                     partition                                    \
+                     auth                                         \
+                     daemon_example                               \
+                     ftexample                                    \
+                     csv                                          \
+                     federatedx                                   \
+                     heap                                         \
+                     ibmdb2i                                      \
+                     aria                                         \
+                     myisammrg                                    \
+                     oqgraph                                      \
+                     pbxt                                         \
+                     sphinx                                       &&
 
-if  list_find "$MADB_ENGINES"  "all"
-then
-  MADB_ENGINES="ARCHIVE BerkeleyDB BLACKHOLE EXAMPLE FEDERATED InnoDB ndbcluster"
-fi                                                                &&
-
-config_query_option  MADB_EMBED                                   \
-                     "Build the embedded server (libmysqld)?"     \
-                     n                                            \
-                     "--with-embedded-server"                     \
-                     "--without-embedded-server"
+if list_find "$MADB_ENGINES" "all"; then
+  MADB_ENGINES="all"
+elif list_find "$MADB_ENGINES" "none"; then
+  MADB_ENGINES="none"
+fi

@@ -28,26 +28,22 @@ _dashify()
     done
 }
 
-_dashify1()
-{
-	local i
-	for (( i=0; i < ${#COMPREPLY[@]}; i++ )); do
-		COMPREPLY[i]=-${COMPREPLY[i]}
-	done
-}
-
-_dashify2()
-{
-	local i
-	for (( i=0; i < ${#COMPREPLY[@]}; i++ )); do
-		COMPREPLY[i]=--${COMPREPLY[i]}
-	done
-}
-
 _add_installed_spell_list()
 {
     COMPREPLY=( ${COMPREPLY[@]}
-	$( sed -ne 's/^\('$cur'.*\):[0-9]*:installed:[0-9a-z.]*$/\1/p' $SPELL_STATUS ) )
+	$( sed -ne 's/^\('$cur'.*\):[0-9]*:installed:[0-9a-z.\-]*$/\1/p' $SPELL_STATUS ) )
+}
+
+_add_held_spell_list()
+{
+   COMPREPLY=( ${COMPREPLY[@]}
+   $( sed -ne 's/^\('$cur'.*\):[0-9]*:held:[0-9a-z.\-]*$/\1/p' $SPELL_STATUS ) )
+}
+
+_add_exiled_spell_list()
+{
+   COMPREPLY=( ${COMPREPLY[@]}
+   $( sed -ne 's/^\('$cur'.*\):[0-9]*:exiled:[0-9a-z.\-]*$/\1/p' $SPELL_STATUS ) )
 }
 
 _add_section_list()
@@ -86,7 +82,7 @@ _gaze()
            older prune voyeur pam orphans depends spider time version versions \
 			activity install-queue remove-queue show-held show-exiled short \
 			source_urls install-full install-spell license size grimoires dependencies \
-			time time-system \
+			time time-system system-info \
 			BUILD CONFIGURE CONFLICTS DETAILS DEPENDS DOWNLOAD FINAL HISTORY \
 			INSTALL INSTALL_EXTRAS PATCH POST_BUILD POST_INSTALL POST_REMOVE \
 			POST_RESURRECT PRE_BUILD PRE_INSTALL PRE_REMOVE PRE_RESURRECT \
@@ -94,7 +90,7 @@ _gaze()
 			TRIGGER_CHECK TRIGGERS UP_TRIGGERS' $cur ))
     elif [ $COMP_CWORD = 2 ]; then
 	case "$prev" in
-		@(what|where|website|sources|maintainer|depends|history|version|versions|short|url|source_urls))
+		@(what|where|website|sources|maintainer|depends|dependencies|history|version|versions|short|url|source_urls))
                 _spell_list
 		return 0
 		;;
@@ -103,14 +99,13 @@ _gaze()
 		return 0
 		;;
 	    installed)
-
 	        _add_installed_spell_list
 		return 0
 		;;
 		time|time-system)
-			COMPREPLY=( $( compgen -W 'last median mean weigh-last full' ${cur#--} ))
-			_dashify2
-		return 0
+        COMPREPLY=( $( compgen -W 'last median mean weigh-last full' ${cur#--} ))
+        _dashify
+        return 0
 		;;
 		section)
 			_add_section_list
@@ -175,26 +170,31 @@ _sorcery()
 			_dashify
 		return 0
 		;;
-	    *)
-			COMPREPLY=( $( compgen -W 'update system-update upgrade queue queue-security \
-						rebuild rebuild-reconfigure hold unhold exile unexile add-queue \
-						remove-queue default' $cur ))
-		return 0
-		;;
 	esac
     fi
 	case "$prev" in
-		hold|unhold|exile|unexile|add-queue|remove-queue)
+		hold|exile|add-queue|remove-queue)
 			_spell_list
 			return 0
 		;;
+      unhold)
+        _add_held_spell_list
+        return 0
+        ;;
+      unexile)
+        _add_exiled_spell_list
+        return 0
+        ;;
 		default)
 			COMPREPLY=( $( compgen -W 'add remove search' $cur ) )
 			return 0
 		;;
-		*)
-    return 0
-		;;
+       *)
+      COMPREPLY=( $( compgen -W 'update system-update upgrade queue queue-security \
+                  rebuild rebuild-reconfigure hold unhold exile unexile add-queue \
+                  remove-queue default' $cur ))
+      return 0
+      ;;
 	esac
 	
 	return 0
@@ -263,12 +263,12 @@ _summon()
     if [ $COMP_CWORD -ge 1 -o ${prev} != ${prev#-} -o ${prev} != ${prev#--} ]; then
 	case "$cur" in
 	    --*)
-		COMPREPLY=( $( compgen -W 'from url download queue all' ${cur#--} ) )
+		COMPREPLY=( $( compgen -W 'from url download queue all print raw' ${cur#--} ) )
 		_dashify
 		return 0
 		;;
 	    -*)
-		COMPREPLY=( $( compgen -W 'd' ${cur#-} ) )
+		COMPREPLY=( $( compgen -W 'd p g r' ${cur#-} ) )
 		_dashify
 		return 0
 		;;
@@ -279,6 +279,10 @@ _summon()
 	    COMPREPLY=( $( compgen -d $cur ) )
 	    return 0
 	    ;;
+	--print|-p)
+      COMPREPLY=( $( compgen -d 'raw source one_url all_urls' $cur ) )
+      return 0
+      ;;
 	*)
 	    _spell_list
 	    return 0
@@ -318,7 +322,7 @@ _dispel()
 	esac
     fi
 	case "$prev" in
-	--user-child-deps|--user-parent-deps|--recast-parent|--non-orphan|--orphan|--user-deps|--dispel-parent)
+	--recast-parent|--non-orphan|--orphan|--dispel-parent)
 		COMPREPLY=( $( compgen -W 'ignore ask-yes ask-no always' $cur ) )
 		return 0 ;;
 	*)
@@ -401,9 +405,6 @@ _cleanse()
 	esac
 	fi
 	case "$prev" in
-	--fix|--nofix|--nofix_quick|--tablet_spell|*)
-		_add_installed_spell_list
-		return 0 ;;
 	--delint)
 		COMPREPLY=( $( compgen -W 'full' ${cur} ) )
 		return 0 ;;
@@ -413,6 +414,9 @@ _cleanse()
 	--tablet)
 		COMPREPLY=( $( compgen -W 'coalesce' ${cur} ) )
 		return 0 ;;
+    --fix|--nofix|--nofix_quick|--tablet_spell|*)
+      _add_installed_spell_list
+      return 0 ;;
 	esac
 	return 0
 }
@@ -475,7 +479,7 @@ _scribe()
 
     if [ $COMP_CWORD = 1 ]; then
 	COMPREPLY=( $( compgen -W 'update add remove fix index reindex set \
-		swap localize unlocalize' $cur ))
+		swap localize unlocalize reindex-keyword reindex-version' $cur ))
     elif [ $COMP_CWORD = 2 ]; then
 	case "$prev" in
 		@(update|remove|fix|reindex|reindex-keyword|reindex-version|set|swap|localize|unlocalize))

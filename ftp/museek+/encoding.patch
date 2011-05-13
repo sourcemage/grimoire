@@ -1,0 +1,72 @@
+--- murmur/murmur.orig	2008-12-15 14:51:42.000000000 +0300
++++ murmur/murmur	2011-02-08 02:54:47.000000000 +0300
+@@ -2418,7 +2418,22 @@
+ 		
+ 		self.Encoding_List = gtk.ListStore(gobject.TYPE_STRING)
+ 		self.Encoding = gtk.ComboBox()
++
++		active = Settings.encodings[0] # UTF-8
++		if self.frame.Networking.config.has_key("encoding") and self.frame.Networking.config["encoding"].has_key("network"):
++			network_encoding = self.frame.Networking.config["encoding"]["network"].upper()
++			if network_encoding in Settings.encodings:
++				active = network_encoding
++
++		if self.frame.Networking.config.has_key("encoding.users") and self.user in self.frame.Networking.config["encoding.users"]:
++			user_encoding = self.frame.Networking.config["encoding.users"][self.user].upper()
++			if user_encoding in Settings.encodings:
++				active = user_encoding
++
++		self.Encoding.set_active(Settings.encodings.index(active))
+ 		self.Encoding.show()
++		for encoding in Settings.encodings:
++			self.Encoding_List.append([encoding])
+ 		self.Encoding.connect("changed", self.OnEncodingChanged)
+ 	
+ 		self.Encoding.set_model(self.Encoding_List)
+@@ -2566,8 +2581,24 @@
+ 				self.frame.Config["logging"]["private"].remove(self.user)
+ 
+ 	def OnEncodingChanged(self, widget):
+-		pass
+-	
++		if not self.frame.Networking.config.has_key("encoding.users"):
++			return
++
++		network_encoding = Settings.encodings[0] # UTF-8
++		if self.frame.Networking.config.has_key("encoding") and self.frame.Networking.config["encoding"].has_key("network"):
++			conf_network_encoding = self.frame.Networking.config["encoding"]["network"].upper()
++			if conf_network_encoding not in Settings.encodings:
++				network_encoding = conf_network_encoding
++
++		active = self.Encoding.get_active_text()
++		if active == network_encoding:
++			# removing duplicates on network level
++			if self.user in self.frame.Networking.config["encoding.users"]:
++				self.frame.Networking.ConfigRemove("encoding.users", self.user)
++		else:
++			if self.user not in self.frame.Networking.config["encoding.users"] or active != self.frame.Networking.config["encoding.users"].get(self.user):
++				self.frame.Networking.ConfigSet("encoding.users", self.user, active)
++
+ 	def ShowMessage(self, direction, text):
+ 		if self.user == self.frame.username:
+ 			tag = self.tag_local
+--- murmur/pymurmur/settings.py.orig	2008-09-22 12:49:33.000000000 +0400
++++ murmur/pymurmur/settings.py	2011-02-07 23:51:03.000000000 +0300
+@@ -127,6 +128,8 @@
+         self.quit()
+ 	
+ class Settings( gtk.Dialog):
++	encodings = ["UTF-8", "UTF-7", "UTF-16", "UTF-32", "KOI8-R", "ISO8859-1", "ISO8859-2", "ISO8859-3", "ISO8859-4", "ISO8859-5", "ISO8859-6", "ISO8859-7", "ISO8859-8", "ISO8859-9", "ISO8859-10", "ISO8859-11", "ISO8859-13", "ISO8859-14", "ISO8859-15", "ISO8859-16", "CP1250", "CP1251", "CP1252", "CP1253", "CP1254", "CP1255", "CP1256", "CP1257", "CP1258", "CP874"]
++
+ 	def __init__(self, xapp, message="", modal= True):
+ 		gtk.Dialog.__init__(self)
+ 		self.app=xapp
+@@ -3267,8 +3252,6 @@
+ 			self.Configfile.set_text(text)
+ 	
+ 	def dialogs(self):
+-		self.encodings= ["UTF-8", "UTF-7", "UTF-16", "UTF-32", "KOI8-R", "ISO8859-1", "ISO8859-2", "ISO8859-3", "ISO8859-4", "ISO8859-5", "ISO8859-6", "ISO8859-7", "ISO8859-8", "ISO8859-9", "ISO8859-10", "ISO8859-11", "ISO8859-13", "ISO8859-14", "ISO8859-15", "ISO8859-16", "CP1250", "CP1251", "CP1252", "CP1253", "CP1254", "CP1255", "CP1256", "CP1257", "CP1258", "CP874"]
+-		
+ 		self.MainNotebook = gtk.Notebook()
+ 		self.MainNotebook.set_tab_pos(gtk.POS_TOP)
+ 		self.MainNotebook.set_scrollable(False)

@@ -1,0 +1,294 @@
+--- kdelibs-3.5.10.orig/kio/kssl/kopenssl.cc
++++ kdelibs-3.5.10/kio/kssl/kopenssl.cc
+@@ -120,10 +120,10 @@ static void (*K_X509_STORE_CTX_set_chain
+ static void (*K_X509_STORE_CTX_set_purpose) (X509_STORE_CTX *, int) = 0L;
+ static void (*K_sk_free) (STACK*) = 0L;
+ static int (*K_sk_num) (STACK*) = 0L;
+-static char* (*K_sk_pop) (STACK*) = 0L;
+-static char* (*K_sk_value) (STACK*, int) = 0L;
++static void* (*K_sk_pop) (STACK*) = 0L;
++static void* (*K_sk_value) (STACK*, int) = 0L;
+ static STACK* (*K_sk_new) (int (*)()) = 0L;
+-static int (*K_sk_push) (STACK*, char*) = 0L;
++static int (*K_sk_push) (STACK*, void*) = 0L;
+ static STACK* (*K_sk_dup) (STACK *) = 0L;
+ static char * (*K_i2s_ASN1_INTEGER) (X509V3_EXT_METHOD *, ASN1_INTEGER *) =0L;
+ static ASN1_INTEGER * (*K_X509_get_serialNumber) (X509 *) = 0L;
+@@ -180,8 +180,8 @@ static void (*K_SSL_SESSION_free)(SSL_SE
+ static int (*K_SSL_set_session)(SSL*,SSL_SESSION*) = 0L;
+ static SSL_SESSION* (*K_d2i_SSL_SESSION)(SSL_SESSION**,unsigned char**, long) = 0L;
+ static int (*K_i2d_SSL_SESSION)(SSL_SESSION*,unsigned char**) = 0L;
+-static STACK *(*K_X509_get1_email)(X509 *x) = 0L;
+-static void (*K_X509_email_free)(STACK *sk) = 0L;
++static KOSSL1_STACK_OF(OPENSSL_STRING) *(*K_X509_get1_email)(X509 *x) = 0L;
++static void (*K_X509_email_free)(KOSSL1_STACK_OF(OPENSSL_STRING) *sk) = 0L;
+ static EVP_CIPHER *(*K_EVP_des_ede3_cbc)() = 0L;
+ static EVP_CIPHER *(*K_EVP_des_cbc)() = 0L;
+ static EVP_CIPHER *(*K_EVP_rc2_cbc)() = 0L;
+@@ -424,10 +424,10 @@ KConfig *cfg;
+       K_X509_STORE_CTX_set_purpose = (void (*)(X509_STORE_CTX *, int)) _cryptoLib->symbol("X509_STORE_CTX_set_purpose");
+       K_sk_free = (void (*) (STACK *)) _cryptoLib->symbol("sk_free");
+       K_sk_num = (int (*) (STACK *)) _cryptoLib->symbol("sk_num");
+-      K_sk_pop = (char* (*) (STACK *)) _cryptoLib->symbol("sk_pop");
+-      K_sk_value = (char* (*) (STACK *, int)) _cryptoLib->symbol("sk_value");
++      K_sk_pop = (void* (*) (STACK *)) _cryptoLib->symbol("sk_pop");
++      K_sk_value = (void* (*) (STACK *, int)) _cryptoLib->symbol("sk_value");
+       K_sk_new = (STACK* (*) (int (*)())) _cryptoLib->symbol("sk_new");
+-      K_sk_push = (int (*) (STACK*, char*)) _cryptoLib->symbol("sk_push");
++      K_sk_push = (int (*) (STACK*, void*)) _cryptoLib->symbol("sk_push");
+       K_sk_dup = (STACK* (*) (STACK *)) _cryptoLib->symbol("sk_dup");
+       K_i2s_ASN1_INTEGER = (char *(*) (X509V3_EXT_METHOD *, ASN1_INTEGER *)) _cryptoLib->symbol("i2s_ASN1_INTEGER");
+       K_X509_get_serialNumber = (ASN1_INTEGER * (*) (X509 *)) _cryptoLib->symbol("X509_get_serialNumber");
+@@ -478,8 +478,8 @@ KConfig *cfg;
+       K_ERR_clear_error = (void (*)()) _cryptoLib->symbol("ERR_clear_error");
+       K_ERR_get_error = (unsigned long (*)()) _cryptoLib->symbol("ERR_get_error");
+       K_ERR_print_errors_fp = (void (*)(FILE*)) _cryptoLib->symbol("ERR_print_errors_fp");
+-      K_X509_get1_email = (STACK *(*)(X509 *x)) _cryptoLib->symbol("X509_get1_email");
+-      K_X509_email_free = (void (*)(STACK *sk)) _cryptoLib->symbol("X509_email_free");
++      K_X509_get1_email = (KOSSL1_STACK_OF(OPENSSL_STRING) *(*)(X509 *x)) _cryptoLib->symbol("X509_get1_email");
++      K_X509_email_free = (void (*)(KOSSL1_STACK_OF(OPENSSL_STRING) *sk)) _cryptoLib->symbol("X509_email_free");
+       K_EVP_des_ede3_cbc = (EVP_CIPHER *(*)()) _cryptoLib->symbol("EVP_des_ede3_cbc");
+       K_EVP_des_cbc = (EVP_CIPHER *(*)()) _cryptoLib->symbol("EVP_des_cbc");
+       K_EVP_rc2_cbc = (EVP_CIPHER *(*)()) _cryptoLib->symbol("EVP_rc2_cbc");
+@@ -568,7 +568,7 @@ KConfig *cfg;
+       K_SSL_set_session = (int (*)(SSL*,SSL_SESSION*)) _sslLib->symbol("SSL_set_session");
+       K_d2i_SSL_SESSION = (SSL_SESSION* (*)(SSL_SESSION**,unsigned char**, long)) _sslLib->symbol("d2i_SSL_SESSION");
+       K_i2d_SSL_SESSION = (int (*)(SSL_SESSION*,unsigned char**)) _sslLib->symbol("i2d_SSL_SESSION");
+-      K_SSL_get_ciphers = (STACK *(*)(const SSL*)) _sslLib->symbol("SSL_get_ciphers");
++      K_SSL_get_ciphers = (STACK_OF(SSL_CIPHER) *(*)(const SSL*)) _sslLib->symbol("SSL_get_ciphers");
+ #endif
+ 
+ 
+@@ -1075,13 +1075,13 @@ int KOpenSSLProxy::sk_num(STACK *s) {
+ }
+ 
+ 
+-char *KOpenSSLProxy::sk_pop(STACK *s) {
++void *KOpenSSLProxy::sk_pop(STACK *s) {
+    if (K_sk_pop) return (K_sk_pop)(s);
+    else return 0L;
+ }
+ 
+ 
+-char *KOpenSSLProxy::sk_value(STACK *s, int n) {
++void *KOpenSSLProxy::sk_value(STACK *s, int n) {
+    if (K_sk_value) return (K_sk_value)(s, n);
+    else return 0L;
+ }
+@@ -1102,13 +1102,13 @@ STACK* KOpenSSLProxy::sk_dup(STACK *s) {
+ }
+ 
+ 
+-STACK* KOpenSSLProxy::sk_new(int (*cmp)()) {
+-   if (K_sk_new) return (K_sk_new)(cmp);
++STACK* KOpenSSLProxy::sk_new(int (*cmp)(const void*, const void*)) {
++  if (K_sk_new) return (K_sk_new)(reinterpret_cast<int (*)()>(cmp));
+    else return 0L;
+ }
+ 
+ 
+-int KOpenSSLProxy::sk_push(STACK* s, char* d) {
++int KOpenSSLProxy::sk_push(STACK* s, void* d) {
+    if (K_sk_push) return (K_sk_push)(s,d);
+    else return -1;
+ }
+@@ -1407,12 +1407,12 @@ RSA* KOpenSSLProxy::RSA_generate_key(int
+    else return 0L;
+ }
+ 
+-STACK *KOpenSSLProxy::X509_get1_email(X509 *x) {
++KOSSL1_STACK_OF(OPENSSL_STRING) *KOpenSSLProxy::X509_get1_email(X509 *x) {
+    if (K_X509_get1_email) return (K_X509_get1_email)(x);
+    else return 0L;
+ }
+ 
+-void KOpenSSLProxy::X509_email_free(STACK *sk) {
++void KOpenSSLProxy::X509_email_free(KOSSL1_STACK_OF(OPENSSL_STRING) *sk) {
+    if (K_X509_email_free) (K_X509_email_free)(sk);
+ }
+ 
+Index: kdelibs-3.5.10/kio/kssl/kopenssl.h
+===================================================================
+--- kdelibs-3.5.10.orig/kio/kssl/kopenssl.h
++++ kdelibs-3.5.10/kio/kssl/kopenssl.h
+@@ -47,6 +47,51 @@ class KOpenSSLProxyPrivate;
+ #include <openssl/evp.h>
+ #include <openssl/stack.h>
+ #include <openssl/bn.h>
++#if OPENSSL_VERSION_NUMBER >= 0x10000000L
++typedef struct asn1_method_st
++	{
++	i2d_of_void *i2d;
++	d2i_of_void *d2i;
++	void *(*create)(void);
++	void (*destroy)(void *);
++	} ASN1_METHOD;
++typedef struct asn1_header_st
++	{
++	ASN1_OCTET_STRING *header;
++	void *data;
++	ASN1_METHOD *meth;
++	} ASN1_HEADER;
++typedef struct stack_st STACK;
++
++#include <openssl/safestack.h>
++
++template<class S> struct KOpenSSLElementType;
++template<class T> struct KOpenSSLStackType;
++
++#define KOSSL_DECLARE_STACK_OF(type)                            \
++  template<> struct KOpenSSLElementType<STACK_OF(type)> {        \
++    typedef type value_t;                                       \
++    typedef type* ptr_t;                                        \
++  };                                                            \
++  template<> struct KOpenSSLStackType<const type*> {             \
++    typedef STACK_OF(type) stack_t;                             \
++    typedef STACK_OF(type) *ptr_t;                              \
++  };
++
++KOSSL_DECLARE_STACK_OF(GENERAL_NAME)
++KOSSL_DECLARE_STACK_OF(SSL_CIPHER)
++KOSSL_DECLARE_STACK_OF(X509)
++
++template<> struct KOpenSSLElementType<STACK_OF(OPENSSL_STRING)> {
++  typedef char value_t;
++  typedef OPENSSL_STRING ptr_t;
++};
++
++#define KOSSL1_STACK_OF(type) STACK_OF(type)
++#else
++#define KOSSL1_STACK_OF(type) STACK
++#endif
++
+ #undef crypt
+ #endif
+ 
+@@ -523,7 +568,7 @@ public:
+    /* 
+     *   Pop off the stack
+     */
+-   char *sk_pop(STACK *s);
++   void *sk_pop(STACK *s);
+ 
+ 
+    /* 
+@@ -541,19 +586,19 @@ public:
+    /* 
+     *  Value of element n in the stack
+     */
+-   char *sk_value(STACK *s, int n);
++   void *sk_value(STACK *s, int n);
+ 
+ 
+    /* 
+     *  Create a new stack
+     */
+-   STACK *sk_new(int (*cmp)());
++   STACK *sk_new(int (*cmp)(const void *, const void *));
+ 
+ 
+    /* 
+     *  Add an element to the stack
+     */
+-   int sk_push(STACK *s, char *d);
++   int sk_push(STACK *s, void *d);
+ 
+ 
+    /* 
+@@ -562,6 +607,54 @@ public:
+    STACK *sk_dup(STACK *s);
+ 
+ 
++#if defined(KSSL_HAVE_SSL) && OPENSSL_VERSION_NUMBER >= 0x10000000L
++
++   /* Use some template magic to simulate the OpenSSL 1.0.0 safestack macros */
++
++   template<class S> typename KOpenSSLElementType<S>::ptr_t
++   sk_pop(S *s) {
++     return reinterpret_cast<typename KOpenSSLElementType<S>::ptr_t>
++       (sk_pop(reinterpret_cast<STACK*>(s)));
++   }
++
++   template<class S> void
++   sk_free(S *s) {
++     typedef typename KOpenSSLElementType<S>::ptr_t ensure_its_a_stack_type;
++     sk_free(reinterpret_cast<STACK*>(s));
++   }
++
++   template<class S> int
++   sk_num(S *s) {
++     typedef typename KOpenSSLElementType<S>::ptr_t ensure_its_a_stack_type;
++     return sk_num(reinterpret_cast<STACK*>(s));
++   }
++
++   template<class S> typename KOpenSSLElementType<S>::ptr_t
++   sk_value(S *s, int n) {
++     return reinterpret_cast<typename KOpenSSLElementType<S>::ptr_t>
++       (sk_value(reinterpret_cast<STACK*>(s), n));
++   }
++
++   template<class T> typename KOpenSSLStackType<T>::ptr_t
++   sk_new(int (*cmp)(T const *, T const *)) {
++     return reinterpret_cast<typename KOpenSSLStackType<T>::ptr_t>
++       (sk_new(reinterpret_cast<int (*)(const void *, const void *)>(cmp)));
++   }
++
++   template<class S> int
++   sk_push(S *s, typename KOpenSSLElementType<S>::ptr_t d) {
++     return sk_push(reinterpret_cast<STACK*>(s), reinterpret_cast<void*>(d));
++   }
++
++   template<class S> S*
++   sk_dup(S* s) {
++     typedef typename KOpenSSLElementType<S>::ptr_t ensure_its_a_stack_type;
++     return reinterpret_cast<S*>(sk_dup(reinterpret_cast<STACK*>(s)));
++   }
++
++#endif
++
++
+    /*
+     *  Convert an ASN1_INTEGER to it's text form
+     */
+@@ -825,8 +918,8 @@ public:
+    int i2d_X509_REQ_fp(FILE *fp, X509_REQ *x);
+ 
+    /* SMime support */
+-   STACK *X509_get1_email(X509 *x);
+-   void X509_email_free(STACK *sk);
++   KOSSL1_STACK_OF(OPENSSL_STRING) *X509_get1_email(X509 *x);
++   void X509_email_free(KOSSL1_STACK_OF(OPENSSL_STRING) *sk);
+ 
+    /* Ciphers needed for SMime */
+    EVP_CIPHER *EVP_des_ede3_cbc();
+Index: kdelibs-3.5.10/kio/kssl/ksmimecrypto.cc
+===================================================================
+--- kdelibs-3.5.10.orig/kio/kssl/ksmimecrypto.cc
++++ kdelibs-3.5.10/kio/kssl/ksmimecrypto.cc
+@@ -87,7 +87,7 @@ KSMIMECryptoPrivate::KSMIMECryptoPrivate
+ 
+ 
+ STACK_OF(X509) *KSMIMECryptoPrivate::certsToX509(QPtrList<KSSLCertificate> &certs) {
+-    STACK_OF(X509) *x509 = sk_new(NULL);
++    STACK_OF(X509) *x509 = sk_X509_new(NULL);
+     KSSLCertificate *cert = certs.first();
+     while(cert) {
+ 	sk_X509_push(x509, cert->getCert());
+Index: kdelibs-3.5.10/kio/kssl/ksslcertificate.cc
+===================================================================
+--- kdelibs-3.5.10.orig/kio/kssl/ksslcertificate.cc
++++ kdelibs-3.5.10/kio/kssl/ksslcertificate.cc
+@@ -225,9 +225,10 @@ void KSSLCertificate::getEmails(QStringL
+ 	if (!d->m_cert)
+ 		return;
+ 	
+-	STACK *s = d->kossl->X509_get1_email(d->m_cert);
++	KOSSL1_STACK_OF(OPENSSL_STRING) *s =
++		d->kossl->X509_get1_email(d->m_cert);
+ 	if (s) {
+-		for(int n=0; n < s->num; n++) {
++		for(int n=0; n < d->kossl->sk_num(s); n++) {
+ 			to.append(d->kossl->sk_value(s,n));
+ 		}
+ 		d->kossl->X509_email_free(s);
+

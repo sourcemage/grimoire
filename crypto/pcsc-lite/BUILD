@@ -1,5 +1,5 @@
-if [[ $PCSC_DEVICE_ACCESS != hal ]]; then
-  OPTS="--disable-libhal $OPTS"
+if [[ $PCSC_DEVICE_ACCESS != udev ]]; then
+  OPTS="--disable-libudev $OPTS"
 fi &&
 if [[ $PCSC_DEVICE_ACCESS != libusb ]]; then
   OPTS="--disable-libusb $OPTS"

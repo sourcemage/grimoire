@@ -16,12 +16,12 @@ if [ "${GSCREENSAVER_CONVERT}" == "y" ]; then
       mkdir xsavers                                                     &&
       cd xsavers                                                        &&
       cp ${SOURCE_DIRECTORY}/data/*xscreensaver* ./                     &&
-      for XCONFIGS in ${X_CONFIGDIR}/*.xml                              
+      for XCONFIGS in ${X_CONFIGDIR}/*.xml
       do
          ${XCONV_PRG} ${XCONFIGS}
       done                                                              &&
       cd ${SOURCE_DIRECTORY}
    else
 	message "${PROBLEM_COLOR}No xscreensaver config files!${DEFAULT_COLOR}"
-   fi 
+   fi
 fi

@@ -1,0 +1,2 @@
+xmkmf $OPTS &&
+make

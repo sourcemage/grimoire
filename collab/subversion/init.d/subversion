@@ -1,0 +1,21 @@
+#!/bin/bash
+
+. /etc/sysconfig/subversion
+
+PIDFILE=/var/run/subversion.pid
+PROGRAM=/usr/bin/svnserve
+RUNLEVEL=3
+NEEDS="+network +remote_fs"
+
+OPTS="-d --pid-file $PIDFILE -r $REPOSITORIES"
+[[ -n "$LISTEN_HOST" ]] && OPTS="$OPTS --listen-host=$LISTEN_HOST"
+[[ -n "$LISTEN_PORT" ]] && OPTS="$OPTS --listen-port=$LISTEN_PORT"
+[[ "$READ_ONLY" =~ "^[Yy].*$" ]] && OPTS="$OPTS -R"
+[[ "$THREADS" =~ "^[Yy].*$" ]] && OPTS="$OPTS -T"
+
+. /etc/init.d/smgl_init
+
+start()
+{
+  loadproc "${PROGRAM}" $OPTS
+}

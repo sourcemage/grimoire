@@ -1,0 +1,26 @@
+#---------------------------------------------------------------------
+## Handler for downloading from bzr URLs
+#---------------------------------------------------------------------
+function bzr_download() {
+  local URL="${SOURCE_URL%:*}"
+  URL="${URL#bzr_}"
+
+  if file_exists $SOURCE_CACHE/$SOURCE
+  then
+    message "${MESSAGE_COLOR}Unpacking the source...${DEFAULT_COLOR}" &&
+    tar xjf $SOURCE_CACHE/$SOURCE -C $(dirname $SOURCE_DIRECTORY) &&
+    cd $SOURCE_DIRECTORY &&
+    message "${MESSAGE_COLOR}Updating...${DEFAULT_COLOR}" &&
+    echo bzr update &&
+    bzr update &&
+    cd -
+  else
+    message "${MESSAGE_COLOR}Doing a lightweight checkout...${DEFAULT_COLOR}" &&
+    echo bzr checkout --lightweight "$URL" "$SOURCE_DIRECTORY" &&
+    bzr checkout --lightweight "$URL" "$SOURCE_DIRECTORY"
+  fi &&
+
+  message "${MESSAGE_COLOR}Repacking the source...${DEFAULT_COLOR}" &&
+  tar cjf $SOURCE -C $(dirname $SOURCE_DIRECTORY) $(basename $SOURCE_DIRECTORY) &&
+  mv $SOURCE $SOURCE_CACHE
+}

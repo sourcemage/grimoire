@@ -1,2 +1,13 @@
-default_pre_build  &&
-create_group  ppp
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+# fixes use of 2.6.35 headers
+patch -p0 < "$SPELL_DIRECTORY/l2tp.patch" &&
+
+sedit  's:net/bpf.h:pcap-bpf.h:'     pppd/demand.c       &&
+sedit  's:net/bpf.h:pcap-bpf.h:'     pppd/sys-linux.c    &&
+sedit  's:/usr/man:/usr/share/man:'  linux/Makefile.top  &&
+
+if [ "$HAVE_CBCP" == "y" ]; then
+  sedit  's:#CBCP=y:CBCP=y:'         pppd/Makefile.linux
+fi

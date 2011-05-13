@@ -1,0 +1,63 @@
+depends cmake &&
+depends libxml++ &&
+depends libevent &&
+
+if [[ $MUSEEKPLUS_HASHLIB == pycrypto ]]; then
+  depends pycrypto '-DNO_PYMUCIPHER=ON'
+elif [[ $MUSEEKPLUS_HASHLIB == pymucipher ]]; then
+  depends -sub PYTHON swig '-DNO_PYMUCIPHER=OFF'
+fi &&
+
+if [[ $MUSEEKPLUS_HASHLIB != none ]]; then
+  optional_depends ncurses \
+                   "-DMUCOUS=ON" \
+                   "-DMUCOUS=OFF" \
+                   "for ncurses GUI (mucous)"
+else
+  MUSEEKPLUS_OPTS="-DMUCOUS=OFF $MUSEEKPLUS_OPTS"
+fi &&
+
+if [[ $MUSEEKPLUS_HASHLIB == none ]] || ! is_depends_enabled $SPELL ncurses; then
+  optional_depends python \
+                   "-DBINDINGS=ON" \
+                   "-DBINDINGS=OFF" \
+                   "for Python bindings"
+else
+  depends python '-DBINDINGS=ON'
+fi &&
+
+# prevent from flags reset on next python dependency selection
+if is_depends_enabled $SPELL python; then
+  MUSEEKPLUS_OPTS="-DBINDINGS=ON $MUSEEKPLUS_OPTS"
+fi &&
+
+optional_depends -sub EXPAT python \
+                 "-DNO_SETUP=OFF" \
+                 "-DNO_SETUP=ON" \
+                 "for musetup utility" &&
+
+optional_depends qt4 \
+                 "-DNO_MUSEEQ=OFF" \
+                 "-DNO_MUSEEQ=ON" \
+                 "for QT4 GUI (museeq) support" &&
+
+optional_depends pygtk2 \
+                 "-DMURMUR=ON" \
+                 "-DMURMUR=OFF" \
+                 "for PyGTK+ GUI (murmur)" &&
+
+optional_depends pyqt4 "" "" "for musetup-qt utility" &&
+
+optional_depends libvorbis "" "" "for Ogg metadata generation" &&
+
+if list_find "$MUSEEKPLUS_OPTS" "-DNO_MUSCAN=OFF"; then
+  optional_depends FAM "" "" "for file scanning daemon (muscand)"
+fi &&
+
+if is_depends_enabled $SPELL ncurses || is_depends_enabled $SPELL pygtk2; then
+  suggest_depends geoip-python "" "" "for GeoIP location support"
+fi &&
+
+if is_depends_enabled $SPELL pygtk2; then
+  suggest_depends sexy-python "" "" "for spell-checking support"
+fi

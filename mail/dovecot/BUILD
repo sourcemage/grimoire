@@ -1,5 +1,5 @@
 if list_find "$DOVECOT_MAILSTORE" "all" ; then
-OPTS="--with-storages=maildir,mbox,dbox,cydir $OPTS"
+OPTS="--with-storages=maildir,mbox,sdbox,mdbox,cydir $OPTS"
 else
 OPTS="--with-storages=$(echo $DOVECOT_MAILSTORE | tr " " ",") $OPTS"
 fi                                                  &&

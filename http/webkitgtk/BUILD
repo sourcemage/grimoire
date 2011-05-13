@@ -1,3 +1,5 @@
 OPTS="$WEBKIT_SVG $OPTS" &&
 
-default_build
+make_single &&
+default_build &&
+make_normal

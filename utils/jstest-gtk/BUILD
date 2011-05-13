@@ -1,0 +1,1 @@
+scons PREFIX=${INSTALL_ROOT}/usr

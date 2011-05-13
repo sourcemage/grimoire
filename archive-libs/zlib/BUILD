@@ -1,6 +1,7 @@
 OPTS="--eprefix=$INSTALL_ROOT $OPTS" &&
 
-CFLAGS="$CFLAGS -DPIC -fPIC"  &&
+CFLAGS="$CFLAGS -DPIC -fPIC"    &&
+CFLAGS="${CFLAGS/-O?/-O3} -fno-tree-vectorize -mstackrealign -DUNALIGNED_OK" &&
 
 rm  -f  ${INSTALL_ROOT}/usr/X11R6/include/zlib.h
 rm  -f  ${INSTALL_ROOT}/usr/X11R6/lib/libz.a

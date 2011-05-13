@@ -1,6 +1,4 @@
-if [[ $WPA_RELEASE != old ]]; then
-  cd "$SOURCE_DIRECTORY/wpa_supplicant"
-fi &&
+cd "$SOURCE_DIRECTORY/wpa_supplicant"
 
 # Create .config file for make (this is here instead of PRE_BUILD because
 # OPTS isn't available there, and this is equivalent to running ./configure
@@ -25,7 +23,10 @@ for var in $VARS $OPTS; do
 done &&
 
 make &&
-  
+
+if is_depends_enabled $SPELL qt4; then
+  PATH=/usr/bin/qt4:$PATH make wpa_gui-qt4
+fi &&
 
 if is_depends_enabled $SPELL qt-x11; then
   make wpa_gui

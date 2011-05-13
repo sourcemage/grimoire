@@ -1,17 +1,16 @@
 default_pre_build &&
+cd "$SOURCE_DIRECTORY/wpa_supplicant" &&
 
-if [[ $WPA_RELEASE != old ]]; then
-   cd "$SOURCE_DIRECTORY/wpa_supplicant"
-else
-   cd "$SOURCE_DIRECTORY"
+sed -i "s|/usr/local|$INSTALL_ROOT/usr|g" Makefile &&
+
+if is_depends_enabled $SPELL dbus; then
+  if [[ $WPA_RELEASE == legacy ]]; then
+    sed -i "s|=/sbin|=$INSTALL_ROOT/usr/sbin|g" dbus-wpa_supplicant.service
+  else
+    sed -i "s|=/sbin|=$INSTALL_ROOT/usr/sbin|g" \
+           dbus/fi.epitest.hostap.WPASupplicant.service
+  fi
 fi &&
-
-sed -i "s|/local||g" Makefile &&
-
-sed -i "s|=/sbin|=/usr/sbin|g" dbus-wpa_supplicant.service &&
-
-# Dynamic EAP target borks install.
-sed -i "s/wpa_cli dynamic_eap_methods/wpa_cli/" Makefile &&
 
 if [[ -z $QTDIR ]] && is_depends_enabled $SPELL qt-x11; then
   . "$INSTALL_ROOT/etc/profile.d/qt.sh"

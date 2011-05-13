@@ -1,7 +1,28 @@
 depends -sub "INTEL" libdrm &&
-depends libxvmc &&
-depends xf86driproto &&
 depends xproto &&
 depends xorg-server &&
 depends util-macros &&
-depends -sub 'DRI' mesalib '--enable-dri'
+depends libpciaccess &&
+
+if spell_ok mesalib; then
+  persistent_read mesalib MESALIB_BUILD MESALIB_BUILD || true
+fi &&
+
+if [[ $MESALIB_BUILD == dri ]]; then
+  depends xf86driproto &&
+  depends -sub "DRI" mesalib "--enable-dri"
+else
+  depends mesalib "--disable-dri"
+fi &&
+
+optional_depends libxvmc \
+                 "--enable-xvmc" \
+                 "--disable-xvmc" \
+                 "for XvMC support" &&
+
+if is_depends_enabled $SPELL libxvmc; then
+  depends dri2proto &&
+  depends xcb-util
+fi &&
+
+optional_depends udev "" "" "for udev-based monitor hotplug detection support"
