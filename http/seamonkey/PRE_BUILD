@@ -5,8 +5,6 @@ cd             comm-1.9.1            &&
 
 cp -v $SPELL_DIRECTORY/blfs-mozconfig .mozconfig &&
 
-#cp -v $SPELL_DIRECTORY/blfs-mozconfig mozilla/.mozconfig &&
-
 if [[ "$SEAMONKEY_CAIRO" == "y" ]]; then
    sed -i '78iac_add_options --enable-system-cairo' .mozconfig
 else
@@ -33,6 +31,21 @@ fi &&
 
 if [[ "$SEAMONKEY_PANGO" == "y" ]]; then
    sed -i '78iac_add_options --enable-pango' .mozconfig
-fi
+fi &&
+
+if is_depends_enabled $SPELL openldap; then
+   sed -i '78iac_add_options --enable-ldap' .mozconfig
+else
+   sed -i '78iac_add_options --disable-ldap' .mozconfig
+fi &&
+
+if ! is_depends_enabled $SPELL alsa-lib; then
+   sed -i '78iac_add_options --disable-ogg' .mozconfig &&
+   sed -i '78iac_add_options --disable-wave' .mozconfig
+fi &&
+
+# GNOME support is broken (at least for download manager)
+echo "ac_add_options --disable-gnomeui" >> .mozconfig &&
+echo "ac_add_options --disable-gnomevfs" >> .mozconfig &&
 
 echo "ac_add_options --disable-crashreporter" >> .mozconfig

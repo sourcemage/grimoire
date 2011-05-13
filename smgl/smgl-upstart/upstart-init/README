@@ -1,0 +1,53 @@
+Some useful things to know about upstart on smgl
+
+- The jobs upstart knows about are in the *.conf files,
+  one file per service/daemon/task/job. Any file not ending in .conf
+  is ignored.
+
+- The jobs MAY NOT FAIL, or the entire boot process is halted...
+  Use a script in the scripts dir and a job  pointing to it when
+  a job can fail and make sure the script exits cleanly.
+
+- tty{2,3} start as soon as everything is mounted.
+  Annoyingly, GDM (I'm not sure about the others) claims the 1st available
+  tty once it starts, so if tty{2,3} didn't start at that point, they'll
+  try to respawn forever, bothering GDM and ultimately bring down the CPU.
+  So when reordering the scripts, keep in mind that the displaymanager script
+  is started at least a second after tty{2,3}. tty1 is unaffected, as that's
+  started as soon as your / is mounted.
+
+- when writing a job, start on A and ( B or C ) won't work
+  use a separate BorC job and use start on A an BorC in the original job.
+
+feel free to post bugs with additional jobs on
+http://bugs.sourcemage.org and assign them to abouter@sourcemage.org
+I'll get to them eventually, or just put them in the smgl-upstart spell
+yourself if you have git access ;)
+
+A little info on how to use upstart, because there isn't that much available
+unless you run it in sysvcompat mode...
+
+starting and stopping jobs in upstart:
+
+  start <jobname>
+
+or
+
+  stop <jobname>
+
+where <jobname> is the jobs name in /etc/init without the .conf part.
+
+for example, to start lighty:
+
+  start lighttpd
+
+for a list of jobs and their status:
+
+  initctl list
+
+to emit a signal, in this case to stop everything that depends on network
+connectivity but not the network job itself:
+
+  initctl emit --no-wait network-stop
+
+the --no-wait means "don't wait around to see what is happening.. RUN!!"
