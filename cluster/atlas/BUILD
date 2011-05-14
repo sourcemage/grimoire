@@ -11,14 +11,15 @@ sedit '/RANLIB/s/echo/ranlib/' Make.inc              &&
 
 make_single &&
 make                                                 &&
-if [ $SHARED_LIB == y ]; then
-  cd lib                                             &&
-  make shared                                        &&
-  cd ..
-fi                                                   &&
-if [ $PTSHARED_LIB == y ]; then
-  cd lib                                             &&
+cd lib                                               &&
+if [ $PT_LIB == y ]; then
   make ptshared                                      &&
-  cd ..
-fi &&
+  # newer versions will have ptshared dependent on fat_ptshared
+  make fat_ptshared
+else
+  make shared                                        &&
+  # newer versions will have shared dependent on fat_shared
+  make fat_shared
+fi                                                   &&
+cd ..                                                &&
 make_normal
