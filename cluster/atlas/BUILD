@@ -13,13 +13,14 @@ make_single &&
 make                                                 &&
 cd lib                                               &&
 if [ $PT_LIB == y ]; then
-  make ptshared                                      &&
-  # newer versions will have ptshared dependent on fat_ptshared
-  make fat_ptshared
+  make ptshared
 else
-  make shared                                        &&
-  # newer versions will have shared dependent on fat_shared
-  make fat_shared
+  make shared
 fi                                                   &&
 cd ..                                                &&
+make check                                           &&
+if [ $PT_LIB == y ]; then
+  make ptcheck
+fi                                                   &&
+make time                                            &&
 make_normal
