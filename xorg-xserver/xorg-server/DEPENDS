@@ -40,27 +40,27 @@ optional_depends  libxvmc                          \
 # May only select one:
 # configure: error: Hotplugging through both libudev and dbus/hal not allowed
 #
+# NOTE: as hal depends on dbus, we can safely enable/disable dbus's configure
+# options with hal
+#
 # hal is preferred by upstream:
 #  --enable-config-udev    Build udev support (default: auto)
 #  --enable-config-dbus    Build D-BUS API support (default: no)
 #  --disable-config-hal    Build HAL support (default: auto)
 #
-optional_depends  dbus \
-                  "--enable-config-dbus --disable-config-udev"  \
-                  "--disable-config-dbus" \
-                  "Enable D-BUS API support" &&
 
+message "You can either use hal+dbus OR udev for hotplugging" &&
+message "but NOT both" &&
 optional_depends  hal \
-                  "--enable-config-hal --disable-config-udev" \
-                  "--disable-config-hal" \
-                  "Enable HAL support" &&
+         "--enable-config-hal --enable-config-dbus --disable-config-udev" \
+         "--disable-config-hal --disable-config-dbus" \
+         "Enable HAL support" &&
 
-if ! is_depends_enabled $SPELL hal &&
-   ! is_depends_enabled $SPELL dbus; then
+if ! is_depends_enabled $SPELL hal; then
   optional_depends  udev \
-                    "--enable-config-udev" \
-                    "--disable-config-udev" \
-                    "enable udev kernel config support"
+    "--enable-config-udev --disable-config-dbus --disable-config-hal" \
+    "--disable-config-udev" \
+    "enable udev kernel config support"
 fi &&
 
 #optional_depends  libdmx                           \
