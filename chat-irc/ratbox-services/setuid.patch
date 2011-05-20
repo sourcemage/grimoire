@@ -1,0 +1,47 @@
+--- include/config.h.orig
++++ include/config.h
+@@ -1,6 +1,11 @@
+ #ifndef INCLUDED_config_h
+ #define INCLUDED_config_h
+ 
++/* users */
++#ifndef IRCD_USER
++#define IRCD_USER "ratbox"
++#endif
++
+ /* Paths to various things.
+  * IMPORTANT: if you alter the directories these files go to,
+  *            you must create those paths yourself.
+--- include/stdinc.h.orig
++++ include/stdinc.h
+@@ -41,6 +41,8 @@
+ #include <string.h>
+ #include <strings.h>
+ #include <ctype.h>
++#include <unistd.h>
++#include <pwd.h>
+ 
+ #include <time.h>
+ #include <sys/time.h>
+--- src/rserv.c.orig
++++ src/rserv.c
+@@ -350,8 +350,17 @@
+ 
+ 	if(geteuid() == 0)
+ 	{
+-		printf("ratbox-services will not run as root\n");
+-		return -1;
++		struct passwd *pw;
++
++		if ((pw = getpwnam(IRCD_USER)) == NULL) {
++			printf("ratbox-services will not run as root\n");
++			return -1;
++		}
++
++		if (seteuid(pw->pw_uid) < 0) {
++			printf("Can's set effective user ID to %s\n", IRCD_USER);
++			return -1;
++		}
+ 	}
+ 
+ 	if(chdir(PREFIX))
