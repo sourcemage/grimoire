@@ -1,0 +1,65 @@
+prepare_environment() {
+  QTDIR="${QTDIR:-$INSTALL_ROOT/opt/qt4}"             &&
+  PATH="$QTDIR/bin:$PATH"                     &&
+
+#  persistent_add KDE4DIR                          &&
+  KDE4DIR="$INSTALL_ROOT/opt/kde4"                &&
+
+  PATH="$KDE4DIR/bin:$PATH"                       &&
+  LD_LIBRARY_PATH="$KDE4DIR/lib:$LD_LIBRARY_PATH" &&
+  QT_PLUGIN_PATH="$KDE4DIR/lib/kde4/plugins"
+}
+
+
+default_build() {
+  cd $SOURCE_DIRECTORY/build &&
+  kde4_build
+}
+
+# kde4 also needs a special default_install,
+# to maintain some environment variables
+default_install() {
+#  prepare_environment                             &&
+
+  cd $SOURCE_DIRECTORY/build                      &&
+  make install
+}
+
+
+# we need a default_final, default_post_remove
+# so that the mime and desktop databases get updated
+update_databases() {
+
+  source /etc/profile.d/strigi.sh
+  update-mime-database $KDE4DIR/share/mime/
+  if [[ -e $KDE4DIR/share/desktop-directories ]]; then
+    update-desktop-database $KDE4DIR/share/desktop-directories
+  fi
+}
+
+default_final() {
+  update_databases
+}
+
+
+default_post_remove() {
+  update_databases
+}
+
+
+# some spells need a special prebuild for svn versions
+svn_prebuild() {
+default_pre_build    &&
+cd $SOURCE_DIRECTORY &&
+if [ $VERSION == svn ];then
+# svn version has incomplete CMakeLists.txt,
+# as it was intended to be part of a larger unit, so fix it!
+sed -i '1 a \
+set(CMAKE_MODULE_PATH $KDE4DIR/share/apps/cmake/modules) \
+find_package(KDE4 REQUIRED) \
+include(KDE4Defaults) \
+include(MacroLibrary) \
+' CMakeLists.txt
+fi
+
+}
