@@ -19,11 +19,14 @@ if list_find "${BOOST_LIBS}" "graph"              ||
    local EXPAT_INCLUDE=/usr/lib
    local EXPAT_LIBPATH=/usr/include
 fi &&
+./bootstrap.sh --with-toolset=gcc                 \
+     -prefix=${INSTALL_ROOT}/usr                  \
+     --with-libraries=${BOOST_LIBS}               &&
 OPTS="$OPTS $BLIST"                               &&
 CXXFLAGS="$CXXFLAGS"                              \
 EXPAT_INCLUDE=$EXPAT_INCLUDE                      \
 EXPAT_LIBPATH=$EXPAT_LIBPATH                      \
-bjam -q                                           \
+./bjam -q                                           \
      ${BOOST_VARIANT}                             \
      runtime-link=shared                          \
      link=shared                                  \
