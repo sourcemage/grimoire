@@ -1,0 +1,19 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+patch -p0 < "$SPELL_DIRECTORY/rundir.patch" &&
+
+if [[ $IRCD_RATBOX_RELEASE == testing ]]; then
+  patch -p0 < "$SPELL_DIRECTORY/setuid-3.patch"
+else
+  patch -p0 < "$SPELL_DIRECTORY/setuid-2.patch"
+fi &&
+
+if [[ $IRCD_RATBOX_RELEASE == testing ]]; then
+  patch -p0 < "$SPELL_DIRECTORY/libltdl.patch"
+fi &&
+
+autoreconf -i &&
+
+# post-reconfiguration replace
+sed -i "s:@LIBLTDL@:-L@libdir@ -lltdl:" Makefile.in src/Makefile.in

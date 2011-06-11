@@ -1,3 +1,4 @@
+unset LDFLAGS  &&
 if is_depends_enabled numpy atlas; then
     default_build || return 1
 else
