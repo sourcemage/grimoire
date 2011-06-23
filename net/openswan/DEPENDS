@@ -1,10 +1,16 @@
-depends gmp 			&&
-depends iproute2		&&
-depends iptables		&&
-depends ipsec-tools
-# from the readme from openswan
-#* For the moment, users wishing to test Openswan with 2.6 will require
-#  ipsec-tools' "setkey" program. Though Openswan's keying daemon, Pluto,
-#  directly sets IPsec policy, setkey is currently required to reset kernel SPD 
-#  (Security Policy Database) states when Pluto restarts. We will likely add 
-#  this basic functionality to an upcoming Openswan release.
+depends gmp &&
+depends iproute2 &&
+depends iptables &&
+
+local IPR2VER=$(installed_version iproute2) &&
+
+if spell_ok iproute2 && [[ $IPR2VER < 2.6.08 ]]; then
+  force_depends iproute2
+fi &&
+
+. "$GRIMOIRE/FUNCTIONS" &&
+local KVER=$(get_kernel_version) &&
+
+if [[ $KVER < 2.6.09 ]]; then
+  depends ipsec-tools
+fi
