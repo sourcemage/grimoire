@@ -63,6 +63,9 @@ if list_find "$GCC_COMPILER" "ada" ; then
   OPTS="--enable-libada $OPTS"
 
 fi  &&
+
+OPTS="--without-ppl --without-cloog $OPTS" &&
+
 cd $SOURCE_DIRECTORY.bld                                              &&
 $SOURCE_DIRECTORY/configure                                           \
              --prefix=${INSTALL_ROOT}/usr                             \
