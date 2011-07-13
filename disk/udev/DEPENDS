@@ -1,10 +1,13 @@
 depends gnupg &&
 depends smgl-fhs &&
 depends gperf &&
-depends usbutils &&
-depends PCIIDS &&
+depends pkgconfig &&
+if [[ "${UDEV_HWDB}" == '--enable-hwdb' ]]; then
+  depends USBIDS &&
+  depends PCIIDS
+fi &&
 
-if [[ "$(get_spell_provider ${SPELL} PCIIDS)" = 'pciutils' ]]; then
+if [[ "$(get_spell_provider ${SPELL} PCIIDS)" == 'pciutils' ]]; then
   depends -sub NO_ZLIB pciutils
 fi &&
 
@@ -14,11 +17,10 @@ optional_depends acl \
                  "for local user acl permissions support" &&
 
 if is_depends_enabled $SPELL acl; then
-  depends pkgconfig &&
-  depends libusb    &&
-  optional_depends consolekit '' '' 'seesion/seat support'
+  optional_depends consolekit '' '' 'session/seat support'
 fi &&
 
+message "having glib2/gudev enabled means udevd will break for separate or networked /usr" &&
 optional_depends glib2 \
                  '--enable-gudev' \
                  '--disable-gudev' \
