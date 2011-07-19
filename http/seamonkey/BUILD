@@ -1,4 +1,4 @@
-cd  $SOURCE_DIRECTORY/comm-2.0      &&
+cd $SOURCE_DIRECTORY/comm-release &&
 MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey  &&
 
 #

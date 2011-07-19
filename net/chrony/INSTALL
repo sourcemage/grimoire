@@ -1,8 +1,21 @@
 default_install &&
-make_single &&
-make install-docs &&
-make_normal &&
+
+if is_depends_enabled $SPELL texinfo; then
+  make_single &&
+  make install-docs &&
+  make_normal
+fi &&
 
 if [[ ! -f "${INSTALL_ROOT}/etc/chrony.conf" ]]; then
-    cp -v "${SCRIPT_DIRECTORY}/chrony.conf" "${INSTALL_ROOT}/etc/"
+  install -vm 644 "${SOURCE_DIRECTORY}/examples/chrony.conf.example" \
+                  "${INSTALL_ROOT}/etc/chrony.conf"
+fi &&
+if [[ ! -f "${INSTALL_ROOT}/etc/chrony.keys" ]]; then
+  install -vm 640 "${SOURCE_DIRECTORY}/examples/chrony.keys.example" \
+                  "${INSTALL_ROOT}/etc/chrony.keys"
+fi &&
+
+if [[ $INIT_INSTALLED ]]; then
+  install_config_file "${SPELL_DIRECTORY}/init.d/chrony.conf" \
+                      "${INSTALL_ROOT}/etc/sysconfig/chrony"
 fi
