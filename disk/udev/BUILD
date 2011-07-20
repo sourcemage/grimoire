@@ -11,7 +11,7 @@ if [[ "${UDEV_HWDB}" = '--enable-hwdb' ]]; then
   elif [[ "$(get_spell_provider ${SPELL} USBIDS)" == 'usbids' ]]; then
     OPTS="$OPTS --with-usb-ids-path=/usr/share/usb.ids"
   else
-    message "${PROBLEM_COLOR}"unknown USBIDS provider, you are on your own.${DEFAULT_COLOR}"
+    message "${PROBLEM_COLOR}unknown USBIDS provider, you are on your own.${DEFAULT_COLOR}"
   fi &&
 
   if [[ "$(get_spell_provider ${SPELL} PCIIDS)" == 'hwdata' ]]; then
@@ -19,7 +19,7 @@ if [[ "${UDEV_HWDB}" = '--enable-hwdb' ]]; then
   elif [[ "$(get_spell_provider ${SPELL} PCIIDS)" == 'pciutils' ]]; then
     OPTS="$OPTS --with-pci-ids-path=/usr/share/pci.ids"
   else
-    message "${PROBLEM_COLOR}"unknown PCIIDS provider, you are on your own.${DEFAULT_COLOR}"
+    message "${PROBLEM_COLOR}unknown PCIIDS provider, you are on your own.${DEFAULT_COLOR}"
   fi
 fi &&
 
