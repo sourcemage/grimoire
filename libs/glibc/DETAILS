@@ -42,7 +42,7 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
       SOURCE_GPG=glibc.gpg:$SOURCE.sig:UPSTREAM_KEY
   SOURCE2_IGNORE=signature
   SECURITY_PATCH=1
-      PATCHLEVEL=0
+      PATCHLEVEL=1
   fi
   if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
  HEADERS_VERSION=2.6.38
@@ -56,6 +56,24 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
     local LINUX_DIRECTORY
  LINUX_DIRECTORY=$(gaze where -path linux | sed "s/linux -> //")
     . $LINUX_DIRECTORY/latest.defaults
+if  [[  $(uname -r)  =  3.*  ]];  then
+ HEADERS_VERSION=$(echo $LATEST_maintenance_patches_3 | sed "s/patch-//")
+ HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_3}
+         SOURCE3=linux-${LATEST_3}.tar.bz2
+         SOURCE6="${SOURCE3}.sign"
+  SOURCE6_IGNORE=signature
+     SOURCE3_GPG="kernel.gpg:${SOURCE6}:ESTABLISHED_UPSTREAM_KEY"
+     SOURCE3_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE3}"
+     SOURCE6_URL="${SOURCE3_URL}.sign"
+    if [[ $HEADERS_VERSION != $LATEST_3 ]]; then
+         SOURCE7=patch-${HEADERS_VERSION}.bz2
+         SOURCE8="${SOURCE7}.sign"
+  SOURCE8_IGNORE=signature
+     SOURCE7_GPG="kernel.gpg:${SOURCE8}:ESTABLISHED_UPSTREAM_KEY"
+     SOURCE7_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE7}"
+     SOURCE8_URL="${SOURCE7_URL}.sign"
+    fi
+else
  HEADERS_VERSION=$(echo $LATEST_maintenance_patches | sed "s/patch-//")
  HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_2_6}
          SOURCE3=linux-${LATEST_2_6}.tar.bz2
@@ -72,6 +90,7 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
      SOURCE7_URL="${KERNEL_URL}/pub/linux/kernel/v2.6/${SOURCE7}"
      SOURCE8_URL="${SOURCE7_URL}.sign"
     fi
+fi
   fi
 fi
         WEB_SITE=http://www.gnu.org/software/libc
