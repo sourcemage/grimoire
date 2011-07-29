@@ -1,0 +1,51 @@
+#!/bin/bash
+
+. /etc/sysconfig/iscsid
+
+PROGRAM=/sbin/iscsid
+PIDFILE=/var/run/iscsid.pid
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/init.d/smgl_init
+
+ISCSIADM=/sbin/iscsiadm
+
+start() {
+  echo "Loading iSCSI modules..."
+
+  modprobe -q libiscsi
+  modprobe -q scsi_transport_iscsi
+  modprobe -q iscsi_tcp
+
+  echo "Starting $NAME..."
+  $PROGRAM "$OPTIONS"
+
+  evaluate_retval
+
+  echo "Setting up iSCSI targets..."
+  $ISCSIADM -m node --loginall=automatic
+
+  evaluate_retval
+}
+
+stop() {
+  echo "Disconnecting iSCSI targets..."
+  sync
+  $ISCSIADM -m node --logoutall=all
+
+  evaluate_retval
+
+  echo "Stopping $NAME..."
+  killproc $PROGRAM
+
+  rm -f "$PIDFILE"
+}
+
+status() {
+  echo "Current active iSCSI sessions: "
+
+  $ISCSIADM -m session
+
+  evaluate_retval
+}

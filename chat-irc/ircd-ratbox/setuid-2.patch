@@ -1,0 +1,55 @@
+--- src/ircd.c.orig
++++ src/ircd.c
+@@ -242,7 +242,6 @@ make_daemon(void)
+ 	}
+ 	else if(pid > 0)
+ 	{
+-		print_startup(pid);
+ 		exit(EXIT_SUCCESS);
+ 	}
+ 
+@@ -510,8 +511,17 @@
+ 	/* Check to see if the user is running us as root, which is a nono */
+ 	if(geteuid() == 0)
+ 	{
+-		fprintf(stderr, "Don't run ircd as root!!!\n");
+-		return -1;
++		struct passwd *pw;
++
++		if ((pw = getpwnam(IRCD_USER)) == NULL) {
++			fprintf(stderr, "Don't run ircd as root!!!\n");
++			exit(EXIT_FAILURE);
++		}
++
++		if (seteuid(pw->pw_uid) < 0) {
++			fprintf(stderr, "Can's set effective user ID to %s!\n", IRCD_USER);
++			exit(EXIT_FAILURE);
++		}
+ 	}
+ 
+ 	/*
+--- include/stdinc.h.orig
++++ include/stdinc.h
+@@ -85,6 +85,8 @@ char *alloca();
+ #include <stdarg.h>
+ #include <signal.h>
+ #include <ctype.h>
++#include <unistd.h>
++#include <pwd.h>
+ 
+ #include <limits.h>
+ 
+--- include/config.h.orig
++++ include/config.h
+@@ -45,6 +45,11 @@
+  * AUTOMODPATH = directory for autoloaded modules
+  */
+ 
++/* users */
++#ifndef IRCD_USER
++#define IRCD_USER "ratbox"
++#endif
++
+ /* dirs */
+ #define DPATH   IRCD_PREFIX
+ #define BINPATH IRCD_PREFIX "/bin/"
