@@ -1,4 +1,4 @@
-cd  $SOURCE_DIRECTORY/comm-1.9.1      &&
+cd $SOURCE_DIRECTORY/comm-release &&
 MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey  &&
 
 #

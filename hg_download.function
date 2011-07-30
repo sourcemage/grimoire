@@ -1,0 +1,44 @@
+#---------------------------------------------------------------------
+## Handler for downloading from mercurial URLs
+#---------------------------------------------------------------------
+function hg_checkout() {
+  unset URL HG_ROOT HG_MODULE HG_TAG
+  url_hg_crack $1
+  message "${MESSAGE_COLOR}Starting Mercurial checkout of" \
+          "${FILE_COLOR}$2${MESSAGE_COLOR}...${DEFAULT_COLOR}"  &&
+  if [[ -f $SOURCE_CACHE/$2 ]]
+  then
+    message "${MESSAGE_COLOR}Previous source found unpacking...${DEFAULT_COLOR}"  &&
+    tar -jxf $SOURCE_CACHE/$2  &&
+    cd ${HG_MODULE}  &&
+    message "${MESSAGE_COLOR}Running Mercurial update...${DEFAULT_COLOR}"  &&
+    hg pull -u -r ${HG_TAG}
+    cd ..
+    message "${MESSAGE_COLOR}Done...${DEFAULT_COLOR}"
+  else
+    message "${MESSAGE_COLOR}Running initial Mercurial clone...${DEFAULT_COLOR}"  &&
+    hg clone -r${HG_TAG} "http://${HG_ROOT}" ${HG_MODULE}
+    message "${MESSAGE_COLOR}Done...${DEFAULT_COLOR}"
+  fi   &&
+  message "${MESSAGE_COLOR}Generating tarball...${DEFAULT_COLOR}" &&
+  tar -jcf $2 ${HG_MODULE}   &&
+  mv  $2 ${SOURCE_CACHE}/$2  &&
+  message "${MESSAGE_COLOR}Mercurial checkout complete...${DEFAULT_COLOR}"
+}
+
+function hg_download() {
+  hg_checkout "${SOURCE_URL}" "${SOURCE}"
+  if [ -n "${SOURCE2_URL}" ]
+  then
+    hg_checkout "${SOURCE2_URL}" "${SOURCE2}"
+  fi
+}
+
+function url_hg_crack() {
+  URL=$(url_strip_prefix "$1" hg_http)
+  HG_ROOT=$(echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#")
+  local HG_MODULE_TAG=$(echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#")
+  HG_MODULE=$(echo $HG_MODULE_TAG | cut -d : -f2)
+  local HG_TAGNAME=$(echo $HG_MODULE_TAG | cut -d : -f3)
+  HG_TAG=${HG_TAGNAME:-tip}
+}
