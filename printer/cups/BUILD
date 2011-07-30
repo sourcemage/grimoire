@@ -1,5 +1,5 @@
-# prevent install of init scripts
-OPTS="--without-rcdir $OPTS"  &&
+# prevent install of init scripts and Mac OS X localization bundle dir
+OPTS="--without-rcdir --without-bundledir $OPTS" &&
 
 # set language options
 if [[ $EXTRA_LANG == n ]]; then
