@@ -1,11 +1,8 @@
 make_single  &&
 
-if [ "$GLIBC_NOLIB64" = "y" ]; then
-  # install x86_64 linker to lib instead of lib64
-  sedit "s/lib64/lib/"  sysdeps/unix/sysv/linux/x86_64/ldconfig.h &&
-  sedit "s/264/2/" sysdeps/unix/sysv/linux/x86_64/ldd-rewrite.sed
-fi                                                              &&
-
+# install x86_64 linker to lib instead of lib64
+sedit "s/lib64/lib/"  sysdeps/unix/sysv/linux/x86_64/ldconfig.h &&
+sedit "s/264/2/" sysdeps/unix/sysv/linux/x86_64/ldd-rewrite.sed &&
 
 # this causes configure to be run again where it fails for some people on PIII and for me on Alpha
 # the error is about no working grep found...

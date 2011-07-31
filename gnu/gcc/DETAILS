@@ -1,19 +1,112 @@
            SPELL=gcc
-         VERSION=4.4.3
+         VERSION=4.6.1
+ BASE_SOURCE_URL="ftp://gcc.gnu.org/gnu/gcc/${SPELL}-${VERSION}"
           SOURCE=gcc-core-$VERSION.tar.bz2
          SOURCE2=$SOURCE.sig
 SOURCE_DIRECTORY=$BUILD_DIRECTORY/gcc-$VERSION
    SOURCE_URL[0]=$GNU_URL/gcc/gcc-$VERSION/$SOURCE
-   SOURCE_URL[1]=ftp://gcc.gnu.org/pub/gcc/releases/gcc-$VERSION/$SOURCE
+   SOURCE_URL[1]=${BASE_SOURCE_URL}-$VERSION/$SOURCE
   SOURCE2_URL[0]=${SOURCE_URL[0]}.sig
       SOURCE_GPG=gnu.gpg:$SOURCE.sig:UPSTREAM_KEY
   SOURCE2_IGNORE=signature
+
+if list_find "$GCC_COMPILER" "c++" ; then
+         SOURCE3=gcc-g++-$VERSION.tar.bz2
+         SOURCE4=$SOURCE3.sig
+  SOURCE3_URL[0]=$GNU_URL/gcc/gcc-$VERSION/$SOURCE3
+  SOURCE3_URL[1]=${BASE_SOURCE_URL}-$VERSION/$SOURCE3
+  SOURCE4_URL[0]=${SOURCE3_URL[0]}.sig
+     SOURCE3_GPG=gnu.gpg:$SOURCE4:UPSTREAM_KEY
+  SOURCE4_IGNORE=signature
+fi
+if list_find "$GCC_COMPILER" "objc" ; then
+         SOURCE5=gcc-objc-$VERSION.tar.bz2
+         SOURCE6=$SOURCE5.sig
+  SOURCE5_URL[0]=$GNU_URL/gcc/gcc-$VERSION/$SOURCE5
+  SOURCE5_URL[1]=${BASE_SOURCE_URL}-$VERSION/$SOURCE5
+  SOURCE6_URL[0]=${SOURCE5_URL[0]}.sig
+     SOURCE5_GPG=gnu.gpg:$SOURCE6:UPSTREAM_KEY
+  SOURCE6_IGNORE=signature
+fi
+if list_find "$GCC_COMPILER" "ada" ; then
+         SOURCE7=gcc-ada-$VERSION.tar.bz2
+         SOURCE8=$SOURCE7.sig
+  SOURCE7_URL[0]=$GNU_URL/gcc/gcc-$VERSION/$SOURCE7
+  SOURCE7_URL[1]=${BASE_SOURCE_URL}-$VERSION/$SOURCE7
+  SOURCE8_URL[0]=${SOURCE7_URL[0]}.sig
+     SOURCE7_GPG=gnu.gpg:$SOURCE8:UPSTREAM_KEY
+  SOURCE8_IGNORE=signature
+
+# howto generate the ada bootstraper
+# step 1: make a backup of your existing gcc cache you'll lose things like libstdc++
+# step 2: modify sorcery CFLAGS to be generic x86_64 only
+# step 3: cast -r gcc -> select c and ada
+# step 4: wait
+# step 5: after it's done copy the generated cache(named gcc-$VERSION-$HOST.tar.bz2)
+#         to ada-$VERSION-$HOST.tar.bz2
+# step 7: update version under the right field and test cast gcc with ada enabled
+# step 8: cast something ada dependant AND RUN IT
+# step 9: if it all works then upload the cache generated under step 5 somewhere
+#         bug someone to put it in the right place if you don't have access
+# step 10: restore your old gcc cache and resurrect it
+#
+
+if    [[  "${SMGL_COMPAT_ARCHS[1]}" == "ia32" ]]
+then
+        VERSION13=4.5.2
+         SOURCE13=ada-$VERSION13-i686-pc-linux-gnu.tar.bz2
+elif  [[  "${SMGL_COMPAT_ARCHS[1]}" == "x86_64" ]]
+then
+        VERSION13=4.3.3
+         SOURCE13=ada-$VERSION13-x86_64-pc-linux-gnu.tar.bz2
+else
+        VERSION13=4.5.2
+         SOURCE13=ada-$VERSION13-i686-pc-linux-gnu.tar.bz2
+
+fi
+  SOURCE13_URL[0]=http://download.sourcemage.org/distro/$SOURCE13
+     SOURCE13_GPG="gurus.gpg:$SOURCE13.sig:VERIFIED_UPSTREAM_KEY"
+         SOURCE14=$SOURCE13.sig
+  SOURCE14_URL[0]=${SOURCE13_URL[0]}.sig
+  SOURCE14_IGNORE=signature
+fi
+if list_find "$GCC_COMPILER" "java" ; then
+          SOURCE9=gcc-java-$VERSION.tar.bz2
+         SOURCE10=$SOURCE9.sig
+   SOURCE9_URL[0]=$GNU_URL/gcc/gcc-$VERSION/$SOURCE9
+   SOURCE9_URL[1]=${BASE_SOURCE_URL}-$VERSION/$SOURCE9
+  SOURCE10_URL[0]=${SOURCE9_URL[0]}.sig
+      SOURCE9_GPG=gnu.gpg:$SOURCE10:UPSTREAM_KEY
+  SOURCE10_IGNORE=signature
+# Eclipse compiler for Java (needed since 4.3)
+         SOURCE15=ecj-4.3.jar
+  SOURCE15_URL[0]=ftp://sourceware.org/pub/java/$SOURCE15
+     SOURCE15_GPG=gurus.gpg:$SOURCE15.sig
+fi
+if list_find "$GCC_COMPILER" "fortran" ; then
+         SOURCE11=gcc-fortran-$VERSION.tar.bz2
+         SOURCE12=$SOURCE11.sig
+  SOURCE11_URL[0]=$GNU_URL/gcc/gcc-$VERSION/$SOURCE11
+  SOURCE11_URL[1]=${BASE_SOURCE_URL}-$VERSION/$SOURCE11
+  SOURCE12_URL[0]=${SOURCE11_URL[0]}.sig
+     SOURCE11_GPG=gnu.gpg:$SOURCE12:UPSTREAM_KEY
+  SOURCE12_IGNORE=signature
+fi
+if list_find "$GCC_COMPILER" "go" ; then
+         SOURCE16=gcc-go-$VERSION.tar.bz2
+         SOURCE17=$SOURCE16.sig
+  SOURCE16_URL[0]=$GNU_URL/gcc/gcc-$VERSION/$SOURCE16
+  SOURCE16_URL[1]=${BASE_SOURCE_URL}-$VERSION/$SOURCE16
+  SOURCE17_URL[0]=${SOURCE16_URL[0]}.sig
+     SOURCE16_GPG=gnu.gpg:$SOURCE17:UPSTREAM_KEY
+  SOURCE17_IGNORE=signature
+fi
       LICENSE[0]=GPL
         WEB_SITE=http://gcc.gnu.org/
         KEYWORDS="compiler"
          ENTERED=20040420
-           SHORT="the GNU C compiler"
+           SHORT="the GNU C compiler collection"
             DOCS="$DOCS INSTALL"
 cat << EOF
-The GNU C compiler and the core of the GNU compiler collection.
+The entire GNU C Compiler collection.
 EOF

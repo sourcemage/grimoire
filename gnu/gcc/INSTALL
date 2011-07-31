@@ -6,7 +6,10 @@ cd  $SOURCE_DIRECTORY.bld  &&
 # in some weird cases, this actually fails with multiple jobs
 make_single &&
 make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"  \
-     install-no-fixedincludes  &&
+     install &&
+
+# no symlink to cc
+ln -vsf $INSTALL_ROOT/usr/bin/gcc $INSTALL_ROOT/usr/bin/cc &&
 
 if [[ "$HOST" == x86_64-* ]]; then
   [ -d /lib64 -a ! -f /lib/ld-linux-x86-64.so.2 -a -f /lib64/ld-linux-x86-64.so.2 ] &&
@@ -14,19 +17,4 @@ if [[ "$HOST" == x86_64-* ]]; then
   true  # see bug 8626 for info about this conditional
 fi &&
 
-# make some extra symlinks
-ln -sf gcc ${INSTALL_ROOT}/usr/bin/cc     &&
-ln -sf ${TRACK_ROOT}/usr/bin/cpp ${INSTALL_ROOT}/lib            &&
-
-# set up specs file handling
-local SPECSDIR=${INSTALL_ROOT}/usr/lib/gcc/$HOST/$VERSION         &&
-mkdir -p $SPECSDIR/specs-local                                    &&
-cp  gcc/specs  $SPECSDIR/specs-local/specs-gcc                    &&
-if [[ $HOST == x86_64-* && $GCC_NOLIB64 == n ]]
-then
-  # make sure the linker gets compiled in as a /lib64 one
-  sed -i 's#/lib/ld-linux-x86-64.so.2#/lib64/ld-linux-x86-64.so.2#' $SPECSDIR/specs-local/specs-gcc
-fi &&
-# make sure installwatch tracks it, the cat alone doesn't do that
-touch  $SPECSDIR/specs                                            &&
-cat  $SPECSDIR/specs-local/* > $SPECSDIR/specs
+ln -vsf ${TRACK_ROOT}/usr/bin/cpp ${INSTALL_ROOT}/lib/cpp
