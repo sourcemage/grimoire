@@ -4,6 +4,7 @@ OPTS="--with-dspam-home=$INSTALL_ROOT/var/spool/dspam \
      --with-dspam-group=dspam \
 --with-dspam-home-group=dspam \
           --with-logdir=$INSTALL_ROOT/var/log/dspam \
+              --disable-mysql4-initialization \
                         $DSPAM_OPTS \
                         $OPTS" &&
 
@@ -27,9 +28,9 @@ fi &&
 OPTS="--with-storage-driver=$STORAGE_DRIVERS $OPTS" &&
 
 case "$DSPAM_SCALE" in
-  "none") ;;
-  "Large Scale") OPTS="$OPTS --enable-large-scale" ;;
-  "Domain Scale") OPTS="$OPTS --enable-domain-scale" ;;
+  "none") OPTS="--disable-large-scale --disable-domain-scale" ;;
+  "Large Scale") OPTS="$OPTS --enable-large-scale --disable-domain-scale" ;;
+  "Domain Scale") OPTS="$OPTS --enable-domain-scale --disable-large-scale" ;;
 esac  &&
 
 default_build
