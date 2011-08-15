@@ -1,8 +1,21 @@
 default_build() {
-  mkdir -p $SOURCE_DIRECTORY/build &&
-  cd $SOURCE_DIRECTORY/build &&
-  kde4_build
+  persistent_add KDE4DIR                          &&
+  KDE4DIR="$INSTALL_ROOT/opt/kde4"                &&
+  QTDIR=$INSTALL_ROOT/usr/bin/qt4                 &&
+  cd $SOURCE_DIRECTORY                            &&
+  mkdir -p build                                  &&
+  cd build                                        &&
+  PATH=$QTDIR:$PATH             &&
+  if [[ $SPELL != kdelibs4 ]];then
+   PATH+=:$KDE4DIR
+  fi &&
+  CMAKE_PREFIX_PATH=$KDE4DIR                      &&
+  cmake -DCMAKE_INSTALL_PREFIX=$KDE4DIR           \
+        -DCMAKE_BUILD_TYPE=$KDE_DEBUG_OPTION      \
+        $OPTS ../                                 &&
+  make
 }
+
 
 # kde4 also needs a special default_install,
 # to maintain some environment variables
