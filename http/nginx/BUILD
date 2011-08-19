@@ -5,6 +5,13 @@ create_account nginx &&
 persistent_add TEMP_DIR &&
 local TEMP_DIR="$INSTALL_ROOT/var/spool/nginx" &&
 
+if list_find "$NGINX_MODULES" "push"; then
+  OPTS="--add-module=$SOURCE_DIRECTORY3 $OPTS"
+fi &&
+if list_find "$NGINX_MODULES" "auth_ldap"; then
+  OPTS="--add-module=$SOURCE_DIRECTORY4 $OPTS"
+fi &&
+
 if [[ $NGINX_SYSLOG == n ]]; then
   OPTS="--http-log-path=$INSTALL_ROOT/var/log/nginx/access.log \
        --error-log-path=$INSTALL_ROOT/var/log/nginx/error.log \
