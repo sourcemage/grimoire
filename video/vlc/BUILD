@@ -1,4 +1,4 @@
-OPTS="--disable-dependency-tracking --disable-macosx-defaults --enable-release $OPTS"  &&
+OPTS="--disable-dependency-tracking --disable-macosx-defaults $OPTS"  &&
 
 if  [  "$JOYSTICK"  =  "y"  ];  then
   OPTS="--enable-joystick $OPTS"
