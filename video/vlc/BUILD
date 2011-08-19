@@ -1,8 +1,5 @@
 OPTS="--disable-dependency-tracking --disable-macosx-defaults $OPTS"  &&
 
-if  [  "$JOYSTICK"  =  "y"  ];  then
-  OPTS="--enable-joystick $OPTS"
-fi  &&
 if  [  "$V4L" = "y"  ];  then
   OPTS="--enable-v4l $OPTS"
 fi  &&
