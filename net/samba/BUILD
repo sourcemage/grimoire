@@ -1,5 +1,4 @@
 OPTS="--with-swatdir=/usr/share/swat  \
-      --with-smbmount                 \
       --with-fhs                      \
       --with-automount                \
       --with-winbind                  \
