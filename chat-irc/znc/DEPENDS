@@ -1,3 +1,5 @@
+. "$GRIMOIRE/FUNCTIONS" &&
+
 depends -sub CXX gcc &&
 
 message "NOTE: ZNC needs swig enabled for modperl/modpython support" &&
@@ -11,13 +13,23 @@ if is_depends_enabled $SPELL perl; then
   depends -sub PERL swig '--enable-swig'
 fi &&
 
+if spell_ok python3; then
+  local PYTHON3_BRANCH=$(installed_version python3 | cut -d. -f1,2)
+else
+  local PYTHON3_BRANCH=$(codex_set_current_spell_quick python3; echo $VERSION | cut -d. -f1,2)
+fi &&
+
 optional_depends python3 \
-                 "--enable-python" \
+                 "--enable-python=python-$PYTHON3_BRANCH" \
                  "--disable-python" \
                  "to use Python" &&
 
 if is_depends_enabled $SPELL python3; then
-  depends -sub PYTHON swig '--enable-swig'
+  depends -sub PYTHON3 swig '--enable-swig' &&
+
+  if spell_ok swig && is_version_less $(installed_version swig) 2.0.4; then
+    force_depends swig
+  fi
 fi &&
 
 optional_depends tcl \
