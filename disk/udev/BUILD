@@ -8,7 +8,7 @@ OPTS="--prefix=$INSTALL_ROOT/usr \
 if [[ "${UDEV_HWDB}" = '--enable-hwdb' ]]; then
   if [[ "$(get_spell_provider ${SPELL} USBIDS)" == 'hwdata' ]]; then
     OPTS="$OPTS --with-usb-ids-path=/usr/share/hwdata/usb.ids"
-  elif [[ "$(get_spell_provider ${SPELL} USBIDS)" == 'usbids' ]]; then
+  elif [[ "$(get_spell_provider ${SPELL} USBIDS)" == 'usbutils' ]]; then
     OPTS="$OPTS --with-usb-ids-path=/usr/share/usb.ids"
   else
     message "${PROBLEM_COLOR}unknown USBIDS provider, you are on your own.${DEFAULT_COLOR}"
