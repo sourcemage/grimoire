@@ -23,5 +23,6 @@ cd  build_unix                         &&
 ../dist/configure  --prefix=$INSTALL_ROOT/usr  \
                    --build=$BUILD              \
                    --enable-compat185          \
+                   --enable-dbm                \
                    $OPTS                       &&
 make
