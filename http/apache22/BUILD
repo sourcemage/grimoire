@@ -4,6 +4,9 @@ APACHE22_EXTRA="${APACHE22_EXTRA} --with-mpm=${APACHE22_MPM}" &&
 # remove APR and APU and reconfigure to use external ones
 rm  -fr  srclib/apr*/  &&
 
+# correct flags to find external apr-util
+CPPFLAGS="`apr-config --includes` $CPPFLAGS" &&
+
 # use smgl standard layout
 cp -f $SCRIPT_DIRECTORY/config.layout $SOURCE_DIRECTORY &&
 
