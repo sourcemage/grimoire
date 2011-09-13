@@ -9,10 +9,12 @@ else
 fi &&
  cd $SOURCE_DIRECTORY/$QTSCINT          &&
  qmake qscintilla.pro                   &&
- make  					&&
+ make  					# &&
 
-if is_depends_enabled $SPELL python ; then
-  cd $SOURCE_DIRECTORY/Python		&&
-  python configure.py			&&
-  make
-fi
+# todo: the following the c++ bindings to be installed,
+#       better put it into another spell:
+# if is_depends_enabled $SPELL python ; then
+#   cd $SOURCE_DIRECTORY/Python		&&
+#   python configure.py			&&
+#   make
+# fi
