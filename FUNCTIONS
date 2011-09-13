@@ -663,13 +663,48 @@ function default_kde3_build() {
 
 }
 
+
+#---
+## Query user about using scm version and save information so it can be
+## used in DETAILS. Information is saved in SPELL_NAME_SCM and 
+## SPELL_NAME_SCM_AUTOUPDATE for SPELL=spell-name
+##
+## For now manual source of FUNCTIONS in PREPARE is needed:
+## . ${GRIMOIRE}/FUNCTIONS &&
+## prepare_scm_queries
+#---
+function prepare_scm_queries() {
+  local up_spell_name=$(get_up_spell_name)     &&
+
+  local scm_var scm_autoupdate_var
+  scm_var="${up_spell_name}_SCM"                            &&
+  scm_autoupdate_var="${up_spell_name}_SCM_AUTOUPDATE"      &&
+
+  config_query $scm_var "Build the SCM version of $SPELL?" n
+
+  if [[ ${!scm_var} == "y" ]]
+  then
+    config_query $scm_autoupdate_var      \
+       "Automatically update $SPELL on system-update?"  n
+  fi
+}
+
+#---
+## Get uppercase spell name with _ instead of -
+#---
+function get_up_spell_name() {
+  local spell=${1:-$SPELL}
+  local up_spell_name=$(echo $spell | tr "a-z" "A-Z")     &&
+  local up_spell_name=$(echo $up_spell_name | tr "-" "_") &&
+  echo $up_spell_name
+}
+
 # Move SPELL_OPTS to OPTS
 # basicly generic OPTS="$SPELL_OPTS $OPTS"
 function prepare_opts() {
   # this is here so that config_query_option can be used without
   # extra junk
-  local up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")     &&
-  local up_spell_name=$(echo $up_spell_name | tr "-" "_") &&
+  local up_spell_name=$(get_up_spell_name)     &&
   local tempopts="${up_spell_name}_OPTS"                  &&
   OPTS="${!tempopts} $OPTS"
 }
