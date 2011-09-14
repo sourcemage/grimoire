@@ -1,6 +1,7 @@
 message "Target list: $KVM_ARCHS"          &&
 
 ./configure --prefix=${INSTALL_ROOT}/usr                        \
+        --sysconfdir=${INSTALL_ROOT}/etc                        \
       --extra-cflags="${CFLAGS}"                                \
      --extra-ldflags="${LDFLAGS}"                               \
          --kerneldir="/lib/modules/$(get_kernel_version)/build" \
