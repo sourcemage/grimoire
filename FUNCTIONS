@@ -665,27 +665,27 @@ function default_kde3_build() {
 
 
 #---
-## Query user about using scm version and save information so it can be
-## used in DETAILS. Information is saved in SPELL_NAME_SCM and 
-## SPELL_NAME_SCM_AUTOUPDATE for SPELL=spell-name
+## Select SCM branch. If no parameter is given, it assumes a single scm branch.
 ##
-## For now manual source of FUNCTIONS in PREPARE is needed:
-## . ${GRIMOIRE}/FUNCTIONS &&
-## prepare_scm_queries
+## Saves selected branch in ${SPELL}_BRANCH, and auto-update setting on
+## ${SPELL}_AUTOUPDATE.
+##
+## Usage:
+##   . ${GRIMOIRE}/FUNCTIONS &&
+##   prepare_select_branch [branch] ...
 #---
-function prepare_scm_queries() {
-  local up_spell_name=$(get_up_spell_name)     &&
+function prepare_select_branch() {
+  local spell=$(get_up_spell_name) &&
+  local branch="$spell"_BRANCH &&
 
-  local scm_var scm_autoupdate_var
-  scm_var="${up_spell_name}_SCM"                            &&
-  scm_autoupdate_var="${up_spell_name}_SCM_AUTOUPDATE"      &&
+  if [[ $# > 1 ]]; then
+    config_query_list $branch "Select one of the available branches:" "$@"
+  else
+    eval $branch=\""${1:-scm}"\"
+  fi &&
 
-  config_query $scm_var "Build the SCM version of $SPELL?" n
-
-  if [[ ${!scm_var} == "y" ]]
-  then
-    config_query $scm_autoupdate_var      \
-       "Automatically update $SPELL on system-update?"  n
+  if [[ "${!branch/-*}" = scm ]]; then
+    config_query "$spell"_AUTOUPDATE 'Automatically update on every system update?' n
   fi
 }
 
