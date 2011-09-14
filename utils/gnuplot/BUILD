@@ -1,6 +1,6 @@
 OPTS="--without-tutorial $OPTS" &&
 
-if [[ $GNUPLOT_SCM == "y" ]]; then
+if [[ $GNUPLOT_BRANCH == scm ]]; then
   ./prepare
 fi &&
 default_build
