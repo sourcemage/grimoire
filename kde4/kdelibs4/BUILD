@@ -1,3 +1,3 @@
 # KJS does not work correctly with -ffast-math
-CFLAGS="${CFLAGS/-ffast-math}" &&
+CXXFLAGS="${CXXFLAGS/-ffast-math}" &&
 default_build
