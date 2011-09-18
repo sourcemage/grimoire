@@ -9,10 +9,4 @@ else
 fi &&
  cd $SOURCE_DIRECTORY/$QTSCINT          &&
  qmake qscintilla.pro                   &&
- make  					&&
-
-if is_depends_enabled $SPELL python ; then
-  cd $SOURCE_DIRECTORY/Python		&&
-  python configure.py			&&
-  make
-fi
+ make
