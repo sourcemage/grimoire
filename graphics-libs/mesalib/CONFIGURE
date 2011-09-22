@@ -33,35 +33,20 @@ config_query_list MESALIB_BUILD                                          \
                   osmesa                                                 &&
 
 if [[ $MESALIB_BUILD == dri ]]; then
-  if [[ "$MESALIB_VER" == "stable" ]]; then
-    AVAILABLE_DRIVERS="i810 i915 i965 mach64 mga r128 r200 r300 r600 radeon savage \
-                      sis swrast tdfx unichrome"
-  else
-    AVAILABLE_DRIVERS="i810 i915 i965 mach64 mga r128 r200 r300 r600 radeon savage \
-                      sis swrast tdfx unichrome"
-  fi &&
+  AVAILABLE_DRIVERS="i810 i915 i965 mach64 mga r128 r200 r300 r600 radeon savage \
+                    sis swrast tdfx unichrome"
 
-config_query_multi MESALIB_DRIVERS                                       \
+  config_query_multi MESALIB_DRIVERS                                       \
                    "What drivers would you like to build?"               \
-                   all $AVAILABLE_DRIVERS
+                   all $AVAILABLE_DRIVERS &&
 
   if list_find "$MESALIB_DRIVERS" all; then
     MESALIB_DRIVERS="$AVAILABLE_DRIVERS"
-  fi
+  fi &&
 
-if [[ "$MESALIB_VER" == "stable" ]] || \
-   [[ "$MESALIB_VER" == "feature" ]]; then
-
-config_query_multi MESALIB_GALLIUM                                       \
+  config_query_multi MESALIB_GALLIUM                                       \
                    "What Gallium3D drivers woulld you like to build?"    \
                    none llvm svga i915 i965 radeon r600 nouveau swrast
-
-else
-config_query_multi MESALIB_GALLIUM                                       \
-                   "What Gallium3D drivers woulld you like to build?"    \
-                   none llvm svga i915 i965 radeon r600 nouveau swrast
-
-fi
 fi &&
 
 if [[ $MESALIB_BUILD == xlib ]]; then MESALIB_DRIVERS="swrast"
@@ -82,19 +67,17 @@ config_query_option MESALIB_OPTS "enable Xt/Motif widget library?" y \
 # config_query_option MESALIB_OPTS "enable GLUT library" y \
 #                     "--enable-glut" "--disable-glut"
 
-if [[ "$MESALIB_VER" == "developement" ]] || \
-   [[ "$MESALIB_VER" == "git" ]]; then
+case "$MESALIB_BRANCH" in
+  scm|development)
+    config_query_option MESALIB_OPTS "enable support for OpenGL ES 1.x API?" n \
+                        "--enable-gles1" "--disable-gles1" &&
+    config_query_option MESALIB_OPTS "enable support for OpenGL ES 2.x API?" n \
+                        "--enable-gles2" "--disable-gles2" &&
 
-config_query_option MESALIB_OPTS "enable support for OpenGL ES 1.x API?" n \
-                    "--enable-gles1" "--disable-gles1" &&
+   if list_find "--enable-gles1" $MESALIB_OPTS || \
+      list_find "--enable-gles2" $MESALIB_OPTS; then
 
-config_query_option MESALIB_OPTS "enable support for OpenGL ES 2.x API?" n \
-                    "--enable-gles2" "--disable-gles2" &&
-
-if ( list_find "--enable-gles1" $MESALIB_OPTS ) || \
-   ( list_find "--enable-gles2" $MESALIB_OPTS ); then
-
-config_query_option MESALIB_OPTS "build separate OpenGL ES only libraries?" n \
-                    "--enable-gles-overlay" "--disable-gles-overlay"
-fi
+     config_query_option MESALIB_OPTS "build separate OpenGL ES only libraries?" n \
+                         "--enable-gles-overlay" "--disable-gles-overlay"
+  fi
 fi
