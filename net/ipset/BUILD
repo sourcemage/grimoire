@@ -1,5 +1,5 @@
 if [[ ${VERSION/.*} == 4 ]]; then
-  make
+  make PREFIX="$INSTALL_ROOT/usr"
 else
   ./autogen.sh &&
 
