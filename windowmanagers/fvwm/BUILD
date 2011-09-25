@@ -1,4 +1,4 @@
-if [[ "${FVWM_RELEASE}" == "cvs" ]]; then
+if [[ "${FVWM_BRANCH}" == "scm" ]]; then
     aclocal                &&
     autoheader             &&
     automake --add-missing &&

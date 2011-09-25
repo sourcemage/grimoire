@@ -1,3 +1,1 @@
-make_single &&
-qt4_build   &&
-make_normal
+qt4_cmake_build

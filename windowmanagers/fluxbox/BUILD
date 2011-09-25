@@ -1,4 +1,4 @@
-if [[ $FLUXBOX_GIT == y ]]; then
+if [[ $FLUXBOX_BRANCH == scm ]]; then
   ./autogen.sh
 fi &&
 
