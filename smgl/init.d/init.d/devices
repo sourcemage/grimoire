@@ -41,8 +41,14 @@ udev_mknodes()
 start_udev()
 { (
   . /etc/udev/udev.conf
-  echo "Mounting ramfs at $udev_root"
-  mount -n -t ramfs none $udev_root
+  echo "Checking if devtmpfs or ramfs is used for $udev_root ..."
+  if findmnt devtmpfs > /dev/null 2>&1; then
+    echo "devtmpfs is used for $udev_root"
+  else
+    echo "ramfs is used for $udev_root"
+    echo "Mounting ramfs at $udev_root"
+    mount -n -t ramfs none $udev_root
+  fi
   # create some needed stuff
   udev_mknodes
 
@@ -54,7 +60,7 @@ start_udev()
   SUBLEVEL=${SUBLEVEL/$tmp/}
 
   # kernel 2.6.15-rc1 and higher don't use hotplug
-  if [ $SUBLEVEL -ge 15 -a $PATCHLEVEL -ge 6 ]; then
+  if [[  $(uname -r)  =  3.*  ]] || [ $SUBLEVEL -ge 15 -a $PATCHLEVEL -ge 6 ]; then
     echo "don't need hotplug for this kernel"
     builtin echo > /proc/sys/kernel/hotplug
   else
@@ -102,7 +108,7 @@ start_static_udev()
   SUBLEVEL=${SUBLEVEL/$tmp/}
 
   # kernel 2.6.15-rc1 and higher don't use hotplug
-  if [ $SUBLEVEL -ge 15 -a $PATCHLEVEL -ge 6 ]; then
+  if [[  $(uname -r)  =  3.*  ]] || [ $SUBLEVEL -ge 15 -a $PATCHLEVEL -ge 6 ]; then
     echo "don't need hotplug for this kernel"
     builtin echo > /proc/sys/kernel/hotplug
   else
@@ -147,6 +153,9 @@ start()
   # mount sys
   echo "Mounting /sys"
   mount -n -t sysfs sysfs /sys
+  # mount run
+  echo "Mounting /run"
+  mount -n -t tmpfs tmpfs /run
   eval "start_$DEVICES"
 }
 

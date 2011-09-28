@@ -14,11 +14,12 @@ function default_build_emacs_lisp() {
 
   local texi_files=("$SOURCE_DIRECTORY"/*.texi)
 
-  emacs -batch -f batch-byte-compile "$SOURCE_DIRECTORY"/*.el &&
+  emacs -Q -L "$SOURCE_DIRECTORY" -batch -f batch-byte-compile \
+        "$SOURCE_DIRECTORY"/*.el &&
   if [ ${#texi_files[@]} -gt 0 ]
   then
     makeinfo "${texi_files[@]}" &&
-    gzip -9 "$BUILD_DIRECTORY"/*.info
+    gzip -9 "$SOURCE_DIRECTORY"/*.info
   fi
 }
 
@@ -31,10 +32,10 @@ function default_install_emacs_lisp() {
   local dir="$INSTALL_ROOT/usr/share/emacs/site-lisp/$SPELL"
   local info_dir="$INSTALL_ROOT/usr/share/info"
 
-  local info_files=("$BUILD_DIRECTORY"/*.info.gz)
+  local info_files=("$SOURCE_DIRECTORY"/*.info.gz)
 
   install -d -m755 "$dir" &&
-  install -m644 "$SOURCE_DIRECTORY"/*.el "$BUILD_DIRECTORY"/*.elc "$dir" &&
+  install -m644 "$SOURCE_DIRECTORY"/*.el "$SOURCE_DIRECTORY"/*.elc "$dir" &&
 
   if [ ${#info_files[@]} -gt 0 ]
   then

@@ -663,13 +663,45 @@ function default_kde3_build() {
 
 }
 
+
+#---
+## Select SCM branch. If no parameter is given, it assumes a single scm branch.
+##
+## Saves selected branch in ${SPELL}_BRANCH, and auto-update setting on
+## ${SPELL}_AUTOUPDATE.
+##
+## Usage:
+##   . ${GRIMOIRE}/FUNCTIONS &&
+##   prepare_select_branch [branch] ...
+#---
+function prepare_select_branch() {
+  local spell=$(get_up_spell_name) &&
+  local branch="$spell"_BRANCH &&
+
+  if [[ $# > 1 ]]; then
+    config_query_list $branch "Select one of the available branches:" "$@"
+  else
+    eval $branch=\""${1:-scm}"\"
+  fi &&
+
+  if [[ "${!branch/-*}" = scm ]]; then
+    config_query "$spell"_AUTOUPDATE 'Automatically update on every system update?' n
+  fi
+}
+
+#---
+## Get uppercase spell name with _ instead of -
+#---
+function get_up_spell_name() {
+  echo ${1:-$SPELL} | tr "a-z-" "A-Z_"
+}
+
 # Move SPELL_OPTS to OPTS
 # basicly generic OPTS="$SPELL_OPTS $OPTS"
 function prepare_opts() {
   # this is here so that config_query_option can be used without
   # extra junk
-  local up_spell_name=$(echo $SPELL | tr "a-z" "A-Z")     &&
-  local up_spell_name=$(echo $up_spell_name | tr "-" "_") &&
+  local up_spell_name=$(get_up_spell_name)     &&
   local tempopts="${up_spell_name}_OPTS"                  &&
   OPTS="${!tempopts} $OPTS"
 }
@@ -703,6 +735,13 @@ function default_build_make(){
 }
 
 #---
+## Compare if one version is less than another (uses sort from coreutils)
+#---
+function is_version_less() {
+  [ ! $(echo -e "$1\n$2" | sort --version-sort | head -1) = "$2" ]
+}
+
+#---
 ## Simple version check with force depends
 ## @params $1 - the spell to check the version of
 ## @params $2 - the simple version to check against
@@ -720,3 +759,4 @@ fi
 
 . $GRIMOIRE/glselect.function
 . $GRIMOIRE/bzr_download.function
+. $GRIMOIRE/hg_download.function

@@ -15,7 +15,7 @@ OPTS="--with-isapnp=yes --with-sequencer=yes --with-oss=yes --with-debug=none \
       --with-kernel=${INSTALL_ROOT}/lib/modules/$(get_kernel_version)/source  \
       --with-cards=${CARDS} ${OPTS}"                                          &&
 
-if [[ $ALSA_GIT == y ]]; then
+if [[ $ALSA_DRIVER_BRANCH == scm ]]; then
 export ALSAKERNELDIR="$SOURCE2_DIRECTORY" &&
   OPTS="--prefix=${INSTALL_ROOT}/usr \
     --sysconfdir=${INSTALL_ROOT}/etc \

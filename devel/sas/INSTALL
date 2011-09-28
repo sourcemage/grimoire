@@ -1,0 +1,47 @@
+# path where the scripts and data will be based
+install_path="$INSTALL_ROOT"
+# strip any unnecessary trailing '/' from install_path
+install_path="${install_path%/}"
+
+#--------------
+# installation functions
+#--------------
+function install_dir() {
+  local dir="$1"
+  local dest="${2:-$install_path}"
+
+  # create the directory
+  install -v -d -m 0755 "$dest/$dir"
+}
+
+function install_dir_files() {
+  local dir="$1"
+  local dest="${2:-$install_path}"
+
+  # install all the files in the provided dir (no child directories)
+  find "$dir" -maxdepth 1 -type f -exec install -v -m 0644 -t "$dest" '{}' \;
+}
+
+function install_dir_single() {
+  local dir="$1"
+  local dest="${2:-$install_path}"
+
+  # create the directory
+  install_dir "$dir" "$dest" &&
+
+  # install all the files in it (no child directories)
+  install_dir_files "$dir" "$dest/$dir"
+}
+
+archdir="$install_path/usr/share/sas" &&
+
+install_dir_single arch "$install_path/usr/share/sas" &&
+
+# modify the default search path for the ISA files
+sed -i '/SAS_ARCH_DIR="${0.*"/d' sas.sh &&
+sed -i '/\[ -d "$SAS_ARCH_DIR".*/d' sas.sh &&
+sed -i 's#\(SAS_ARCH_DIR="\)${SAS_ARCH_DIR}#\1'"$archdir"'#' sas.sh &&
+
+# install main sas.sh script as usr/bin/sas
+install -v -m 0755 sas.sh "$install_path/usr/bin/sas"
+

@@ -20,17 +20,16 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
     SOURCE5_HASH=sha512:c1931495915c8461de97e4156c9d0edd7b44e4b48cbce2d4c3a52b83d331a9ce48f3c7abb7dd787ed897f1e7d0e81c5cdb4eb3986bc24a5e2788708427e2dcb1
       PATCHLEVEL=1
 else
-  if [[ "$GLIBC_CVS" == "y" ]]; then
-local GLIBC_VERSION
-   GLIBC_VERSION=2.13
-    if [[ "${GLIBC_CVS_AUTOUPDATE}" == "y" ]]; then
-         VERSION=${GLIBC_VERSION}-$(date +%Y%m%d) && FORCE_DOWNLOAD=on
+  if [[ "${GLIBC_BRANCH/-*}" == "scm" ]]; then
+    if [[ "${GLIBC_AUTOUPDATE}" == "y" ]]; then
+         VERSION=${GLIBC_BRANCH}-$(date +%Y%m%d)
     else 
-         VERSION=${GLIBC_VERSION}
+         VERSION=${GLIBC_BRANCH}
     fi
-          SOURCE=$SPELL-${GLIBC_VERSION}.tar.bz2
-SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-${GLIBC_VERSION}
-      SOURCE_URL=cvs://:pserver:anoncvs:anoncvs@sources.redhat.com:/cvs/glibc:libc:$SPELL-${GLIBC_VERSION/./_}-branch
+  FORCE_DOWNLOAD=on
+          SOURCE=$SPELL-git.tar.bz2
+SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-git
+      SOURCE_URL="git://sourceware.org/git/glibc.git:$SPELL-git:release/${GLIBC_BRANCH#scm-}/master"
    SOURCE_IGNORE=volatile
   else
          VERSION=2.13
@@ -42,10 +41,10 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
       SOURCE_GPG=glibc.gpg:$SOURCE.sig:UPSTREAM_KEY
   SOURCE2_IGNORE=signature
   SECURITY_PATCH=1
-      PATCHLEVEL=0
+      PATCHLEVEL=1
   fi
   if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
- HEADERS_VERSION=2.6.37
+ HEADERS_VERSION=2.6.38
          SOURCE3=linux-${HEADERS_VERSION}.tar.bz2
          SOURCE6=${SOURCE3}.sign
   SOURCE6_IGNORE=signature
@@ -56,6 +55,24 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
     local LINUX_DIRECTORY
  LINUX_DIRECTORY=$(gaze where -path linux | sed "s/linux -> //")
     . $LINUX_DIRECTORY/latest.defaults
+if  [[  $(uname -r)  =  3.*  ]];  then
+ HEADERS_VERSION=$(echo $LATEST_maintenance_patches_3 | sed "s/patch-//")
+ HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_3}
+         SOURCE3=linux-${LATEST_3}.tar.bz2
+         SOURCE6="${SOURCE3}.sign"
+  SOURCE6_IGNORE=signature
+     SOURCE3_GPG="kernel.gpg:${SOURCE6}:ESTABLISHED_UPSTREAM_KEY"
+     SOURCE3_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE3}"
+     SOURCE6_URL="${SOURCE3_URL}.sign"
+    if [[ $HEADERS_VERSION != $LATEST_3 ]]; then
+         SOURCE7=patch-${HEADERS_VERSION}.bz2
+         SOURCE8="${SOURCE7}.sign"
+  SOURCE8_IGNORE=signature
+     SOURCE7_GPG="kernel.gpg:${SOURCE8}:ESTABLISHED_UPSTREAM_KEY"
+     SOURCE7_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE7}"
+     SOURCE8_URL="${SOURCE7_URL}.sign"
+    fi
+else
  HEADERS_VERSION=$(echo $LATEST_maintenance_patches | sed "s/patch-//")
  HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_2_6}
          SOURCE3=linux-${LATEST_2_6}.tar.bz2
@@ -72,6 +89,7 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
      SOURCE7_URL="${KERNEL_URL}/pub/linux/kernel/v2.6/${SOURCE7}"
      SOURCE8_URL="${SOURCE7_URL}.sign"
     fi
+fi
   fi
 fi
         WEB_SITE=http://www.gnu.org/software/libc

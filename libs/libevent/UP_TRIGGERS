@@ -1,0 +1,15 @@
+# up_trigger everything on major version updates
+
+spell_ok $SPELL && local OLD_SPELL_VERSION="$(installed_version $SPELL)"
+
+if spell_ok $SPELL && [[ "${VERSION:0:1}" != "${OLD_SPELL_VERSION:0:1}" ]]; then
+  message "This is a possibly incompatible update of $SPELL..." &&
+  message "Figuring out what spells need to be recast, this may take a while." &&
+
+  for each in $(show_up_depends $SPELL 1); do
+    if gaze install $each | xargs readelf -d 2> /dev/null |
+       grep -q "NEEDED.*libevent-${OLD_SPELL_VERSION:0:1}"; then
+         up_trigger $each cast_self
+    fi
+  done
+fi

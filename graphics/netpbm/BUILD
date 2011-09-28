@@ -35,6 +35,4 @@ if list_find "$OPTS" yes-svga; then
   echo "LINUXSVGALIB = libvga.so" >> $CONFIGFILE
 fi &&
 sedit "s/^\(CFLAGS =\)/\1 ${CFLAGS} /" $CONFIGFILE &&
-make_single &&
-make &&
-make_normal
+make

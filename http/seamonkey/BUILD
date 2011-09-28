@@ -1,12 +1,5 @@
-cd  $SOURCE_DIRECTORY/comm-1.9.1      &&
+cd $SOURCE_DIRECTORY/comm-release &&
 MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey  &&
-
-#
-# Only strip if the user wants us to
-#
-if  echo  $LDFLAGS  |  grep  -q  --  '-s';  then
-  OPTS="--enable-strip $OPTS"
-fi  &&
 
 #
 # No fast optimization for Mozilla, bit us so many times...

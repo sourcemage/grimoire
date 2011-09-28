@@ -1,44 +1,9 @@
 #once the hg download handler hits stable sorcery this DOWNLOAD script would
 #only need to be removed, SOURCE_URL is compatible with the planned hg handler
 
-function my_url_hg_http_crack() {
-
-  URL=$(url_strip_prefix "$1" hg_http)
-  HG_ROOT=$(echo $URL | sed "s#\(^[^/]*[^:]*\):.*#\1#")
-  HG_ROOT=http://$HG_ROOT
-  local HG_DIRECTORY_TAG=$(echo $URL | sed "s#^[^/]*[^:]*\(.*\)#\1#")
-  HG_DIRECTORY=$(echo $HG_DIRECTORY_TAG | cut -d : -f2)
-  local HG_TAGNAME=$(echo $HG_DIRECTORY_TAG | cut -d : -f3)
-  HG_TAG=${HG_TAGNAME:=default}
-
-}
-if [[ $WMII_RELEASE != "SCM version" ]]; then
-  default_download &&
-  return $?
-fi &&
-
-message "${MESSAGE_COLOR}Starting Mercurial checkout of" \
-        "${FILE_COLOR}${SOURCE}${MESSAGE_COLOR}...${DEFAULT_COLOR}"  &&
-my_url_hg_http_crack $SOURCE_URL &&
-if [[ -f $SOURCE_CACHE/$SOURCE ]]; then
-  message "${MESSAGE_COLOR}Previous source found unpacking...${DEFAULT_COLOR}" &&
-  tar -jxf $SOURCE_CACHE/$SOURCE &&
-  message "${MESSAGE_COLOR}Running hg pull...${DEFAULT_COLOR}" &&
-  ( cd $HG_DIRECTORY &&
-    echo hg pull $HG_ROOT &&
-    hg pull $HG_ROOT &&
-    echo hg update $HG_TAG &&
-    hg update $HG_TAG )
+if [[ $WMII_BRANCH != scm ]]; then
+  default_download
 else
-  message "${MESSAGE_COLOR}Running hg clone...${DEFAULT_COLOR}"
-  echo hg clone $HG_ROOT $HG_DIRECTORY
-  hg clone $HG_ROOT $HG_DIRECTORY &&
-  ( cd $HG_DIRECTORY &&
-    echo hg update $HG_TAG &&
-    hg update $HG_TAG )
-fi &&
-message "${MESSAGE_COLOR}Generating tarball...${DEFAULT_COLOR}" &&
-tar -jcf $SOURCE $HG_DIRECTORY &&
-cp $SOURCE $SOURCE_CACHE/$SOURCE &&
-rm $SOURCE &&
-message "${MESSAGE_COLOR}Mercurial checkout complete...${DEFAULT_COLOR}"
+  . $GRIMOIRE/hg_download.function
+  hg_download
+fi
