@@ -17,6 +17,7 @@ if [[ "$EMACS_BRANCH" == "scm" ]]; then
 
   [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
+  ./autogen.sh &&
   ./configure --prefix=${INSTALL_ROOT}/usr  \
               --sysconfdir=${INSTALL_ROOT}/etc  \
               --localstatedir=${INSTALL_ROOT}/var  \

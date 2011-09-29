@@ -1,4 +1,4 @@
-if [[ $ELINKS_VCS == y ]]; then
+if [[ $ELINKS_BRANCH == scm ]]; then
   ./autogen.sh
 fi &&
 
