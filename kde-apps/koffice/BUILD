@@ -1,4 +1,0 @@
-OPTS="$KOFFICE_KROSS  \
-      $OPTS"          &&
-
-source  $SECTION_DIRECTORY/KDE_BUILD
