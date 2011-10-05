@@ -1,9 +1,9 @@
 create_account dspam &&
 
-OPTS="--with-dspam-home=$INSTALL_ROOT/var/spool/dspam \
+OPTS="--with-dspam-home="${DSPAM_HOME}" \
      --with-dspam-group=dspam \
 --with-dspam-home-group=dspam \
-          --with-logdir=$INSTALL_ROOT/var/log/dspam \
+          --with-logdir="${DSPAM_LOG}" \
               --disable-mysql4-initialization \
                         $DSPAM_OPTS \
                         $OPTS" &&
