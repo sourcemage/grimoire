@@ -1,3 +1,4 @@
-cmake  .  $OPTS  -DCMAKE_INSTALL_PREFIX=/usr           \
-                 -DKDE3_INCLUDE_DIR=/usr/include/kde3  &&
-make
+QTDIR="${QTDIR:-/usr}"
+PATH="$QTDIR/bin/qt4:$PATH"
+OPTS="--with-qtdir=/usr ${OPTS}"
+default_build
