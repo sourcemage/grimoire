@@ -1,6 +1,7 @@
 cd js/src &&
 
 CFLAGS="-DJS_C_STRINGS_ARE_UTF8 $CFLAGS" &&
+OPTS="--enable-threadsafe $OPTS"
 
 #
 # Only strip if the user wants us to
