@@ -1,1 +1,1 @@
-default_build_make &&
+default_build_make
