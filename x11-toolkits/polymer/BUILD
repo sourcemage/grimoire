@@ -1,1 +1,0 @@
-OPTS="$POLYMER_MMX $POLYMER_SSE2 $OPTS"  default_build
