@@ -11,14 +11,6 @@
     default_build
   fi            &&
 
-  if [[ "$QTGUI" == "y" ]]; then
-    cd  $SOURCE_DIRECTORY/plugins/qt-gui	                      &&
-    if [[ "$LICQ_BRANCH" == "scm" ]]; then
-      make -f Makefile.cvs
-    fi &&
-    default_build
-  fi &&
-
   if [[ "$QT4GUI" == "y" ]]; then
     cd  $SOURCE_DIRECTORY/plugins/qt4-gui                          &&
     if [[ "$LICQ_BRANCH" == "scm" ]]; then
