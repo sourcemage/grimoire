@@ -16,9 +16,7 @@ OPTS="--lib=${INSTALL_ROOT}/usr/lib/${SPELL}/ \
       --no-install-init \
       $OPTS" &&
 
-if [[ $WICD_KDEVER == "3.x" ]]; then
-  OPTS="--kdedir=`${INSTALL_ROOT}/usr/bin/kde-config --prefix`/share/applications/kde/ $OPTS"
-elif [[ $WICD_KDEVER == "4.x" ]]; then
+if [[ $WICD_KDEVER == "4.x" ]]; then
   KDE4_PREFIX=`${INSTALL_ROOT}/usr/bin/kde4-config --prefix` &&
   OPTS="--kdedir=${KDE4_PREFIX}/share/applications/kde4/ $OPTS" &&
   OPTS="--autostart=${KDE4_PREFIX}/etc/xdg/autostart/ $OPTS"
