@@ -1,1 +1,1 @@
-make
+make CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
