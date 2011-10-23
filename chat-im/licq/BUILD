@@ -43,7 +43,7 @@
 	
   if [[ "$AREP" == "y" ]]; then
     cd $SOURCE_DIRECTORY/plugins/auto-reply                     &&
-    if [[ "$LICQ_BRANCH" == "scm" ]; then
+    if [[ "$LICQ_BRANCH" == "scm" ]]; then
       make -f Makefile.cvs
     fi                                                          &&
     default_build
