@@ -3,18 +3,21 @@ cd $BUILD_DIRECTORY &&
 verify_file '' &&
 xz -dc $SOURCE_CACHE/$SOURCE | tar -xf -
 cd $SOURCE_DIRECTORY &&
-#--
-## this patche fix the Makefile.in's so that everything gets
-## installed to FHS locations
-sed -i 's:\(\$.\)prefix\(./tex\):\1datadir\2:' $(find -name Makefile.in) &&
-patch -p1 < $SPELL_DIRECTORY/fix_scripts_3.patch &&
-#--
-#--
-## the sed on the patch is live so it will take into
-## account INSTALL_ROOT
-patch -p1 < $SPELL_DIRECTORY/texmf.cnf_fix.patch &&
-#--
-#--
-## removing as much internal things as possible
+
+# Use /usr/share/texmf and /usr/share/texmf-dist, adapted from lunarlinux 
+find -name Makefile\* -exec sed -i -e "s:\(\$.\)prefix\(./tex\):\1datadir\2:" {} \; &&
+find -name configure -exec sed -i -e "s:\(\$.\)prefix\(./tex\):\1datadir\2:" {} \; &&
+find -name \*.info -exec sed -i -e "s:/usr/local:/usr:" {} \; &&
+find -name \*.texi -exec sed -i -e "s:/usr/local:/usr:" {} \; &&
+# fix the remaining locations 
+patch -p0 < ${SPELL_DIRECTORY}/fix_paths.patch &&
+
+# the sed on the patch is live so it will take into
+# account INSTALL_ROOT
+sed "s:/usr/share:$INSTALL_ROOT/usr/share:g" $SPELL_DIRECTORY/texmf.cnf_fix.patch | patch -p0 &&
+# patch mtxrun for context taking into account $INSTALL_ROOT, see HISTORY
+sed "s:/usr/bin:$INSTALL_ROOT/usr/bin:g" $SPELL_DIRECTORY/mtxrun_fix.patch | patch -p0 &&
+
+# removing as much internal things as possible
 rm -rf utils/{dialog,gzip,lzma,ps2eps,psutils,t1utils,texinfo,pdfopen} &&
 rm -rf libs/{freetype2,lua51,libpng,jpeg,expat,gd,luafilesystem,luafontforge,luamd5,luapeg,luazip,luazlib,ncurses,t1lib,unzip}

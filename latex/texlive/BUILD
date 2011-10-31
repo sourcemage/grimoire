@@ -22,7 +22,9 @@ LIBS="-lpng" $SOURCE_DIRECTORY/configure --prefix=${INSTALL_ROOT}/usr \
                             --disable-multiplatform \
                             --without-x \
                             --disable-native-texlive-build \
+                            --with-banner-add="/Source Mage GNU/Linux" \
                             $OPTS &&
 make_single &&
 make &&
-make_normal
+make_normal 
+#make -C ${SOURCE_DIRECTORY}/texk/kpathsea
