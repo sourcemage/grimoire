@@ -38,6 +38,7 @@ if [[ "$SVN_PERL"   == y ]]; then
 fi &&
 if [[ "$SVN_PYTHON" == y ]]; then make swig-py; fi &&
 if [[ "$SVN_RUBY"   == y ]]; then make swig-rb; fi &&
+if [[ "$SVN_JAVA"   == y ]]; then make javahl; fi &&
 
 # Test if built from current source
 if [[ "$SVN_HEAD" == y ]] && spell_ok python; then

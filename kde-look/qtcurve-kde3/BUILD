@@ -1,4 +1,0 @@
-OPTS="-DKDE3_INCLUDE_DIR=$INSTALL_ROOT/usr/include/kde3 $OPTS" &&
-cd $SOURCE_DIRECTORY  &&
-cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr .  $OPTS  &&
-make

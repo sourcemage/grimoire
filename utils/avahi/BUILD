@@ -21,4 +21,7 @@ if [[ "$AVAHI_COMPAT_HOWL" == 'y' ]]; then
   OPTS="$OPTS --enable-compat-howl"
 fi &&
 
+OPTS="--disable-qt3 $OPTS" &&
+
+
 default_build

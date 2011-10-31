@@ -24,6 +24,11 @@ else
   fi
 fi &&
 
+if ! is_version_less $VERSION 0.8; then
+  OPTS="--http-uwsgi-temp-path=$TEMP_DIR/uwsgi_temp $OPTS" &&
+  OPTS="--http-scgi-temp-path=$TEMP_DIR/scgi_temp $OPTS"
+fi &&
+
 ./configure --prefix="$INSTALL_ROOT/etc/nginx" \
          --conf-path="$INSTALL_ROOT/etc/nginx/nginx.conf" \
          --sbin-path="$INSTALL_ROOT/usr/sbin/nginx" \
