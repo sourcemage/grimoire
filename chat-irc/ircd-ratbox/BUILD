@@ -9,10 +9,6 @@ OPTS="--with-confdir=$INSTALL_ROOT/etc/$SPELL \
                      $IRCD_RATBOX_OPTS \
                      $OPTS" &&
 
-if [[ $IRCD_RATBOX_RELEASE == stable ]]; then
-  OPTS="--with-topiclen=$IRCD_RATBOX_TOPICLEN $OPTS"
-fi &&
-
 make_single &&
 default_build &&
 make_normal
