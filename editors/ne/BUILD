@@ -1,3 +1,1 @@
-cd src &&
-make &&
-cd ..
+make PREFIX="$INSTALL_ROOT/usr"
