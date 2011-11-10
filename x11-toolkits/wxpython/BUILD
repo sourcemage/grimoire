@@ -1,6 +1,5 @@
 local PYCOMP                    &&
 persistent_read  wxgtk  WX_CONTRIB  WX_CONTRIB  &&
-message gtk=$WX_DEV             &&
 message contrib=$WX_CONTRIB     &&
 # turn of some default flags
 PYOPTS="MONOLITHIC=0 UNICODE=1 BUILD_GLCANVAS=0 BUILD_STC=0 BUILD_GIZMOS=0" &&
