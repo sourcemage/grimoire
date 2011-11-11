@@ -11,7 +11,7 @@ OPTS="$OPTS
 " &&
 if list_find "$WXGTK_CONTRIB" "xrc"
 then
-  OPTS="--enable-xrc $OPTS"	
+  OPTS="--enable-xrc $OPTS"
 fi  &&
 default_build &&
 for COMPONENT in $WXGTK_CONTRIB; do
