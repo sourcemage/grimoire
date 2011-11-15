@@ -4,13 +4,7 @@ else
                   EVAS_GL_SDL="--disable-gl-sdl --disable-sdl-primitive"
 fi  &&
 
-if [[ $(get_spell_provider $SPELL OPENGL) ]] && is_depends_enabled $SPELL libxcb; then
-                  EVAS_GL_XCB="--enable-gl-xcb"
-else
-                  EVAS_GL_XCB="--disable-gl-xcb"
-fi  &&
-
-OPTS="$EVAS_GL_SDL $EVAS_GL_XCB $EVAS_PMAPS $OPTS"  &&
+OPTS="$EVAS_GL_SDL $EVAS_PMAPS $OPTS"  &&
 
 if  [  "$EVAS_BUFFER"  =  "y"  ];  then
   OPTS="--enable-buffer  $OPTS"
