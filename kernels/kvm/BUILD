@@ -4,7 +4,6 @@ message "Target list: $KVM_ARCHS"          &&
         --sysconfdir=${INSTALL_ROOT}/etc                        \
       --extra-cflags="${CFLAGS}"                                \
      --extra-ldflags="${LDFLAGS}"                               \
-         --kerneldir="/lib/modules/$(get_kernel_version)/build" \
           --disable-werror                                      \
           --disable-xen                                         \
           --target-list="$KVM_ARCHS"     \
