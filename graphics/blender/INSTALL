@@ -1,23 +1,106 @@
-install -vm 755 install/blender{,player} "$INSTALL_ROOT/usr/bin" &&
+cat <<- EOF >> "${BUILD_DIRECTORY}/install/$SPELL-${VERSION}"
+#!/bin/sh
 
-install -vm 644 "$SPELL_DIRECTORY/blender48x48.png" \
-                "$INSTALL_ROOT/usr/share/pixmaps" &&
+# stop this script if the local blender path is a symlink
+if [ -L \${HOME}/.blender ]; then
+   echo "Detected a symbolic link for \${HOME}/.blender"
+   echo "Sorry, to avoid dangerous situations, the Blender binary can"
+   echo "not be started until you have removed the symbolic link:"
+   echo "  # rm -i \${HOME}/.blender"
+   exit 1
+fi
 
-install -vm 755 -d "$INSTALL_ROOT/usr/share/blender" &&
-install -vm 755 -d "$INSTALL_ROOT/usr/lib/blender/plugins/sequence" &&
-install -vm 755 -d "$INSTALL_ROOT/usr/lib/blender/plugins/texture" &&
+export BLENDER_SYSTEM_BASE="/usr/share/${SPELL}/${VERSION}"
+export BLENDER_SYSTEM_SCRIPTS="/usr/share/$SPELL/${VERSION}/scripts"
+export BLENDER_SYSTEM_DATAFILES="/usr/share/$SPELL/${VERSION}/datafiles"
+export BLENDER_SYSTEM_PLUGINS="/usr/lib/$SPELL/${VERSION}/plugins"
+exec /usr/bin/$SPELL-bin-${VERSION} \$*
+EOF
 
-install -vm 644 "$SOURCE_DIRECTORY"/install/plugins/sequence/*.so \
-                "$INSTALL_ROOT/usr/lib/blender/plugins/sequence" &&
-install -vm 644 "$SOURCE_DIRECTORY"/install/plugins/texture/*.so \
-                "$INSTALL_ROOT/usr/lib/blender/plugins/texture" &&
+cp $BUILD_DIRECTORY/install/$SPELL  $BUILD_DIRECTORY/install/$SPELL-bin-$VERSION  &&
 
-cp -va "$SOURCE_DIRECTORY/release/scripts/bpydata" \
-       "$INSTALL_ROOT/usr/share/blender" &&
-cp -va "$SOURCE_DIRECTORY/release/scripts" \
-       "$INSTALL_ROOT/usr/share/blender" &&
+if [ "$BLENDER_PLAYER" == "WITH_BF_PLAYER=True" ]; then
+   cp $BUILD_DIRECTORY/install/${SPELL}player  $BUILD_DIRECTORY/install/${SPELL}player-bin-$VERSION
+fi  &&
 
-install -vm 644 "$SOURCE_DIRECTORY/release/VERSION" \
-                "$INSTALL_ROOT/usr/share/blender" &&
+# install binaries
+install -vm 755 -d $INSTALL_ROOT/usr/bin                                                &&
+install -vm 755 -D $BUILD_DIRECTORY/install/${SPELL}*${VERSION}  $INSTALL_ROOT/usr/bin  &&
+#install -vm 755 $BUILD_DIRECTORY/install/blender{,player}-bin-$VERSION $INSTALL_ROOT/usr/bin  &&
 
-find "$INSTALL_ROOT/usr/share/blender/scripts" -name "*.py" -exec chmod -R 644 '{}' \;
+# install plugins
+install -vm 755 -d $INSTALL_ROOT/usr/lib/$SPELL/${VERSION}/plugins/texture  &&
+install -vm 755 -D $SOURCE_DIRECTORY/release/plugins/texture/*.so           \
+                   $INSTALL_ROOT/usr/lib/$SPELL/${VERSION}/plugins/texture  &&
+install -vm 755 -d $INSTALL_ROOT/usr/lib/$SPELL/$VERSION/plugins/sequences  &&
+install -vm 755 -D $SOURCE_DIRECTORY/release/plugins/sequence/*.so          \
+                   $INSTALL_ROOT/usr/lib/$SPELL/$VERSION/plugins/sequences  &&
+install -vm 755 -d $INSTALL_ROOT/usr/include/$SPELL/$VERSION                &&
+install -vm 644 -D $SOURCE_DIRECTORY/source/blender/blenpluginapi/*.h       \
+                   $INSTALL_ROOT/usr/include/$SPELL/$VERSION                &&
+
+# installing blender
+install -vm 755 -d $INSTALL_ROOT/usr/share/${SPELL}/${VERSION}  &&
+#install -v -D $BUILD_DIRECTORY/install/$VERSION/*               \
+#              $INSTALL_ROOT/usr/share/${SPELL}/${VERSION}       &&
+cp -Rvf $BUILD_DIRECTORY/install/$VERSION/*                     \
+        $INSTALL_ROOT/usr/share/$SPELL/$VERSION                 && 
+
+
+#install desktop file
+cp release/freedesktop/blender.desktop             \
+   release/freedesktop/blender-${VERSION}.desktop  &&
+
+install -vm 755 -d $INSTALL_ROOT/usr/share/applications                              &&
+install -vm 644 -D $SOURCE_DIRECTORY/release/freedesktop/blender-${VERSION}.desktop  \
+                   $INSTALL_ROOT/usr/share/applications                              &&
+
+#install icons
+cp $BUILD_DIRECTORY/install/icons/16x16/apps/blender.png                 \
+   $BUILD_DIRECTORY/install/icons/16x16/apps/blender-$VERSION.png        &&
+cp $BUILD_DIRECTORY/install/icons/22x22/apps/blender.png                 \
+   $BUILD_DIRECTORY/install/icons/22x22/apps/blender-$VERSION.png        &&
+cp $BUILD_DIRECTORY/install/icons/24x24/apps/blender.png                 \
+   $BUILD_DIRECTORY/install/icons/24x24/apps/blender-$VERSION.png        &&
+cp $BUILD_DIRECTORY/install/icons/32x32/apps/blender.png                 \
+   $BUILD_DIRECTORY/install/icons/32x32/apps/blender-$VERSION.png        &&
+cp $BUILD_DIRECTORY/install/icons/48x48/apps/blender.png                 \
+   $BUILD_DIRECTORY/install/icons/48x48/apps/blender-$VERSION.png        &&
+cp $BUILD_DIRECTORY/install/icons/256x256/apps/blender.png               \
+   $BUILD_DIRECTORY/install/icons/256x256/apps/blender-$VERSION.png      &&
+cp $BUILD_DIRECTORY/install/icons/scalable/apps/blender.svg              \
+   $BUILD_DIRECTORY/install/icons/scalable/apps/blender-${VERSION}.svg   &&
+
+install -vm 755 -d $INSTALL_ROOT/usr/share/icons/hicolor/16x16/apps      &&
+install -vm 755 -d $INSTALL_ROOT/usr/share/icons/hicolor/22x22/apps      &&
+install -vm 755 -d $INSTALL_ROOT/usr/share/icons/hicolor/24x24/apps      &&
+install -vm 755 -d $INSTALL_ROOT/usr/share/icons/hicolor/32x32/apps      &&
+install -vm 755 -d $INSTALL_ROOT/usr/share/icons/hicolor/48x48/apps      &&
+install -vm 755 -d $INSTALL_ROOT/usr/share/icons/hicolor/256x256/apps    &&
+install -vm 755 -d $INSTALL_ROOT/usr/share/icons/hicolor/scalable/apps   &&
+
+install -vm 644 -D $BUILD_DIRECTORY/install/icons/16x16/apps/*         \
+                   $INTALL_ROOT/usr/share/icons/hicolor/16x16/apps     &&
+install -vm 644 -D $BUILD_DIRECTORY/install/icons/22x22/apps/*         \
+                   $INTALL_ROOT/usr/share/icons/hicolor/22x22/apps     &&
+install -vm 644 -D $BUILD_DIRECTORY/install/icons/24x24/apps/*         \
+                   $INTALL_ROOT/usr/share/icons/hicolor/24x24/apps     &&
+install -vm 644 -D $BUILD_DIRECTORY/install/icons/32x32/apps/*         \
+                   $INTALL_ROOT/usr/share/icons/hicolor/32x32/apps     &&
+install -vm 644 -D $BUILD_DIRECTORY/install/icons/48x48/apps/*         \
+                   $INTALL_ROOT/usr/share/icons/hicolor/48x48/apps     &&
+install -vm 644 -D $BUILD_DIRECTORY/install/icons/256x256/apps/*       \
+                   $INTALL_ROOT/usr/share/icons/hicolor/256x256/apps   &&
+install -vm 644 -D $BUILD_DIRECTORY/install/icons/scalable/apps/*      \
+                   $INTALL_ROOT/usr/share/icons/hicolor/scalable/apps  &&
+
+ln -sfn $INSTALL_ROOT/usr/share/icons/hicolor/256x256/apps/blender-2.60.png  \
+        $INSTALL_ROOT/usr/share/pixmaps                                      &&
+
+# install docs
+install -vm 755 -d $INSTALL_ROOT/usr/share/doc/$SPELL/$VERSION  &&
+install -vm 644 -D $BUILD_DIRECTORY/install/*.txt               \
+                   $INSTALL_ROOT/usr/share/doc/$SPELL/$VERSION  &&
+install -vm 644 -D $BUILD_DIRECTORY/install/*.html              \
+                   $INSTALL_ROOT/usr/share/doc/$SPELL/$VERSION  
+
