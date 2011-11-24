@@ -1,0 +1,68 @@
+diff -ur boost_1_48_0/boost/foreach_fwd.hpp boost-mod/boost/foreach_fwd.hpp
+--- boost_1_48_0/boost/foreach_fwd.hpp	2010-06-10 10:22:27.000000000 -0500
++++ boost-mod/boost/foreach_fwd.hpp	2011-11-23 23:12:33.314912050 -0600
+@@ -14,6 +14,8 @@
+ #ifndef BOOST_FOREACH_FWD_HPP
+ #define BOOST_FOREACH_FWD_HPP
+ 
++#include <utility> // for std::pair
++
+ // This must be at global scope, hence the uglified name
+ enum boost_foreach_argument_dependent_lookup_hack
+ {
+@@ -25,6 +27,9 @@
+ 
+ namespace foreach
+ {
++    template<typename T>
++    std::pair<T, T> in_range(T begin, T end);
++
+     ///////////////////////////////////////////////////////////////////////////////
+     // boost::foreach::tag
+     //
+@@ -46,6 +51,24 @@
+ 
+ } // namespace foreach
+ 
++// Workaround for unfortunate https://svn.boost.org/trac/boost/ticket/6131 
++namespace BOOST_FOREACH 
++{ 
++    using foreach::in_range; 
++    using foreach::tag; 
++ 
++    template<typename T> 
++    struct is_lightweight_proxy 
++      : foreach::is_lightweight_proxy<T> 
++    {}; 
++ 
++    template<typename T> 
++    struct is_noncopyable 
++      : foreach::is_noncopyable<T> 
++    {}; 
++ 
++} // namespace BOOST_FOREACH 
++	 
+ } // namespace boost
+ 
+ #endif
+diff -ur boost_1_48_0/boost/foreach.hpp boost-mod/boost/foreach.hpp
+--- boost_1_48_0/boost/foreach.hpp	2011-10-20 22:46:27.000000000 -0500
++++ boost-mod/boost/foreach.hpp	2011-11-23 23:08:21.403914875 -0600
+@@ -165,7 +165,7 @@
+ //   this one works on legacy compilers. Overload boost_foreach_is_lightweight_proxy
+ //   at the global namespace for your type.
+ template<typename T>
+-inline boost::foreach::is_lightweight_proxy<T> *
++inline boost::BOOST_FOREACH::is_lightweight_proxy<T> *
+ boost_foreach_is_lightweight_proxy(T *&, BOOST_FOREACH_TAG_DEFAULT) { return 0; }
+ 
+ template<typename T>
+@@ -190,7 +190,7 @@
+ //   this one works on legacy compilers. Overload boost_foreach_is_noncopyable
+ //   at the global namespace for your type.
+ template<typename T>
+-inline boost::foreach::is_noncopyable<T> *
++inline boost::BOOST_FOREACH::is_noncopyable<T> *
+ boost_foreach_is_noncopyable(T *&, BOOST_FOREACH_TAG_DEFAULT) { return 0; }
+ 
+ namespace boost
