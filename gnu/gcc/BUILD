@@ -64,7 +64,7 @@ if list_find "$GCC_COMPILER" "ada" ; then
 
 fi  &&
 
-OPTS="--without-ppl --without-cloog $OPTS" &&
+OPTS="--without-ppl --without-cloog $GCJ_HOME $OPTS" &&
 
 cd $SOURCE_DIRECTORY.bld                                              &&
 $SOURCE_DIRECTORY/configure                                           \
