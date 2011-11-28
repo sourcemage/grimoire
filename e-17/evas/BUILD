@@ -40,4 +40,9 @@ if  [  "$EVAS_ASYNC_RENDER" = "y"   ];  then
   OPTS="--enable-async-render $OPTS"
 fi &&
 
+if is_depends_enabled $SPELL fribidi && is_depends_enabled fribidi glib2 ; then
+   CFLAGS="$CFLAGS -I/usr/include/glib-2.0"
+fi
+
+
 default_build
