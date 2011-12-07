@@ -1,2 +1,2 @@
-cd  src  &&
-make
+cd  build/gcc  &&
+make shared astyle
