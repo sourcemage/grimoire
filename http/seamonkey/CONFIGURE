@@ -1,28 +1,79 @@
-config_query SEAMONKEY_OFFICIAL "Enable official branding? If enabled, you may \
-be restricted in distributing these binaries IAW mozilla policies" n &&
+source $GRIMOIRE/config_query_multi.function &&
 
-#Will not build without the Mail News client
-#config_query  SEAMONKEY_MAILNEWS                             \
-#                     "Build Mail News client?"        \
-#                      n                                   &&
+config_query SEAMONKEY_NULLPLUGIN "Do you want nullplugin installed (to enable auto search and install of other plugins)" y &&
 
-config_query  SEAMONKEY_COMPOSER                          \
-                     'Build Composer component?'           \
-                     n                                    &&
+config_query_option SEAMONKEY_OPTS "Build mail & news components?" y \
+                                   "--enable-mailnews" \
+                                   "--disable-mailnews" &&
 
-config_query  SEAMONKEY_CAIRO                             \
-                     "Use system installed cairo?"        \
-                      n                                   &&
+if list_find "$SEAMONKEY_OPTS" "--disable-mailnews"; then
+  message "${MESSAGE_COLOR}"
+  message "SeaMonkey doesn't work when built without mail & news components"
+  message "support at the moment. Forcing '--enable-mailnews' configure option."
+  message "${DEFAULT_COLOR}"
 
-config_query  SEAMONKEY_PANGO                             \
-                     'Enable Pango support for complex font rendering?' \
-                     n                                    &&
+  list_remove "SEAMONKEY_OPTS" "--disable-mailnews" &&
+  list_add "SEAMONKEY_OPTS" "--enable-mailnews"
+fi &&
 
-config_query  SEAMONKEY_STRIP                              \
-                     'Remove debugging symbols?' \
-                     n                                    &&
+config_query_option SEAMONKEY_OPTS "Build Composer component?" n \
+                                   "--enable-composer" \
+                                   "--disable-composer" &&
 
-#Getting rid of that annoying nullplugin
-config_query  SEAMONKEY_NULLPLUGIN                       \
-"Do you want nullplugin installed (to enable auto search and install of other plugins)" \
-              y
+config_query_option SEAMONKEY_OPTS "Build Lightning calendar extension?" n \
+                                   "--enable-calendar" \
+                                   "--disable-calendar" &&
+
+config_query_option SEAMONKEY_OPTS "Enable Personal Security Manager?" y \
+                                   "--enable-crypto" \
+                                   "--disable-crypto" &&
+
+config_query_option SEAMONKEY_OPTS "Enable WebM support?" y \
+                                   "--enable-webm" \
+                                   "--disable-webm" &&
+
+config_query_option SEAMONKEY_OPTS "Enable official branding? If enabled, you may be restricted in distributing these binaries IAW mozilla policies" n \
+                                   "--enable-official-branding" \
+                                   "--disable-official-branding" &&
+
+config_query_option SEAMONKEY_OPTS "Use system installed cairo?" n \
+                                   "--enable-system-cairo" \
+                                   "--disable-system-cairo" &&
+
+config_query_option SEAMONKEY_OPTS "Enable Pango support for complex font rendering?" n \
+                                   "--enable-pango" \
+                                   "--disable-pango" &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-mailnews"; then
+  config_query_option SEAMONKEY_OPTS "Enable LDAP support?" n \
+                                     "--enable-ldap" \
+                                     "--disable-ldap"
+else
+  list_add "SEAMONKEY_OPTS" "--disable-ldap"
+fi &&
+
+config_query_multi SEAMONKEY_EXT "What extensions must be built?" \
+                                 default \
+                                 irc &&
+
+config_query_option SEAMONKEY_OPTS "Enable geolocation via WiFi access points?" n \
+                                   "--enable-necko-wifi" \
+                                   "--disable-necko-wifi" &&
+
+config_query_option SEAMONKEY_OPTS "Enable dbus support?" y \
+                                   "--enable-dbus" \
+                                   "--disable-dbus" &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-dbus"; then
+  list_add "SEAMONKEY_OPTS" "--enable-libnotify"
+else
+  list_add "SEAMONKEY_OPTS" "--disable-libnotify"
+fi &&
+
+config_query_option SEAMONKEY_OPTS "Enable a11y (accessibility) support?" n \
+                                   "--enable-accessibility" \
+                                   "--disable-accessibility" &&
+
+config_query_option SEAMONKEY_OPTS "Remove debugging symbols?" n \
+                                   "--enable-strip" \
+                                   "--disable-strip"
