@@ -16,4 +16,10 @@ else
     OPTS="$OPTS --disable-cifsidmap"
 fi &&
 
+if [[ "$CIFS_ACL" == "y" ]]; then
+    OPTS="$OPTS --enable-cifsacl"
+else
+    OPTS="$OPTS --disable-cifsacl"
+fi &&
+
 default_build
