@@ -29,10 +29,10 @@ config_query_option PHP5_OPTS "Enable pcntl support (Only affects CLI/CGI)" n \
 message "${MESSAGE_COLOR}Apache-based and *CGI SAPIs are mutually exclusive (though both FastCGI and CGI can be enabled at the same time)${DEFAULT_COLOR}" &&
 
 config_query_list PHP5_SAPI "What SAPI do you want to use?" \
-                            apache cgi &&
+                            apache cgi none &&
 
 if [[ $PHP5_SAPI == cgi ]]; then
-  PHP5_OPTS="${PHP5_OPTS} --enable-cgi" &&
+  PHP5_OPTS="--enable-cgi --without-apxs --without-apxs2 ${PHP5_OPTS}" &&
 
   if [[ $PHP5_BRANCH == legacy ]]; then
     config_query_option PHP5_OPTS "Enable FastCGI SAPI?" n \
@@ -40,9 +40,9 @@ if [[ $PHP5_SAPI == cgi ]]; then
   else
     message "${MESSAGE_COLOR}The FastCGI SAPI is now always enabled since PHP 5.3.0${DEFAULT_COLOR}"
   fi
-else
+elif [[ $PHP5_SAPI == apache ]]; then
   config_query_list PHP5_APACHE "Which Apache module to build?" \
-                    none handler filter
+                                handler filter
 fi &&
 
 if [[ "${PHP5_PEAR}" == "y" ]] || list_find "$PHP5_OPTS" "--enable-cgi" || list_find "$PHP5_OPTS" "--enable-fastcgi" ; then

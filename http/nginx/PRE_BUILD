@@ -1,10 +1,14 @@
+. "$GRIMOIRE/FUNCTIONS" &&
+
 default_pre_build &&
 cd "$SOURCE_DIRECTORY" &&
 
-if list_find "$NGINX_OPTS" "--with-syslog"; then
-  if [[ $NGINX_RELEASE == legacy ]]; then
-     patch -p0 < "$SPELL_DIRECTORY/syslog-0.6.patch"
-  else
+if [[ $NGINX_SYSLOG == y ]]; then
+  if is_version_less $VERSION 0.8; then
      patch -p0 < "$SPELL_DIRECTORY/syslog-0.7.patch"
+  else
+     mkdir syslog &&
+     cp "$SPELL_DIRECTORY/syslog-0.8-1.0.config" syslog/config &&
+     patch -p1 < "$SPELL_DIRECTORY/syslog-0.8-1.0.patch"
   fi
 fi

@@ -5,7 +5,6 @@ CFLAGS="${CFLAGS/-Os/}" &&
 
 OPTS="$OPTS $FFTW_THREADS $FFTW_OPTS --disable-fma" &&
 OPTS="$OPTS --enable-shared"                        &&
-OPTS="$OPTS --enable-type-prefix"                   &&
 
 COMMON_OPTS="${OPTS}"                               &&
 

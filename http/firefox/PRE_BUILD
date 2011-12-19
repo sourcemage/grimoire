@@ -3,15 +3,44 @@ cd  $SOURCE_DIRECTORY             &&
 unpack_file  ''                   &&
 cd  mozilla*                       &&
 
-patch -p0 < $SCRIPT_DIRECTORY/firefox-xulrunner.patch &&
+#Fix compilation with curl-7.21.7
+# https://bug673072.bugzilla.mozilla.org/attachment.cgi?id=547353
+patch -p0 < $SPELL_DIRECTORY/curl.patch &&
 
-if [[ "$FIREFOX_CVS" == "n" ]]; then
-    cp -v $SPELL_DIRECTORY/mozconfig3 .mozconfig
+#Fedora  patch to remove glyph in title bar
+# http://osdir.com/ml/scm-fedora-commits/2011-06/msg10320.html
+patch -p0 < $SPELL_DIRECTORY/glyph.patch &&
+
+cp -v $SPELL_DIRECTORY/mozconfig5 .mozconfig &&
+
+if [[ "$FIREFOX_SAFE" == "y" ]]; then
+   sed -i '27iac_add_options --enable-safe-browsing' .mozconfig
 else
-    cp -v $SPELL_DIRECTORY/mozconfig4 .mozconfig
-fi
+   sed -i '27iac_add_options --disable-safe-browsing' .mozconfig
+fi &&
+
+if is_depends_enabled $SPELL wireless_tools; then
+   sed -i '27iac_add_options --enable-necko-wifi' .mozconfig
+else
+   sed -i '27iac_add_options --disable-necko-wifi' .mozconfig
+fi &&
+
+if is_depends_enabled $SPELL yasm; then
+   sed -i '27iac_add_options --enable-webm' .mozconfig
+else
+   sed -i '27iac_add_options --disable-webm' .mozconfig
+fi &&
+
+if ! is_depends_enabled $SPELL alsa-lib; then
+   sed -i '27iac_add_options --disable-ogg' .mozconfig &&
+   sed -i '27iac_add_options --disable-wave' .mozconfig
+fi &&
+
+if [[ "$FIREFOX_STRIP" == "y" ]]; then
+   sed -i '27iac_add_options --enable-strip' .mozconfig
+fi &&
 
 
 if [[ $FIREFOX_OFFICIAL == y ]]; then
-  sed -i '24iac_add_options --enable-official-branding' .mozconfig || return 1
+  sed -i '27iac_add_options --enable-official-branding' .mozconfig || return 1
 fi

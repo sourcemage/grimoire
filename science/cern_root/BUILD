@@ -2,6 +2,7 @@
 #other libs.
 OPTS="$OPTS --build=$ARK $MATHCORE $MATHMORE $REFLEX $CINTEX $ROOFIT   \
 $CERNLIB $GDML $MINUIT2 $TABLE $UNURAN $XROOTD"                        &&
+OPTS="$OPTS --enable-builtin-lzma"                                     &&
 ./configure --prefix=${TRACK_ROOT}/usr                                 \
             --etcdir=${TRACK_ROOT}/etc/root                            \
             --libdir=${TRACK_ROOT}/usr/lib/root                        \

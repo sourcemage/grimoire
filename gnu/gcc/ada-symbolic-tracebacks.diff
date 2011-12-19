@@ -1,0 +1,313 @@
+--- gcc-4.5.1/gcc/ada/gcc-interface/Makefile.in.orig	2010-09-07 12:40:41.000000000 +0200
++++ gcc-4.5.1/gcc/ada/gcc-interface/Makefile.in	2010-09-07 12:44:26.000000000 +0200
+@@ -2233,7 +2233,7 @@
+   a-nucoar.o a-nurear.o i-forbla.o i-forlap.o s-gearop.o
+ 
+ GNATRTL_OBJS = $(GNATRTL_NONTASKING_OBJS) $(GNATRTL_TASKING_OBJS) \
+-  $(GNATRTL_LINEARALGEBRA_OBJS) g-trasym.o memtrack.o
++  $(GNATRTL_LINEARALGEBRA_OBJS) g-trasym.o memtrack.o convert_addresses.o
+ 
+ # Default run time files
+ 
+@@ -2356,7 +2356,6 @@
+ 	for file in $(RTSDIR)/*.ali; do \
+ 	    $(INSTALL_DATA_DATE) $$file $(DESTDIR)$(ADA_RTL_OBJ_DIR); \
+ 	done
+-	-$(INSTALL_DATA) $(RTSDIR)/g-trasym$(objext) $(DESTDIR)$(ADA_RTL_OBJ_DIR)
+ 	-cd $(RTSDIR); for file in *$(arext);do \
+ 	    $(INSTALL_DATA) $$file $(DESTDIR)$(ADA_RTL_OBJ_DIR); \
+ 	    $(RANLIB_FOR_TARGET) $(DESTDIR)$(ADA_RTL_OBJ_DIR)/$$file; \
+@@ -2462,7 +2461,7 @@
+ 	        $(GNATRTL_OBJS)
+ 	$(RM) $(RTSDIR)/libgnat$(arext) $(RTSDIR)/libgnarl$(arext)
+ 	$(AR_FOR_TARGET) $(AR_FLAGS) $(RTSDIR)/libgnat$(arext) \
+-	   $(addprefix $(RTSDIR)/,$(GNATRTL_NONTASKING_OBJS) $(LIBGNAT_OBJS))
++	   $(addprefix $(RTSDIR)/,$(GNATRTL_NONTASKING_OBJS) $(LIBGNAT_OBJS) g-trasym.o convert_addresses.o)
+ 	$(RANLIB_FOR_TARGET) $(RTSDIR)/libgnat$(arext)
+ 	$(AR_FOR_TARGET) $(AR_FLAGS) $(RTSDIR)/libgnarl$(arext) \
+ 	   $(addprefix $(RTSDIR)/,$(GNATRTL_TASKING_OBJS))
+@@ -2492,6 +2491,7 @@
+ 		$(TARGET_LIBGCC2_CFLAGS) \
+ 		-o libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
+ 		$(GNATRTL_NONTASKING_OBJS) $(LIBGNAT_OBJS) \
++		g-trasym.o convert_addresses.o \
+ 		$(SO_OPTS)libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
+ 		$(MISCLIB) -lm
+ 	cd $(RTSDIR); ../../xgcc -B../../ -shared $(GNATLIBCFLAGS) \
+@@ -2756,6 +2756,7 @@
+ sysdep.o  : sysdep.c
+ raise-gcc.o : raise-gcc.c raise.h
+ raise.o   : raise.c raise.h
++convert_addresses.o : convert_addresses.c
+ vx_stack_info.o : vx_stack_info.c
+ 
+ cio.o     : cio.c
+--- gcc-4.5.1/gcc/ada/adaint.c.orig	2010-09-07 12:46:00.000000000 +0200
++++ gcc-4.5.1/gcc/ada/adaint.c	2010-09-07 12:48:21.000000000 +0200
+@@ -3461,37 +3461,6 @@
+ }
+ #endif
+ 
+-#if defined (IS_CROSS)  \
+-  || (! ((defined (sparc) || defined (i386)) && defined (sun) \
+-      && defined (__SVR4)) \
+-      && ! (defined (linux) && (defined (i386) || defined (__x86_64__))) \
+-      && ! (defined (linux) && defined (__ia64__)) \
+-      && ! (defined (linux) && defined (powerpc)) \
+-      && ! defined (__FreeBSD__) \
+-      && ! defined (__Lynx__) \
+-      && ! defined (__hpux__) \
+-      && ! defined (__APPLE__) \
+-      && ! defined (_AIX) \
+-      && ! (defined (__alpha__)  && defined (__osf__)) \
+-      && ! defined (VMS) \
+-      && ! defined (__MINGW32__) \
+-      && ! (defined (__mips) && defined (__sgi)))
+-
+-/* Dummy function to satisfy g-trasym.o. See the preprocessor conditional
+-   just above for a list of native platforms that provide a non-dummy
+-   version of this procedure in libaddr2line.a.  */
+-
+-void
+-convert_addresses (const char *file_name ATTRIBUTE_UNUSED,
+-		   void *addrs ATTRIBUTE_UNUSED,
+-		   int n_addr ATTRIBUTE_UNUSED,
+-		   void *buf ATTRIBUTE_UNUSED,
+-		   int *len ATTRIBUTE_UNUSED)
+-{
+-  *len = 0;
+-}
+-#endif
+-
+ #if defined (_WIN32)
+ int __gnat_argument_needs_quote = 1;
+ #else
+--- gcc-4.5.1/gcc/ada/g-trasym.adb.orig	2010-09-07 12:49:42.000000000 +0200
++++ gcc-4.5.1/gcc/ada/g-trasym.adb	2010-09-07 12:52:04.000000000 +0200
+@@ -32,16 +32,16 @@
+ ------------------------------------------------------------------------------
+ 
+ --  Run-time symbolic traceback support
++--  This file has been modified by Juergen Pfeifer (31-Dec-1999) for
++--  the purpose to support the Ada for Linux Team implementation of
++--  convert_addresses. This implementation has the advantage to run
++--  on the binutils as they are deployed on Linux.
+ 
+ with System.Soft_Links;
+ with Ada.Exceptions.Traceback; use Ada.Exceptions.Traceback;
+ 
+ package body GNAT.Traceback.Symbolic is
+ 
+-   pragma Linker_Options ("-laddr2line");
+-   pragma Linker_Options ("-lbfd");
+-   pragma Linker_Options ("-liberty");
+-
+    package TSL renames System.Soft_Links;
+ 
+    --  To perform the raw addresses to symbolic form translation we rely on a
+@@ -80,9 +80,13 @@
+       --  FILENAME. LEN points to an integer which contains the size of the
+       --  BUF buffer at input and the result length at output.
+       --
+-      --  This procedure is provided by libaddr2line on targets that support
+-      --  it. A dummy version is in adaint.c for other targets so that build
+-      --  of shared libraries doesn't generate unresolved symbols.
++      --  This is the ALT Linux specific version adapted to the binutils
++      --  deployed with most Linuxes. These binutils already have an
++      --  addr2line tool that demangles Ada symbolic names, but there are
++      --  version dependant variants for the option names. Therefore our
++      --  implementation spawns a shell script that does normalization of
++      --  the option and then executes addr2line and communicates with it
++      --  through a bidirectional pipe.
+       --
+       --  Note that this procedure is *not* thread-safe.
+ 
+@@ -94,8 +98,9 @@
+         (c_exename : System.Address) return System.Address;
+       pragma Import (C, locate_exec_on_path, "__gnat_locate_exec_on_path");
+ 
+-      Res : String (1 .. 256 * Traceback'Length);
+-      Len : Integer;
++      B_Size : constant Integer := 256 * Traceback'Length;
++      Len    : Integer := B_Size;
++      Res    : String (1 .. B_Size);
+ 
+       use type System.Address;
+ 
+Index: src/gcc/ada/convert_addresses.c
+===================================================================
+--- /dev/null
++++ gcc-4.5.1/gcc/ada/convert_addresses.c
+@@ -0,0 +1,157 @@
++/*
++  Copyright (C) 1999 by Juergen Pfeifer <juergen.pfeifer@gmx.net>
++  Ada for Linux Team (ALT)
++
++  Permission is hereby granted, free of charge, to any person obtaining a
++  copy of this software and associated documentation files (the
++  "Software"), to deal in the Software without restriction, including
++  without limitation the rights to use, copy, modify, merge, publish,
++  distribute, distribute with modifications, sublicense, and/or sell
++  copies of the Software, and to permit persons to whom the Software is
++  furnished to do so, subject to the following conditions:
++
++  The above copyright notice and this permission notice shall be included
++  in all copies or substantial portions of the Software.
++
++  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
++  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++  IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
++  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
++  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
++  THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++
++  Except as contained in this notice, the name(s) of the above copyright
++  holders shall not be used in advertising or otherwise to promote the
++  sale, use or other dealings in this Software without prior written
++  authorization.
++*/
++#include <sys/types.h>
++#include <stdlib.h>
++#include <stdio.h>
++#include <unistd.h>
++#include <string.h>
++#include <signal.h>
++
++#define STDIN_FILENO  0
++#define STDOUT_FILENO 1
++#define MAX_LINE      1024
++
++#define CLOSE1  close(fd1[0]); close(fd1[1])
++#define CLOSE2  close(fd2[0]); close(fd2[1])
++#define RESTSIG sigaction(SIGPIPE,&oact,NULL)
++
++void convert_addresses
++( void* addrs[],
++  int   n_addr,
++  char* buf,
++  int*  len)
++{
++  int max_len = *len;
++  pid_t pid = getpid();
++  pid_t child;
++
++  struct sigaction act, oact;
++
++  int fd1[2], fd2[2];
++  char exe_name[128];
++
++  *buf = 0; *len = 0;
++  /* Thanx to the /proc filesystem we can very easily reference our own
++     executable image:-)*/
++  snprintf(exe_name,sizeof(exe_name),"--exe=/proc/%ld/exe", (long)pid);
++
++  act.sa_handler = SIG_IGN;
++  sigemptyset(&act.sa_mask);
++  act.sa_flags = 0;
++  if (sigaction(SIGPIPE,&act,&oact) < 0)
++    return;
++
++  if (pipe(fd1) >= 0) {
++    if (pipe(fd2)>=0) {
++      if ((child = fork()) < 0) {
++      CLOSE1; CLOSE2; RESTSIG;
++      return;
++      }
++      else {
++      if (0==child) {
++        close(fd1[1]);
++        close(fd2[0]);
++        if (fd1[0] != STDIN_FILENO) {
++          if (dup2(fd1[0],STDIN_FILENO) != STDIN_FILENO) {
++            CLOSE1; CLOSE2;
++          }
++          close(fd1[0]);
++        }
++        if (fd2[1] != STDOUT_FILENO) {
++          if (dup2(fd2[1],STDOUT_FILENO) != STDOUT_FILENO) {
++            CLOSE1; CLOSE2;
++          }
++          close(fd2[1]);
++        }
++        {
++          /* As pointed out by Florian Weimer to me, it is a
++             security threat to call the script with a user defined
++             environment and using the path. That would be Trojans
++             pleasure.  Therefore we use the absolute path to
++             addr2line and an empty environment. That should be
++             safe.
++          */
++          char *const argv[] = { "addr2line",
++                                 exe_name,
++                                 "--demangle=gnat",
++                                 "--functions",
++                                 "--basenames",
++                                 NULL };
++          char *const envp[] = { NULL };
++          if (execve("/usr/bin/addr2line", argv, envp) < 0) {
++            CLOSE1; CLOSE2;
++          }
++        }
++      }
++      else {
++        int i, n;
++        char hex[16];
++        char line[MAX_LINE + 1];
++        char *p;
++        char *s = buf;
++
++        /* Parent context */
++        close(fd1[0]);
++        close(fd2[1]);
++
++        for(i=0; i < n_addr; i++) {
++          snprintf(hex,sizeof(hex),"%p\n",addrs[i]);
++          write(fd1[1],hex,strlen(hex));
++          n = read(fd2[0],line,MAX_LINE);
++          if (n<=0)
++            break;
++          line[n]=0;
++          /* We have approx. 16 additional chars for "%p in " clause.
++             We use this info to prevent a buffer overrun.
++          */
++          if (n + 16 + (*len) > max_len)
++            break;
++          p = strchr(line,'\n');
++          if (p) {
++            if (*(p+1)) {
++              *p = 0;
++              *len += snprintf(s, (max_len - (*len)), "%p in %s at %s",addrs[i], line, p+1);
++            }
++            else {
++              *len += snprintf(s, (max_len - (*len)), "%p at %s",addrs[i], line);
++            }
++            s = buf + (*len);
++          }
++        }
++        close(fd1[1]);
++        close(fd2[0]);
++      }
++      }
++    }
++    else {
++      CLOSE1;
++    }
++  }
++  RESTSIG;
++}
+--- gcc-4.5.1/gcc/ada/gcc-interface/Makefile.in.orig	2010-09-07 22:11:06.000000000 +0200
++++ gcc-4.5.1/gcc/ada/gcc-interface/Makefile.in	2010-09-07 22:12:26.000000000 +0200
+@@ -247,10 +247,10 @@
+ # Both . and srcdir are used, in that order,
+ # so that tm.h and config.h will be found in the compilation
+ # subdirectory rather than in the source directory.
+-INCLUDES = -I- -I. -I.. -I$(srcdir)/ada -I$(srcdir) -I$(srcdir)/config \
++INCLUDES = -iquote -I. -I.. -I$(srcdir)/ada -I$(srcdir) -I$(srcdir)/config \
+ 	-I$(srcdir)/../include
+ 
+-ADA_INCLUDES = -I- -I. -I$(srcdir)/ada
++ADA_INCLUDES = -iquote -I. -I$(srcdir)/ada
+ 
+ INCLUDES_FOR_SUBDIR = -I. -I.. -I../.. -I$(fsrcdir)/ada \
+ 	-I$(fsrcdir)/../include -I$(fsrcdir)

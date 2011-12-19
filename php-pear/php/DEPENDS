@@ -51,8 +51,14 @@ optional_depends pth \
 if [[ $PHP5_SAPI == apache ]]; then
   case "${PHP5_APACHE}" in
     handler) depends APACHE;;
-    filter) depends APACHE2;;
-  esac
+    filter) depends APACHE2 '--with-apxs2 --without-apxs';;
+  esac &&
+
+  if [[ "$(get_spell_provider $SPELL APACHE)" == 'apache1' ]]; then
+    PHP5_OPTS="--with-apxs --without-apxs2 $PHP5_OPTS"
+  else
+    PHP5_OPTS="--with-apxs2 --without-apxs $PHP5_OPTS"
+  fi
 fi &&
 
 if [[ "$PHP5_PCRE" == "none" ]]; then
@@ -220,6 +226,10 @@ if [[ "${PHP5_GD}" != "none" ]]; then
                      "--without-xpm" \
                      "for XPM image support" &&
 
+  if [[ "${PHP5_GD}" == "internal" ]]; then
+    depends JPEG "--with-jpeg-dir=${INSTALL_ROOT}/usr" &&
+    depends libpng "--with-png-dir=${INSTALL_ROOT}/usr"
+  else
     optional_depends JPEG \
                      "--with-jpeg-dir=${INSTALL_ROOT}/usr" \
                      "--without-jpeg-dir" \
@@ -228,7 +238,8 @@ if [[ "${PHP5_GD}" != "none" ]]; then
     optional_depends libpng \
                      "--with-png-dir=${INSTALL_ROOT}/usr" \
                      "--without-png-dir" \
-                     "for PNG support (for GD)" &&
+                     "for PNG support (for GD)"
+  fi &&
 
     optional_depends t1lib \
                      "--with-t1lib=${INSTALL_ROOT}/usr" \

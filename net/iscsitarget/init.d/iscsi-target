@@ -1,0 +1,29 @@
+#!/bin/bash
+
+. /etc/sysconfig/iscsi-target
+
+PROGRAM=/usr/sbin/ietd
+PIDFILE=/var/run/ietd.pid
+RUNLEVEL=3
+NEEDS="+local_fs +network"
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo "Starting iSCSI Enterprise Target..."
+
+  modprobe -q crc32c
+  modprobe iscsi_trgt
+
+  $PROGRAM "$OPTIONS"
+
+  evaluate_retval
+}
+
+stop() {
+  echo "Stopping $NAME..."
+
+  /usr/sbin/ietadm --op delete
+
+  killproc $PROGRAM
+}

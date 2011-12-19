@@ -1,4 +1,4 @@
-sh ./Build.sh -r &&
+sh ./Build.sh -r -c lto &&
 gzip -n9 mksh.1 &&
 
 if [[ $MKSH_TEST == y ]]; then

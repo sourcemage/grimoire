@@ -1,8 +1,7 @@
 ./configure  --prefix=$INSTALL_ROOT/usr  \
              --with-dynamic-ffi          \
-             $OPTS                       &&
+             $OPTS  .                    &&
 
-cd  src                                  &&
 ./makemake   --prefix=$INSTALL_ROOT/usr  \
              --with-dynamic-ffi          \
              $OPTS                       \

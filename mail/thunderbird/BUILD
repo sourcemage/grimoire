@@ -1,4 +1,4 @@
-cd  $SOURCE_DIRECTORY/comm-1.9.2  &&
+cd  $SOURCE_DIRECTORY/comm-*  &&
 
 THUNDERBIRD_HOME=${INSTALL_ROOT}/usr/lib/thunderbird &&
 export  MOZ_THUNDERBIRD="1"   &&
@@ -34,7 +34,6 @@ fi
 ./configure --prefix=${INSTALL_ROOT}/usr     \
             --with-user-appdir=.thunderbird  \
             --enable-application=mail        \
-            --enable-static                  \
             --disable-crashreporter          \
               $OPTS                          &&
 

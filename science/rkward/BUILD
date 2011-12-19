@@ -1,1 +1,1 @@
-default_kde3_build
+qt4_cmake_build

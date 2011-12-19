@@ -1,4 +1,27 @@
- if [[ "$HOST" == x86_64-* ]]; then
-   config_query GCC_NOLIB64  "Shall gcc compile binaries to expect the dynamic linker in /lib (not /lib64) (lib64 purge part 1 of 2)?"  n
- fi
+message "The following special targets are available for compiler selection:"
+message "default - will build c and c++"
+message "all - will build all compilers"
+. $GRIMOIRE/config_query_multi.function
+config_query_multi GCC_COMPILER "Select the compilers you want to build" \
+                                default \
+                                ada \
+                                c \
+                                c++ \
+                                fortran \
+                                go \
+                                java \
+                                objc \
+                                all &&
+
+list_add GCC_COMPILER c
+if list_find "$GCC_COMPILER" "all" ; then
+  GCC_COMPILER="c c++ ada java fortran objc"
+elif list_find "$GCC_COMPILER" "default" ; then
+  list_add GCC_COMPILER c++
+  list_remove GCC_COMPILER default
+elif list_find "$GCC_COMPILER" "java" ; then
+  if ! list_find "$GCC_COMPILER" "c++" ; then
+    list_add GCC_COMPILER c++
+  fi
+fi
 
