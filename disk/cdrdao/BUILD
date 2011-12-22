@@ -1,4 +1,4 @@
-if [ "$CVS" == "n" ]; then
+if [[ "$CDRDAO_BRANCH" != "scm" ]]; then
    ##### Patch needed for building on x86_64 ######
    ARCH=$(uname -m)                                                        &&
    if [ "${ARCH:0:6}" = "x86_64" ]; then 
@@ -7,10 +7,7 @@ if [ "$CVS" == "n" ]; then
        cd $SOURCE_DIRECTORY 
    fi                                                                      
    ################################################
-fi  &&
-
-if  [  "$CVS"  ==  "y"  ]
-then
+else
   sedit "/^AM_GCONF_SOURCE_2$/d" configure.ac                           &&
   touch xdao/gcdmaster.schemas.in                                       &&
   ./autogen.sh

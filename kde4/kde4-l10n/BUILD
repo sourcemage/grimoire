@@ -2,7 +2,7 @@ QTDIR=$INSTALL_ROOT/usr                         &&
 PATH=$QTDIR/bin/qt4:$PATH                       &&
 
 persistent_add KDE4DIR                          &&
-KDE4DIR=$INSTALL_ROOT/opt/kde4                  &&
+KDE4DIR=$INSTALL_ROOT/usr                  &&
 
 PATH=$KDE4DIR/bin:$PATH                         &&
 LD_LIBRARY_PATH=$KDE4DIR/lib:$LD_LIBRARY_PATH   &&

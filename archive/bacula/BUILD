@@ -6,7 +6,7 @@ OPTS="--with-scriptdir=$INSTALL_ROOT/etc/bacula \
       --with-working-dir=$INSTALL_ROOT/var/bacula \
       $OPTS" &&
 
-if [[ $BACULA_SCM == y ]]; then
+if [[ $BACULA_BRANCH == scm ]]; then
   cd bacula
 fi &&
 

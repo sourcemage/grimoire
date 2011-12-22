@@ -1,4 +1,4 @@
-if [[ $CVS == y ]]; then
+if [[ $FUSE_BRANCH == scm ]]; then
   OPTS="$OPTS --disable-mtab"
 fi &&
 

@@ -12,15 +12,18 @@ fi &&
 
 LDFLAGS="-ldl $LDFLAGS" &&
 CFLAGS="${CFLAGS//-ffast-math}" &&
-OPTS="$SQLITE_TSAFE $OPTS" &&
-
-if [[ $SQLITE_VERSION != tea ]]; then
-  OPTS="--enable-dynamic-extensions $OPTS"
-fi &&
+OPTS="--enable-dynamic-extensions $SQLITE_TSAFE $OPTS" &&
 
 default_build &&
 
-if [[ $SQLITE_VERSION = tea ]]; then
+if [[ $SQLITE_VERSION == tea ]]; then
+  # reset options to these
+  OPTS="--with-tcl=$INSTALL_ROOT/usr/lib" &&
+
+  if list_find "$SQLITE_TSAFE" "--enable-threadsafe"; then
+    OPTS="--enable-threads $OPTS"
+  fi &&
+
   cd tea &&
   default_build
 fi

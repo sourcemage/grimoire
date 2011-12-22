@@ -1,1 +1,1 @@
-make linux
+make CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" linux

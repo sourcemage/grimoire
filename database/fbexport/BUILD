@@ -1,2 +1,1 @@
-cd source   &&
 make

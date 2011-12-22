@@ -1,3 +1,11 @@
+if [[ $(get_spell_provider $SPELL OPENGL) ]] && is_depends_enabled $SPELL sdl; then
+                  EVAS_GL_SDL="--enable-gl-sdl --enable-sdl-primitive"
+else
+                  EVAS_GL_SDL="--disable-gl-sdl --disable-sdl-primitive"
+fi  &&
+
+OPTS="$EVAS_GL_SDL $EVAS_PMAPS $OPTS"  &&
+
 if  [  "$EVAS_BUFFER"  =  "y"  ];  then
   OPTS="--enable-buffer  $OPTS"
 else
@@ -31,5 +39,10 @@ fi  &&
 if  [  "$EVAS_ASYNC_RENDER" = "y"   ];  then
   OPTS="--enable-async-render $OPTS"
 fi &&
+
+if is_depends_enabled $SPELL fribidi && is_depends_enabled fribidi glib2 ; then
+   CFLAGS="$CFLAGS -I/usr/include/glib-2.0"
+fi
+
 
 default_build

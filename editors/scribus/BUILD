@@ -1,3 +1,0 @@
-cmake . -DCMAKE_INSTALL_PREFIX:PATH=$INSTALL_ROOT/usr  &&
-
-make

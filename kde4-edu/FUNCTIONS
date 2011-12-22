@@ -1,0 +1,65 @@
+default_build() {
+  persistent_add KDE4DIR                          &&
+  KDE4DIR="$INSTALL_ROOT/usr"                &&
+  KDE4ETC="$INSTALL_ROOT/etc"                &&
+  QTDIR=$INSTALL_ROOT/usr/bin/qt4                 &&
+  cd $SOURCE_DIRECTORY                            &&
+  mkdir -p build                                  &&
+  cd build                                        &&
+  PATH=$QTDIR:$PATH             &&
+  if [[ $SPELL != kdelibs4 ]];then
+   PATH+=:$KDE4DIR
+  fi &&
+  CMAKE_PREFIX_PATH=$KDE4DIR                      &&
+  cmake -DCMAKE_INSTALL_PREFIX=$KDE4DIR           \
+        -DCMAKE_BUILD_TYPE=$KDE_DEBUG_OPTION      \
+        -DSYSCONF_INSTALL_DIR=$KDE4ETC            \
+        $OPTS ../                                 &&
+  make
+}
+
+
+# kde4 also needs a special default_install,
+# to maintain some environment variables
+default_install() {
+
+  # make sure that kde4 spells install their D-Bus
+  # service files into the system D-Bus service dir
+
+  local dir1 dir2  &&
+
+  dir1=$(pkg-config --variable=session_bus_services_dir dbus-1 \
+         | cut -d/ -f-4)                                       &&
+  dir2=$(echo $dir1 | cut -d/ -f3-)                            &&
+
+  if [[ "$KDE4DIR" != "$INSTALL_ROOT/usr" ]]  &&
+     [[ ! -s "$KDE4DIR/$dir2" ]]; then
+    mkdir -p "$KDE4DIR/share"     &&
+    ln -sf "$INSTALL_ROOT/$dir1"  \
+           "$KDE4DIR/share"
+  fi  &&
+
+  cd  "$SOURCE_DIRECTORY/build"  &&
+  make install
+}
+
+
+# we need a default_final, default_post_remove
+# so that the mime and desktop databases get updated
+update_databases() {
+
+  source /etc/profile.d/strigi.sh
+  update-mime-database $KDE4DIR/share/mime/
+  if [[ -e $KDE4DIR/share/desktop-directories ]]; then
+    update-desktop-database $KDE4DIR/share/desktop-directories
+  fi
+}
+
+default_final() {
+  update_databases
+}
+
+
+default_post_remove() {
+  update_databases
+}
