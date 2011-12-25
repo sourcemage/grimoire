@@ -1,0 +1,132 @@
+From: Christoph Egger <Christoph.Egger@gmx.de>
+Subject: [PATCH] debian/repacking
+
+ SFML Upstream Tarball ships loads of convenience copies in it's tarball and 
+builds them inseparable in it's Makefiles.
+
+ This patch removes the convenience-copies from all Makefiles and corrects the 
+source-file to use the generic, system-wide libraries.
+
+Signed-off-by: Christoph Egger <Christoph.Egger@gmx.de>
+
+---
+ src/SFML/Graphics/GraphicsContext.hpp   |    2 +-
+ src/SFML/Graphics/ImageLoader.cpp       |    8 ++++----
+ src/SFML/Graphics/Makefile              |   19 +++----------------
+ src/SFML/Window/Linux/WindowImplX11.cpp |    4 ++--
+ src/SFML/Window/Makefile                |    3 +--
+ 5 files changed, 11 insertions(+), 25 deletions(-)
+
+diff --git a/src/SFML/Graphics/GraphicsContext.hpp b/src/SFML/Graphics/GraphicsContext.hpp
+index 2fa77a3..aebfe1f 100755
+--- a/src/SFML/Graphics/GraphicsContext.hpp
++++ b/src/SFML/Graphics/GraphicsContext.hpp
+@@ -30,7 +30,7 @@
+ ////////////////////////////////////////////////////////////
+ #include <SFML/Config.hpp>
+ #include <SFML/System/NonCopyable.hpp>
+-#include <SFML/Graphics/GLEW/glew.h>
++#include <GL/glew.h>
+ #include <iostream>
+ #include <string>
+ 
+diff --git a/src/SFML/Graphics/ImageLoader.cpp b/src/SFML/Graphics/ImageLoader.cpp
+index a3f83bf..e6ceacd 100755
+--- a/src/SFML/Graphics/ImageLoader.cpp
++++ b/src/SFML/Graphics/ImageLoader.cpp
+@@ -28,11 +28,11 @@
+ #include <SFML/Graphics/ImageLoader.hpp>
+ extern "C"
+ {
+-    #include <SFML/Graphics/libjpeg/jpeglib.h>
+-    #include <SFML/Graphics/libjpeg/jerror.h>
++    #include <jpeglib.h>
++    #include <jerror.h>
+ }
+-#include <SFML/Graphics/libpng/png.h>
+-#include <SFML/Graphics/SOIL/SOIL.h>
++#include <png.h>
++#include <SOIL/SOIL.h>
+ #include <iostream>
+ 
+ 
+diff --git a/src/SFML/Graphics/Makefile b/src/SFML/Graphics/Makefile
+index f149155..346f568 100755
+--- a/src/SFML/Graphics/Makefile
++++ b/src/SFML/Graphics/Makefile
+@@ -1,15 +1,5 @@
+ SRC     = $(wildcard *.cpp)
+-SRCGLEW = $(wildcard ./GLEW/*.c)
+-SRCJPEG = $(wildcard ./libjpeg/*.c)
+-SRCPNG  = $(wildcard ./libpng/*.c)
+-SRCSOIL = $(wildcard ./SOIL/*.c)
+-SRCZLIB = $(wildcard ./zlib/*.c)
+ OBJ     = $(SRC:.cpp=.o)
+-OBJGLEW = $(SRCGLEW:.c=.o)
+-OBJJPEG = $(SRCJPEG:.c=.o)
+-OBJPNG  = $(SRCPNG:.c=.o)
+-OBJSOIL = $(SRCSOIL:.c=.o)
+-OBJZLIB = $(SRCZLIB:.c=.o)
+ 
+ ifeq ($(STATIC), yes)
+     LIB     = libsfml-graphics-s.a
+@@ -26,19 +16,16 @@ all: $(LIB)
+ libsfml-graphics-s.a: $(OBJ) $(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLIB)
+ 	$(AR) $(ARFLAGS) $(LIBNAME) $(OBJ) $(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLIB)
+ 
+-libsfml-graphics.so: $(OBJ) $(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLIB)
+-	$(CPP) $(LDFLAGS) -Wl,-soname,$(LIB).$(VERSION) -o $(LIBNAME) $(OBJ) $(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLIB) -lfreetype $(LIBPATH)/libsfml-system.so.$(VERSION) $(LIBPATH)/libsfml-window.so.$(VERSION) -lGL
++libsfml-graphics.so: $(OBJ)
++	$(CPP) $(LDFLAGS) -Wl,-soname,$(LIB).$(VERSION) -o $(LIBNAME) $(OBJ) -lGLEW -ljpeg -lpng -lSOIL -lfreetype $(LIBPATH)/libsfml-system.so.$(VERSION) $(LIBPATH)/libsfml-window.so.$(VERSION) -lGL
+ 
+ $(OBJ): %.o: %.cpp
+ 	$(CPP) -o $@ -c $< $(CFLAGS) -I/usr/include/freetype2
+ 
+-$(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLIB): %.o: %.c
+-	$(CC) -o $@ -c $< $(CFLAGSEXT) -DSTBI_FAILURE_USERMSG
+-
+ .PHONY: clean mrproper
+ 
+ clean:
+-	@rm -rf $(OBJ) $(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLIB)
++	@rm -rf $(OBJ)
+ 
+ mrproper: clean
+ 	@rm -rf $(LIBNAME)
+diff --git a/src/SFML/Window/Linux/WindowImplX11.cpp b/src/SFML/Window/Linux/WindowImplX11.cpp
+index edec19b..f527864 100755
+--- a/src/SFML/Window/Linux/WindowImplX11.cpp
++++ b/src/SFML/Window/Linux/WindowImplX11.cpp
+@@ -27,8 +27,8 @@
+ ////////////////////////////////////////////////////////////
+ #include <SFML/Window/WindowStyle.hpp> // important to be included first (conflict with None)
+ #include <SFML/Window/Linux/WindowImplX11.hpp>
+-#include <SFML/Window/glext/glxext.h>
+-#include <SFML/Window/glext/glext.h>
++#include <GL/glxext.h>
++#include <GL/glext.h>
+ #include <SFML/System/Unicode.hpp>
+ #include <X11/keysym.h>
+ #include <X11/extensions/Xrandr.h>
+diff --git a/src/SFML/Window/Makefile b/src/SFML/Window/Makefile
+index a05a54b..5f9708e 100755
+--- a/src/SFML/Window/Makefile
++++ b/src/SFML/Window/Makefile
+@@ -1,6 +1,5 @@
+ SRC     = $(wildcard *.cpp ./Linux/*.cpp)
+ OBJ     = $(SRC:.cpp=.o)
+-OBJGLEW = $(SRCGLEW:.c=.o)
+ 
+ ifeq ($(STATIC), yes)
+     LIB     = libsfml-window-s.a
+@@ -18,7 +17,7 @@ libsfml-window-s.a: $(OBJ)
+ 	$(AR) $(ARFLAGS) $(LIBNAME) $(OBJ)
+ 
+ libsfml-window.so: $(OBJ)
+-	$(CPP) $(LDFLAGS) -Wl,-soname,$(LIB).$(VERSION) -o $(LIBNAME) $(OBJ) $(OBJGLEW) -lX11 -lXrandr -lGL $(LIBPATH)/libsfml-system.so.$(VERSION)
++	$(CPP) $(LDFLAGS) -Wl,-soname,$(LIB).$(VERSION) -o $(LIBNAME) $(OBJ) -lX11 -lXrandr -lGL $(LIBPATH)/libsfml-system.so.$(VERSION)
+ 
+ $(OBJ): %.o: %.cpp
+ 	$(CPP) -o $@ -c $< $(CFLAGS)
+-- 
+tg: (cced581..) debian/repacking (depends on: debian/interlinking)
