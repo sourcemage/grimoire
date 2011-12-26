@@ -1,11 +1,5 @@
-if [ "$FREQSELSUID" == "n" ]; then
-   OPTS="$OPTS --enable-suid=no"
-fi                                                               &&
+OPTS="$GAPPLETS_FREQSELSUID $GAPPLETS_IPV6 $GAPPLETS_BATT $GAPPLETS_MINI $OPTS"  &&
 
-if [ "$IPV6" == "y" ]; then
-   OPTS="$OPTS --enable-ipv6"
-fi                                                               &&
-
-make_single                                                      &&
-default_build                                                    &&
+make_single    &&
+default_build  &&
 make_normal
