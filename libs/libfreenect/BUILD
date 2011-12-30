@@ -1,3 +1,7 @@
+if [[ "$LIBFREENECT_AUDIO" == "y" ]]; then
+  OPTS="-DBUILD_AUDIO=YES $OPTS"
+fi &&
+
 cmake_build &&
 
 if [[ "$LIBFREENECT_PYTHON_WRAPPER" == "y" ]]; then
