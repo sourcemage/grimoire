@@ -2,7 +2,25 @@ if [[ "$LIBFREENECT_AUDIO" == "y" ]]; then
   OPTS="-DBUILD_AUDIO=YES $OPTS"
 fi &&
 
-cmake_build &&
+cd $SOURCE_DIRECTORY  &&
+mkdir -p build        &&
+cd build              &&
+prepare_cmake_flags   &&
+
+# do not download and extract audios.bin if already in $SOURCE_CACHE
+if [ -f $SOURCE_CACHE/audios.bin ]; then
+  message "${MESSAGE_COLOR}audios.bin restore: $SOURCE_CACHE/audios.bin -> audios.bin${DEFAULT_COLOR}" &&
+  cp $SOURCE_CACHE/audios.bin audios.bin
+fi &&
+
+cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr -DSYSCONFDIR=$INSTALL_ROOT/etc $OPTS ../  &&
+make &&
+
+# audios.bin backup
+if [ -f audios.bin ] && ! [ -f $SOURCE_CACHE/audios.bin ]; then
+  message "${MESSAGE_COLOR}audios.bin backup: audios.bin -> $SOURCE_CACHE/audios.bin${DEFAULT_COLOR}" &&
+  cp audios.bin $SOURCE_CACHE/audios.bin
+fi &&
 
 if [[ "$LIBFREENECT_PYTHON_WRAPPER" == "y" ]]; then
   message "${MESSAGE_COLOR}python wrapper${DEFAULT_COLOR}" &&
