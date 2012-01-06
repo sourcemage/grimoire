@@ -1,0 +1,97 @@
+--- mozilla/widget/src/gtk2/nsGtkCursors.h.orig
++++ mozilla/widget/src/gtk2/nsGtkCursors.h
+@@ -41,16 +41,17 @@
+ #ifndef nsGtkCursors_h__
+ #define nsGtkCursors_h__
+ 
+ typedef struct {
+   const unsigned char *bits;
+   const unsigned char *mask_bits;
+   int hot_x;
+   int hot_y;
++  const char *hash;
+ } nsGtkCursor;
+ 
+ /* MOZ_CURSOR_HAND_GRAB */
+ static const unsigned char moz_hand_grab_bits[] = {
+   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00,
+   0x60, 0x39, 0x00, 0x00, 0x90, 0x49, 0x00, 0x00, 0x90, 0x49, 0x01, 0x00,
+   0x20, 0xc9, 0x02, 0x00, 0x20, 0x49, 0x02, 0x00, 0x58, 0x40, 0x02, 0x00,
+   0x64, 0x00, 0x02, 0x00, 0x44, 0x00, 0x01, 0x00, 0x08, 0x00, 0x01, 0x00,
+@@ -410,26 +411,28 @@ enum {
+   MOZ_CURSOR_ZOOM_OUT,
+   MOZ_CURSOR_NOT_ALLOWED,
+   MOZ_CURSOR_VERTICAL_TEXT,
+   MOZ_CURSOR_NESW_RESIZE,
+   MOZ_CURSOR_NWSE_RESIZE,
+   MOZ_CURSOR_NONE
+ };
+ 
+-// create custom pixmap cursor
++// create custom pixmap cursor. The hash values must stay in sync with the
++// bitmap data above. To see the hash function, have a look at XcursorImageHash
++// in libXcursor
+ static const nsGtkCursor GtkCursors[] = {
+-  { moz_hand_grab_bits,      moz_hand_grab_mask_bits,      10, 10 },
+-  { moz_hand_grabbing_bits,  moz_hand_grabbing_mask_bits,  10, 10 },
+-  { moz_copy_bits,           moz_copy_mask_bits,           2,  2  },
+-  { moz_alias_bits,          moz_alias_mask_bits,          2,  2  },
+-  { moz_menu_bits,           moz_menu_mask_bits,           2,  2  },
+-  { moz_spinning_bits,       moz_spinning_mask_bits,       2,  2  },
+-  { moz_zoom_in_bits,        moz_zoom_in_mask_bits,        6,  6  },
+-  { moz_zoom_out_bits,       moz_zoom_out_mask_bits,       6,  6  },
+-  { moz_not_allowed_bits,    moz_not_allowed_mask_bits,    9,  9  },
+-  { moz_vertical_text_bits,  moz_vertical_text_mask_bits,  8,  4  },
+-  { moz_nesw_resize_bits,    moz_nesw_resize_mask_bits,    8,  8  },
+-  { moz_nwse_resize_bits,    moz_nwse_resize_mask_bits,    8,  8  },
+-  { moz_none_bits,           moz_none_mask_bits,           0,  0  }
++  { moz_hand_grab_bits,      moz_hand_grab_mask_bits,      10, 10, "5aca4d189052212118709018842178c0" },
++  { moz_hand_grabbing_bits,  moz_hand_grabbing_mask_bits,  10, 10, "208530c400c041818281048008011002" },
++  { moz_copy_bits,           moz_copy_mask_bits,           2,  2,  "08ffe1cb5fe6fc01f906f1c063814ccf" },
++  { moz_alias_bits,          moz_alias_mask_bits,          2,  2,  "0876e1c15ff2fc01f906f1c363074c0f" },
++  { moz_menu_bits,           moz_menu_mask_bits,           2,  2,  "08ffe1e65f80fcfdf9fff11263e74c48" },
++  { moz_spinning_bits,       moz_spinning_mask_bits,       2,  2,  "08e8e1c95fe2fc01f976f1e063a24ccd" },
++  { moz_zoom_in_bits,        moz_zoom_in_mask_bits,        6,  6,  "f41c0e382c94c0958e07017e42b00462" },
++  { moz_zoom_out_bits,       moz_zoom_out_mask_bits,       6,  6,  "f41c0e382c97c0938e07017e42800402" },
++  { moz_not_allowed_bits,    moz_not_allowed_mask_bits,    9,  9,  "03b6e0fcb3499374a867d041f52298f0" },
++  { moz_vertical_text_bits,  moz_vertical_text_mask_bits,  8,  4,  "048008013003cff3c00c801001200000" },
++  { moz_nesw_resize_bits,    moz_nesw_resize_mask_bits,    8,  8,  "50585d75b494802d0151028115016902" },
++  { moz_nwse_resize_bits,    moz_nwse_resize_mask_bits,    8,  8,  "38c5dff7c7b8962045400281044508d2" },
++  { moz_none_bits,           moz_none_mask_bits,           0,  0,  NULL }
+ };
+ 
+ #endif /* nsGtkCursors_h__ */
+--- mozilla/widget/src/gtk2/nsWindow.cpp.orig
++++ mozilla/widget/src/gtk2/nsWindow.cpp
+@@ -5640,19 +5640,27 @@ get_gtk_cursor(nsCursor aCursor)
+         newType = MOZ_CURSOR_NONE;
+         break;
+     default:
+         NS_ASSERTION(aCursor, "Invalid cursor type");
+         gdkcursor = gdk_cursor_new(GDK_LEFT_PTR);
+         break;
+     }
+ 
+-    // if by now we don't have a xcursor, this means we have to make a
+-    // custom one
+-    if (newType != 0xff) {
++    // If by now we don't have a xcursor, this means we have to make a custom
++    // one. First, we try creating a named cursor based on the hash of our
++    // custom bitmap, as libXcursor has some magic to convert bitmapped cursors
++    // to themed cursors
++    if (newType != 0xFF && GtkCursors[newType].hash) {
++        gdkcursor = gdk_cursor_new_from_name(gdk_display_get_default(),
++                                             GtkCursors[newType].hash);
++    }
++
++    // If we still don't have a xcursor, we now really create a bitmap cursor
++    if (newType != 0xff && !gdkcursor) {
+         GdkPixbuf * cursor_pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8, 32, 32);
+         if (!cursor_pixbuf)
+             return NULL;
+       
+         guchar *data = gdk_pixbuf_get_pixels(cursor_pixbuf);
+         
+         // Read data from GtkCursors and compose RGBA surface from 1bit bitmap and mask
+         // GtkCursors bits and mask are 32x32 monochrome bitmaps (1 bit for each pixel)
+
