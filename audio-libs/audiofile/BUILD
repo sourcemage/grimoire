@@ -1,2 +1,2 @@
 OPTS+=" --disable-static" &&
-default_build
+LIBS+=" -lm" default_build
