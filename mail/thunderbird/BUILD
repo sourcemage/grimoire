@@ -31,6 +31,7 @@ if [[ $THUNDERBIRD_OFFICIAL == y ]]; then
   OPTS="$OPTS --enable-official-branding"
 fi
 
+echo OPTS = $OPTS &&
 ./configure --prefix=${INSTALL_ROOT}/usr     \
             --with-user-appdir=.thunderbird  \
             --enable-application=mail        \
