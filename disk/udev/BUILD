@@ -3,8 +3,6 @@ if spell_ok systemd; then
   OPTS="$OPTS --with-systemdsystemunitdir=${INSTALL_ROOT}/lib/systemd/system"
 fi &&
 OPTS="--prefix=$INSTALL_ROOT/usr \
-      --sbindir=$INSTALL_ROOT/sbin \
-      --libexecdir=$INSTALL_ROOT/lib/udev \
       --with-rootlibdir=$INSTALL_ROOT/lib \
       $UDEV_OPTS $UDEV_HWDB \
       $OPTS" &&
