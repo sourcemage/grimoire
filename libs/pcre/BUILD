@@ -1,3 +1,4 @@
+OPTS+=" --disable-static $JIT" &&
 if [[ $BUILDUTF8 == y ]]; then
    OPTS="$OPTS --enable-utf8"
   if [[ $UTFPROPERTIES == y ]]; then
