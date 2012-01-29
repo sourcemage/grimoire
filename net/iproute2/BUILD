@@ -1,5 +1,7 @@
 ./configure  &&
 
+echo "CFLAGS += -I$INSTALL_ROOT/usr/include/libnl3" >> ip/Makefile &&
+
 if gcc -include netinet/in.h -E - < /dev/null | grep -q IPPROTO_SCTP ; then
   echo "" > sctpfix.h
 else
