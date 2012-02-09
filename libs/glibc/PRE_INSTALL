@@ -1,12 +1,7 @@
 lock_resources "libgrimoire" "install"  &&
 if [ -z $INSTALL_ROOT ]; then
-  mkdir $SOURCE_DIRECTORY.bld/old.libs  &&
-  local each  &&
-  for each in /lib{,64,32}/*; do
-    if test -f "$each"; then
-      cp "$each" $SOURCE_DIRECTORY.bld/old.libs
-    fi
-  done  &&
+  mkdir -p $SOURCE_DIRECTORY.bld/old.libs  &&
+  (cp -Pp /lib/* $SOURCE_DIRECTORY.bld/old.libs/ || true ) &&
   ldconfig $SOURCE_DIRECTORY.bld/old.libs  &&
   local LD  &&
   if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]] && test  -f /lib/ld-linux-x86-64.so.2; then
@@ -23,4 +18,10 @@ fi  &&
 
 if  spell_ok  glibc;  then
   dispel  --notriggers  --nosustain  glibc
+else
+# fix cases where previous install failed, but files exist
+  OLDGLIB=`ls -l /lib/libc.so.6|cut -d\  -f11 |sed 's/^libc-//;s/.so//'` &&
+  rm -f /lib/*${OLDGLIB}.so &&
+  rm -f /lib/lib{c,crypt,dl,m,nsl,nss*,pthread,resolv,util}.so.? &&
+  rm -rf /usr/share/zoneinfo
 fi

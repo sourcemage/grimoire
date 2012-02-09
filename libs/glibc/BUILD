@@ -40,15 +40,16 @@ unset  LD_LIBRARY_PATH  &&
 # Setup sanitised glibc-kernel-headers for the glibc compile
 # ...as well as other arch-dependend specialties
 #
-GLIBC_HEADERS_DIR=/usr/sr/linux &&
+persistent_add  GLIBC_HEADERS_DIR &&
+GLIBC_HEADERS_DIR=/usr/src/linux &&
   cd ${GLIBC_HEADERS_DIR} &&
   GL_ARCH=${SMGL_COMPAT_ARCHS[1]}  &&
-  if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]];then
-  else
+#  if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]];then
+#  else
     if [[ ${SMGL_COMPAT_ARCHS[1]} == ia32 ]]; then
      GL_ARCH=i386
-    fi
-  fi &&
+    fi  &&
+#  fi &&
   make ARCH=$GL_ARCH INSTALL_HDR_PATH=usr headers_install
 
 
@@ -61,8 +62,8 @@ export CPPFLAGS="$CPPFLAGS -I$GLIBC_HEADERS_DIR/usr/include"  &&
 
 # this is weird but nscd needs this header from libcap but not the rest of
 # the standard includes so doing this will make nscd pick it up
-mkdir -p $SOURCE_DIRECTORY/nscd/sys &&
-ln -s /usr/include/sys/capability.h $SOURCE_DIRECTORY/nscd/sys/capability.h &&
+#mkdir -p $SOURCE_DIRECTORY/nscd/sys &&
+#ln -s /usr/include/sys/capability.h $SOURCE_DIRECTORY/nscd/sys/capability.h &&
 
 #
 # Change to where we're going to actually build
@@ -73,7 +74,7 @@ cd  $SOURCE_DIRECTORY.bld  &&
 # Configure glibc to use the sanitised headers
 # http://bugs.sourcemage.org/show_bug.cgi?id=7560
 #
-$SOURCE_DIRECTORY/configure  --host=$HOST                       \
+$SOURCE_DIRECTORY/glibc/configure  --host=$HOST                 \
                             --build=$BUILD                      \
                            --prefix=/usr                        \
                           --infodir=/usr/share/info             \
