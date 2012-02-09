@@ -4,43 +4,13 @@ default_pre_build  &&
   patch $SOURCE_DIRECTORY/timezone/Makefile  \
         $SCRIPT_DIRECTORY/localtime.patch    &&
 
-  #
-  # Unpack glibc-kernel-headers
-  #
-  #
-  # Set GLIBC_HEADERS_DIR for use later
-  #
-  persistent_add  GLIBC_HEADERS_DIR                        &&
-  GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.bz2}  &&
-
-  unpack_file 3                         &&
-  if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
-    cd  $GLIBC_HEADERS_DIR &&
-    if [ ! -z $SOURCE3 ]; then
-      bzcat ${SOURCE_CACHE}/$SOURCE3 > ${SOURCE3%.bz2}
-    fi  &&
-    make mrproper
-  else
-    cd  $GLIBC_HEADERS_DIR &&
-    if [ ! -z $SOURCE7 ]; then
-      verify_file 7 || return 1 &&
-      bzcat ${SOURCE_CACHE}/$SOURCE7 > ${SOURCE7%.bz2} &&
-      message "${MESSAGE_COLOR}Patching ${!patch}${DEFAULT_COLOR}" &&
-      patch -p1 < ${SOURCE7%.bz2} &&
-      if [[ $? != 0 ]]; then
-        message "${PROBLEM_COLOR}Patch ${!patch} failed${DEFAULT_COLOR}" &&
-        return 1
-      fi
-    fi &&
-    make mrproper
-  fi
 
 #
 # Remove kernel DRM headers
 # Fixes Bug #15547
 #
-sed -i '/^header-y += drm\//d' $GLIBC_HEADERS_DIR/include/Kbuild &&
-rm -rf $GLIBC_HEADERS_DIR/include/drm &&
+#sed -i '/^header-y += drm\//d' $GLIBC_HEADERS_DIR/include/Kbuild &&
+#rm -rf $GLIBC_HEADERS_DIR/include/drm &&
 
 #
 # Now fixup the normal glibc

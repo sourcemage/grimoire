@@ -40,6 +40,7 @@ unset  LD_LIBRARY_PATH  &&
 # Setup sanitised glibc-kernel-headers for the glibc compile
 # ...as well as other arch-dependend specialties
 #
+GLIBC_HEADERS_DIR=/usr/sr/linux &&
   cd ${GLIBC_HEADERS_DIR} &&
   GL_ARCH=${SMGL_COMPAT_ARCHS[1]}  &&
   if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]];then
