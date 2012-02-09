@@ -43,9 +43,6 @@ unset  LD_LIBRARY_PATH  &&
   cd ${GLIBC_HEADERS_DIR} &&
   GL_ARCH=${SMGL_COMPAT_ARCHS[1]}  &&
   if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]];then
-    if [[ ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
-      GL_ARCH=sparc64
-    fi
   else
     if [[ ${SMGL_COMPAT_ARCHS[1]} == ia32 ]]; then
      GL_ARCH=i386
@@ -53,46 +50,6 @@ unset  LD_LIBRARY_PATH  &&
   fi &&
   make ARCH=$GL_ARCH INSTALL_HDR_PATH=usr headers_install
 
-if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
-  #
-  # If we're not compiling for 64-bit SPARC then we need to use the sparc
-  # headers, not sparc64
-  #
-  if  echo  "$CFLAGS"  |  grep  -q  --  "-m64";  then
-    export  CC=gcc64
-  fi  &&
-
-  #
-  # Fixes from Gentoo's 2.3.3.20040420-r2 ebuild
-  #
-  sedit  "s:CPPFLAGS += -DHAVE_INITFINI:CPPFLAGS += -DHAVE_INITFINI -fno-pie -fno-PIE:"  csu/Makefile
-  export    CFLAGS="${CFLAGS/-fcall-used-g7/}"
-  export    CFLAGS="$CFLAGS  -fcall-used-g6"
-  export    CFLAGS="${CFLAGS/-mcpu=v9/}"
-  export    CFLAGS="${CFLAGS/-mtune=ultrasparc/}"
-  export    CFLAGS="${CFLAGS/-mvis/}"
-
-  # Setup the HOST properly to insure "sparcv9"
-  # This passes -mcpu=ultrasparc -Wa,-Av9a to the compiler
-  [  "$HOST"  =  "sparc-unknown-linux-gnu"  ]   &&
-  export HOST="sparcv9-unknown-linux-gnu"       &&
-  [  "$BUILD"  =  "sparc-unknown-linux-gnu"  ]  &&
-  export BUILD="sparcv9-unknown-linux-gnu"
-elif [[ ${SMGL_COMPAT_ARCHS[0]} == 32 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
-  #
-  # Fixes from Gentoo's 2.3.3.20040420-r2 ebuild
-  #
-  sedit  "s:CPPFLAGS += -DHAVE_INITFINI:CPPFLAGS += -DHAVE_INITFINI -fno-pie -fno-PIE:"  csu/Makefile
-  export    CFLAGS="${CFLAGS/-fcall-used-g7/}"
-  export    CFLAGS="$CFLAGS  -fcall-used-g6"
-elif [[ ${SMGL_COMPAT_ARCHS[1]} == alpha ]]; then
-  # This is a first attempt to get alpha going, being paranoid about any CFLAGS,
-  # not without reason: -Os/-O breaks compile in strange ways:
-  #  either an elf/ld.so that segfaults (build failing at sunrpc) or
-  #  internal compiler error(s) in intl/
-  # glibc knows itself what flags to choose
-  export CFLAGS=""
-fi &&
 
 # CPPFLAGS setting is needed so the check for cpp works on boxes that don't
 # have any kernel headers in /usr/include yet
