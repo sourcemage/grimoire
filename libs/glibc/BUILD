@@ -1,5 +1,3 @@
-make_single  &&
-
 # install x86_64 linker to lib instead of lib64
 sedit "s/lib64/lib/"  sysdeps/unix/sysv/linux/x86_64/ldconfig.h &&
 sedit "s/264/2/" sysdeps/unix/sysv/linux/x86_64/ldd-rewrite.sed &&
@@ -11,16 +9,6 @@ if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
 sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure    &&
 sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure.in
 fi &&
-
-#
-# bug#5570 ccache sometimes has trouble correctly recognising minor differences
-# in configurations and doesn't force recompile when it should. This stops it from
-# using the old cache entries.
-#
-export  CCACHE_RECACHE=true  &&
-#
-# End ccache fix
-#
 
 local ADDONS
   ADDONS="nptl"                &&
