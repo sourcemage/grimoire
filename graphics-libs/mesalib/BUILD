@@ -17,5 +17,6 @@ esac &&
 OPTS="--with-driver=$MESALIB_BUILD                     \
       --with-dri-drivers=$MESALIB_DRIVERS_CONF         \
       $MESALIB_OPTS \
+      --with-egl-platforms=${MESA_EGL//\ /,}  \
       $OPTS"                                           &&
 default_build

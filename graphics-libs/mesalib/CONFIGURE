@@ -65,22 +65,34 @@ config_query_option MESALIB_OPTS "enable OpenGL Utility library?" y \
 
 case "$MESALIB_BRANCH" in
   scm|development)
-    config_query_option MESALIB_OPTS "enable shared GLapi" n \
+    config_query_multi MESA_EGL "which EGL platforms?" drm fbdev wayland x11 none
+    if list_find wayland MESA_EGL;then
+      list_remove MESALIB_OPTS "--disable-shared-glapi" &&
+      list_remove MESALIB_OPTS "--disable-gbm"     &&
+      list_remove MESALIB_OPTS "--disable-gles2"   &&
+      list_add MESALIB_OPTS "--enable-shared-glapi"&&
+      list_add MESALIB_OPTS "--enable-gbm"         &&
+      list_add MESALIB_OPTS "--enable-gles2"
+    else
+      config_query_option MESALIB_OPTS "enable shared GLapi" n \
                          "--enable-shared-glapi" "--disable-shared-glapi" &&
 
-    config_query_option MESALIB_OPTS "enable Generic Buffer Management?" n \
-                         "--enable-gbm" "--disable-gbm" &&
-#                        "--enable-gallium-gbm" "--disable-gallium-gbm" &&
-
+      config_query_option MESALIB_OPTS "enable Generic Buffer Management?" n \
+                         "--enable-gbm" "--disable-gbm"
+      config_query_option MESALIB_OPTS "enable support for OpenGL ES 2.x API?" n \
+                        "--enable-gles2" "--disable-gles2"
+    fi &&
     config_query_option MESALIB_OPTS "enable support for OpenGL ES 1.x API?" n \
                         "--enable-gles1" "--disable-gles1" &&
-    config_query_option MESALIB_OPTS "enable support for OpenGL ES 2.x API?" n \
-                        "--enable-gles2" "--disable-gles2" &&
 
-   if list_find "--enable-gles1" $MESALIB_OPTS || \
+    if list_find "--enable-gles1" $MESALIB_OPTS || \
       list_find "--enable-gles2" $MESALIB_OPTS; then
 
      config_query_option MESALIB_OPTS "build separate OpenGL ES only libraries?" n \
                          "--enable-gles-overlay" "--disable-gles-overlay"
-   fi
+    fi
+   ;;
+  *)
+    config_query_multi MESA_EGL "which EGL platforms?" drm fbdev x11 none
+   ;;
 esac
