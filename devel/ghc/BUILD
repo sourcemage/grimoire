@@ -2,6 +2,9 @@
 
 GHC_DIR=/usr/bin
 
+if [[ -x ${INSTALL_ROOT}/usr/bin/ghc-pkg-7.2.1 ]]; then
+  ghc-pkg-7.2.1 trust base
+fi &&
 make_single &&
 
 if [[ $SOURCE2 != "" ]] ; then
