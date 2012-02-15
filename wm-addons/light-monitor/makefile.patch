@@ -1,0 +1,66 @@
+--- light-monitor-v1.7/makefile.orig	2012-01-15 11:30:36.602147571 +0100
++++ light-monitor-v1.7/makefile	2012-01-15 11:37:31.402732926 +0100
+@@ -1,44 +1,41 @@
+ DEST=light-monitor-v1.7
+ all : light-monitor light-calendar 
+ 
+-OPTS=-O2 -Wall 
+-#OPTS=-g -Wall #-DDEBUG
+-
+-XFTCFLAGS=`xft-config --cflags`
+-XFTLIBS=`xft-config --libs`
++XFTCFLAGS=`pkg-config --cflags xft`
++XFTLIBS=`pkg-config --libs xft`
+ 
+ ##########################################################
+ 
+ OBJ=light-monitor.o captor.o calendar.o gosd.o
+ 
+ light-monitor: ${OBJ} 
+-	gcc ${OBJ} ${XFTLIBS} -lXpm -o light-monitor
++	gcc ${LDFLAGS} ${OBJ} ${XFTLIBS} -lXpm -o light-monitor
+ 
+ ##########################################################
+ 
+ OBJ2=light-calendar.o gosd.o calendar.o
+ 
+ light-calendar: ${OBJ2} 
+-	gcc ${OBJ2} -o light-calendar ${XFTLIBS}
++	gcc ${LDFLAGS} ${OBJ2} -o light-calendar ${XFTLIBS}
+ 
+ ##########################################################
+ TOOLS=gosd.h toolbox.h
+ GFX=next.xpm
+ 
+ light-calendar.o: light-calendar.c ${TOOLS}
+-	gcc ${OPTS} ${XFTCFLAGS} -c light-calendar.c
++	gcc ${CFLAGS} ${XFTCFLAGS} -c light-calendar.c
+ 
+ gosd.o: gosd.c
+-	gcc ${OPTS} ${XFTCFLAGS} -c gosd.c
++	gcc ${CFLAGS} ${XFTCFLAGS} -c gosd.c
+ 
+ light-monitor.o: light-monitor.c captor.h calendar.h ${TOOLS} ${GFX}
+-	gcc ${OPTS} ${XFTCFLAGS} -c light-monitor.c
++	gcc ${CFLAGS} ${XFTCFLAGS} -c light-monitor.c
+ 
+ captor.o: captor.c
+-	gcc ${OPTS} -c captor.c
++	gcc ${CFLAGS} -c captor.c
+ 
+ calendar.o: calendar.c
+-	gcc ${OPTS} -c calendar.c
++	gcc ${CFLAGS} -c calendar.c
+ 
+ dist-clean:
+ 	rm -f *~ *.o light-monitor light-calendar
+@@ -57,6 +54,6 @@
+ 
+ 
+ install:
+-	install -m 0755 -s light-monitor /usr/bin/
+-	install -m 0755 -s light-calendar /usr/bin/
+-	install -m 0644    light-monitor.conf /etc/
++	install -m 0755 -s light-monitor ${DESTDIR}/usr/bin/
++	install -m 0755 -s light-calendar ${DESTDIR}/usr/bin/
++	install -m 0644    light-monitor.conf ${DESTDIR}/etc/

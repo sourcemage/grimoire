@@ -12,6 +12,17 @@ EOF
 
 fi  &&
 
+#if is_depends_enabled $SPELL openexr; then
+#
+#cat <<- EOF >> "${SOURCE_DIRECTORY}"/user-config.py
+#BF_OPENEXR="/usr"
+#BF_OPENJPEG_INC="/usr/include"
+#BF_OPENEXR_INC="${BF_OPENEXR}/include/OpenEXR ${BF_OPENEXR}/include"
+#BF_OPENEXR_LIBPATH="${BF_OPENEXR}/lib"
+#EOF
+#
+#fi  &&
+
 if is_depends_enabled $SPELL lcms; then
 
 cat <<- EOF >> "${SOURCE_DIRECTORY}"/user-config.py
@@ -35,7 +46,7 @@ local FILTERED_LDFLAGS="`for i in ${LDFLAGS[@]}; do printf "%s \'$i"\',; done`"
 echo "LINKFLAGS=[${FILTERED_LDFLAGS}]" | sed -e "s:,]: ]:" >> "${SOURCE_DIRECTORY}"/user-config.py
 echo "PLATFORM_LINKFLAGS=[${FILTERED_LDFLAGS}]" | sed -e "s:,]: ]:" >> "${SOURCE_DIRECTORY}"/user-config.py
 
-OPTS="WITHOUT_BF_PYTHON_INSTALL=True WITH_BF_3DMOUSE=False $BLENDER_PLAYER $BLENDER_GAMEENGINE $BLENDER_OGG $OPTS"
+OPTS="WITHOUT_BF_PYTHON_INSTALL=True WITH_BF_3DMOUSE=False $BLENDER_PLAYER $BLENDER_GAMEENGINE $BLENDER_OCEANSIM $BLENDER_OGG $OPTS"
 
 python ./scons/scons.py $OPTS
 

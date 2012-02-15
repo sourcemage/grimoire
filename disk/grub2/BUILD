@@ -1,3 +1,5 @@
 OPTS="${OPTS} ${GRUB2_OPTS} -disable-werror" &&
-make_single &&
+CFLAGS=${CFLAGS/-m64/} &&
+CFLAGS=${CFLAGS/-O?/-Os} &&
+disable_pic force &&
 default_build

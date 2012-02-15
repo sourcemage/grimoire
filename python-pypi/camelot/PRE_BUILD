@@ -1,0 +1,30 @@
+default_pre_build &&
+cd $SOURCE_DIRECTORY &&
+
+if is_depends_enabled $SPELL pyside;then
+message convert to use PySide
+
+python camelot/bin/camelot_admin.py to_pyside  camelot &&
+rm -r camelot &&
+mv to_pyside/camelot . &&
+
+# tidyup some junk
+sed -i -e "/variant_to_pyobject/,/return value/D" \
+     camelot/core/utils.py &&
+sed -i -e "s/QtCore.PYQT_VERSION_STR/PySide.__version__/" \
+  camelot/admin/application_admin.py \
+  camelot/view/main.py &&
+
+sed -i -e "/%L/s/(.*$/(value)/" camelot/view/controls/editors/floateditor.py &&
+
+# variant_to_pyobject is an obsolete construct, not needed with pyside
+sed -i \
+   -e "/import variant_to_pyobject/D" \
+   -e "s/, variant_to_pyobject//" \
+   -e "s/variant_to_pyobject,//" \
+   -e "s/variant_to_pyobject//" \
+  camelot/view/action_steps/*.py \
+  camelot/view/controls/*.py \
+  camelot/view/controls/delegates/*.py \
+  camelot/view/controls/editors/*.py
+fi
