@@ -1,4 +1,4 @@
-cd compiler  &&
+cd source/compiler  &&
 
 make_single  &&
 make         &&
