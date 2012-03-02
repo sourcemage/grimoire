@@ -12,30 +12,57 @@ optional_depends  openssl                \
                   '--without-tls'        \
                   'for SSL/TLS support'  &&
 
-optional_depends  cyrus-sasl  '--with-cyrus-sasl'  '--without-cyrus-sasl'            \
+optional_depends  cyrus-sasl  '--with-cyrus-sasl'  '--without-cyrus-sasl' \
   'for SASL authentication, if SLAPD is a backend authenticator for SASL, say "no"'  &&
 
 if echo $OPENLDAP_SLAPD | grep -q enable; then
-  case "$SLAPD_LDBM" in
-  db)
-    depends  db    '--enable-ldbm=mod --enable-ldbm-api=berkeley'
-    ;;
-  esac
+  optional_depends  db  '--enable-bdb=mod --enable-hdb=mod'  \
+                        '--disable-bdb --disable-hdb'  \
+                        'for Berkeley DB backend (recommended)'  &&
 
   optional_depends  ODBC-MGR            \
                     '--enable-sql=mod'  \
                     '--disable-sql'     \
-                    'for SQL backend'   &&
+                    'for SQL backend (experimental)'   &&
+  if [[ $(get_spell_provider $SPELL ODBC-MGR) ]]; then
+    if is_depends_enabled $SPELL unixodbc; then
+      depends unixodbc --with-odbc=unixodbc
+    elif is_depends_enabled $SPELL libiodbc; then
+      depends libiodbc --with-odbc=iodbc
+    else
+      message "${PROBLEM_COLOR}unknown ODBC provider selected, please update spell${DEFAULT_COLOR}"
+    fi
+  fi  &&
+
+  optional_depends  MYSQL '--enable-mdb=mod' '--disable-mdb' \
+                    'for MYSQL backend' &&
+
+  if [[ $(get_spell_provider $SPELL MYSQL) ]]; then
+    config_query_option SLAPD_NDB 'Enable MYSQL NDB cluster support?' n \
+                        '--enable-ndb=mod' '--disable-ndb'
+    if echo $SLAPD_NDB |grep -q enable ; then
+      if is_depends_enabled $SPELL mariadb; then
+        depends -sub NDB mariadb
+      elif is_depends_enabled $SPELL mysql; then
+        depends -sub NDB mysql
+      fi
+    fi
+  fi
 
   optional_depends  perl                 \
                     '--enable-perl=mod'  \
                     '--disable-perl'     \
-                    'for perl backend'   &&
+                    'for perl backend (write your own storage backend)'  &&
+
+  optional_depends  bash                  \
+                    '--enable-shell=mod'  \
+                    '--disable-shell'     \
+                    'for shell backend (write your own storage backend)'  &&
 
   optional_depends  shadow                 \
                     '--enable-passwd=mod'  \
                     '--disable-passwd'     \
-                    'for passwd backend'   &&
+                    'for passwd backend (demo code, do not use)'  &&
 
   optional_depends  tcp_wrappers                \
                     '--enable-wrappers'         \
