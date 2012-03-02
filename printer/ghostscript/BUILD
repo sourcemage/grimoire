@@ -3,7 +3,7 @@ OPTS="--with-drivers=`echo ${GS_PRINTERS} | \
       sed "s/  */ /g;s/^ *//;s/ *$/ /;s/^NONE //;s/ /,/g"`JAPAN,FILES \
       --enable-dynamic ${GS_OMNI} ${OPTS}" &&
 
-default_build &&
+LIBS+=" -lz" default_build &&
 
 if [[ $GS_LIBGS == y ]]; then
   make so
