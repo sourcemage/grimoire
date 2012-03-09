@@ -16,6 +16,9 @@ STORAGE_DRIVERS='hash_drv' &&
 if is_depends_enabled $SPELL sqlite ; then
 STORAGE_DRIVERS="$STORAGE_DRIVERS,sqlite3_drv"
 fi &&
+if is_depends_enabled $SPELL sqlite2 ; then
+STORAGE_DRIVERS="$STORAGE_DRIVERS,sqlite_drv"
+fi &&
 if is_depends_enabled $SPELL $(get_spell_provider $SPELL MYSQL) ; then
 STORAGE_DRIVERS="$STORAGE_DRIVERS,mysql_drv"
 fi &&
