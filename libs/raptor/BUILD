@@ -1,5 +1,4 @@
 OPTS="--with-xml-names=${RAPTOR_XMLVERSION}  \
-      --with-xml-parser=${RAPTOR_PARSER}     \
       --with-www=${RAPTOR_WWWLIB}            \
       ${OPTS}"                               &&
 
