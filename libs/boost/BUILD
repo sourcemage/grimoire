@@ -3,19 +3,20 @@
 #
 CXXFLAGS="-Wno-strict-aliasing $CXXFLAGS" &&
 
+local BOOST_LIBS="${BOOST_LIBS_AL} ${BOOST_LIBS_MZ}" &&
 local BLIST=""                                    &&
 local BL                                          &&
-if list_find "${BOOST_LIBS}" "all" ; then
+if [[ $BOOST_SELECT_LIBS == "n" ]]; then
   BLIST=""
 else
   local SEP=" --with-"                            &&
-  for BL in $BOOST_LIBS $BOOST_OPTS1 ;do
+  for BL in $BOOST_LIBS $BOOST_OPTS1 ; do
     BL=${BL// /}                                  &&
     BLIST="${BLIST}${SEP}${BL}"
   done
 fi                                                &&
-if list_find "${BOOST_LIBS}" "graph"              ||
-   list_find "${BOOST_LIBS}" "all" ; then
+if list_find "${BOOST_LIBS}" "graph"           ||
+   [[ $BOOST_SELECT_LIBS == "n" ]]; then
    local EXPAT_INCLUDE=/usr/lib
    local EXPAT_LIBPATH=/usr/include
 fi &&
