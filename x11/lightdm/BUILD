@@ -1,3 +1,3 @@
-create_account lightdm
-PATH="${PATH}:/usr/bin/qt4" &&
+create_account lightdm           &&
+OPTS+=" --disable-liblightdm-qt" &&
 default_build
