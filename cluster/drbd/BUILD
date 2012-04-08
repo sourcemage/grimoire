@@ -1,3 +1,3 @@
 OPTS="--with-distro=generic $DRBD_OPTS $OPTS" &&
 
-default_build
+KDIR="$INSTALL_ROOT/usr/src/linux" default_build
