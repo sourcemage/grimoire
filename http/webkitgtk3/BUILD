@@ -1,4 +1,4 @@
-OPTS="$WEBKIT_SVG $OPTS" &&
+OPTS="$WEBKIT_SVG $WEBKIT_WEBGL $OPTS" &&
 OPTS="--with-gtk=3.0 $OPTS" &&
 
 default_build
