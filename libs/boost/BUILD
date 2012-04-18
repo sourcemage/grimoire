@@ -3,10 +3,10 @@
 #
 CXXFLAGS="-Wno-strict-aliasing $CXXFLAGS" &&
 
-local BOOST_LIBS="${BOOST_LIBS_AL} ${BOOST_LIBS_MZ}" &&
+local BOOST_LIBS="${BOOST_LIBS_AL#none} ${BOOST_LIBS_MZ#none}" &&
 local BLIST=""                                    &&
 local BL                                          &&
-if [[ $BOOST_SELECT_LIBS == "n" ]]; then
+if [[ $BOOST_SELECT_LIBS == "n" ]] || [[ $BOOST_LIBS == " " ]]; then
   BLIST=""
 else
   local SEP=" --with-"                            &&
