@@ -3,7 +3,12 @@ default_pre_build          &&
 unpack_file 2              
 
 # Doesn't really need C++...
-#cd $SOURCE_DIRECTORY       &&
-#aclocal                    &&
-#autoconf                   &&
-#automake
+cd $SOURCE_DIRECTORY       &&
+# update the config scripts
+sed -i "s/AM_GNU_GETTEXT_VERSION/&(0.18.1)/" configure.in &&
+# fix detection of python3
+if is_depends_enabled $SPELL python3;then
+  sed -i "s/}/}m/" configure.in  &&
+  sed -i "s|@/|@m/|" python/Makefile.am
+fi &&
+autoreconf -f -i --symlink
