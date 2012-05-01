@@ -24,4 +24,8 @@ else
   OPTS="--no-install-kde $OPTS"
 fi &&
 
-python setup.py configure $OPTS
+python setup.py configure $OPTS &&
+
+# generating Asturian translation (unsupported by babel)
+mkdir -p translations/ast/LC_MESSAGES
+msgfmt po/ast.po -o translations/ast/LC_MESSAGES/wicd.mo
