@@ -1,2 +1,1 @@
-/usr/bin/qt4/qmake &&
-make
+qt4_build
