@@ -32,18 +32,24 @@ config_query_option DSPAM_OPTS 'Enable long usernames? (defaults to system lengt
                                '--enable-long-usernames' \
                                '--disable-long-usernames' &&
 
-config_query_option DSPAM_OPTS 'Enable home directory filesystem storage driver?' n \
-                               '--enable-homedir' \
-                               '--disable-homedir' &&
-
 config_query_option DSPAM_OPTS 'Enable performance profiling?' n \
                                '--enable-profiling' \
                                '--disable-profiling' &&
 
-config_query_list DSPAM_SCALE 'Select a filesystem organization method:'\
+config_query_list DSPAM_SCALE 'Select a filesystem organization method:' \
                               'None'         \
                               'Domain Scale' \
                               'Large Scale' &&
+
+if [[ $DSPAM_SCALE == None ]]; then
+  config_query_option DSPAM_OPTS 'Enable home directory filesystem storage driver?' n \
+                                 '--enable-homedir' \
+                                 '--disable-homedir'
+else
+  list_add "DSPAM_OPTS" "--disable-homedir" &&
+  list_remove "DSPAM_OPTS" "--enable-homedir"
+fi &&
+
 # the next 2 queries use the previous spell defaults instead of the upstream
 # default, to make sure the spell does not disrupt anything
 config_query_string DSPAM_HOME 'which home directory for dspam?' '/var/spool/dspam'

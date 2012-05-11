@@ -18,6 +18,8 @@ if [[ $SOURCE2 != "" ]] ; then
   cd ..
 fi &&
 
+make_normal &&
+
 cd $SPELL-$VERSION &&
 
 ./configure   --prefix=${INSTALL_ROOT}/usr  \
