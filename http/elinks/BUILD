@@ -9,6 +9,9 @@ OPTS="--enable-exmode \
       --without-gnutls \
       $ELINKS_OPTS $OPTS" &&
 
+# enable verbose build mode
+export V=1 &&
+
 make_single &&
 default_build &&
 make_normal
