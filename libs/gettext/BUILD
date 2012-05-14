@@ -3,6 +3,9 @@ export  CC=gcc  &&
 # pth support is semi-broken, so force POSIX threads
 OPTS="--enable-threads=posix $OPTS" &&
 
+# never rely on external glib2
+OPTS="--with-included-glib $OPTS" &&
+
 make_single  &&
 
 ./configure  --build=$BUILD                           \
