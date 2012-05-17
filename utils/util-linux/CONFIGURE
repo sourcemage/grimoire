@@ -5,7 +5,7 @@ spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)" &&
 
 # util-linux 2.20 needs ttyX in /etc/inittab without /dev
 # http://www.sourcemage.org/issues/110
-message "${MESSAGE_COLOR}Checking sanity of /etc/inittab...${DEFAULT_COLOR}" &&
+message "${MESSAGE_COLOR}Checking sanity of $INSTALL_ROOT/etc/inittab...${DEFAULT_COLOR}" &&
 
 if grep -iq "/dev/tty" "$INSTALL_ROOT/etc/inittab"; then
   if is_version_less ${OLD_SPELL_VERSION} 2.20 && is_version_less 2.19.1 ${VERSION}; then
@@ -21,9 +21,8 @@ if grep -iq "/dev/tty" "$INSTALL_ROOT/etc/inittab"; then
     if ! query "Attempt to replace the lines automatically?" n; then
       return 1
     else
-      cp $INSTALL_ROOT/etc/inittab $INSTALL_ROOT/etc/inittab-$(date +'%Y%m%d%H%M') &&
-      sedit "s:/dev/tty:tty:g" "$INSTALL_ROOT/etc/inittab" &&
-      message "${MESSAGE_COLOR}Updated${DEFAULT_COLOR}"
+      persistent_add UL_DEV_AUTOREPLACE &&
+      local UL_DEV_AUTOREPLACE="y"
     fi
   fi
 fi &&
