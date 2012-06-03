@@ -10,4 +10,7 @@ fi &&
 if is_depends_enabled $SPELL gtk+2; then
     make procmeter3-gtk2 || return 1
 fi &&
+if is_depends_enabled $SPELL gtk+3; then
+    make procmeter3-gtk3 || return 1
+fi &&
 make_normal
