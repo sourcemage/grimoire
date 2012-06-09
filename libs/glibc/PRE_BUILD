@@ -2,9 +2,10 @@ default_pre_build  &&
 
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   cd      $SOURCE_DIRECTORY                  &&
-  patch $SOURCE_DIRECTORY/timezone/Makefile  \
-        $SCRIPT_DIRECTORY/localtime.patch    &&
-
+  #http://sourceware.org/git/?p=glibc.git;a=commit;h=482ff4dae91cf9a288284072d1a299868db7a634
+  patch -p1 -d $SOURCE_DIRECTORY < $SPELL_DIRECTORY/do-not-install-timezones.patch &&
+  #http://sourceware.org/git/?p=glibc.git;a=commit;h=a458e7fe3835b8a3bcac5a54733af45cc06fc0da
+  patch -p1 -d $SOURCE_DIRECTORY < $SPELL_DIRECTORY/do-not-install-timezones-2.patch &&
   #
   # Unpack glibc-kernel-headers
   #
@@ -14,7 +15,21 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   persistent_add  GLIBC_HEADERS_DIR                        &&
   GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.bz2}  &&
 
-  unpack_file 3                         &&
+  case ${HEADERS_VERSION} in
+    3.[1-9]*)
+            message "${MESSAGE_COLOR}bunzip2 $SOURCE_CACHE/$SOURCE3${DEFAULT_COLOR}"
+            bunzip2 -k $SOURCE_CACHE/$SOURCE3
+            SOURCE3_ORI=$SOURCE3
+            SOURCE3=${SOURCE3/.bz2}
+            unpack_file 3 || return 1
+            message "${MESSAGE_COLOR}rm $SOURCE_CACHE/$SOURCE3${DEFAULT_COLOR}"
+            rm $SOURCE_CACHE/$SOURCE3
+            SOURCE3=$SOURCE3_ORI
+            ;;
+           *)
+            unpack_file 3 || return 1
+            ;;
+  esac
   if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
     cd  $GLIBC_HEADERS_DIR &&
     if [ ! -z $SOURCE3 ]; then
@@ -24,10 +39,22 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   else
     cd  $GLIBC_HEADERS_DIR &&
     if [ ! -z $SOURCE7 ]; then
-      verify_file 7 || return 1 &&
-      bzcat ${SOURCE_CACHE}/$SOURCE7 > ${SOURCE7%.bz2} &&
+      if [[ ${HEADERS_VERSION} > 3.0.4 ]]; then
+        message "${MESSAGE_COLOR}bunzip2 $SOURCE_CACHE/$SOURCE7${DEFAULT_COLOR}"
+        bunzip2 -k ${SOURCE_CACHE}/$SOURCE7 &&
+        SOURCE7_ORI=${SOURCE7}
+        SOURCE7=${SOURCE7/.bz2}
+	echo $SOURCE7_GPG
+        verify_file 7 || return 1
+        message "${MESSAGE_COLOR}rm $SOURCE_CACHE/$SOURCE7${DEFAULT_COLOR}"
+        rm $SOURCE_CACHE/$SOURCE7
+        SOURCE7=${SOURCE7_ORI}
+      else
+        verify_file 7 || return 1
+      fi
+      bzcat ${SOURCE_CACHE}/$SOURCE7 > ${SOURCE7/.bz2}
       message "${MESSAGE_COLOR}Patching ${!patch}${DEFAULT_COLOR}" &&
-      patch -p1 < ${SOURCE7%.bz2} &&
+      patch -p1 < ${SOURCE7/.bz2} &&
       if [[ $? != 0 ]]; then
         message "${PROBLEM_COLOR}Patch ${!patch} failed${DEFAULT_COLOR}" &&
         return 1

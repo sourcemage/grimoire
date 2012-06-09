@@ -2,7 +2,6 @@ default_pre_build          &&
 cd $SOURCE_DIRECTORY 	   &&
 
 sed -i '/-Werror/d' src/3rdparty/webkit/Source/WebKit.pri &&
-patch -p1 < ${SCRIPT_DIRECTORY}/qt-everywhere-opensource-src-4.8.1-gcc_fix-1.patch &&
 patch -p1 < ${SCRIPT_DIRECTORY}/qt-everywhere-opensource-src-4.8.1-glib_fix-1.patch &&
 
 # fix bad .pro file for 4.6.0-beta1
@@ -34,4 +33,13 @@ fi  &&
 # fix use of firebird
 sed -i "s/-lgds/-lfbclient/" config.tests/unix/ibase/ibase.pro \
                              src/sql/drivers/drivers.pri  \
-                             src/plugins/sqldrivers/ibase/ibase.pro
+                             src/plugins/sqldrivers/ibase/ibase.pro &&
+
+# fix icu support
+echo "fixing icu support" &&
+sed -i -e '/CONFIG\s*+=\s*text_breaking_with_icu/ s:^#\s*::' \
+          src/3rdparty/webkit/Source/JavaScriptCore/JavaScriptCore.pri &&
+
+if [[ $QT_WEBKIT_VIDEO == n ]]; then
+  sed -i '1iDEFINES += ENABLE_VIDEO=0' src/3rdparty/webkit/Source/WebCore/WebCore.pro
+fi

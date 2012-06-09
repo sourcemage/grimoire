@@ -1,3 +1,7 @@
+if [ "${SMGL_COMPAT_ARCHS[1]}" ]; then
+  CFLAGS="${CFLAGS} -fPIC"
+fi &&
+
 ./configure --prefix=${INSTALL_ROOT}/usr                 \
         --sysconfdir=${INSTALL_ROOT}/etc                 \
      --localstatedir=${INSTALL_ROOT}/var                 \
