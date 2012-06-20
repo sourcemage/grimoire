@@ -1,2 +1,2 @@
-OPTS="$OPTS --enable-shared"  &&
+OPTS="--enable-shared $NEON_OPTS $OPTS"  &&
 default_build
