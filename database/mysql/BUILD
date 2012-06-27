@@ -7,6 +7,7 @@ if  list_find "$MSQL_ENGINES" "none"  ;  then
          --without-plugin-ndbcluster         \
          $OPTS"
 else
+  LDFLAGS="${LDFLAGS/-Wl,--as-needed/}" &&
   if  list_find "$MSQL_ENGINES" "ARCHIVE"  ;  then
     PLUGINS="$PLUGINS,archive"
   fi                                                     &&
@@ -30,7 +31,8 @@ else
     OPTS="--without-plugin-innodb_plugin $OPTS"
   fi                                                     &&
   if  list_find "$MSQL_ENGINES" "ndbcluster"  ;  then
-    PLUGINS="$PLUGINS,ndbcluster"
+    PLUGINS="$PLUGINS,ndbcluster" &&
+    OPTS="--with-ndb-test $OPTS"
   else
     OPTS="--without-plugin-ndbcluster $OPTS"
   fi
