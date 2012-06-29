@@ -8,6 +8,10 @@ if  list_find "$MSQL_ENGINES" "none"  ;  then
          $OPTS"
 else
   LDFLAGS="${LDFLAGS/-Wl,--as-needed/}" &&
+
+  # Cleanup MSQL_ENGINES
+  MSQL_ENGINES=$(echo $MSQL_ENGINES | tr ' ' '\n' | awk '!_[$0]++' | tr '$\n' ' ')
+
   if  list_find "$MSQL_ENGINES" "ARCHIVE"  ;  then
     PLUGINS="$PLUGINS,archive"
   fi                                                     &&
