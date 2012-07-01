@@ -139,6 +139,8 @@ ln -s /usr/include/sys/capability.h $SOURCE_DIRECTORY/nscd/sys/capability.h &&
 #
 cd  $SOURCE_DIRECTORY.bld  &&
 
+OPTS="--enable-obsolete-rpc $OPTS"  &&
+
 #
 # Configure glibc to use the sanitised headers
 # http://bugs.sourcemage.org/show_bug.cgi?id=7560

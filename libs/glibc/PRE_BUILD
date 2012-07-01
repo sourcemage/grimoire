@@ -1,11 +1,10 @@
 default_pre_build  &&
 
+# seems perl script scripts/test-installation.pl is broken now
+sed -i 's:CC="$(CC)" $(PERL) scripts/test-installation.pl $(common-objpfx)::' $SOURCE_DIRECTORY/Makefile &&
+
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   cd      $SOURCE_DIRECTORY                  &&
-  #http://sourceware.org/git/?p=glibc.git;a=commit;h=482ff4dae91cf9a288284072d1a299868db7a634
-  patch -p1 -d $SOURCE_DIRECTORY < $SPELL_DIRECTORY/do-not-install-timezones.patch &&
-  #http://sourceware.org/git/?p=glibc.git;a=commit;h=a458e7fe3835b8a3bcac5a54733af45cc06fc0da
-  patch -p1 -d $SOURCE_DIRECTORY < $SPELL_DIRECTORY/do-not-install-timezones-2.patch &&
   #
   # Unpack glibc-kernel-headers
   #
@@ -94,8 +93,6 @@ rm -rf $GLIBC_HEADERS_DIR/include/drm &&
 cd  $SOURCE_DIRECTORY                               &&
 patch  -p0  <  $SCRIPT_DIRECTORY/Makefile.patch     &&
 patch  -p1  <  $SCRIPT_DIRECTORY/as-test-x.patch &&
-patch -p1 < $SPELL_DIRECTORY/gcc45.patch &&
-patch -Np1 < $SPELL_DIRECTORY/glibc-2.15-fixes-1.patch &&
 
 # disabled libgd detection/building memusagestat for now until a better
 # fix has been found, bug #8277
@@ -117,8 +114,4 @@ mk_source_dir  $SOURCE_DIRECTORY.bld &&
 local test_path=$SOURCE_DIRECTORY.bld/test-installation &&
 mkdir $test_path &&
 sed -i "s,/tmp,$test_path,g" scripts/test-installation.pl &&
-sed -i 's/ot \$/ot:\n\ttouch $@\n$/' manual/Makefile &&
-
-# CC="gcc" /usr/bin/perl scripts/test-installation.pl /usr/src/glibc-2.13.bld/
-# /usr/lib/gcc/i686-pc-linux-gnu/4.4.3/../../../../i686-pc-linux-gnu/bin/ld: cannot find -lnss_test1
-patch scripts/test-installation.pl < $SPELL_DIRECTORY/test-installation.pl.patch
+sed -i 's/ot \$/ot:\n\ttouch $@\n$/' manual/Makefile
