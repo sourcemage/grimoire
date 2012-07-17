@@ -1,2 +1,2 @@
 cd linux &&
-make
+GTK_VERSION=gtk2 make
