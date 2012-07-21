@@ -11,10 +11,13 @@ CFLAGS="${CFLAGS/-O2/-O0}"
 CXXFLAGS="${CXXFLAGS/-O2/-O0}"
 CFLAGS="${CFLAGS/-O3/-O0}"
 CXXFLAGS="${CXXFLAGS/-O3/-O0}"
-fi                                                            &&
-if [[ $(installed_version gcc) == "4.7.0" ]] ; then
+fi &&
+VGC=$(installed_version gcc) &&
+VGC=${VGC%.?} &&
+if [[ "${VGC}" == "4.7" ]] ; then
   CFLAGS+=" -Wno-error=array-bounds"
 fi &&
+message CFLAGS=$CFLAGS
 OPTS="${XORG_SERVER_OPTS}                                     \
       --with-xkb-output=$TRACK_ROOT/var/lib/xkb               \
       --with-dri-driver-path=$TRACK_ROOT/usr/lib/dri          \
