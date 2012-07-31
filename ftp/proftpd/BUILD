@@ -18,6 +18,7 @@ fi &&
 
 OPTS="${PROFTPD_OPTS} \
       ${OPTS} \
+      --localstatedir=$INSTALL_ROOT/var/run \
       --with-modules=${PROFTPD_MODS// /:} \
       --with-includes=${SQL_INC}" &&
 
