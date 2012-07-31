@@ -2,13 +2,15 @@ default_pre_build         &&
 
 cd "$SOURCE_DIRECTORY"    &&
 
-if [ "$FUSE_BRANCH" != "scm" ]; then
-  patch -p0 < "$SPELL_DIRECTORY/init.patch"
-fi  &&
-
 # glibc-2.14 fix
 sed -i "/sched/s|<|<linux/|" util/fusermount.c &&
 
-if [ "$FUSE_BRANCH" = "scm" ]; then
+if [ "$FUSE_BRANCH" != "scm" ]; then
+  # part of revert of official commit 3743f3fe
+  # that brakes our castfs staging system
+  patch -p1 < "$SPELL_DIRECTORY/unlock.patch"
+  # prevent installing fuse initscript into the wrong place
+  patch -p0 < "$SPELL_DIRECTORY/init.patch"
+else
   ./makeconf.sh
 fi

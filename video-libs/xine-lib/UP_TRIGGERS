@@ -1,0 +1,18 @@
+# up_trigger everything on minor version updates
+
+if spell_ok $SPELL; then
+  local OLD_SPELL_VERSION="$(installed_version $SPELL)"
+
+  if test "${VERSION:2:1}" != "${OLD_SPELL_VERSION:2:1}"; then
+    message "This is a possibly incompatible update of $SPELL..."
+    message "Figuring out what spells need to be recast, this may take a while."
+
+    for each in $(show_up_depends $SPELL 1); do
+      # Check if the binaries link against libxine.so
+      if gaze install $each | xargs readelf -d 2> /dev/null |
+         grep -q "NEEDED.*libxine\.so"; then
+        up_trigger $each cast_self
+      fi
+    done
+  fi
+fi

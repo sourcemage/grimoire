@@ -1,2 +1,2 @@
 LDFLAGS="-lm $LDFLAGS" &&
-cmake_build
+default_build
