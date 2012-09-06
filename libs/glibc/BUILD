@@ -132,6 +132,13 @@ ln -s /usr/include/sys/capability.h $SOURCE_DIRECTORY/nscd/sys/capability.h &&
 cd  $SOURCE_DIRECTORY.bld  &&
 
 #
+# Install all libs into /lib
+# Fixes installing glibc on x86_64 without a lib64 symlink/dir
+# Bug #441
+#
+echo -e "slibdir=/lib" > configparms
+
+#
 # Configure glibc to use the sanitised headers
 # http://bugs.sourcemage.org/show_bug.cgi?id=7560
 #
