@@ -7,11 +7,7 @@ if [[ $WEECHAT_DEBUG == y ]]; then
 fi &&
 
 if [[ $WEECHAT_CMAKE == y ]]; then
-  cd $SOURCE_DIRECTORY &&
-  mkdir build &&
-  cd build &&
-  cmake .. -DPREFIX=/usr &&
-  make
+  cmake_build
 else
   if [[ $WEECHAT_BRANCH == scm ]]; then
     ./autogen.sh
