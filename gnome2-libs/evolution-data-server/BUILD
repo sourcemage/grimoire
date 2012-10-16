@@ -10,8 +10,7 @@ else
    OPTS="$OPTS --enable-nntp=no"
 fi &&
 
-OPTS="$CAL       \
-      $EDS_LARGE \
+OPTS="$EDS_LARGE \
       $OPTS"     &&
 
 make_single    &&
