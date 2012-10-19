@@ -4,7 +4,7 @@ OPTS="$OPTS --build=${BUILD}"
 if [[ $UTF8 == y ]]; then
   OPTS="$OPTS  --enable-widec"
 fi  &&
-OPTS="$OPTS --with-shared --libdir=${TRACK_ROOT}/lib"  &&
+OPTS="$OPTS --with-shared --libdir=${TRACK_ROOT}/lib --enable-pc-files"  &&
 make_single &&
   ./configure --prefix=${TRACK_ROOT}/usr  \
           --sysconfdir=${TRACK_ROOT}/etc  \

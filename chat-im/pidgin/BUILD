@@ -3,7 +3,7 @@ CFLAGS="$CFLAGS -I${TRACK_ROOT}/usr/X11R6/include" &&
 
 if is_depends_enabled $SPELL gtk+2; then
    LIBS="$LIBS -lX11"
-endif &&
+fi &&
 export LIBS="${LIBS} -lm" &&
 
 export PKG_CONFIG_PATH="${TRACK_ROOT}/usr/include/nss:${TRACK_ROOT}/usr/include/nspr" &&
