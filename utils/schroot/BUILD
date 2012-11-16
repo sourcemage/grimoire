@@ -1,2 +1,2 @@
-OPTS+='--enable-shared ' &&
+OPTS+=' --enable-shared' &&
 default_build
