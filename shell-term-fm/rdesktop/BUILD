@@ -1,4 +1,5 @@
 OPTS="$RDESKTOP_IPV6  \
+      --without-libvncserver \
       $OPTS"          &&
 
 if  [  "$RDESKTOP_SOUND"  !=  "none"  ];  then
