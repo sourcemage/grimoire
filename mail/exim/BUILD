@@ -1,33 +1,18 @@
 create_account  exim  &&
 create_account  mail  &&
 
-mkdir  -p         $INSTALL_ROOT/var/spool/mail  &&
-chmod  1777       $INSTALL_ROOT/var/spool/mail  &&
-chown  exim:exim  $INSTALL_ROOT/var/spool/mail  &&
+# always correct permissions for older setups
+install -vm 2775 -d -o exim -g mail "$INSTALL_ROOT/var/spool/mail" &&
 
-if  [[  -e  $INSTALL_ROOT/var/spool/mail/db  ]]
-then
-  chown  -R  exim:exim  $INSTALL_ROOT/var/spool/mail/db
-fi  &&
+for maildir in db input msglog; do
+  if [[ -e $INSTALL_ROOT/var/spool/mail/$maildir ]]; then
+    chown -R exim:exim "$INSTALL_ROOT/var/spool/mail/$maildir"
+  else
+    install -vm 770 -d -o exim -g exim "$INSTALL_ROOT/var/spool/mail/$maildir"
+  fi
+done &&
 
-if  [[  -e  $INSTALL_ROOT/var/spool/mail/input  ]]
-then
-  chown  -R  exim:exim  $INSTALL_ROOT/var/spool/mail/input
-fi  &&
-
-if  [[  -e  $INSTALL_ROOT/var/spool/mail/log  ]]
-then
-  chown  -R  exim:exim  $INSTALL_ROOT/var/spool/mail/log
-fi  &&
-
-if  [[  -e  $INSTALL_ROOT/var/spool/mail/msglog  ]]
-then
-  chown  -R  exim:exim  $INSTALL_ROOT/var/spool/mail/msglog
-fi  &&
-
-chgrp  -R  exim  $INSTALL_ROOT/var/spool/mail  &&
-
-mkdir  -p  Local  &&
+mkdir  -vp  Local  &&
 
 if  list_find  "$OPTS"  '--enable-x11-monitor';  then
   cp  src/EDITME           Local/Makefile     &&
@@ -191,5 +176,7 @@ echo  "EXIM_GROUP=exim"                  >>  Local/Makefile  &&
 echo  "PCRE_LIBS=-lpcre"                 >> Local/Makefile   &&
 
 sedit  's:tail \-1:tail \-n 1:'  scripts/Configure-config.h  &&
-make_single                                                  &&
-make
+
+make_single &&
+make &&
+make_normal
