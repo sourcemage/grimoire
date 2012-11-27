@@ -1,1 +1,1 @@
-make  basedir=$INSTALL_ROOT/usr/
+make  basedir=$INSTALL_ROOT/usr
