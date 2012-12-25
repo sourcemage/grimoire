@@ -6,4 +6,5 @@ then
   export RCC="${INSTALL_ROOT}/usr/bin/qt4/rcc"
   export UIC="${INSTALL_ROOT}/usr/bin/qt4/uic"
 fi &&
-default_build
+default_build_configure &&
+./drake -j${MAKE_NJOBS}

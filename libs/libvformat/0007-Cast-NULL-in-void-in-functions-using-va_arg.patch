@@ -1,0 +1,51 @@
+From a20a232e48b80958b977e3be96f6a859ba61260c Mon Sep 17 00:00:00 2001
+From: Thomas Preud'homme <thomas.preudhomme@celest.fr>
+Date: Wed, 12 May 2010 18:39:30 +0200
+Subject: Cast NULL in void * in functions using va_arg
+
+NULL isn't necessary a zero value. For instance, on AMD64 architecture,
+a null pointer is 0x7fff00000000. Usually things works automagically as
+the compiler always cast NULL and 0 in void * if stored in a pointer
+variable. But with functions with variable number of arguments the
+compiler can't know the type of the arguments and thus don't make the
+cast. In consequences, NULL and 0 must be cast explicitely in void * if
+the parameter is a pointer.
+
+Origin: vendor
+Forwarded: https://sourceforge.net/tracker/?func=detail&aid=3084905&group_id=37192&atid=419516
+Last-Update: 2010-12-23
+Applied-Upstream: http://vformat.cvs.sourceforge.net/viewvc/vformat/build/vformat/vformat.c?revision=1.22&view=markup
+---
+ test/vformat.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/vformat.c b/test/vformat.c
+index b4a753d..40c299e 100644
+--- a/test/vformat.c
++++ b/test/vformat.c
+@@ -489,19 +489,19 @@ static void check_extract_fields(
+         }
+ 
+         printf(" Looking for {%s, %s}...\n", p_array[0], p_array[1]);
+-        if (vf_get_property(&p_tmp, p_object, VFGP_FIND, NULL, p_array[0], p_array[1], NULL))
++        if (vf_get_property(&p_tmp, p_object, VFGP_FIND, NULL, p_array[0], p_array[1], (void *) NULL))
+         {
+             print_search_results(p_tmp);
+         }
+ 
+         printf(" Looking for {%s, %s}...\n", p_array[0], p_array[2]);
+-        if (vf_get_property(&p_tmp, p_object, VFGP_FIND, NULL, p_array[0], p_array[2], NULL))
++        if (vf_get_property(&p_tmp, p_object, VFGP_FIND, NULL, p_array[0], p_array[2], (void *) NULL))
+         {
+             print_search_results(p_tmp);
+         }
+ 
+         printf(" Looking for {%s, %s, %s}...\n", p_array[0], p_array[1], p_array[2]);
+-        if (vf_get_property(&p_tmp, p_object, VFGP_FIND, NULL, p_array[0], p_array[1], p_array[2], NULL))
++        if (vf_get_property(&p_tmp, p_object, VFGP_FIND, NULL, p_array[0], p_array[1], p_array[2], (void *) NULL))
+         {
+             print_search_results(p_tmp);
+         }
+-- 
+1.7.6.3
+
