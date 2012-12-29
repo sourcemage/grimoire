@@ -1,2 +1,2 @@
-./configure prefix=${INSTALL_ROOT}/usr $CMUS_OSS $OPTS  &&
+./configure "prefix=${INSTALL_ROOT}/usr" $OPTS &&
 make
