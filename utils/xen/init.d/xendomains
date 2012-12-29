@@ -60,13 +60,22 @@ function is_running()
   $CMD list "${1}" >/dev/null 2>&1
 }
 
-start() 
+function is_running_doms()
+{
+  $CMD list | tail -n +2 | grep -v -E "^Domain-0[[:space:]]+0" > /dev/null
+}
+
+start()
 {
   check_userland
 
   if [ -f $LOCKFILE ]; then
-    echo -e "XEN: xendomains already running (lockfile exists)"
-    exit 0
+    if is_running_doms; then
+      echo -e "XEN: xendomains already running (lockfile exists)"
+      exit 0
+    else
+      rm -f $LOCKFILE
+    fi
   fi
 
   if [ $(ls ${XENDOMAINS_AUTO} | wc -l) == 0 ]; then
