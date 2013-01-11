@@ -43,9 +43,21 @@ if [[ $MESALIB_BUILD == dri ]]; then
     MESALIB_DRIVERS="$AVAILABLE_DRIVERS"
   fi &&
 
-  config_query_multi MESALIB_GALLIUM                                       \
-                   "What Gallium3D drivers would you like to build?"    \
-                   none llvm svga i915 i965 radeon nouveau swrast
+  if [[ "x${MESALIB_BRANCH}" == "xdevelopment" ||
+        "x${MESALIB_BRANCH}" == "xscm"         ]]; then
+	if list_find "radeon" MESALIB_GALLIUM; then
+      MESALIB_GALLIUM="r300 r600"
+    fi &&
+    list_remove MESALIB_GALLIUM "i965"   &&
+    list_remove MESALIB_GALLIUM "radeon" &&
+    config_query_multi MESALIB_GALLIUM                                  \
+                     "What Gallium3D drivers would you like to build?"  \
+                     none llvm svga i915 r300 r600 nouveau swrast
+  else
+    config_query_multi MESALIB_GALLIUM                                  \
+                     "What Gallium3D drivers would you like to build?"  \
+                     none llvm svga i915 i965 radeon nouveau swrast
+  fi
 fi &&
 
 if [[ $MESALIB_BUILD == xlib ]]; then MESALIB_DRIVERS="swrast"
