@@ -3,5 +3,6 @@
              --prefix=/usr                             \
              --datadir=$TRACK_ROOT/usr/share/misc      \
              --mandir=$TRACK_ROOT/usr/share/man        \
+             --enable-static                           \
              $OPTS                                     &&
 make DESTDIR=$INSTALL_ROOT
