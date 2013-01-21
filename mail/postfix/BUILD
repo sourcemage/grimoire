@@ -9,6 +9,14 @@ install -vm 2775 -d -o mail -g mail "$INSTALL_ROOT/var/spool/mail" &&
 local AUXLIBS="-L$INSTALL_ROOT/usr/lib -L$INSTALL_ROOT/lib -lm" &&
 local CCARGS="" &&
 
+if is_depends_enabled $SPELL pcre; then
+    AUXLIBS="$AUXLIBS -lpcre" &&
+    CCARGS="$CCARGS -DHAS_PCRE" &&
+    message "${MESSAGE_COLOR}PCRE requested: Using PCRE${DEFAULT_COLOR}"
+else
+    CCARGS="$CCARGS -DNO_PCRE"
+fi &&
+
 if is_depends_enabled $SPELL openldap; then
     AUXLIBS="$AUXLIBS -lldap -llber" &&
     CCARGS="$CCARGS -DHAS_LDAP" &&
