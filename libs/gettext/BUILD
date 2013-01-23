@@ -5,10 +5,20 @@ OPTS="--enable-threads=posix $OPTS" &&
 
 # never rely on external glib2
 OPTS="--with-included-glib $OPTS" &&
-# use this version of getext
-OPTS+=" --with-included-gettext" &&
 
-default_build &&
+make_single  &&
+
+./configure  --build=$BUILD                           \
+              --host=$HOST                            \
+            --prefix=${TRACK_ROOT}/usr                \
+        --sysconfdir=${TRACK_ROOT}/etc                \
+           --infodir=${TRACK_ROOT}/usr/share/info     \
+            --mandir=${TRACK_ROOT}/usr/share/man      \
+             --with-included-gettext                  \
+        --includedir=${TRACK_ROOT}/usr/local/include  \
+             $OPTS                                    &&
+
+make  &&
 
 if  is_depends_enabled $SPELL tetex;  then
   cd  gettext-tools/doc  &&
@@ -17,6 +27,8 @@ if  is_depends_enabled $SPELL tetex;  then
   make  pdf              &&
   cd  -
 fi  &&
+
+make_normal  &&
 
 #
 # Remove libintl.h from old log files
