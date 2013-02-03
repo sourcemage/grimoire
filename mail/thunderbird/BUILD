@@ -34,6 +34,7 @@ fi
 ./configure --prefix=${INSTALL_ROOT}/usr     \
             --with-user-appdir=.thunderbird  \
             --enable-application=mail        \
+            --disable-system-cairo           \
             --disable-crashreporter          \
               $OPTS                          &&
 
