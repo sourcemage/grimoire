@@ -1,2 +1,2 @@
-sed -i 's,local,,' Makefile &&
-make
+OPTS="$OPTS $LIBPSTOPTS --enable-libpst-shared"
+default_build
