@@ -9,8 +9,6 @@ for i in libpit heimdall; do
     --localstatedir=${INSTALL_ROOT}/var \
     --mandir=${INSTALL_ROOT}/usr/share/man \
     --infodir=${INSTALL_ROOT}/usr/share/info $OPTS &&
-  # Issue #23, fixed in 1.4
-  sed -ie '/^	sudo/d' Makefile &&
   make &&
   cd .. || exit
 done
