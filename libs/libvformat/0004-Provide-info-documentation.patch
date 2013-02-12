@@ -1,0 +1,939 @@
+From c05fb67cf74a6231949b7917cbe766cdb7bcdca6 Mon Sep 17 00:00:00 2001
+From: Mathias Palm <mathias.palm@gmx.net>
+Date: Sat, 8 May 2010 23:00:09 +0200
+Subject: Provide info documentation
+
+Create texi files so that info files can be generated with texinfo.
+
+Origin: vendor
+Forwarded: http://vformat.cvs.sourceforge.net/viewvc/vformat/doc/
+Last-Update: 2010-05-09
+Applied-Upstream: http://vformat.cvs.sourceforge.net/viewvc/vformat/doc/
+---
+ doc/Makefile.am       |    6 +-
+ doc/libvformat-1.texi |  733 +++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/libvformat-2.texi |   79 ++++++
+ doc/libvformat-i.texi |    5 +
+ doc/libvformat.texi   |   51 ++++
+ 5 files changed, 872 insertions(+), 2 deletions(-)
+ create mode 100644 doc/libvformat-1.texi
+ create mode 100644 doc/libvformat-2.texi
+ create mode 100644 doc/libvformat-i.texi
+ create mode 100644 doc/libvformat.texi
+
+diff --git a/doc/Makefile.am b/doc/Makefile.am
+index 57591c5..e078504 100644
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
+@@ -1,8 +1,8 @@
+ # No automatisation found. Write me if any idea.
++info_TEXINFOS = libvformat.texi
++libvformat_TEXINFOS = libvformat-1.texi libvformat-2.texi libvformat-i.texi
+ 
+ install-data-hook:
+-	c2man -P "gcc -E -C -I.." ../vformat/vf_iface.h
+-
+ 	$(mkinstalldirs) $(mandir)/man3
+ 
+ 	for i in *.3; do \
+@@ -14,3 +14,5 @@ install-data-hook:
+ 	  echo " $(INSTALL_DATA) $$file $(mandir)/man3/$$inst"; \
+ 	  $(INSTALL_DATA) $$file $(mandir)/man3/$$inst; \
+ 	done
++
++	cp /usr/share/texmf-dist/tex/texinfo/texinfo.tex .
+diff --git a/doc/libvformat-1.texi b/doc/libvformat-1.texi
+new file mode 100644
+index 0000000..ec59664
+--- /dev/null
++++ b/doc/libvformat-1.texi
+@@ -0,0 +1,733 @@
++@node    Functions of libvformat
++@chapter Functions of libvformat
++@deftypefun  {VFORMATDECLSPEC bool_t} vf_parse_init (
++@multitable{VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PARSER_T @tab @var{**pp_parser},@tab Ptr to allocated parser.  
++@item VF_OBJECT_T @tab @var{pp_object} @tab The object we're parsing into. 
++@end multitable
++)
++
++
++
++Allocate and initialise a parser.  To parse a VCARD (or any vObject)
++a user allocates a parser, pushes data through it using vf_parse_text()
++and finally calls vf_parse_end():
++
++@verbatim
++
++    VF_PARSER_T *p_parser;
++
++    if (vf_parse_init(&p_parser, pp_object))
++    {
++        do
++        {
++            char buffer[...];
++            int numchars;
++        
++            numchars = get_chars_from_somewhere(buffer, ...);
++
++            ret = vf_parse_text(p_parser, buffer, numchars);
++        }
++        while (ret && (0 < charsread))
++            ;
++
++        if (!vf_parse_end(p_parser))
++        {
++            ret = FALSE;
++        }
++    }
++
++@end verbatim
++
++A parser allocated by vf_parse_init(), must be deallocated by calling
++vf_parse_end() whether or not parsing succeeds. Also, parsing may not
++be complete (ie. values may be held buffered and not evaluated fully
++or assigned to a VF_OBJECT_T) untill the final call to vf_parse_end()
++=> after a vf_parse_init() you _must_ vf_parse_end().
++ 
++Returns TRUE iff parser allocated successfully. 
++
++@end deftypefun
++
++@deftypefun  {VFORMATDECLSPEC bool_t} vf_parse_text (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item  VF_PARSER_T @tab @var{*p_parser}, @tab  The parser 
++@item  char @tab @var{*p_chars},@tab New characters to parse into object 
++@item  int @tab @var{numchars}@tab Number of new characters 
++@end multitable
++)
++
++
++Parse indicated text into the object associated with the VPARSE_T. See
++notes for vf_parse_init().
++
++Returns TRUE <=> allocation & syntax OK, FALSE else.
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_parse_end (
++            @multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++            @item VF_PARSER_T @tab @var{*p_parse} @tab The parser 
++            @end multitable
++            )
++
++
++
++Ensure parse completion, release memory associated with the parser.
++
++Returns TRUE <=> parse complete with no error.
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_read_file (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_OBJECT_T @tab @var{**pp_object},@tab Pointer to output object 
++@item const char @tab @var{*p_name},@tab Name of file to read
++@end multitable
++)
++
++          
++Reads indicated VOBJECT_T file.
++
++Returns TRUE <=> read OK, FALSE else.
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_write_file (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item const char @tab @var{*p_name},@tab Output filename
++@item VF_OBJECT_T @tab @var{*p_object},@tab The object to write
++@item bool_t @tab @var{write_all}@tab Should write p_next as well?
++@end multitable
++)
++
++
++Write indicated vobject to file.  For lists of objects (eg. read from
++a phonebook) the write_all parameter allows the caller to control if
++the library writes the entire list or just the head item. 
++
++Returns TRUE <=> written OK, FALSE else.
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_get_next_object (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_OBJECT_T @tab @var{**pp_object}@tab Ptr to pointer to current object
++@end multitable
++)
++
++
++
++Find "next" vobject.  Typically called after a call to vf_read_file()
++which may well read a list of objects from a file for example: 
++
++@verbatim
++        if (vf_read_file(&p_object, p_filename))
++        {
++                do
++                {
++                  ...
++                }
++                while (vf_get_next_object(&p_object))
++                ;
++        }
++@end verbatim
++
++The value of *pp_object is updated by the call if it returns TRUE.
++
++Returns TRUE iff found (ie. there is a "next" object).
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC VF_OBJECT_T *} vf_create_object (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item const char @tab @var{*p_type},@tab Type of object to create
++@item VF_OBJECT_T @tab @var{*p_parent}@tab Parent object if any
++@end multitable
++)
++
++
++Creates an empty vformat object.
++
++Returns  Ptr to object if created else NULL.
++@end deftypefun
++
++@deftypefun {const VFORMATDECLSPEC char *} vf_get_object_type (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_OBJECT_T @tab @var{*p_object}@tab Object to locate type of
++@end multitable
++)
++
++
++
++Return the type string identifying the indicated vformat object, the
++string after the 'BEGIN' mark so 'VCARD' or 'VNOTE' etc. 
++
++Return  Ptr to string.
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_get_property (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{**pp_prop},        @tab Output pointer         
++@item VF_OBJECT_T @tab @var{*p_object},      @tab Object to add to       
++@item vf_get_t @tab @var{ops},               @tab Search flags           
++@item const char @tab @var{*p_group},        @tab Group name if any        
++@item const char @tab @var{*p_name},         @tab Name of tag 	       
++@item const char @tab @var{*p_qualifier},    @tab First qualifier if any 
++@item ...       @tab                         @tab Subequent qualifiers   
++@end multitable
++)
++
++
++Basic searching function locating elements of the VOBJECT by qualified
++name.  The function is a varargs function (like sprintf) and the list
++of arguments must be NULL terminated (hence the appearance of the
++p_qualifier argument in the arglist).  Valid calls might be:
++
++@example
++  vf_get_property(&p_out, p_object, VFGP_FIND, NULL, "N", NULL);
++    - find and return "N" properties.  If there are none, return FALSE.
++
++  vf_get_property(&p_out, p_object, VFGP_FIND, NULL, "TEL", "WORK", NULL);
++    - find and return "TEL" entries qualified by the "work" attribute
++      (ie. work phone numbers). If there are none, return FALSE.
++
++  vf_get_property(&p_out, p_object, VFGP_GET, NULL, "TEL", "WORK", NULL);
++    - find and return work phone number.  The entry is automatically
++    added if not pre-existing.
++
++  vf_get_property(&p_out, p_object, VFGP_GET, NULL, "TEL", "WORK", NULL);
++    - find and return work phone numbers in the group identifier by the "ME"
++    identifier.  The entry is automatically added if not pre-existing.
++
++  vf_get_property(&p_out, p_object, VFGP_FIND, "ME", "*", NULL);
++    - effectively enumerates all entries in the "ME" group.
++@end example
++
++A pointer to the first property matching the search criteria is returned
++via the pp_prop argument.  The search actually locates all such matches
++and pointer to subsequent entries (if there are >1) may be found by
++calling the vf_get_next_property() function.
++
++The tags may occur in any order _except_ that the p_name must be first.
++
++Note that the VF_PROP_T returned by pp_prop is an opaque type and the
++functions vf_get_prop_xxxx() etc. must be used to locate real "values".
++
++Cached search results (the list enumerated by subsequent calls to the
++vf_get_next_property() function) are maintained through the use of a
++a single internal pointer therefore this method is not thread safe.
++
++Returns TRUE iff found/added successfully.  Ptr to prop returned via pp_prop.
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_get_property_ex (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{**pp_prop},        @tab Output pointer                    
++@item VF_OBJECT_T @tab @var{*p_object},      @tab Object to search	    
++@item vf_get_t @tab @var{ops},               @tab Search flags	            
++@item const char @tab @var{*p_group},        @tab Group name if any	    
++@item const char @tab @var{*p_name},         @tab Name of tag		    
++@item const char @tab @var{*p_qualifier},    @tab First qualifier if any    
++@item va_list args                          @tab Argument list         
++@end multitable
++)             
++
++
++The grunt behind vf_get_property(). Manages the search as described
++vf_get_property() but takes the list of arguments as a va_list.
++This function should be used when writing higher layer functions
++which take varargs (eg. DDX functions).
++
++Returns TRUE iff found/added successfully.  ptr to prop returned via pp_prop.
++
++@end deftypefun
++
++@deftypefun bool_t vf_get_next_property (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{**pp_prop},   @tab Output pointer
++@end multitable
++)
++
++
++
++Find the next property given the current search critera.  User
++calls vf_get_property() to locate first in a bunch of properties
++and can iterate over the rest by calling vf_get_next_property().
++
++Returns TRUE iff found, FALSE else. *pp_prop points to the nex property.
++
++@end deftypefun
++
++@deftypefun bool_t vf_get_prop_value (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},              @tab The property
++@item void @tab @var{**pp_value},                @tab Pointer value
++@item uint32_t @tab @var{*p_size},               @tab Integer value
++@item vf_encoding_t @tab @var{*p_encoding}       @tab Type of return values
++@end multitable
++)   
++
++Get hold of raw fields associated with the property.  These are of
++rious types:
++
++@example
++VF_ENC_VOBJECT
++  - *pp_value = pointer to contained VF_OBJECT_T which can be
++  passed back to any of the object manipulation functions.
++
++VF_ENC_7BIT, VF_ENC_QUOTEDPRINTABLE
++  - *pp_value = ptr to array of char*, *p_size = number of elts.
++
++VF_ENC_8BIT, VF_BASE64
++  - *pp_value = ptr to bytes, *p_size = number of bytes
++@end example
++
++Returns TRUE <=> encoding is valid, FALSE else.
++
++
++@end deftypefun
++
++
++@deftypefun bool_t vf_set_prop_value (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item     VF_PROP_T @tab @var{*p_prop},              @tab The property
++@item     void @tab @var{*p_value},                  @tab Pointer to the data 
++@item     uint32_t @tab @var{n_param},               @tab Data size or index 
++@item     vf_encoding_t @tab @var{encoding},         @tab Encoding in use 
++@item      bool_t @tab @var{copy}                     @tab Copy the data? 
++@end multitable
++)
++
++Set values associated with a property.
++
++Passing a value of encoding not the same as the current property
++encoding will cause the property contents to be freed prior to
++setting the indicated value.
++
++Returns TRUE <=> re-allocation success & encoding correct, FALSE else.
++
++@end deftypefun
++
++@deftypefun {char *} vf_get_prop_value_string (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item           VF_PROP_T @tab @var{*p_prop}, @tab Property to locate string from
++@item           uint32_t @tab @var{n_string} @tab Index to string required
++@end multitable
++)
++
++Obtain string pointer value from VF_PROP_T.  For example a property
++may be defined as:
++
++THING;THIS=STUFF;WITH-QUALIFIERS:fred-fred-fred;gogogo;baabaabaa
++
++A call to vf_get_prop_value_string() specifying n_string=1 will
++return a pointer to the gogogo value.
++
++Return NULL if out of range request, ie. n_string=3 for N:0;1;2
++
++Returns Pointer to string value if value present, NULL if index  too large.
++
++@end deftypefun
++
++@deftypefun bool_t vf_get_prop_value (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}     
++@item           VF_PROP_T @tab @var{*p_prop},              @tab The property 
++@item           void @tab @var{**pp_value},                @tab Pointer value 
++@item           vf_encoding_t @tab @var{*p_encoding},       @tab Type
++of return values 
++@item           uint32_t @tab @var{*p_size},               @tab Integer value      
++@end multitable    
++)
++
++Get hold of raw fields associated with the property.  These are of
++various types:
++
++  VF_ENC_VOBJECT
++    - *pp_value = pointer to contained VF_OBJECT_T which can be
++    passed back to any of the object manipulation functions.
++
++  VF_ENC_7BIT, VF_ENC_QUOTEDPRINTABLE
++    - *pp_value = ptr to array of char*, *p_size = number of elts.
++
++  VF_ENC_8BIT, VF_BASE64
++    - *pp_value = ptr to bytes, *p_size = number of bytes
++
++Returns TRUE <=> encoding is valid, FALSE else.
++
++
++@end deftypefun
++
++
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_set_prop_value (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},              @tab The property 
++@item void @tab @var{*p_value},                  @tab Pointer to the data 
++@item uint32_t @tab @var{n_param},               @tab Data size or index 
++@item vf_encoding_t @tab @var{encoding},         @tab Encoding in use 
++@item bool_t @tab @var{copy}                     @tab Copy the data? 
++@end multitable  
++)
++
++Set values associated with a property.
++
++Passing a value of encoding not the same as the current property
++encoding will cause the property contents to be freed prior to
++setting the indicated value.
++Returns TRUE <=> re-allocation success & encoding correct, FALSE else.
++
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC char *} vf_get_prop_value_string (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},              @tab Property to locate string from 
++@item uint32_t @tab @var{n_string}               @tab Index to string required 
++@end multitable  
++)
++
++Obtain string pointer value from VF_PROP_T.  For example a property
++may be defined as:
++
++THING;THIS=STUFF;WITH-QUALIFIERS:fred-fred-fred;gogogo;baabaabaa
++
++A call to vf_get_prop_value_string() specifying n_string=1 will
++return a pointer to the gogogo value.
++
++Return NULL if out of range request, ie. n_string=3 for N:0;1;2
++
++Returns Pointer to string value if value present, NULL if index  too large.
++
++
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC char *} vf_get_prop_name_string ( 
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},              @tab Property to locate string from 
++@item uint32_t @tab @var{n_string}               @tab Index to string required 
++@end multitable  
++)
++
++
++Get n'th name string.  For example a property may be defined as:
++THING;THIS=STUFF;WITH-QUALIFIERS:fred-fred-fred;gogogo;baabaabaa
++A call to vf_get_prop_name_string() specifying n_string=2 will
++return a pointer to the WITH-QUALIFIERS value.
++Return NULL if out of range request, ie. n_string=4 for X;A;B;C:foo
++
++Returns Pointer to string value if value present, NULL if index  too large.
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_set_prop_name_string (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},              @tab Property we're setting a value in 
++@item uint32_t @tab @var{n_string},              @tab Index to string 
++@item const char @tab @var{*p_string}            @tab Pointer to string 
++@end multitable  
++)
++
++
++
++Set n'th name string.
++
++Returns TRUE iff allocation OK, FALSE else.
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC void} vf_get_prop_name (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},              @tab The property 
++@item char @tab @var{*p_buffer},                 @tab The buffer 
++@item uint32_t @tab @var{bufsize}                @tab Size of the buffer 
++@end multitable  
++)
++
++
++
++
++Build the property name string in the indicated buffer.
++
++Returns (none)
++
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC VF_OBJECT_T *} vf_get_prop_value_object (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop}               @tab Property to locate object from 
++@end multitable  
++)
++
++
++Obtain object pointer value from VF_PROP_T.
++
++Returns Pointer to vobject value (or NULL if not found).
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_set_prop_value_object (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},
++@item VF_OBJECT_T @tab @var{*p_object}
++@end multitable  
++)
++
++
++Set the value of the indicated property to be a VOBJECT.
++
++Returns TRUE <=> set successfully.
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_set_prop_value_string (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},              @tab Property we're setting a value in 
++@item uint32_t @tab @var{n_string},              @tab Index to string 
++@item const char @tab @var{*p_string }           @tab Pointer to string 
++@end multitable  
++)
++
++Set the value of a property.
++
++Returns TRUE <=> set successfully.
++
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC bool_t} vf_set_prop_value_base64 (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},              @tab Property we're setting a value in 
++@item const uint8_t @tab @var{*p_data},          @tab Pointer to the binary data 
++@item uint32_t @tab @var{length},                @tab Length of the binary data 
++@item bool_t @tab @var{copy}                     @tab Copy or keep pointer 
++@end multitable  
++)
++
++
++
++Set the value of a property.
++
++Returns TRUE <=> set successfully.
++
++
++@end deftypefun
++
++@deftypefun {const VFORMATDECLSPEC uint8_t *} vf_get_prop_value_base64 (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},              @tab Property we're setting a value in 
++@item uint32_t @tab @var{*p_length}              @tab Length of the binary data 
++@end multitable  
++)
++
++
++
++Get a BASE64 property.  Returns ptr, passes length via parameter.
++
++Returns Ptr to data.
++
++
++@end deftypefun
++
++@deftypefun  {VFORMATDECLSPEC bool_t} vf_set_property_from_file (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},              @tab The property 
++@item vf_encoding_t @tab @var{encoding},         @tab Encoding to use     
++@item const char @tab @var{*p_filename}          @tab Source filename 
++@end multitable  
++)
++
++
++
++Loads the indicated file into memory and sets the indicated property.
++
++Returns TRUE iff succeded, FALSE else.
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC void} vf_delete_object (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_OBJECT_T @tab @var{*p_object},          @tab The object to delete 
++@item bool_t @tab @var{all }                     @tab Delete all subsequent objects? 
++@end multitable  
++)
++
++
++Cleans up the memory used by the indicated vformat object.
++
++Returns (none)
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC  void} vf_delete_prop (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_OBJECT_T @tab @var{*p_object},          @tab The object we're deleting from 
++@item VF_PROP_T @tab @var{*p_prop},              @tab The property we're removing 
++@item bool_t dc                       @tab Should property contents be deleted? 
++@end multitable  
++)
++
++
++Deletes indicated property from the indicated object.  Deletes prop
++contents if dc is set.
++
++Returns (none)
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC  bool_t} vf_find_prop_qual_index (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},                  @tab The property we're querying 
++@item uint32_t @tab @var{*p_qualifier_index},        @tab Ptr to output name index 
++@item uint32_t @tab @var{*p_found_value_index},      @tab Ptr to output index in array 
++@item const char @tab @var{**pp_possible_values},    @tab Array of possible values 
++@item const char @tab @var{*p_token},                @tab Token searched for 
++@item vf_search_flags_t @tab @var{match}             @tab String comparison flags 
++@end multitable  
++)
++
++
++
++Locate property qualifier given either an array of possible values
++or a single token that is either present or absent.  For example
++if we have a property:
++
++NAME;THIRD;TIME;LUCKY:VALUE1;VALUE2;VALUE3
++
++Then there are two possible searches.
++
++Firstly we can look for the property qualifier which can take values
++from the array @{ "FIRST", "SECOND", THIRD" @} in which case the array
++is passed as pp_possible_values and the function returns with the
++values *p_found_value_index=2, p_qualifier_index=1
++
++Secondly we can look for the token with value "TIME" in which case
++p_token is set to "TIME" and the function returns *p_qualifier_index=2.
++
++Returns TRUE iff found, FALSE else.
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC  bool_t} vf_is_modified (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_OBJECT_T @tab @var{*p_object}           @tab The object 
++@end multitable  
++)
++
++
++
++
++Fetch status of modified flag.
++
++Returns TRUE iff modified since list read/write.
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC  const char *} vf_find_charset (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop}               @tab The property we're querying 
++@end multitable  
++)
++
++
++
++Locate the CHARSET property which indicates the character encoding
++in use - which indicates how the octet stream encoded in the VCARD
++is to be decoded into characters.
++
++Returns Pointer to character encoding name eg. "UTF-8".
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC  bool_t} vf_date_string_to_time (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item  uint32_t @tab @var{*p_time},               @tab Output time value 
++@item const char @tab @var{*p_string}            @tab Input string 
++@end multitable  
++)
++
++
++
++Convert calendar string to absolute time.  The basic formats are
++19960401, 19960401T073000Z
++
++Returns TRUE <=> conversion OK, FALSE else.
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC  bool_t} vf_period_string_to_time (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_ISO8601_PERIOD_T @tab @var{*p_period},  @tab Output time value 
++@item const char @tab @var{*p_string}            @tab Input string 
++@end multitable  
++)
++
++
++Convert period definition string to time value.  The format is
++P[aaaY][bbbM][cccW][dddD]T[eeeH][fffM][gggS] where 'aaa' is a
++number of years, bbb months etc.
++
++Returns TRUE <=> conversion OK, FALSE else.
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC  uint32_t} vf_period_time_to_string (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item char @tab @var{*p_string},                     @tab Output string 
++@item const VF_ISO8601_PERIOD_T @tab @var{*p_period} @tab Input period value 
++@end multitable  
++)
++
++
++Convert a VF_ISO8601_PERIOD_T to a string.
++
++Returns Number of characters written.
++
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC  bool_t} vf_set_prop_value_time (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},          @tab The property 
++@item uint32_t @tab @var{n_string},          @tab Which string we're encoding to 
++@item const time_t @tab @var{t_value}        @tab Time value 
++@end multitable  
++)
++
++
++Set a time_t value into a VF property.
++
++Returns TRUE iff property added & set OK.
++
++@end deftypefun
++
++@deftypefun {VFORMATDECLSPEC  bool_t} vf_get_prop_value_time (
++@multitable     {VF_PROP_Taaaa}{*n_stringaaaaa}{Property to locate string from}
++@item VF_PROP_T @tab @var{*p_prop},          @tab The property 
++@item uint32_t @tab @var{n_string},          @tab Which string we're decoding 
++@item time_t @tab @var{*p_t_value}           @tab Pointer to output time value 
++@end multitable  
++)
++
++
++Fetch a time_t value from a VF property.
++
++Returns TRUE iff foudn & converted OK.
++
++@end deftypefun
+diff --git a/doc/libvformat-2.texi b/doc/libvformat-2.texi
+new file mode 100644
+index 0000000..0511a56
+--- /dev/null
++++ b/doc/libvformat-2.texi
+@@ -0,0 +1,79 @@
++@node Public structures
++@chapter Public structures
++     
++@defvr {Public Type} VF_PARSER_T
++
++Type representing "parser" - an object used to parse VOBJECTS.
++     
++@end defvr
++
++@defvr {Public Type} VF_OBJECT_T
++
++Type representing an "object" - objects are collections of properties.
++
++@end defvr
++
++@defvr {Public Type} VF_PROP_T
++
++Type representing a "property" - properties associate a name & a value.
++
++@end defvr
++
++@deftp {Structure} VF_ISO8601_PERIOD_T @*
++       @{@*
++       uint32_t    years@*
++       uint32_t    months@*
++       uint32_t    weeks@*
++       uint32_t    days@*
++       uint32_t    hours@*
++       uint32_t    minutes@*
++       uint32_t    seconds@*
++       @}
++
++
++VF_ISO8601_PERIOD_T is used to encapsulate an ISO time 'period'.
++
++@end deftp
++
++
++@deftypevr {Public Type} uint8_t vf_encoding_t
++
++vf_encoding_t enumerates the supported encodings (formats) of a
++vformat object property.  Each "value" has a field of this type.
++
++Predefined values
++
++@multitable     {VF_ENC_QUOTEDPRINTABLE}{((vf_encoding_t)aaaa}{123456}
++@item VF_ENC_UNKNOWN     @tab     ((vf_encoding_t)(0))
++@item VF_ENC_7BIT        @tab     ((vf_encoding_t)(1))
++@item VF_ENC_8BIT        @tab     ((vf_encoding_t)(2))
++@item VF_ENC_BASE64      @tab     ((vf_encoding_t)(3))
++@item VF_ENC_QUOTEDPRINTABLE  @tab ((vf_encoding_t)(4))
++@item VF_ENC_VOBJECT     @tab     ((vf_encoding_t)(5))
++@end multitable
++
++@end deftypevr
++
++
++@deftypevr {Public Type} uint16_t vf_get_t
++
++vf_get_t controls the operation of vf_get_property() (qv).  Controls
++how far the search algorithm is prepared to go in order to return a
++property ready for modification.
++
++Predefined values
++
++@multitable     {VF_ENC_QUOTEDPRINTABLE}{((vf_encoding_t)aaaa}{Find & append if not present123456}
++@item VFGP_FIND    @tab   ((vf_get_t)(0x0001))  @tab  Search for property            
++@item VFGP_APPEND  @tab   ((vf_get_t)(0x0002))  @tab  Append property, no search    
++@item VFGP_GET     @tab   ((vf_get_t)(0x0003))  @tab  Find & append if not present  
++@end multitable
++
++@end deftypevr
++
++@deftypevr {Public Type} uint32_t vf_search_flags_t
++
++vf_search_flags_t is used to describe how string matching is performed
++when searching for properties, qualifiers, values etc.
++
++@end deftypevr
+diff --git a/doc/libvformat-i.texi b/doc/libvformat-i.texi
+new file mode 100644
+index 0000000..66d6996
+--- /dev/null
++++ b/doc/libvformat-i.texi
+@@ -0,0 +1,5 @@
++@node Function index
++@unnumbered Function Index
++     
++@printindex fn
++     
+diff --git a/doc/libvformat.texi b/doc/libvformat.texi
+new file mode 100644
+index 0000000..c5ff663
+--- /dev/null
++++ b/doc/libvformat.texi
+@@ -0,0 +1,51 @@
++\input texinfo   @c -*-texinfo-*-
++@c %**start of header
++@setfilename libvformat.info
++@settitle libvformat
++@setchapternewpage odd
++@c %**end of header
++
++@ifinfo
++This file documents libvformat
++
++Copyright 2001 Nick Marley <Tilda@@indigo8.freeserve.co.uk>
++
++licensed under the LGPL license.
++@end ifinfo
++
++@c  This title page illustrates only one of the
++@c  two methods of forming a title page.
++
++@dircategory Libraries
++@direntry
++* libvformat: (libvformat). Library to manipulate vcards
++@end direntry
++
++@titlepage
++@title libvformat
++@subtitle library to access versit cards
++@author Nick <Tilda@@indigo8.freeserve.co.uk>
++@end titlepage
++
++
++@ifnottex
++@node Top,  , (dir), (dir)
++@top TITLE
++
++This document describes libvformat
++
++This document applies to version 1.13
++of the program named libvformat
++@end ifnottex
++
++@menu
++* Functions of libvformat::     description of interface.
++* Public structures::           public structures of libvformat
++* Function index::              index.
++@end menu
++
++@include libvformat-1.texi
++@include libvformat-2.texi
++@include libvformat-i.texi
++
++@bye
+-- 
+1.7.6.3
+

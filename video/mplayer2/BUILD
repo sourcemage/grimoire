@@ -1,6 +1,10 @@
 #disable_pic                 &&
 
-OPTS="$MPLAYER_OPTS $MPLAYER_IVTV $OPTS"  &&
+if  [ "$MPLAYER2_BRANCH" != "scm" ];  then
+  OPTS="$MPLAYER_OPTS $MPLAYER_IVTV $OPTS"
+else
+  OPTS="$MPLAYER_OPTS $OPTS"
+fi  &&
 
 if  [ "$MPLAYER2_BRANCH" == "scm" ];  then
   local PYVER=$(installed_version python3) &&

@@ -13,6 +13,7 @@ depends sqlite &&
 depends libsoup &&
 depends enchant &&
 depends libxt &&
+depends RUBY &&
 
 optional_depends cairo '--enable-svg' \
                        '--disable-svg' \
@@ -26,11 +27,10 @@ optional_depends gtk-doc '--enable-gtk-doc' \
                          '--disable-gtk-doc' \
                          'for documentation generation' &&
 
-if [[ $WEBKIT_FONT_BE == freetype2 ]]; then
-  depends freetype2
-else
+if [[ ! $WEBKIT_FONT_BE == freetype2 ]]; then
   depends pango "--with-font-backend=pango"
 fi &&
+depends freetype2 &&
 
 optional_depends gst-plugins-base  \
                  "--enable-video" \
@@ -45,7 +45,26 @@ optional_depends gst-plugins-base  \
 optional_depends geoclue                             \
                  "--enable-geolocation"              \
                  "--disable-geolocation"             \
-                 "to enable geolocation support"
+                 "to enable geolocation support"     &&
+
+case $WEBKIT_ACC in
+  opengl)
+    depends OPENGL "--with-acceleration-backend=opengl"
+  ;;
+  clutter)
+    depends clutter "--with-acceleration-backend=clutter"
+  ;;
+  *)
+    OPTS+=" --with-acceleration-backend=none"
+  ;;
+esac
 
 #if is_depends_enabled $SPELL gobject-introspection; \
 #  then depends gir-repository; fi
+
+depends atk &&
+depends fontconfig &&
+depends gdk-pixbuf2 &&
+depends glib2 &&
+depends libx11 &&
+depends libxml2

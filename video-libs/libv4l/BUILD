@@ -1,1 +1,1 @@
-make -C lib all
+true

@@ -1,2 +1,3 @@
-OPTS+='--enable-shared ' &&
+OPTS+=' --enable-shared --disable--static' &&
+LDFLAGS+=" -lintl" &&
 default_build
