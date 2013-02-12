@@ -12,6 +12,8 @@ OPTS="$QT_DEBUG               \
       $QT_GIF                 \
       $QT_PCH                 \
       $QT_EXAMPLE examples    \
+      $QT_DEMOS demos         \
+      $QT_TESTS tests         \
       $QT_ACCESS              \
       $QT_AUDIO               \
       $QT_JVS                 \
@@ -20,6 +22,6 @@ cd $SOURCE_DIRECTORY &&
 
 ./configure  -opensource -confirm-license \
              -prefix $QTDIR  -platform  linux-g++  \
-             -fast -reduce-relocations -reduce-exports $OPTS -v &&
+             -reduce-relocations -reduce-exports $OPTS -v &&
 make
 
