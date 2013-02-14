@@ -24,4 +24,4 @@ OPTS="--with-mysqld-user=mariadb \
 default_build &&
 
 LD_PRELOAD="$LD_PRELOAD_OLD" &&
-make pkglibdir=${TRACK_ROOT}/usr/lib
+make
