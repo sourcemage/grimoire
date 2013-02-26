@@ -1,3 +1,5 @@
+. "$GRIMOIRE/FUNCTIONS" &&
+
 cd "${SOURCE_DIRECTORY}" &&
 OPTS="${PHP5_OPTS} ${OPTS}" &&
 
@@ -32,8 +34,11 @@ fi &&
 
 CFLAGS="${CFLAGS//-ffast-math}" &&
 
-OPTS="   --with-exec-dir=${INSTALL_ROOT}/usr/bin \
- --with-config-file-path=${INSTALL_ROOT}/etc \
+if is_version_less "${VERSION}" 5.4; then
+  OPTS="--with-exec-dir=${INSTALL_ROOT}/usr/bin $OPTS"
+fi &&
+
+OPTS="--with-config-file-path=${INSTALL_ROOT}/etc \
                --disable-rpath \
                 --enable-bcmath \
          --enable-inline-optimization \
