@@ -21,7 +21,7 @@ CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
 # Avoid buggy GCC 4.6 AVX code generation, which breaks libxul
 #
 local gccver=$(gcc -dumpversion)
-if [ ${gccver%.*} = 4.6 ]; then
+if [ ${gccver%.*} = 4.6 ] || [ ${gccver%.*} = 4.7 ]; then
   CFLAGS="${CFLAGS//-mavx} -mno-avx"
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
