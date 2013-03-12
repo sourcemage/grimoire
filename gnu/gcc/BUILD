@@ -45,8 +45,11 @@ if list_find "$GCC_COMPILER" "ada" ; then
   ADA_PATH=${SOURCE13/.tar.bz2/}  &&
   PATH=$SOURCE_DIRECTORY/$ADA_PATH/usr/bin:$PATH  &&
 
-  export CC="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin/gcc" &&
-
+  if [[  "${SMGL_COMPAT_ARCHS[1]}" == "ia32" ]]; then
+    export CC="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin/gnatgcc"
+  elif [[  "${SMGL_COMPAT_ARCHS[1]}" == "x86_64" ]]; then
+    export CC="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin/gcc"
+  fi &&
   export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gcc/$HOST/${VERSION13}/include"  &&
   export LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gcc/$HOST/${VERSION13}/"  &&
   export LDFLAGS="-L${LIB_DIR}"  &&
