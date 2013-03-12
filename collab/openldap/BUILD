@@ -6,31 +6,34 @@ if is_depends_enabled $SPELL db; then
   LDFLAGS="-ldb $LDFLAGS"
 fi &&
 
-# only add slapd options when actually building it
-if echo $OPENLDAP_SLAPD | grep -q enable; then
-
-  if [[ "${SLAPD_OVERLAYS}" == 'none' ]]; then
-    message 'skipping overlays'
-  elif [[ "${SLAPD_OVERLAYS}" == 'all' ]]; then
-    message 'adding all overlays' &&
-    OVERLAYS='--enable-overlays=mod'
-  else
-    for OVERLAY in ${SLAPD_OVERLAYS}; do
-      OVERLAYS="${OVERLAYS} --enable-${OVERLAY}=mod"
-    done
-  fi
-
-  SLAPD_OPTS="$OPENLDAP_SLAPD $SLAPD_ACL $SLAPD_ACI $SLAPD_DNSSRV 
-              $SLAPD_MONITOR $SLAPD_CRYPT $SLAPD_CLEAR $SLAPD_REV 
-              $SLAPD_SOCK $SLAPD_META $SLAPD_RELAY $OVERLAYS"
-else
-    SLAPD_OPTS="$OPENLDAP_SLAPD"
+if is_depends_enabled $SPELL nss; then
+  CPPFLAGS="-I$INSTALL_ROOT/usr/include/nss \
+            -I$INSTALL_ROOT/usr/include/nspr \
+            $CPPFLAGS"
 fi &&
 
-OPTS="$OPTS
-  $SLAPD_OPTS
-  --enable-shared --enable-static
-  --enable-dynamic
-  --enable-local" &&
+if list_find "$OPENLDAP_OPTS" "--disable-slapd"; then
+  OPTS="--disable-backends \
+        --disable-overlays \
+        $OPTS"
+else
+  if list_find "$SLAPD_OVERLAYS" "all"; then
+    OPTS="--enable-overlays=mod $OPTS"
+  elif list_find "$SLAPD_OVERLAYS" "none"; then
+    OPTS="--disable-overlays $OPTS"
+  else
+    for o in $SLAPD_OVERLAYS; do
+      OPTS="--enable-${o}=mod $OPTS"
+    done
+  fi
+fi &&
+
+OPTS="--enable-static \
+      --enable-shared \
+      --enable-dynamic \
+      --enable-local \
+      --without-fetch \
+      $OPENLDAP_OPTS \
+      $OPTS" &&
 
 default_build

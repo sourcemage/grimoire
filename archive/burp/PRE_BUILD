@@ -1,0 +1,15 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+# remove non-required library from deprecated linking lines of Makefile
+sedit "s:-lgpm::g" src/Makefile.in &&
+
+if [[ $INIT_INSTALLED ]]; then
+  sedit "s:^# user=.*:user=burp:" configs/server/burp.conf &&
+  sedit "s:^# group=.*:group=burp:" configs/server/burp.conf &&
+  sedit "s:/var/run/burp.server:/var/run/burp/server:" configs/server/burp.conf
+fi &&
+
+if is_depends_enabled $SPELL $(get_spell_provider $SPELL SYSTEM-LOGGER); then
+  sedit "s:syslog = 0:syslog = 1:" configs/server/burp.conf
+fi

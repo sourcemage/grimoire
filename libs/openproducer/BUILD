@@ -4,4 +4,4 @@ for  i  in  $(grep  -rl  YieldCurrentThread  .)
 do
   sedit  "s/YieldCurrentThread/CurrentThread/"  $i
 done                                                &&
-make
+default_build_make

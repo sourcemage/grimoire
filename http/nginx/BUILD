@@ -11,6 +11,9 @@ fi &&
 if list_find "$NGINX_MODULES" "auth_ldap"; then
   OPTS="--add-module=$SOURCE_DIRECTORY4 $OPTS"
 fi &&
+if list_find "$NGINX_MODULES" "dav_ext"; then
+  OPTS="--add-module=$SOURCE_DIRECTORY5 $OPTS"
+fi &&
 
 if [[ $NGINX_SYSLOG == n ]]; then
   OPTS="--http-log-path=$INSTALL_ROOT/var/log/nginx/access.log \
