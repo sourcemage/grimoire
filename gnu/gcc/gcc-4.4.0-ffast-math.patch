@@ -1,0 +1,50 @@
+diff -Naur gcc-4.4.0.orig/gcc/config/i386/crtfastmath.c gcc-4.4.0/gcc/config/i386/crtfastmath.c
+--- gcc-4.4.0.orig/gcc/config/i386/crtfastmath.c	2009-05-12 16:27:42.827645459 -0700
++++ gcc-4.4.0/gcc/config/i386/crtfastmath.c	2009-05-12 16:27:50.489399823 -0700
+@@ -30,6 +30,23 @@
+ #include "cpuid.h"
+ #endif
+ 
++struct
++{
++	unsigned short int cwd;
++	unsigned short int swd;
++	unsigned short int twd;
++	unsigned short int fop;
++	long int fip;
++	long int fcs;
++	long int foo;
++	long int fos;
++	long int mxcsr;
++	long int mxcsr_mask;
++	long int st_space[32];
++	long int xmm_space[32];
++	long int padding[56];
++} __attribute__ ((aligned (16))) fxsave;
++
+ static void __attribute__((constructor))
+ #ifndef __x86_64__
+ /* The i386 ABI only requires 4-byte stack alignment, so this is necessary
+@@ -54,22 +71,6 @@
+       if (edx & bit_FXSAVE)
+ 	{
+ 	  /* Check if DAZ is available.  */
+-	  struct
+-	    {
+-	      unsigned short int cwd;
+-	      unsigned short int swd;
+-	      unsigned short int twd;
+-	      unsigned short int fop;
+-	      long int fip;
+-	      long int fcs;
+-	      long int foo;
+-	      long int fos;
+-	      long int mxcsr;
+-	      long int mxcsr_mask;
+-	      long int st_space[32];
+-	      long int xmm_space[32];
+-	      long int padding[56];
+-	    } __attribute__ ((aligned (16))) fxsave;
+ 
+ 	  __builtin_memset (&fxsave, 0, sizeof (fxsave));
+ 
