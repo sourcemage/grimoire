@@ -17,6 +17,9 @@ if [[ "$EMACS_BRANCH" == "scm" ]]; then
 
   [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
+  # Fix broken permissions
+  chmod +x build-aux/update-subdirs &&
+
   ./autogen.sh &&
   ./configure --prefix=${INSTALL_ROOT}/usr  \
               --sysconfdir=${INSTALL_ROOT}/etc  \
