@@ -4,22 +4,33 @@ if [[ "$CURL_SSL" == "gnutls" ]]; then
      depends  gnutls     \
      "--with-gnutls \
       --with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt \
-      --without-ssl --without-nss" &&
+      --without-ssl --without-nss --without-polarssl" &&
      depends ca-certificates
 elif [[ "$CURL_SSL" == "openssl" ]]; then
      depends  openssl         \
      "--with-ssl \
       --without-ca-bundle \
       --with-ca-path=$INSTALL_ROOT/etc/ssl/certs \
-      --without-gnutls --without-nss"  &&
+      --without-gnutls --without-nss --without-polarssl"  &&
       depends ca-certificates
 elif [[ "$CURL_SSL" == "nss" ]]; then
      depends  -sub PEM nss         \
      "--with-nss \
       --with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt \
-      --without-gnutls --without-ssl"  &&
+      --without-gnutls --without-ssl --without-polarssl"  &&
+     depends ca-certificates
+elif [[ "$CURL_SSL" == "polarssl" ]]; then
+     depends  polarssl     \
+     "--with-polarssl \
+      --with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt \
+      --without-ssl --without-nss --without-gnutls" &&
      depends ca-certificates
 fi &&
+
+optional_depends  krb5   \
+                  "--with-gssapi "    \
+                  "--without-gssapi " \
+                  "GSSAPI support" &&
 
 optional_depends  libssh2                              \
                   "--with-libssh2=$INSTALL_ROOT/usr"   \

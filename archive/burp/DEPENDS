@@ -1,0 +1,54 @@
+depends -sub CXX gcc &&
+depends librsync &&
+depends zlib &&
+
+if [[ $BURP_BRANCH == scm ]]; then
+  depends git
+fi &&
+
+# TODO: missing uthash spell in grimoire
+# optional_depends uthash "" "" "to use system uthash library" &&
+
+if spell_ok ncurses; then
+  depends ncurses
+else
+  optional_depends ncurses "" "" "to support live monitor on the server"
+fi &&
+
+optional_depends openssl \
+                 "--with-openssl" \
+                 "--without-openssl" \
+                 "for encrypted communication" &&
+
+optional_depends openafs \
+                 "--enable-afs" \
+                 "--disable-afs" \
+                 "for AFS support" &&
+
+optional_depends acl \
+                 "--enable-acl" \
+                 "--disable-acl" \
+                 "for acl support" &&
+
+optional_depends attr \
+                 "--enable-xattr" \
+                 "--disable-xattr" \
+                 "for xattr support" &&
+
+# use gettext functions from libc built with gettext support for static binary
+if list_find "$BURP_OPTS" "--enable-static"; then
+  list_add BURP_OPTS "--disable-nls"
+else
+  optional_depends gettext \
+                   "--enable-nls" \
+                   "--disable-nls" \
+                   "for Native Language Support"
+fi &&
+
+optional_depends tcp_wrappers \
+                 "--with-tcp-wrappers" \
+                 "--without-tcp-wrappers" \
+                 "for tcpwrappers support" &&
+
+suggest_depends SYSTEM-LOGGER "" "" "to use syslog for logging" &&
+suggest_depends SENDMAIL "" "" "to send notifications via e-mail"
