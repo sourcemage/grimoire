@@ -7,7 +7,6 @@ OPTS="$OPTS
   --enable-geometry
   --enable-unicode
   --enable-graphics_ctx
-  --with-gtk=2
 " &&
 # wx project recommends building in a separate directory
 cd $SOURCE_DIRECTORY   &&
