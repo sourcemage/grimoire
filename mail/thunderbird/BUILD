@@ -31,6 +31,20 @@ if [[ $THUNDERBIRD_OFFICIAL == y ]]; then
   OPTS="$OPTS --enable-official-branding"
 fi
 
+#
+# Avoid buggy GCC 4.6 AVX code generation, which breaks libxul
+#
+local gccver=$(gcc -dumpversion) &&
+local gccmajor=${gccver%.*.*}    &&
+local gccminor=${gccver#*.}      &&
+gccminor=${gccminor%.*}          &&
+
+if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
+  CFLAGS="${CFLAGS//-mavx} -mno-avx"
+  CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
+fi
+
+
 ./configure --prefix=${INSTALL_ROOT}/usr     \
             --with-user-appdir=.thunderbird  \
             --enable-application=mail        \
