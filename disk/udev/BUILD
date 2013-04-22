@@ -4,7 +4,7 @@ if spell_ok systemd; then
 fi &&
 OPTS="--prefix=$INSTALL_ROOT/usr \
       --sbindir=$INSTALL_ROOT/sbin \
-      --libexecdir=$INSTALL_ROOT/lib/udev \
+      --libexecdir=$INSTALL_ROOT/lib \
       --with-rootlibdir=$INSTALL_ROOT/lib \
       $UDEV_OPTS $UDEV_HWDB \
       $OPTS" &&
@@ -27,4 +27,4 @@ if [[ "${UDEV_HWDB}" = '--enable-hwdb' ]]; then
   fi
 fi &&
 
-default_build
+LIBS+=" -lrt" default_build
