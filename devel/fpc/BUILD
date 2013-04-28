@@ -7,7 +7,7 @@ else
 fi  &&
 
 if ! spell_ok fpc ; then
-  PP=$SOURCE_DIRECTORY/bootstrap/lib/fpc/$VERSIONB/ppc$ARCH
+  PP=$SOURCE_DIRECTORY/bootstrap/lib/fpc/$VERSION/ppc$ARCH
 else
   PP=$INSTALL_ROOT/usr/bin/fpc
 fi &&
