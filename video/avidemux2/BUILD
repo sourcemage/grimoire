@@ -1,5 +1,8 @@
 if is_depends_enabled $SPELL qt4; then
-    OPTS="-DQT_QMAKE_EXECUTABLE=${INSTALL_ROOT}/usr/bin/qt4/qmake -DLRELEASE_EXECUTABLE=${INSTALL_ROOT}/usr/bin/qt4/lrelease $OPTS"
+    PATH="/usr/bin/qt4:$PATH"
 fi &&
-
-cmake_build
+# sudo calls would install stuff right away
+sed -i 's:^sudo:# sudo:' bootStrap.sh &&
+# For avidemux 2.6, add $OPTS here and switch to .bash .
+# The 2.5 build script doesn't know any options.
+bash bootStrap.sh

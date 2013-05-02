@@ -8,6 +8,7 @@ cd "${SOURCE_DIRECTORY}"                    &&
             --audio-drv-list="$QEMU_AUDIO"  \
             --audio-card-list="$QEMU_CARDS" \
             $QEMU_KVM                       \
+            $QEMU_VNC                       \
             $OPTS                           &&
 
 make

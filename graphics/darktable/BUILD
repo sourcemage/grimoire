@@ -5,4 +5,4 @@ OPTS+=" -DINSTALL_IOP_EXPERIMENTAL=1"   &&
 OPTS+=" -DBINARY_PACKAGE_BUILD=1"       &&
 OPTS+=" -DBUILD_SLIDESHOW=off"          &&
 CFLAGS="${CFLAGS} -Wno-error=deprecated-declarations" \
-  CXXFLAGS="${CXXFLAGS} -Wno-error=deprecated-declarations" cmake_build
+  CXXFLAGS="${CXXFLAGS} -Wno-error=deprecated-declarations -fpermissive" cmake_build

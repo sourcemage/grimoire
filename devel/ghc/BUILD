@@ -1,5 +1,3 @@
-[[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST} --build=${BUILD}"
-
 GHC_DIR=/usr/bin
 
 if [[ -x ${INSTALL_ROOT}/usr/bin/ghc-pkg-7.2.1 ]]; then
@@ -29,4 +27,4 @@ cd $SPELL-$VERSION &&
              --infodir=${INSTALL_ROOT}/usr/share/info  \
             --with-ghc=$GHC_DIR/ghc                    \
                        $OPTS                 &&
-make
+default_build_make
