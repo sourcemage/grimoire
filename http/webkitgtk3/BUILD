@@ -1,4 +1,8 @@
 OPTS="$WEBKIT_SVG $WEBKIT_WEBGL $OPTS" &&
-OPTS="--with-gtk=3.0 $OPTS" &&
 
-default_build
+CFLAGS+=" -fpermissive"   &&
+CXXFLAGS+=" -fpermissive" &&
+
+default_build_configure &&
+make -j1 DerivedSources/WebCore/JSNode.h &&
+default_build_make
