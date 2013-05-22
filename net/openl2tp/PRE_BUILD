@@ -1,0 +1,15 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+sedit "s:/usr/lib64:$INSTALL_ROOT/usr/lib:" Makefile &&
+sed -i "s:-Werror::g" cli/Makefile usl/Makefile Makefile &&
+
+if ! is_depends_enabled $SPELL $(get_spell_provider $SPELL PORT-MAPPER); then
+  patch -p0 < "$SPELL_DIRECTORY/norpc.patch" &&
+  sedit "s:L2TP_USE_ASYNC_RPC=:#L2TP_USE_ASYNC_RPC=:" Makefile
+fi &&
+
+if [ "$OPENL2TP_FEATURES" == "y" ]; then
+  zcat "$SPELL_DIRECTORY/optionsfile.patch.gz" | patch -p1 &&
+  zcat "$SPELL_DIRECTORY/ipparam.patch.gz" | patch -p1
+fi
