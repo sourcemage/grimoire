@@ -1,0 +1,16 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+local PPP_VERSION="$(installed_version ppp)" &&
+sedit "s:^VERSION =.*:VERSION = ${PPP_VERSION}:" Makefile &&
+
+sedit "s:-O2:$CFLAGS -I$INSTALL_ROOT/usr/include/pppd:" Makefile &&
+sedit "s:\$(LIBDIR)/pppd/:\$(LIBDIR)/:" Makefile &&
+
+if [ "$PPPD_CHLDAP_DEBUG" == "y" ]; then
+  sedit "s:#DEBUG=y:DEBUG=y:" Makefile
+fi &&
+
+if ! is_depends_enabled $SPELL openssl; then
+  sedit "s:TLS=y:#TLS=y:" Makefile
+fi
