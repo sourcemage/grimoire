@@ -1,12 +1,27 @@
 default_pre_build &&
 cd "$SOURCE_DIRECTORY" &&
 
+# include mppe.h into build
+patch -p0 < "$SPELL_DIRECTORY/mppe-header.patch" &&
+
 # fixes use of 2.6.35 headers
 patch -p0 < "$SPELL_DIRECTORY/l2tp.patch" &&
 
 sedit  's:net/bpf.h:pcap-bpf.h:'     pppd/demand.c       &&
 sedit  's:net/bpf.h:pcap-bpf.h:'     pppd/sys-linux.c    &&
 sedit  's:/usr/man:/usr/share/man:'  linux/Makefile.top  &&
+
+if is_depends_enabled $SPELL linux-pam; then
+  sedit 's:#USE_PAM=y:USE_PAM=y:' pppd/Makefile.linux
+fi &&
+
+if ! is_depends_enabled $SPELL shadow; then
+  sedit 's:HAS_SHADOW=y:#HAS_SHADOW=y:' pppd/Makefile.linux
+fi &&
+
+if [ "$HAVE_INET6" == "y" ]; then
+  sedit 's:#HAVE_INET6=y:HAVE_INET6=y:' pppd/Makefile.linux
+fi &&
 
 if [ "$HAVE_CBCP" == "y" ]; then
   sedit  's:#CBCP=y:CBCP=y:'         pppd/Makefile.linux
