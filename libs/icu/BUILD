@@ -1,6 +1,5 @@
 cd $SOURCE_DIRECTORY/source &&
 # recommended for a system wide install
-LDFLAGS+=" -lintl" &&
 OPTS+="--disable-renaming --disable-static" &&
 ./configure --prefix=/usr $OPTS &&
 
