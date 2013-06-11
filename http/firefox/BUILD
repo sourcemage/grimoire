@@ -30,7 +30,9 @@ if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
 
-echo ac_add_options --enable-optimize=-O2 >> .mozconfig  &&
+for option in $OPTS; do
+  echo "ac_add_options $option" >> .mozconfig
+done &&
 
 make_single  &&
 make -f client.mk build &&
