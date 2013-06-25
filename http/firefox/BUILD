@@ -12,12 +12,6 @@ CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
 #
-# -ffast-math breaks plugins
-#
-CFLAGS="${CFLAGS//-ffast-math/}"      &&
-CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
-
-#
 # Avoid buggy GCC 4.6 AVX code generation, which breaks libxul
 #
 local gccver=$(gcc -dumpversion) &&
