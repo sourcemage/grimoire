@@ -29,7 +29,6 @@ else
 fi &&
 
 SWIG_LDFLAGS="${LDFLAGS}" &&
-make_single &&
 OPTS="--enable-runtime-module-search $OPTS" default_build &&
 
 if [[ "$SVN_PERL"   == y ]]; then
