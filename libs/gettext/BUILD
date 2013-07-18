@@ -6,8 +6,6 @@ OPTS="--enable-threads=posix $OPTS" &&
 # never rely on external glib2
 OPTS="--with-included-glib $OPTS" &&
 
-make_single  &&
-
 ./configure  --build=$BUILD                           \
               --host=$HOST                            \
             --prefix=${TRACK_ROOT}/usr                \
@@ -27,8 +25,6 @@ if  is_depends_enabled $SPELL tetex;  then
   make  pdf              &&
   cd  -
 fi  &&
-
-make_normal  &&
 
 #
 # Remove libintl.h from old log files

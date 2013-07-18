@@ -1,0 +1,45 @@
+#!/bin/bash
+
+PROGRAM=/usr/sbin/mdm
+PIDFILE=/var/run/mdm.pid
+ARGS=
+RUNLEVEL=5
+PROVIDES=display_manager
+NEEDS="smgl-messagebus hald"
+
+.  /etc/init.d/smgl_init
+
+start() {
+  echo -n "Starting Mint Display Manager..."
+  mkdir -p /var/run/mdm
+  chown mdm:mdm /var/run/mdm
+  $PROGRAM $ARGS &
+  evaluate_retval
+}
+
+stop()
+{
+  ${PROGRAM}-stop
+  evaluate_retval
+}
+
+restart()
+{
+  ${PROGRAM}-safe-restart
+  evaluate_retval
+}
+
+status() {
+  if [ ! -f $PIDFILE ]; then
+    echo "Mint Display Manager is not running"
+    return 0
+  fi
+  local pid=$(cat $PIDFILE)
+  if ps -p $pid > /dev/null; then
+    echo  "Mint Display Manager is running with Process ID $pid"
+  else
+    echo  "Mint Display Manager is not running, but $PIDFILE exists"
+    return 1
+  fi
+}
+
