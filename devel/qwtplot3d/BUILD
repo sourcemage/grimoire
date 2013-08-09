@@ -1,1 +1,1 @@
-build_qt3_or_4
+qt4_build
