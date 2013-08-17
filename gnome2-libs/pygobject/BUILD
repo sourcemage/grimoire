@@ -1,5 +1,4 @@
-if spell_ok pygobject3; then
-  OPTS="$OPTS --disable-introspection" 
-fi &&
-OPTS="$OPTS --enable-thread" &&
+OPTS="--enable-thread           \
+      --disable-introspection   \
+      $OPTS"                    &&
 default_build
