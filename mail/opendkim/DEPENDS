@@ -1,0 +1,59 @@
+optional_depends libmilter \
+                 "--enable-filter" \
+                 "--disable-filter" \
+                 "to compile the opendkim filter" &&
+
+optional_depends gnutls \
+                 "--with-gnutls" \
+                 "--without-gnutls" \
+                 "use GNUTLS instead of OpenSSL?" &&
+
+if ! is_depends_enabled $SPELL gnutls; then
+  depends openssl
+fi &&
+
+if list_find "$OPENDKIM_OPTS" "--enable-poll" || list_find "$OPENDKIM_OPTS" "--enable-live-testing"; then
+  depends libbsd
+else
+  optional_depends libbsd "" "" "to use strlcat() and strlcpy() functions"
+fi &&
+
+case $OPENDKIM_PROFILING in
+  gcov) depends gcc "--with-gcov"
+  ;;
+  gprof) depends binutils "--with-gprof"
+  ;;
+esac &&
+
+optional_depends lua \
+                 "--enable-rbl" \
+                 "--disable-rbl" \
+                 "for Realtime Blacklist query support" &&
+
+optional_depends tre \
+                 "--enable-diffheaders" \
+                 "--disable-diffheaders" \
+                 "to compare signed and verified headers when possible" &&
+
+optional_depends rrdtool \
+                 "--enable-reprrd" \
+                 "--disable-reprrd" \
+                 "for experimental reputation checks using RRD support" &&
+
+optional_depends curl \
+                 "--enable-reputation " \
+                 "--disable-reputation " \
+                 "for experimental reputation checks support" &&
+
+if is_depends_enabled $SPELL curl; then
+  config_query_list OPENDKIM_REPUTATION "Which library do you want for reputation checks support?" \
+                    libxml2 \
+                    jansson &&
+
+  depends $OPENDKIM_REPUTATION
+fi &&
+
+optional_depends libmemcached \
+                 "--with-libmemcached" \
+                 "--without-libmemcached" \
+                 "for support of memory cache database provided by memcached"
