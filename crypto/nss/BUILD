@@ -1,3 +1,7 @@
+if [ "$NSS_BRANCH" == "DEFAULT" ]; then
+  NSS_BRANCH=3.15
+fi &&
+
 MAKE_OPTS="BUILD_OPT=1 NSS_USE_SYSTEM_SQLITE=1 NSS_ENABLE_ECC=1" &&
 
 persistent_add MAKE_OPTS &&
