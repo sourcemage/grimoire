@@ -2,16 +2,18 @@ default_pre_build  &&
 
 cd $SOURCE_DIRECTORY &&
 
-if [[ $NSS_BRANCH == "3.14" || $NSS_BRANCH == "DEFAULT" ]]; then
+if [[ $NSS_BRANCH == "3.15" || $NSS_BRANCH == "DEFAULT" ]]; then
+  patch -p1 < $SCRIPT_DIRECTORY/nss-3.15.1-standalone-2.patch
+elif [[ $NSS_BRANCH == "3.14" ]]; then
   patch -p1 < $SCRIPT_DIRECTORY/nss-3.14-config-1.patch
 else
   patch -p1 < $SCRIPT_DIRECTORY/nss-3.12-config-1.patch
 fi &&
 
-if [[ "$NSS_PEM" == "y" ]]; then
-tar jxvf $SCRIPT_DIRECTORY/nss-pem-20100412.tar.bz2 &&
-patch -p0 < $SCRIPT_DIRECTORY/nss-enable-pem.patch &&
-if [[ $NSS_BRANCH == "3.14" || $NSS_BRANCH == "DEFAULT" ]]; then
-  patch -p1 < $SPELL_DIRECTORY/nss-3.14.3_sync_with_upstream_softokn_changes.patch
-fi
+if [[ "$NSS_PEM" == "y" && $NSS_BRANCH != "3.15" ]]; then
+  tar jxvf $SCRIPT_DIRECTORY/nss-pem-20100412.tar.bz2 &&
+  patch -p0 < $SCRIPT_DIRECTORY/nss-enable-pem.patch &&
+  if [[ $NSS_BRANCH == "3.14" ]]; then
+    patch -p1 < $SPELL_DIRECTORY/nss-3.14.3_sync_with_upstream_softokn_changes.patch
+  fi
 fi

@@ -1,6 +1,1 @@
-cmake "-DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_ROOT}/usr" \
-      "-DCMAKE_CXX_FLAGS_RELEASE:STRING=${CXXFLAGS}" \
-      "-DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF" \
-      "-DQT_QMAKE_EXECUTABLE:FILEPATH=${TRACK_ROOT}/usr/bin/qt4/qmake" \
-      . &&
-default_build_make
+qt4_cmake_build

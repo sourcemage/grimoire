@@ -1,18 +1,37 @@
-cd $SOURCE_DIRECTORY/mozilla/dist &&
+if [ "$NSS_BRANCH" == "DEFAULT" ]; then
+  NSS_BRANCH=3.15
+fi &&
+
+if [[ $NSS_BRANCH == "3.15" ]]; then
+  cd $SOURCE_DIRECTORY/dist
+else
+  cd $SOURCE_DIRECTORY/mozilla/dist
+fi &&
 
 # don't overwrite OpenSSL's libssl.a static library
-cd */lib &&
+pushd */lib &&
 mv -v libssl.a libssl3.a &&
-cd $SOURCE_DIRECTORY/mozilla/dist &&
+popd &&
 
-install -v -d -m755 $INSTALL_ROOT/usr/lib/nss &&
-install -v -d -m755 $INSTALL_ROOT/usr/include/nss &&
+install -v -d -m755 $INSTALL_ROOT/usr/lib &&
 install -v -m755 */lib/*.so $INSTALL_ROOT/usr/lib &&
 install -v -m755 */lib/*.chk $INSTALL_ROOT/usr/lib &&
 install -v -m755 */lib/*.a $INSTALL_ROOT/usr/lib &&
+
+install -v -d -m755 $INSTALL_ROOT/usr/lib/pkgconfig &&
+if [[ $NSS_BRANCH == "3.15" ]]; then
+  install -v -m644 */lib/pkgconfig/nss.pc $INSTALL_ROOT/usr/lib/pkgconfig
+else
+  install -v -m644 ../security/nss/cmd/disttools/nss.pc $INSTALL_ROOT/usr/lib/pkgconfig
+fi &&
+
+install -v -d -m755 $INSTALL_ROOT/usr/bin &&
 install -v -m755 */bin/* $INSTALL_ROOT/usr/bin &&
+if [[ $NSS_BRANCH != "3.15" ]]; then
+  install -v -m755 ../security/nss/cmd/disttools/nss-config $INSTALL_ROOT/usr/bin
+fi &&
+
+install -v -d -m755 $INSTALL_ROOT/usr/include/nss &&
 install -v -m644 private/nss/*.h $INSTALL_ROOT/usr/include/nss &&
 install -v -m644 public/nss/*.h $INSTALL_ROOT/usr/include/nss &&
-install -v -m644 public/dbm/*.h $INSTALL_ROOT/usr/include/nss/ &&
-install -v -m755 ../security/nss/cmd/disttools/nss-config $INSTALL_ROOT/usr/bin &&
-install -v -m644 ../security/nss/cmd/disttools/nss.pc $INSTALL_ROOT/usr/lib/pkgconfig
+install -v -m644 public/dbm/*.h $INSTALL_ROOT/usr/include/nss
