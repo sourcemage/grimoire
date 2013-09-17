@@ -1,6 +1,5 @@
 depends alsa-lib &&
 depends celt051 &&
-depends qemu &&
 depends cairo &&
 depends pixman &&
 depends spice-protocol &&
@@ -10,8 +9,32 @@ depends libxfixes &&
 depends libx11 &&
 depends libxext &&
 depends libxrender &&
+depends pyparsing &&
 
-optional_depends  OPENGL                           \
-                  "--enable-opengl"                \
-                  "--disable-opengl"               \
-                  "for OpenGL video output"
+optional_depends  LIBSASL                          \
+                  '--with-sasl'                    \
+                  '--without-sasl'                 \
+                  'for Cyrus SASL authentication'  &&
+
+optional_depends  libxinerama                               \
+                  '--enable-xinerama'                       \
+                  '--disable-xinerama'                      \
+                  'for multi-monitor support via Xinerama'  &&
+
+optional_depends  OPENGL                               \
+                  "--enable-client  --enable-opengl"   \
+                  "--disable-client --disable-opengl"  \
+                  "for OpenGL video output"            &&
+
+message "${MESSAGE_COLOR}It is recommended to NOT enable the"     \
+        "smartcard support via qemu or there will be a circular"  \
+        "dependency between qemu and spice${DEFAULT_COLOR}"       &&
+
+optional_depends  qemu                     \
+                  '--enable-smartcard'     \
+                  '--disable-smartcard'    \
+                  'for smartcard support'  &&
+
+if  is_depends_enabled  $SPELL  qemu; then
+  depends  -sub  'NSS'  qemu
+fi
