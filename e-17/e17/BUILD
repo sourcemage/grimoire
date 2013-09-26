@@ -11,4 +11,3 @@ OPTS="$E17_RANDR $E17_ENOTIFY $E17_IBAR $E17_DROPSHADOW $E17_CLOCK \
       $OPTS" &&
 
 default_build
-

@@ -5,6 +5,10 @@ if [[ $CROSS_INSTALL == on ]]; then
   OPTS="--host=$HOST $OPTS"
 fi &&
 
+if [[ $UL_VERSION == latest ]]; then
+  OPTS="--disable-eject --disable-kill --disable-login --disable-sulogin --disable-su --disable-utmpdump $OPTS"
+fi &&
+
 create_group tty &&
 
 disable_pic  &&

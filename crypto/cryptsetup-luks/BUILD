@@ -1,5 +1,3 @@
-default_build &&
-pushd ${SOURCE_DIRECTORY}.static &&
-OPTS="$OPTS --enable-static --program-suffix=.static" &&
-default_build &&
-popd
+# Installs both dynamic and static binaries.
+OPTS="$OPTS --enable-static-cryptsetup" &&
+default_build

@@ -10,38 +10,46 @@ function emacs_lisp_install() {
 ## Section-default build script.
 #-------------------------------------------------------------------------
 function default_build_emacs_lisp() {
+  [ $# = 0 ] && set -- "$SOURCE_DIRECTORY"
   shopt -s nullglob
 
-  local texi_files=("$SOURCE_DIRECTORY"/*.texi)
+  local texi_files
 
-  emacs -Q -L "$SOURCE_DIRECTORY" -batch -f batch-byte-compile \
-        "$SOURCE_DIRECTORY"/*.el &&
-  if [ ${#texi_files[@]} -gt 0 ]
-  then
-    makeinfo "${texi_files[@]}" &&
-    gzip -9 "$SOURCE_DIRECTORY"/*.info
-  fi
+  while [ $# -gt 0 ]; do
+    emacs -Q -L "$1" -batch -f batch-byte-compile "$1"/*.el &&
+    texi_files=("$1"/*.texi)
+    if [ ${#texi_files[@]} -gt 0 ]
+    then
+      makeinfo "${texi_files[@]}" &&
+      gzip -9 "$1"/*.info
+    fi
+    shift
+  done
 }
 
 #-------------------------------------------------------------------------
 ## Section-default install script.
 #-------------------------------------------------------------------------
 function default_install_emacs_lisp() {
+  [ $# = 0 ] && set -- "$SOURCE_DIRECTORY"
   shopt -s nullglob
 
   local dir="$INSTALL_ROOT/usr/share/emacs/site-lisp/$SPELL"
   local info_dir="$INSTALL_ROOT/usr/share/info"
 
-  local info_files=("$SOURCE_DIRECTORY"/*.info.gz)
+  local info_files
 
-  install -d -m755 "$dir" &&
-  install -m644 "$SOURCE_DIRECTORY"/*.el "$SOURCE_DIRECTORY"/*.elc "$dir" &&
-
-  if [ ${#info_files[@]} -gt 0 ]
-  then
-    install -m644 "${info_files[@]}" "$info_dir" &&
-    install-info --info-dir="$info_dir" "${info_files[@]/#*\//$info_dir/}"
-  fi
+  while [ $# -gt 0 ]; do
+    install -d -m755 "$dir" &&
+    install -m644 "$1"/*.el "$1"/*.elc "$dir" &&
+    info_files=("$1"/*.info.gz)
+    if [ ${#info_files[@]} -gt 0 ]
+    then
+      install -m644 "${info_files[@]}" "$info_dir" &&
+      install-info --info-dir="$info_dir" "${info_files[@]/#*\//$info_dir/}"
+    fi
+    shift
+  done
 }
 
 function default_build() {

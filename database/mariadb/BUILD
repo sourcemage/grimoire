@@ -18,9 +18,10 @@ OPTS="--with-mysqld-user=mariadb \
       --localstatedir=${INSTALL_ROOT}/var/lib/mariadb \
       --enable-assembler \
       --enable-thread-safe-client \
+      --with-readline \
       $OPTS" &&
 
 default_build &&
 
 LD_PRELOAD="$LD_PRELOAD_OLD" &&
-make pkglibdir=${TRACK_ROOT}/usr/lib
+make

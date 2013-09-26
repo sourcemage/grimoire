@@ -8,6 +8,20 @@ case $THIS_SUB_DEPENDS in
                                   libxml2 &&
 
        depends $NEON_XML "--with-${NEON_XML}";;
+  SSL) message "${MESSAGE_COLOR}SSL support requested, forcing it${DEFAULT_COLOR}" &&
+       # Clean out old NEON_SSL settings if "none"
+       [[ "x${NEON_SSL}" == "xnone" ]] && NEON_SSL="" &&
+       persistent_remove NEON_SSL || true &&
+
+       # Re-query with only the SSL options
+       config_query_list NEON_SSL "Which SSL backend do you want for SSL support?" \
+         openssl gnutls  &&
+
+       config_query_option NEON_OPTS "Enable SSL library thread-safety using POSIX threads?" y \
+         "--enable-threadsafe-ssl=posix" \
+         "--disable-threadsafe-ssl" &&
+       depends "${NEON_SSL}"  "--with-ssl=${NEON_SSL}"
+       ;;
     *) message "${PROBLEM_COLOR}bogus sub_depends: $SPELL $THIS_SUB_DEPENDS${DEFAULT_COLOR}"
        return 1;;
 esac

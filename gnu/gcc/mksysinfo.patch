@@ -1,0 +1,22 @@
+--- libgo/mksysinfo.sh.orig	2011-02-21 07:17:20.000000000 +0300
++++ libgo/mksysinfo.sh	2013-02-07 23:52:46.454659972 +0400
+@@ -362,7 +362,7 @@
+   rusage=`echo $rusage | sed -e 's/^ *//'`
+   nrusage=
+   while test -n "$rusage"; do
+-    field=`echo $rusage | sed -e 's/^\([^;]*\);.*$/\1/'`
++    field=`echo $rusage | sed -e 's/^\([^;]*\);.*$/\1/' -e 's/struct \(.*\)/struct { \1; }/'`
+     rusage=`echo $rusage | sed -e 's/^[^;]*; *\(.*\)$/\1/'`
+     # Drop the leading ru_, capitalize the next character.
+     field=`echo $field | sed -e 's/^ru_//'`
+@@ -374,7 +374,9 @@
+     r=`echo $r | sed -e s'/ _timespec$/ Timespec/'`
+     r=`echo $r | sed -e s'/ _timestruc_t$/ Timestruc/'`
+     field="$f$r"
+-    nrusage="$nrusage $field;"
++    if [ -n "$field" ]; then
++      nrusage="$nrusage $field;"
++    fi
+   done
+   echo "type Rusage struct {$nrusage }" >> ${OUT}
+ fi

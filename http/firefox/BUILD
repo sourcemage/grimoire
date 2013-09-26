@@ -12,21 +12,21 @@ CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
 #
-# -ffast-math breaks plugins
-#
-CFLAGS="${CFLAGS//-ffast-math/}"      &&
-CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
-
-#
 # Avoid buggy GCC 4.6 AVX code generation, which breaks libxul
 #
-local gccver=$(gcc -dumpversion)
-if [ ${gccver%.*} = 4.6 ]; then
+local gccver=$(gcc -dumpversion) &&
+local gccmajor=${gccver%.*.*}    &&
+local gccminor=${gccver#*.}      &&
+gccminor=${gccminor%.*}          &&
+
+if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
   CFLAGS="${CFLAGS//-mavx} -mno-avx"
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
 
-echo ac_add_options --enable-optimize=-O2 >> .mozconfig  &&
+for option in $OPTS; do
+  echo "ac_add_options $option" >> .mozconfig
+done &&
 
 make_single  &&
 make -f client.mk build &&

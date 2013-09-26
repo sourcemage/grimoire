@@ -13,7 +13,6 @@ LIBS="-lpng" $SOURCE_DIRECTORY/configure --prefix=${INSTALL_ROOT}/usr \
                             --with-pdftex \
                             --with-tetex \
                             --with-pdfetex \
-                            --disable-gsftopk \
                             --disable-xindy \
                             --disable-etex \
                             --disable-omega \

@@ -1,1 +1,2 @@
-make
+OPTS+=" -DUSE_SHARED_POLARSSL_LIBRARY=1"
+cmake_build

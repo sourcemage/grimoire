@@ -1,15 +1,17 @@
 depends -sub CXX gcc                                             &&
-depends  nspr    '--with-system-nspr'                            &&
-depends  nss     '--with-system-nss'                             &&
-depends  zlib    '--with-system-zlib'                            &&
-depends  JPEG    '--with-system-jpeg'                            &&
+depends  nspr               '--with-system-nspr'                 &&
+depends  -sub "3.15.x" nss  '--with-system-nss'                  &&
+depends  zlib               '--with-system-zlib'                 &&
+depends  JPEG               '--with-system-jpeg'                 &&
 depends  libidl                                                  &&
-depends  libmng  '--with-system-mng'                             &&
 depends  perl                                                    &&
+depends  python                                                  &&
 depends  zip                                                     &&
-depends  gtk+2   '--enable-xft --disable-freetype2'              &&
-depends  -sub 'TEE' cairo "--enable-system-cairo                 \
-                           --enable-default-toolkit=cairo-gtk2"  &&
+depends  gtk+2              '--enable-xft --disable-freetype2'   &&
+depends  -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY" sqlite '--enable-system-sqlite'    &&
+depends  pysqlite                                                &&
+#depends  -sub 'TEE' cairo "--enable-system-cairo                 \
+#                           --enable-default-toolkit=cairo-gtk2"  &&
 #
 # LDAP support doesn't work (fails to build)
 #
@@ -28,7 +30,48 @@ optional_depends  startup-notification  \
                   '--disable-startup-notification' \
                   'for startup notifications'      &&
 
+optional_depends  gconf2  \
+                  '--enable-gconf' \
+                  '--disable-gconf' \
+                  'for gconf support'      &&
+
 optional_depends  'wireless_tools' \
                   '--enable-necko-wifi' \
                   '--disable-necko-wifi' \
-                  'for Necko WiFi scanning'
+                  'for Necko WiFi scanning' &&
+
+# Thunderbird is currently borked and does not compile without alsa-lib, this
+# should be fixed after Thunderbird starts using Mozilla core 23
+depends alsa-lib &&
+#optional_depends  alsa-lib \
+#                  '--enable-wave' \
+#                  '--disable-wave --disable-ogg --disable-webm' \
+#                  'for audio/video support'
+
+if is_depends_enabled $SPELL alsa-lib; then
+  # Thunderbird tries to use ogg/ogg.h even with --disable-ogg given
+  #optional_depends  libogg \
+  #                  '--enable-ogg' \
+  #                  '--disable-ogg' \
+  #                  'for sound support'
+  depends libogg &&
+
+  # configure script checks for yasm even when using the system JPEG
+  #optional_depends  yasm \
+  #                  '--enable-webm' \
+  #                  '--disable-webm' \
+  #                  'for WebM video support'
+  depends yasm
+fi &&
+
+optional_depends  dbus-glib \
+                  '--enable-dbus' \
+                  '--disable-dbus' \
+                  'for dbus support' &&
+
+# Thunderbird is currently borked and does not compile without OpenGL headers
+#optional_depends  OPENGL \
+#                  '--enable-webgl' \
+#                  '--disable-webgl --without-gl-provider' \
+#                  'for WebGL support'
+depends OPENGL

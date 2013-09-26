@@ -1,6 +1,26 @@
-depends  glib2  &&
-depends  libidn &&
-optional_depends  "openssl"         \
-                  "--with-ssl=openssl"               \
-                  "--with-ssl=no"  \
-                  "for SSL support"
+depends glib2 &&
+
+if spell_ok libidn; then
+  depends libidn
+else
+  optional_depends libidn "" "" "for IDN support"
+fi &&
+
+optional_depends libasyncns \
+                 "--with-asyncns" \
+                 "--without-asyncns" \
+                 "for asynchronous DNS support" &&
+
+case $LOUDMOUTH_SSL in
+  gnutls) depends gnutls "--with-ssl=gnutls"
+  ;;
+  openssl) depends openssl "--with-ssl=openssl"
+  ;;
+  none) OPTS="--without-ssl $OPTS"
+  ;;
+esac &&
+
+optional_depends gtk-doc \
+                 "--enable-gtk-doc" \
+                 "--disable-gtk-doc" \
+                 "to build documentation"

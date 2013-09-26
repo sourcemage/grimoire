@@ -1,12 +1,21 @@
 depends  automake    &&
+depends  eet  "--enable-image-loader-eet --enable-font-loader-eet"  &&
 depends  eina        &&
 depends  libtool     &&
 depends  freetype2   &&
 
-if  [[  "$EVAS_BRANCH"  ==  "scm"  ]];  then
-  depends  subversion
-  depends  eobj
+if [[ "x${EVAS_X11XCB}" == "xx11" ]];  then
+  depends  libsm  &&
+  depends  libx11  "--enable-software-xlib  --with-x"
+elif [[ "x${EVAS_X11XCB}" == "xxcb" ]];  then
+  depends  libxcb  "--enable-software-xcb --enable-async-events"
+# else "none" handled in BUILD
 fi  &&
+
+optional_depends  doxygen                \
+                  '--enable-doc'         \
+                  '--disable-doc'        \
+                  'build documentation'  &&
 
 optional_depends  fontconfig                              \
                   "--enable-fontconfig"                   \
@@ -24,7 +33,7 @@ optional_depends  fribidi                               \
                   "Enable bidirectional text support?"  &&
 
 optional_depends  pixman                                   \
-                  "--enable-pixman"                        \
+                  "--enable-pixman --enable-pixman-font --enable-pixman-rect --enable-pixman-line --enable-pixman-poly --enable-pixman-image --enable-pixman-image-scale-sample"                        \
                   "--disable-pixman"                       \
                   "Enable pixman for software rendering?"  &&
 
@@ -43,25 +52,10 @@ optional_depends  sdl                                             \
                   "--disable-software-16-sdl"                     \
                   "Enable software 16bit SDL rendering backend?"  &&
 
-optional_depends  xorg-libs                               \
-                  "--enable-software-xlib  --with-x"      \
-                  "--disable-software-xlib  --without-x"  \
-                  "for software X11 rendering backend"    &&
-
-optional_depends  libxcb                                               \
-                  "--enable-software-xcb --enable-async-events"        \
-                  "--disable-software-xcb --disable-async-events"      \
-                  "Enable software XCB engine and rendering backend?"  &&
-
 optional_depends  OPENGL                           \
                   "--enable-gl-xlib"               \
                   "--disable-gl-xlib"              \
                   "for OpenGL X11 display engine"  &&
-
-optional_depends  eet                                                     \
-                  "--enable-image-loader-eet --enable-font-loader-eet"    \
-                  "--disable-images-loader-eet --disable-font-loader-eet" \
-                  "for eet images and font loader support"               &&
 
 optional_depends  giflib                        \
                   '--enable-image-loader-gif'   \
