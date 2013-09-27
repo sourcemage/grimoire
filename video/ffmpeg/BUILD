@@ -38,4 +38,5 @@ LDFLAGS=${LDFLAGS//-Wl,--as-needed/}  &&
              --enable-gpl                            \
              $OPTS                         &&
 
-make V=1
+make V=1 &&
+make V=1 tools/qt-faststart
