@@ -1,2 +1,2 @@
-make
-
+perl Build.PL &&
+./Build
