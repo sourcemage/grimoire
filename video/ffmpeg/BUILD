@@ -22,6 +22,16 @@ if echo "$CFLAGS" | grep -q "\-Os"; then
   OPTS="--enable-small $OPTS"
 fi &&
 
+# license handling (nonfree/GPLv3)
+if is_depends_enabled $SPELL openssl || \
+   is_depends_enabled $SPELL faac; then
+    OPTS="--enable-nonfree $OPTS"
+fi &&
+
+if is_depends_enabled $SPELL opencore-amr; then
+    OPTS="--enable-version3 $OPTS"
+fi &&
+
 # fixing issue #381
 if is_depends_enabled $SPELL openjpeg; then
     CFLAGS="$CFLAGS -I${INSTALL_ROOT}/usr/include/openjpeg-1.5"
