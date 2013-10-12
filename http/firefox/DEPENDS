@@ -1,26 +1,72 @@
-depends  castfs                            &&
-depends  atk                               &&
-depends  curl                              &&
-depends -sub CXX gcc                       &&
-depends  glib2                             &&
-depends  libjpeg-turbo                     &&
-depends  pango                             &&
-depends  perl                              &&
-depends  zip                               &&
-depends  zlib                              &&
-depends  cairo                             &&
-depends  python                            &&
-depends  libnotify                         &&
-depends  nspr                              &&
-depends  -sub "3.14.x" nss                 &&
-depends autoconf-2.13                      &&
-depends  gtk+2                             &&
-depends  libidl                            &&
+depends -sub CXX gcc                                             &&
+depends  nspr               '--with-system-nspr'                 &&
+depends  -sub "3.15.x" nss  '--with-system-nss'                  &&
+depends  zlib               '--with-system-zlib'                 &&
+depends  libjpeg-turbo      '--with-system-jpeg'                 &&
+depends  libidl                                                  &&
+depends  perl                                                    &&
+depends  python                                                  &&
+depends  zip                                                     &&
+depends  gtk+2              '--enable-xft --disable-freetype2'   &&
+depends  -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY" sqlite '--enable-system-sqlite'    &&
+depends  pysqlite                                                &&
 
-optional_depends yasm "" "" "Support for WebM media (VP8 video and Vorbis Audio)" &&
-optional_depends wireless_tools "" "" "for geolocation via WiFi access points" &&
-optional_depends alsa-lib "" "" "for audio support" &&
+depends  atk                                                     &&
+depends  glib2                                                   &&
+depends  pango                                                   &&
+depends  cairo                                                   &&
 
+optional_depends  startup-notification  \
+                  '--enable-startup-notification' \
+                  '--disable-startup-notification' \
+                  'for startup notifications'      &&
+
+optional_depends  gconf2  \
+                  '--enable-gconf' \
+                  '--disable-gconf' \
+                  'for gconf support'      &&
+
+optional_depends  'wireless_tools' \
+                  '--enable-necko-wifi' \
+                  '--disable-necko-wifi' \
+                  'for Necko WiFi scanning' &&
+
+# Firefox is currently borked and does not compile without alsa-lib headers,
+# this should have been fixed when Firefox started using Mozilla core 23, but it
+# wasn't see https://bugzilla.mozilla.org/show_bug.cgi?id=875268
+depends alsa-lib &&
+#optional_depends  alsa-lib \
+#                  '--enable-wave' \
+#                  '--disable-wave --disable-ogg --disable-webm --disable-dash' \
+#                  'for audio/video support' &&
+
+if is_depends_enabled $SPELL alsa-lib; then
+  # Firefox tries to use ogg/ogg.h even with --disable-ogg given
+  #optional_depends  libogg \
+  #                  '--enable-ogg' \
+  #                  '--disable-ogg' \
+  #                  'for sound support' &&
+  depends libogg &&
+
+  # configure script checks for yasm even when --disable-webm and --disable-dash are given
+  #optional_depends  yasm \
+  #                  '--enable-webm --enable-dash' \
+  #                  '--disable-webm --disable-dash' \
+  #                  'for WebM video support'
+  depends yasm
+fi &&
+
+optional_depends  dbus-glib \
+                  '--enable-dbus' \
+                  '--disable-dbus' \
+                  'for dbus support' &&
+
+# Firefox is currently borked and does not compile without OpenGL headers
+#optional_depends  OPENGL \
+#                  '--enable-webgl' \
+#                  '--disable-webgl --without-gl-provider' \
+#                  'for WebGL support' &&
+depends OPENGL &&
 
 suggest_depends_2 firefox-smglwiki '' '' \
   'to enable searching the SMGL Wiki from the Search Bar'

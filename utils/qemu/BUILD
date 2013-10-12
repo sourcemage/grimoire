@@ -6,9 +6,9 @@ cd "${SOURCE_DIRECTORY}"                    &&
             --sysconfdir="$INSTALL_ROOT/etc" \
             --target-list="$QEMU_ARCHS"     \
             --audio-drv-list="$QEMU_AUDIO"  \
-            --audio-card-list="$QEMU_CARDS" \
             $QEMU_KVM                       \
             $QEMU_VNC                       \
+            $QEMU_TPM                       \
             $OPTS                           &&
 
 make

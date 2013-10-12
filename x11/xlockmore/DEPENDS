@@ -1,4 +1,6 @@
-if list_find $XLOCKMORE_BO "--disable-blank-only"; then
+depends libx11 &&
+
+if list_find $XLOCKMORE_OPTS "--disable-blank-only"; then
   optional_depends mesalib \
                    "--with-mesa" \
                    "--without-mesa" \
@@ -12,8 +14,23 @@ if list_find $XLOCKMORE_BO "--disable-blank-only"; then
   optional_depends freetype2 \
                    "--with-freetype" \
                    "--without-freetype" \
-                   "for FreeType mode(s)"
+                   "for FreeType mode(s)" &&
+
+  optional_depends libxpm \
+                   "--with-xpm" \
+                   "--without-xpm" \
+                   "for color pixmap XPM mode(s)"
+else
+  list_add XLOCKMORE_OPTS "--without-mesa" &&
+  list_add XLOCKMORE_OPTS "--without-opengl" &&
+  list_add XLOCKMORE_OPTS "--without-freetype" &&
+  list_add XLOCKMORE_OPTS "--without-xpm"
 fi &&
+
+optional_depends libxinerama \
+                 "--with-xinerama" \
+                 "--without-xinerama" \
+                 "for Xinerama support" &&
 
 optional_depends gltt \
                  "--with-gltt" \
@@ -49,6 +66,20 @@ optional_depends gtk+2 \
                  "--with-gtk2" \
                  "--without-gtk2" \
                  "for GTK+2 support (xglock build)" &&
+
+if is_depends_enabled $SPELL gtk+2; then
+  list_add XLOCKMORE_OPTS "--without-gtk"
+else
+  optional_depends gtk+ \
+                   "--with-gtk" \
+                   "--without-gtk" \
+                   "for GTK+ support (xglock build)"
+fi &&
+
+optional_depends imagemagick \
+                 "--with-magick" \
+                 "--without-magick" \
+                 "for ImageMagick support" &&
 
 optional_depends SYSTEM-LOGGER \
                  "--enable-syslog" \
