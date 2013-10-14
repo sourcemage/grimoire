@@ -1,4 +1,5 @@
-if [[ $CRYPT  == "y" ]]; then
-	sed -i -e "s|/sbin/cryptsetup|`which cryptsetup`|" src/policy.h
-fi  &&
+if is_depends_enabled $SPELL cryptsetup-luks; then
+  OPTS="--with-cryptsetup-prog=`which cryptsetup` $OPTS"
+fi &&
+
 default_build

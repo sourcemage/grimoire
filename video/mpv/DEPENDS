@@ -1,0 +1,232 @@
+depends perl &&
+depends -sub STABLE ffmpeg &&
+
+optional_depends docutils \
+                 "" \
+                 "--disable-manpage" \
+                 "to build and install manpage" &&
+
+# WARNING: --enable-* flags are strictly forbidden to add in places where
+# they don't exist; it breaks adding proper LDFLAGS and makes configure
+# script choose bad decisions on dependencies
+
+# localization
+optional_depends gettext \
+                 "--enable-gettext" \
+                 "--disable-gettext" \
+                 "for native language support" &&
+
+# audio output
+optional_depends alsa-lib \
+                 "" \
+                 "--disable-alsa" \
+                 "for ALSA audio output" &&
+
+# `--disable' flag is removed to support native OSS anyway via autodetect mode
+optional_depends oss \
+                 "" \
+                 "" \
+                 "for OSS4 audio output" &&
+
+optional_depends pulseaudio \
+                 "" \
+                 "--disable-pulse" \
+                 "for Pulseaudio audio output" &&
+
+optional_depends portaudio19 \
+                 "" \
+                 "--disable-portaudio" \
+                 "for PortAudio audio output" &&
+
+optional_depends JACK-DRIVER \
+                 "" \
+                 "--disable-jack" \
+                 "for JACK audio output" &&
+
+optional_depends openal \
+                 "--enable-openal" \
+                 "--disable-openal" \
+                 "for OpenAL audio output" &&
+
+optional_depends sdl \
+                 "--enable-sdl" \
+                 "--disable-sdl" \
+                 "for SDL audio output" &&
+
+# TODO: add sdl2 spell
+#optional_depends sdl2 \
+#                 "--enable-sdl2" \
+#                 "--disable-sdl2" \
+#                 "for SDL 2.0+ audio and video output" &&
+
+# video output
+optional_depends OPENGL \
+                 "--enable-gl" \
+                 "--disable-gl" \
+                 "for OpenGL video output" &&
+
+optional_depends libcaca \
+                 "" \
+                 "--disable-caca" \
+                 "for CACA video output" &&
+
+optional_depends libx11 \
+                 "" \
+                 "--disable-x11" \
+                 "for X11 video output" &&
+
+if is_depends_enabled $SPELL libx11; then
+  depends libxext &&
+
+  optional_depends libxxf86vm \
+                   "" \
+                   "--disable-vm" \
+                   "for X video mode extensions" &&
+
+  optional_depends libvdpau \
+                   "" \
+                   "--disable-vdpau" \
+                   "for VDPAU acceleration" &&
+
+  optional_depends libxv \
+                   "" \
+                   "--disable-xv" \
+                   "for Xv video output" &&
+
+  optional_depends libxinerama \
+                   "" \
+                   "--disable-xinerama" \
+                   "for Xinerama support"
+else
+  list_add MPV_OPTS "--disable-vm" &&
+  list_add MPV_OPTS "--disable-vdpau" &&
+  list_add MPV_OPTS "--disable-xv" &&
+  list_add MPV_OPTS "--disable-xinerama"
+fi &&
+
+optional_depends libxscrnsaver \
+                 "" \
+                 "--disable-xss" \
+                 "for screensaver support via xss" &&
+
+# codecs
+optional_depends libmng \
+                 "--enable-mng" \
+                 "--disable-mng" \
+                 "for MNG input support" &&
+
+optional_depends JPEG \
+                 "--enable-jpeg" \
+                 "--disable-jpeg" \
+                 "for JPEG input/output support" &&
+
+optional_depends libcdio \
+                 "--enable-libcdio" \
+                 "--disable-libcdio" \
+                 "for libcdio support" &&
+
+optional_depends ladspa \
+                 "" \
+                 "--disable-ladspa" \
+                 "for LADSPA plugin support" &&
+
+optional_depends MPG123 \
+                 "" \
+                 "--disable-mpg123" \
+                 "for libmpg123 MP3 decoding support" &&
+
+# features
+optional_depends lirc \
+                 "--enable-lirc" \
+                 "--disable-lirc" \
+                 "for LIRC (remote control) support" &&
+
+if is_depends_enabled $SPELL libx11; then
+  optional_depends xproto \
+                   "" \
+                   "--disable-xf86keysym" \
+                   "for multimedia keys support"
+else
+  list_add MPV_OPTS "--disable-xf86keysym"
+fi &&
+
+optional_depends v4l-utils \
+                 "--enable-radio" \
+                 "--disable-radio --disable-radio-v4l2" \
+                 "for Video4Linux2 radio interface" &&
+
+if is_depends_enabled $SPELL v4l-utils; then
+  if is_depends_enabled $SPELL alsa-lib || is_depends_enabled $SPELL oss; then
+    config_query_option MPV_OPTS "Enable radio capture (through PCI/line-in)?" n \
+                                 "--enable-radio-capture" \
+                                 "--disable-radio-capture"
+  else
+    list_add MPV_OPTS "--disable-radio-capture"
+  fi
+fi &&
+
+optional_depends v4l-utils \
+                 "--enable-tv" \
+                 "--disable-tv --disable-tv-v4l2" \
+                 "for Video4Linux2 TV interface (TV/DVB grabbers)" &&
+
+if is_depends_enabled $SPELL v4l-utils; then
+  config_query_option MPV_OPTS "Enable Video4Linux2 MPEG PVR?" y \
+                               "" \
+                               "--disable-pvr"
+else
+  list_add MPV_OPTS "--disable-pvr"
+fi &&
+
+optional_depends samba \
+                 "--enable-smb" \
+                 "--disable-smb" \
+                 "for Samba (SMB) input support" &&
+
+if is_depends_enabled $SPELL samba; then
+  depends openssl
+fi &&
+
+optional_depends libquvi \
+                 "" \
+                 "--disable-libquvi4" \
+                 "for parsing media stream URLs via libquvi 0.4.x" &&
+
+optional_depends lcms2 \
+                 "" \
+                 "--disable-lcms2" \
+                 "for LCMS2 support" &&
+
+optional_depends libbluray \
+                 "" \
+                 "--disable-bluray" \
+                 "for Blu-ray support" &&
+
+optional_depends libdvdread \
+                 "" \
+                 "--disable-dvdread" \
+                 "for reading scrambled (CSS) DVDs" &&
+
+optional_depends enca \
+                 "" \
+                 "--disable-enca" \
+                 "for ENCA charset oracle library support" &&
+
+# accepts only autodetect mode (forcing `--enable-libass' flag disables libass
+# support); this also happens for `--enable-libass-osd'
+optional_depends libass \
+                 "" \
+                 "--disable-libass" \
+                 "for subtitle rendering" &&
+
+if is_depends_enabled $SPELL libass; then
+  config_query_option MPV_OPTS "Enable libass OSD rendering?" y \
+                               "" \
+                               "--disable-libass-osd"
+else
+  list_add MPV_OPTS "--disable-libass-osd"
+fi &&
+
+if is_depends_enabled $SPELL $(get_spell_provider $SPELL OPENGL); then
+  suggest_depends smgl-gl_select "" "" "to switch between OPENGL providers in userspace"
+fi

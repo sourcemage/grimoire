@@ -1,35 +1,15 @@
-cd  $SOURCE_DIRECTORY/comm-*  &&
+cd  "${SOURCE_DIRECTORY}"/comm-*  &&
 
-THUNDERBIRD_HOME=${INSTALL_ROOT}/usr/lib/thunderbird &&
+THUNDERBIRD_HOME="${INSTALL_ROOT}"/usr/lib/thunderbird &&
 export  MOZ_THUNDERBIRD="1"   &&
 
 #
 # No fast optimization for Mozilla, bit us so many times...
 #
-export  CFLAGS="${CFLAGS//-O3/-O2}"      &&
-export  CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
-
-#
-# -ffast-math breaks plugins
-#
-CFLAGS="${CFLAGS//-ffast-math/}"      &&
-CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
-
-#
-# Forcing SSE for mfpmath causes Thunderbird to segfault on start
-#
-CFLAGS="${CFLAGS//-mfpmath=sse/}"      &&
-CXXFLAGS="${CXXFLAGS//-mfpmath=sse/}"  &&
-
-if  echo $LDFLAGS | grep  -q  '\-s'; then
-  OPTS="$OPTS  --enable-strip"
-fi  &&
-
-LDFLAGS="${LDFLAGS/-Wl,--as-needed/}" &&
-
-if [[ $THUNDERBIRD_OFFICIAL == y ]]; then
-  OPTS="$OPTS --enable-official-branding"
-fi
+CFLAGS="${CFLAGS//-Os/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
+CFLAGS="${CFLAGS//-O3/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
 #
 # Avoid buggy GCC 4.6 AVX code generation, which breaks libxul
@@ -44,12 +24,10 @@ if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
 
+for option in $OPTS; do
+  echo "ac_add_options $option" >> .mozconfig
+done &&
 
-./configure --prefix=${INSTALL_ROOT}/usr     \
-            --with-user-appdir=.thunderbird  \
-            --enable-application=mail        \
-            --disable-system-cairo           \
-            --disable-crashreporter          \
-              $OPTS                          &&
-
-make
+make_single  &&
+make -f client.mk build &&
+make_normal
