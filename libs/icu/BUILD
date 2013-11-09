@@ -1,7 +1,7 @@
 cd $SOURCE_DIRECTORY/source &&
 # recommended for a system wide install
 OPTS+="--disable-renaming --disable-static" &&
-./configure --prefix=/usr $OPTS &&
+CC=gcc CXX=g++ ./configure --prefix=/usr $OPTS &&
 
 # set options as recommended by icu project
 sed -i '1 i\
