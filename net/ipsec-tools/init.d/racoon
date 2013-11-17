@@ -1,0 +1,31 @@
+#!/bin/bash
+
+. /etc/sysconfig/racoon
+
+PROGRAM=/usr/sbin/racoon
+PIDFILE="/var/run/racoon.pid"
+ARGS="$RACOON_ARGS"
+RUNLEVEL=3
+
+NEEDS="+network"
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo "Loading IPSec policies from $IPSEC_CONF... "
+  /usr/sbin/setkey -f "$IPSEC_CONF"
+
+  evaluate_retval
+
+  _start
+}
+
+stop() {
+  echo "Flushing policy entries... "
+  /usr/sbin/setkey -F
+  /usr/sbin/setkey -FP
+
+  evaluate_retval
+
+  _stop
+}
