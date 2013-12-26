@@ -9,5 +9,7 @@ cd     buildit &&
               --enable-shared               \
               --disable-static              \
               --disable-werror              \
+              --enable-ld=default           \
+              --enable-gold                 \
               $OPTS  &&
 make DESTDIR=$INSTALL_ROOT
