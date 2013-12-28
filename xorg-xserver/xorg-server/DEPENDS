@@ -24,9 +24,10 @@ optional_depends  dri2proto                        \
                   "--enable-dri2"                  \
                   "--disable-dri2"                 \
                   "Enable DRI2 extension"          &&
-if is_depends_enabled $SPELL dri2proto ; then
-force_depends dri2proto
-fi                                                 &&
+optional_depends  dri3proto                        \
+                  "--enable-dri3"                  \
+                  "--disable-dri3"                 \
+                  "Enable DRI3 extension"          &&
 optional_depends  libxscrnsaver                    \
                   "--enable-screensaver"           \
                   "--disable-screensaver"          \
@@ -36,32 +37,10 @@ optional_depends  libxvmc                          \
                   "--disable-xvmc"                 \
                   "Enable support for XvMC"        &&
 
-#
-# May only select one:
-# configure: error: Hotplugging through both libudev and dbus/hal not allowed
-#
-# NOTE: as hal depends on dbus, we can safely enable/disable dbus's configure
-# options with hal
-#
-# hal is preferred by upstream:
-#  --enable-config-udev    Build udev support (default: auto)
-#  --enable-config-dbus    Build D-BUS API support (default: no)
-#  --disable-config-hal    Build HAL support (default: auto)
-#
-
-message "You can either use hal+dbus OR udev for hotplugging" &&
-message "but NOT both" &&
-optional_depends  hal \
-         "--enable-config-hal --enable-config-dbus --disable-config-udev" \
-         "--disable-config-hal --disable-config-dbus" \
-         "Enable HAL support" &&
-
-if ! is_depends_enabled $SPELL hal; then
   optional_depends  UDEV \
     "--enable-config-udev --disable-config-dbus --disable-config-hal" \
     "--disable-config-udev" \
-    "enable udev kernel config support"
-fi &&
+    "enable udev kernel config support" &&
 
 optional_depends  dmxproto                           \
                   "--enable-dmx"                   \
@@ -85,9 +64,7 @@ depends  xinit                                     &&
 depends  xhost                                     &&
 depends  xauth                                     &&
 depends  bigreqsproto                              &&
-simple_version_check_force_depends bigreqsproto 103 3 &&
 depends  pixman                                    &&
-simple_version_check_force_depends pixman 160 3    &&
 depends  compositeproto                            &&
 depends  damageproto                               &&
 depends  evieext                                   &&
@@ -96,34 +73,28 @@ depends  fontcacheproto                            &&
 depends  fontsproto                                &&
 depends  glproto                                   &&
 depends  inputproto                                &&
-simple_version_check_force_depends inputproto 20 2 &&
 depends  kbproto                                   &&
 depends  randrproto                                &&
+optional_depends  presentproto  \
+         '' \
+         '--disable-present' \
+         'build Present extension' &&
+depends  libxshmfence  &&
 
 if list_find "$XORG_SERVER_OPTS" "--enable-record"; then
-  depends recordproto &&
-  simple_version_check_force_depends recordproto 113 3
+  depends recordproto
 fi &&
 
 depends  renderproto                               &&
-# to complicated to figure out atm since it goes from 0.9.3 -> 0.11
-if spell_ok renderproto
-  then
-    force_depends renderproto
-fi &&
 depends  resourceproto                             &&
 depends  scrnsaverproto                            &&
 depends  videoproto                                &&
 depends  xcmiscproto                               &&
-simple_version_check_force_depends xcmiscproto 11 2  &&
 depends  xextproto                                 &&
 depends  xf86bigfontproto                          &&
 depends  xf86dgaproto                              &&
-simple_version_check_force_depends xf86dgaproto 21 2 &&
 depends  xf86driproto                              &&
-simple_version_check_force_depends xf86driproto 205 3 &&
 depends  xf86vidmodeproto                          &&
-simple_version_check_force_depends xf86vidmodeproto 23 2 &&
 depends  xineramaproto                             &&
 depends  xproto                                    &&
 depends  xproxymanagementprotocol                  &&
