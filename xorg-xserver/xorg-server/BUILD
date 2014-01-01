@@ -20,7 +20,6 @@ fi &&
 message CFLAGS=$CFLAGS
 OPTS="${XORG_SERVER_OPTS}                                     \
       --with-xkb-output=$TRACK_ROOT/var/lib/xkb               \
-      --with-dri-driver-path=$TRACK_ROOT/usr/lib/dri          \
       --with-fontrootdir=${TRACK_ROOT}/usr/share/fonts/X11    \
       --disable-secure-rpc                                    \
       --disable-xwin                                          \
