@@ -120,7 +120,7 @@
      /** Scrolling **/
      vte_terminal_set_scroll_background (VTE_TERMINAL(tt->vte_term), config_getbool ("scroll_background"));
 --- src/wizard.c.orig	2013-12-13 19:58:24.000000000 +0400
-+++ src/wizard.c	2014-01-29 17:23:31.000000000 +0400
++++ src/wizard.c	2014-01-29 20:02:53.000000000 +0400
 @@ -754,6 +754,21 @@
      }
  }
@@ -210,7 +210,34 @@
  static void colorbutton_back_color_set_cb (GtkWidget *w)
  {
      const GtkWidget *combo_colorschemes =
-@@ -1796,7 +1843,7 @@
+@@ -1411,7 +1458,7 @@
+ {
+     gint i, j;
+     tilda_term *tt;
+-    GdkColor fg, bg;
++    GdkColor fg, cc, bg;
+     GtkWidget *color_button;
+ 
+     i = gtk_combo_box_get_active (GTK_COMBO_BOX(w));
+@@ -1421,6 +1468,9 @@
+             GTK_WIDGET (gtk_builder_get_object (xml, "colorbutton_text"));
+         gtk_color_button_get_color (GTK_COLOR_BUTTON(color_button), &fg);
+         color_button =
++            GTK_WIDGET (gtk_builder_get_object (xml, "colorbutton_cursor"));
++        gtk_color_button_get_color (GTK_COLOR_BUTTON(color_button), &cc);
++        color_button =
+             GTK_WIDGET (gtk_builder_get_object (xml, "colorbutton_back"));
+         gtk_color_button_get_color (GTK_COLOR_BUTTON(color_button), &bg);
+ 
+@@ -1431,6 +1481,7 @@
+             tt = g_list_nth_data (tw->terms, j);
+ 
+             vte_terminal_set_colors (VTE_TERMINAL(tt->vte_term), &fg, &bg, current_palette, TERMINAL_PALETTE_SIZE);
++            vte_terminal_set_color_cursor (VTE_TERMINAL(tt->vte_term), &cc);
+         }
+ 
+         for (j=0; j<TERMINAL_PALETTE_SIZE; j++) {
+@@ -1796,7 +1847,7 @@
   * its visual representation in the wizard. */
  static void set_wizard_state_from_config ()
  {
@@ -219,7 +246,7 @@
      gint i;
  
      /* General Tab */
-@@ -1809,6 +1856,7 @@
+@@ -1809,6 +1860,7 @@
  
      CHECK_BUTTON ("check_terminal_bell", "bell");
      CHECK_BUTTON ("check_cursor_blinks", "blinks");
@@ -227,7 +254,7 @@
  
      CHECK_BUTTON ("check_enable_antialiasing", "antialias");
      CHECK_BUTTON ("check_allow_bold_text", "bold");
-@@ -1866,6 +1914,10 @@
+@@ -1866,6 +1918,10 @@
      text_color.green = config_getint ("text_green");
      text_color.blue = config_getint ("text_blue");
      COLOR_BUTTON ("colorbutton_text", &text_color);
@@ -238,7 +265,7 @@
      back_color.red = config_getint ("back_red");
      back_color.green = config_getint ("back_green");
      back_color.blue = config_getint ("back_blue");
-@@ -1936,6 +1988,7 @@
+@@ -1936,6 +1992,7 @@
  
      CONNECT_SIGNAL ("check_terminal_bell","toggled",check_terminal_bell_toggled_cb);
      CONNECT_SIGNAL ("check_cursor_blinks","toggled",check_cursor_blinks_toggled_cb);
@@ -246,7 +273,7 @@
  
      CONNECT_SIGNAL ("check_enable_antialiasing","toggled",check_enable_antialiasing_toggled_cb);
      CONNECT_SIGNAL ("check_allow_bold_text","toggled",check_allow_bold_text_toggled_cb);
-@@ -1982,6 +2035,7 @@
+@@ -1982,6 +2039,7 @@
      /* Colors Tab */
      CONNECT_SIGNAL ("combo_colorschemes","changed",combo_colorschemes_changed_cb);
      CONNECT_SIGNAL ("colorbutton_text","color-set",colorbutton_text_color_set_cb);
