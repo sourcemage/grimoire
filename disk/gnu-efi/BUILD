@@ -1,1 +1,2 @@
+CFLAGS=''
 make PREFIX=/usr
