@@ -12,20 +12,21 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   # Set GLIBC_HEADERS_DIR for use later
   #
   persistent_add  GLIBC_HEADERS_DIR                        &&
-  GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.bz2}  &&
 
   case ${HEADERS_VERSION} in
     3.[1-9]*)
-            message "${MESSAGE_COLOR}bunzip2 $SOURCE_CACHE/$SOURCE3${DEFAULT_COLOR}"
-            bunzip2 -k $SOURCE_CACHE/$SOURCE3
+            GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.xz}
+            message "${MESSAGE_COLOR}xz -d $SOURCE_CACHE/$SOURCE3${DEFAULT_COLOR}"
+            xz -d -k $SOURCE_CACHE/$SOURCE3
             SOURCE3_ORI=$SOURCE3
-            SOURCE3=${SOURCE3/.bz2}
+            SOURCE3=${SOURCE3/.xz}
             unpack_file 3 || return 1
             message "${MESSAGE_COLOR}rm $SOURCE_CACHE/$SOURCE3${DEFAULT_COLOR}"
             rm $SOURCE_CACHE/$SOURCE3
             SOURCE3=$SOURCE3_ORI
             ;;
            *)
+            GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.bz2}
             unpack_file 3 || return 1
             ;;
   esac
@@ -39,10 +40,10 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
     cd  $GLIBC_HEADERS_DIR &&
     if [ ! -z $SOURCE7 ]; then
       if [[ ${HEADERS_VERSION} > 3.0.4 ]]; then
-        message "${MESSAGE_COLOR}bunzip2 $SOURCE_CACHE/$SOURCE7${DEFAULT_COLOR}"
-        bunzip2 -k ${SOURCE_CACHE}/$SOURCE7 &&
+        message "${MESSAGE_COLOR}xz -d $SOURCE_CACHE/$SOURCE7${DEFAULT_COLOR}"
+        xz -d -k ${SOURCE_CACHE}/$SOURCE7 &&
         SOURCE7_ORI=${SOURCE7}
-        SOURCE7=${SOURCE7/.bz2}
+        SOURCE7=${SOURCE7/.xz}
 	echo $SOURCE7_GPG
         verify_file 7 || return 1
         message "${MESSAGE_COLOR}rm $SOURCE_CACHE/$SOURCE7${DEFAULT_COLOR}"
@@ -51,9 +52,9 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
       else
         verify_file 7 || return 1
       fi
-      bzcat ${SOURCE_CACHE}/$SOURCE7 > ${SOURCE7/.bz2}
+      xzcat ${SOURCE_CACHE}/$SOURCE7 > ${SOURCE7/.xz}
       message "${MESSAGE_COLOR}Patching ${!patch}${DEFAULT_COLOR}" &&
-      patch -p1 < ${SOURCE7/.bz2} &&
+      patch -p1 < ${SOURCE7/.xz} &&
       if [[ $? != 0 ]]; then
         message "${PROBLEM_COLOR}Patch ${!patch} failed${DEFAULT_COLOR}" &&
         return 1

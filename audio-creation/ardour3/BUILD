@@ -1,2 +1,3 @@
-OPTS="$OPTS $ARDOUR3_PHONE" &&
+OPTS="--noconfirm $ARDOUR3_OPTS $OPTS" &&
+
 waf_build
