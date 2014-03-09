@@ -1,0 +1,88 @@
+http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=374327
+
+GPL code linked against OpenSSL without exception
+
+[ Alejandro Rios ]
+* Initial port from openssl to gnutls
+ 
+[ Anibal Monsalve Salazar ]
+* configure: replaced -lssl with /usr/lib/libgnutls-openssl.so.
+* ssmtp.c: replaced SSL_CTX_use_certificate_chain_file with
+  SSL_CTX_use_certificate_file and marked SSL_CTX_check_private_key
+  as not used.
+
+Alejandro Rios <alerios@debian.org>
+Anibal Monsalve Salazar <anibal@debian.org>
+
+Index: ssmtp-2.64/ssmtp.c
+===================================================================
+--- ssmtp-2.64.orig/ssmtp.c
++++ ssmtp-2.64/ssmtp.c
+@@ -27,12 +27,16 @@
+ #include <ctype.h>
+ #include <netdb.h>
+ #ifdef HAVE_SSL
++#ifdef HAVE_GNUTLS
++#include <gnutls/openssl.h>
++#else
+ #include <openssl/crypto.h>
+ #include <openssl/x509.h>
+ #include <openssl/pem.h>
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
+ #endif
++#endif
+ #ifdef MD5AUTH
+ #include "md5auth/hmac_md5.h"
+ #endif
+@@ -1154,7 +1158,11 @@ int smtp_open(char *host, int port)
+ 	}
+ 
+ 	if(use_cert == True) { 
++#ifdef HAVE_GNUTLS
++		if(SSL_CTX_use_certificate_file(ctx, tls_cert, SSL_FILETYPE_PEM) <= 0) {
++#else
+ 		if(SSL_CTX_use_certificate_chain_file(ctx, tls_cert) <= 0) {
++#endif
+ 			perror("Use certfile");
+ 			return(-1);
+ 		}
+@@ -1164,10 +1172,12 @@ int smtp_open(char *host, int port)
+ 			return(-1);
+ 		}
+ 
++#ifndef HAVE_GNUTLS
+ 		if(!SSL_CTX_check_private_key(ctx)) {
+ 			log_event(LOG_ERR, "Private key does not match the certificate public key\n");
+ 			return(-1);
+ 		}
++#endif
+ 	}
+ #endif
+ 
+Index: ssmtp-2.64/configure.in
+===================================================================
+--- ssmtp-2.64.orig/configure.in
++++ ssmtp-2.64/configure.in
+@@ -50,11 +50,17 @@ enableval=""
+ 
+ AC_ARG_ENABLE(ssl,
+ [  --enable-ssl           support for secure connection to mail server])
+-if test x$enableval = xyes ; then
+-	AC_DEFINE(HAVE_SSL)
+-	LIBS="$LIBS -lssl -lcrypto"
++AC_ARG_WITH([gnutls],
++  AS_HELP_STRING([--with-gnutls], [Use GnuTLS for SSL support]))
++if test x$enable_ssl = "xyes" ; then
++       	AC_DEFINE(HAVE_SSL)
++        if test "x$with_gnutls" != "xyes"; then
++        	LIBS="$LIBS -lssl -lcrypto"
++        else
++                AC_DEFINE([HAVE_GNUTLS])
++                LIBS="$LIBS -lgnutls-openssl"
++        fi
+ fi
+-enableval=""
+ 
+ AC_ARG_ENABLE(inet6,
+ [  --enable-inet6         support for IPv6 transport])
