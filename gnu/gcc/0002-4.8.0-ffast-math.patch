@@ -1,0 +1,64 @@
+From e63ab6470c6e0d397a5d0daa473599c7d9f5ad62 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+Date: Wed, 20 Mar 2013 11:22:37 +0100
+Subject: [PATCH] fix fastmath
+
+---
+ libgcc/config/i386/crtfastmath.c | 34 ++++++++++++++++++----------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)
+
+diff --git a/libgcc/config/i386/crtfastmath.c b/libgcc/config/i386/crtfastmath.c
+index 991f531..44f2ba0 100644
+--- a/libgcc/config/i386/crtfastmath.c
++++ b/libgcc/config/i386/crtfastmath.c
+@@ -50,6 +50,24 @@ sigill_hdlr (int sig __attribute((unused)),
+ }
+ #endif
+ 
++struct
++{
++  unsigned short int cwd;
++  unsigned short int swd;
++  unsigned short int twd;
++  unsigned short int fop;
++  long int fip;
++  long int fcs;
++  long int foo;
++  long int fos;
++  long int mxcsr;
++  long int mxcsr_mask;
++  long int st_space[32];
++  long int xmm_space[32];
++  long int padding[56];
++} __attribute__ ((aligned (16))) fxsave;
++
++
+ static void __attribute__((constructor))
+ #ifndef __x86_64__
+ /* The i386 ABI only requires 4-byte stack alignment, so this is necessary
+@@ -94,22 +112,6 @@ set_fast_math (void)
+       if (edx & bit_FXSAVE)
+ 	{
+ 	  /* Check if DAZ is available.  */
+-	  struct
+-	    {
+-	      unsigned short cwd;
+-	      unsigned short swd;
+-	      unsigned short twd;
+-	      unsigned short fop;
+-	      unsigned int fip;
+-	      unsigned int fcs;
+-	      unsigned int foo;
+-	      unsigned int fos;
+-	      unsigned int mxcsr;
+-	      unsigned int mxcsr_mask;
+-	      unsigned int st_space[32];
+-	      unsigned int xmm_space[32];
+-	      unsigned int padding[56];
+-	    } __attribute__ ((aligned (16))) fxsave;
+ 
+ 	  /* This is necessary since some implementations of FXSAVE
+ 	     do not modify reserved areas within the image.  */
+-- 
+1.8.1.3
+
