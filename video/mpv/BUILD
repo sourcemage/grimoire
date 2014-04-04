@@ -18,8 +18,5 @@ if is_depends_enabled $SPELL $(get_spell_provider $SPELL OPENGL); then
   fi
 fi &&
 
-./configure --prefix=${INSTALL_ROOT}/usr \
-            --confdir=${TRACK_ROOT}/etc/mpv \
-            $OPTS &&
-
-make V=1
+OPTS+=" --confdir=$INSTALL_ROOT/etc/mpv" &&
+waf_build

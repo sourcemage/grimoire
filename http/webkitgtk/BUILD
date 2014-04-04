@@ -1,6 +1,4 @@
-OPTS="$WEBKIT_SVG $WEBKIT_WEBGL $OPTS" &&
-OPTS="--with-gtk=2.0 --disable-webkit2 $OPTS" &&
+OPTS="--enable-webkit1 --disable-webkit2 $WEBKIT_OPTS $OPTS" &&
 
-make_single &&
-default_build &&
-make_normal
+default_build
+

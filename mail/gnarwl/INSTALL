@@ -1,0 +1,27 @@
+default_install &&
+
+local CONFIG_FILE="/etc/gnarwl.cfg" &&
+
+install_config_file "data/gnarwl.cfg" "$CONFIG_FILE" &&
+chown gnarwl:gnarwl "$CONFIG_FILE" &&
+chmod 600 "$CONFIG_FILE" &&
+
+local HOME_DIR="$INSTALL_ROOT/var/lib/gnarwl" &&
+
+if [[ ! -d "$HOME_DIR/block" ]]; then
+  mkdir -p "$HOME_DIR/block"
+fi &&
+
+for tmpl in header footer; do
+  if [[ ! -r "$HOME_DIR/$tmpl.txt" ]]; then
+    install -vm 644 "data/$tmpl.txt" "$HOME_DIR/$tmpl.txt"
+  fi
+done &&
+
+for tmpl in badheaders blacklist; do
+  if [[ ! -r "$HOME_DIR/$tmpl.db" ]]; then
+    cat "data/$tmpl.txt" | "$TRACK_ROOT/usr/sbin/damnit" -a "$HOME_DIR/$tmpl.db"
+  fi
+done &&
+
+chown -R gnarwl:gnarwl "$HOME_DIR"
