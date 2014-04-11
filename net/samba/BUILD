@@ -3,10 +3,11 @@ OPTS="--with-swatdir=/usr/share/swat  \
       --with-automount                \
       --with-winbind                  \
       --with-libsmbclient             \
+      PKG_CONFIG="$INSTALL_ROOT/usr/bin/pkg-config" \
       $SAMBA_QUOTA                    \
       $OPTS"                          &&
 
-cd  $SOURCE_DIRECTORY/source3  &&
+cd  $SOURCE_DIRECTORY/source3 &&
 default_build  &&
 
 if [[ "$SAMBA_VSCAN" == "y" ]] ; then
