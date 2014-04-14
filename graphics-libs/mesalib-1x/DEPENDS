@@ -1,0 +1,48 @@
+depends bison &&
+depends flex  &&
+depends libx11 &&
+
+case $MESALIB_BUILD in
+ dri)
+  depends glproto &&
+  depends dri2proto &&
+  depends dri3proto &&
+  depends presentproto &&
+  depends libdrm &&
+  depends UDEV   &&
+  depends libxext &&
+  depends libxxf86vm &&
+  depends libxdamage &&
+  depends libxfixes &&
+  depends libxcb &&
+  depends expat
+  ;;
+ *)
+  ;;
+esac &&
+depends python  &&
+depends -sub PYTHON libxml2 &&
+
+if [[ "$MESALIB_GALLIUM" != "none" ]]; then
+  depends llvm
+  if list_find wayland "$MESA_EGL";then
+    depends wayland
+  fi
+fi &&
+
+if ( list_find "i915" $MESALIB_DRIVERS ) || \
+   ( list_find "i965" $MESALIB_DRIVERS ); then
+  sub_depends libdrm INTEL
+fi &&
+
+if ( list_find "r200" $MESALIB_DRIVERS ) || \
+   ( list_find "radeon" $MESALIB_DRIVERS ); then
+  sub_depends libdrm RADEON
+fi &&
+
+if ( list_find "nouveau" $MESALIB_DRIVERS ); then
+  sub_depends libdrm NOUVEAU
+fi &&
+optional_depends wayland '' '' 'Wayland support'
+optional_depends libvdpau '' '' 'VDPAU support'
+optional_depends libxvmc  '--enable-xvmc' '--disable-xvmc' 'XvMC support (obsolete)'

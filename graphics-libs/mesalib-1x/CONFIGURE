@@ -1,0 +1,68 @@
+. $GRIMOIRE/config_query_multi.function                                  &&
+message "${MESSAGE_COLOR}MesaLib build types:\n"                         \
+        "xlib:   Stand-alone software rendering library;\n"              \
+	"        Output is via xlib library functions;\n"                \
+	"        No X server integration.\n"                             \
+        "dri:    Hardware acceleration in Linux with DRI-enabled kernel;\n"\
+	"        Integrated with DRI-enabled X server;\n"                \
+	"        Required for building xorg-xserver with DRI enabled.\n" \
+        "osmesa: Stand-alone software rendering library;\n"              \
+	"        Off-screen rendering only;\n"                           \
+	"        No connection to X server at all.${DEFAULT_COLOR}"      &&
+config_query_list MESALIB_BUILD                                          \
+                  "Select build type?"                                   \
+                  xlib                                                   \
+                  dri                                                    \
+                  osmesa                                                 &&
+
+case $MESALIB_BUILD in
+ dri)
+  AVAILABLE_DRIVERS="i915 i965 nouveau r200 radeon swrast"
+
+  config_query_multi MESALIB_DRIVERS                                       \
+                   "What drivers would you like to build?"               \
+                   all $AVAILABLE_DRIVERS &&
+
+  if list_find "$MESALIB_DRIVERS" all; then
+    MESALIB_DRIVERS="$AVAILABLE_DRIVERS"
+  fi &&
+
+  
+#  if list_find 
+  config_query_multi MESALIB_GALLIUM                                       \
+                   "What Gallium3D drivers woulld you like to build?"    \
+                    none llvm svga i915 i965 radeon nouveau swrast
+
+  if [[ $MESALIB_GALLIUM != none ]]; then
+    list_add MESALIB_OPTS "--enable-egl"
+    config_query_multi MESA_EGL "which EGL platforms?" drm fbdev wayland x11
+    if list_find  wayland "$MESA_EGL";then
+      list_remove MESALIB_OPTS "--disable-shared-glapi" &&
+      list_remove MESALIB_OPTS "--disable-gbm"     &&
+      list_remove MESALIB_OPTS "--disable-gles2"   &&
+      list_add MESALIB_OPTS "--enable-shared-glapi"&&
+      list_add MESALIB_OPTS "--enable-gbm"         &&
+      list_add MESALIB_OPTS "--enable-gles2"
+    else
+      config_query_option MESALIB_OPTS "enable shared GLapi" n \
+                         "--enable-shared-glapi" "--disable-shared-glapi" &&
+
+      config_query_option MESALIB_OPTS "enable Generic Buffer Management?" n \
+                         "--enable-gbm" "--disable-gbm"
+      config_query_option MESALIB_OPTS "enable support for OpenGL ES 2.x API?" n \
+                         "--enable-gles2" "--disable-gles2"
+    fi
+#    config_query_option MESALIB_OPTS "enable support for OpenGL ES 1.x API?" n \
+#                         "--enable-gles1" "--disable-gles1"
+  else   
+    config_query_option MESALIB_OPTS "enable EGL library?" y \
+                         "--enable-egl" "--disable-egl"
+  fi
+  ;;
+ xlib)
+  MESALIB_DRIVERS="swrast"
+  ;;
+esac &&
+
+config_query_option MESALIB_OPTS "enable TLS support in GLX" n \
+                    "--enable-glx-tls" "--disable-glx-tls"
