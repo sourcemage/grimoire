@@ -1,0 +1,34 @@
+#!/bin/bash
+root_dev()
+{
+  ROOT_DEV=$( mount | grep ' / ' | awk ' $1 ~ /\/dev\/*/ {print $1}')
+  ROOT_DEV=${ROOT_DEV/\/dev\//}
+  ROOT_PART=$(ls -l /dev/disk/by-uuid | grep ${ROOT_DEV}$ |cut -d\  -f10 )
+}
+# find the root partiton
+root_dev
+echo root = $ROOT_DEV
+echo root partition = $ROOT_PART
+
+modprobe efivarfs &&
+mount -t efivarfs efivarfs /sys/firmware/efi/efivars &&
+gummiboot install &&
+cd /boot &&
+DEST=/boot/loader/entries &&
+
+# delete existing smgl confif files
+mkdir -p $DEST    &&
+rm -f $DEST/smgl* &&
+
+# create the smgl config files for gummiboot
+for VX in `ls vmlinuz-* | cut -d- -f2`;do
+  echo creating efi config for $VX &&
+  cat > $DEST/smgl-$VX.conf << EOF
+title SourceMage GNU/Linux
+version $VX
+linux /vmlinuz-$VX
+#options ro root=/dev/$ROOT_DEV
+options ro root=PARTUUID=$ROOT_PART
+EOF
+done &&
+umount  /sys/firmware/efi/efivars
