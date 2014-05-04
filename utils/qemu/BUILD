@@ -11,4 +11,5 @@ cd "${SOURCE_DIRECTORY}"                    &&
             $QEMU_TPM                       \
             $OPTS                           &&
 
-make
+# Pass down ARFLAGS to workaround a bug in QEMU's build system
+ARFLAGS=rv make
