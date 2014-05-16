@@ -1,5 +1,12 @@
-if list_find "$PROFTPD_MODS" "mod_deflate"; then
-  depends zlib
+# handle 'n' selection for modules in CONFIGURE
+if [[ $PROFTPD_MOD == n ]]; then
+  persistent_add PROFTPD_MODS
+fi
+
+optional_depends zlib "" "" "to build mod_deflate module" &&
+
+if is_depends_enabled $SPELL zlib; then
+  list_add "PROFTPD_MODS" "mod_deflate"
 fi &&
 
 if list_find "$PROFTPD_MODS" "mod_sql"; then
@@ -41,12 +48,18 @@ else
                    "for OpenSSL support"
 fi &&
 
-if list_find "$PROFTPD_OPTS" "mod_sftp_pam"; then
+if list_find "$PROFTPD_MODS" "mod_sftp_pam"; then
   depends linux-pam
 fi &&
 
-if list_find "$PROFTPD_OPTS" "mod_tls_memcache"; then
+if list_find "$PROFTPD_MODS" "mod_tls_memcache"; then
   depends libmemcached
+fi &&
+
+optional_depends geoip "" "" "to build mod_geoip module" &&
+
+if is_depends_enabled $SPELL geoip; then
+  list_add "PROFTPD_MODS" "mod_geoip"
 fi &&
 
 optional_depends openldap "" "" "to build mod_ldap module" &&
