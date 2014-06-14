@@ -69,19 +69,36 @@ if list_find "$GCC_COMPILER" "ada" ; then
 
 fi  &&
 
-OPTS="--without-ppl --without-cloog $GCJ_HOME $OPTS" &&
+OPTS="$GCJ_HOME $OPTS"                                               &&
+OPTS="--prefix=${INSTALL_ROOT}/usr $OPTS"                          &&
+OPTS="--libdir=${INSTALL_ROOT}/usr/lib $OPTS"                      &&
+OPTS="--libexecdir=${INSTALL_ROOT}/usr/lib $OPTS"                  &&
+OPTS="--mandir=${INSTALL_ROOT}/usr/share/man $OPTS"                &&
+OPTS="--infodir=${INSTALL_ROOT}/usr/share/info $OPTS"              &&
+OPTS="--with-bugurl=http://bugs.sourcemage.org $OPTS"              &&
+OPTS="--enable-languages=$(echo ${GCC_COMPILER} | tr " " ","),lto $OPTS" &&
+OPTS="--enable-shared $OPTS"                                       &&
+OPTS="--enable-threads=posix $OPTS"                                &&
+OPTS="--enable-__cxa_atexit $OPTS"                                 &&
+OPTS="--enable-clocale=gnu $OPTS"                                  &&
+OPTS="--disable-libstdcxx-pch $OPTS"                               &&
+OPTS="--enable-bootstrap $OPTS"                                    &&
+OPTS="--enable-gnu-unique-object $OPTS"                            &&
+OPTS="--enable-linker-build-id $OPTS"                              &&
+if [[ "$GCC_CLOOG" == "y" ]]; then
+  OPTS="--enable-cloog-backend=isl $OPTS"  &&
+  OPTS="--disable-isl-version-check $OPTS"
+else
+  OPTS="--without-cloog $OPTS"
+fi &&
+OPTS="--enable-lto $OPTS"                                          &&
+OPTS="--with-linker-hash-style=gnu $OPTS"                          &&
+OPTS="--disable-werror $OPTS"                                      &&
+OPTS="--enable-checking=release $OPTS"                             &&
+OPTS="$GCC_MULTILIB"                                               &&
 
 cd $SOURCE_DIRECTORY.bld                                              &&
-$SOURCE_DIRECTORY/configure                                           \
-             --prefix=${INSTALL_ROOT}/usr                             \
-             --infodir=${INSTALL_ROOT}/usr/share/info                 \
-             --mandir=${INSTALL_ROOT}/usr/share/man                   \
-             --enable-threads=posix                                   \
-             --enable-languages=$(echo ${GCC_COMPILER} | tr " " ",")  \
-             --with-bugurl=http://bugs.sourcemage.org                 \
-             --enable-bootstrap                                       \
-             --enable-checking=release                                \
-             $GCC_MULTILIB $OPTS                                      &&
+$SOURCE_DIRECTORY/configure $OPTS                                     &&
 
 if [[ "$GCC_TARGET" == "profiledbootstrap" ]] ||
    [[ "$GCC_TARGET" == "profiledbootstrap-lean" ]] ; then
