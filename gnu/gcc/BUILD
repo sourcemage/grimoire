@@ -1,3 +1,11 @@
+if list_find "$GCC_COMPILER" "java"; then
+  OPTS+=" --enable-libgcj" &&
+  OPTS+=" --disable-plugin"
+else
+  OPTS+=" --disable-libgcj" &&
+  OPTS+=" --enable-plugin"
+fi &&
+
 persistent_read gmp GMP_BUILD_ARCH GMP_BUILD_ARCH         &&
 persistent_read mpfr MPFR_BUILD_ARCH MPFR_BUILD_ARCH      &&
 
@@ -13,7 +21,7 @@ fi                                                        &&
 # install gcc libraries to /lib instead of /lib64
 sedit "s/lib64/lib/" gcc/config/i386/linux64.h  &&
 # tell gcc to target binaries to expect the linker in /lib instead of /lib64
-sedit "s/lib64/lib/" gcc/config/i386/t-linux64           
+sedit "s/lib64/lib/" gcc/config/i386/t-linux64  &&
 
 if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
        "$ARCHITECTURE"  ==  "pentium-m"  ]];  then
