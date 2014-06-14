@@ -1,3 +1,8 @@
+# using -pipe causes spurious test-suite failures
+# http://gcc.gnu.org/bugzilla/show_bug.cgi?id=48565
+CFLAGS=${CFLAGS/-pipe/}     &&
+CXXFLAGS=${CXXFLAGS/-pipe/} &&
+
 if list_find "$GCC_COMPILER" "java"; then
   OPTS+=" --enable-libgcj" &&
   OPTS+=" --disable-plugin"
