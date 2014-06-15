@@ -106,7 +106,7 @@ OPTS="--enable-lto $OPTS"                                          &&
 OPTS="--with-linker-hash-style=gnu $OPTS"                          &&
 OPTS="--disable-werror $OPTS"                                      &&
 OPTS="--enable-checking=release $OPTS"                             &&
-OPTS="$GCC_MULTILIB"                                               &&
+OPTS="$GCC_MULTILIB $OPTS"                                         &&
 
 cd $SOURCE_DIRECTORY.bld                                              &&
 $SOURCE_DIRECTORY/configure $OPTS                                     &&
