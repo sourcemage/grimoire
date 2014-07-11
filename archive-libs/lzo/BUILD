@@ -1,3 +1,3 @@
-OPTS="--enable-shared $OPTS" &&
+OPTS="--libdir=/lib --enable-shared $OPTS" &&
 
 default_build
