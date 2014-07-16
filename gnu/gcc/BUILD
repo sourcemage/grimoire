@@ -64,14 +64,14 @@ if list_find "$GCC_COMPILER" "ada" ; then
   ADA_PATH=${SOURCE13/.tar.bz2/}  &&
   PATH=$SOURCE_DIRECTORY/$ADA_PATH/usr/bin:$PATH  &&
 
-  export CC="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin/gcc" &&
+  export CC="$SOURCE_DIRECTORY/$ADA_PATH/bin/gcc" &&
 
-  export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gcc/$HOST/${VERSION13}/include"  &&
-  export LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gcc/$HOST/${VERSION13}/"  &&
+  export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/lib/gcc/$HOST/${VERSION13}/include"  &&
+  export LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/lib/gcc/$HOST/${VERSION13}/"  &&
   export LDFLAGS="-L${LIB_DIR}"  &&
   export LIBRARY_PATH="$LIB_DIR"  &&
   export LD_LIBRARY_PATH="$LIB_DIR"  &&
-  export COMPILER_PATH="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin"  &&
+  export COMPILER_PATH="$SOURCE_DIRECTORY/$ADA_PATH/bin"  &&
 
   export ADA_OBJECTS_PATH="$LIB_DIR/adalib"  &&
   export ADA_INCLUDE_PATH="$LIB_DIR/adainclude"  &&
