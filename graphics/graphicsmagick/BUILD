@@ -1,4 +1,5 @@
-OPTS="--enable-shared ${OPTS}"  &&
+OPTS="--enable-shared ${OPTS}"       &&
+OPTS="$GRAPHICSMAGICK_16BIT ${OPTS}" &&
 
 if [[ $GM_SNAP != y ]]
 then
