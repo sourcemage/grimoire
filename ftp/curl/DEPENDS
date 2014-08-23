@@ -1,30 +1,35 @@
 depends  zlib  &&
 
-if [[ "$CURL_SSL" == "gnutls" ]]; then
+case $CURL_SSL in
+ gnutls)
      depends  gnutls     \
      "--with-gnutls \
-      --with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt \
-      --without-ssl --without-nss --without-polarssl" &&
-     depends ca-certificates
-elif [[ "$CURL_SSL" == "SSL" ]]; then
+      --without-ssl --without-nss --without-polarssl"
+     ;;
+ libressl | openssl)
      depends  SSL         \
      "--with-ssl \
-      --without-ca-bundle \
-      --with-ca-path=$INSTALL_ROOT/etc/ssl/certs \
-      --without-gnutls --without-nss --without-polarssl"  &&
-      depends ca-certificates
-elif [[ "$CURL_SSL" == "nss" ]]; then
+      --without-gnutls --without-nss --without-polarssl"
+     ;;
+ nss) 
      depends  -sub PEM nss         \
      "--with-nss \
-      --with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt \
-      --without-gnutls --without-ssl --without-polarssl"  &&
-     depends ca-certificates
-elif [[ "$CURL_SSL" == "polarssl" ]]; then
+      --without-gnutls --without-ssl --without-polarssl"
+     ;;
+ polarssl)
      depends  polarssl     \
      "--with-polarssl \
-      --with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt \
-      --without-ssl --without-nss --without-gnutls" &&
-     depends ca-certificates
+      --without-ssl --without-nss --without-gnutls"
+     ;;
+ none)
+   OPTS+=" --without-gnutls --without-nss --without-ssl"
+    ;;
+esac &&
+
+if [[ "$CURL_SSL" == "none" ]]; then
+   OPTS+="  --without-ca-bundle"
+else
+  depends ca-certificates "--with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt"
 fi &&
 
 optional_depends  krb5   \
