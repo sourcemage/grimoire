@@ -28,10 +28,15 @@ case $MESALIB_BUILD in
   fi &&
 
   
-#  if list_find 
+# TODO: Proper dependencies for those ... also libdrm ...
+  AVAILABLE_GALLIUM="i915 ilo nouveau r300 r600 radeonsi swrast"
+
   config_query_multi MESALIB_GALLIUM                                       \
                    "What Gallium3D drivers woulld you like to build?"    \
-                    none llvm svga i915 i965 radeon nouveau swrast
+                    none all $AVAILABLE_GALLIUM
+  if [[ $MESALIB_GALLIUM = all ]]; then
+    MESALIB_GALLIUM=$AVAILABLE_GALLIUM
+  fi
 
   if [[ $MESALIB_GALLIUM != none ]]; then
     list_add MESALIB_OPTS "--enable-egl"
@@ -55,8 +60,12 @@ case $MESALIB_BUILD in
 #    config_query_option MESALIB_OPTS "enable support for OpenGL ES 1.x API?" n \
 #                         "--enable-gles1" "--disable-gles1"
   else   
+    MESALIB_GALLIUM=
     config_query_option MESALIB_OPTS "enable EGL library?" y \
                          "--enable-egl" "--disable-egl"
+    if list_find --enable-egl "$MESALIB_OPTS"; then
+      MESALIB_OPTS+=" --enable-gbm" # Mandatory!
+    fi
   fi
   ;;
  xlib)

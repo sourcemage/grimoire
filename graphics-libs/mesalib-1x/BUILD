@@ -1,21 +1,11 @@
-# fix llvm problem, by disabling rtti
-CXXFLAGS+=' -fno-rtti' &&
-case $MESALIB_GALLIUM in
-  llvm)    OPTS="${OPTS} --enable-gallium-llvm" ;;
-  svga)    OPTS="${OPTS} --enable-gallium-svga" ;;
-  intel)   OPTS="${OPTS} --enable-gallium-intel" ;;
-  i915)    OPTS="${OPTS} --enable-gallium-i915" ;;
-  i965)    OPTS="${OPTS} --enable-gallium-i965" ;;
-  radeon)  OPTS="${OPTS} --enable-gallium-radeon --disable-gallium-intel"
-     LDFLAGS="${LDFLAGS/-s/}" ;;
-  r600)    OPTS="${OPTS} --enable-gallium-r600" ;;
-  nouveau) OPTS="${OPTS} --enable-gallium-nouveau --disable-gallium-intel" ;;
-  swrast)  OPTS="${OPTS} --enable-gallium-swrast" ;;
-  none)    OPTS="${OPTS} --disable-gallium" ;;
-esac &&
-
-OPTS="--with-dri-drivers=$MESALIB_DRIVERS_CONF \
+# I am confused about that. According to
+# https://bugs.freedesktop.org/show_bug.cgi?id=70471
+# llvm-config output should contain -fno-rtti.
+CXXFLAGS+=" -fno-rtti" &&
+OPTS="--with-dri-drivers=${MESALIB_DRIVERS// /,} \
+      --with-gallium-drivers=${MESALIB_GALLIUM// /,} \
       $MESALIB_OPTS \
       --with-egl-platforms=${MESA_EGL//\ /,}  \
       $OPTS" && 
+echo "OPTS=$OPTS" &&
 default_build
