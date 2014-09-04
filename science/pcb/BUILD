@@ -1,0 +1,3 @@
+OPTS="${OPTS} ${PCB_DEBUG} ${PCB_EFENCE} ${PCB_DMALLOC} ${PCB_COORD64} ${PCB_COORD32} ${PCB_TOPO}" &&
+
+default_build

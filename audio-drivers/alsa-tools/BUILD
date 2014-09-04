@@ -13,7 +13,7 @@ do
   message "${MESSAGE_COLOR}Tool $ALSATOOL is being built ..."
   message "${DEFAULT_COLOR}"
 
-if [[ $ALSA_TOOLS_GIT == y ]]; then
+if [[ $ALSA_TOOLS_BRANCH == scm ]]; then
   OPTS="--prefix=${INSTALL_ROOT}/usr \
     --sysconfdir=${INSTALL_ROOT}/etc \
  --localstatedir=${INSTALL_ROOT}/var \

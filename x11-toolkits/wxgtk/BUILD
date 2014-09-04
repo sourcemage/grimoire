@@ -9,12 +9,12 @@ OPTS="$OPTS
   --enable-graphics_ctx
   --with-gtk=2
 " &&
-if list_find "$WX_CONTRIB" "xrc"
+if list_find "$WXGTK_CONTRIB" "xrc"
 then
-  OPTS="--enable-xrc $OPTS"	
+  OPTS="--enable-xrc $OPTS"
 fi  &&
 default_build &&
-for COMPONENT in $WX_CONTRIB; do
+for COMPONENT in $WXGTK_CONTRIB; do
   case "$COMPONENT" in
     xrc|animate|mmedia|applet|canvas) continue ;;
   esac &&

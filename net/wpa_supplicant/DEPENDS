@@ -1,12 +1,18 @@
 depends wireless_tools &&
 
+if [ "$CONFIG_DRIVER_NL80211" = y ]; then
+  depends libnl
+fi &&
+
 if [[ $CONFIG_EAP_SIM == y || $CONFIG_EAP_AKA == y ]]; then
   depends pcsc-lite
 fi &&
 
-if [[ $CONFIG_TLS && $CONFIG_TLS != internal ]]; then
-  depends $CONFIG_TLS
-fi &&
+case "$CONFIG_TLS" in
+internal) ;;
+openssl) depends SSL ;;
+*) depends $CONFIG_TLS ;;
+esac &&
 
 if [[ $CONFIG_DNET_PCAP == y || $CONFIG_L2_PACKET == pcap ]]; then
   depends libpcap &&
@@ -19,8 +25,7 @@ if [[ $CONFIG_CTRL_IFACE != n ]]; then
                    "" \
                    "for Readline support in CLI frontend" &&
 
-  optional_depends qt4 "" "" "to build wpa_gui, a Qt4-based GUI frontend" &&
-  optional_depends qt-x11 "" "" "to build wpa_gui, a Qt-based GUI frontend"
+  optional_depends qt4 "" "" "to build wpa_gui, a Qt4-based GUI frontend"
 fi &&
 
 optional_depends dbus \

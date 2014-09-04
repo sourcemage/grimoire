@@ -1,4 +1,4 @@
-if [[ $CELT_VCS == y ]]; then
+if [[ $CELT_BRANCH == scm ]]; then
   ./autogen.sh
 fi &&
 default_build

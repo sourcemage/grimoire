@@ -10,24 +10,9 @@ if [ "${AQBANKING_GTK}" == "y" ]; then
    local FRONTENDS="${FRONTENDS} g2banking"
 fi  &&
 
-if [ "${AQBANKING_QT}" == "y" ]; then
-   FRONTENDS="${FRONTENDS} qbanking"          &&
-   if spell_ok libchipcard2; then
-      BACKENDS="${BACKENDS} aqgeldkarte"
-   fi
-else
-   OPTS="${OPTS} --disable-qt3"
-fi                                            &&
+OPTS="${OPTS} --disable-qt3"
+OPTS="${OPTS} --disable-kde3"
 
-if [ "${AQBANKING_KDE}" == "y" ]; then
-   FRONTENDS="${FRONTENDS} kbanking"
-else
-   OPTS="${OPTS} --disable-kde3"
-fi                                            &&
-
-if [ "${AQBANKING_QTTHREADS}" == "y" ]; then
-   OPTS="${OPTS} --enable-qt3-treads"
-fi                                            &&
 
 ./configure --build=${BUILD}                           \
             --host=${HOST}                             \

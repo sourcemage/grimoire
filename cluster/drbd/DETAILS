@@ -1,13 +1,35 @@
+. "$GRIMOIRE/FUNCTIONS" &&
+
+local KERNEL_BRANCH=`get_kernel_version|cut -d . -f -3` &&
+
            SPELL=drbd
-
-KERNEL_BRANCH=`get_kernel_version|cut -d . -f -3`
-
 if [[ $KERNEL_BRANCH == 2.6.33 ]] || [[ $KERNEL_BRANCH == 2.6.34 ]]; then
          VERSION=8.3.7
      SOURCE_HASH=sha512:9ea576ed6a75d80009ade0f9540535b2a65ecee6d38b1a85fa3146a97aac8cb3add31154e2921630aa75121c7115d66bdcf45adb8e0fa481bdb27c011b1c9b15
-else
+elif [[ $KERNEL_BRANCH == 2.6.35 ]] || [[ $KERNEL_BRANCH == 2.6.36 ]]; then
          VERSION=8.3.8.1
      SOURCE_HASH=sha512:c43c6d065328058db66f708d47ce082603b766deb1530c57aa736a42b4908f780ede41f76395ca45c2691ef1dfd142147a4c98a7bcdb26ba7de73b149d8f9f5f
+elif [[ $KERNEL_BRANCH == 2.6.37 ]] || [[ $KERNEL_BRANCH == 2.6.38 ]]; then
+         VERSION=8.3.9
+     SOURCE_HASH=sha512:7d6545b3298f2af7cc6ba91a501a15f3232cb914619deae4ff5b09b14d59375015878c8794464cedee298b1209cee60a6bd16cca436471b20c0641cc2a6f2745
+elif [[ $KERNEL_BRANCH == 2.6.39 ]]; then
+         VERSION=8.3.10
+     SOURCE_HASH=sha512:8d904ada9c80732b47cbf149cf4172658d350856d8688f1dce92c16ce1c4e946a0b3b3a14bb3c9361684fc08b257207c58beaa2fdb534f2abf47ac45aa659389
+else
+  case ${KERNEL_BRANCH%.*} in
+    3.[01234])
+         VERSION=8.3.11
+     SOURCE_HASH=sha512:2bbf16d69e897adcb247d451f1d844993bdb3ad201027a588f9a45b4fe43fa2f6e98ed6063e8dccc92b9a231ccebf0af85a8671e5672fa710aa986e555ae896d
+    ;;
+    3.[567])
+         VERSION=8.3.13
+     SOURCE_HASH=sha512:fff72545ae569dad37d202bd7dcb075e443964e4d2e95ae124bbcac098762bee78f91e4863b56abfca2bdce2baa42bb3fdbdf9bb489f498d84aa679fa43ae702
+    ;;
+    *)
+      message "${PROBLEM_COLOR}ERROR: kernel version $KERNEL_BRANCH not supported.${MESSAGE_COLOR}" &&
+      return 1
+    ;;
+  esac
 fi
           BRANCH=`echo $VERSION|cut -d . -f 1,2`
           SOURCE=${SPELL}-${VERSION}.tar.gz

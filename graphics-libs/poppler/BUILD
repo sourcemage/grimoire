@@ -1,4 +1,4 @@
-OPTS="$POPPLER_OPTS $OPTS --disable-poppler-qt" &&
+OPTS="$POPPLER_OPTS $OPTS" &&
 
 # -lm fixes the ./configure problem (http://www.sourcemage.org/issues/15)
 LDFLAGS="-lm $LDFLAGS" &&

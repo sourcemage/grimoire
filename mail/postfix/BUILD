@@ -2,14 +2,20 @@ create_account postfix &&
 create_account postdrop &&
 create_account mail &&
 
-mkdir -p "$INSTALL_ROOT/var/spool/mail" &&
-chmod 1777 "$INSTALL_ROOT/var/spool/mail" &&
-chown mail:mail "$INSTALL_ROOT/var/spool/mail" &&
-chgrp -R mail "$INSTALL_ROOT/var/spool/mail" &&
+# always correct permissions for older setups
+install -vm 2775 -d -o mail -g mail "$INSTALL_ROOT/var/spool/mail" &&
 
 # We want blank vars
 local AUXLIBS="-L$INSTALL_ROOT/usr/lib -L$INSTALL_ROOT/lib -lm" &&
 local CCARGS="" &&
+
+if is_depends_enabled $SPELL pcre; then
+    AUXLIBS="$AUXLIBS -lpcre" &&
+    CCARGS="$CCARGS -DHAS_PCRE" &&
+    message "${MESSAGE_COLOR}PCRE requested: Using PCRE${DEFAULT_COLOR}"
+else
+    CCARGS="$CCARGS -DNO_PCRE"
+fi &&
 
 if is_depends_enabled $SPELL openldap; then
     AUXLIBS="$AUXLIBS -lldap -llber" &&
@@ -36,6 +42,14 @@ if is_depends_enabled $SPELL cyrus-sasl; then
     AUXLIBS="$AUXLIBS -lsasl2" &&
     CCARGS="$CCARGS -DUSE_CYRUS_SASL -I$INSTALL_ROOT/usr/include/sasl" &&
     message "${MESSAGE_COLOR}Cyrus-SASL requested: Using Cyrus-SASL${DEFAULT_COLOR}"
+fi &&
+
+if is_depends_enabled $SPELL db; then
+    AUXLIBS="$AUXLIBS -ldb"
+    CCARGS="$CCARGS -DHAS_DB -I$INSTALL_ROOT/usr/include" &&
+    message "${MESSAGE_COLOR}Berkeley DB requested: Using Berkeley DB${DEFAULT_COLOR}"
+else
+    CCARGS="$CCARGS -DNO_DB"
 fi &&
 
 if is_depends_enabled $SPELL sqlite; then

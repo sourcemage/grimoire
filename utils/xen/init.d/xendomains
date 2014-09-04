@@ -1,0 +1,142 @@
+#!/bin/bash
+
+. /etc/sysconfig/xendomains
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+xend"
+
+. /etc/init.d/smgl_init
+
+function check_userland()
+{
+  echo "XEN: Checking userland environment..."
+
+  required_executable /usr/sbin/xm
+  CMD=xm
+
+  $CMD list &> /dev/null
+  if test $? -ne 0; then
+    required_executable /usr/sbin/xl
+    CMD=xl
+  fi
+
+  $CMD list &> /dev/null
+  if test $? -ne 0; then
+    print_status failure
+    exit 1
+  fi
+
+  # Correct exit code would probably be 5, but it's enough 
+  # if xend complains if we're not running as privileged domain
+  if ! [ -e /proc/xen/privcmd ]; then
+    print_status failure
+    exit 1
+  fi
+
+  # See docs/misc/distro_mapping.txt
+  if [ -d /var/lock/subsys ]; then
+    LOCKFILE=/var/lock/subsys/xendomains
+  else
+    LOCKFILE=/var/lock/xendomains
+  fi
+
+  print_status success
+}
+
+function get_domname()
+{
+  local name_from_file=$(sed -rn 's/^name\W*=\W*\"?([[:alnum:]_\.-]+)\"?\W*;?/\1/p' "${1}" | tail -n 1)
+
+  if [[ -z ${name_from_file} ]] ; then
+    basename "${1}"
+  else
+    echo ${name_from_file}
+  fi
+}
+
+function is_running()
+{
+  $CMD list "${1}" >/dev/null 2>&1
+}
+
+function is_running_doms()
+{
+  $CMD list | tail -n +2 | grep -v -E "^Domain-0[[:space:]]+0" > /dev/null
+}
+
+start()
+{
+  check_userland
+
+  if [ -f $LOCKFILE ]; then
+    if is_running_doms; then
+      echo -e "XEN: xendomains already running (lockfile exists)"
+      exit 0
+    else
+      rm -f $LOCKFILE
+    fi
+  fi
+
+  if [ $(ls ${XENDOMAINS_AUTO} | wc -l) == 0 ]; then
+    echo "XEN: no domains in ${XENDOMAINS_AUTO}"
+    exit 0
+  fi
+
+  touch $LOCKFILE
+  echo "XEN: Starting domains:"
+  for dom in $(ls "${XENDOMAINS_AUTO}/"* 2>/dev/null | sort); do
+    name=$(get_domname ${dom})
+    echo "XEN: domain ${name}... "
+    if ! is_running ${name}; then
+      $CMD create --quiet --defconfig $dom
+      evaluate_retval
+    else
+      echo -n "(skip: already running)"
+    fi
+  done
+}
+
+stop()
+{
+  check_userland
+
+  if [ $(ls ${XENDOMAINS_AUTO} | wc -l) == 0 ]; then
+    echo "XEN: no domains in ${XENDOMAINS_AUTO}"
+    exit 0
+  fi
+
+  DOMAINS="$(ls "${XENDOMAINS_AUTO}/"* 2>/dev/null | sort -r)"
+
+  echo "XEN: Shutting down domains:"
+  for dom in $DOMAINS; do
+    name=$(get_domname ${dom})
+    echo "XEN: Waiting for domain ${name} to shutdown... "
+    if is_running ${name}; then
+      $CMD shutdown -w ${name} > /dev/null
+      evaluate_retval
+    else
+      echo -n "(skip: not running)"
+    fi
+  done
+
+  rm -f $LOCKFILE
+}
+
+status()
+{
+  check_userland
+
+  $CMD list
+}
+
+restart()
+{
+  stop
+  start
+}
+
+reload()
+{
+  restart
+}

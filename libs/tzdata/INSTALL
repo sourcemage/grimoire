@@ -1,0 +1,33 @@
+cd $SOURCE_DIRECTORY &&
+
+TIMEZONES=('africa' 'antarctica' 'asia' 'australasia' 'backward' 'etcetera' \
+           'europe' 'factory' 'northamerica' 'pacificnew' 'southamerica' 'systemv')
+
+# Remove files that should be hard linked, in case they are not
+if [ -d ${INSTALL_ROOT}/usr/share/zoneinfo ]; then
+  while read FILE; do
+    if [ -e $FILE ]; then
+      rm ${INSTALL_ROOT}/$FILE
+    fi
+  done < ${SPELL_DIRECTORY}/hard_linked_files
+fi &&
+
+
+zic -y ./yearistype -d ${INSTALL_ROOT}/usr/share/zoneinfo ${TIMEZONES[@]}                      &&
+zic -y ./yearistype -d ${INSTALL_ROOT}/usr/share/zoneinfo/posix ${TIMEZONES[@]}                &&
+zic -y ./yearistype -d ${INSTALL_ROOT}/usr/share/zoneinfo/right -L leapseconds ${TIMEZONES[@]} &&
+#If you want POSIX compatibility, use "America/New_York".
+zic -y ./yearistype -d ${INSTALL_ROOT}/usr/share/zoneinfo -p America/New_York                  &&
+
+install -m444 -t ${INSTALL_ROOT}/usr/share/zoneinfo iso3166.tab zone.tab &&
+
+if [ $SET_LOCALTIME == "y" ]; then
+  if [ -z "$LOCAL_TIMEZONE" ]; then
+    LOCAL_TIMEZONE="UTC"
+  fi &&
+  echo "Local Time Zone: " $LOCAL_TIMEZONE                                                     &&
+
+  # zic -l breaks if /etc and /usr are on different partitions
+  #zic -y ./yearistype -d ${INSTALL_ROOT}/usr/share/zoneinfo -l "$LOCAL_TIMEZONE"              &&
+  ln -sf ${INSTALL_ROOT}/usr/share/zoneinfo/$LOCAL_TIMEZONE ${INSTALL_ROOT}/etc/localtime 
+fi

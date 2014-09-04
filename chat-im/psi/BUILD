@@ -1,8 +1,4 @@
-  QTDIR=/usr    &&
-  PATH=$QTDIR/bin/qt4:$PATH
-  export QTDIR=/usr                                         &&
-  ./configure --prefix=/usr $OPTS                           &&
-  sedit "s/QTDIR)\/include/QTDIR)\/include\/qt/g" Makefile  &&
-  make_single     &&
-  make            &&
-  make_normal
+QTDIR=$QT4DIR
+PKG_CONFIG_PATH="$QT4DIR/lib/pkgconfig"
+./configure --prefix=$INSTALL_ROOT/usr $OPTS   &&
+make

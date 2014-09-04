@@ -2,5 +2,6 @@
            --datadir=/share/${SPELL}      \
             --docdir=/share/doc/${SPELL}  \
             --mandir=/share/man           \
+            --parallel=${MAKE_NJOBS}      \
             $OPTS                         &&
 make

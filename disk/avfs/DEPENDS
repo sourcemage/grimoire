@@ -1,0 +1,46 @@
+message "${MESSAGE_COLOR}NOTE: usage of system libraries leads to significant low access speed${DEFAULT_COLOR}" &&
+
+optional_depends zlib \
+                 "--with-system-zlib" \
+                 "--without-system-zlib" \
+                 "to use system zlib instead of builtin" &&
+
+optional_depends bzip2 \
+                 "--with-system-bzlib" \
+                 "--without-system-bzlib" \
+                 "to use system bzlib instead of builtin" &&
+
+optional_depends xz-utils \
+                 "--with-xz" \
+                 "--without-xz" \
+                 "for LZMA support" &&
+
+optional_depends fuse \
+                 "--enable-fuse" \
+                 "--disable-fuse" \
+                 "to compile avfsd for fuse" &&
+
+if list_find "$AVFS_OPTS" "--enable-dav"; then
+  optional_depends -sub DAV neon \
+                   "--without-included-neon --with-neon=$INSTALL_ROOT/usr" \
+                   "--with-included-neon" \
+                   "to use system neon library" &&
+
+  if ! is_depends_enabled $SPELL neon; then
+    optional_depends SSL \
+                     "--with-ssl=$INSTALL_ROOT/usr" \
+                     "--without-ssl" \
+                     "for OpenSSL support in dav module" &&
+
+    config_query_list AVFS_NEON_XML "Specify XML Parser:" \
+                                  expat \
+                                  libxml2 &&
+
+    case $AVFS_NEON_XML in
+      expat) depends expat "--with-expat=$INSTALL_ROOT/usr"
+      ;;
+      libxml2) depends libxml2 "--enable-libxml"
+      ;;
+    esac
+  fi
+fi

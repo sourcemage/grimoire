@@ -19,8 +19,20 @@ depends talloc &&
 depends libxml2 &&
 sub_depends libxml2 PYTHON &&
 
-if list_find "--enable-glw" $MESALIB_OPTS; then
+if list_find "$MESALIB_OPTS" "--enable-glw"; then
   depends libxt
+fi &&
+
+if list_find "$MESALIB_OPTS" "--enable-glu"; then
+  optional_depends GLUT \
+                   "--enable-glut" \
+                   "--disable-glut" \
+                   "to enable GLUT library"
+
+  if is_depends_enabled $SPELL $(get_spell_provider $SPELL GLUT) ; then
+    depends  libxi   &&
+    depends  libxmu
+  fi
 fi &&
 
 optional_depends libxcb \
@@ -47,6 +59,10 @@ if ( list_find "r200" $MESALIB_DRIVERS ) || \
   sub_depends libdrm RADEON
 fi &&
 
-if [[ $MESALIB_VER == "git" ]]; then
+if [[ $MESALIB_BRANCH == "scm" ]]; then
   depends  git
+fi &&
+
+if [[ "$MESALIB_BRANCH" == "development" && "$MESALIB_GALLIUM" != "none" ]]; then
+  depends llvm
 fi

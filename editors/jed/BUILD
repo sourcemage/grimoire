@@ -27,7 +27,7 @@ fi
 
 make clean                              &&
 make                                    &&
-make  getmail
+make  getmail &&
 
 if echo ${OPTS} | grep -q "useX"
 then

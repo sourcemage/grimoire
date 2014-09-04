@@ -1,5 +1,7 @@
+if [[ $XAUTOLOCK_READXDEF == y ]]; then
+  CFLAGS="-DReadXdefaultsFile ${CFLAGS}"
+fi &&
+
 xmkmf -a &&
 
-sed -i "s:usr/man:usr/share/man:" Makefile &&
-
-make
+make EXTRA_LDOPTIONS="${LDFLAGS}" CDEBUGFLAGS="${CFLAGS}"

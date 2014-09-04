@@ -1,9 +1,11 @@
 case $THIS_SUB_DEPENDS in
-  CAIRO_DEVEL) echo "Devel release needed, forcing it."  &&
-       CAIRO_DEVEL="y"                          ;;
+    CAIRO_DEVEL) echo "Devel release needed, forcing it."  &&
+		       [[ "$CAIRO_BRANCH" == "scm" ]] || CAIRO_BRANCH="devel";;
   PDF) return 0;;
-  XCB) message "Cairo with XCB support requested, forcing xcb-util dependency" &&
+  XCB) message "Cairo with XCB support requested, forcing libxcb dependency" &&
        depends libxcb "--enable-xcb";;
+ GOBJ) message "Cairo with gobject functions feature requested, forcing glib2 dependency" &&
+       depends glib2 "--enable-gobject";;
   PNG) message "Cairo with PNG support requested, forcing libpng dependency" &&
        depends libpng "--enable-png --enable-svg";;
    PS) return 0;;
@@ -12,7 +14,9 @@ case $THIS_SUB_DEPENDS in
     X) message "Cairo with Xlib support requested, forcing libx11 dependency" &&
        depends libx11 "--enable-xlib";;
   TEE) message "Cairo with tee backend request, forcing it" &&
-       CAIRO_OPTS="--enable-tee=yes $CAIRO_OPTS" ;;
+       list_remove CAIRO_OPTS '--enable-tee=no' &&
+       list_remove CAIRO_OPTS '--enable-tee=yes' &&
+       CAIRO_OPTS="$CAIRO_OPTS --enable-tee=yes" ;;
     *) message "${PROBLEM_COLOR}bogus sub_depends: $SPELL $THIS_SUB_DEPENDS${DEFAULT_COLOR}"
        return 1;;
 esac

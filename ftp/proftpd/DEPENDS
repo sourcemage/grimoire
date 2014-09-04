@@ -1,29 +1,124 @@
-if [[ "x`echo $PROFTPD_MODS | grep tls`" != "x" ]]; then 
-  depends openssl 
+# handle 'n' selection for modules in CONFIGURE
+if [[ $PROFTPD_MOD == n ]]; then
+  persistent_add PROFTPD_MODS
+fi
+
+optional_depends zlib "" "" "to build mod_deflate module" &&
+
+if is_depends_enabled $SPELL zlib; then
+  list_add "PROFTPD_MODS" "mod_deflate"
 fi &&
 
-if [[ "x`echo $PROFTPD_MODS | grep wrap`" != "x" ]]; then 
-  depends tcp_wrappers 
+if list_find "$PROFTPD_MODS" "mod_sql"; then
+  optional_depends MYSQL "" "" "for MySQL support in mod_sql" &&
+
+  if is_depends_enabled $SPELL $(get_spell_provider $SPELL MYSQL); then
+    list_add "PROFTPD_MODS" "mod_sql_mysql"
+  fi &&
+
+  optional_depends postgresql "" "" "for PostgreSQL support in mod_sql" &&
+
+  if is_depends_enabled $SPELL postgresql; then
+    list_add "PROFTPD_MODS" "mod_sql_postgres"
+  fi &&
+
+  optional_depends sqlite "" "" "for SQLite support in mod_sql" &&
+
+  if is_depends_enabled $SPELL sqlite; then
+    list_add "PROFTPD_MODS" "mod_sql_sqlite"
+  fi &&
+
+  optional_depends ODBC-MGR "" "" "for ODBC support in mod_sql" &&
+
+  if is_depends_enabled $SPELL $(get_spell_provider $SPELL ODBC-MGR); then
+    list_add "PROFTPD_MODS" "mod_sql_odbc"
+  fi
 fi &&
 
-if [[ "x`echo $PROFTPD_MODS | grep mysql`" != "x" ]]; then 
-  depends MYSQL 
+if list_find "$PROFTPD_MODS" "mod_wrap" || list_find "$PROFTPD_MODS" "mod_wrap2"; then
+  depends tcp_wrappers
 fi &&
 
-if [[ "x`echo $PROFTPD_MODS | grep postgresql`" != "x" ]]; then 
-  depends postgresql 
+if list_find "$PROFTPD_MODS" "mod_tls" || list_find "$PROFTPD_MODS" "mod_sftp" || list_find "$PROFTPD_MODS" "mod_sql_passwd"; then
+  depends SSL '--enable-openssl'
+else
+  optional_depends SSL \
+                   "--enable-SSL" \
+                   "--disable-SSL" \
+                   "for OpenSSL support"
 fi &&
 
-if [[ "x`echo $PROFTPD_MODS | grep ldap`" != "x" ]]; then 
-  depends openldap 
+if list_find "$PROFTPD_MODS" "mod_sftp_pam"; then
+  depends linux-pam
 fi &&
 
-optional_depends libcap \
-                 "--enable-cap" \
-                 "--disable-cap" \
-                 "for POSIX.1e capabilities" &&
+if list_find "$PROFTPD_MODS" "mod_tls_memcache"; then
+  depends libmemcached
+fi &&
+
+optional_depends geoip "" "" "to build mod_geoip module" &&
+
+if is_depends_enabled $SPELL geoip; then
+  list_add "PROFTPD_MODS" "mod_geoip"
+fi &&
+
+optional_depends openldap "" "" "to build mod_ldap module" &&
+
+if is_depends_enabled $SPELL openldap; then
+  list_add "PROFTPD_MODS" "mod_ldap"
+elif list_find "$PROFTPD_MODS" "mod_quotatab_ldap"; then
+  depends openldap
+fi &&
+
+optional_depends freeradius "" "" "to build mod_radius module" &&
+
+if is_depends_enabled $SPELL freeradius; then
+  list_add "PROFTPD_MODS" "mod_radius"
+elif list_find "$PROFTPD_MODS" "mod_quotatab_radius"; then
+  depends freeradius
+fi &&
+
+optional_depends ncurses \
+                 "--enable-curses" \
+                 "--disable-curses" \
+                 "for use of curses" &&
+
+optional_depends shadow \
+                 "--enable-shadow" \
+                 "--disable-shadow" \
+                 "for shadowed password support" &&
+
+if is_depends_enabled $SPELL shadow; then
+  config_query_option PROFTPD_OPTS "Enable run-time auto-detection of shadowed passwords?" n \
+                                   "--enable-autoshadow" \
+                                   "--disable-autoshadow"
+fi &&
+
+if list_find "$PROFTPD_OPTS" "--enable-cap"; then
+  optional_depends libcap "" "" "to use system libcap library for POSIX.1e capabilities"
+fi &&
 
 optional_depends linux-pam \
                  "--enable-auth-pam" \
                  "--disable-auth-pam" \
-                 "for Linux-PAM support"
+                 "for Linux-PAM support" &&
+
+optional_depends libmemcached \
+                 "--enable-memcache" \
+                 "--disable-memcache" \
+                 "for memcache support" &&
+
+optional_depends gettext \
+                 "--enable-nls" \
+                 "--disable-nls" \
+                 "for Native Language Support" &&
+
+optional_depends pcre \
+                 "--enable-pcre" \
+                 "--disable-pcre" \
+                 "for use of PCRE for POSIX regular expressions rather than the system library" &&
+
+optional_depends acl \
+                 "--enable-facl" \
+                 "--disable-facl" \
+                 "for POSIX ACLs support"

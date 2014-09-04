@@ -1,6 +1,6 @@
-if [[ $CLUC_VER != stable ]];then
-  cmake_build
+if [[ $CLUCENE_BRANCH == "stable" ]]; then
+  OPTS="--disable-static $OPTS"  &&
+  default_build
 else
-OPTS="--disable-static $OPTS"  &&
-default_build
+  cmake_build
 fi

@@ -1,3 +1,5 @@
+[[ $WGET_SSL == "none" ]] && OPTS="--without-ssl $OPTS"
+
 OPTS="$WGET_OPTS $OPTS --build=${BUILD}"
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 

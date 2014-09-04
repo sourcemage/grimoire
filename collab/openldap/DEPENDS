@@ -6,43 +6,85 @@ optional_depends  SYSTEM-LOGGER         \
                   '--disable-syslog'    \
                   'for syslog support'  &&
 
-# TODO add gnutls here if it works, preferably using PROVIDES
-optional_depends  openssl                \
-                  '--with-tls'           \
-                  '--without-tls'        \
-                  'for SSL/TLS support'  &&
+case $OPENLDAP_TLS in
+  none) OPTS="--without-tls $OPTS"
+  ;;
+  SSL) depends SSL "--with-tls=openssl"
+  ;;
+  gnutls) depends gnutls "--with-tls=gnutls"
+  ;;
+  moznss) depends nss "--with-tls=moznss" &&
+          depends nspr
+  ;;
+esac &&
 
-optional_depends  cyrus-sasl  '--with-cyrus-sasl'  '--without-cyrus-sasl'            \
-  'for SASL authentication, if SLAPD is a backend authenticator for SASL, say "no"'  &&
+optional_depends LIBSASL \
+                 '--with-cyrus-sasl' \
+                 '--without-cyrus-sasl' \
+                 'for SASL authentication, if SLAPD is a backend authenticator for SASL, say "no"' &&
 
-if echo $OPENLDAP_SLAPD | grep -q enable; then
-  case "$SLAPD_LDBM" in
-  db)
-    depends  db    '--enable-ldbm=mod --enable-ldbm-api=berkeley'
+if list_find "$OPENLDAP_OPTS" "--enable-slapd"; then
+  case OPENLDAP_MP in
+    auto) OPTS="--with-mp=auto $OPTS"
     ;;
-  esac
+    bignum) depends SSL "--with-mp=bignum"
+    ;;
+    gmp) depends gmp "--with-mp=gmp"
+    ;;
+  esac &&
 
-  optional_depends  ODBC-MGR            \
-                    '--enable-sql=mod'  \
-                    '--disable-sql'     \
-                    'for SQL backend'   &&
+  if is_depends_enabled $SPELL $(get_spell_provider $SPELL LIBSASL); then
+    config_query_option OPENLDAP_OPTS "Enable (Cyrus) SASL password verification?" n \
+                                      "--enable-spasswd" \
+                                      "--disable-spasswd"
+  fi &&
 
-  optional_depends  perl                 \
-                    '--enable-perl=mod'  \
-                    '--disable-perl'     \
-                    'for perl backend'   &&
+  optional_depends openslp \
+                   '--enable-slp' \
+                   '--disable-slp' \
+                   'for SLPv2 support' &&
 
-  optional_depends  shadow                 \
-                    '--enable-passwd=mod'  \
-                    '--disable-passwd'     \
-                    'for passwd backend'   &&
+  optional_depends tcp_wrappers \
+                   '--enable-wrappers' \
+                   '--disable-wrappers' \
+                   'for TCP wrappers support' &&
 
-  optional_depends  tcp_wrappers                \
-                    '--enable-wrappers'         \
-                    '--disable-wrappers'        \
-                    'for TCP wrappers support'
-fi &&
+  optional_depends db \
+                   '--enable-bdb=mod --enable-hdb=mod' \
+                   '--disable-bdb --disable-hdb' \
+                   'for Berkeley DB backend (recommended)' &&
 
-if [[ "$OPENLDAP_CONTEXT" == y ]]; then
-  depends autoconf
+  optional_depends ODBC-MGR            \
+                   '--enable-sql=mod'  \
+                   '--disable-sql'     \
+                   'for SQL backend' &&
+
+  if is_depends_enabled $SPELL $(get_spell_provider $SPELL ODBC-MGR); then
+    case $(get_spell_provider $SPELL ODBC-MGR) in
+      libiodbc) depends libiodbc "--with-odbc=iodbc"
+      ;;
+      unixodbc) depends unixodbc "--with-odbc=unixodbc"
+      ;;
+    esac
+  fi &&
+
+  optional_depends -sub NDB MYSQL \
+                            "--enable-ndb=mod" \
+                            "--enable-ndb=no" \
+                            "for MySQL/MariaDB NDB Cluster backend" &&
+
+  optional_depends perl                 \
+                   '--enable-perl=mod'  \
+                   '--disable-perl'     \
+                   'for Perl backend (write your own storage backend)' &&
+
+  optional_depends bash                  \
+                   '--enable-shell=mod'  \
+                   '--disable-shell'     \
+                   'for shell backend (write your own storage backend)' &&
+
+  optional_depends shadow                 \
+                   '--enable-passwd=mod'  \
+                   '--disable-passwd'     \
+                   'for passwd backend'
 fi

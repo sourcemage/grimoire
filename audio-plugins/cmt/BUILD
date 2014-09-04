@@ -1,2 +1,2 @@
 cd src  &&
-make
+default_build_make

@@ -1,11 +1,32 @@
 case $THIS_SUB_DEPENDS in
-   embedded|EMBEDDED) echo "Embbeded mysql requested, forcing it."  &&
-                      MADB_OPTS="--with-embedded-server $MADB_OPTS"          ;;
-   innodb|INNODB)   echo "InnoDB storage engine support requested, forcing it."  &&
-                    if [ "$MADB_ENGINES" == "none" ]; then
-                        MADB_ENGINES="innodb_plugin"
-                    else
-                        MADB_ENGINES="innodb_plugin $MADB_ENGINES"
-                    fi  ;;
-   *)               echo "unknown sub-depends!"; return 1         ;;
+  embedded|EMBEDDED)  message "${MESSAGE_COLOR}Embbeded server requested, forcing it.${DEFAULT_COLOR}" &&
+                      if [[ $MARIADB_BRANCH == 5.5 ]]; then
+                        list_remove "MARIADB_OPTS" "-DWITH_EMBEDDED_SERVER=OFF" &&
+                        list_add "MARIADB_OPTS" "-DWITH_EMBEDDED_SERVER=ON"
+                      else
+                        list_remove "MARIADB_OPTS" "--without-embedded-server" &&
+                        list_add "MARIADB_OPTS" "--with-embedded-server"
+                      fi
+                  ;;
+      innodb|INNODB)  message "${MESSAGE_COLOR}InnoDB storage engine support requested, forcing it.${DEFAULT_COLOR}" &&
+                      if list_find "$MARIADB_ENGINES" "none"; then
+                        list_remove "MARIADB_ENGINES" "none"
+                      fi &&
+
+                      if [[ $MARIADB_BRANCH == 5.5 ]]; then
+                        list_add "MARIADB_ENGINES" innobase
+                      else
+                        list_add "MARIADB_ENGINES" innodb_plugin
+                      fi
+                  ;;
+                NDB)  message "${MESSAGE_COLOR}ndbcluster storage engine support requested, forcing it.${DEFAULT_COLOR}" &&
+                      if list_find "$MARIADB_ENGINES" "none"; then
+                        list_remove "MARIADB_ENGINES" "none"
+                      fi &&
+
+                      list_add "MARIADB_ENGINES" "ndbcluster"
+                  ;;
+                  *)  message "${PROBLEM_COLOR}Unknown sub-depends!${DEFAULT_COLOR}" &&
+                      return 1
+                  ;;
 esac

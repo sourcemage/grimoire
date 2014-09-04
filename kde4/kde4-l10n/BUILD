@@ -1,10 +1,13 @@
+persistent_add KDE4DIR                          &&
+KDE4DIR=$INSTALL_ROOT/usr                       &&
+
+PATH=$KDE4DIR/bin:$PATH                         &&
+
+# We need to be sure that the correct qmake is found first.
+# Do not push any paths before this!
 QTDIR=$INSTALL_ROOT/usr                         &&
 PATH=$QTDIR/bin/qt4:$PATH                       &&
 
-persistent_add KDE4DIR                          &&
-KDE4DIR=$INSTALL_ROOT/opt/kde4                  &&
-
-PATH=$KDE4DIR/bin:$PATH                         &&
 LD_LIBRARY_PATH=$KDE4DIR/lib:$LD_LIBRARY_PATH   &&
 QT_PLUGIN_PATH=$KDE4DIR/lib/kde4/plugins        &&
 
@@ -23,6 +26,7 @@ do
     cd $BUILD_SUBDIRECTORY                                                   &&
     mkdir -p build                                  &&
     cd build                                        &&
+    echo "PATH=$PATH" &&
     cmake -DCMAKE_INSTALL_PREFIX=$KDE4DIR           \
           -DCMAKE_BUILD_TYPE=$KDE_DEBUG_OPTION      \
           ../                                       &&

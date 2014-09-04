@@ -1,19 +1,165 @@
-config_query_option OPENLDAP_SLAPD 'Build SLAPD, the standalone LDAP daemon?' y \
-  '--enable-slapd --enable-modules --enable-cleartext --enable-crypt --enable-rlookups' \
-  '--disable-slapd' &&
+source $GRIMOIRE/config_query_multi.function &&
 
-config_query_option OPENLDAP_SLURPD 'Build SLURPD, the replication daemon?' y \
-  '--enable-slurpd' '--disable-slurpd' &&
+config_query_option OPENLDAP_OPTS "Enable IPv6 support?" y \
+                                  "--enable-ipv6" \
+                                  "--disable-ipv6" &&
 
-if echo $OPENLDAP_SLAPD | grep -q enable; then
-  config_query_list SLAPD_LDBM 'Select LDBM backend (Berkeley DB recommended)' \
-                    db none &&
-  config_query_option SLAPD_DNSSRV 'Enable DNS "SRV" record backend?' y \
-                      '--enable-dnssrv=mod' '--disable-dnssrv' &&
-  config_query_option SLAPD_MONITOR 'Enable monitor backend?' y \
-                      '--enable-monitor=mod' '--disable-monitor' &&
-  config_query_option SLAPD_ACI 'Enable per-object access control' n \
-                      '--enable-aci' '--disable-aci'
+config_query_option OPENLDAP_OPTS "Enable proctitle support?" y \
+                                  "--enable-proctitle" \
+                                  "--disable-proctitle" &&
+
+config_query_option OPENLDAP_OPTS "Enable debugging?" y \
+                                  "--enable-debug" \
+                                  "--disable-debug" &&
+
+config_query_option OPENLDAP_OPTS "Enable threads support (not recommended for shell backend in SLAPD)?" y \
+                                  "--with-threads" \
+                                  "--without-threads" &&
+
+if list_find "$OPENLDAP_OPTS" "--with-threads"; then
+  config_query_option OPENLDAP_OPTS "Enable implicitly yielding select?" y \
+                                    "--with-yielding-select=auto" \
+                                    "--without-yielding-select"
+fi &&
+
+config_query_list OPENLDAP_TLS "Which backend do you want for TLS/SSL support?" \
+                               none \
+                               openssl \
+                               libressl \
+                               gnutls \
+                               moznss &&
+
+# backporting legacy options
+for o in OPENLDAP_SLAPD OPENLDAP_SLURPD SLAPD_DNSSRV SLAPD_META SLAPD_MONITOR \
+         SLAPD_SOCK SLAPD_RELAY SLAPD_ACL SLAPD_ACI SLAPD_CLEAR SLAPD_CRYPT \
+         SLAPD_REV; do
+  if [[ -n ${!o} ]]; then
+    list_add "OPENLDAP_OPTS" "${!o}"
+    persistent_remove ${o}
+  fi
+done &&
+
+config_query_option OPENLDAP_OPTS 'Build SLAPD, the standalone LDAP daemon (client-only otherwise)?' y \
+                                  '--enable-slapd --enable-modules' \
+                                  '--disable-slapd' &&
+
+if list_find "$OPENLDAP_OPTS" "--enable-slapd"; then
+  config_query_option OPENLDAP_OPTS 'Enable DNS backend (LDAP server locator)?' n \
+                                    '--enable-dnssrv=mod' \
+                                    '--disable-dnssrv' &&
+
+  config_query_option OPENLDAP_OPTS 'Enable Memory-Mapped database backend?' y \
+                                    '--enable-mdb=mod' \
+                                    '--disable-mdb' &&
+
+  config_query_option OPENLDAP_OPTS 'Enable LDAP backend?' n \
+                                    '--enable-ldap=mod' \
+                                    '--disable-ldap' &&
+
+  if list_find "$OPENLDAP_OPTS" "--enable-ldap=mod"; then
+    config_query_option OPENLDAP_OPTS 'Enable metadirectory backend?' n \
+                                      '--enable-meta=mod' \
+                                      '--disable-meta'
+  else
+    list_add "OPENLDAP_OPTS" "--disable-meta"
+  fi &&
+
+  config_query_option OPENLDAP_OPTS 'Enable LDAP server monitor backend?' y \
+                                    '--enable-monitor=mod' \
+                                    '--disable-monitor' &&
+
+  config_query_option OPENLDAP_OPTS 'Enable sock backend?' n \
+                                    '--enable-sock=mod' \
+                                    '--disable-sock' &&
+
+  config_query_option OPENLDAP_OPTS 'Enable relay backend?' y \
+                                    '--enable-relay=mod' \
+                                    '--disable-relay' &&
+
+  config_query_option OPENLDAP_OPTS 'Enable null backend?' n \
+                                    '--enable-null=mod' \
+                                    '--disable-null' &&
+
+  config_query_option OPENLDAP_OPTS 'Enable run-time loadable ACL support (experimental)?' n \
+                                    '--enable-dynacl' \
+                                    '--disable-dynacl' &&
+
+  if list_find "$OPENLDAP_OPTS" "--enable-dynacl"; then
+    config_query_option OPENLDAP_OPTS 'Enable per-object access control (experimental)?' n \
+                                      '--enable-aci' \
+                                      '--disable-aci'
+  fi &&
+
+  if [[ $OPENLDAP_TLS != none ]]; then
+    config_query_option OPENLDAP_OPTS 'Enable LAN Manager passwords?' n \
+                                      '--enable-lmpasswd' \
+                                      '--disable-lmpasswd'
+  fi &&
+
+  config_query_option OPENLDAP_OPTS 'Enable cleartext passwords?' y \
+                                    '--enable-cleartext' \
+                                    '--disable-cleartext' &&
+
+  config_query_option OPENLDAP_OPTS "Enable crypt(3)'ed passwords?" n \
+                                    "--enable-crypt" \
+                                    "--disable-crypt" &&
+
+  config_query_option OPENLDAP_OPTS 'Enable reverse lookup of client hostnames?' n \
+                                    '--enable-rlookups' \
+                                    '--disable-rlookups' &&
+
+  config_query_option OPENLDAP_OPTS 'Enable SLAPI support (experimental)?' n \
+                                    '--enable-slapi' \
+                                    '--disable-slapi' &&
+
+  config_query_multi SLAPD_OVERLAYS "Which overlays do you want supported?" \
+                                    none \
+                                    all \
+                                    accesslog \
+                                    auditlog \
+                                    collect \
+                                    constraint \
+                                    dds \
+                                    deref \
+                                    dyngroup \
+                                    dynlist \
+                                    memberof \
+                                    ppolicy \
+                                    proxycache \
+                                    refint \
+                                    retcode \
+                                    rwm \
+                                    seqmod \
+                                    sssvlv \
+                                    syncprov \
+                                    translucent \
+                                    unique \
+                                    valsort &&
+
+  if list_find "$OPENLDAP_OPTS" "--enable-meta" || list_find "$SLAPD_OVERLAYS" "rwm"; then
+    list_add "OPENLDAP_OPTS" "--enable-rewrite"
+  else
+    config_query_option OPENLDAP_OPTS 'Enable DN rewriting?' y \
+                                      '--enable-rewrite=auto' \
+                                      '--disable-rewrite'
+  fi &&
+
+  # migrating slurpd to syncprov
+  if list_find "$OPENLDAP_OPTS" "--enable-slurpd"; then
+    if list_find "$SLAPD_OVERLAYS" "syncprov"; then
+      message 'slurpd has been replaced by the syncprov overlay'
+    else
+      message 'slurpd has been replaced by the syncprov overlay, adding it' &&
+      list_add "SLAPD_OVERLAYS" "syncprov"
+    fi &&
+
+    list_remove "OPENLDAP_OPTS" "--enable-slurpd"
+  fi &&
+
+  config_query_multi OPENLDAP_MP 'Which method do you want for multiple precision statistics?' \
+                                 auto \
+                                 bignum \
+                                 gmp
 fi &&
 
 config_query OPENLDAP_NTLM "Enable NTLM API support (needed for Evolution Exchange plugin)?" n &&

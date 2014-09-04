@@ -1,3 +1,4 @@
+optional_depends  gettext '' '--disable-nls' 'Natural Language support' &&
 # interface options
 optional_depends  "qt4"                            \
                   "--enable-qt4"                   \
@@ -14,15 +15,40 @@ optional_depends  "xosd"                  \
                   "--disable-xosd"        \
                   "for xosd interface"    &&
 
-optional_depends  "GECKO"                 \
-                  "--enable-mozilla"      \
-                  "--disable-mozilla"     \
-                  "for a mozilla plugin"  &&
-
 optional_depends  "lua"                   \
                   "--enable-lua"          \
                   "--disable-lua"         \
                   "for interface plugins" &&
+
+optional_depends  "libproxy" \
+                  "--enable-libproxy" \
+                  "--disable-libproxy" \
+                  "for proxy configuration through libproxy" &&
+
+optional_depends  "libsamplerate" \
+                  "--enable-samplerate" \
+                  "--disable-samplerate" \
+                  "for sample rate conversion support" &&
+
+optional_depends  "libbluray" \
+                  "--enable-bluray" \
+                  "--disable-bluray" \
+                  "for Blu-ray Disc playback" &&
+
+optional_depends  "libssh2" \
+                  "--enable-sftp" \
+                  "--disable-sftp" \
+                  "for sftp support" &&
+
+optional_depends  "libxml2" \
+                  "--enable-libxml2" \
+                  "--disable-libxml2" \
+                  "for xml support" &&
+
+optional_depends  "libxcb" \
+                  "--enable-xcb" \
+                  "--disable-xcb" \
+                  "for X11 support with XCB" &&
 
 # control plugins
 optional_depends  "lirc"                  \
@@ -41,10 +67,10 @@ optional_depends  "fribidi"               \
                   "--disable-fribidi"     \
                   "for bidirectional subtitle rendering support"  &&
 
-optional_depends  OPENGL                           \
-                  "--enable-opengl --enable-glx"   \
-                  "--disable-opengl --disable-glx" \
-                  "for OpenGL video output"        &&
+optional_depends  OPENGL                     \
+                  "--enable-glx"             \
+                  "--disable-glx"            \
+                  "for OpenGL video output"  &&
 
 optional_depends  "sdl"                   \
                   "--enable-sdl"          \
@@ -55,16 +81,6 @@ optional_depends  "aalib"                 \
                   "--enable-aa"           \
                   "--disable-aa"          \
                   "for aalib video output" &&
-
-optional_depends  "libggi"                \
-                  "--enable-ggi"          \
-                  "--disable-ggi"         \
-                  "for GGI video output"  &&
-
-optional_depends  "svgalib"               \
-                  "--enable-svgalib"      \
-                  "--disable-svgalib"     \
-                  "for svgalib video output" &&
 
 optional_depends  "directfb"              \
                   "--enable-directfb"     \
@@ -98,7 +114,10 @@ optional_depends  "libmad"                 \
                   "--disable-mad"          \
                   "for fixed point mp3 decoder"  &&
 
-optional_depends  "libid3tag" "" "" "for id3 tag reading support"  &&
+optional_depends  "libid3tag"              \
+                  "--enable-id3tag"        \
+                  "--disable-id3tag"       \
+                  "for id3 tag reading support"  &&
 
 optional_depends  "libvorbis"              \
                   "--enable-vorbis"        \
@@ -141,6 +160,10 @@ optional_depends  LIBAVCODEC               \
                   "--disable-avcodec --disable-avformat --disable-postproc"  \
                   "for lots of video codecs"  &&
 
+if is_depends_enabled $SPELL ffmpeg; then
+  sub_depends ffmpeg STABLE
+fi &&
+
 optional_depends  "libmatroska"            \
                   "--enable-mkv"           \
                   "--disable-mkv"          \
@@ -176,20 +199,25 @@ optional_depends  "sdl_image"              \
                   "--disable-sdl-image"    \
                   "for image decoding with SDL_image"  &&
 # dvd options
-optional_depends  "libdvdcss"              \
-                   "--enable-dvd"          \
-                   "--disable-dvd"         \
-                   "for DVD support"       &&
+#optional_depends  "libdvdcss"              \
+#                   "--enable-dvd"          \
+#                   "--disable-dvd"         \
+#                   "for DVD support"       &&
+
+optional_depends  "libdvdread"              \
+                  "--enable-dvdread"        \
+                  "--disable-dvdread"       \
+                  "for dvdread input module"  &&
 
 optional_depends  "libdvdnav"              \
                   "--enable-dvdnav"        \
                   "--disable-dvdnav"       \
                   "for new DVD navigation support"  &&
 
-optional_depends  "libdvdplay"             \
-                  "--enable-dvdplay"       \
-                  "--disable-dvdplay"      \
-                  "for old DVD navigation support"  &&
+#optional_depends  "libdvdplay"             \
+#                  "--enable-dvdplay"       \
+#                  "--disable-dvdplay"      \
+#                  "for old DVD navigation support"  &&
 
 # misc
 optional_depends  "libpng"                 \
@@ -204,7 +232,7 @@ optional_depends  "live"                   \
 
 optional_depends  "libdvbpsi"          \
                   "--enable-dvbpsi"    \
-                  "--enable-dvbpsi=no --enable-dvb=no"   \
+                  "--enable-dvbpsi=no"   \
                   "for DVB program information support"  &&
 
 optional_depends  "zvbi"                   \
@@ -212,10 +240,6 @@ optional_depends  "zvbi"                   \
                   "--disable-zvbi"         \
                   "for teletext support"   &&
 
-optional_depends  "libcdio"            \
-                  "--enable-libcdio"   \
-                  "--disable-libcdio"  \
-                  "for enhanced audio cd support"  &&
 
 optional_depends  "libcddb"            \
                   "--enable-libcddb"   \
@@ -227,10 +251,14 @@ optional_depends  "vcdimager-unstable"  \
                   "--disable-vcdx"      \
                   "for VCD navigation support"  &&
 
-optional_depends  "hal"            \
-                  "--enable-hal"   \
-                  "--disable-hal"  \
-                  "for device discovery through hal"  &&
+if is_depends_enabled $SPELL vcdimager-unstable; then
+  depends libcdio
+fi &&
+
+optional_depends  "UDEV"            \
+                  "--enable-udev"   \
+                  "--disable-udev"  \
+                  "for device discovery through udev"  &&
 
 optional_depends  "dbus"            \
                   "--enable-dbus"   \
@@ -267,11 +295,22 @@ optional_depends  "libnotify"                          \
                   "--disable-notify"                   \
                   "for desktop notifications support" &&
 
-optional_depends  "libv4l"                             \
-                  "--enable-libv4l2"                   \
-                  "--disable-libv4l2"                  \
+optional_depends  "v4l-utils"                             \
+                  "--enable-v4l2"                   \
+                  "--disable-v4l2"                  \
                   "for libv4l2 Video4Linux2 support" &&
+
 optional_depends  "libass"                             \
                   "--enable-libass" \
                   "--disable-libass" \
-                  "for subtitle rendering"
+                  "for subtitle rendering"             &&
+
+optional_depends "samba" \
+                   "--enable-smb" \
+                   "--disable-smb" \
+                   "for SMB/CIFS support"              &&
+
+optional_depends "resid" \
+                   "--enable-sid" \
+                   "--disable-sid" \
+                   "support for C64 SID files"

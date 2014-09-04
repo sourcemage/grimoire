@@ -3,8 +3,9 @@
 depends freetype2 '--enable-ft' &&
 depends fontconfig &&
 depends pixman &&
+depends xz-utils &&
 
-if spell_ok pixman && is_version_less $(installed_version pixman) 0.18.4; then
+if spell_ok pixman && is_version_less $(installed_version pixman) 0.22.0; then
   force_depends pixman
 fi &&
 
@@ -13,17 +14,29 @@ optional_depends zlib \
                  "--disable-xml" \
                  "for XML surface backend" &&
 
+# uses libbfd-*.so
+optional_depends binutils \
+                 "--enable-symbol-lookup" \
+                 "--disable-symbol-lookup" \
+                 "for symbol-lookup feature" &&
+
 optional_depends libxcb \
                  "--enable-xcb" \
                  "--disable-xcb" \
                  "for XCB surface backend feature" &&
 
+optional_depends glib2 \
+                 "--enable-gobject" \
+                 "--disable-gobject" \
+                 "for gobject functions feature" &&
+
 optional_depends libx11 \
-                   "--enable-xlib" \
-                   "--disable-xlib" \
-                   "for Xlib surface backend feature" &&
+                 "--enable-xlib" \
+                 "--disable-xlib" \
+                 "for Xlib surface backend feature" &&
 
 if is_depends_enabled $SPELL libx11; then
+  depends xextproto &&
   optional_depends libxrender \
                    "--enable-xlib-xrender" \
                    "--disable-xlib-xrender" \
@@ -34,12 +47,12 @@ if is_depends_enabled $SPELL libx11; then
                                  "--disable-xlib-xcb"
 fi &&
 
-optional_depends udev \
-                 "--enable-drm" \
-                 "--disable-drm" \
-                 "for drm support" &&
-
-# these options are bogus
+# these DRM options are bogus
+#optional_depends udev \
+#                 "--enable-drm" \
+#                 "--disable-drm" \
+#                 "for drm support" &&
+#
 #if is_depends_enabled $SPELL udev; then
 #  config_query_option CAIRO_OPTS "Enable XCB drm functions feature?" n \
 #                                 "--enable-xcb-drm" \

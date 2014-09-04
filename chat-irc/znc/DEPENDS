@@ -1,23 +1,44 @@
-depends g++ &&
+. "$GRIMOIRE/FUNCTIONS" &&
 
-message "NOTE: ZNC needs swig enabled for modperl/modpython support" &&
+depends -sub CXX gcc &&
 
 optional_depends perl \
                  "--enable-perl" \
                  "--disable-perl" \
-                 "to use perl" &&
+                 "to use Perl" &&
 
-if is_depends_enabled $SPELL perl; then
-  depends -sub PERL swig '--enable-swig'
+if spell_ok python3; then
+  local PYTHON3_BRANCH=$(installed_version python3 | cut -d. -f1,2)
+else
+  local PYTHON3_BRANCH=$(codex_set_current_spell_by_name python3; echo $VERSION | cut -d. -f1,2)
 fi &&
 
-optional_depends python \
-                 "--enable-python=python-config" \
+optional_depends python3 \
+                 "--enable-python=python-$PYTHON3_BRANCH" \
                  "--disable-python" \
                  "to use Python" &&
 
-if is_depends_enabled $SPELL python; then
-  depends -sub PYTHON swig '--enable-swig'
+if is_depends_enabled $SPELL perl || is_depends_enabled $SPELL python3; then
+  optional_depends swig \
+                   "--enable-swig" \
+                   "--disable-swig" \
+                   "for automatic generation of source files needed for modperl/modpython" &&
+
+  if is_depends_enabled $SPELL swig; then
+    if is_depends_enabled $SPELL perl; then
+      depends -sub PERL swig
+    fi &&
+
+    if is_depends_enabled $SPELL python3; then
+      depends -sub PYTHON3 swig
+    fi &&
+
+    if spell_ok swig && is_version_less $(installed_version swig) 2.0.4; then
+      force_depends swig
+    fi
+  fi
+else
+  list_add ZNC_OPTS "--disable-swig"
 fi &&
 
 optional_depends tcl \
@@ -25,22 +46,12 @@ optional_depends tcl \
                  "--disable-tcl" \
                  "to use TCL" &&
 
-if is_depends_enabled $SPELL tcl && list_find "--disable-extra" "$ZNC_OPTS"; then
-  message "Requested TCL support, forcing build of extra modules" &&
-  ZNC_OPTS="--enable-extra $ZNC_OPTS"
-fi &&
+optional_depends LIBSASL \
+                 "--enable-cyrus" \
+                 "--disable-cyrus" \
+                 "for SASL support via cyrus" &&
 
-optional_depends cyrus-sasl \
-                 "--enable-sasl" \
-                 "--disable-sasl" \
-                 "for SASL support" &&
-
-optional_depends c-ares \
-                 "--enable-c-ares" \
-                 "--disable-c-ares" \
-                 "for c-ares usage" &&
-
-optional_depends openssl \
-                 "--enable-openssl" \
-                 "--disable-openssl" \
+optional_depends SSL \
+                 "--enable-SSL" \
+                 "--disable-SSL" \
                  "to use OpenSSL"

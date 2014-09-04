@@ -1,10 +1,4 @@
-if [[ "${TRACKER_AC}" == "devicekit-power" ]]; then
-  OPTS="--enable-devkit-power --disable-hal ${OPTS}"
-else
-  OPTS="--disable-devkit-power --enable-hal ${OPTS}"
-fi &&
-
-OPTS="--enable-video-extractor=${TRACKER_EXTRACTOR} \
+OPTS="--enable-generic-media-extractor=${TRACKER_EXTRACTOR} \
       ${TRACKER_SEARCH_TOOL}                        \
       ${TRACKER_PREFERENCES}                        \
       ${TRACKER_STATUS}                             \

@@ -1,0 +1,58 @@
+depends popt &&
+depends ncurses &&
+
+optional_depends gdbm "" "" "for local SDR caching" &&
+
+if [[ $OPENIPMI_GLIB == 2.0 ]]; then
+  depends glib2 "--with-glib --without-glib12 --with-glibver=$OPENIPMI_GLIB"
+elif [[ $OPENIPMI_GLIB == 1.2 ]]; then
+  depends glib "--with-glib12 --without-glib --with-glibver=$OPENIPMI_GLIB"
+else
+  OPTS="--without-glib --without-glib12 $OPTS"
+fi &&
+
+if [[ $OPENIPMI_GLIB != no ]]; then
+  depends pkgconfig
+fi &&
+
+optional_depends net-snmp \
+                 "--with-ucdsnmp" \
+                 "--without-ucdsnmp" \
+                 "for SNMP support" &&
+
+optional_depends SSL \
+                 "--with-opennssl" \
+                 "--without-opennssl" \
+                 "for IPMI 2.0 RMCP+ encryption and authentication support" &&
+
+# needs testing
+optional_depends tcl \
+                 "--with-tcl" \
+                 "--without-tcl" \
+                 "for Tcl OS handler (also needed for GUI)" &&
+
+optional_depends swig \
+                 "--with-swig" \
+                 "--without-swig" \
+                 "for language bindings support" &&
+
+if is_depends_enabled $SPELL swig; then
+  optional_depends perl \
+                   "--with-perl" \
+                   "--without-perl" \
+                   "for Perl support" &&
+
+  optional_depends python \
+                   "--with-python" \
+                   "--without-python" \
+                   "for Python support (also needed for GUI)" &&
+
+  if is_depends_enabled $SPELL tcl && \
+     is_depends_enabled $SPELL python && \
+     is_depends_enabled python tk; then
+       # could be "optional_depends python -sub TK" if we had that
+       config_query_option OPENIPMI_OPTS "Enable GUI?" y \
+                                         "--with-tkinter" \
+                                         "--without-tkinter"
+  fi
+fi

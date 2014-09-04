@@ -1,1 +1,1 @@
-scons  "PREFIX=$INSTALL_ROOT/usr"
+scons  "PREFIX=$INSTALL_ROOT/usr" $OPTS

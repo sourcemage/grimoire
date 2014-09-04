@@ -1,26 +1,27 @@
-#if [[ $PROFTPD_DEVEL == "n" ]]; then
-if [[ -z $PROFTPD_CAPS ]]; then
-  CFLAGS=${CFLAGS/-fPIC}                                          &&
-  CFLAGS=${CFLAGS/-DPIC}                                          &&
-  CXXFLAGS=${CXXFLAGS/-fPIC}                                      &&
-  CXXFLAGS=${CXXFLAGS/-DPIC}                
-fi
-#fi                                                                    &&
+if list_find "$PROFTPD_OPTS" "--disable-cap"; then
+  disable_pic
+fi &&
 
-sedit  "s/	standalone/	inetd/"  sample-configurations/basic.conf     &&
+if [[ $XINETD_INSTALLED ]]; then
+  sedit "s/	standalone/	inetd/" sample-configurations/basic.conf
+fi &&
 
-OPTS="${PROFTPD_CAPS} ${PROFTPD_MODS} ${OPTS}"                        &&
+local SQL_INC="." &&
 
-./configure  --prefix=${INSTALL_ROOT}/usr                             \
-             --sysconfdir=${INSTALL_ROOT}/etc                         \
-             --localstatedir=${INSTALL_ROOT}/var/run                  \
-             --mandir=$INSTALL_ROOT/usr/share/man                     \
-             --enable-shadow                                          \
-             ${OPTS}                                                  &&
+if list_find "$PROFTPD_MODS" "mod_sql_mysql"; then
+  SQL_INC="$SQL_INC:$INSTALL_ROOT/usr/include/mysql"
+fi &&
 
-sedit  's:RUN_DIR.*"/var/run/proftpd":RUN_DIR "/var/run":'  config.h  &&
-sedit  's:rundir=/var/run/proftpd:rundir=/var/run:'  Make.rules       &&
+if list_find "$PROFTPD_MODS" "mod_sql_postgres"; then
+  SQL_INC="$SQL_INC:$INSTALL_ROOT/usr/include/postgresql"
+fi &&
+
+OPTS="${PROFTPD_OPTS} \
+      ${OPTS} \
+      --localstatedir=$INSTALL_ROOT/var/run \
+      --with-modules=${PROFTPD_MODS// /:} \
+      --with-includes=${SQL_INC}" &&
 
 make_single &&
-make &&
+default_build &&
 make_normal

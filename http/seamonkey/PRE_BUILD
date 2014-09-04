@@ -3,49 +3,9 @@ cd             $SOURCE_DIRECTORY  &&
 unpack_file    ''                 &&
 cd             comm-release       &&
 
-cp -v $SPELL_DIRECTORY/blfs-mozconfig .mozconfig &&
+sed -i 's#VPX_CODEC_USE_INPUT_PARTITION#VPX_CODEC_USE_INPUT_FRAGMENTS#' mozilla/configure &&
 
-if [[ "$SEAMONKEY_CAIRO" == "y" ]]; then
-   sed -i '78iac_add_options --enable-system-cairo' .mozconfig
-else
-   sed -i '78iac_add_options --disable-system-cairo' .mozconfig
-fi &&
+# ignore packaging errors for the libs we have in a system
+sedit "/^MOZ_PKG_FATAL_WARNINGS/s@= 1@= 0@" suite/installer/Makefile.in &&
 
-if [[ "$SEAMONKEY_MAILNEWS" == "n" ]]; then
-   sed -i '78iac_add_options --disable-mailnews' .mozconfig
-fi &&
-
-if [[ "$SEAMONKEY_COMPOSER" == "n" ]]; then
-   sed -i '78iac_add_options --disable-composer' .mozconfig
-fi &&
-
-if [[ "$SEAMONKEY_JS" == "y" ]]; then
-   sed -i '78iac_add_options --enable-xpctools' .mozconfig
-else
-   sed -i '78iac_add_options --disable-xpctools' .mozconfig
-fi &&
-
-if [[ "$SEAMONKEY_XINERAMA" == "y" ]]; then
-   sed -i '78iac_add_options --enable-xinerama' .mozconfig
-fi &&
-
-if [[ "$SEAMONKEY_PANGO" == "y" ]]; then
-   sed -i '78iac_add_options --enable-pango' .mozconfig
-fi &&
-
-if is_depends_enabled $SPELL openldap; then
-   sed -i '78iac_add_options --enable-ldap' .mozconfig
-else
-   sed -i '78iac_add_options --disable-ldap' .mozconfig
-fi &&
-
-if ! is_depends_enabled $SPELL alsa-lib; then
-   sed -i '78iac_add_options --disable-ogg' .mozconfig &&
-   sed -i '78iac_add_options --disable-wave' .mozconfig
-fi &&
-
-# GNOME support is broken (at least for download manager)
-echo "ac_add_options --disable-gnomeui" >> .mozconfig &&
-echo "ac_add_options --disable-gnomevfs" >> .mozconfig &&
-
-echo "ac_add_options --disable-crashreporter" >> .mozconfig
+patch -p0 < "$SPELL_DIRECTORY/mailnews.patch"

@@ -1,2 +1,5 @@
+OPTS="$OPENIPMI_OPTS $OPTS" &&
+
 make_single &&
-default_build
+default_build &&
+make_normal

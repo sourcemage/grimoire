@@ -1,0 +1,67 @@
+From 7addac8d049f673edcbdd23cf42eef7919c52ac1 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+Date: Thu, 20 Mar 2014 23:19:55 +0000
+Subject: [PATCH 1/2] make FLAGS settable from the environment
+
+- also remove redundant rule bodies
+- declare all and install PHONY
+- correctly set LDLIBS so linking works with recent linkers
+- correctly set and use PREFIX
+---
+ Makefile | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 94fa21e..35af52b 100644
+--- a/Makefile
++++ b/Makefile
+@@ -19,18 +19,23 @@
+ # User-editable options:
+ 
+ # Change this to suit your preferences (maybe add -march=cputype)	
+-CXXFLAGS=-Wall -O3 -fPIC -DPIC -g
++CXXFLAGS ?= -O3 -g
++
++CPPFLAGS += -DPIC
++
++CXXFLAGS += -fPIC
++LDLIBS=-lstdc++ -lm
+ 
+ # This is where it will be installed
+-PREFIX=/usr/local/bin/
+-LADSPA_PREFIX=/usr/local/lib/ladspa/
++PREFIX ?= /usr/local/
++LADSPA_PREFIX ?= /usr/local/lib/ladspa/
+ 
+ # End of user-editable options
+ 
+ all: vlevel-bin vlevel-ladspa.so
+ 
+ install: all
+-	cp -f vlevel-bin $(PREFIX)
++	cp -f vlevel-bin $(PREFIX)/bin/
+ 	mkdir -p $(LADSPA_PREFIX)
+ 	cp -f vlevel-ladspa.so $(LADSPA_PREFIX)
+ 
+@@ -41,17 +46,13 @@ vlevel-ladspa.so: vlevel-ladspa.o volumeleveler.o
+ 	$(CXX) $(CXXFLAGS) -shared -o vlevel-ladspa.so vlevel-ladspa.o volumeleveler.o
+ 
+ vlevel-ladspa.o: vlevel-ladspa.cpp volumeleveler.h vlevel-ladspa.h vlevel.h ladspa.h
+-	$(CXX) $(CXXFLAGS) -c vlevel-ladspa.cpp
+ 
+ vlevel-bin: volumeleveler.o commandline.o vlevel-bin.o vlevel.h
+-	$(CXX) $(CXXFLAGS) -o vlevel-bin vlevel-bin.o volumeleveler.o commandline.o
+ 
+ volumeleveler.o: volumeleveler.cpp volumeleveler.h vlevel.h
+-	$(CXX) $(CXXFLAGS) -c volumeleveler.cpp
+ 
+ vlevel-bin.o: vlevel-bin.cpp volumeleveler.h commandline.h vlevel.h
+-	$(CXX) $(CXXFLAGS) -c vlevel-bin.cpp
+ 
+ commandline.o: commandline.cpp commandline.h
+-	$(CXX) $(CXXFLAGS) -c commandline.cpp
+ 
++.PHONY: all install
+-- 
+1.9.0
+

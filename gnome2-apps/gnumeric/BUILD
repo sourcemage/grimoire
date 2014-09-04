@@ -22,4 +22,6 @@ else
   OPTS="$OPTS --without-long-double"  
 fi &&
 
+OPTS="$OPTS --without-gnome" &&
+
 default_build

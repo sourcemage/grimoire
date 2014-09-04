@@ -3,12 +3,13 @@ cd $SOURCE_DIRECTORY/mozilla* &&
 FIREFOX_HOME="$INSTALL_ROOT/usr/lib/firefox" &&
 export  MOZ_PHOENIX=1 &&
 
-#
-# Only strip if the user wants us to
-#
-if  echo  $LDFLAGS  |  grep  -q  --  '-s';  then
-  OPTS="$OPTS  --enable-strip"
-fi  &&
+unset DBUS_SESSION_BUS_ADDRESS \
+        DISPLAY \
+        ORBIT_SOCKETDIR \
+        SESSION_MANAGER \
+        XDG_SESSION_COOKIE \
+        XAUTHORITY &&
+export LIBGL_ALWAYS_INDIRECT=1
 
 #
 # No fast optimization for Mozilla, bit us so many times...
@@ -19,25 +20,29 @@ CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
 #
-# -ffast-math breaks plugins
+# Avoid buggy GCC 4.6 AVX code generation, which breaks libxul
 #
-CFLAGS="${CFLAGS//-ffast-math/}"      &&
-CXXFLAGS="${CXXFLAGS//-ffast-math/}"  &&
+local gccver=$(gcc -dumpversion) &&
+local gccmajor=${gccver%.*.*}    &&
+local gccminor=${gccver#*.}      &&
+gccminor=${gccminor%.*}          &&
 
-if [[ "$FIREFOX_CVS" == "y" ]]; then
-  autoconf-2.13 &&
- 
-# workaround for configure not handling --disable-webm correctly
-  if [[ $OPTS =~ --disable-webm ]]; then
-   echo ac_add_options --disable-webm >> .mozconfig
-  fi
+if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
+  CFLAGS="${CFLAGS//-mavx} -mno-avx"
+  CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
+fi
+
+for option in $OPTS; do
+  echo "ac_add_options $option" >> .mozconfig
+done &&
+
+local MAKE_TARGET
+if [[ $FIREFOX_PGO == y ]]; then
+  MAKE_TARGET=profiledbuild
+else
+  MAKE_TARGET=build
 fi &&
 
-# necko-wifi is part of xulrunner if enabled, but firefox
-# compile fails without wireless_tools without this option
-echo ac_add_options --disable-necko-wifi >> .mozconfig  &&
-echo ac_add_options --enable-optimize=-O2 >> .mozconfig  &&
-
 make_single  &&
-make -f client.mk build &&
+make -f client.mk $MAKE_TARGET &&
 make_normal

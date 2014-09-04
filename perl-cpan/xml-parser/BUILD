@@ -1,1 +1,1 @@
-default_build_perl
+true

@@ -1,19 +1,8 @@
 make_single  &&
 
-if [ "$GLIBC_NOLIB64" = "y" ]; then
-  # install x86_64 linker to lib instead of lib64
-  sedit "s/lib64/lib/"  sysdeps/unix/sysv/linux/x86_64/ldconfig.h &&
-  sedit "s/264/2/" sysdeps/unix/sysv/linux/x86_64/ldd-rewrite.sed
-fi                                                              &&
-
-
-# this causes configure to be run again where it fails for some people on PIII and for me on Alpha
-# the error is about no working grep found...
-if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
-# install x86_64 libraries to lib instead of lib64
-sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure    &&
-sedit "s/| x86_64//"       sysdeps/unix/sysv/linux/configure.in
-fi &&
+# install x86_64 linker to lib instead of lib64
+sedit "s/lib64/lib/"  sysdeps/unix/sysv/linux/x86_64/ldconfig.h &&
+sedit "s/264/2/" sysdeps/unix/sysv/linux/x86_64/ldd-rewrite.sed &&
 
 #
 # bug#5570 ccache sometimes has trouble correctly recognising minor differences
@@ -143,12 +132,20 @@ ln -s /usr/include/sys/capability.h $SOURCE_DIRECTORY/nscd/sys/capability.h &&
 cd  $SOURCE_DIRECTORY.bld  &&
 
 #
+# Install all libs into /lib
+# Fixes installing glibc on x86_64 without a lib64 symlink/dir
+# Bug #441
+#
+echo -e "slibdir=/lib" > configparms
+
+#
 # Configure glibc to use the sanitised headers
 # http://bugs.sourcemage.org/show_bug.cgi?id=7560
 #
 $SOURCE_DIRECTORY/configure  --host=$HOST                       \
                             --build=$BUILD                      \
                            --prefix=/usr                        \
+                           --libdir=/usr/lib                    \
                           --infodir=/usr/share/info             \
                            --mandir=/usr/share/man              \
                        --sysconfdir=/etc                        \
@@ -157,5 +154,6 @@ $SOURCE_DIRECTORY/configure  --host=$HOST                       \
                           --disable-profile                     \
                      --with-headers=$GLIBC_HEADERS_DIR/usr/include  \
                           --disable-multi-arch                  \
+                           --enable-obsolete-rpc                \
                                     $OPTS                       &&
 make

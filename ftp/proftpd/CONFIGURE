@@ -1,40 +1,140 @@
-. $GRIMOIRE/FUNCTIONS                                                 &&
-#if [[ $PROFTPD_DEVEL == "n" ]]; then
+. $GRIMOIRE/FUNCTIONS &&
+
 if [[ $(get_sorcery_kernel_config CONFIG_SECURITY) != y ]]; then
-  config_query_option PROFTPD_CAPS                                  \
-  "You don't have capabilities enabled in your kernel, do you still \
-   want to build them?" n "" "--disable-cap"                            
-fi
-#fi                                                                    &&
+  config_query_option PROFTPD_OPTS "You don't have capabilities enabled in your kernel, do you still want to build them?" n \
+                                   "--enable-cap" \
+                                   "--disable-cap"
+fi &&
 
-config_query_option PROFTPD_IP6 "enable IPv6 support?"                \
-y "--enable-ipv6" ""                                                  &&
+config_query_option PROFTPD_OPTS "Enable IPv6 support?" y \
+                                 "--enable-ipv6" \
+                                 "--disable-ipv6" &&
 
-config_query PROFTPD_MOD                                              \
-"Choose optional user contributed modules to install?" n              &&
+config_query_option PROFTPD_OPTS "Enable use of ident (RFC1413) lookups?" y \
+                                 "--enable-ident" \
+                                 "--disable-ident" &&
 
-#radius module failed (probably missing dep), all the others not in
-#the query are yet to be tried.
+config_query_option PROFTPD_OPTS "Enable sendfile support?" y \
+                                 "--enable-sendfile" \
+                                 "--disable-sendfile" &&
+
+config_query_option PROFTPD_OPTS "Enable proftpd controls via ftpdctl?" n \
+                                 "--enable-ctrls" \
+                                 "--disable-ctrls" &&
+
+config_query PROFTPD_MOD "Choose optional user contributed modules to install?" n &&
+
 if [[ $PROFTPD_MOD == "y" ]]; then
-  config_query_multi PROFTPD_MODS "Choose among this list:"           \
-  mod_ratio mod_readme mod_rewrite mod_tls mod_wrap                   \
-  mod_sql mod_ldap                                                    &&
+  local MODULES="mod_copy \
+                 mod_dnsbl \
+                 mod_dynmasq \
+                 mod_exec \
+                 mod_ifsession \
+                 mod_ifversion \
+                 mod_load \
+                 mod_log_forensic \
+                 mod_qos \
+                 mod_quotatab \
+                 mod_ratio \
+                 mod_readme \
+                 mod_rewrite \
+                 mod_sftp \
+                 mod_site_misc \
+                 mod_snmp \
+                 mod_sql \
+                 mod_tls \
+                 mod_unique_id \
+                 mod_wrap \
+                 mod_wrap2" &&
 
-  PROFTPD_MODS="--with-modules=`echo $PROFTPD_MODS | sed 's/\ /:/g'`" &&
+  if list_find "$PROFTPD_OPTS" "--enable-ctrls"; then
+    MODULES="mod_ban \
+             mod_ctrls_admin \
+             mod_shaper \
+             ${MODULES}"
+  fi &&
 
-  if [[ "x`echo $PROFTPD_MODS | grep sql`" != "x" ]]; then 
-    config_query_list PROFTPD_SQL                                     \
-    "You chose mod_sql, now which DBMS do you want:" mod_sql_mysql    \
-     mod_sql_postgres                                                 &&
+  config_query_multi PROFTPD_MODS "Choose among this list:" ${MODULES} &&
 
-    if [[ "x${PROFTPD_SQL}" == "xmod_sql_mysql" ]]; then
-      SQL_INC="/usr/include/mysql"
-    else
-	  SQL_INC="/usr/include/postgresql"
+  if list_find "$PROFTPD_MODS" "mod_quotatab"; then
+    config_query PROFTPD_MOD_QUOTATAB_LDAP "Include LDAP support in mod_quotatab?" n &&
+
+    if [[ $PROFTPD_MOD_QUOTATAB_LDAP == y ]]; then
+      list_add "PROFTPD_MODS" "mod_quotatab_ldap"
+    fi &&
+
+    config_query PROFTPD_MOD_QUOTATAB_RADIUS "Include RADIUS support in mod_quotatab?" n &&
+
+    if [[ $PROFTPD_MOD_QUOTATAB_RADIUS == y ]]; then
+      list_add "PROFTPD_MODS" "mod_quotatab_radius"
+    fi &&
+
+    config_query PROFTPD_MOD_QUOTATAB_SQL "Include SQL support in mod_quotatab?" n &&
+
+    if ! list_find "$PROFTPD_MODS" "mod_sql"; then
+      list_add "PROFTPD_MODS" "mod_sql"
+    fi &&
+
+    if [[ $PROFTPD_MOD_QUOTATAB_SQL == y ]]; then
+      list_add "PROFTPD_MODS" "mod_quotatab_sql"
     fi
-    
-    PROFTPD_MODS="${PROFTPD_MODS}:${PROFTPD_SQL}                     \
-    --with-includes=${SQL_INC}"                                      
-  fi                                                                   
-fi
+  fi &&
 
+  if list_find "$PROFTPD_MODS" "mod_sftp"; then
+    config_query PROFTPD_MOD_SFTP_SQL "Include SQL support in mod_sftp?" n &&
+
+    if ! list_find "$PROFTPD_MODS" "mod_sql"; then
+      list_add "PROFTPD_MODS" "mod_sql"
+    fi &&
+
+    if [[ $PROFTPD_MOD_SFTP_SQL == y ]]; then
+      list_add "PROFTPD_MODS" "mod_sftp_sql"
+    fi &&
+
+    config_query PROFTPD_MOD_SFTP_PAM "Include PAM support in mod_sftp?" n &&
+
+    if [[ $PROFTPD_MOD_SFTP_PAM == y ]]; then
+      list_add "PROFTPD_MODS" "mod_sftp_pam"
+    fi
+  fi &&
+
+  if list_find "$PROFTPD_MODS" "mod_wrap2"; then
+    config_query PROFTPD_MOD_WRAP2_FILE "Include file support in mod_wrap2?" n &&
+
+    if [[ $PROFTPD_MOD_WRAP2_FILE == y ]]; then
+      list_add "PROFTPD_MODS" "mod_wrap2_file"
+    fi &&
+
+    config_query PROFTPD_MOD_WRAP2_SQL "Include SQL support in mod_wrap2?" n &&
+
+    if ! list_find "$PROFTPD_MODS" "mod_sql"; then
+      list_add "PROFTPD_MODS" "mod_sql"
+    fi &&
+
+    if [[ $PROFTPD_MOD_WRAP2_SQL == y ]]; then
+      list_add "PROFTPD_MODS" "mod_wrap2_sql"
+    fi
+  fi &&
+
+  if list_find "$PROFTPD_MODS" "mod_sql"; then
+    config_query PROFTPD_MOD_SQL_PASSWD "Include passwd support in mod_sql?" n &&
+
+    if [[ $PROFTPD_MOD_SQL_PASSWD == y ]]; then
+      list_add "PROFTPD_MODS" "mod_sql_passwd"
+    fi
+  fi &&
+
+  if list_find "$PROFTPD_MODS" "mod_tls"; then
+    config_query PROFTPD_MOD_TLS_MEMCACHE "Include memcache support in mod_tls?" n &&
+
+    if [[ $PROFTPD_MOD_TLS_MEMCACHE == y ]]; then
+      list_add "PROFTPD_MODS" "mod_tls_memcache"
+    fi &&
+
+    config_query PROFTPD_MOD_TLS_SHMCACHE "Include SysV shared memory cache support in mod_tls?" n &&
+
+    if [[ $PROFTPD_MOD_TLS_SHMCACHE == y ]]; then
+      list_add "PROFTPD_MODS" "mod_tls_shmcache"
+    fi
+  fi
+fi

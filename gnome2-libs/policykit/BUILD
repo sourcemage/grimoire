@@ -1,10 +1,5 @@
 create_account polkituser  &&
-
-if [[ "$POLICYKIT_MANPAGES" == "y" ]]; then
-   OPTS="--enable-man-pages $OPTS"
-else
-   OPTS="--disable-man-pages $OPTS"
-fi  &&
+create_account polkitd     &&
 
 if [[ "$POLICYKIT_AFW" == "linux-pam" ]]; then
    OPTS="--with-authfw=pam $OPTS"

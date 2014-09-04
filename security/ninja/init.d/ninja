@@ -1,0 +1,37 @@
+#!/bin/bash
+
+PROGRAM=/usr/bin/ninja
+ARGS="/etc/ninja/ninja.conf"
+RUNLEVEL=3
+PIDFILE=/var/run/ninja.pid
+NEEDS="+remote_fs"
+
+. /etc/init.d/smgl_init
+
+start () {
+  echo "Releasing ninja..."
+
+  if [ ! -e /etc/ninja/ninja.conf ]; then
+    cp /etc/ninja/default.conf /etc/ninja/ninja.conf
+  fi
+
+  if [ -e $PIDFILE ] ; then
+    echo "Ninja already running"
+  else
+    $PROGRAM $ARGS 2>&1 > /dev/null
+    pidof $PROGRAM > $PIDFILE
+  fi
+
+  evaluate_retval
+
+}
+
+stop() {
+  echo "Catching ninja..."
+  if [ -e $PIDFILE ] ; then
+     kill -9 $(cat $PIDFILE) && rm -f $PIDFILE
+  else
+     echo "Ninja not running"
+  fi
+  evaluate_retval
+}

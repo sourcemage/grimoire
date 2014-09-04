@@ -1,5 +1,5 @@
-# prevent install of init scripts
-OPTS="--without-rcdir $OPTS"  &&
+# prevent install of init scripts and Mac OS X localization bundle dir
+OPTS="--without-rcdir --without-bundledir $OPTS" &&
 
 # set language options
 if [[ $EXTRA_LANG == n ]]; then
@@ -13,5 +13,6 @@ else
 fi &&
 
 OPTS="--libdir=$INSTALL_ROOT/usr/lib $CUPS_OPTS $OPTS"  &&
+OPTS="$OPTS CC=gcc CXX=g++" &&
 
 default_build

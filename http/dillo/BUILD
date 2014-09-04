@@ -1,2 +1,2 @@
-OPTS="$DILLO_OPTS $OPTS" &&
+OPTS="$OPTS $DILLO_OPTS"
 default_build

@@ -9,7 +9,7 @@ if [[ "$AVAHI_DAEMON" == 'n' ]]; then
   OPTS="${OPTS} --with-xml=none"
 fi &&
 
-if [[ "$AVAHI_NODBUS" == 'y' ]]; then
+if ! is_depends_enabled $SPELL dbus; then
   OPTS="${OPTS} --disable-dbus"
 fi &&
 
@@ -20,5 +20,15 @@ fi &&
 if [[ "$AVAHI_COMPAT_HOWL" == 'y' ]]; then
   OPTS="$OPTS --enable-compat-howl"
 fi &&
+
+if ! is_depends_enabled $SPELL pygtk2; then
+  OPTS="$OPTS --disable-pygtk"
+fi &&
+
+if ! is_depends_enabled $SPELL gdbm; then
+  OPTS="$OPTS --disable-gdbm"
+fi &&
+
+OPTS="--disable-qt3 $OPTS" &&
 
 default_build

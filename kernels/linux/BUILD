@@ -28,9 +28,11 @@ if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
   esac &&
   eval make $EXTRA_MAKE_OPTIONS $IMAGE_TARGET &&
   eval make $EXTRA_MAKE_OPTIONS modules &&
-  if grep -q CONFIG_BONDING=m ./.config || grep -q CONFIG_BONDING=y ./.config
+  LINUX_BRANCH=$(echo ${VERSION} | cut -d. -f1,2)
+  if [[ ${LINUX_BRANCH//./} -le 310 ]] && ( grep -q CONFIG_BONDING=m ./.config || grep -q CONFIG_BONDING=y ./.config )
   then
-    gcc -Wall -O -I/usr/src/linux/include ./Documentation/networking/ifenslave.c -o ifenslave
+    echo 'Building ifenslave for network bonding...'  &&
+    gcc -Wall -O ./Documentation/networking/ifenslave.c -o ifenslave
   fi
 else
   # This is for the iso team don't touch

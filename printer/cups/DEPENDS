@@ -1,23 +1,14 @@
 depends  zlib                                     &&
-depends  g++                                      &&
+depends -sub CXX gcc                                      &&
 depends  pkgconfig                                &&
+depends shared-mime-info &&
+depends mdnsresponder &&
 
-optional_depends  JPEG                            \
-                  '--enable-jpeg'                 \
-                  '--disable-jpeg'                \
-                  'Support for JPEG filter'       &&
-optional_depends  tiff                            \
-                  '--enable-tiff'                 \
-                  '--disable-tiff'                \
-                  'Support for TIFF filter'       &&
-optional_depends  libpng                          \
-                  '--enable-png'                  \
-                  '--disable-png'                 \
-                  'Support PNG filter'            &&
 optional_depends  libpaper                        \
                   '--enable-libpaper'             \
                   '--disable-libpaper'            \
                   'Enable libpaper support'       &&
+
 optional_depends  JAVA                            \
                   '--with-java'                   \
                   '--without-java'                \
@@ -27,7 +18,7 @@ optional_depends  perl                            \
                   '--with-perl'                   \
                   '--without-perl'                \
                   'Enable perl support'           &&
-optional_depends  python                          \
+optional_depends  PYTHON                          \
                   '--with-python'                 \
                   '--without-python'              \
                   'Enable python support'         &&
@@ -36,13 +27,7 @@ optional_depends  php                             \
                   '--without-php'                 \
                   'Enable php support'            &&
 
-if [[ $CUPS_PDF == xpdf ]] ; then
-depends xpdf '--enable-pdftops --with-pdftops=pdftops'
-elif [[ $CUPS_PDF == ghostscript ]]; then
-depends ghostscript '--enable-pdftops --with-pdftops=gs'
-fi &&
-
-optional_depends  "libusb" \
+optional_depends  "LIBUSB" \
                   '--enable-libusb' \
                   '--disable-libusb' \
                   'usb printers' &&
@@ -56,29 +41,18 @@ optional_depends  "linux-pam"                     \
                   "--disable-pam"                 \
                   "for pluggable authentication"  &&
 
-optional_depends  "gnutls"                        \
-                  "--enable-gnutls"               \
-                  "--disable-gnutls"               \
-                  "use GNU TLS for SSL/TLS support"  &&
-
-optional_depends  "openldap"                      \
-                  "--enable-ldap"                 \
-                  "--disable-ldap"                \
-                  "LDAP support"                  &&
-
-optional_depends  "openssl"                       \
-                  "--enable-ssl"                  \
-                  "--disable-ssl"                 \
-                  "for encrypted communications"  &&
+case $CUPS_SSL in
+  gnutls) depends gnutls "--enable-gnutls --disable-openssl" ;;
+  SSL)    depends SSL   "--enable-openssl --disable-gnutls" ;;
+  none)   OPTS+=" --disable-ssl " ;;
+esac &&
 
 optional_depends  "acl"                                           \
                   ""                                              \
                   ""                                              \
                   "for file system access control lists support"  &&
 
-optional_depends  'openslp'                                             \
-                  '--enable-slp'                                        \
-                  '--disable-slp'                                       \
-                  'to use the Service Location Protocol for discovery'
+optional_depends krb5 '--enable-gssapi' '--disable-gssapi' 'GSSAPI support' &&
 
 suggest_depends ghostscript '' '' 'to print Postscript files'
+suggest_depends cups-filters '' '' 'extra backends and filters'

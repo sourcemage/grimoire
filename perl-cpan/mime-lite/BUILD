@@ -1,1 +1,1 @@
-default_build_perl
+echo no | default_build_perl

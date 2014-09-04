@@ -1,9 +1,37 @@
-depends  e2fsprogs                  &&
-depends  libxml2  '--with-libxml2'  &&
-depends  zlib     '--with-zlib'     &&
+if [[ -n $NEON_XML ]]; then
+  depends $NEON_XML "--with-${NEON_XML}"
+fi &&
 
-# TODO also supports --with-ssl=gnutls
-optional_depends  openssl                \
-                  '--with-ssl'           \
-                  '--without-ssl'        \
-                  'for SSL/TLS support'
+optional_depends zlib \
+                 "--with-zlib" \
+                 "--without-zlib" \
+                 "for zlib support" &&
+
+optional_depends gettext \
+                 "--enable-nls" \
+                 "--disable-nls" \
+                 "for Native Language Support" &&
+
+case $NEON_SSL in
+  none) OPTS="--without-ssl $OPTS"
+  ;;
+  SSL) depends openssl "--with-ssl=openssl"
+  ;;
+  gnutls) depends gnutls "--with-ssl=gnutls"
+  ;;
+esac &&
+
+optional_depends ca-certificates \
+                 "--with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt" \
+                 "--without-ca-bundle" \
+                 "to use specified filename of an SSL CA root bundle" &&
+
+optional_depends krb5 \
+                 "--with-gssapi" \
+                 "--without-gssapi" \
+                 "for GSSAPI support" &&
+
+optional_depends libproxy \
+                 "--with-libproxy" \
+                 "--without-libproxy" \
+                 "for libproxy support"

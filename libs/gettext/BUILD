@@ -3,7 +3,8 @@ export  CC=gcc  &&
 # pth support is semi-broken, so force POSIX threads
 OPTS="--enable-threads=posix $OPTS" &&
 
-make_single  &&
+# never rely on external glib2
+OPTS="--with-included-glib $OPTS" &&
 
 ./configure  --build=$BUILD                           \
               --host=$HOST                            \
@@ -24,8 +25,6 @@ if  is_depends_enabled $SPELL tetex;  then
   make  pdf              &&
   cd  -
 fi  &&
-
-make_normal  &&
 
 #
 # Remove libintl.h from old log files

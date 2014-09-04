@@ -1,55 +1,98 @@
-#Few hacks to keep old defaults set correctly
+source $GRIMOIRE/config_query_multi.function &&
 
-if [[ "$SEAMONKEY_MAILNEWS" == "--enable-mailnews" ||     \
-      "$SEAMONKEY_MAILNEWS" == "y" ]]; then
-   SEAMONKEY_MAILNEWS=y
-else
-   SEAMONKEY_MAILNEWS=n
-fi &&
-config_query  SEAMONKEY_MAILNEWS                          \
-                     'Build Mail/News client?'            \
-                     n                                    &&
+config_query SEAMONKEY_NULLPLUGIN "Do you want nullplugin installed (to enable auto search and install of other plugins)" y &&
 
-if [[ "$SEAMONKEY_COMPOSER" == "--enable-composer" ||     \
-      "$SEAMONKEY_COMPOSER" == "y" ]]; then
-   SEAMONKEY_COMPOSER=y
-else
-   SEAMONKEY_COMPOSER=n
-fi &&
-config_query  SEAMONKEY_COMPOSER                          \
-                     'Build Composer component'           \
-                     n                                    &&
+config_query_option SEAMONKEY_OPTS "Build mail & news components?" y \
+                                   "--enable-mailnews" \
+                                   "--disable-mailnews" &&
 
-if [[ "$SEAMONKEY_JS" == "--enable-xpctools" ||           \
-      "$SEAMONKEY_JS" == "y" ]]; then
-   SEAMONKEY_JS=y
-else
-   SEAMONKEY_JS=n
-fi &&
-config_query  SEAMONKEY_JS                                \
-                     'Build JavaScript profile tool'      \
-                     n                                    &&
+if list_find "$SEAMONKEY_OPTS" "--disable-mailnews"; then
+  message "${MESSAGE_COLOR}"
+  message "SeaMonkey doesn't work when built without mail & news components"
+  message "support at the moment. Forcing '--enable-mailnews' configure option."
+  message "${DEFAULT_COLOR}"
 
-if [[ "$SEAMONKEY_XINERAMA" == "--enable-xinerama" ||     \
-      "$SEAMONKEY_XINERAMA" == "y" ]]; then
-   SEAMONKEY_XINERAMA=y
-else
-   SEAMONKEY_XINERAMA=n
+  list_remove "SEAMONKEY_OPTS" "--disable-mailnews" &&
+  list_add "SEAMONKEY_OPTS" "--enable-mailnews"
 fi &&
 
-config_query  SEAMONKEY_CAIRO                             \
-                     "Use system installed cairo?"        \
-                      n                                   &&
+if list_find "$SEAMONKEY_OPTS" "--enable-mailnews"; then
+  message "${MESSAGE_COLOR}"
+  message "SeaMonkey's mail & news component doesn't work when built without composer"
+  message "support at the moment. Forcing '--enable-composer' configure option."
+  message "${DEFAULT_COLOR}"
 
-config_query  SEAMONKEY_XINERAMA                          \
-                     'Enable Xinerama support?'           \
-                     n                                    &&
+  list_add "SEAMONKEY_OPTS" "--enable-composer" &&
+  list_remove "SEAMONKEY_OPTS" "--disable-composer"
+else
+  config_query_option SEAMONKEY_OPTS "Build Composer component?" y \
+                                     "--enable-composer" \
+                                     "--disable-composer"
+fi &&
 
-config_query  SEAMONKEY_PANGO                             \
-                     'Enable Pango support for complex font rendering?' \
-                     n                                    &&
+config_query_option SEAMONKEY_OPTS "Build Lightning calendar extension?" n \
+                                   "--enable-calendar" \
+                                   "--disable-calendar" &&
 
-#Getting rid of that annoying nullplugin
-config_query  SEAMONKEY_NULLPLUGIN                       \
-"Do you want nullplugin installed (to enable auto search and install of other plugins)" \
-              y
+config_query_option SEAMONKEY_OPTS "Enable Personal Security Manager?" y \
+                                   "--enable-crypto" \
+                                   "--disable-crypto" &&
+
+config_query_option SEAMONKEY_OPTS "Enable WebM support?" y \
+                                   "--enable-webm" \
+                                   "--disable-webm" &&
+
+config_query_option SEAMONKEY_OPTS "Enable official branding? If enabled, you may be restricted in distributing these binaries IAW mozilla policies" n \
+                                   "--enable-official-branding" \
+                                   "--disable-official-branding" &&
+
+config_query_option SEAMONKEY_OPTS "Use system installed cairo?" n \
+                                   "--enable-system-cairo" \
+                                   "--disable-system-cairo" &&
+
+config_query_option SEAMONKEY_OPTS "Enable Pango support for complex font rendering?" y \
+                                   "--enable-pango" \
+                                   "--disable-pango" &&
+
+if list_find "$SEAMONKEY_OPTS" "--disable-pango"; then
+  message "${MESSAGE_COLOR}"
+  message "FreeType 2 support is broken. Forcing '--enable-pango' configure option."
+  message "${DEFAULT_COLOR}"
+
+  list_add "SEAMONKEY_OPTS" "--enable-pango" &&
+  list_remove "SEAMONKEY_OPTS" "--disable-pango"
+fi &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-mailnews"; then
+  config_query_option SEAMONKEY_OPTS "Enable LDAP support?" n \
+                                     "--enable-ldap" \
+                                     "--disable-ldap"
+else
+  list_add "SEAMONKEY_OPTS" "--disable-ldap"
+fi &&
+
+config_query_multi SEAMONKEY_EXT "What extensions must be built?" \
+                                 default \
+                                 irc &&
+
+config_query_option SEAMONKEY_OPTS "Enable geolocation via WiFi access points?" n \
+                                   "--enable-necko-wifi" \
+                                   "--disable-necko-wifi" &&
+
+config_query_option SEAMONKEY_OPTS "Enable dbus support?" y \
+                                   "--enable-dbus" \
+                                   "--disable-dbus" &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-dbus"; then
+  list_add "SEAMONKEY_OPTS" "--enable-libnotify"
+else
+  list_add "SEAMONKEY_OPTS" "--disable-libnotify"
+fi &&
+
+config_query_option SEAMONKEY_OPTS "Enable a11y (accessibility) support?" n \
+                                   "--enable-accessibility" \
+                                   "--disable-accessibility" &&
+
+config_query_option SEAMONKEY_OPTS "Remove debugging symbols?" n \
+                                   "--enable-strip" \
+                                   "--disable-strip"

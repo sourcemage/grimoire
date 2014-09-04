@@ -1,5 +1,34 @@
 depends pcre &&
-depends gtk+2 &&
+
+if [[ $BLUEFISH_UNSTABLE == y ]]; then
+  depends gtk+2
+else
+  if spell_ok gtk+2 && ! spell_ok gtk+3 || \
+     ! spell_ok gtk+2 && ! spell_ok gtk+3; then
+    optional_depends gtk+3 \
+                     "--without-gtk2" \
+                     "--with-gtk2" \
+                     "to use gtk3 instead of gtk2" &&
+
+    if ! is_depends_enabled $SPELL gtk+3; then
+      depends gtk+2
+    fi
+  else
+    optional_depends gtk+2 \
+                     "--with-gtk2" \
+                     "--without-gtk2" \
+                     "to use gtk2 even if gtk3 is available" &&
+
+    if ! is_depends_enabled $SPELL gtk+2; then
+      depends gtk+3
+    fi
+  fi
+fi &&
+
+optional_depends gettext \
+                 "--enable-nls" \
+                 "--disable-nls" \
+                 "to use Native Language Support" &&
 
 optional_depends gucharmap "" "" "for the character map plugin" &&
 
@@ -11,4 +40,4 @@ optional_depends enchant \
 optional_depends python \
                  "--enable-python" \
                  "--disable-python" \
-                 "for python integration (HIGHLY EXPERIMENTAL)"
+                 "for zen-coding plugin"

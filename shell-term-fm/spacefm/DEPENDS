@@ -1,0 +1,47 @@
+. "$GRIMOIRE/FUNCTIONS" &&
+
+depends bash &&
+depends UDEV &&
+
+depends $SPACEFM_GTK "--with-${SPACEFM_GTK/gtk+/gtk}" &&
+
+optional_depends startup-notification \
+                 "--enable-startup-notification" \
+                 "--disable-startup-notification" \
+                 "for use of libstartup-notification" &&
+
+optional_depends gettext \
+                 "--enable-nls" \
+                 "--disable-nls" \
+                 "for Native Language Support" &&
+
+if [[ $(get_kernel_config CONFIG_INOTIFY_USER) == "y" ||
+      $(get_kernel_config CONFIG_INOTIFY_USER) == "m" ]]; then
+  config_query_option SPACEFM_OPTS "Include Linux inotify kernel support (file system monitoring)?" y \
+                                   "--enable-inotify" \
+                                   "--disable-inotify"
+else
+  optional_depends FAM \
+                   "--enable-inotify" \
+                   "--disable-inotify" \
+                   "for file system monitoring support"
+fi &&
+
+optional_depends hal \
+                 "--enable-hal" \
+                 "--disable-hal" \
+                 "to build with Linux HAL support (${PROBLEM_COLOR}disables udisks*${DEFAULT_COLOR})" &&
+
+if is_depends_enabled $SPELL hal; then
+  depends dbus-glib
+else
+  suggest_depends udisks "" "" "for mounting via udisks" &&
+  suggest_depends udisks2 "" "" "for mounting via udisks2"
+fi &&
+
+# TODO: add udevil spell
+# suggest_depends udevil "" "" "for mounting via udevil" &&
+
+suggest_depends pmount "" "" "for mounting via pmount" &&
+
+suggest_depends eject "" "" "for device ejecting ability"

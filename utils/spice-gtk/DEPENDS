@@ -1,0 +1,68 @@
+depends  celt051         &&
+depends  intltool        &&
+depends  SSL         &&
+depends  pixman          &&
+depends  spice-protocol  &&
+
+depends  gtk+${SPICE_GTK_VER}  "--with-gtk=${SPICE_GTK_VER}.0"  &&
+
+if   [[ "x${SPICE_GTK_AUDIO}" == "xpulse" ]]; then
+  depends  pulseaudio
+elif [[ "x${SPICE_GTK_AUDIO}" == "xgstreamer" ]]; then
+  depends  gstreamer
+fi  &&
+
+optional_depends  'LIBSASL'                                \
+                  '--with-sasl=yes'                        \
+                  '--with-sasl=no'                         \
+                  'for cyrus SASL authentication support'  &&
+
+optional_depends  'dbus-glib'                      \
+                  '--enable-dbus=yes'              \
+                  '--enable-dbus=no'               \
+                  'for D-Bus desktop integration'  &&
+
+optional_depends  'gettext'                            \
+                  '--enable-nls'                       \
+                  '--disable-nls'                      \
+                  'for Native Language Support (NLS)'  &&
+
+optional_depends  'gobject-introspection'       \
+                  '--enable-introspection=yes'  \
+                  '--enable-introspection=no'   \
+                  'for GObject introspection'   &&
+
+optional_depends  'gtk-doc'                 \
+                  '--enable-gtk-doc'        \
+                  '--disable-gtk-doc'       \
+                  'to build documentation'  &&
+
+optional_depends  'policykit'              \
+                  '--enable-polkit=yes'    \
+                  '--enable-polkit=no'     \
+                  'for PolicyKit support'  &&
+
+optional_depends  PYTHON                 \
+                  '--with-python'        \
+                  '--without-python'     \
+                  'for Python bindings'  &&
+
+optional_depends  'vala'                       \
+                  '--enable-vala'              \
+                  '--disable-vala'             \
+                  'for Vala language support'  &&
+
+message "${MESSAGE_COLOR}It is recommended to NOT enable the"     \
+        "smartcard support via qemu or there will be a circular"  \
+        "dependency between qemu and spice${DEFAULT_COLOR}"       &&
+
+optional_depends  qemu                     \
+                  '--enable-smartcard'     \
+                  '--disable-smartcard'    \
+                  'for smartcard support'  &&
+
+if  is_depends_enabled  $SPELL  qemu; then
+  depends  -sub  'NSS'  qemu
+fi  &&
+
+suggest_depends  -sub "GTK${SPICE_GTK_VER} SPICE"  'virt-viewer'  '' '' 'for a better spice client'

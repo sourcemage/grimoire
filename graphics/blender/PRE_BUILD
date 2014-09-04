@@ -1,12 +1,45 @@
-default_pre_build &&
-cd "$SOURCE_DIRECTORY" &&
+default_pre_build       &&
+cd "$SOURCE_DIRECTORY"  &&
 
-chmod 755 release/plugins/bmake &&
+patch -p0 < $SCRIPT_DIRECTORY/blender-2.61-desktop.patch              &&
+patch -p0 < $SCRIPT_DIRECTORY/blender-2.60-bmake.patch                &&
+chmod 755 release/plugins/bmake                                       &&
+rm -r extern/libopenjpeg                                              &&
+patch -p1 < $SCRIPT_DIRECTORY/blender-2.60-openjpeg.patch             &&
+rm -r extern/glew                                                     &&
+patch -p1 < $SCRIPT_DIRECTORY/blender-2.61-glew.patch                 &&
+rm -r extern/Eigen3                                                   &&
+patch -p1 < $SCRIPT_DIRECTORY/blender-2.61-eigen.patch                &&
+patch -p1 < $SCRIPT_DIRECTORY/blender-2.60a-libav-0.7.patch           &&
+patch -p1 < $SCRIPT_DIRECTORY/blender-2.61-CVE-2009-3850.patch        &&
+patch -p1 < $SCRIPT_DIRECTORY/blender-2.61-enable_site_module.patch   &&  
 
-# set Python version to the installed version, not hardcoded one
-sed -i "s:2.5:$(installed_version python | cut -d . -f 1,2):;s:-Wdeclaration-after-statement::" \
-       "$SOURCE_DIRECTORY/config/linux2-config.py" &&
+cat <<- EOF >> "${SOURCE_DIRECTORY}"/user-config.py
+REL_CFLAGS=[]
+REL_CXXFLAGS=[]
+REL_CCFLAGS=[]
+EOF
 
-patch -p1 < "$SPELL_DIRECTORY/blender-2.44-scriptsdir.patch"  &&
+cat <<- EOF >> "${SOURCE_DIRECTORY}"/user-config.py
+C_WARN  =[ '-w', '-g0' ]
+CC_WARN =[ '-w', '-g0' ]
+CXX_WARN=[ '-w', '-g0' ]
+EOF
 
-sed -i 's@../../src/@\\$(<D)/../../@' extern/xvidcore/build/generic/configure
+cat <<- EOF >> "${SOURCE_DIRECTORY}"/user-config.py
+BF_OPENGL_LIB='GL GLU X11 Xi GLEW'
+BF_INSTALLDIR="../install"
+WITH_PYTHON_SECURITY=1
+WITHOUT_BF_PYTHON_INSTALL=1
+BF_PYTHON="/usr"
+BF_PYTHON_VERSION="3.2"
+BF_PYTHON_ABI_FLAGS="m"
+BF_BUILDINFO=0
+BF_QUIET=1
+BF_NUMJOBS=${MAKE_NJOBS}
+BF_LINE_OVERWRITE=0
+WITH_BF_FHS=1
+WITH_BF_STATICOPENGL=0
+EOF
+#        WITH_BF_BINRELOC=0
+#        WITH_BF_OPENMP=${enable_openmp}

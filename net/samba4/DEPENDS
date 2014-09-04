@@ -1,52 +1,57 @@
-depends  e2fsprogs                             &&
-depends  libcap                                &&
-depends  popt       "--without-included-popt"  &&
-depends  python                                &&
-depends  tevent                                &&
-
-if [[  "$SAMBA4_SCM"  ==  "y"  ]];  then
+depends  e2fsprogs &&
+depends  libcap    &&
+depends  popt      &&
+depends  PYTHON    &&
+depends  tevent    &&
+if [[  "$SAMBA4_BRANCH"  ==  "scm"  ]];  then
   depends  git
 fi  &&
 
-#if  [[  "$SAMBA_AD"  ==  "y"  ]];  then
-#  depends  openldap  "--with-ldap"              &&
-#  depends  krb5      "--with-krb5  --with-ads"
-#else
-#  optional_depends  openldap            \
-#                    "--with-ldap"       \
-#                    "--without-ldap"    \
-#                    "for LDAP support"
-#fi  &&
+if [[ "$SAMBA_ADDC" == "y" ]]; then
+  depends  acl     "--with-acl-support"
+else
+  optional_depends acl                     \
+                   "--with-acl-support"    \
+                   "--without-acl-support" \
+                   "for file system access control lists support" &&
+  optional_depends krb5 \
+                   "--with-system-mitkrb5 --without-ad-dc" \
+                   "--without-ad-dc" \
+                   "to use system krb5"
+fi &&
 
-optional_depends  readline                \
-                  "--with-readline"       \
-                  "--without-readline"    \
-                  "for readline support"  &&
+if  [[  "$SAMBA_AD"  ==  "y"  ]];  then
+  depends  openldap  "--with-ldap --with-ads"
+else
+  optional_depends  openldap            \
+                    "--with-ldap"       \
+                    "--without-ldap"    \
+                    "for LDAP support"
+fi  &&
 
-#optional_depends  linux-pam                        \
-#                  "--with-pam --with-pam_smbpass"  \
-#                  "--without-pam"                  \
-#                  "To enable PAM authentication"   &&
+optional_depends  readline "" "" "for readline support"  &&
+
+optional_depends  linux-pam                        \
+                  "--with-pam --with-pam_smbpass"  \
+                  "--without-pam"                  \
+                  "To enable PAM authentication"   &&
 
 optional_depends  gnutls                         \
                   "--enable-gnutls"              \
                   "--disable-gnutls"             \
                   "for encrypted communication"  &&
 
-#optional_depends  CUPS                         \
-#                  "--enable-cups"              \
-#                  "--disable-cups"             \
-#                  "for Samba support in CUPS"  &&
+optional_depends  CUPS                         \
+                  "--enable-cups"              \
+                  "--disable-cups"             \
+                  "for Samba support in CUPS"  &&
 
-#optional_depends  SYSTEM-LOGGER                             \
-#                  "--with-syslog"                           \
-#                  "--without-syslog"                        \
-#                  "enables logging though a syslog daemon"
+optional_depends  SYSTEM-LOGGER                             \
+                  "--with-syslog"                           \
+                  "--without-syslog"                        \
+                  "enables logging though a syslog daemon"
 
-optional_depends  sqlite                               \
-                  '--with-sqlite3'                     \
-                  '--without-sqlite3'                  \
-                  'for SQLite 3.x DB backend support'  &&
+optional_depends  sqlite '' '' 'for SQLite 3.x DB backend support'  &&
 
 optional_depends  tdb                            \
                   ''                             \
@@ -56,4 +61,29 @@ optional_depends  tdb                            \
 optional_depends  talloc                                                             \
                   ''                                                                 \
                   ''                                                                 \
-                  'for a hierarchical pool based memory allocator with destructors'
+                  'for a hierarchical pool based memory allocator with destructors' &&
+
+optional_depends avahi \
+                 "--enable-avahi" \
+                 "--disable-avahi" \
+                 "for avahi support" &&
+
+optional_depends sendfile \
+                 "--with-sendfile-support" \
+                 "--without-sendfile-support" \
+                 "for sendfile support" &&
+
+optional_depends libaio \
+                 "--with-aio-support" \
+                 "--without-aio-support" \
+                 "for asynchronous I/O support" &&
+
+optional_depends dmapi \
+                 "--with-dmapi" \
+                 "--without-dmapi" \
+                 "for data management API for XFS Filesystem support" &&
+
+optional_depends libxslt "" "" "to build man pages and documentation" &&
+if is_depends_enabled $SPELL libxslt; then
+  depends docbook-xsl
+fi

@@ -1,1 +1,1 @@
-make
+make -f makefile.shared

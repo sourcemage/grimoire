@@ -1,5 +1,5 @@
 if [[ $KCHM_KDE == n ]];then
-  qt4_cmake_build
+  qt4_build
 else
   default_build
 fi

@@ -1,0 +1,78 @@
+From: Christoph Egger <Christoph.Egger@gmx.de>
+Subject: [PATCH] debian/interlinking
+
+ Some of the SFML libraries depend on each other but they are currently not 
+linked against them. This patch fixes this issue.
+
+Signed-off-by: Christoph Egger <Christoph.Egger@gmx.de>
+
+---
+ src/SFML/Audio/Makefile    |    2 +-
+ src/SFML/Graphics/Makefile |    2 +-
+ src/SFML/Makefile          |    4 ++--
+ src/SFML/Window/Makefile   |    2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/SFML/Audio/Makefile b/src/SFML/Audio/Makefile
+index 0215e80..175bb61 100755
+--- a/src/SFML/Audio/Makefile
++++ b/src/SFML/Audio/Makefile
+@@ -19,7 +19,7 @@ libsfml-audio-s.a: $(OBJ) $(OBJVORBIS)
+ 	$(AR) $(ARFLAGS) $(LIBNAME) $(OBJ) $(OBJVORBIS)
+ 
+ libsfml-audio.so: $(OBJ) $(OBJVORBIS)
+-	$(CPP) $(LDFLAGS) -Wl,-soname,$(LIB).$(VERSION) -o $(LIBNAME) $(OBJ) $(OBJVORBIS) -lsndfile -lopenal
++	$(CPP) $(LDFLAGS) -Wl,-soname,$(LIB).$(VERSION) -o $(LIBNAME) $(OBJ) $(OBJVORBIS) -lsndfile -lopenal $(LIBPATH)/libsfml-system.so.$(VERSION)
+ 
+ $(OBJ): %.o: %.cpp
+ 	$(CPP) -o $@ -c $< $(CFLAGS)
+diff --git a/src/SFML/Graphics/Makefile b/src/SFML/Graphics/Makefile
+index 4de224d..f149155 100755
+--- a/src/SFML/Graphics/Makefile
++++ b/src/SFML/Graphics/Makefile
+@@ -27,7 +27,7 @@ libsfml-graphics-s.a: $(OBJ) $(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLI
+ 	$(AR) $(ARFLAGS) $(LIBNAME) $(OBJ) $(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLIB)
+ 
+ libsfml-graphics.so: $(OBJ) $(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLIB)
+-	$(CPP) $(LDFLAGS) -Wl,-soname,$(LIB).$(VERSION) -o $(LIBNAME) $(OBJ) $(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLIB) -lfreetype -lX11 -lGL
++	$(CPP) $(LDFLAGS) -Wl,-soname,$(LIB).$(VERSION) -o $(LIBNAME) $(OBJ) $(OBJGLEW) $(OBJJPEG) $(OBJPNG) $(OBJSOIL) $(OBJZLIB) -lfreetype $(LIBPATH)/libsfml-system.so.$(VERSION) $(LIBPATH)/libsfml-window.so.$(VERSION) -lGL
+ 
+ $(OBJ): %.o: %.cpp
+ 	$(CPP) -o $@ -c $< $(CFLAGS) -I/usr/include/freetype2
+diff --git a/src/SFML/Makefile b/src/SFML/Makefile
+index d8f633e..cd73816 100755
+--- a/src/SFML/Makefile
++++ b/src/SFML/Makefile
+@@ -37,7 +37,7 @@ sfml-system:
+ 	@(mkdir -p ../../lib)
+ 	@(cd ./System && $(MAKE))
+ 
+-sfml-window:
++sfml-window: sfml-system
+ 	@(mkdir -p ../../lib)
+ 	@(cd ./Window && $(MAKE))
+ 
+@@ -45,7 +45,7 @@ sfml-network:
+ 	@(mkdir -p ../../lib)
+ 	@(cd ./Network && $(MAKE))
+ 
+-sfml-graphics:
++sfml-graphics: sfml-system sfml-window
+ 	@(mkdir -p ../../lib)
+ 	@(cd ./Graphics && $(MAKE))
+ 
+diff --git a/src/SFML/Window/Makefile b/src/SFML/Window/Makefile
+index 0dd689c..a05a54b 100755
+--- a/src/SFML/Window/Makefile
++++ b/src/SFML/Window/Makefile
+@@ -18,7 +18,7 @@ libsfml-window-s.a: $(OBJ)
+ 	$(AR) $(ARFLAGS) $(LIBNAME) $(OBJ)
+ 
+ libsfml-window.so: $(OBJ)
+-	$(CPP) $(LDFLAGS) -Wl,-soname,$(LIB).$(VERSION) -o $(LIBNAME) $(OBJ) $(OBJGLEW) -lX11 -lXrandr -lGL
++	$(CPP) $(LDFLAGS) -Wl,-soname,$(LIB).$(VERSION) -o $(LIBNAME) $(OBJ) $(OBJGLEW) -lX11 -lXrandr -lGL $(LIBPATH)/libsfml-system.so.$(VERSION)
+ 
+ $(OBJ): %.o: %.cpp
+ 	$(CPP) -o $@ -c $< $(CFLAGS)
+-- 
+tg: (2bed856..) debian/interlinking (depends on: debian/destdir-install-symlinks)

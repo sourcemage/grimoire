@@ -1,4 +1,4 @@
-if [[ $ALSA_FIRM_GIT == y ]]; then
+if [[ $ALSA_FIRMWARE_BRANCH == scm ]]; then
   OPTS="--prefix=${INSTALL_ROOT}/usr \
     --sysconfdir=${INSTALL_ROOT}/etc \
  --localstatedir=${INSTALL_ROOT}/var \

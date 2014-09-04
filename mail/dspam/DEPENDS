@@ -3,25 +3,35 @@ optional_depends MAIL-TRANSPORT-AGENT \
                  '' \
                  'Enable delivery agent support' &&
 
-optional_depends db \
-                 '' \
-                 '' \
-                 'Enable DB driver' &&
+if list_find "$DSPAM_OPTS" "--enable-daemon"; then
+  message "${MESSAGE_COLOR}NOTE:\n" \
+          "you've enabled daemon mode; if you're plannning to use SQLite\n" \
+          "storage drivers, it can be used only for SMTP/LMTP delivery,\n" \
+          "not for running standalone server. See README for more info.${DEFAULT_COLOR}\n"
+fi &&
+  
 optional_depends sqlite \
                  '' \
                  '' \
-                 'Enable SQLite driver' &&
+                 'Enable SQLite storage driver' &&
+
+optional_depends sqlite2 \
+                 '' \
+                 '' \
+                 'Enable SQLite2 storage driver (deprecated)' &&
+
 optional_depends MYSQL \
                  '--with-mysql-includes=/usr/include/mysql' \
                  '' \
-                 'Enable MYSQL driver' &&
+                 'Enable MYSQL storage driver' &&
+
 optional_depends postgresql \
                  '--with-pgsql-includes=/usr/include/postgresql' \
                  '' \
-                 'Enable PostgreSQL driver' &&
+                 'Enable PostgreSQL storage driver' &&
 
 if is_depends_enabled $SPELL postgresql ||
-   is_depends_enabled $SPELL $(get_spell_provider $SPELL MYSQL); then
+  is_depends_enabled $SPELL $(get_spell_provider $SPELL MYSQL); then
   config_query_option DSPAM_OPTS "Enable virtual users?" n \
                                  "--enable-virtual-users" \
                                  "--disable-virtual-users"
@@ -35,16 +45,21 @@ if [[ "$DSPAM_GD"  == y ]]; then
   depends gd-text       &&
   depends perl-cgi; 
 fi                      &&
+
 optional_depends openldap \
-                 '--enable-external-lookup --enable-ldap' \
-                 '--disable-ldap' \
+                 '--enable-external-lookup' \
+                 '--disable-external-lookup' \
                  'for LDAP support' &&
+
 optional_depends clamav \
                  '--enable-clamav' \
                  '--disable-clamav' \
                  'for virus detection' &&
+
 optional_depends SYSTEM-LOGGER \
                  '--enable-syslog' \
                  '--disable-syslog' \
-                 'for logging through syslog'
+                 'for logging through syslog' &&
 
+optional_depends procmail '' '' 'for the default TrustedDeliveryAgent'
+optional_depends WEBSERVER '' '' 'for the web interface'

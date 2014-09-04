@@ -1,11 +1,13 @@
 prepare_environment() {
-  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"             &&
-  PATH="$QTDIR/bin/qt4:$PATH"                     &&
-
   persistent_add KDE4DIR                          &&
-  KDE4DIR="$INSTALL_ROOT/opt/kde4"                &&
+  KDE4DIR="$INSTALL_ROOT/usr"                &&
+  KDE4ETC="$INSTALL_ROOT/etc"                &&
 
   PATH="$KDE4DIR/bin:$PATH"                       &&
+  # Correct QT binaries need to be found first!
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"             &&
+  PATH="$SORCERY_PATH:$QTDIR/bin/qt4:$PATH"       &&
+
   LD_LIBRARY_PATH="$KDE4DIR/lib:$LD_LIBRARY_PATH" &&
   QT_PLUGIN_PATH="$KDE4DIR/lib/kde4/plugins"
 }
@@ -16,8 +18,11 @@ default_build() {
   cd $SOURCE_DIRECTORY                            &&
   mkdir -p build                                  &&
   cd build                                        &&
+
+  prepare_cmake_flags                             &&
   cmake -DCMAKE_INSTALL_PREFIX="$KDE4DIR"         \
         -DCMAKE_BUILD_TYPE=$KDE_DEBUG_OPTION      \
+        -DSYSCONF_INSTALL_DIR=$KDE4ETC            \
         $OPTS ../                                 &&
   make
 }

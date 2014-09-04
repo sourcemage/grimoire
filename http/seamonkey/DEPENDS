@@ -1,23 +1,73 @@
-if [[ "$SEAMONKEY_CAIRO" == "y" ]]; then
-   depends cairo
-fi &&
-depends  gtk+2  &&
-depends  JPEG   &&
-depends  libidl  &&
-depends -sub APNG libpng &&
-depends  libxft &&
-depends  nspr &&
-depends  nss &&
-depends  perl  &&
-depends  zip &&
-depends  zlib &&
+. "$GRIMOIRE/FUNCTIONS" &&
 
-depends  libxt &&
-depends  dbus-glib &&
+# requires JCS_EXTENSIONS
+depends libjpeg-turbo &&
+depends gtk+2 &&
+depends libidl &&
+depends libxft &&
+depends nspr &&
 
-if [[ "$SEAMONKEY_PANGO" == "y" ]]; then
-   depends pango 
+if spell_ok nspr && is_version_less $(installed_version nspr) 4.9.3; then
+  force_depends nspr
 fi &&
 
-optional_depends alsa-lib "" "" "for audio support" &&
-optional_depends openldap "" "" "for LDAP support"
+depends -sub 3.15.x nss &&
+
+if spell_ok nss && is_version_less $(installed_version nss) 3.15.1; then
+  force_depends nss
+fi &&
+
+depends -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY" sqlite &&
+
+if spell_ok sqlite && is_version_less $(installed_version sqlite) 3.7.17; then
+  force_depends sqlite
+fi &&
+
+depends perl &&
+depends zip &&
+depends zlib &&
+depends libxt &&
+depends libffi &&
+depends libevent &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-system-cairo"; then
+  list_add "SEAMONKEY_OPTS" "--enable-system-pixman" &&
+
+  depends pixman &&
+  depends cairo
+fi &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-pango"; then
+  depends pango
+fi &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-ldap"; then
+  depends openldap
+fi &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-necko-wifi"; then
+  depends wireless_tools
+fi &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-dbus"; then
+  depends dbus-glib &&
+  depends libnotify
+fi &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-webm"; then
+  depends yasm &&
+  depends alsa-lib &&
+
+  optional_depends libvpx "" "" "to use system libvpx for WebM support"
+else
+  optional_depends alsa-lib "" "" "for audio support"
+fi &&
+
+if is_depends_enabled $SPELL libvpx; then
+  list_add "SEAMONKEY_OPTS" "--with-system-libvpx"
+fi &&
+
+if ! is_depends_enabled $SPELL alsa-lib; then
+  list_add "SEAMONKEY_OPTS" "--disable-ogg" &&
+  list_add "SEAMONKEY_OPTS" "--disable-wave"
+fi

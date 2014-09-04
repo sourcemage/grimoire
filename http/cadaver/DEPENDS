@@ -1,0 +1,66 @@
+optional_depends -sub DAV neon \
+                          "--without-included-neon" \
+                          "--with-included-neon" \
+                          "to use system neon library" &&
+
+if ! is_depends_enabled $SPELL neon; then
+  config_query_list CADAVER_SSL "Which SSL backend do you want for SSL support?" \
+                                none \
+                                SSL \
+                                gnutls &&
+
+  case $CADAVER_SSL in
+    none) OPTS="--without-ssl $OPTS"
+    ;;
+    SSL) depends openssl "--with-ssl=openssl"
+    ;;
+    gnutls) depends gnutls "--with-ssl=gnutls"
+    ;;
+  esac &&
+
+  if [[ $CADAVER_SSL != none ]] && [[ $CADAVER_THREADS == posix ]]; then
+    config_query_option CADAVER_OPTS "Enable SSL library thread-safety using POSIX threads?" y \
+                                     "--enable-threadsafe-ssl=posix" \
+                                     "--disable-threadsafe-ssl"
+  fi &&
+
+  config_query_list CADAVER_XML "Specify XML Parser:" \
+                                expat \
+                                libxml2 &&
+
+  if [[ $CADAVER_XML == expat ]]; then
+    OPTS="--with-expat --without-libxml2 $OPTS" &&
+
+    optional_depends expat \
+                     "--without-included-expat" \
+                     "--with-included-expat" \
+                     "to use system expat library"
+  else
+    depends libxml2 '--with-libxml2 --without-expat'
+  fi
+fi &&
+
+optional_depends readline \
+                 "--enable-readline" \
+                 "--disable-readline" \
+                 "for readline support" &&
+
+optional_depends gettext \
+                 "--enable-nls" \
+                 "--disable-nls" \
+                 "for Native Language Support" &&
+
+optional_depends ca-certificates \
+                 "--with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt" \
+                 "--without-ca-bundle" \
+                 "to use specified filename of an SSL CA root bundle" &&
+
+optional_depends krb5 \
+                 "--with-gssapi" \
+                 "--without-gssapi" \
+                 "for GSSAPI support" &&
+
+optional_depends libproxy \
+                 "--with-libproxy" \
+                 "--without-libproxy" \
+                 "for libproxy support"

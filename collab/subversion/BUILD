@@ -20,17 +20,12 @@ fi &&
 
 if ! [[ -x configure ]]; then ./autogen.sh; fi &&
 
-if [[ "$(get_spell_provider $SPELL APR)" == "apr" ]] || \
-   [[ "$(get_spell_provider $SPELL APU)" == "apr-util" ]]; then
   CFLAGS="${CFLAGS} $(/usr/bin/apr-1-config --cppflags)" &&
   OPTS="${OPTS} --disable-debug --disable-static --disable-mod-activation --enable-shared --disable-experimental-libtool"
-else
-  OPTS="${OPTS} --disable-debug --disable-static --disable-mod-activation --enable-shared --disable-neon-version-check"
-fi &&
 
 SWIG_LDFLAGS="${LDFLAGS}" &&
-make_single &&
-OPTS="--enable-runtime-module-search $OPTS" default_build &&
+OPTS+=" $SVN_GIT" &&
+default_build     &&
 
 if [[ "$SVN_PERL"   == y ]]; then
   mkdir -p subversion/bindings/swig/perl/native/blib/arch/auto/SVN/{_Client,_Delta,_Fs,_Ra,_Repos,_Wc} &&
@@ -38,6 +33,7 @@ if [[ "$SVN_PERL"   == y ]]; then
 fi &&
 if [[ "$SVN_PYTHON" == y ]]; then make swig-py; fi &&
 if [[ "$SVN_RUBY"   == y ]]; then make swig-rb; fi &&
+if [[ "$SVN_JAVA"   == y ]]; then make javahl; fi &&
 
 # Test if built from current source
 if [[ "$SVN_HEAD" == y ]] && spell_ok python; then

@@ -1,3 +1,7 @@
 create_account ntp &&
-OPTS="$OPTS --with-privsep-user=ntp" &&
+
+OPTS="--with-privsep-user=ntp \
+      --with-adjtimex \
+      $OPTS" &&
+
 default_build

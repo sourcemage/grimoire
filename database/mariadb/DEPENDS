@@ -1,33 +1,72 @@
 depends  perl    &&
 depends  procps  &&
-depends  g++     &&
+depends -sub CXX gcc     &&
+depends bison &&
 
-optional_depends zlib \
-                 "--with-zlib-dir=$INSTALL_ROOT/" \
-                 "--with-zlib-dir=bundled" \
-                 "to use system zlib instead of bundled" &&
+if [[ $MARIADB_BRANCH == 5.5 ]]; then
+  depends cmake &&
 
-optional_depends readline \
-                 "--without-readline" "" \
-                 "to use system readline instead of bundled" &&
+  optional_depends readline \
+                   "-DWITH_READLINE=OFF" \
+                   "-DWITH_READLINE=ON" \
+                   "to use system readline instead of bundled" &&
 
-optional_depends libedit \
-                 "--without-libedit" "" \
-                 "to use system libedit instead of bundled" &&
+  optional_depends zlib \
+                   "-DWITH_ZLIB=system" \
+                   "-DWITH_ZLIB=bundled" \
+                   "to use system zlib instead of bundled" &&
 
-optional_depends openssl \
-                 "--with-ssl" \
-                 "--without-ssl" \
-                 "for OpenSSL support" &&
+  optional_depends SSL \
+                   "-DWITH_SSL=system" \
+                   "-DWITH_SSL=bundled" \
+                   "to use system SSL instead of bundled" &&
 
-optional_depends valgrind \
-                 "--with-valgrind" \
-                 "--without-valgrind" \
-                 "for Valgrind instrumentation" &&
+  optional_depends tcp_wrappers \
+                   "-DWITH_LIBWRAP=ON" \
+                   "-DWITH_LIBWRAP=OFF" \
+                   "for tcp wrappers support" &&
 
-if list_find "$MADB_OPTS" "--with-libevent=yes"; then
-  optional_depends libevent \
-                   "--with-libevent=$INSTALL_ROOT/usr" \
-                   "--with-libevent=bundled" \
-                   "to use system libevent instead of bundled"
+  optional_depends valgrind \
+                   "-DWITH_VALGRIND=ON" \
+                   "-DWITH_VALGRIND=OFF" \
+                   "for Valgrind instrumentation" &&
+
+  if list_find "$MARIADB_OPTS" "-DWITHOUT_SERVER=OFF"; then
+    optional_depends libevent "" "" "to use libevent and have connection pooling"
+  fi &&
+
+  if list_find "$MARIADB_ENGINES" "xtradb"; then
+    depends libaio
+  fi &&
+
+  if list_find "$MARIADB_ENGINES" "oqgraph"; then
+    depends boost
+  fi
+else
+  optional_depends zlib \
+                   "--with-zlib-dir=$INSTALL_ROOT/" \
+                   "--with-zlib-dir=bundled" \
+                   "to use system zlib instead of bundled" &&
+
+  optional_depends libedit \
+                   "--without-libedit" \
+                   "" \
+                   "to use system libedit instead of bundled" &&
+
+  optional_depends SSL \
+                   "--with-ssl" \
+                   "--without-ssl" \
+                   "for OpenSSL support" &&
+
+  optional_depends valgrind \
+                   "--with-valgrind" \
+                   "--without-valgrind" \
+                   "for Valgrind instrumentation" &&
+
+  if list_find "$MARIADB_OPTS" "--with-libevent=yes"; then
+    optional_depends libevent \
+                     "--with-libevent=$INSTALL_ROOT/usr" \
+                     "--with-libevent=bundled" \
+                     "to use system libevent instead of bundled"
+  fi
 fi

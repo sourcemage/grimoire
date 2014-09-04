@@ -1,2 +1,4 @@
-OPTS="$OPTS --enable-thread" &&
+OPTS="--enable-thread           \
+      --disable-introspection   \
+      $OPTS"                    &&
 default_build

@@ -1,0 +1,21 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+patch -p1 < "$SPELL_DIRECTORY/patch-src_Makefile" &&
+
+# build shared object
+sed -i "s:liblua.a:liblua.a liblua.so.5.1:" Makefile &&
+
+# fix destdir
+sed -i "s:/usr/local:$INSTALL_ROOT/usr:" etc/lua.pc src/luaconf.h Makefile &&
+
+# fix man-installation path
+sed -i "s:man/:share/man/:" etc/lua.pc Makefile &&
+
+if [ "${SMGL_COMPAT_ARCHS[1]}" = x86_64 ]; then
+  CFLAGS="${CFLAGS} -fPIC"
+fi &&
+
+# use custom compiling/linking flags
+sed -i "s:^CFLAGS=.*:CFLAGS=${CFLAGS} \$(MYCFLAGS):" src/Makefile &&
+sed -i "s:MYLDFLAGS=.*:MYLDFLAGS=${LDFLAGS} -lm -ldl:" src/Makefile

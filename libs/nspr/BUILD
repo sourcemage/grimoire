@@ -1,4 +1,4 @@
-cd mozilla/nsprpub &&
+cd nspr &&
 if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]]; then
   OPTS="--enable-64bit $OPTS"
 fi &&

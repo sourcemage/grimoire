@@ -1,0 +1,246 @@
+--- trac/test.py.orig
++++ trac/test.py
+@@ -283,7 +283,7 @@
+         self.href = Href('/trac.cgi')
+         self.abs_href = Href('http://example.org/trac.cgi')
+ 
+-        self.known_users = []
++        self.known_users = [('foo', 'Fred Foobar', 'fred@spammesenseless.net')]
+         translation.activate(Locale and Locale('en', 'US'))
+         
+     def get_read_db(self):
+--- trac/ticket/default_workflow.py.orig
++++ trac/ticket/default_workflow.py
+@@ -214,8 +214,9 @@
+         this_action = self.actions[action]
+         status = this_action['newstate']        
+         operations = this_action['operations']
++        chrome = Chrome(self.env)
+         current_owner = ticket._old.get('owner', ticket['owner'] or '(none)')
+-        if not (Chrome(self.env).show_email_addresses
++        if not (chrome.show_email_addresses
+                 or 'EMAIL_VIEW' in req.perm(ticket.resource)):
+             format_user = obfuscate_email_address
+         else:
+@@ -264,7 +265,7 @@
+                                    selected_owner=formatted_owner))
+             else:
+                 control.append(tag_('to %(owner)s', owner=tag.select(
+-                    [tag.option(x, value=x,
++                    [tag.option(chrome.format_author(req, x), value=x,
+                                 selected=(x == selected_owner or None))
+                      for x in owners],
+                     id=id, name=id)))
+--- trac/ticket/templates/query.html.orig
++++ trac/ticket/templates/query.html
+@@ -83,7 +83,7 @@
+                             <option></option>
+                             <option py:for="option in field.options"
+                               selected="${option == constraint_value and 'selected' or None}"
+-                              value="$option" py:content="option"></option>
++                            value="$option" py:content="format_author(option)"></option>
+                           </select>
+                         </py:when>
+ 
+--- trac/ticket/templates/ticket.html.orig
++++ trac/ticket/templates/ticket.html
+@@ -282,7 +282,7 @@
+                           <option py:if="field.optional"></option>
+                           <option py:for="option in field.options"
+                                   selected="${value == option or None}"
+-                                  value="$option" py:content="option"></option>
++                                  value="$option" py:content="format_author(option)"></option>
+                           <optgroup py:for="optgroup in field.optgroups"
+                                     py:if="optgroup.options"
+                                     label="${optgroup.label}">
+--- trac/ticket/web_ui.py.orig
++++ trac/ticket/web_ui.py
+@@ -1453,9 +1453,10 @@
+ 
+         def quote_original(author, original, link):
+             if 'comment' not in req.args: # i.e. the comment was not yet edited
++                chrome = Chrome(self.env)
+                 data['comment'] = '\n'.join(
+                     ["Replying to [%s %s]:" % (link,
+-                                        obfuscate_email_address(author))] +
++                                        chrome.format_author(req, author))] +
+                     ["> %s" % line for line in original.splitlines()] + [''])
+ 
+         if replyto == 'description':
+@@ -1550,9 +1551,13 @@
+         # Display the owner and reporter links when not obfuscated
+         chrome = Chrome(self.env)
+         for user in 'reporter', 'owner':
+-            if chrome.format_author(req, ticket[user]) == ticket[user]:
++            author = ticket[user]
++            formatted_author = chrome.format_author(req, author)
++            if formatted_author == author \
++                or chrome.show_full_names or chrome.show_email_addresses:
+                 data['%s_link' % user] = self._query_link(req, user,
+-                                                            ticket[user])
++                                                            author, 
++                                                            formatted_author)
+         data.update({
+             'context': context,
+             'fields': fields, 'changes': changes,
+@@ -1591,6 +1596,7 @@
+ 
+     def _render_property_diff(self, req, ticket, field, old, new, 
+                               resource_new=None):
++        chrome = Chrome(self.env)
+         rendered = None
+         # per type special rendering of diffs
+         type_ = None
+@@ -1615,9 +1621,8 @@
+         render_elt = lambda x: x
+         sep = ', '
+         if field == 'cc':
+-            chrome = Chrome(self.env)
+             old_list, new_list = chrome.cc_list(old), chrome.cc_list(new)
+-            if not (Chrome(self.env).show_email_addresses or 
++            if not (chrome.show_email_addresses or 
+                     'EMAIL_VIEW' in req.perm(resource_new or ticket.resource)):
+                 render_elt = obfuscate_email_address
+         elif field == 'keywords':
+@@ -1635,17 +1640,18 @@
+             if added or remvd:
+                 rendered = tag(added, added and remvd and _("; "), remvd)
+         if field in ('reporter', 'owner'):
+-            if not (Chrome(self.env).show_email_addresses or 
++            if not (chrome.show_full_names or chrome.show_email_addresses or 
+                     'EMAIL_VIEW' in req.perm(resource_new or ticket.resource)):
+-                old = obfuscate_email_address(old)
+-                new = obfuscate_email_address(new)
++                old = chrome.format_author(None, old)
++                new = chrome.format_author(None, new)
+             if old and not new:
+                 rendered = tag_("%(value)s deleted", value=tag.em(old))
+             elif new and not old:
+                 rendered = tag_("set to %(value)s", value=tag.em(new))
+             elif old and new:
+-                rendered = tag_("changed from %(old)s to %(new)s",
+-                                old=tag.em(old), new=tag.em(new))
++                rendered = tag("changed from ", tag.em( \
++                                chrome.format_author(req, old)),
++                                " to ", tag.em(chrome.format_author(req, new)))
+         return rendered
+ 
+     def grouped_changelog_entries(self, ticket, db, when=None):
+--- trac/web/chrome.py.orig
++++ trac/web/chrome.py
+@@ -33,6 +33,8 @@
+ from genshi.template import TemplateLoader, MarkupTemplate, NewTextTemplate
+ 
+ from trac import __version__ as VERSION
++
++from trac.cache import cached
+ from trac.config import *
+ from trac.core import *
+ from trac.env import IEnvironmentSetupParticipant, ISystemInfoProvider
+@@ -328,6 +330,9 @@
+         """Show email addresses instead of usernames. If false, we obfuscate
+         email addresses. (''since 0.11'')""")
+ 
++    show_full_names = BoolOption('trac', 'show_full_names', 'false',
++        """Show full names instead of usernames.""")
++
+     never_obfuscate_mailto = BoolOption('trac', 'never_obfuscate_mailto', 
+         'false',
+         """Never obfuscate `mailto:` links explicitly written in the wiki, 
+@@ -907,6 +912,8 @@
+         all_cc = self.cc_list(value)
+         if not (self.show_email_addresses or 'EMAIL_VIEW' in context.perm):
+             all_cc = [obfuscate_email_address(cc) for cc in all_cc]
++        else:
++            all_cc = [self.format_author(context, cc) for cc in all_cc]
+         return sep.join(all_cc)
+     
+     def authorinfo(self, req, author, email_map=None):
+@@ -918,7 +925,7 @@
+         """Get the email addresses of all known users."""
+         email_map = {}
+         if self.show_email_addresses:
+-            for username, name, email in self.env.get_known_users():
++            for username, (name, email) in self.known_users.items():
+                 if email:
+                     email_map[username] = email
+         return email_map
+@@ -936,10 +943,32 @@
+     def format_author(self, req, author):
+         if not author or author == 'anonymous':
+             return _("anonymous")
+-        if self.show_email_addresses or not req or 'EMAIL_VIEW' in req.perm:
++
++        show_email = self.show_email_addresses or req \
++                     and 'EMAIL_VIEW' in req.perm
++        if self.show_full_names:
++            if author in self.known_users:
++                name, email = (self.known_users[author][0], \
++                               self.known_users[author][1])
++                if name:
++                    if email and show_email:
++                        return '%s <%s>' % (name, email)
++                    else:
++                        return name            
++        if show_email:
+             return author
+         return obfuscate_email_address(author)
+ 
++    @cached
++    def known_users(self, db=None):
++        """Get the username, real name and email addresses of all known 
++        users as a dict. Key is username. Value is a tuple of name an email.
++        This method uses a cached attribute (a Trac 0.12+ enhancement)."""
++        users_known = {}
++        for (account, realname, email) in self.env.get_known_users(None):
++            users_known[account] = (realname, email)
++        return users_known
++
+     # Element modifiers
+ 
+     def add_textarea_grips(self, req):
+--- trac/web/tests/chrome.py.orig
++++ trac/web/tests/chrome.py
+@@ -259,6 +259,42 @@
+         self.assertEqual('test1', items[0]['name'])
+         self.assertEqual('test2', items[1]['name'])
+ 
++    def test_format_author(self):
++        chrome = Chrome(self.env)
++        
++        login = 'foo'
++        name = 'Fred Foobar'
++        email = 'fred@spammesenseless.net'
++
++        self.env.config.set('trac', 'show_email_addresses', 'false')
++        self.env.config.set('trac', 'show_full_names', 'false')
++        fmt_author = chrome.format_author(None, None)
++        self.assertEqual('anonymous', fmt_author)
++
++        # Test with unknown user 
++        fmt_author = chrome.format_author(None, 'bar')
++        self.assertEqual('bar', fmt_author)
++
++        # Test with known user but no flag set
++        fmt_author = chrome.format_author(None, login)
++        self.assertEqual(login, fmt_author)
++        
++        # 'show_email_addresses = true' only affects the cc: emails
++        # as long as 'show_full_names' is not set
++        self.env.config.set('trac', 'show_email_addresses', 'true')
++        self.env.config.set('trac', 'show_full_names', 'false')
++        fmt_author = chrome.format_author(None, login)
++        self.assertEqual(login, fmt_author)
++        
++        self.env.config.set('trac', 'show_email_addresses', 'false')
++        self.env.config.set('trac', 'show_full_names', 'true')
++        fmt_author = chrome.format_author(None, login)
++        self.assertEqual(name, fmt_author)
++
++        self.env.config.set('trac', 'show_email_addresses', 'true')
++        self.env.config.set('trac', 'show_full_names', 'true')
++        fmt_author = chrome.format_author(None, login)
++        self.assertEqual(name + " <" + email + ">", fmt_author)
+ 
+ def suite():
+     return unittest.makeSuite(ChromeTestCase, 'test')

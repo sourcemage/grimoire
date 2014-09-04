@@ -1,4 +1,4 @@
-if [  "${BLACKBOX_CVS}" == "y"  ] ; then
+if [[ $BLACKBOX_BRANCH == scm ]]; then
   aclocal &&
   ./mk.sh
 fi                                     &&

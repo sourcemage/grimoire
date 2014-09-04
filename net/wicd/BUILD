@@ -16,14 +16,16 @@ OPTS="--lib=${INSTALL_ROOT}/usr/lib/${SPELL}/ \
       --no-install-init \
       $OPTS" &&
 
-if [[ $WICD_KDEVER == "3.x" ]]; then
-  OPTS="--kdedir=`${INSTALL_ROOT}/usr/bin/kde-config --prefix`/share/applications/kde/ $OPTS"
-elif [[ $WICD_KDEVER == "4.x" ]]; then
-  KDE4_PREFIX=`${INSTALL_ROOT}/opt/kde4/bin/kde4-config --prefix` &&
+if [[ $WICD_KDEVER == "4.x" ]]; then
+  KDE4_PREFIX=`${INSTALL_ROOT}/usr/bin/kde4-config --prefix` &&
   OPTS="--kdedir=${KDE4_PREFIX}/share/applications/kde4/ $OPTS" &&
   OPTS="--autostart=${KDE4_PREFIX}/etc/xdg/autostart/ $OPTS"
 else
   OPTS="--no-install-kde $OPTS"
 fi &&
 
-python setup.py configure $OPTS
+python setup.py configure $OPTS &&
+
+# generating Asturian translation (unsupported by babel)
+mkdir -p translations/ast/LC_MESSAGES
+msgfmt po/ast.po -o translations/ast/LC_MESSAGES/wicd.mo

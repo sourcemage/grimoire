@@ -1,0 +1,50 @@
+--- lo/lo_cpp.h.orig	2014-01-27 21:30:49.000000000 +0400
++++ lo/lo_cpp.h	2014-06-21 22:48:04.546899637 +0400
+@@ -426,19 +426,22 @@
+             }
+         }
+ 
+-        Server(const num_string_type &port, lo_err_handler err_h=0)
+-            : Server(lo_server_new(port, err_h)) {}
++        Server(const num_string_type &port, lo_err_handler err_h=0) {
++            server = lo_server_new(port, err_h);
++        }
+ 
+-        Server(const num_string_type &port, int proto, lo_err_handler err_h=0)
+-            : Server(lo_server_new_with_proto(port, proto, err_h)) {}
++        Server(const num_string_type &port, int proto, lo_err_handler err_h=0) {
++            server = lo_server_new_with_proto(port, proto, err_h);
++        }
+ 
+         Server(const string_type &group, const num_string_type &port,
+-               const string_type &iface="", const string_type &ip="", lo_err_handler err_h=0)
+-            : Server((iface._s || ip._s)
+-                     ? lo_server_new_multicast_iface(group, port,
+-                                                     iface._s?:0,
+-                                                     ip._s?:0, err_h)
+-                     : lo_server_new_multicast(group, port, err_h)) {}
++               const string_type &iface="", const string_type &ip="", lo_err_handler err_h=0) {
++            if (iface._s || ip._s) {
++                server = lo_server_new_multicast_iface(group, port, iface._s?:0, ip._s?:0, err_h);
++            } else {
++                server = lo_server_new_multicast(group, port, err_h);
++            }
++        }
+ 
+         virtual ~Server()
+             { if (server) lo_server_free(server); }
+@@ -734,8 +737,12 @@
+             }
+         }
+ 
+-        Bundle(const Bundle &b)
+-            : Bundle((lo_bundle)b) {}
++        Bundle(const Bundle &b) {
++            lo_bundle newb = (lo_bundle)b;
++            bundle = newb;
++            if (newb)
++                lo_bundle_incref(newb);
++        }
+ 
+         ~Bundle()
+             { if (bundle) lo_bundle_free_recursive(bundle); }

@@ -1,0 +1,143 @@
+#!/bin/bash
+
+. /etc/sysconfig/xend
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+local_fs +network"
+PROVIDES="xend"
+RECOMMENDED=yes
+
+. /etc/init.d/smgl_init
+
+XENSTORED_PIDFILE=/var/run/xenstored.pid
+XENCONSOLED_PIDFILE=/var/run/xenconsoled.pid
+
+# Wait for Xend to be up
+function await_daemons_up()
+{
+	i=1
+	rets=10
+	xend status
+	while [ $? -ne 0 -a $i -lt $rets ]; do
+	    sleep 1
+	    echo -n .
+	    i=$(($i + 1))
+	    xend status
+	done
+}
+
+function checkprocfs()
+{
+  if test -d /proc/xen && \
+    ! test -f /proc/xen/capabilities && \
+    ! grep '^xenfs ' /proc/mounts >/dev/null;
+  then
+    echo "XEN: Preparing proc filesystem..."
+    mount -t xenfs xenfs /proc/xen
+    evaluate_retval || exit 1
+  fi
+
+  echo "XEN: Detecting capabilities..."
+  if ! grep -q "control_d" /proc/xen/capabilities ; then
+    print_status failure
+    exit 1
+  else
+    print_status success
+  fi
+}
+
+start()
+{
+  checkprocfs
+
+  required_executable /usr/bin/xenstore-read
+  required_executable /usr/bin/xenstore-write
+  required_executable /usr/sbin/xenstored
+  required_executable /usr/sbin/xenconsoled
+
+  local time=0
+  local timeout=30
+
+  if ! `xenstore-read -s / >/dev/null 2>&1`; then
+    rm -f "$XENSTORED_ROOTDIR"/tdb* &>/dev/null
+    test -z "$XENSTORED_TRACE" || XENSTORED_ARGS=" -T /var/log/xen/xenstored-trace.log"
+
+    echo -n "XEN: Starting xenstored..."
+    xenstored --pid-file=$XENSTORED_PIDFILE $XENSTORED_ARGS
+
+    # Wait for xenstored to actually come up, timing out after 30 seconds
+    while [ $time -lt $timeout ] && ! `xenstore-read -s / >/dev/null 2>&1` ; do
+      echo -n '.'
+      time=$(($time+1))
+      sleep 1
+    done
+    echo
+
+    # Exit if we timed out
+    if ! [ $time -lt $timeout ] ; then
+      print_status failure
+      exit 1
+    else
+      print_status success
+    fi
+
+    echo "XEN: Setting domain 0 name..."
+    xenstore-write "/local/domain/0/name" "Domain-0"
+    evaluate_retval
+  fi
+
+  echo "XEN: Starting xenconsoled..."
+  test -z "$XENCONSOLED_TRACE" || XENCONSOLED_ARGS=" --log=$XENCONSOLED_TRACE"
+  xenconsoled --pid-file=$XENCONSOLED_PIDFILE $XENCONSOLED_ARGS
+  evaluate_retval || exit 1
+
+  # mkdir shouldn't be needed as most distros have this already created. Default to using subsys.
+  # See docs/misc/distro_mapping.txt
+  mkdir -p /var/lock
+  if [ -d /var/lock/subsys ] ; then
+    touch /var/lock/subsys/xend
+  else
+    touch /var/lock/xend
+  fi
+
+  xend start
+  await_daemons_up
+}
+
+stop()
+{
+  xend stop
+  rm -f /var/lock/subsys/xend /var/lock/xend
+
+  echo "XEN: Stopping xenconsoled..."
+  if read 2>/dev/null <$XENCONSOLED_PIDFILE pid; then
+    kill $pid
+    while kill -9 $pid >/dev/null 2>&1; do sleep 0.1; done
+    evaluate_retval
+    rm -f $XENCONSOLED_PIDFILE
+  fi
+
+  echo "XEN: WARNING: Not stopping xenstored, as it cannot be restarted."
+}
+
+status()
+{
+  xenstore-read -s /
+
+  xend status
+}
+
+reload()
+{
+  xend reload
+}
+
+restart()
+{
+  echo "XEN: Restarting..."
+
+  stop
+  sleep 1
+  start
+}

@@ -1,2 +1,0 @@
-export QTDIR=/usr &&
-scons  

@@ -1,4 +1,6 @@
-mkdir  -p  /var/lib/lynx
+mkdir  -p  /var/lib/lynx &&
+
+OPTS="$LYNX_OPTS $OPTS" &&
 
 ./configure   --host=$BUILD                         \
               --prefix=$INSTALL_ROOT/usr            \

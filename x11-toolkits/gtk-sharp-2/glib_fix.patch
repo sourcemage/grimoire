@@ -1,0 +1,117 @@
+diff -urN old/configure.in new/configure.in
+--- old/configure.in	2012-07-08 14:43:54.333939345 -0500
++++ new/configure.in	2012-07-08 14:39:06.505947046 -0500
+@@ -223,6 +223,16 @@
+ AM_CONDITIONAL(ENABLE_MSI, test "x$enable_msi" = "xyes")
+ AM_CONDITIONAL(ENABLE_MONOGETOPTIONS, test "x$has_mono" = "xtrue")
+ 
++PKG_CHECK_MODULES(GLIB_2_31,
++  glib-2.0 >= 2.31,
++  HAVE_GLIB_2_31_OR_HIGHER=yes, HAVE_GLIB_2_31_OR_HIGHER=no)
++
++if test "x$HAVE_GLIB_2_31_OR_HIGHER" = "xyes" ; then
++  CFLAGS="$CFLAGS -DDISABLE_GTHREAD_CHECK"
++  CSFLAGS="$CSFLAGS -define:DISABLE_GTHREAD_CHECK"
++fi
++
++AC_SUBST(CSFLAGS)
+ AC_SUBST(CFLAGS)
+ 
+ AC_OUTPUT([
+diff -urN old/glib/Thread.cs new/glib/Thread.cs
+--- old/glib/Thread.cs	2012-07-08 14:44:51.373937819 -0500
++++ new/glib/Thread.cs	2012-07-08 14:46:02.825935908 -0500
+@@ -21,29 +21,42 @@
+ 
+ namespace GLib
+ {
+-	using System;
+-	using System.Runtime.InteropServices;
++ using System;
++   using System.Runtime.InteropServices;
+ 
+-	public class Thread
+-	{
+-		private Thread () {}
+-		
+-		[DllImport("libgthread-2.0-0.dll")]
+-		static extern void g_thread_init (IntPtr i);
+-
+-		public static void Init ()
+-		{
+-			g_thread_init (IntPtr.Zero);
+-		}
+-
+-		[DllImport("glibsharpglue-2")]
+-		static extern bool glibsharp_g_thread_supported ();
+-
+-		public static bool Supported
+-		{
+-			get {
+-				return glibsharp_g_thread_supported ();
+-			}
+-		}
+-	}
+-}
++        public class Thread
++     {
++               private Thread () {}
++
++#if DISABLE_GTHREAD_CHECK
++               public static void Init ()
++              {
++                       // GLib automatically inits threads in 2.31 and above
++                   // http://developer.gnome.org/glib/unstable/glib-Deprecated-Thread-APIs.html#g-thread-init
++              }
++
++                public static bool Supported {
++                  get { return true; }
++            }
++#else
++          [DllImport("libgthread-2.0-0.dll")]
++             static extern void g_thread_init (IntPtr i);
++
++                public static void Init ()
++              {
++                       g_thread_init (IntPtr.Zero);
++            }
++
++                [DllImport("glibsharpglue-2")]
++          static extern bool glibsharp_g_thread_supported ();
++
++                public static bool Supported
++            {
++                       get {
++                           return glibsharp_g_thread_supported ();
++                 }
++               }
++#endif
++
++        }
++}
+\ No newline at end of file
+diff -urN old/glib/glue/thread.c new/glib/glue/thread.c
+--- old/glib/glue/thread.c	2012-07-07 18:38:18.693593075 -0500
++++ new/glib/glue/thread.c	2012-07-07 20:19:22.973430852 -0500
+@@ -19,14 +19,21 @@
+  * Boston, MA 02111-1307, USA.
+  */
+ 
+-
++#ifdef DISABLE_GTHREAD_CHECK
++#include <glib.h>
++#else
+ #include <glib/gthread.h>
++#endif
+ 
+ gboolean glibsharp_g_thread_supported (void);
+ 
+ gboolean
+ glibsharp_g_thread_supported ()
+ {
++#ifdef DISABLE_GTHREAD_CHECK
++	return TRUE;
++#else
+ 	return g_thread_supported ();
++#endif
+ }

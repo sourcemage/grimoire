@@ -9,7 +9,7 @@ export  LDFLAGS="${LDFLAGS/-z combreloc/}"  &&
 #
 export LDFLAGS="${LDFLAGS//-Wl,-O1/}"  &&
 
-if [ "$VCS" == "y" ]; then
+if [[ "$EMACS_BRANCH" == "scm" ]]; then
   # Crashes with -O3
   export  CFLAGS="${CFLAGS//-O3/-O2}"      &&
 
@@ -17,6 +17,10 @@ if [ "$VCS" == "y" ]; then
 
   [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
+  # Fix broken permissions
+  chmod +x build-aux/update-subdirs &&
+
+  ./autogen.sh &&
   ./configure --prefix=${INSTALL_ROOT}/usr  \
               --sysconfdir=${INSTALL_ROOT}/etc  \
               --localstatedir=${INSTALL_ROOT}/var  \

@@ -1,0 +1,20 @@
+if [ "$EFLWEBKIT_NETWORK" == "libsoup" ]; then
+   OPTS="-DNETWORK_BACKEND=soup $OPTS"
+else
+   OPTS="-DNETWORK_BACKEND=curl $OPTS"
+fi
+
+OPTS="$EFLWEBKIT_GLIB $EFLWEBKIT_VIDEO $EFLWEBKIT_GEO $OPTS"  &&
+#OPTS="$EFLWEBKIT_NPAPI $OPTS"  &&
+
+OPTS="-DENABLE_ORIENTATION_EVENTS=ON -DCMAKE_BUILD_TYPE=Release $OPTS" &&
+OPTS="-DENABLE_FULLSCREEN_API=ON -DENABLE_NOTIFICATIONS=ON $OPTS"      &&
+OPTS="-DENABLE_BLOB=ON -DENABLE_DATAGRID=ON $OPTS"                     &&
+OPTS="-DPORT=Efl -DCMAKE_INSTALL_PREFIX=/usr $OPTS"                    &&
+
+mkdir  build  &&
+cd build      &&
+
+cmake $OPTS ../Source  &&
+
+make
