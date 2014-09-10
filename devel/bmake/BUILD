@@ -1,3 +1,3 @@
 make_single &&
-default_build &&
+prefix=/usr default_build &&
 make_normal
