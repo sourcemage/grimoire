@@ -1,3 +1,4 @@
+export CFLAGS="${CFLAGS//-ffast-math}"         &&
 export VTK_DATA_ROOT=/usr/share/vtk/VTKData    &&
 export VTK_INSTALL_PATH=/usr                   &&
 export CMAKE_INSTALL_PREFIX=/usr               &&
@@ -6,7 +7,8 @@ cmake .           &&
 sedit "s/^CMAKE_INSTALL_PREFIX:PATH=.*$/CMAKE_INSTALL_PREFIX:PATH=\/usr/" CMakeCache.txt  &&
 sedit "s/BUILD_SHARED_LIBS\:BOOL=OFF/BUILD_SHARED_LIBS\:BOOL=ON/" CMakeCache.txt          &&
 sedit "s/CMAKE_BUILD_TYPE:STRING=/&Release/" CMakeCache.txt                               &&
-sedit "s/BUILD_EXAMPLES\:BOOL=OFF/BUILD_EXAMPLES\:BOOL=ON/" CMakeCache.txt                &&
+# Building examples fails on VTK 6.1.0
+#sedit "s/BUILD_EXAMPLES\:BOOL=OFF/BUILD_EXAMPLES\:BOOL=ON/" CMakeCache.txt                &&
 sedit "s/VTK_USE_HYBRID\:BOOL=OFF/VTK_USE_HYBRID\:BOOL=ON/" CMakeCache.txt                &&
 sedit "s/CMAKE_CXX_FLAGS_RELEASE\:STRING=-O3/CMAKE_CXX_FLAGS_RELEASE\:STRING=$CFLAGS/" CMakeCache.txt &&
 
