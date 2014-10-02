@@ -1,3 +1,4 @@
 OPTS="$ZSH_OPTS  --bindir=/bin $OPTS"  &&
 make_single                            &&
-default_build
+default_build                          &&
+make_normal

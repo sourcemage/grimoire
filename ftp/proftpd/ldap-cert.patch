@@ -1,6 +1,6 @@
---- contrib/mod_ldap.c.orig	2011-05-24 00:56:40.000000000 +0400
-+++ contrib/mod_ldap.c	2012-07-31 15:14:59.181954021 +0400
-@@ -161,7 +161,14 @@
+--- contrib/mod_ldap.c.orig	2013-11-24 04:45:28.000000000 +0400
++++ contrib/mod_ldap.c	2014-05-16 13:13:12.326617345 +0400
+@@ -142,7 +142,14 @@
              *ldap_attr_memberuid = "memberUid",
              *ldap_attr_ftpquota = "ftpQuota",
              *ldap_attr_ftpquota_profiledn = "ftpQuotaProfileDN",
@@ -16,25 +16,25 @@
  #ifdef HAS_LDAP_INITIALIZE
  static char *ldap_server_url;
  #endif /* HAS_LDAP_INITIALIZE */
-@@ -171,7 +178,9 @@
-            ldap_forcedefaultuid = 0, ldap_forcedefaultgid = 0,
-            ldap_forcegenhdir = 0, ldap_protocol_version = 3,
+@@ -152,7 +159,9 @@
+            ldap_forcedefaultuid = FALSE, ldap_forcedefaultgid = FALSE,
+            ldap_forcegenhdir = FALSE, ldap_protocol_version = 3,
             ldap_dereference = LDAP_DEREF_NEVER,
 -           ldap_search_scope = LDAP_SCOPE_SUBTREE;
 +           ldap_search_scope = LDAP_SCOPE_SUBTREE,
 +           ldap_tls_crl_check = -1,
 +           ldap_tls_require_cert = -1;
- static struct timeval ldap_querytimeout_tp;
  
- static uid_t ldap_defaultuid = -1;
-@@ -214,6 +223,86 @@
+ static struct timeval ldap_querytimeout_tv;
+ #define PR_LDAP_QUERY_TIMEOUT_DEFAULT		5
+@@ -196,6 +205,86 @@
    struct berval bindcred;
  #endif
  
 +  if (ldap_tls_ca_cert_dir) {
-+    ret = ldap_set_option(NULL, LDAP_OPT_X_TLS_CACERTDIR, ldap_tls_ca_cert_dir);
-+    if (ret != LDAP_OPT_SUCCESS) {
-+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_CACERTDIR option failed: %s", ldap_err2string(ret));
++    res = ldap_set_option(NULL, LDAP_OPT_X_TLS_CACERTDIR, ldap_tls_ca_cert_dir);
++    if (res != LDAP_OPT_SUCCESS) {
++      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_CACERTDIR option failed: %s", ldap_err2string(res));
 +      pr_ldap_unbind();
 +      return -1;
 +    }
@@ -42,9 +42,9 @@
 +  }
 + 
 +  if (ldap_tls_ca_cert_file) {
-+    ret = ldap_set_option(NULL, LDAP_OPT_X_TLS_CACERTFILE, ldap_tls_ca_cert_file);
-+    if (ret != LDAP_OPT_SUCCESS) {
-+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_CACERTFILE option failed: %s", ldap_err2string(ret));
++    res = ldap_set_option(NULL, LDAP_OPT_X_TLS_CACERTFILE, ldap_tls_ca_cert_file);
++    if (res != LDAP_OPT_SUCCESS) {
++      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_CACERTFILE option failed: %s", ldap_err2string(res));
 +      pr_ldap_unbind();
 +      return -1;
 +    }
@@ -52,9 +52,9 @@
 +  }
 + 
 +  if (ldap_tls_cert_file) {
-+    ret = ldap_set_option(NULL, LDAP_OPT_X_TLS_CERTFILE, ldap_tls_cert_file);
-+    if (ret != LDAP_OPT_SUCCESS) {
-+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_CERTFILE option failed: %s", ldap_err2string(ret));
++    res = ldap_set_option(NULL, LDAP_OPT_X_TLS_CERTFILE, ldap_tls_cert_file);
++    if (res != LDAP_OPT_SUCCESS) {
++      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_CERTFILE option failed: %s", ldap_err2string(res));
 +      pr_ldap_unbind();
 +      return -1;
 +    }
@@ -62,9 +62,9 @@
 +  }
 + 
 +  if (ldap_tls_cipher_suite) {
-+    ret = ldap_set_option(NULL, LDAP_OPT_X_TLS_CIPHER_SUITE, ldap_tls_cipher_suite);
-+    if (ret != LDAP_OPT_SUCCESS) {
-+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_CIPHER_SUITE option failed: %s", ldap_err2string(ret));
++    res = ldap_set_option(NULL, LDAP_OPT_X_TLS_CIPHER_SUITE, ldap_tls_cipher_suite);
++    if (res != LDAP_OPT_SUCCESS) {
++      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_CIPHER_SUITE option failed: %s", ldap_err2string(res));
 +      pr_ldap_unbind();
 +      return -1;
 +    }
@@ -72,9 +72,9 @@
 +  }
 + 
 +  if (ldap_tls_dh_file) {
-+    ret = ldap_set_option(NULL, LDAP_OPT_X_TLS_DHFILE, ldap_tls_dh_file);
-+    if (ret != LDAP_OPT_SUCCESS) {
-+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_DHFILE option failed: %s", ldap_err2string(ret));
++    res = ldap_set_option(NULL, LDAP_OPT_X_TLS_DHFILE, ldap_tls_dh_file);
++    if (res != LDAP_OPT_SUCCESS) {
++      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_DHFILE option failed: %s", ldap_err2string(res));
 +      pr_ldap_unbind();
 +      return -1;
 +    }
@@ -82,9 +82,9 @@
 +  }
 + 
 +  if (ldap_tls_key_file) {
-+    ret = ldap_set_option(NULL, LDAP_OPT_X_TLS_KEYFILE, ldap_tls_key_file);
-+    if (ret != LDAP_OPT_SUCCESS) {
-+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_KEYFILE option failed: %s", ldap_err2string(ret));
++    res = ldap_set_option(NULL, LDAP_OPT_X_TLS_KEYFILE, ldap_tls_key_file);
++    if (res != LDAP_OPT_SUCCESS) {
++      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_KEYFILE option failed: %s", ldap_err2string(res));
 +      pr_ldap_unbind();
 +      return -1;
 +    }
@@ -92,9 +92,9 @@
 +  }
 +
 +  if (ldap_tls_crl_check != -1) {
-+    ret = ldap_set_option(NULL, LDAP_OPT_X_TLS_CRLCHECK, (void *)&ldap_tls_crl_check);
-+    if (ret != LDAP_OPT_SUCCESS) {
-+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_CRLCHECK option failed: %s", ldap_err2string(ret));
++    res = ldap_set_option(NULL, LDAP_OPT_X_TLS_CRLCHECK, (void *)&ldap_tls_crl_check);
++    if (res != LDAP_OPT_SUCCESS) {
++      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_CRLCHECK option failed: %s", ldap_err2string(res));
 +      pr_ldap_unbind();
 +      return -1;
 +    }
@@ -102,9 +102,9 @@
 +  } 
 + 
 +  if (ldap_tls_require_cert != -1) {
-+    ret = ldap_set_option(NULL, LDAP_OPT_X_TLS_REQUIRE_CERT, (void *)&ldap_tls_require_cert);
-+    if (ret != LDAP_OPT_SUCCESS) {
-+      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_REQUIRE_CERT option failed: %s", ldap_err2string(ret));
++    res = ldap_set_option(NULL, LDAP_OPT_X_TLS_REQUIRE_CERT, (void *)&ldap_tls_require_cert);
++    if (res != LDAP_OPT_SUCCESS) {
++      pr_log_pri(PR_LOG_ERR, MOD_LDAP_VERSION ": pr_ldap_connect(): Setting LDAP_OPT_X_TLS_REQUIRE_CERT option failed: %s", ldap_err2string(res));
 +      pr_ldap_unbind();
 +      return -1;
 +    }
@@ -112,9 +112,9 @@
 +  }
 +
  #ifdef HAS_LDAP_INITIALIZE
-   pr_log_debug(DEBUG3, MOD_LDAP_VERSION ": attempting connection to %s", ldap_server_url ? ldap_server_url : "(null)");
- 
-@@ -1876,6 +1965,130 @@
+   (void) pr_log_writefile(ldap_logfd, MOD_LDAP_VERSION,
+     "attempting connection to URL %s",
+@@ -2029,6 +2118,130 @@
    return PR_HANDLED(cmd);
  }
  
@@ -242,10 +242,10 @@
 +  return PR_HANDLED(cmd);
 +}
 +
- static int
- ldap_getconf(void)
- {
-@@ -2060,6 +2273,22 @@
+ /* Initialization routines
+  */
+ 
+@@ -2279,6 +2492,22 @@
      }
    }
  
@@ -268,19 +268,20 @@
    return 0;
  }
  
-@@ -2093,6 +2322,15 @@
-   { "LDAPForceGeneratedHomedir", set_ldap_forcegenhdir, NULL },
-   { "LDAPDefaultQuota", set_ldap_defaultquota, NULL },
-   { "LDAPGroups", set_ldap_grouplookups, NULL },
-+  { "LDAPTLSCACertDir", set_ldap_tls_ca_cert_dir, NULL },
-+  { "LDAPTLSCACertFile", set_ldap_tls_ca_cert_file, NULL },
-+  { "LDAPTLSCertFile", set_ldap_tls_cert_file, NULL },
-+  { "LDAPTLSCipherSuite", set_ldap_tls_cipher_suite, NULL },
-+  { "LDAPTLSCrlCheck", set_ldap_tls_crl_check, NULL },
-+  { "LDAPTLSCrlFile", set_ldap_tls_crl_file, NULL },
-+  { "LDAPTLSDHFile", set_ldap_tls_dh_file, NULL },
-+  { "LDAPTLSKeyFile", set_ldap_tls_key_file, NULL },
-+  { "LDAPTLSRequireCert", set_ldap_tls_require_cert, NULL },
+@@ -2309,7 +2538,15 @@
+   { "LDAPServer",		set_ldapserver,			NULL },
+   { "LDAPUsers",		set_ldapuserlookups,		NULL },
+   { "LDAPUseTLS",		set_ldapusetls,			NULL },
+-
++  { "LDAPTLSCACertDir",		set_ldap_tls_ca_cert_dir,	NULL },
++  { "LDAPTLSCACertFile",	set_ldap_tls_ca_cert_file,	NULL },
++  { "LDAPTLSCertFile",		set_ldap_tls_cert_file,		NULL },
++  { "LDAPTLSCipherSuite",	set_ldap_tls_cipher_suite,	NULL },
++  { "LDAPTLSCrlCheck",		set_ldap_tls_crl_check,		NULL },
++  { "LDAPTLSCrlFile",		set_ldap_tls_crl_file,		NULL },
++  { "LDAPTLSDHFile",		set_ldap_tls_dh_file,		NULL },
++  { "LDAPTLSKeyFile",		set_ldap_tls_key_file,		NULL },
++  { "LDAPTLSRequireCert",	set_ldap_tls_require_cert,	NULL },
    { NULL, NULL, NULL },
  };
  

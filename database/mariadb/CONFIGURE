@@ -1,85 +1,124 @@
 source $GRIMOIRE/config_query_multi.function &&
 
-config_query_option MADB_OPTS "Install client only?" n \
-                              "--without-server" \
-                              "--with-server" &&
-
-config_query_option MADB_OPTS "Build the embedded server (libmysqld)?" n \
-                              "--with-embedded-server" \
-                              "--without-embedded-server" &&
-
-if list_find "$MADB_OPTS" "--with-server"; then
-  config_query_option MADB_OPTS "Use libevent and have connection pooling?" n \
-                                "--with-libevent=yes" \
-                                "--with-libevent=no"
+# backporting legacy options
+if [[ -n "$MADB_OPTS" ]]; then
+  persistent_add MARIADB_OPTS &&
+  MARIADB_OPTS="$MADB_OPTS" &&
+  persistent_remove MADB_OPTS
 fi &&
 
-config_query_list    MADB_CHARSET "Select default character set"  \
-                     latin1                                       \
-                     utf8                                         \
-                     binary                                       \
-                     armscii8                                     \
-                     ascii                                        \
-                     big5                                         \
-                     cp1250                                       \
-                     cp1251                                       \
-                     cp1256                                       \
-                     cp1257                                       \
-                     cp850                                        \
-                     cp852                                        \
-                     cp866                                        \
-                     cp932                                        \
-                     dec8                                         \
-                     eucjpms                                      \
-                     euckr                                        \
-                     gb2312                                       \
-                     gbk                                          \
-                     geostd8                                      \
-                     greek                                        \
-                     hebrew                                       \
-                     hp8                                          \
-                     keybcs2                                      \
-                     koi8r                                        \
-                     koi8u                                        \
-                     latin2                                       \
-                     latin5                                       \
-                     latin7                                       \
-                     macce                                        \
-                     macroman                                     \
-                     sjis                                         \
-                     swe7                                         \
-                     tis620                                       \
-                     ucs2                                         \
-                     ujis                                         &&
+if [[ $MARIADB_BRANCH == 5.5 ]]; then
+  if list_find "$MARIADB_OPTS" "--with-embedded-server"; then
+    list_remove "MARIADB_OPTS" "--with-embedded-server" &&
+    list_add "MARIADB_OPTS" "-DWITH_EMBEDDED_SERVER=ON"
+  elif list_find "$MARIADB_OPTS" "--without-embedded-server"; then
+    list_remove "MARIADB_OPTS" "--without-embedded-server" &&
+    list_add "MARIADB_OPTS" "-DWITH_EMBEDDED_SERVER=OFF"
+  elif list_find "$MARIADB_OPTS" "--with-server"; then
+    list_remove "MARIADB_OPTS" "--with-server" &&
+    list_add "MARIADB_OPTS" "-DWITHOUT_SERVER=OFF"
+  elif list_find "$MARIADB_OPTS" "--without-server"; then
+    list_remove "MARIADB_OPTS" "--without-server" &&
+    list_add "MARIADB_OPTS" "-DWITHOUT_SERVER=ON"
+  fi &&
 
-config_query_multi   MADB_ENGINES                                 \
-                     "What additional storage engines to build?"  \
-                     none                                         \
-                     all                                          \
-                     archive                                      \
-                     xtradb                                       \
-                     blackhole                                    \
-                     example                                      \
-                     federated                                    \
-                     innodb_plugin                                \
-                     ndbcluster                                   \
-                     myisam                                       \
-                     partition                                    \
-                     auth                                         \
-                     daemon_example                               \
-                     ftexample                                    \
-                     csv                                          \
-                     federatedx                                   \
-                     heap                                         \
-                     ibmdb2i                                      \
-                     aria                                         \
-                     myisammrg                                    \
-                     oqgraph                                      \
-                     pbxt                                         \
-                     sphinx                                       &&
+  config_query_option MARIADB_OPTS "Build the embedded server (libmysqld)?" n \
+                                   "-DWITH_EMBEDDED_SERVER=ON" \
+                                   "-DWITH_EMBEDDED_SERVER=OFF" &&
 
-if list_find "$MADB_ENGINES" "all"; then
-  MADB_ENGINES="all"
-elif list_find "$MADB_ENGINES" "none"; then
-  MADB_ENGINES="none"
+  config_query_option MARIADB_OPTS "Install client only?" n \
+                                   "-DWITHOUT_SERVER=ON" \
+                                   "-DWITHOUT_SERVER=OFF"
+else
+  config_query_option MARIADB_OPTS "Install client only?" n \
+                                   "--without-server" \
+                                   "--with-server" &&
+
+  config_query_option MARIADB_OPTS "Build the embedded server (libmysqld)?" n \
+                                   "--with-embedded-server" \
+                                   "--without-embedded-server" &&
+
+  if list_find "$MARIADB_OPTS" "--with-server"; then
+    config_query_option MARIADB_OPTS "Use libevent and have connection pooling?" n \
+                                     "--with-libevent=yes" \
+                                     "--with-libevent=no"
+  fi
+fi &&
+
+# backporting legacy options
+if [[ -n "$MADB_CHARSET" ]]; then
+  persistent_add MARIADB_CHARSET &&
+  MARIADB_CHARSET="$MADB_CHARSET" &&
+  persistent_remove MADB_CHARSET
+fi &&
+
+config_query_list MARIADB_CHARSET "Select default character set:" \
+                                  latin1                          \
+                                  utf8                            \
+                                  binary                          \
+                                  armscii8                        \
+                                  ascii                           \
+                                  big5                            \
+                                  cp1250                          \
+                                  cp1251                          \
+                                  cp1256                          \
+                                  cp1257                          \
+                                  cp850                           \
+                                  cp852                           \
+                                  cp866                           \
+                                  cp932                           \
+                                  dec8                            \
+                                  eucjpms                         \
+                                  euckr                           \
+                                  gb2312                          \
+                                  gbk                             \
+                                  geostd8                         \
+                                  greek                           \
+                                  hebrew                          \
+                                  hp8                             \
+                                  keybcs2                         \
+                                  koi8r                           \
+                                  koi8u                           \
+                                  latin2                          \
+                                  latin5                          \
+                                  latin7                          \
+                                  macce                           \
+                                  macroman                        \
+                                  sjis                            \
+                                  swe7                            \
+                                  tis620                          \
+                                  ucs2                            \
+                                  ujis                            \
+                                  utf16                           \
+                                  utf32                           \
+                                  utf8mb4                         &&
+
+# backporting legacy options
+if [[ -n "$MADB_ENGINES" ]]; then
+  persistent_add MARIADB_ENGINES &&
+  MARIADB_ENGINES="$MADB_ENGINES" &&
+  persistent_remove MADB_ENGINES
+fi &&
+
+if [[ $MARIADB_BRANCH == 5.5 ]]; then
+  local MARIADB_ENGINES_LIST="archive aria blackhole csv example federated federatedx heap innobase myisam myisammrg ndbcluster oqgraph partition perfschema sphinx tokudb xtradb"
+else
+  local MARIADB_ENGINES_LIST="archive aria blackhole csv example federated federatedx heap ibmdb2i innodb_plugin myisam ndbcluster oqgraph pbxt sphinx xtradb"
+fi &&
+
+config_query_multi MARIADB_ENGINES "What storage engines to build?" \
+                                   none                             \
+                                   all                              \
+                                   $MARIADB_ENGINES_LIST            &&
+
+if list_find "$MARIADB_ENGINES" "all"; then
+  MARIADB_ENGINES="all"
+elif list_find "$MARIADB_ENGINES" "none"; then
+  MARIADB_ENGINES="none"
+fi &&
+
+if list_find "$MARIADB_ENGINES" "aria" && [[ $MARIADB_BRANCH == 5.5 ]]; then
+  config_query_option MARIADB_OPTS "Use Aria engine (instead of MyISAM) for temporary tables?" y \
+                                   "-DUSE_ARIA_FOR_TMP_TABLES=ON" \
+                                   "-DUSE_ARIA_FOR_TMP_TABLES=OFF"
 fi

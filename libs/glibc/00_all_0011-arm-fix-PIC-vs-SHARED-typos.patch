@@ -1,0 +1,68 @@
+From b76e856d84e14d5ece6988fee589aff26d6ac2f2 Mon Sep 17 00:00:00 2001
+From: David Lamparter <equinox-gentoo@diac24.net>
+Date: Fri, 16 Aug 2013 15:06:34 -0400
+Subject: [PATCH 11/11] arm: fix PIC vs SHARED typos
+
+the logic in setjmp/__longjmp incorrectly tie to "PIC" to figure out
+whether the code is going into a shared library when it should be using
+"SHARED".  otherwise, building static PIC code goes wrong.
+
+https://bugs.gentoo.org/336914
+http://sourceware.org/ml/libc-ports/2011-09/msg00018.html
+
+2011-09-19  David Lamparter  <equinox-gentoo@diac24.net>
+
+	* sysdeps/arm/eabi/setjmp.S: Change PIC to SHARED.
+	* sysdeps/arm/eabi/__longjmp.S: Likewise
+---
+ ports/sysdeps/arm/__longjmp.S | 4 ++--
+ ports/sysdeps/arm/setjmp.S    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/ports/sysdeps/arm/__longjmp.S b/ports/sysdeps/arm/__longjmp.S
+index 27c57a1..c2efe12 100644
+--- a/ports/sysdeps/arm/__longjmp.S
++++ b/ports/sysdeps/arm/__longjmp.S
+@@ -73,7 +73,7 @@ ENTRY (__longjmp)
+ 	add	a2, a2, a3
+ 	ldr	a2, [a2, #RTLD_GLOBAL_RO_DL_HWCAP_OFFSET]
+ # else
+-#  ifdef PIC
++#  ifdef SHARED
+ 	ldr	a2, 1f
+ 	ldr	a3, .Lrtld_global_ro
+ 0:	add	a2, pc, a2
+@@ -126,7 +126,7 @@ ENTRY (__longjmp)
+ .Lrtld_local_ro:
+ 	.long	C_SYMBOL_NAME(_rtld_local_ro)(GOTOFF)
+ # else
+-#  ifdef PIC
++#  ifdef SHARED
+ 1:	.long	_GLOBAL_OFFSET_TABLE_ - 0b - PC_OFS
+ .Lrtld_global_ro:
+ 	.long	C_SYMBOL_NAME(_rtld_global_ro)(GOT)
+diff --git a/ports/sysdeps/arm/setjmp.S b/ports/sysdeps/arm/setjmp.S
+index b0b45ed..54e5de4 100644
+--- a/ports/sysdeps/arm/setjmp.S
++++ b/ports/sysdeps/arm/setjmp.S
+@@ -54,7 +54,7 @@ ENTRY (__sigsetjmp)
+ 	add	a3, a3, a4
+ 	ldr	a3, [a3, #RTLD_GLOBAL_RO_DL_HWCAP_OFFSET]
+ # else
+-#  ifdef PIC
++#  ifdef SHARED
+ 	ldr	a3, 1f
+ 	ldr	a4, .Lrtld_global_ro
+ 0:	add	a3, pc, a3
+@@ -110,7 +110,7 @@ ENTRY (__sigsetjmp)
+ .Lrtld_local_ro:
+ 	.long	C_SYMBOL_NAME(_rtld_local_ro)(GOTOFF)
+ # else
+-#  ifdef PIC
++#  ifdef SHARED
+ 1:	.long	_GLOBAL_OFFSET_TABLE_ - 0b - PC_OFS
+ .Lrtld_global_ro:
+ 	.long	C_SYMBOL_NAME(_rtld_global_ro)(GOT)
+-- 
+1.8.5.4
+

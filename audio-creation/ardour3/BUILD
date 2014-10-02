@@ -1,4 +1,6 @@
-OPTS="--configdir=$INSTALL_ROOT/etc $OPTS"          &&
-OPTS="--noconfirm --freedesktop $ARDOUR3_OPTS $OPTS" &&
+OPTS="--noconfirm \
+      --configdir=$INSTALL_ROOT/etc \
+      $ARDOUR3_OPTS \
+      $OPTS" &&
 
 waf_build
