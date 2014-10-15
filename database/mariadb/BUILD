@@ -24,6 +24,7 @@ if [[ $MARIADB_BRANCH == 5.5 ]]; then
         -DINSTALL_MYSQLSHAREDIR=share/mysql \
         -DINSTALL_DOCDIR=share/doc/mariadb \
         -DINSTALL_DOCREADMEDIR=share/doc/mariadb \
+        -DINSTALL_MANDIR=share/man \
         $OPTS" &&
 
   if [[ $MARIADB_ENGINES == none ]] || [[ $MARIADB_ENGINES == all ]]; then

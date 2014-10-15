@@ -1,3 +1,4 @@
+. "$GRIMOIRE/FUNCTIONS"
            SPELL=glibc
            TMPFS=off
 if  [  "$GLIBC_NPTL"  =  "n"  ];  then
@@ -21,19 +22,15 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
     SOURCE5_HASH=sha512:c1931495915c8461de97e4156c9d0edd7b44e4b48cbce2d4c3a52b83d331a9ce48f3c7abb7dd787ed897f1e7d0e81c5cdb4eb3986bc24a5e2788708427e2dcb1
 else
   if [[ "${GLIBC_BRANCH}" == "scm" ]]; then
-    if [[ "${GLIBC_AUTOUPDATE}" == "y" ]]; then
-         VERSION=${GLIBC_BRANCH}-$(date +%Y%m%d)
-    else 
-         VERSION=${GLIBC_BRANCH}
-    fi
+         VERSION=$(get_scm_version)
   FORCE_DOWNLOAD=on
           SOURCE=$SPELL-git.tar.bz2
 SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-git
       SOURCE_URL="git://sourceware.org/git/glibc.git:$SPELL-git"
    SOURCE_IGNORE=volatile
   else
-         VERSION=2.17
-          SOURCE=$SPELL-$VERSION.tar.bz2
+         VERSION=2.19
+         SOURCE=$SPELL-$VERSION.tar.xz
 SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
          SOURCE2=$SOURCE.sig
    SOURCE_URL[0]=$GNU_URL/$SPELL/$SOURCE
@@ -54,14 +51,14 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
     local LINUX_DIRECTORY
  LINUX_DIRECTORY=$(gaze where -path linux | sed "s/linux -> //")
     . $LINUX_DIRECTORY/latest.defaults
- 
+
     if  [[  $(uname -r)  =  3.*  ]];  then
  HEADERS_VERSION=$(echo $LATEST_maintenance_patches_3 | sed "s/patch-//")
  HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_3}
          SOURCE3=linux-${LATEST_3}.tar.xz
      SOURCE3_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE3}"
       case $HEADERS_VERSION in
-        3.[1-9]*) 
+        3.[1-9]*)
          SOURCE6="linux-${LATEST_3}.tar.sign"
      SOURCE6_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE6}"
                 ;;
@@ -78,7 +75,7 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
         if [[ ${HEADERS_VERSION} > 3.0.4 ]]; then
          SOURCE8="patch-${HEADERS_VERSION}.sign"
      SOURCE8_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE8}"
-        else 
+        else
          SOURCE8="${SOURCE7}.sign"
      SOURCE8_URL="${SOURCE7_URL}.sign"
         fi

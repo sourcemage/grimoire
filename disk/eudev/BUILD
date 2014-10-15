@@ -1,6 +1,7 @@
 cd $SOURCE_DIRECTORY &&
 
-./configure prefix=$INSTALL_ROOT \
+./configure \
+      --prefix=$INSTALL_ROOT \
       --with-rootprefix=$INSTALL_ROOT \
       --with-rootlibdir=$INSTALL_ROOT/lib \
       --datarootdir=$INSTALL_ROOT/usr/share \

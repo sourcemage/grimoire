@@ -4,25 +4,27 @@ PROGRAM=/usr/bin/dermixd
 RUNLEVEL=3
 
 CONTROL=/usr/bin/dermixd-control
-#some defaults... ok, dermixd should start to read a config file...
+
+# defaults to have something
+USER=musicdaemon
+TCP=yes
 PORT=8888
+UNIX=yes
+SOCKET=/tmp/dermixd.socket
+REMOTE=no
 BUFFER=2048
 AUDIO_RATE=44100
 CHANNELS=2
-DEBUG_OUT=
+NICE=-5
+INPUT_ZEROSCAN=no
+INPUT_PREBUFFER=10
+INPUT_ZEROLEVEL=0.01
+INPUT_ZERORANGE=5
+INITIAL_SETUP=yes
 DEFAULT_OUTPUT=
 DEFAULT_OUTFILE=
-MPG123_DECODER=/usr/bin/mpg123
-MPG123_PREBUFFER=2
-MPG123_ZEROSCAN=yes
-MPG123_ZEROLEVEL=100
-MPG123_GAPLESS=no
-INITIAL_SETUP=yes
 OUTPUT_STOPPED=yes
-NICE=-5
-#be on the safe side
-USER=nobody
-REMOTE=no
+#DEBUG_OUT=
 
 . /etc/init.d/smgl_init
 . /etc/sysconfig/dermixd
@@ -30,7 +32,7 @@ REMOTE=no
 start()
 {
 	echo "starting DerMixD..."
-	COMMAND="$PROGRAM port='$PORT' buffer='$BUFFER' audio_rate='$AUDIO_RATE' channels='$CHANNELS' mpg123.decoder='$MPG123_DECODER' mpg123.prebuffer='$MPG123_PREBUFFER' mpg123.zeroscan='$MPG123_ZEROSCAN' mpg123.gapless=$MPG123_GAPLESS"
+	COMMAND="$PROGRAM port='$PORT' socket='$SOCKET' buffer='$BUFFER' audio_rate='$AUDIO_RATE' channels='$CHANNELS' input.prebuffer='$INPUT_PREBUFFER' input.zeroscan='$INPUT_ZEROSCAN' input.zerolevel='$INPUT_ZEROLEVEL' input.zerorange='$INPUT_ZERORANGE'"
 	if ! test -z "$DEBUG_OUT"; then COMMAND="$COMMAND output='$DEBUG_OUT'"; fi
 	if [[ "$REMOTE" == "yes" ]]; then COMMAND="$COMMAND -r"; fi
 	if [[ "$INITIAL_SETUP" == "yes" ]]
@@ -43,18 +45,19 @@ start()
 	nice -n $NICE su -s /bin/bash -c "${COMMAND}" ${USER} &&
 	if [[ "$INITIAL_SETUP" == "yes" ]] && [[ "$OUTPUT_STOPPED" == "yes" ]]
 	then
-		$CONTROL outstop 0
+		$CONTROL outeject 0
 	fi
+	test -z "$SOCKET" || chmod g+w "$SOCKET"
 }
 
 stop()
 {
 	echo "stopping daemon politely"
-	$CONTROL --port=${PORT} shutdown
+	$CONTROL --socket="$SOCKET" --port="$PORT" shutdown
 }
 
 status()
 {
 	echo "status:"
-	$CONTROL --port=${PORT} fullstat
+	$CONTROL -- fullstat
 }

@@ -19,4 +19,7 @@ SENDMAIL='#define  SENDMAIL  "/usr/sbin/sendmail"'   &&
              $OPTS                                   &&
 
 echo  "$SENDMAIL"  >>  config.h                      &&
-make_single
+
+make_single &&
+make &&
+make_normal

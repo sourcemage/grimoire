@@ -1,6 +1,7 @@
 create_account musicdaemon &&
 
-OPTS="$MPD_OPTS $OPTS" &&
-OPTS="$OPTS --disable-mpc" &&
+OPTS="--disable-mpc $MPD_OPTS $OPTS" &&
 
-LDFLAGS+="-L/usr/lib/sidplay/builders" default_build
+LDFLAGS="-L/usr/lib/sidplay/builders $LDFLAGS" &&
+
+default_build
