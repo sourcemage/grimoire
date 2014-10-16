@@ -70,10 +70,10 @@ if is_depends_enabled $SPELL postgresql; then
     message "${MESSAGE_COLOR}PostgreSQL requested: Using PostgresSQL${DEFAULT_COLOR}"
 fi &&
 
-if is_depends_enabled $SPELL openssl; then
+if is_depends_enabled $SPELL $(get_spell_provider $SPELL SSL); then
     AUXLIBS="$AUXLIBS -lssl -lcrypto" &&
     CCARGS="$CCARGS -DHAS_SSL -DUSE_TLS -I$INSTALL_ROOT/usr/include/openssl" &&
-    message "${MESSAGE_COLOR}OpenSSL requested: Using OpenSSL for SSL/TLS${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}SSL library requested: Using $(get_spell_provider $SPELL SSL) for SSL/TLS${DEFAULT_COLOR}"
 fi &&
 
 # fix to get man pages to install in /usr/man
