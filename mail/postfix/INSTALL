@@ -1,15 +1,20 @@
-if [[ "$POSTFIX_PRE_EXISTING" == "no" ]]; then
-    # OMG YAY fixes for stupid godamn config files!
-    note_config_files /etc/postfix/main.cf &&
-    note_config_files /etc/postfix/master.cf &&
-    note_config_files /etc/postfix/aliases &&
-    note_config_files /etc/postfix/access &&
-    note_config_files /etc/postfix/canonical &&
-    note_config_files /etc/postfix/generic &&
-    note_config_files /etc/postfix/header_checks &&
-    note_config_files /etc/postfix/relocated &&
-    note_config_files /etc/postfix/transport &&
+local upstream_conf="main.cf \
+                     master.cf \
+                     aliases \
+                     access \
+                     canonical \
+                     generic \
+                     header_checks \
+                     relocated \
+                     transport \
+                     virtual" &&
 
+for conf_file in ${upstream_conf}; do
+  message "${MESSAGE_COLOR}Marking configuration file ${conf_file}...${DEFAULT_COLOR}" &&
+  note_config_file "$INSTALL_ROOT/etc/postfix/${conf_file}"
+done &&
+
+if [[ "$POSTFIX_PRE_EXISTING" == "no" ]]; then
     # the below are the answers to the interactive install
     /bin/bash postfix-install -non-interactive \
               install_root="$INSTALL_ROOT" \
@@ -40,7 +45,7 @@ ln -sf postfix/aliases "$INSTALL_ROOT/etc/aliases" &&
 if [[ "$POSTFIX_BENCH" == "y" ]]; then
     local file &&
 
-    for file in qmqp-source smtp-sink smtp-source; do
+    for file in qmqp-sink qmqp-source smtp-sink smtp-source; do
         install -v -m 544 "src/smtpstone/$file" "$INSTALL_ROOT/usr/sbin"
     done
 fi
