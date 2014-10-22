@@ -76,10 +76,8 @@ if is_depends_enabled $SPELL $(get_spell_provider $SPELL SSL); then
     message "${MESSAGE_COLOR}SSL library requested: Using $(get_spell_provider $SPELL SSL) for SSL/TLS${DEFAULT_COLOR}"
 fi &&
 
-# fix to get man pages to install in /usr/man
-#sedit "s:/usr/local:$INSTALL_ROOT/usr:" src/global/mail_params.h &&
+# fix to get man pages to install in /usr/share/man
 CCARGS="$CCARGS -DDEF_MANPAGE_DIR=\\\"$INSTALL_ROOT/usr/share/man\\\"" &&
-
 
 # NPTL glibc fix
 if glibc_is_nptl; then
@@ -91,18 +89,4 @@ make makefiles \
      "OPT=$CFLAGS" \
      "AUXLIBS=$AUXLIBS" \
      "CCARGS=$CCARGS" &&
-make &&
-
-# Fix directories in the main.cf
-if [[ "$POSTFIX_PRE_EXISTING" == "yes" ]]; then
-    if [[ "$POSTFIX_FIX_MAINCF" == "y" ]]; then
-        # repair directories in the main.cf
-        local MANPAGE_DIR="$(grep manpage_directory $INSTALL_ROOT/etc/postfix/main.cf | cut -d"=" -f2)" &&
-        MANPAGE_DIR="${MANPAGE_DIR## }" &&
-
-        if [[ "$MANPAGE_DIR" != "$INSTALL_ROOT/usr/share/man" ]]; then
-            sed -i -e "s|manpage_directory.*=.*|manpage_directory = $INSTALL_ROOT/usr/share/man|" \
-                "$INSTALL_ROOT/etc/postfix/main.cf"
-        fi
-    fi
-fi
+make
