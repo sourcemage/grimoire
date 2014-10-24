@@ -14,7 +14,7 @@ OPTS="$OPTS           \
 # Setup SSL IMAP if wanted
 #
 if  echo  $OPTS  |  grep  -q  --  --with-imap;  then
-  if  spell_ok  openssl;  then
+  if  spell_ok  $(get_spell_provider $SPELL SSL);  then
     OPTS="$OPTS  --with-imap-ssl"
   fi
 fi  &&
