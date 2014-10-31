@@ -6,35 +6,16 @@ if [[ $PFIX_VER -lt 255 ]]; then
     POSTFIX_VDA=$VDA
 fi &&
 
-if [[ -f $INSTALL_ROOT/etc/postfix/main.cf ]]; then
-    persistent_add POSTFIX_PRE_EXISTING &&
-    POSTFIX_PRE_EXISTING="yes" &&
+# removed obsolete configuration settings
+if [[ -n $POSTFIX_PRE_EXISTING ]]; then
+  persistent_remove POSTFIX_PRE_EXISTING
+fi &&
 
-    message "${MESSAGE_COLOR}Pre-existing main.cf found. Doing upgrade install.${DEFAULT_COLOR}" &&
-    message "${WARNING_COLOR}If you do not say yes to the next question this spell could fail to install${DEFAULT_COLOR}" &&
-    message "${MESSAGE_COLOR}The spell will go through your main.cf and ensure that the man pages are" &&
-    message "installed to the right place, because the postfix install program uses the" &&
-    message "values from the main.cf to determine where to install things.${DEFAULT_COLOR}" &&
-
-    config_query POSTFIX_FIX_MAINCF "Check for and fix problems in installed main.cf? (HIGHLY RECOMMENDED)" y
-else
-    persistent_add POSTFIX_PRE_EXISTING &&
-    POSTFIX_PRE_EXISTING="no" &&
-
-    message "${MESSAGE_COLOR}No pre-existing main.cf found. Doing normal install.${DEFAULT_COLOR}"
+if [[ -n $POSTFIX_FIX_MAINCF ]]; then
+  persistent_remove POSTFIX_FIX_MAINCF
 fi &&
 
 config_query POSTFIX_BENCH "Install smtpstone benckmarking tools?" n &&
-
-# Config file backup
-#message "${MESSAGE_COLOR}Configuration file loss may expose your system to SPAM relaying." &&
-#message "You should backup and restore configuration files and reply y to the next two questions...${DEFAULT_COLOR}" &&
-#config_query BACKUP "Backup config on dispel?" y &&
-#config_query RESTORE "Restore config on rebuild/update?" y
-
-# Newaliases
-#message "${MESSAGE_COLOR}You should run newaliases after each aliases file update, and on first $spell cast...$}DEFAULT_COLOR}" &&
-#config_query ALIAS "Run newaliases after cast?" y &&
 
 if [[ "$POSTFIX_EXP" != "y" ]]; then
     config_query POSTFIX_VDA "Apply Virtual Delivery Agent (VDA) patch? (EXPERIMENTAL)" n
