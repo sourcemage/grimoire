@@ -1,11 +1,34 @@
 depends expat &&
-depends ldns &&
-depends openssl &&
 
-optional_depends -sub "1.0" openssl \
-                            "--enable-gost" \
-                            "--disable-gost" \
-                            "for GOST support" &&
+case $UNBOUND_SSL in
+  openssl-0.9) depends openssl '--with-ssl'
+            ;;
+  openssl-1.0) depends -sub "1.0" openssl '--with-ssl'
+            ;;
+     libressl) depends libressl '--with-ssl'
+            ;;
+          nss) depends nss '--with-nss'
+            ;;
+esac &&
+
+if [[ "$UNBOUND_SSL" == "openssl-1.0" ]]; then
+  config_query_option UNBOUND_OPTS "Enable GOST support?" y \
+                                   "--enable-gost" \
+                                   "--disable-gost"
+else
+  list_add "UNBOUND_OPTS" "--disable-gost"
+fi &&
+
+optional_depends libevent \
+                 "--with-libevent" \
+                 "--without-libevent" \
+                 "to use libevent (slower, but allows use of large outgoing port ranges)" &&
+
+if is_depends_enabled $SPELL libevent; then
+  config_query_option UNBOUND_OPTS "Enable libevent-based libunbound API (${PROBLEM_COLOR}experimental${QUERY_COLOR})?" n \
+                                   "--enable-event-api" \
+                                   "--disable-event-api"
+fi &&
 
 optional_depends -sub PYTHON swig \
                              "--with-pyunbound" \
