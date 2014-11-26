@@ -1,5 +1,9 @@
 make_single  &&
 
+if [[ $GLIBC_DEBUG == "y" ]]; then
+  LDFLAGS="${LDFLAGS/-s/}"
+fi &&
+
 # install x86_64 linker to lib instead of lib64
 sedit "s/lib64/lib/"  sysdeps/unix/sysv/linux/x86_64/ldconfig.h &&
 sedit "s/264/2/" sysdeps/unix/sysv/linux/x86_64/ldd-rewrite.sed &&

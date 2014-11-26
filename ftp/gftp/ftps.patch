@@ -1,0 +1,20 @@
+--- lib/ftps.c.orig	2008-11-30 17:41:37.000000000 +0300
++++ lib/ftps.c	2014-11-24 17:48:05.588908260 +0300
+@@ -76,7 +76,16 @@
+   if (ret < 0)
+     return (ret);
+ 
+-  ret = rfc959_send_command (request, "PROT P\r\n", -1, 1, 0);
++  /*
++   * "PROT P" (Private Protection) forces encrypted file transfers in SSL/TLS
++   * mode and requires TLS renegotiation and secondary connection while
++   * re-using SSL session ID. It is not supported by gFTP yet.
++   * Rolling back to 2.0.18 behaviour meaning FTPS support is available for
++   * control connection only.
++   *
++   * ret = rfc959_send_command (request, "PROT P\r\n", -1, 1, 0);
++   */
++  ret = 5;
+   if (ret < 0)
+     return (ret);
+   else if (ret == '2')
