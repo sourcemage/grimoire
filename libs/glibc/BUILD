@@ -20,7 +20,6 @@ export  CCACHE_RECACHE=true  &&
 
 local ADDONS
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
-  ADDONS="nptl"                &&
   #
   # Enable IDN?
   #
@@ -41,7 +40,7 @@ OPTS="$OPTS --enable-add-ons=${ADDONS/ /,}"  &&
 if [ "$GLIBC_NPTL" = "y" ]
 then
 # minimise optimisation level
-  CFLAGS="${CFLAGS//-O?/}"  &&
+  CFLAGS=$(echo ${CFLAGS} | sed -r "s;-O([0-9]|fast);;g") &&
   CFLAGS="-O2 ${CFLAGS//-Os/}"
 else
   #
