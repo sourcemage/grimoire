@@ -17,7 +17,6 @@ LIBS="-lpng" $SOURCE_DIRECTORY/configure --prefix=${INSTALL_ROOT}/usr \
                             --disable-etex \
                             --disable-omega \
                             --disable-aleph \
-                            --disable-luatex \
                             --without-graphite \
                             --disable-multiplatform \
                             --without-x \
