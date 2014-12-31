@@ -6,7 +6,7 @@ set_ant_env  &&
 export CLASSPATH="${JAVA_HOME}/lib/tools.jar:${JAVA_HOME}/lib/classes.zip:${ANT_HOME}/lib/ant.jar"
 
 # create build.properties
-cat > $SOURCE_DIRECTORY/${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}-src/build.properties <<EOF
+cat > $SOURCE_DIRECTORY/${SPELL#*-}-${VERSION}-src/build.properties <<EOF
 base.path=${SM_JAKARTA_HOME}
 commons-collections.home=\${base.path}/commons-collections
 commons-collections.jar=\${commons-collections.home}/commons-collections.jar
@@ -25,6 +25,6 @@ jndi.lib=\${jndi.home}/lib
 jndi.jar=\${jndi.lib}/jndi.jar
 EOF
 
-cd  ${PKG_SUBPRJ}-${PKG_NAME}-${VERSION}-src &&
+cd  ${SPELL#*-}-${VERSION}-src &&
 cp  LICENSE.txt ../LICENSE  &&
 ant  dist
