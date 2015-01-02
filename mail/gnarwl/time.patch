@@ -1,0 +1,22 @@
+--- src/dbaccess.c.orig	2009-02-22 23:27:00.000000000 +0400
++++ src/dbaccess.c	2014-07-11 15:13:43.122741657 +0400
+@@ -216,14 +216,19 @@
+   char **entry;
+   char **retbuf;
+   int i;
++  time_t seconds;
++  char days[sizeof(seconds)];
+   
+   maxwait.tv_sec=LDAPQUERY_MAXWAIT;
+   maxwait.tv_usec=0;
++  seconds = time(NULL);
+   
+   
+   cpyStr(&tmp,cfg.qfilter);
+   expandVars(&tmp,cfg.map_receiver,(char*)mail);
+   expandVars(&tmp,cfg.map_sender,sender);  
++  sprintf(days, "%d", seconds/(60*60*24));
++  expandVars(&tmp,"$time", days);
+   
+   i=ldap_search_st(ldcon,cfg.base,cfg.scope,tmp,cfg.macro_attr,0,&maxwait,&res);
+   if (i!=LDAP_SUCCESS) {

@@ -1,2 +1,1 @@
-OPTS+=" $KTINY" &&
-default_build
+true

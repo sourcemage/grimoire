@@ -1,4 +1,2 @@
-make  lapack_install    &&
-make  blaslib    &&
-make  lapacklib  &&
-make  tmglib
+OPTS+=" -DBUILD_SHARED_LIBS=on -DLAPACKE=on -DLAPACKE_WITH_TMG=on" &&
+cmake_build

@@ -1,27 +1,62 @@
 create_account mariadb &&
 
-OPTS="$MADB_OPTS $OPTS" &&
+OPTS="$MARIADB_OPTS $OPTS" &&
 CFLAGS="${CFLAGS//-ffast-math}" &&
 
-local LD_PRELOAD_OLD="$LD_PRELOAD" &&
-unset LD_PRELOAD &&
-CFLAGS="$CFLAGS -DUSE_OLD_FUNCTIONS" &&
+if [[ $MARIADB_BRANCH == 5.5 ]]; then
+  if [[ $MARIA_TESTS == n ]]; then
+    OPTS="-DWITH_UNIT_TESTS=OFF -DINSTALL_MYSQLTESTDIR=OFF $OPTS"
+  else
+    OPTS="-DWITH_UNIT_TESTS=ON -DINSTALL_MYSQLTESTDIR=share/mysql/mysql-test $OPTS"
+  fi &&
 
-if glibc_is_nptl; then
-  OPTS="--with-named-thread-libs=-lpthread $OPTS" &&
-  CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
-fi &&
+  if [[ $MARIA_BENCH == n ]]; then
+    OPTS="-DINSTALL_SQLBENCHDIR=OFF $OPTS"
+  else
+    OPTS="-DINSTALL_SQLBENCHDIR=share/mysql/sql-bench $OPTS"
+  fi &&
 
-OPTS="--with-mysqld-user=mariadb \
-      --with-charset=$MADB_CHARSET \
-      --with-plugins=${MADB_ENGINES// /,} \
-      --localstatedir=${INSTALL_ROOT}/var/lib/mariadb \
-      --enable-assembler \
-      --enable-thread-safe-client \
-      --with-readline \
-      $OPTS" &&
+  OPTS="-DDEFAULT_CHARSET=$MARIADB_CHARSET \
+        -DMYSQL_DATADIR=${INSTALL_ROOT}/var/lib/mariadb \
+        -DINSTALL_PLUGINDIR=lib/mysql/plugin \
+        -DINSTALL_SCRIPTDIR=bin \
+        -DINSTALL_SUPPORTFILESDIR=share/mysql \
+        -DINSTALL_MYSQLSHAREDIR=share/mysql \
+        -DINSTALL_DOCDIR=share/doc/mariadb \
+        -DINSTALL_DOCREADMEDIR=share/doc/mariadb \
+        -DINSTALL_MANDIR=share/man \
+        $OPTS" &&
 
-default_build &&
+  if [[ $MARIADB_ENGINES == none ]] || [[ $MARIADB_ENGINES == all ]]; then
+    OPTS="-DWITH_${MARIADB_ENGINES^^} $OPTS"
+  else
+    for engine in $MARIADB_ENGINES; do
+      OPTS="-DWITH_${engine^^}_STORAGE_ENGINE=ON $OPTS"
+    done
+  fi &&
 
-LD_PRELOAD="$LD_PRELOAD_OLD" &&
-make
+  cmake_build
+else
+  local LD_PRELOAD_OLD="$LD_PRELOAD" &&
+  unset LD_PRELOAD &&
+  CFLAGS="$CFLAGS -DUSE_OLD_FUNCTIONS" &&
+
+  if glibc_is_nptl; then
+    OPTS="--with-named-thread-libs=-lpthread $OPTS" &&
+    CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
+  fi &&
+
+  OPTS="--with-mysqld-user=mariadb \
+        --with-charset=$MARIADB_CHARSET \
+        --with-plugins=${MARIADB_ENGINES// /,} \
+        --localstatedir=${INSTALL_ROOT}/var/lib/mariadb \
+        --enable-assembler \
+        --enable-thread-safe-client \
+        --with-readline \
+        $OPTS" &&
+
+  default_build &&
+
+  LD_PRELOAD="$LD_PRELOAD_OLD" &&
+  make
+fi

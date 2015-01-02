@@ -15,13 +15,19 @@ case $THIS_SUB_DEPENDS in
 
        # Re-query with only the SSL options
        config_query_list NEON_SSL "Which SSL backend do you want for SSL support?" \
-         openssl gnutls  &&
+                                  openssl \
+                                  gnutls &&
 
        config_query_option NEON_OPTS "Enable SSL library thread-safety using POSIX threads?" y \
-         "--enable-threadsafe-ssl=posix" \
-         "--disable-threadsafe-ssl" &&
-       depends "${NEON_SSL}"  "--with-ssl=${NEON_SSL}"
-       ;;
+                                     "--enable-threadsafe-ssl=posix" \
+                                     "--disable-threadsafe-ssl" &&
+
+       case $NEON_SSL in
+         openssl) depends SSL "--with-ssl=openssl"
+               ;;
+          gnutls) depends gnutls "--with-ssl=gnutls"
+               ;;
+       esac ;;
     *) message "${PROBLEM_COLOR}bogus sub_depends: $SPELL $THIS_SUB_DEPENDS${DEFAULT_COLOR}"
        return 1;;
 esac

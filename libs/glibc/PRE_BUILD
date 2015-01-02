@@ -12,38 +12,32 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   # Set GLIBC_HEADERS_DIR for use later
   #
   persistent_add  GLIBC_HEADERS_DIR                        &&
-  GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.bz2}  &&
 
   case ${HEADERS_VERSION} in
     3.[1-9]*)
-            message "${MESSAGE_COLOR}bunzip2 $SOURCE_CACHE/$SOURCE3${DEFAULT_COLOR}"
-            bunzip2 -k $SOURCE_CACHE/$SOURCE3
+            GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.xz}
+            message "${MESSAGE_COLOR}xz -d $SOURCE_CACHE/$SOURCE3${DEFAULT_COLOR}"
+            xz -d -k $SOURCE_CACHE/$SOURCE3
             SOURCE3_ORI=$SOURCE3
-            SOURCE3=${SOURCE3/.bz2}
+            SOURCE3=${SOURCE3/.xz}
             unpack_file 3 || return 1
             message "${MESSAGE_COLOR}rm $SOURCE_CACHE/$SOURCE3${DEFAULT_COLOR}"
             rm $SOURCE_CACHE/$SOURCE3
             SOURCE3=$SOURCE3_ORI
             ;;
            *)
+            GLIBC_HEADERS_DIR=$SOURCE_DIRECTORY/${SOURCE3/.tar.bz2}
             unpack_file 3 || return 1
             ;;
   esac
-  if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
-    cd  $GLIBC_HEADERS_DIR &&
-    if [ ! -z $SOURCE3 ]; then
-      bzcat ${SOURCE_CACHE}/$SOURCE3 > ${SOURCE3%.bz2}
-    fi  &&
-    make mrproper
-  else
     cd  $GLIBC_HEADERS_DIR &&
     if [ ! -z $SOURCE7 ]; then
       if [[ ${HEADERS_VERSION} > 3.0.4 ]]; then
-        message "${MESSAGE_COLOR}bunzip2 $SOURCE_CACHE/$SOURCE7${DEFAULT_COLOR}"
-        bunzip2 -k ${SOURCE_CACHE}/$SOURCE7 &&
+        message "${MESSAGE_COLOR}xz -d $SOURCE_CACHE/$SOURCE7${DEFAULT_COLOR}"
+        xz -d -k ${SOURCE_CACHE}/$SOURCE7 &&
         SOURCE7_ORI=${SOURCE7}
-        SOURCE7=${SOURCE7/.bz2}
-	echo $SOURCE7_GPG
+        SOURCE7=${SOURCE7/.xz}
+        echo $SOURCE7_GPG
         verify_file 7 || return 1
         message "${MESSAGE_COLOR}rm $SOURCE_CACHE/$SOURCE7${DEFAULT_COLOR}"
         rm $SOURCE_CACHE/$SOURCE7
@@ -51,16 +45,15 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
       else
         verify_file 7 || return 1
       fi
-      bzcat ${SOURCE_CACHE}/$SOURCE7 > ${SOURCE7/.bz2}
+      xzcat ${SOURCE_CACHE}/$SOURCE7 > ${SOURCE7/.xz}
       message "${MESSAGE_COLOR}Patching ${!patch}${DEFAULT_COLOR}" &&
-      patch -p1 < ${SOURCE7/.bz2} &&
+      patch -p1 < ${SOURCE7/.xz} &&
       if [[ $? != 0 ]]; then
         message "${PROBLEM_COLOR}Patch ${!patch} failed${DEFAULT_COLOR}" &&
         return 1
       fi
     fi &&
     make mrproper
-  fi
 else
   cd      $SOURCE_DIRECTORY                         &&
   #
@@ -87,20 +80,19 @@ fi  &&
 sed -i '/^header-y += drm\//d' $GLIBC_HEADERS_DIR/include/Kbuild &&
 rm -rf $GLIBC_HEADERS_DIR/include/drm &&
 
+
+
 #
 # Now fixup the normal glibc
 #
 cd  $SOURCE_DIRECTORY                           &&
 patch -p0 < $SPELL_DIRECTORY/Makefile.patch     &&
-patch -p1 < $SPELL_DIRECTORY/as-test-x.patch    &&
 # no idea why or how this is missing from configure
 patch -p0 < $SPELL_DIRECTORY/as_fn_executable_p.patch &&
 
-# http://sourceware.org/bugzilla/show_bug.cgi?id=13013
-patch -p1 < $SPELL_DIRECTORY/fix-res_query-assert.patch &&
-
-# https://bugzilla.redhat.com/show_bug.cgi?id=552960
-patch -p1 < $SPELL_DIRECTORY/revert-c5a0802a.patch &&
+patch -p1 < $SPELL_DIRECTORY/00_all_0005-reload-etc-resolv.conf-when-it-has-changed.patch    &&
+patch -p1 < $SPELL_DIRECTORY/00_all_0007-rtld-do-not-ignore-arch-specific-CFLAGS.patch       &&
+patch -p1 < $SPELL_DIRECTORY/glibc-2.20-fhs-1.patch                                          &&
 
 # disabled libgd detection/building memusagestat for now until a better
 # fix has been found, bug #8277

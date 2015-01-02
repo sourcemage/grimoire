@@ -150,9 +150,6 @@ if  list_find  "$OPTS"  '--enable-readline-testing';  then
   EXTRALIBS="$EXTRALIBS  -ldl"
 fi  &&
 
-echo  "LOOKUP_LIBS=$LOOKUP_LIBS"  >>  Local/Makefile  &&
-echo  "EXTRALIBS=$EXTRALIBS"  >>  Local/Makefile  &&
-
 if  [[  "$EXIM_FROZEN"  ==  "y"  ]]
 then
   echo  "SUPPORT_MOVE_FROZEN_MESSAGES=yes"  >>  Local/Makefile
@@ -163,6 +160,14 @@ then
   echo  "WITH_OLD_DEMIME=yes"  >>  Local/Makefile
 fi  &&
 
+if is_depends_enabled $SPELL libspf2; then
+  echo "EXPERIMENTAL_SPF=yes" >> Local/Makefile &&
+  EXTRALIBS="$EXTRALIBS -lspf2" &&
+  CFLAGS="-DSPF $CFLAGS"
+fi &&
+
+echo  "LOOKUP_LIBS=$LOOKUP_LIBS"         >>  Local/Makefile  &&
+echo  "EXTRALIBS=$EXTRALIBS"             >>  Local/Makefile  &&
 echo  "BIN_DIRECTORY=/usr/sbin"          >>  Local/Makefile  &&
 echo  "CONFIGURE_FILE=/etc/exim.conf"    >>  Local/Makefile  &&
 echo  "SPOOL_DIRECTORY=/var/spool/mail"  >>  Local/Makefile  &&
@@ -173,7 +178,7 @@ echo  "EXIM_UID=`id -u exim`"            >>  Local/Makefile  &&
 echo  "EXIM_GID=`id -g exim`"            >>  Local/Makefile  &&
 echo  "EXIM_USER=exim"                   >>  Local/Makefile  &&
 echo  "EXIM_GROUP=exim"                  >>  Local/Makefile  &&
-echo  "PCRE_LIBS=-lpcre"                 >> Local/Makefile   &&
+echo  "PCRE_LIBS=-lpcre"                 >>  Local/Makefile  &&
 
 sedit  's:tail \-1:tail \-n 1:'  scripts/Configure-config.h  &&
 

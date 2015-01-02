@@ -1,21 +1,28 @@
 #!/bin/bash
 # creates up-to-date vim patches tarball
 
-wget ftp://ftp.vim.org/pub/vim/patches/7.3/MD5SUMS
-LAST=$(tail -n 1 MD5SUMS | cut -f 3 -d " " | cut -f 3 -d .)
+VERSION=7.4
 
-mkdir patches
-cd patches
+wget ftp://ftp.vim.org/pub/vim/patches/${VERSION}/MD5SUMS   &&
+LAST=$(tail -n 1 MD5SUMS | cut -f 3 -d " " | cut -f 3 -d .) &&
 
-PATCHES=$(eval echo {001..$LAST})
+SOURCE_DIRECTORY=vim-${VERSION}-patches-001-$LAST           &&
+DISTFILE=vim-${VERSION}-patches-001-$LAST.tar.xz
+
+mkdir $SOURCE_DIRECTORY &&
+cd    $SOURCE_DIRECTORY &&
+
+PATCHES=$(eval echo {001..$LAST}) &&
 
 for i in $PATCHES; do
-  wget ftp://ftp.vim.org/pub/vim/patches/7.3/7.3.$i
-done
+  wget ftp://ftp.vim.org/pub/vim/patches/${VERSION}/${VERSION}.$i
+done &&
 
-cd ..
+cd .. &&
 
-tar cvf vim-7.3-patches-001-$LAST.tar patches
-bzip2 vim-7.3-patches-001-$LAST.tar
 
-rm -r patches
+tar cvf - $SOURCE_DIRECTORY | xz -9 > $DISTFILE &&
+
+rm -r $SOURCE_DIRECTORY &&
+
+sha512sum $DISTFILE

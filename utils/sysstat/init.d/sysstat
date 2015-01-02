@@ -1,0 +1,49 @@
+#!/bin/bash
+
+. /etc/sysconfig/sysstat
+
+PROGRAM=/usr/lib/sa/sa1
+RUNLEVEL=S
+NEEDS="+local_fs"
+
+. /etc/init.d/smgl_init
+
+# Borrowed from sysstat.in
+# Description: Reset the system activity logs
+# Short-Description: Reset the system activity logs
+### END INIT INFO
+#@(#) @PACKAGE_NAME@-@PACKAGE_VERSION@ startup script:
+#@(#)    Insert a dummy record in current daily data file.
+#@(#)    This indicates that the counters have restarted from 0.
+
+# See how we were called.
+start()
+{
+	local exitCodeIndicator="$(mktemp /tmp/sysstat-XXXXXX)" || exit 1
+	echo -n "Calling the system activity data collector (sadc): "
+	"${PROGRAM}" --boot || rm -f ${exitCodeIndicator} @QUOTE@
+
+	# Try to guess if sadc was successfully launched. The difficulty
+	# here is that the exit code is lost when the above command is
+	# run via "su foo -c ..."
+	if [ -f "${exitCodeIndicator}" ]; then
+		rm -f ${exitCodeIndicator}
+	else
+		exit 2
+	fi
+	echo
+	evaluate_retval
+}
+
+stop()
+{
+	echo "sysstat has nothing to stop..."
+	evaluate_retval
+}
+
+status()
+{
+	echo "sysstat runs once at boot, then via cron..."
+	evaluate_retval
+}
+

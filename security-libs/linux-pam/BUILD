@@ -12,5 +12,4 @@ export PS2PDF=no
              $OPTS                                   &&
 sedit  "s/examples//"  Makefile                      &&
 sedit  "s/read yes//"     conf/install_conf          &&
-make_single  &&
 make

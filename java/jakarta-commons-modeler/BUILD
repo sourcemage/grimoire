@@ -5,7 +5,7 @@ set_ant_env  &&
 export CLASSPATH="${JAVA_HOME}/lib/tools.jar:${JAVA_HOME}/lib/classes.zip:${ANT_HOME}/lib/ant.jar" &&
 
 # create build.properties
-cat > $SOURCE_DIRECTORY/${PKG_SUBPRJ}-${PKG_NAME}/build.properties <<EOF
+cat > $SOURCE_DIRECTORY/${SPELL#*-}/build.properties <<EOF
 commons.home=${SM_JAKARTA_HOME}/
 sandbox.home=${SM_JAKARTA_HOME}/commons-sandbox
 jaxp.home=${SM_SUN_HOME}/java_xml_pack/jaxp-1.2_01
@@ -27,7 +27,7 @@ jaxp.xalan.jar=${SM_JAKARTA_HOME}/lib/xalan.jar
 junit.jar=\${junit.home}/junit.jar
 EOF
   
-cd  ${PKG_SUBPRJ}-${PKG_NAME}  &&
+cd  ${SPELL#*-}  &&
 cp  LICENSE.txt ../LICENSE  &&
   
 ant  dist

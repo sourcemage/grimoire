@@ -55,4 +55,4 @@ fi  &&
 # We don't have wayland spells yet, http://wayland.freedesktop.org/
 OPTS="--disable-wayland-shm --disable-wayland-egl $OPTS" &&
 
-default_build
+CFLAGS+=" -I/usr/lib/glib-2.0/include -I/usr/include/glib-2.0" default_build

@@ -12,7 +12,6 @@ OPTS="$QT_DEBUG               \
       $QT_GIF                 \
       $QT_PCH                 \
       $QT_EXAMPLE examples    \
-      $QT_DEMOS demos         \
       $QT_TESTS tests         \
       $QT_ACCESS              \
       $QT_AUDIO               \

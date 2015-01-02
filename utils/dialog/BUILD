@@ -1,4 +1,4 @@
-OPTS="$OPTS --build=${BUILD}" &&
+OPTS="$DIALOG_SO $OPTS --build=${BUILD}" &&
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
 ./configure --prefix="$TRACK_ROOT/usr" \

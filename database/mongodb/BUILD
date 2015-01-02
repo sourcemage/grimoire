@@ -1,6 +1,18 @@
 create_account mongodb &&
 
-# use bundled spidermonkey, 2.2 will switch to V8
-OPTS="--sharedclient --usesm $OPTS" &&
+if ! list_find "$LDFLAGS" "-s"; then
+  OPTS="--nostrip $OPTS"
+fi &&
 
-scons --jobs=$MAKE_NJOBS --prefix="$INSTALL_ROOT/usr" $OPTS
+case $MONGODB_JSE in
+  v8)
+    OPTS="--usev8 $OPTS"
+  ;;
+  spidermonkey)
+    OPTS="--usesm $OPTS"
+  ;;
+esac &&
+
+OPTS="--mongod-concurrency-level=$MONGODB_CCL $MONGODB_OPTS $OPTS" &&
+
+scons all --jobs=$MAKE_NJOBS --prefix="$INSTALL_ROOT/usr" $OPTS

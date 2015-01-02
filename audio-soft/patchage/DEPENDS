@@ -1,33 +1,27 @@
-depends -sub CXX gcc         &&
-depends  boost       &&
-depends  libglademm  &&
-depends  raul        &&
-depends  flowcanvas  &&
-depends  alsa-lib    &&
+# required for waf
+depends PYTHON &&
+depends -sub CXX gcc &&
+depends boost &&
+depends glib2 &&
+depends glibmm &&
+depends gtkmm2 &&
+depends ganv &&
 
-if [[ $PATCHAGE_VCS == y ]]
-then
-  depends  libtool   &&
-  depends  automake  &&
-  depends  autoconf
-fi  &&
+optional_depends alsa-lib "" "--no-alsa" "for ALSA sequencer support" &&
 
-message  "${MESSAGE_COLOR}The D-Bus interface requires"  \
-         "a development version of JACK.$DEFAULT_COLOR"  &&
+message "${MESSAGE_COLOR}NOTICE: The D-Bus interface requires JACK2.${DEFAULT_COLOR}" &&
 
-optional_depends  dbus                   \
-                  "--enable-jack-dbus"   \
-                  "--disable-jack-dbus"  \
-                  "to use a D-Bus interface for controlling JACK"  &&
+optional_depends dbus "--jack-dbus" "" "to use a D-Bus interface for controlling JACK" &&
 
-if  is_depends_enabled  $SPELL  dbus
-then
-  depends  -sub DBUS  jack2
+if is_depends_enabled $SPELL dbus; then
+  depends dbus-glib &&
+  depends -sub DBUS jack2
 else
-  depends  JACK-DRIVER
-fi  &&
+  depends JACK-DRIVER
+fi &&
 
-optional_depends  lash              \
-                  "--enable-lash"   \
-                  "--disable-lash"  \
-                  "for audio session handling support"
+optional_depends doxygen "--docs" "" "to build documentation" &&
+
+if is_depends_enabled $SPELL doxygen; then
+  depends graphviz
+fi
