@@ -1,5 +1,7 @@
 if [[ $LIBDRM_NV == y ]]; then
-  OPTS="--enable-nouveau-experimental-api $OPTS"
+  OPTS="--enable-nouveau $OPTS"
+else
+  OPTS="--disable-nouveau $OPTS"
 fi  &&
 if [[ $LIBDRM_INTEL == n ]]; then
   OPTS="--disable-intel $OPTS"

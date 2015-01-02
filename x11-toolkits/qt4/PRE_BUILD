@@ -1,6 +1,8 @@
 default_pre_build          &&
 cd $SOURCE_DIRECTORY 	   &&
 
+patch -p1 < $SPELL_DIRECTORY/CVE-2014-0190.patch &&
+
 sed -i '/-Werror/d' src/3rdparty/webkit/Source/WebKit.pri &&
 
 # fix bad .pro file for 4.6.0-beta1
@@ -35,13 +37,10 @@ sed -i "s/-lgds/-lfbclient/" config.tests/unix/ibase/ibase.pro \
                              src/plugins/sqldrivers/ibase/ibase.pro &&
 
 # fix icu support
-echo "fixing icu support" &&
+message "${MESSAGE_COLOR}Fixing ICU support${DEFAULT_COLOR}..." &&
 sed -i -e '/CONFIG\s*+=\s*text_breaking_with_icu/ s:^#\s*::' \
           src/3rdparty/webkit/Source/JavaScriptCore/JavaScriptCore.pri &&
 
 if [[ $QT_WEBKIT_VIDEO == n ]]; then
   sed -i '1iDEFINES += ENABLE_VIDEO=0' src/3rdparty/webkit/Source/WebCore/WebCore.pro
-fi &&
-
-# fix moc for spells that depend on BOOST 1.53
-patch -p1 < $SPELL_DIRECTORY/qt-everywhere-opensource-src-4.8.4-QTBUG-22829.patch
+fi

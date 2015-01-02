@@ -1,5 +1,5 @@
-mkdir  buildit
-cd     buildit
+mkdir  buildit &&
+cd     buildit &&
 
 ../configure  --host=$HOST                  \
               --build=$BUILD                \

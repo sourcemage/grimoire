@@ -1,14 +1,18 @@
-# up_trigger everything on update to 5.1.32 as most stuff links to libmysqlclient.so.15 from version 5.0.77
+# up_trigger everything on branch updates
+local NEW_SPELL_BRANCH="" &&
+local OLD_SPELL_BRANCH="" &&
 
-local OLD_SPELL_VERSION=""
-if spell_ok  $SPELL; then
-  OLD_SPELL_VERSION="$(installed_version $SPELL)"
-  if test "${VERSION:0:3}" != "${OLD_SPELL_VERSION:0:3}"; then
-    message "This is a possibly incompatible update of libmysql..."
-    message "Figuring out what spells need to be recast, this may take a while."
+if spell_ok $SPELL; then
+  NEW_SPELL_BRANCH="$(echo $VERSION | cut -d. -f1,2)" &&  
+  OLD_SPELL_BRANCH="$(installed_version $SPELL | cut -d. -f1,2)" &&
+
+  if test "${NEW_SPELL_BRANCH}" != "${OLD_SPELL_BRANCH}"; then
+    message "${MESSAGE_COLOR}This is a possibly incompatible update of $SPELL..." &&
+    message "Figuring out what spells need to be recast, this may take a while.${DEFAULT_COLOR}" &&
+
     for each in $(show_up_depends $SPELL 1); do
-      if gaze install $each | xargs readelf -d 2> /dev/null |
-         grep -q "NEEDED.*libmysqlclient.so.15"; then
+      if gaze -q install $each | xargs readelf -d 2> /dev/null |
+         grep -Eq "NEEDED.*libmysqlclient(_r)?.so"; then
            up_trigger $each cast_self
       fi
     done

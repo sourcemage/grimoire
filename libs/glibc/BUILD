@@ -1,5 +1,9 @@
 make_single  &&
 
+if [[ $GLIBC_DEBUG == "y" ]]; then
+  LDFLAGS="${LDFLAGS/-s/}"
+fi &&
+
 # install x86_64 linker to lib instead of lib64
 sedit "s/lib64/lib/"  sysdeps/unix/sysv/linux/x86_64/ldconfig.h &&
 sedit "s/264/2/" sysdeps/unix/sysv/linux/x86_64/ldd-rewrite.sed &&
@@ -16,7 +20,6 @@ export  CCACHE_RECACHE=true  &&
 
 local ADDONS
 if  [  "$GLIBC_NPTL"  =  "y"  ];  then
-  ADDONS="nptl"                &&
   #
   # Enable IDN?
   #
@@ -37,7 +40,7 @@ OPTS="$OPTS --enable-add-ons=${ADDONS/ /,}"  &&
 if [ "$GLIBC_NPTL" = "y" ]
 then
 # minimise optimisation level
-  CFLAGS="${CFLAGS//-O?/}"  &&
+  CFLAGS=$(echo ${CFLAGS} | sed -r "s;-O([0-9]|fast);;g") &&
   CFLAGS="-O2 ${CFLAGS//-Os/}"
 else
   #

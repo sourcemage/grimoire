@@ -1,3 +1,4 @@
+CFLAGS="$CFLAGS -I$INSTALL_ROOT/usr/include/libnl3"
 cd "$SOURCE_DIRECTORY/wpa_supplicant"
 
 # Create .config file for make (this is here instead of PRE_BUILD because

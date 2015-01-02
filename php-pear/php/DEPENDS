@@ -71,15 +71,15 @@ optional_depends C-CLIENT \
                  "--with-imap=${INSTALL_ROOT}/usr" "--without-imap" \
                  "for IMAP support" &&
 
-optional_depends openssl \
+optional_depends SSL \
                  "--with-openssl" "--without-openssl" \
                  "for OpenSSL support" &&
 
 if is_depends_enabled $SPELL $(get_spell_provider $SPELL C-CLIENT); then
-  if is_depends_enabled $SPELL openssl; then
+  if is_depends_enabled $SPELL $(get_spell_provider $SPELL SSL); then
     list_add "PHP5_OPTS" "--with-imap-ssl"
   else
-    optional_depends openssl \
+    optional_depends SSL \
                      "--with-imap-ssl" \
                      "--without-imap-ssl" \
                      "for SSL support with IMAP (but not elsewhere)"
@@ -100,6 +100,11 @@ if is_version_less 5.2.9999 "${VERSION}"; then
   optional_depends enchant \
                    "--with-enchant" "--without-enchant" \
                    "use enchant for spelling functions?" &&
+
+  optional_depends icu \
+                   "--enable-intl --with-icu-dir=${INSTALL_ROOT}/usr" \
+                   "--disable-intl --without-icu-dir" \
+                   "for ICU unicode (internationalization) support" &&
 
   optional_depends oniguruma \
                    "--with-onig=${INSTALL_ROOT}/usr" "--without-onig" \
@@ -136,11 +141,6 @@ optional_depends gettext \
                  "--with-gettext" "--without-gettext" \
                  "for GNU gettext support" &&
 
-optional_depends icu \
-                 "--with-icu-dir=${INSTALL_ROOT}/usr" \
-                 "--without-icu-dir" \
-                 "for ICU unicode support" &&
-
 # new database madness
 # DB_DRIVERS="mysql mysqli pgsql sqlite sqlite3 firebird unixODBC iODBC"
 # PDO_DRIVERS="mysql pgsql firebird unixODBC iODBC"
@@ -155,6 +155,8 @@ if list_find "$PHP5_DATABASE_DRIVERS" "mysql" || list_find "$PHP5_DATABASE_DRIVE
     else
       list_add "PHP5_OPTS" "--with-mysql=${INSTALL_ROOT}/usr"
     fi
+  else
+    list_add "PHP5_OPTS" "--with-mysql=${INSTALL_ROOT}/usr"
   fi
 else
   list_add "PHP5_OPTS" "--without-mysql"

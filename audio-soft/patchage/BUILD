@@ -1,6 +1,3 @@
-if [[ $PATCHAGE_VCS == y ]]
-then
-  cd  "$SOURCE_DIRECTORY/patchage"
-fi  &&
+OPTS="$PATCHAGE_OPTS $OPTS" &&
 
-default_build
+waf_build

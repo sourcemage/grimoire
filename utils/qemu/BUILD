@@ -6,8 +6,11 @@ cd "${SOURCE_DIRECTORY}"                    &&
             --sysconfdir="$INSTALL_ROOT/etc" \
             --target-list="$QEMU_ARCHS"     \
             --audio-drv-list="$QEMU_AUDIO"  \
-            --audio-card-list="$QEMU_CARDS" \
+            --python=python2                \
             $QEMU_KVM                       \
+            $QEMU_VNC                       \
+            $QEMU_TPM                       \
             $OPTS                           &&
 
-make
+# Pass down ARFLAGS to workaround a bug in QEMU's build system
+ARFLAGS=rv make

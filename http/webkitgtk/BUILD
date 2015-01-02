@@ -1,6 +1,3 @@
-OPTS="$WEBKIT_SVG $WEBKIT_WEBGL $OPTS" &&
-OPTS="--with-gtk=2.0 --disable-webkit2 $OPTS" &&
-
-make_single &&
-default_build &&
-make_normal
+OPTS="--enable-webkit1 --disable-webkit2 $WEBKIT_OPTS $OPTS" &&
+sed -i '30i#include <unicode/utf8.h>' ${SOURCE_DIRECTORY}/Source/WebCore/platform/text/TextCodecUTF8.h &&
+default_build

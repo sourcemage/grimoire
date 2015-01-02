@@ -7,25 +7,26 @@ depends libidl &&
 depends libxft &&
 depends nspr &&
 
-if spell_ok nspr && is_version_less $(installed_version nspr) 4.9.3; then
+if spell_ok nspr && is_version_less $(installed_version nspr) 4.10.3; then
   force_depends nspr
 fi &&
 
-depends -sub 3.14.x nss &&
+depends -sub 3.17.x nss &&
 
-if spell_ok nss && is_version_less $(installed_version nss) 3.14.1; then
+if spell_ok nss && is_version_less $(installed_version nss) 3.17.1; then
   force_depends nss
 fi &&
 
 depends -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY" sqlite &&
 
-if spell_ok sqlite && is_version_less $(installed_version sqlite) 3.7.14.1; then
+if spell_ok sqlite && is_version_less $(installed_version sqlite) 3.8.5; then
   force_depends sqlite
 fi &&
 
 depends perl &&
 depends zip &&
 depends zlib &&
+depends bzip2 &&
 depends libxt &&
 depends libffi &&
 depends libevent &&
@@ -35,6 +36,10 @@ if list_find "$SEAMONKEY_OPTS" "--enable-system-cairo"; then
 
   depends pixman &&
   depends cairo
+fi &&
+
+if list_find "$SEAMONKEY_OPTS" "--enable-system-hunspell"; then
+  depends hunspell
 fi &&
 
 if list_find "$SEAMONKEY_OPTS" "--enable-pango"; then
@@ -61,6 +66,26 @@ if list_find "$SEAMONKEY_OPTS" "--enable-webm"; then
   optional_depends libvpx "" "" "to use system libvpx for WebM support"
 else
   optional_depends alsa-lib "" "" "for audio support"
+fi &&
+
+optional_depends pulseaudio "" "" "for PulseAudio support" &&
+
+if is_depends_enabled $SPELL pulseaudio; then
+  list_add "SEAMONKEY_OPTS" "--enable-pulseaudio" &&
+  list_remove "SEAMONKEY_OPTS" "--disable-pulseaudio"
+else
+  list_add "SEAMONKEY_OPTS" "--disable-pulseaudio" &&
+  list_remove "SEAMONKEY_OPTS" "--enable-pulseaudio"
+fi &&
+
+if [[ $SEAMONKEY_GST != "none" ]]; then
+  depends $SEAMONKEY_GST &&
+
+  list_add "SEAMONKEY_OPTS" "--enable-gstreamer" &&
+  list_remove "SEAMONKEY_OPTS" "--disable-gstreamer"
+else
+  list_add "SEAMONKEY_OPTS" "--disable-gstreamer" &&
+  list_remove "SEAMONKEY_OPTS" "--enable-gstreamer"
 fi &&
 
 if is_depends_enabled $SPELL libvpx; then
