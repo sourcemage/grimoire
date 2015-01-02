@@ -14,5 +14,6 @@ fi &&
 
 OPTS="--libdir=$INSTALL_ROOT/usr/lib $CUPS_OPTS $OPTS"  &&
 OPTS="$OPTS CC=gcc CXX=g++" &&
+OPTS+=" --disable-static" &&
 
 default_build

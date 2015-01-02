@@ -1,77 +1,63 @@
 . "$GRIMOIRE/FUNCTIONS" &&
 
+depends -sub 'CXX' gcc &&
+depends bison &&
+depends flex  &&
 depends dri2proto &&
 depends libdrm &&
 depends util-macros &&
+depends gccmakedep &&
 depends lndir &&
 depends xorg-cf-files &&
 depends makedepend &&
 depends expat &&
 depends libxdamage &&
 depends libx11 &&
-depends libxext &&
-depends libxxf86vm &&
-depends libxau &&
-depends libxfixes &&
-depends glproto &&
-depends libxml2 &&
-sub_depends libxml2 PYTHON &&
 
-case "$MESALIB_BRANCH" in
- scm)
-   depends git
-   ;;
- development)
-   depends libxcb &&
-   if [[ "$MESALIB_GALLIUM" != "none" ]]; then
-     depends llvm
-     if list_find wayland MESA_EGL;then
-       depends wayland
-     fi
-   fi
-   ;;
+case $MESALIB_BUILD in
+ dri)
+  depends glproto &&
+  depends dri2proto &&
+  depends dri3proto &&
+  depends presentproto &&
+  depends libdrm &&
+  depends UDEV   &&
+  depends libxext &&
+  depends libxxf86vm &&
+  depends libxdamage &&
+  depends libxfixes &&
+  depends libxcb &&
+  depends expat
+  ;;
  *)
-# these only apply to older branches
-if list_find "$MESALIB_OPTS" "--enable-glw"; then
-  depends libxt
-fi &&
+  ;;
+esac &&
+depends python  &&
+depends -sub PYTHON libxml2 &&
 
-if list_find "$MESALIB_OPTS" "--enable-glu"; then
-  optional_depends GLUT \
-                   "--enable-glut" \
-                   "--disable-glut" \
-                   "to enable GLUT library"
-
-  if is_depends_enabled $SPELL $(get_spell_provider $SPELL GLUT) ; then
-    depends  libxi   &&
-    depends  libxmu
+if [[ "$MESALIB_GALLIUM" != "none" ]]; then
+  depends llvm
+  if list_find  "$MESA_EGL" wayland;then
+    depends wayland
+  fi &&
+  if list_find   "$MESALIB_GALLIUM" radeonsi;then
+    depends libelf
   fi
 fi &&
 
-optional_depends libxcb \
-                 '--enable-xcb' \
-                 '--disable-xcb' \
-                 'Enable XCB support?'
-
-if is_depends_enabled $SPELL libxcb;then
-  sub_depends libx11 XCB
-fi &&
-
-if spell_ok libdrm && is_version_less $(installed_version libdrm) 2.4.3; then
-  force_depends libdrm
-fi 
-  ;;
-esac &&
-
-if ( list_find "i915" $MESALIB_DRIVERS ) || \
-   ( list_find "i965" $MESALIB_DRIVERS ); then
+if ( list_find  $MESALIB_DRIVERS  i915 ) || \
+   ( list_find  $MESALIB_DRIVERS i965); then
   sub_depends libdrm INTEL
 fi &&
 
-if ( list_find "r200" $MESALIB_DRIVERS ) || \
-   ( list_find "radeon" $MESALIB_DRIVERS ); then
+if ( list_find  $MESALIB_DRIVERS r200) || \
+   ( list_find  $MESALIB_DRIVERS radeon); then
   sub_depends libdrm RADEON
 fi &&
 
-optional_depends udev '' '' 'hardware detection'
-
+if ( list_find $MESALIB_DRIVERS nouveau); then
+  sub_depends libdrm NOUVEAU
+fi &&
+optional_depends wayland '' '' 'Wayland support'
+optional_depends libvdpau '' '' 'VDPAU support'
+optional_depends libxvmc  '--enable-xvmc' '--disable-xvmc' 'XvMC support (obsolete)'

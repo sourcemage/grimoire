@@ -1,20 +1,3 @@
-list_remove  MESALIB_DRIVERS  i915tex  || true
-# ordering is important
-MESALIB_BUILD=${MESALIB_BUILD/linux-dri/dri}
-MESALIB_BUILD=${MESALIB_BUILD/linux-dri-x86-64/dri}
-MESALIB_BUILD=${MESALIB_BUILD/linux-dri-x86/dri}
-MESALIB_BUILD=${MESALIB_BUILD/linux-dri-ppc/dri}
-MESALIB_BUILD=${MESALIB_BUILD/linux-ppc/xlib}
-MESALIB_BUILD=${MESALIB_BUILD/linux-x86-64/xlib}
-MESALIB_BUILD=${MESALIB_BUILD/linux-x86/xlib}
-MESALIB_BUILD=${MESALIB_BUILD/linux-fbdev/xlib}
-MESALIB_BUILD=${MESALIB_BUILD/linux-directfb/xlib}
-MESALIB_BUILD=${MESALIB_BUILD/linux-glide/xlib}
-MESALIB_BUILD=${MESALIB_BUILD/linux-sparc5/xlib}
-MESALIB_BUILD=${MESALIB_BUILD/linux-sparc/xlib}
-MESALIB_BUILD=${MESALIB_BUILD/linux-ultrasparc/xlib}
-MESALIB_BUILD=${MESALIB_BUILD/linux/xlib}
-
 . $GRIMOIRE/config_query_multi.function                                  &&
 message "${MESSAGE_COLOR}MesaLib build types:\n"                         \
         "xlib:   Stand-alone software rendering library;\n"              \
@@ -32,8 +15,9 @@ config_query_list MESALIB_BUILD                                          \
                   dri                                                    \
                   osmesa                                                 &&
 
-if [[ $MESALIB_BUILD == dri ]]; then
-  AVAILABLE_DRIVERS="i915 i965 intel r200 radeon swrast"
+case $MESALIB_BUILD in
+ dri)
+  AVAILABLE_DRIVERS="i915 i965 nouveau r200 radeon swrast"
 
   config_query_multi MESALIB_DRIVERS                                       \
                    "What drivers would you like to build?"               \
@@ -43,43 +27,21 @@ if [[ $MESALIB_BUILD == dri ]]; then
     MESALIB_DRIVERS="$AVAILABLE_DRIVERS"
   fi &&
 
-  if [[ "x${MESALIB_BRANCH}" == "xdevelopment" ||
-        "x${MESALIB_BRANCH}" == "xscm"         ]]; then
-	if list_find "radeon" MESALIB_GALLIUM; then
-      MESALIB_GALLIUM="r300 r600"
-    fi &&
-    list_remove MESALIB_GALLIUM "i965"   &&
-    list_remove MESALIB_GALLIUM "radeon" &&
-    config_query_multi MESALIB_GALLIUM                                  \
-                     "What Gallium3D drivers would you like to build?"  \
-                     none llvm svga i915 r300 r600 nouveau swrast
-  else
-    config_query_multi MESALIB_GALLIUM                                  \
-                     "What Gallium3D drivers would you like to build?"  \
-                     none llvm svga i915 i965 radeon nouveau swrast
+  
+# TODO: Proper dependencies for those ... also libdrm ...
+  AVAILABLE_GALLIUM="i915 ilo nouveau r300 r600 radeonsi swrast"
+
+  config_query_multi MESALIB_GALLIUM                                       \
+                   "What Gallium3D drivers woulld you like to build?"    \
+                    none all $AVAILABLE_GALLIUM
+  if [[ $MESALIB_GALLIUM = all ]]; then
+    MESALIB_GALLIUM=$AVAILABLE_GALLIUM
   fi
-fi &&
 
-if [[ $MESALIB_BUILD == xlib ]]; then MESALIB_DRIVERS="swrast"
-fi &&
-
-config_query_option MESALIB_OPTS "enable TLS support in GLX" n \
-                    "--enable-glx-tls" "--disable-glx-tls" &&
-
-config_query_option MESALIB_OPTS "enable EGL library?" y \
-                    "--enable-egl" "--disable-egl" &&
-
-case "$MESALIB_BRANCH" in
-  scm|development)
-    list_remove MESALIB_OPTS "--enable-gles-overlay" &&
-    list_remove MESALIB_OPTS "--disable-gles-overlay" &&
-    list_remove MESALIB_OPTS "--enable-glu" &&
-    list_remove MESALIB_OPTS "--disable-glu" &&
-    list_remove MESALIB_OPTS "--enable-glw" &&
-    list_remove MESALIB_OPTS "--disable-glw" &&
-#    list_remove MESALIB_OPTS "" &&
-    config_query_multi MESA_EGL "which EGL platforms?" drm fbdev wayland x11 none
-    if list_find wayland MESA_EGL;then
+  if [[ $MESALIB_GALLIUM != "" ]] && [[ $MESALIB_GALLIUM != none ]]; then
+    list_add MESALIB_OPTS "--enable-egl"
+    config_query_multi MESA_EGL "which EGL platforms?" drm fbdev wayland x11
+    if list_find  wayland "$MESA_EGL";then
       list_remove MESALIB_OPTS "--disable-shared-glapi" &&
       list_remove MESALIB_OPTS "--disable-gbm"     &&
       list_remove MESALIB_OPTS "--disable-gles2"   &&
@@ -93,19 +55,23 @@ case "$MESALIB_BRANCH" in
       config_query_option MESALIB_OPTS "enable Generic Buffer Management?" n \
                          "--enable-gbm" "--disable-gbm"
       config_query_option MESALIB_OPTS "enable support for OpenGL ES 2.x API?" n \
-                        "--enable-gles2" "--disable-gles2"
-    fi &&
-    config_query_option MESALIB_OPTS "enable support for OpenGL ES 1.x API?" n \
-                        "--enable-gles1" "--disable-gles1"
+                         "--enable-gles2" "--disable-gles2"
+    fi
+#    config_query_option MESALIB_OPTS "enable support for OpenGL ES 1.x API?" n \
+#                         "--enable-gles1" "--disable-gles1"
+  else   
+    MESALIB_GALLIUM=
+    config_query_option MESALIB_OPTS "enable EGL library?" y \
+                         "--enable-egl" "--disable-egl"
+    if list_find --enable-egl "$MESALIB_OPTS"; then
+      MESALIB_OPTS+=" --enable-gbm" # Mandatory!
+    fi
+  fi
+  ;;
+ xlib)
+  MESALIB_DRIVERS="swrast"
+  ;;
+esac &&
 
-   ;;
-  *)
-    config_query_option MESALIB_OPTS "enable OpenGL Utility library?" y \
-                    "--enable-glu" "--disable-glu" &&
-
-    config_query_option MESALIB_OPTS "enable Xt/Motif widget library?" y \
-                    "--enable-glw" "--disable-glw" &&
-
-    config_query_multi MESA_EGL "which EGL platforms?" drm fbdev x11 none
-   ;;
-esac
+config_query_option MESALIB_OPTS "enable TLS support in GLX" n \
+                    "--enable-glx-tls" "--disable-glx-tls"

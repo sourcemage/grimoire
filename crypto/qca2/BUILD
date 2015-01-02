@@ -1,6 +1,3 @@
-QTDIR=/usr    &&
-PATH=$QTDIR/bin/qt4:$PATH       &&
-export QTDIR=/usr               &&
-./configure --prefix=/usr $OPTS &&
-qmake qca.pro &&
-make
+OPTS+=' -DBUILD_TESTS=0' &&
+OPTS+=" -DQT4_BUILD=1" &&
+qt4_cmake_build

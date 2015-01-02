@@ -22,6 +22,32 @@ if list_find "$GCC_COMPILER" "ada" ; then
   #
 fi  &&
 
+cd ${SOURCE_DIRECTORY}          &&
+
+if [[ "$GCC_CLOOG" == "y" ]]; then
+  unpack_file 3                   &&
+  mv cloog-${CLOOG_VERSION} cloog &&
+  unpack_file 4                   &&
+  mv isl-${ISL_VERSION} isl
+fi
+
+if list_find "$GCC_COMPILER" "java"; then
+  cp ${SOURCE_CACHE}/${SOURCE5} ${SOURCE_DIRECTORY}/ecj.jar
+  cp -v $SOURCE_CACHE/$SOURCE15 $SOURCE_DIRECTORY/ecj.jar &&
+
+  # Freetype moved headers - Yay!
+  cd "$SOURCE_DIRECTORY" &&
+  patch -Np1 < "$SCRIPT_DIRECTORY/classpath-ft2include.patch"
+fi  &&
+if list_find "$GCC_COMPILER" "fortran" ; then
+  cd $BUILD_DIRECTORY  &&
+  unpack_file 11
+fi  &&
+if list_find "$GCC_COMPILER" "go" ; then
+  cd $BUILD_DIRECTORY  &&
+  unpack_file 16
+fi  &&
+
 mk_source_dir $SOURCE_DIRECTORY.bld  &&
 cd $SOURCE_DIRECTORY  &&
 
@@ -34,5 +60,6 @@ if list_find "$GCC_COMPILER" "go"; then
   patch -p1 < "$SPELL_DIRECTORY/0003-fix-header-generation-for-libgo.patch"
 fi &&
 
-patch -p1 < "$SPELL_DIRECTORY/0002-4.8.0-ffast-math.patch" &&
-patch -p1 < "$SPELL_DIRECTORY/0001-remove-libffi.patch"
+patch -p1 < "$SPELL_DIRECTORY/0001-remove-libffi.patch"          &&
+patch -p0 < "$SPELL_DIRECTORY/gcc-4.8-filename-output.patch"
+

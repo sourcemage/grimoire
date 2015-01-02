@@ -1,3 +1,3 @@
-OPTS="$WIRESHARK_OPTS $OPTS" &&
+OPTS="--with-qt=no $WIRESHARK_OPTS $OPTS" &&
 
 default_build
