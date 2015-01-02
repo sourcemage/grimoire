@@ -1,39 +1,50 @@
-depends -sub CXX gcc                                             &&
-depends  nspr               '--with-system-nspr'                 &&
-depends  -sub "3.16.x" nss  '--with-system-nss'                  &&
-depends  zlib               '--with-system-zlib'                 &&
-depends  libjpeg-turbo      '--with-system-jpeg'                 &&
-depends  libidl                                                  &&
+depends  -sub CXX gcc                                            &&
 depends  perl                                                    &&
 depends  python                                                  &&
-depends  zip                                                     &&
-depends  gtk+2              '--enable-xft --disable-freetype2'   &&
-depends  -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY" sqlite '--enable-system-sqlite'    &&
-depends  pysqlite                                                &&
+depends  icu     '--with-system-icu'                             &&
 
-depends  atk                                                     &&
 depends  glib2                                                   &&
-depends  pango                                                   &&
-depends  cairo                                                   &&
+depends  gtk+2                                                   &&
+depends  atk                                                     &&
+depends  libx11                                                  &&
+depends  libxext                                                 &&
+depends  libxrender                                              &&
+depends  libxt                                                   &&
+
+depends  pango  '--enable-pango'                                 &&
+depends  libxft '--enable-xft --disable-freetype2'               &&
+
+depends  -sub TEE cairo  '--enable-system-cairo --enable-default-toolkit=cairo-gtk2' &&
+depends  gdk-pixbuf2                                             &&
+
+depends  JPEG '--with-system-jpeg'                               &&
+depends -sub APNG libpng '--enable-system-png'                   &&
+depends  librsvg2 '--enable-svg'                                 &&
+
+depends  nspr               '--with-system-nspr'                 &&
+depends  -sub "3.17.x" nss  '--with-system-nss'                  &&
+
+depends  -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY" sqlite '--enable-system-sqlite'    &&
+
+depends  libidl                                                  &&
+
+depends  zip                                                     &&
+depends  zlib               '--with-system-zlib'                 &&
 
 optional_depends  startup-notification  \
-                  '--enable-startup-notification' \
-                  '--disable-startup-notification' \
+                  --{en,dis}able-startup-notification \
                   'for startup notifications'      &&
 
 optional_depends  gconf2  \
-                  '--enable-gconf' \
-                  '--disable-gconf' \
+                  --{en,dis}able-gconf \
                   'for gconf support'      &&
 
-optional_depends  'wireless_tools' \
-                  '--enable-necko-wifi' \
-                  '--disable-necko-wifi' \
+optional_depends  wireless_tools \
+                  --{en,dis}able-necko-wifi \
                   'for Necko WiFi scanning' &&
 
-optional_depends  'pulseaudio' \
-                  '--enable-pulseaudio' \
-                  '--disable-pulseaudio' \
+optional_depends  pulseaudio \
+                  --{en,dis}able-pulseaudio \
                   'use pulseaudio for audio support' &&
 
 # Firefox is currently borked and does not compile without alsa-lib headers,
@@ -62,8 +73,7 @@ if is_depends_enabled $SPELL alsa-lib; then
 fi &&
 
 optional_depends  dbus-glib \
-                  '--enable-dbus' \
-                  '--disable-dbus' \
+                  --{en,dis}able-dbus \
                   'for dbus support' &&
 
 # Firefox is currently borked and does not compile without OpenGL headers
@@ -74,9 +84,17 @@ optional_depends  dbus-glib \
 depends OPENGL &&
 
 optional_depends  gstreamer \
-                  '--enable-gstreamer' \
-                  '--disable-gstreamer' \
+                  --{en,dis}able-gstreamer \
                   'for gstreamer based AV support' &&
+
+if ! is_depends_enabled $SPELL gstreamer; then
+  optional_depends  gstreamer-1.0 \
+                    '--enable-gstreamer=1.0' \
+                    '' \
+                    'for gstreamer 1.0 based AV support'
+fi &&
+
+
 
 suggest_depends_2 firefox-smglwiki '' '' \
   'to enable searching the SMGL Wiki from the Search Bar'

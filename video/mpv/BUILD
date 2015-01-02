@@ -19,4 +19,7 @@ if is_depends_enabled $SPELL $(get_spell_provider $SPELL OPENGL); then
 fi &&
 
 OPTS+=" --confdir=$INSTALL_ROOT/etc/mpv" &&
-waf_build
+./waf configure --prefix=${INSTALL_ROOT}/usr \
+      --mandir=${INSTALL_ROOT}/usr/share/man \
+      -j $MAKE_NJOBS $OPTS &&
+./waf build
