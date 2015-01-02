@@ -1,0 +1,178 @@
+From af665e15d590cca4d02716fe01371cdddb751658 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+Date: Thu, 20 Mar 2014 23:21:10 +0000
+Subject: [PATCH 2/2] increase compiler warning level
+
+---
+ Makefile          |  8 ++++++++
+ vlevel-bin.cpp    |  2 +-
+ vlevel-ladspa.cpp | 12 +++++++-----
+ volumeleveler.cpp | 17 +++++++++--------
+ volumeleveler.h   |  2 +-
+ 5 files changed, 26 insertions(+), 15 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 35af52b..3a3f018 100644
+--- a/Makefile
++++ b/Makefile
+@@ -24,6 +24,14 @@ CXXFLAGS ?= -O3 -g
+ CPPFLAGS += -DPIC
+ 
+ CXXFLAGS += -fPIC
++CXXFLAGS += -Wall -Wextra -Werror -pedantic
++CXXFLAGS += -Wcast-align -Wfloat-equal -Wformat-nonliteral  -Wformat-security
++CXXFLAGS += -Winit-self -Wmissing-include-dirs
++CXXFLAGS += -Wno-suggest-attribute=noreturn -Wno-write-strings -Wpointer-arith -Wundef -Wpacked
++CXXFLAGS += -Wredundant-decls
++CXXFLAGS += -Wunreachable-code  -Wno-unused-parameter -Wconversion -Wshadow
++CXXFLAGS += -Woverloaded-virtual
++
+ LDLIBS=-lstdc++ -lm
+ 
+ # This is where it will be installed
+diff --git a/vlevel-bin.cpp b/vlevel-bin.cpp
+index ef61b95..b969891 100644
+--- a/vlevel-bin.cpp
++++ b/vlevel-bin.cpp
+@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
+   CommandLine cmd(argc, argv);
+   size_t length = 3 * 44100;
+   size_t channels = 2;
+-  value_t strength = .8, max_multiplier = 20;
++  value_t strength = .8f, max_multiplier = 20.0f;
+   bool undo = false;
+   string option, argument;
+   
+diff --git a/vlevel-ladspa.cpp b/vlevel-ladspa.cpp
+index 7022f68..7d278b2 100644
+--- a/vlevel-ladspa.cpp
++++ b/vlevel-ladspa.cpp
+@@ -44,7 +44,7 @@ LADSPA_PortDescriptor vlevel_port_descriptors[] = {
+   LADSPA_PORT_OUTPUT | LADSPA_PORT_AUDIO
+ };
+ 
+-char *vlevel_port_names[] = {
++const char *vlevel_port_names[] = {
+   "Look-ahead (seconds)",
+   "Strength",
+   "Use Maximum Multiplier",
+@@ -209,11 +209,13 @@ void VLevelInstance::ConnectPort(unsigned long port, value_t *data_location)
+ {
+   ports[port] = data_location;
+   
+-  if(port >= CONTROL_PORT_COUNT) // is a control port
+-    if((port - CONTROL_PORT_COUNT) % 2 == 0) // is an input port
++  if(port >= CONTROL_PORT_COUNT) { // is a control port
++    if((port - CONTROL_PORT_COUNT) % 2 == 0) { // is an input port
+       in[(port - CONTROL_PORT_COUNT) / 2] = data_location;
+-    else if((port - CONTROL_PORT_COUNT) % 2 == 1) // is an output port
++    } else if((port - CONTROL_PORT_COUNT) % 2 == 1) { // is an output port
+       out[(port - CONTROL_PORT_COUNT) / 2] = data_location;
++    }
++  }
+ }
+ 
+ void VLevelInstance::Activate()
+@@ -224,7 +226,7 @@ void VLevelInstance::Activate()
+ void VLevelInstance::Run(unsigned long sample_count)
+ {
+   
+-  size_t samples = (size_t) (*ports[CONTROL_PORT_LOOK_AHEAD] * sample_rate);
++  size_t samples = (size_t) (*ports[CONTROL_PORT_LOOK_AHEAD] * (value_t)sample_rate);
+   if(samples != vl.GetSamples()) {
+     if(samples > 60 * sample_rate) samples = 60 * sample_rate;
+     if(samples < 2) samples = 2;
+diff --git a/volumeleveler.cpp b/volumeleveler.cpp
+index 2a49b84..8a29f8b 100644
+--- a/volumeleveler.cpp
++++ b/volumeleveler.cpp
+@@ -22,6 +22,7 @@
+ #include <assert.h>
+ #include <math.h>
+ #include <iostream>
++#include <limits>
+ 
+ #include "vlevel.h"
+ #include "volumeleveler.h"
+@@ -50,7 +51,7 @@ void VolumeLeveler::SetStrength(value_t s)
+ 
+ void VolumeLeveler::SetMaxMultiplier(value_t m)
+ {
+-  if(m <= 0) m = HUGE_VAL;
++  if(m <= 0) m = std::numeric_limits<float>::max();
+   max_multiplier = m;
+ }
+ 
+@@ -87,7 +88,7 @@ void VolumeLeveler::Flush()
+ 
+ value_t VolumeLeveler::GetMultiplier()
+ {
+-  value_t multiplier = pow(avg_amp, -strength);
++  value_t multiplier = powf(avg_amp, -strength);
+   if(multiplier > max_multiplier) multiplier = max_multiplier;
+   return multiplier;
+ }
+@@ -121,7 +122,7 @@ void VolumeLeveler::Exchange_n(value_t **in_bufs, value_t **out_bufs, size_t in_
+   for(size_t user_pos = 0; user_pos < in_samples; ++user_pos) {
+     
+     // compute multiplier
+-    value_t multiplier = pow(avg_amp, -strength);
++    value_t multiplier = powf(avg_amp, -strength);
+     if(multiplier > max_multiplier) multiplier = max_multiplier;
+ 
+     // swap buf[pos] with user_buf[user_pos], scaling user[buf] by
+@@ -132,7 +133,7 @@ void VolumeLeveler::Exchange_n(value_t **in_bufs, value_t **out_bufs, size_t in_
+       value_t in = in_bufs[ch][user_pos];
+       out_bufs[ch][user_pos] = bufs[ch][pos] * multiplier;
+       bufs[ch][pos] = in;
+-      if(VLEVEL_ABS(in) > new_val) new_val = fabs(in);
++      if(VLEVEL_ABS(in) > new_val) new_val = fabsf(in);
+     }
+     
+     pos = (pos + 1) % samples; // now pos is the oldest, new one is pos-1
+@@ -141,14 +142,14 @@ void VolumeLeveler::Exchange_n(value_t **in_bufs, value_t **out_bufs, size_t in_
+ 
+     if(pos == max_slope_pos) {
+       // recompute (this is expensive)
+-      max_slope = -HUGE_VAL;
++      max_slope = std::numeric_limits<float>::min();
+       for(size_t i = 1; i < samples; ++i) {
+ 	value_t sample_val = 0;
+ 	for(size_t ch = 0; ch < channels; ++ch) {
+ 	  value_t ch_val = VLEVEL_ABS(bufs[ch][(pos + i) % samples]);
+ 	  if(ch_val > sample_val) sample_val = ch_val;
+ 	}
+-	value_t slope = (sample_val - avg_amp) / i;
++	value_t slope = (sample_val - avg_amp) / (value_t)i;
+ 	if(slope >= max_slope) { // must be >=, otherwise clipping causes excessive computation
+ 	  max_slope_pos = (pos + i) % samples;
+ 	  max_slope = slope;
+@@ -159,10 +160,10 @@ void VolumeLeveler::Exchange_n(value_t **in_bufs, value_t **out_bufs, size_t in_
+       // only chance of higher slope is the new sample
+      
+       // recomputing max_slope isn't really necessary...
+-      max_slope = (max_slope_val - avg_amp) / ((max_slope_pos - pos + samples) % samples);
++      max_slope = (max_slope_val - avg_amp) / (value_t) ((max_slope_pos - pos + samples) % samples);
+       // ...but it doesn't take long and has a small effect.
+ 
+-      value_t slope = (new_val - avg_amp) / (samples - 1);
++      value_t slope = (new_val - avg_amp) / (value_t)(samples - 1);
+       
+       if(slope >= max_slope) { // probably needs to be >= for same reason as above
+ 	max_slope_pos = (pos - 1) % samples;
+diff --git a/volumeleveler.h b/volumeleveler.h
+index 0b24798..960123f 100644
+--- a/volumeleveler.h
++++ b/volumeleveler.h
+@@ -35,7 +35,7 @@ public:
+   // constructs and destructs a VolumeLeveler with a length of l
+   // samples with c channels each, an effect strength of s and a
+   // maximum multiplier of m
+-  VolumeLeveler(size_t l = 44100, size_t c = 2, value_t s = .8, value_t m = 25);
++  VolumeLeveler(size_t l = 44100, size_t c = 2, value_t s = .8f, value_t m = 25);
+   ~VolumeLeveler();
+   
+   // Reallocates a buffer of l samples and c channels (contents are
+-- 
+1.9.0
+

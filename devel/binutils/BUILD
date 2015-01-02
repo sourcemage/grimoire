@@ -1,9 +1,3 @@
-# Temporary fix to solve texinfo errors
-sed -i -e '325 s/@colophon/@&/' bfd/doc/bfd.texinfo &&
-sed -i -e '336 s/@cygnus/@&/' bfd/doc/bfd.texinfo  &&
-sed -i -e '7866 s/@colophon/@&/' ld/ld.texinfo &&
-sed -i -e '7877 s/@cygnus/@&/' ld/ld.texinfo &&
-
 mkdir  buildit &&
 cd     buildit &&
 

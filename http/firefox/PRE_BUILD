@@ -3,10 +3,6 @@ cd  $SOURCE_DIRECTORY             &&
 unpack_file  ''                   &&
 cd  mozilla*                       &&
 
-#Fedora  patch to remove glyph in title bar
-# http://osdir.com/ml/scm-fedora-commits/2011-06/msg10320.html
-patch -p0 < $SPELL_DIRECTORY/glyph.patch &&
-
 # Archlinux patch to drop release point from install path
 # http://projects.archlinux.org/svntogit/packages.git/plain/trunk/firefox-install-dir.patch?h=packages/firefox
 patch -p1 < $SPELL_DIRECTORY/install_dir.patch &&
@@ -26,4 +22,9 @@ fi &&
 
 if [[ $FIREFOX_OFFICIAL == y ]]; then
   sed -i '27iac_add_options --enable-official-branding' .mozconfig || return 1
+fi &&
+
+if [[ $FIREFOX_PGO == y ]]; then
+  echo "mk_add_options PROFILE_GEN_SCRIPT='\$(PYTHON) \$(OBJDIR)/_profile/pgo/profileserver.py'" >> .mozconfig &&
+  patch -p0 < ${SPELL_DIRECTORY}/Makefile.in-pgo.patch
 fi

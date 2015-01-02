@@ -1,2 +1,2 @@
 disable_pic   &&
-default_build
+CFLAGS="" default_build

@@ -9,13 +9,16 @@ export  LDFLAGS="${LDFLAGS/-z combreloc/}"  &&
 #
 export LDFLAGS="${LDFLAGS//-Wl,-O1/}"  &&
 
+OPTS="$OPTS --with-x-toolkit=$EMACS_XTOOLKIT" &&
 if [[ "$EMACS_BRANCH" == "scm" ]]; then
   # Crashes with -O3
   export  CFLAGS="${CFLAGS//-O3/-O2}"      &&
 
-  OPTS="$OPTS --build=${BUILD}"
+  OPTS="$OPTS --build=${BUILD}" &&
 
-  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+  if [[ $CROSS_INSTALL == on ]]; then
+    OPTS="$OPTS --host=${HOST}"
+  fi &&
 
   # Fix broken permissions
   chmod +x build-aux/update-subdirs &&
