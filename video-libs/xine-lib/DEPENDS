@@ -3,6 +3,11 @@ depends LIBAVCODEC &&
 depends libcdio &&
 depends vcdimager-unstable &&
 
+optional_depends libxdg-basedir \
+                 "--with-external-libxdg-basedir" \
+                 "--without-external-libxdg-basedir" \
+                 "to use system version of libxdg-basedir" &&
+
 optional_depends gettext \
                  "--enable-nls" \
                  "--disable-nls" \
@@ -107,34 +112,40 @@ if is_depends_enabled $SPELL speex; then
   depends libogg
 fi &&
 
-# not recommended as system libraries
-#
-# libdvdnav: --with-external-dvdnav
+if ! list_find "$XINE_LIB_OPTS" "--disable-musepack"; then
+  optional_depends libmpcdec \
+                   "--enable-musepack" \
+                   "--enable-musepack=internal" \
+                   "to use system version of Musepack decoding library"
+fi &&
 
-optional_depends libmpcdec \
-                 "--enable-musepack" \
-                 "--disable-musepack" \
-                 "for Musepack decoding support" &&
+if ! list_find "$XINE_LIB_OPTS" "--disable-faad"; then
+  optional_depends faad2 \
+                   "--enable-faad" \
+                   "--enable-faad=internal" \
+                   "to use system version of FAAD decoder"
+fi &&
 
-optional_depends faad2 \
-                 "--enable-faad" \
-                 "--disable-faad" \
-                 "for FAAD decoder support" &&
+if ! list_find "$XINE_LIB_OPTS" "--disable-dts"; then
+  optional_depends libdca \
+                   "--enable-dts" \
+                   "--enable-dts=internal" \
+                   "to use system version of DTS decoding library"
+fi &&
 
-optional_depends libdca \
-                 "--enable-dts" \
-                 "--disable-dts" \
-                 "for DTS decoding library support" &&
+if ! list_find "$XINE_LIB_OPTS" "--disable-a52dec"; then
+  optional_depends a52dec \
+                   "--enable-a52dec" \
+                   "--enable-a52dec=internal" \
+                   "to use system version of a52dec decoding library"
+fi &&
 
-optional_depends a52dec \
-                 "--enable-a52dec" \
-                 "--disable-a52dec" \
-                 "for a52dec decoding library support" &&
-
-optional_depends libmad \
-                 "--enable-mad" \
-                 "--disable-mad" \
-                 "for MAD decoding library support" &&
+if ! list_find "$XINE_LIB_OPTS" "--disable-mad"; then
+  optional_depends libmad \
+                   "--enable-mad" \
+                   "--enable-mad=internal" \
+                   "to use system version of MAD decoding library"
+fi &&
 
 optional_depends libmodplug \
                  "--enable-modplug" \
@@ -167,6 +178,11 @@ if is_depends_enabled $SPELL freetype2; then
                                     "--disable-antialiasing"
 fi &&
 
+optional_depends libdvdnav \
+                 "--with-external-dvdnav" \
+                 "--without-external-dvdnav" \
+                 "to use system version of dvdnav library (${PROBLEM_COLOR}not recommended${DEFAULT_COLOR})" &&
+
 optional_depends libdvdcss "" "" "to play encrypted DVDs" &&
 
 optional_depends real-codecs \
@@ -188,7 +204,7 @@ optional_depends quicktime-codecs \
 
 # input plugins
 if list_find "$XINE_LIB_OPTS" "--enable-v4l2"; then
-  optional_depends libv4l \
+  optional_depends v4l-utils \
                    "--enable-libv4l" \
                    "--disable-libv4l" \
                    "for libv4l support"
@@ -207,4 +223,6 @@ optional_depends samba \
 optional_depends libfame \
                  "--enable-dxr3" \
                  "--disable-dxr3" \
-                 "build DXR3/HW+ plugins"
+                 "build DXR3/HW+ plugins" &&
+
+suggest_depends optipng "" "" "for PNG optimisation"

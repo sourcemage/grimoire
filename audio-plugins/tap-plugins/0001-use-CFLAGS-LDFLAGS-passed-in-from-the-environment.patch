@@ -1,0 +1,165 @@
+From 729341b835086f679a19e8080e830b228de12830 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+Date: Fri, 21 Mar 2014 13:21:09 +0100
+Subject: [PATCH] use CFLAGS/LDFLAGS passed in from the environment
+
+- also simplify rules
+- mark all, install, clean as PHONY
+---
+ Makefile | 96 ++++++++++++++++++++--------------------------------------------
+ 1 file changed, 29 insertions(+), 67 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index a2e70e1..8bf25f8 100644
+--- a/Makefile
++++ b/Makefile
+@@ -23,8 +23,8 @@
+ # Change this if you want to install somewhere else. In particular
+ # you may wish to remove the middle "local/" part of the path.
+ 
+-INSTALL_PLUGINS_DIR	=	/usr/local/lib/ladspa/
+-INSTALL_LRDF_DIR	=	/usr/local/share/ladspa/rdf/
++INSTALL_PLUGINS_DIR	?=	/usr/local/lib/ladspa/
++INSTALL_LRDF_DIR	?=	/usr/local/share/ladspa/rdf/
+ 
+ # NO EDITING below this line is required
+ # if all you want to do is install and use the plugins.
+@@ -34,9 +34,9 @@ INSTALL_LRDF_DIR	=	/usr/local/share/ladspa/rdf/
+ 
+ # GENERAL
+ 
+-CC		=	gcc
+-CFLAGS		=	-I. -O3 -Wall -fomit-frame-pointer -fstrength-reduce -funroll-loops -ffast-math -c -fPIC -DPIC
+-LDFLAGS		=	-nostartfiles -shared -Wl,-Bsymbolic -lc -lm -lrt
++CFLAGS		+=	-I. -Wall -fPIC -DPIC
++LDFLAGS		+=	-nostartfiles -shared -Wl,-Bsymbolic
++LDLIBS		=	-lc -lm -lrt
+ 
+ PLUGINS		=	tap_autopan.so \
+ 			tap_chorusflanger.so \
+@@ -63,98 +63,60 @@ all: $(PLUGINS)
+ 
+ # RULES TO BUILD PLUGINS FROM C CODE
+ 
+-tap_tremolo.so: tap_tremolo.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_tremolo.c -o tap_tremolo.o
+-	$(CC) $(LDFLAGS) -o tap_tremolo.so tap_tremolo.o
++%.so: %.o
++	$(CC) $(LDFLAGS) -o $@ $< $(LDLIBS)
+ 
+-tap_eq.so: tap_eq.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_eq.c -o tap_eq.o
+-	$(CC) $(LDFLAGS) -o tap_eq.so tap_eq.o
++tap_tremolo.o: tap_tremolo.c tap_utils.h ladspa.h
+ 
+-tap_eqbw.so: tap_eqbw.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_eqbw.c -o tap_eqbw.o
+-	$(CC) $(LDFLAGS) -o tap_eqbw.so tap_eqbw.o
++tap_eq.o: tap_eq.c tap_utils.h ladspa.h
+ 
+-tap_echo.so: tap_echo.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_echo.c -o tap_echo.o
+-	$(CC) $(LDFLAGS) -o tap_echo.so tap_echo.o
++tap_eqbw.o: tap_eqbw.c tap_utils.h ladspa.h
+ 
+-tap_reverb.so: tap_reverb.c tap_reverb.h tap_reverb_presets.h tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_reverb.c -o tap_reverb.o
+-	$(CC) $(LDFLAGS) -o tap_reverb.so tap_reverb.o
++tap_echo.o: tap_echo.c tap_utils.h ladspa.h
+ 
+-tap_limiter.so: tap_limiter.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_limiter.c -o tap_limiter.o
+-	$(CC) $(LDFLAGS) -o tap_limiter.so tap_limiter.o
++tap_reverb.o: tap_reverb.c tap_reverb.h tap_reverb_presets.h tap_utils.h ladspa.h
+ 
+-tap_autopan.so: tap_autopan.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_autopan.c -o tap_autopan.o
+-	$(CC) $(LDFLAGS) -o tap_autopan.so tap_autopan.o
++tap_limiter.o: tap_limiter.c tap_utils.h ladspa.h
+ 
+-tap_deesser.so: tap_deesser.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_deesser.c -o tap_deesser.o
+-	$(CC) $(LDFLAGS) -o tap_deesser.so tap_deesser.o
++tap_autopan.o: tap_autopan.c tap_utils.h ladspa.h
+ 
+-tap_vibrato.so: tap_vibrato.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_vibrato.c -o tap_vibrato.o
+-	$(CC) $(LDFLAGS) -o tap_vibrato.so tap_vibrato.o
++tap_deesser.o: tap_deesser.c tap_utils.h ladspa.h
+ 
+-tap_rotspeak.so: tap_rotspeak.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_rotspeak.c -o tap_rotspeak.o
+-	$(CC) $(LDFLAGS) -o tap_rotspeak.so tap_rotspeak.o
++tap_vibrato.o: tap_vibrato.c tap_utils.h ladspa.h
+ 
+-tap_pitch.so: tap_pitch.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_pitch.c -o tap_pitch.o
+-	$(CC) $(LDFLAGS) -o tap_pitch.so tap_pitch.o
++tap_rotspeak.o: tap_rotspeak.c tap_utils.h ladspa.h
+ 
+-tap_dynamics_m.so: tap_dynamics_m.c tap_dynamics_presets.h tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_dynamics_m.c -o tap_dynamics_m.o
+-	$(CC) $(LDFLAGS) -o tap_dynamics_m.so tap_dynamics_m.o
++tap_pitch.o: tap_pitch.c tap_utils.h ladspa.h
+ 
+-tap_dynamics_st.so: tap_dynamics_st.c tap_dynamics_presets.h tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_dynamics_st.c -o tap_dynamics_st.o
+-	$(CC) $(LDFLAGS) -o tap_dynamics_st.so tap_dynamics_st.o
++tap_dynamics_m.o: tap_dynamics_m.c tap_dynamics_presets.h tap_utils.h ladspa.h
+ 
+-tap_reflector.so: tap_reflector.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_reflector.c -o tap_reflector.o
+-	$(CC) $(LDFLAGS) -o tap_reflector.so tap_reflector.o
++tap_dynamics_st.o: tap_dynamics_st.c tap_dynamics_presets.h tap_utils.h ladspa.h
+ 
+-tap_pinknoise.so: tap_pinknoise.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_pinknoise.c -o tap_pinknoise.o
+-	$(CC) $(LDFLAGS) -o tap_pinknoise.so tap_pinknoise.o
++tap_reflector.o: tap_reflector.c tap_utils.h ladspa.h
+ 
+-tap_doubler.so: tap_doubler.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_doubler.c -o tap_doubler.o
+-	$(CC) $(LDFLAGS) -o tap_doubler.so tap_doubler.o
++tap_pinknoise.o: tap_pinknoise.c tap_utils.h ladspa.h
+ 
+-tap_sigmoid.so: tap_sigmoid.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_sigmoid.c -o tap_sigmoid.o
+-	$(CC) $(LDFLAGS) -o tap_sigmoid.so tap_sigmoid.o
++tap_doubler.o: tap_doubler.c tap_utils.h ladspa.h
+ 
+-tap_tubewarmth.so: tap_tubewarmth.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_tubewarmth.c -o tap_tubewarmth.o
+-	$(CC) $(LDFLAGS) -o tap_tubewarmth.so tap_tubewarmth.o
++tap_sigmoid.o: tap_sigmoid.c tap_utils.h ladspa.h
+ 
+-tap_chorusflanger.so: tap_chorusflanger.c tap_utils.h ladspa.h
+-	$(CC) $(CFLAGS) tap_chorusflanger.c -o tap_chorusflanger.o
+-	$(CC) $(LDFLAGS) -o tap_chorusflanger.so tap_chorusflanger.o
++tap_tubewarmth.o: tap_tubewarmth.c tap_utils.h ladspa.h
++
++tap_chorusflanger.o: tap_chorusflanger.c tap_utils.h ladspa.h
+ 
+ 
+ # OTHER TARGETS
+ 
+-install: targets
++install: all
+ 	-mkdir -p		$(INSTALL_PLUGINS_DIR)
+ 	cp *.so 		$(INSTALL_PLUGINS_DIR)
+ 	-mkdir -p		$(INSTALL_LRDF_DIR)
+ 	cp tap-plugins.rdf 	$(INSTALL_LRDF_DIR)
+ 	cp tap_reverb.rdf 	$(INSTALL_LRDF_DIR)
+ 
+-targets:	$(PLUGINS)
+-
+-always:	
+-
+ clean:
+ 	-rm -f `find . -name "*.so"`
+ 	-rm -f `find . -name "*.o"`
+ 	-rm -f `find . -name "*~"`
+ 
++.PHONY: all install clean
+-- 
+1.9.0
+

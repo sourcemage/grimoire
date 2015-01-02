@@ -1,11 +1,15 @@
 depends make &&
 depends libtool &&
-depends openssl &&
 
-optional_depends -sub "1.0" openssl \
-                            "--enable-gost" \
-                            "--disable-gost" \
-                            "for GOST support" &&
+if [[ $LDNS_OPENSSL == "1.0" ]]; then
+  depends -sub "1.0" openssl &&
+
+  config_query_option LDNS_OPTS "Enable GOST support?" y \
+                                "--enable-gost" \
+                                "--disable-gost"
+else
+  depends openssl '--disable-gost'
+fi &&
 
 optional_depends -sub PYTHON swig \
                              "--with-pyldns" \
@@ -16,4 +20,9 @@ if is_depends_enabled $SPELL swig; then
   config_query_option LDNS_OPTS "Install ldnsx Python module?" y \
                                 "--with-pyldnsx" \
                                 "--without-pyldnsx"
-fi
+fi &&
+
+optional_depends perl \
+                 "--with-p5-dns-ldns" \
+                 "--without-p5-dns-ldns" \
+                 "to generate DNS::LDNS Perl bindings"

@@ -1,11 +1,35 @@
-depends openssl &&
+depends SSL &&
 
 optional_depends readline \
                  "--with-readline" \
                  "--without-readline" \
                  "to support readline input" &&
 
+optional_depends krb5 \
+                 "--enable-gssapi" \
+                 "--disable-gssapi" \
+                 "to support GSS-API authentication" &&
+
 optional_depends libselinux \
                  "--enable-security-context" \
                  "--disable-security-context" \
-                 "to support Security Context (SELinux)"
+                 "to support Security Context (SELinux)" &&
+
+if list_find "$IPSEC_TOOLS_OPTS" "--enable-hybrid"; then
+  optional_depends freeradius \
+                   "--with-libradius=$INSTALL_ROOT/usr" \
+                   "--without-libradius" \
+                   "for Hybrid authentication using RADIUS" &&
+
+  optional_depends linux-pam \
+                   "--with-libpam=$INSTALL_ROOT/usr" \
+                   "--without-libpam" \
+                   "for Hybrid authentication using PAM" &&
+
+  optional_depends openldap \
+                   "--with-libldap=$INSTALL_ROOT/usr" \
+                   "--without-libldap" \
+                   "for Hybrid authentication using LDAP"
+fi &&
+
+suggest_depends SYSTEM-LOGGER "" "" "for syslog support"

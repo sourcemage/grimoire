@@ -1,6 +1,4 @@
-OPTS="$EINA_PTHREAD    \
-      $EINA_TESTS      \
-      $EINA_COVERAGE   \
+OPTS="$EINA_TESTS      \
       $EINA_BENCHMARK  \
       $EINA_E17        \
       $OPTS"           &&

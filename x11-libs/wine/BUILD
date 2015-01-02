@@ -1,6 +1,10 @@
 # touch non-existant file
 touch programs/winetest/tests.rc &&
 
+
+CFLAGS=${CFLAGS/-O3/-O2} &&
+CXXFLAGS=${CXXFLAGS/-O3/-O2} &&
+
 #
 # Fixes http://bugs.winehq.com/show_bug.cgi?id=17406
 #

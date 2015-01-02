@@ -1,0 +1,606 @@
+From aff23d05642705f738f788648c060085bdc476d6 Mon Sep 17 00:00:00 2001
+From: Matteo Frigo <athena@fftw.org>
+Date: Sun, 2 Jun 2013 09:05:50 -0400
+Subject: [PATCH 1/2] Fix the manual to work with both texinfo-4 and texinfo-5.
+
+Texinfo has been stable for the first 15 years of FFTW's history.
+Then some genius, with too much time in his hands and on a mission to
+deliver the world from the evil of the C language, decided to rewrite
+makeinfo in Perl, the old C version of makeinfo being, as I said,
+evil.  The official excuse for the rewrite was that now I can have my
+manual in XML format, as if XML were a feature.
+
+The result of this stroke of genius is that texinfo-5 has different
+rules for macro expansion than texinfo-4 does, specifically regarding
+whether or not spaces after a macro are ignored.  Texinfo-4 had weird
+rules, but at least they were constant and internally more or less
+consistent.  Texinfo-5 has different rules, and even worse the rules
+in texinfo-5 are inconsistent between the TeX and HTML output
+processors.  This situation makes it almost impossible for us to
+produce a manual that works with both texinfo 4 and 5 in all modes
+(TeX, info, and html).  The @noindent/@refill hack is my best shot at
+patching this situation.
+---
+ doc/fftw3.texi          | 72 +++++++++++++++++++++++++++++++++++++++++++++++--
+ doc/install.texi        |  8 +++---
+ doc/legacy-fortran.texi | 10 +++----
+ doc/modern-fortran.texi | 22 +++++++--------
+ doc/mpi.texi            | 58 +++++++++++++++++++--------------------
+ doc/other.texi          | 18 ++++++-------
+ doc/reference.texi      | 72 ++++++++++++++++++++++++-------------------------
+ doc/threads.texi        |  8 +++---
+ doc/tutorial.texi       | 16 +++++------
+ doc/version.texi        |  4 +++
+ 10 files changed, 180 insertions(+), 108 deletions(-)
+ create mode 100644 doc/version.texi
+
+diff --git a/doc/fftw3.texi b/doc/fftw3.texi
+index 0465c06..0b7af92 100644
+--- a/doc/fftw3.texi
++++ b/doc/fftw3.texi
+@@ -26,7 +26,60 @@
+ @parskip=@medskipamount
+ @end iftex
+ 
++@c
++@c The following macros are coded in a weird way:
++
++@c    @macro FOO
++@c    @noindent
++@c    <STUFF>
++@c    @refill
++@c    @end macro
++
++@c The @noindent/@refill stuff is not necessary in texinfo up to version
++@c 4, but it is a hack necessary to make texinfo-5 work.
++
++@c Texinfo has been stable for the first 15 years of FFTW's history.
++@c Then some genius, with too much time in his hands and on a mission to
++@c deliver the world from the evil of the C language, decided to rewrite
++@c makeinfo in Perl, the old C version of makeinfo being, as I said,
++@c evil.  The official excuse for the rewrite was that now I can have my
++@c manual in XML format, as if XML were a feature.
++
++@c The result of this stroke of genius is that texinfo-5 has different
++@c rules for macro expansion than texinfo-4 does, specifically regarding
++@c whether or not spaces after a macro are ignored.  Texinfo-4 had weird
++@c rules, but at least they were constant and internally more or less
++@c consistent.  Texinfo-5 has different rules, and even worse the rules
++@c in texinfo-5 are inconsistent between the TeX and HTML output
++@c processors.  This situation makes it almost impossible for us to
++@c produce a manual that works with both texinfo 4 and 5 in all modes
++@c (TeX, info, and html).  The @noindent/@refill hack is my best shot at
++@c patching this situation.
++
++@c "@noindent" has two effects: First, it makes texinfo-5 believe that
++@c the next "@ifinfo" is on a new line, otherwise texinfo-5 complains
++@c that it is not (even though it obviously is).  Second, "@noindent" is
++@c a macro that eats extra space, and we want this effect because somehow
++@c macro expansion in texinfo-5 inserts extra spaces that were not there
++@c in texinfo-4.
++
++@c "@refill" stops texinfo-5 from interpreting the rest of the line after
++@c a macro invocation as an argument to "@end tex".  For example, in
++@c "FFTW uses @Onlogn algorithms", somehow texinfo-5 thinks that
++@c "algorithms" is an argument to "@end tex".  "@noindent" would have the
++@c same effect (as would any other macro invocation, I think), but,
++@c unlike "@noindent", "@refill" does not eat spaces and does not scan
++@c the rest of the input file for macro arguments.  However, "@refill" is
++@c deemed "obsolete" in the texinfo-5 source code, so expect this to
++@c break at some point.
++
++@c This situation is wholly unsatisfactory, and the GNU project is
++@c obviously out of control.  If this nonsense persists, we will abandon
++@c texinfo and produce a latex-only version of the manual.
++
++
+ @macro Onlogn
++@noindent
+ @ifinfo
+ O(n log n)
+ @end ifinfo
+@@ -36,9 +89,11 @@ O(n log n)
+ @tex
+ $O(n \\log n)$
+ @end tex
++@refill
+ @end macro
+ 
+ @macro ndims
++@noindent
+ @ifinfo
+ n[0] x n[1] x n[2] x ... x n[d-1]
+ @end ifinfo
+@@ -48,9 +103,11 @@ n<sub>0</sub>&nbsp;&times;&nbsp;n<sub>1</sub>&nbsp;&times;&nbsp;n<sub>2</sub>&nb
+ @tex
+ $n_0 \\times n_1 \\times n_2 \\times \\cdots \\times n_{d-1}$
+ @end tex
++@refill
+ @end macro
+ 
+ @macro ndimshalf
++@noindent
+ @ifinfo
+ n[0] x n[1] x n[2] x ... x (n[d-1]/2 + 1)
+ @end ifinfo
+@@ -60,9 +117,11 @@ n<sub>0</sub>&nbsp;&times;&nbsp;n<sub>1</sub>&nbsp;&times;&nbsp;n<sub>2</sub>&nb
+ @tex
+ $n_0 \\times n_1 \\times n_2 \\times \\cdots \\times (n_{d-1}/2 + 1)$
+ @end tex
++@refill
+ @end macro
+ 
+ @macro ndimspad
++@noindent
+ @ifinfo
+ n[0] x n[1] x n[2] x ... x [2 (n[d-1]/2 + 1)]
+ @end ifinfo
+@@ -72,9 +131,11 @@ n<sub>0</sub>&nbsp;&times;&nbsp;n<sub>1</sub>&nbsp;&times;&nbsp;n<sub>2</sub>&nb
+ @tex
+ $n_0 \\times n_1 \\times n_2 \\times \\cdots \\times [2(n_{d-1}/2 + 1)]$
+ @end tex
++@refill
+ @end macro
+ 
+ @macro twodims{d1, d2}
++@noindent
+ @ifinfo
+ \d1\ x \d2\
+ @end ifinfo
+@@ -84,9 +145,11 @@ $n_0 \\times n_1 \\times n_2 \\times \\cdots \\times [2(n_{d-1}/2 + 1)]$
+ @tex
+ $\d1\ \\times \d2\$
+ @end tex
++@refill
+ @end macro
+ 
+ @macro threedims{d1, d2, d3}
++@noindent
+ @ifinfo
+ \d1\ x \d2\ x \d3\
+ @end ifinfo
+@@ -96,9 +159,11 @@ $\d1\ \\times \d2\$
+ @tex
+ $\d1\ \\times \d2\ \\times \d3\$
+ @end tex
++@refill
+ @end macro
+ 
+ @macro dimk{k}
++@noindent
+ @ifinfo
+ n[\k\]
+ @end ifinfo
+@@ -108,10 +173,12 @@ n<sub>\k\</sub>
+ @tex
+ $n_\k\$
+ @end tex
++@refill
+ @end macro
+ 
+ 
+ @macro ndimstrans
++@noindent
+ @ifinfo
+ n[1] x n[0] x n[2] x ... x n[d-1]
+ @end ifinfo
+@@ -121,6 +188,7 @@ n<sub>1</sub>&nbsp;&times;&nbsp;n<sub>0</sub>&nbsp;&times;&nbsp;n<sub>2</sub>&nb
+ @tex
+ $n_1 \\times n_0 \\times n_2 \\times \\cdots \\times n_{d-1}$
+ @end tex
++@refill
+ @end macro
+ 
+ @copying
+@@ -156,8 +224,8 @@ approved by the Free Software Foundation.
+ @titlepage
+ @title FFTW
+ @subtitle for version @value{VERSION}, @value{UPDATED}
+-@author{Matteo Frigo}
+-@author{Steven G. Johnson}
++@author Matteo Frigo
++@author Steven G. Johnson
+ @page
+ @vskip 0pt plus 1filll
+ @insertcopying
+diff --git a/doc/install.texi b/doc/install.texi
+index e7fd9dd..02d5b1e 100644
+--- a/doc/install.texi
++++ b/doc/install.texi
+@@ -33,10 +33,10 @@ efficiently by the standard FFTW distribution.
+ @cindex codelet
+ 
+ @menu
+-* Installation on Unix::        
+-* Installation on non-Unix systems::  
+-* Cycle Counters::              
+-* Generating your own code::    
++* Installation on Unix::
++* Installation on non-Unix systems::
++* Cycle Counters::
++* Generating your own code::
+ @end menu
+ 
+ @c ------------------------------------------------------------
+diff --git a/doc/legacy-fortran.texi b/doc/legacy-fortran.texi
+index b7013dd..7ae6142 100644
+--- a/doc/legacy-fortran.texi
++++ b/doc/legacy-fortran.texi
+@@ -26,11 +26,11 @@ The MPI parallel interface to FFTW is @emph{not} currently available
+ to legacy Fortran.
+ 
+ @menu
+-* Fortran-interface routines::  
+-* FFTW Constants in Fortran::   
+-* FFTW Execution in Fortran::   
+-* Fortran Examples::            
+-* Wisdom of Fortran?::          
++* Fortran-interface routines::
++* FFTW Constants in Fortran::
++* FFTW Execution in Fortran::
++* Fortran Examples::
++* Wisdom of Fortran?::
+ @end menu
+ 
+ @c -------------------------------------------------------
+diff --git a/doc/modern-fortran.texi b/doc/modern-fortran.texi
+index 4a2cf44..cad11fd 100644
+--- a/doc/modern-fortran.texi
++++ b/doc/modern-fortran.texi
+@@ -20,13 +20,13 @@ few subtle points such as memory allocation, wisdom, and data types
+ that deserve closer attention.
+ 
+ @menu
+-* Overview of Fortran interface::  
+-* Reversing array dimensions::  
+-* FFTW Fortran type reference::  
+-* Plan execution in Fortran::   
+-* Allocating aligned memory in Fortran::  
+-* Accessing the wisdom API from Fortran::  
+-* Defining an FFTW module::     
++* Overview of Fortran interface::
++* Reversing array dimensions::
++* FFTW Fortran type reference::
++* Plan execution in Fortran::
++* Allocating aligned memory in Fortran::
++* Accessing the wisdom API from Fortran::
++* Defining an FFTW module::
+ @end menu
+ 
+ @c -------------------------------------------------------
+@@ -124,7 +124,7 @@ Multiple planner flags are combined with @code{ior} (equivalent to @samp{|} in C
+ @end itemize
+ 
+ @menu
+-* Extended and quadruple precision in Fortran::  
++* Extended and quadruple precision in Fortran::
+ @end menu
+ 
+ @node Extended and quadruple precision in Fortran,  , Overview of Fortran interface, Overview of Fortran interface
+@@ -532,9 +532,9 @@ from Fortran, however, because of differences in file I/O and string
+ types between C and Fortran.
+ 
+ @menu
+-* Wisdom File Export/Import from Fortran::  
+-* Wisdom String Export/Import from Fortran::  
+-* Wisdom Generic Export/Import from Fortran::  
++* Wisdom File Export/Import from Fortran::
++* Wisdom String Export/Import from Fortran::
++* Wisdom Generic Export/Import from Fortran::
+ @end menu
+ 
+ @c =========>
+diff --git a/doc/mpi.texi b/doc/mpi.texi
+index 1b976d4..6f4ac38 100644
+--- a/doc/mpi.texi
++++ b/doc/mpi.texi
+@@ -45,19 +45,19 @@ of the serial (uniprocessor) FFTW, and focus only on the concepts new
+ to the MPI interface.
+ 
+ @menu
+-* FFTW MPI Installation::       
+-* Linking and Initializing MPI FFTW::  
+-* 2d MPI example::              
+-* MPI Data Distribution::       
+-* Multi-dimensional MPI DFTs of Real Data::  
+-* Other Multi-dimensional Real-data MPI Transforms::  
+-* FFTW MPI Transposes::         
+-* FFTW MPI Wisdom::             
+-* Avoiding MPI Deadlocks::      
+-* FFTW MPI Performance Tips::   
+-* Combining MPI and Threads::   
+-* FFTW MPI Reference::          
+-* FFTW MPI Fortran Interface::  
++* FFTW MPI Installation::
++* Linking and Initializing MPI FFTW::
++* 2d MPI example::
++* MPI Data Distribution::
++* Multi-dimensional MPI DFTs of Real Data::
++* Other Multi-dimensional Real-data MPI Transforms::
++* FFTW MPI Transposes::
++* FFTW MPI Wisdom::
++* Avoiding MPI Deadlocks::
++* FFTW MPI Performance Tips::
++* Combining MPI and Threads::
++* FFTW MPI Reference::
++* FFTW MPI Fortran Interface::
+ @end menu
+ 
+ @c ------------------------------------------------------------
+@@ -298,10 +298,10 @@ for these intermediate steps and tell you the correct amount to
+ allocate.
+ 
+ @menu
+-* Basic and advanced distribution interfaces::  
+-* Load balancing::              
+-* Transposed distributions::    
+-* One-dimensional distributions::  
++* Basic and advanced distribution interfaces::
++* Load balancing::
++* Transposed distributions::
++* One-dimensional distributions::
+ @end menu
+ 
+ @node Basic and advanced distribution interfaces, Load balancing, MPI Data Distribution, MPI Data Distribution
+@@ -745,9 +745,9 @@ uses besides FFTs, FFTW's transpose routines can be called directly,
+ as documented in this section. 
+ 
+ @menu
+-* Basic distributed-transpose interface::  
+-* Advanced distributed-transpose interface::  
+-* An improved replacement for MPI_Alltoall::  
++* Basic distributed-transpose interface::
++* Advanced distributed-transpose interface::
++* An improved replacement for MPI_Alltoall::
+ @end menu
+ 
+ @node Basic distributed-transpose interface, Advanced distributed-transpose interface, FFTW MPI Transposes, FFTW MPI Transposes
+@@ -1135,12 +1135,12 @@ datatypes, and constants.  See also @ref{FFTW Reference} for information
+ on functions and types in common with the serial interface.
+ 
+ @menu
+-* MPI Files and Data Types::    
+-* MPI Initialization::          
+-* Using MPI Plans::             
+-* MPI Data Distribution Functions::  
+-* MPI Plan Creation::           
+-* MPI Wisdom Communication::    
++* MPI Files and Data Types::
++* MPI Initialization::
++* Using MPI Plans::
++* MPI Data Distribution Functions::
++* MPI Plan Creation::
++* MPI Wisdom Communication::
+ @end menu
+ 
+ @node MPI Files and Data Types, MPI Initialization, FFTW MPI Reference, FFTW MPI Reference
+@@ -1296,9 +1296,9 @@ first dimension of an @ndims{} array that is stored on the local
+ process.  @xref{Basic and advanced distribution interfaces}.  For
+ @code{FFTW_MPI_TRANSPOSED_OUT} plans, the @samp{_transposed} variants
+ are useful in order to also return the local portion of the first
+-dimension in the @ndimstrans{} transposed output.  @xref{Transposed
+-distributions}.  The advanced interface for multidimensional
+-transforms is:
++dimension in the @ndimstrans{} transposed output.  
++@xref{Transposed distributions}.  
++The advanced interface for multidimensional transforms is:
+ 
+ @cindex advanced interface
+ @findex fftw_mpi_local_size_many
+diff --git a/doc/other.texi b/doc/other.texi
+index 55c6f75..962f6ee 100644
+--- a/doc/other.texi
++++ b/doc/other.texi
+@@ -1,10 +1,10 @@
+ @node Other Important Topics, FFTW Reference, Tutorial, Top
+ @chapter Other Important Topics
+ @menu
+-* SIMD alignment and fftw_malloc::  
+-* Multi-dimensional Array Format::  
+-* Words of Wisdom-Saving Plans::  
+-* Caveats in Using Wisdom::     
++* SIMD alignment and fftw_malloc::
++* Multi-dimensional Array Format::
++* Words of Wisdom-Saving Plans::
++* Caveats in Using Wisdom::
+ @end menu
+ 
+ @c ------------------------------------------------------------
+@@ -74,11 +74,11 @@ was necessary.  Since several different formats are common, this topic
+ is often a source of confusion.
+ 
+ @menu
+-* Row-major Format::            
+-* Column-major Format::         
+-* Fixed-size Arrays in C::      
+-* Dynamic Arrays in C::         
+-* Dynamic Arrays in C-The Wrong Way::  
++* Row-major Format::
++* Column-major Format::
++* Fixed-size Arrays in C::
++* Dynamic Arrays in C::
++* Dynamic Arrays in C-The Wrong Way::
+ @end menu
+ 
+ @c =========>
+diff --git a/doc/reference.texi b/doc/reference.texi
+index 0381e9a..19343e6 100644
+--- a/doc/reference.texi
++++ b/doc/reference.texi
+@@ -6,14 +6,14 @@ one-processor) FFTW functions.  Parallel transforms are described in
+ later chapters.
+ 
+ @menu
+-* Data Types and Files::        
+-* Using Plans::                 
+-* Basic Interface::             
+-* Advanced Interface::          
+-* Guru Interface::              
+-* New-array Execute Functions::  
+-* Wisdom::                      
+-* What FFTW Really Computes::   
++* Data Types and Files::
++* Using Plans::
++* Basic Interface::
++* Advanced Interface::
++* Guru Interface::
++* New-array Execute Functions::
++* Wisdom::
++* What FFTW Really Computes::
+ @end menu
+ 
+ @c ------------------------------------------------------------
+@@ -30,9 +30,9 @@ You must also link to the FFTW library.  On Unix, this
+ means adding @code{-lfftw3 -lm} at the @emph{end} of the link command.
+ 
+ @menu
+-* Complex numbers::             
+-* Precision::                   
+-* Memory Allocation::           
++* Complex numbers::
++* Precision::
++* Memory Allocation::
+ @end menu
+ 
+ @c =========>
+@@ -298,12 +298,12 @@ multiplicities, and strides.  This section describes the the basic
+ interface, which we expect to satisfy the needs of most users.
+ 
+ @menu
+-* Complex DFTs::                
+-* Planner Flags::               
+-* Real-data DFTs::              
+-* Real-data DFT Array Format::  
+-* Real-to-Real Transforms::     
+-* Real-to-Real Transform Kinds::  
++* Complex DFTs::
++* Planner Flags::
++* Real-data DFTs::
++* Real-data DFT Array Format::
++* Real-to-Real Transforms::
++* Real-to-Real Transform Kinds::
+ @end menu
+ 
+ @c =========>
+@@ -985,9 +985,9 @@ the same fashion as in the basic interface, and the resulting
+ @code{fftw_plan} is used in the same way (@pxref{Using Plans}).
+ 
+ @menu
+-* Advanced Complex DFTs::       
+-* Advanced Real-data DFTs::     
+-* Advanced Real-to-real Transforms::  
++* Advanced Complex DFTs::
++* Advanced Real-data DFTs::
++* Advanced Real-to-real Transforms::
+ @end menu
+ 
+ @c =========>
+@@ -1186,12 +1186,12 @@ important that they pay special attention to the documentation lest they
+ shoot themselves in the foot.
+ 
+ @menu
+-* Interleaved and split arrays::  
+-* Guru vector and transform sizes::  
+-* Guru Complex DFTs::           
+-* Guru Real-data DFTs::         
+-* Guru Real-to-real Transforms::  
+-* 64-bit Guru Interface::       
++* Interleaved and split arrays::
++* Guru vector and transform sizes::
++* Guru Complex DFTs::
++* Guru Real-data DFTs::
++* Guru Real-to-real Transforms::
++* 64-bit Guru Interface::
+ @end menu
+ 
+ @c =========>
+@@ -1664,10 +1664,10 @@ This section documents the FFTW mechanism for saving and restoring
+ plans from disk.  This mechanism is called @dfn{wisdom}.
+ 
+ @menu
+-* Wisdom Export::               
+-* Wisdom Import::               
+-* Forgetting Wisdom::           
+-* Wisdom Utilities::            
++* Wisdom Export::
++* Wisdom Import::
++* Forgetting Wisdom::
++* Wisdom Utilities::
+ @end menu
+ 
+ @c =========>
+@@ -1825,12 +1825,12 @@ one-dimensional (1d) transform definitions, and then give the
+ straightforward extension to multi-dimensional transforms.
+ 
+ @menu
+-* The 1d Discrete Fourier Transform (DFT)::  
+-* The 1d Real-data DFT::        
+-* 1d Real-even DFTs (DCTs)::    
+-* 1d Real-odd DFTs (DSTs)::     
+-* 1d Discrete Hartley Transforms (DHTs)::  
+-* Multi-dimensional Transforms::  
++* The 1d Discrete Fourier Transform (DFT)::
++* The 1d Real-data DFT::
++* 1d Real-even DFTs (DCTs)::
++* 1d Real-odd DFTs (DSTs)::
++* 1d Discrete Hartley Transforms (DHTs)::
++* Multi-dimensional Transforms::
+ @end menu
+ 
+ @c =========>
+diff --git a/doc/threads.texi b/doc/threads.texi
+index e5047c3..ebf9d5f 100644
+--- a/doc/threads.texi
++++ b/doc/threads.texi
+@@ -26,10 +26,10 @@ threads if your problem is sufficiently large.
+ @cindex threads
+ 
+ @menu
+-* Installation and Supported Hardware/Software::  
+-* Usage of Multi-threaded FFTW::  
+-* How Many Threads to Use?::    
+-* Thread safety::               
++* Installation and Supported Hardware/Software::
++* Usage of Multi-threaded FFTW::
++* How Many Threads to Use?::
++* Thread safety::
+ @end menu
+ 
+ @c ------------------------------------------------------------
+diff --git a/doc/tutorial.texi b/doc/tutorial.texi
+index 5763275..f04dd6b 100644
+--- a/doc/tutorial.texi
++++ b/doc/tutorial.texi
+@@ -1,11 +1,11 @@
+ @node  Tutorial, Other Important Topics, Introduction, Top
+ @chapter Tutorial
+ @menu
+-* Complex One-Dimensional DFTs::  
+-* Complex Multi-Dimensional DFTs::  
+-* One-Dimensional DFTs of Real Data::  
+-* Multi-Dimensional DFTs of Real Data::  
+-* More DFTs of Real Data::      
++* Complex One-Dimensional DFTs::
++* Complex Multi-Dimensional DFTs::
++* One-Dimensional DFTs of Real Data::
++* Multi-Dimensional DFTs of Real Data::
++* More DFTs of Real Data::
+ @end menu
+ 
+ This chapter describes the basic usage of FFTW, i.e., how to compute
+@@ -514,9 +514,9 @@ complex transforms.)
+ @node More DFTs of Real Data,  , Multi-Dimensional DFTs of Real Data, Tutorial
+ @section More DFTs of Real Data
+ @menu
+-* The Halfcomplex-format DFT::  
+-* Real even/odd DFTs (cosine/sine transforms)::  
+-* The Discrete Hartley Transform::  
++* The Halfcomplex-format DFT::
++* Real even/odd DFTs (cosine/sine transforms)::
++* The Discrete Hartley Transform::
+ @end menu
+ 
+ FFTW supports several other transform types via a unified @dfn{r2r}
+-- 
+1.8.3
+

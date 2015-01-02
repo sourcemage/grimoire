@@ -10,7 +10,7 @@ function db_driver_depends() {
   if list_find "$PHP5_DATABASE_DRIVERS" "$db_driver" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
     depends $db_spell "--with-$db_driver"
   else
-    OPTS="$OPTS --without-$db_driver"
+    list_add "PHP5_OPTS" "--without-$db_driver"
   fi
 }
 
@@ -31,7 +31,7 @@ else
                    "--enable-xml --enable-dom --with-xmlrpc" \
                    "--disable-xml --disable-dom --without-xmlrpc --disable-xmlreader --disable-xmlwriter --disable-simplexml" \
                    "For XML support (required for SOAP)"
-fi
+fi &&
 
 optional_depends libxslt \
                  "--with-xsl" "--without-xsl" \
@@ -41,7 +41,7 @@ if is_depends_enabled $SPELL libxml2 ; then
   config_query_option PHP5_OPTS "Enable SOAP support?" n \
                       "--enable-soap" "--disable-soap"
 else
-  PHP5_OPTS="${PHP5_OPTS} --disable-soap"
+  list_add "PHP5_OPTS" "--disable-soap"
 fi &&
 
 optional_depends pth \
@@ -55,31 +55,31 @@ if [[ $PHP5_SAPI == apache ]]; then
   esac &&
 
   if [[ "$(get_spell_provider $SPELL APACHE)" == 'apache1' ]]; then
-    PHP5_OPTS="--with-apxs --without-apxs2 $PHP5_OPTS"
+    list_add "PHP5_OPTS" "--with-apxs --without-apxs2"
   else
-    PHP5_OPTS="--with-apxs2 --without-apxs $PHP5_OPTS"
+    list_add "PHP5_OPTS" "--with-apxs2 --without-apxs"
   fi
 fi &&
 
 if [[ "$PHP5_PCRE" == "none" ]]; then
-  PHP5_OPTS="$PHP5_OPTS --without-pcre-regex --without-pcre"
+ list_add "PHP5_OPTS" "--without-pcre-regex --without-pcre"
 elif [[ "$PHP5_PCRE" == "external" ]]; then
-  depends pcre "--with-pcre-regex=${INSTALL_ROOT}/usr --with-pcre=${INSTALL_ROOT}/usr"
+  depends pcre "--with-pcre-regex=${INSTALL_ROOT}/usr" 
 fi &&
 
 optional_depends C-CLIENT \
                  "--with-imap=${INSTALL_ROOT}/usr" "--without-imap" \
                  "for IMAP support" &&
 
-optional_depends openssl \
+optional_depends SSL \
                  "--with-openssl" "--without-openssl" \
                  "for OpenSSL support" &&
 
-if list_find "${OPTS}" "--with-imap"; then
-  if is_depends_enabled $SPELL openssl; then
-    OPTS="$OPTS --with-imap-ssl"
+if is_depends_enabled $SPELL $(get_spell_provider $SPELL C-CLIENT); then
+  if is_depends_enabled $SPELL $(get_spell_provider $SPELL SSL); then
+    list_add "PHP5_OPTS" "--with-imap-ssl"
   else
-    optional_depends openssl \
+    optional_depends SSL \
                      "--with-imap-ssl" \
                      "--without-imap-ssl" \
                      "for SSL support with IMAP (but not elsewhere)"
@@ -87,10 +87,6 @@ if list_find "${OPTS}" "--with-imap"; then
 fi &&
 
 optional_depends MAIL-TRANSPORT-AGENT "" "" "for SMTP support" &&
-
-optional_depends enchant \
-                 "--with-enchant" "--without-enchant" \
-                 "use enchant for spelling functions?" &&
 
 optional_depends aspell \
                  "--with-pspell" "--without-pspell" \
@@ -100,9 +96,20 @@ optional_depends mhash \
                  "--with-mhash" "--without-mhash" \
                  "for hash functions support" &&
 
-optional_depends oniguruma \
-                 "--with-onig=${INSTALL_ROOT}/usr" "--without-onig" \
-                 "for external oniguruma" &&
+if is_version_less 5.2.9999 "${VERSION}"; then
+  optional_depends enchant \
+                   "--with-enchant" "--without-enchant" \
+                   "use enchant for spelling functions?" &&
+
+  optional_depends icu \
+                   "--enable-intl --with-icu-dir=${INSTALL_ROOT}/usr" \
+                   "--disable-intl --without-icu-dir" \
+                   "for ICU unicode (internationalization) support" &&
+
+  optional_depends oniguruma \
+                   "--with-onig=${INSTALL_ROOT}/usr" "--without-onig" \
+                   "for external oniguruma"
+fi &&
 
 optional_depends libmcrypt \
                  "--with-mcrypt" "--without-mcrypt" \
@@ -134,41 +141,57 @@ optional_depends gettext \
                  "--with-gettext" "--without-gettext" \
                  "for GNU gettext support" &&
 
-optional_depends icu \
-                 "--with-icu-dir=${INSTALL_ROOT}/usr" \
-                 "--without-icu-dir" \
-                 "for ICU unicode support" &&
-
 # new database madness
 # DB_DRIVERS="mysql mysqli pgsql sqlite sqlite3 firebird unixODBC iODBC"
 # PDO_DRIVERS="mysql pgsql firebird unixODBC iODBC"
 if list_find "$PHP5_DATABASE_DRIVERS" "mysql" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
   depends MYSQL &&
 
-  if [[ "${VERSION:0:3}" == "5.3" ]]; then
+  if is_version_less 5.2.9999 "${VERSION}"; then
     config_query PHP5_MYSQLND "Do you want to use the MySQL Native Driver [mysqlnd]? (expiremental)" n &&
 
     if [[ "${PHP5_MYSQLND}" == "y" ]]; then
-      PHP5_OPTS="$PHP5_OPTS --with-mysql=mysqlnd"
+      list_add "PHP5_OPTS" "--with-mysql=mysqlnd"
     else
-      PHP5_OPTS="$PHP5_OPTS --with-mysql"
+      list_add "PHP5_OPTS" "--with-mysql=${INSTALL_ROOT}/usr"
     fi
+  else
+    list_add "PHP5_OPTS" "--with-mysql=${INSTALL_ROOT}/usr"
   fi
 else
-  OPTS="$OPTS --without-mysql"
+  list_add "PHP5_OPTS" "--without-mysql"
 fi &&
+
 db_driver_depends "mysqli" "MYSQL" &&
 db_driver_depends "pgsql" "postgresql" &&
-db_driver_depends "sqlite" "sqlite2" &&
-db_driver_depends "sqlite3" "sqlite" &&
-db_driver_depends "firebird" "firebird" &&
+
+if is_version_less "${VERSION}" 5.4; then
+  db_driver_depends "sqlite" "sqlite2"
+fi &&
+
+if is_version_less 5.2.9999 "${VERSION}"; then
+  db_driver_depends "sqlite3" "sqlite"
+fi &&
+
+if list_find "${PHP5_DATABASE_DRIVERS}" "firebird"; then
+  depends firebird "--with-pdo-firebird=${INSTALL_ROOT}/usr"
+else
+  list_add "PHP5_OPTS" "--without-pdo-firebird"
+fi &&
+
+if list_find "${PHP5_DATABASE_DRIVERS}" "sqlite3"; then
+  depends sqlite "--with-pdo-sqlite=${INSTALL_ROOT}/usr"
+else
+  list_add "PHP5_OPTS" "--without-pdo-sqlite"
+fi &&
+
 # unixODBC and iODBC are mutually exclusive... first one in wins?
 if list_find "$PHP5_DATABASE_DRIVERS" "unixODBC" || list_find "$PHP5_DATABASE_DRIVERS" "all"; then
   depends unixodbc "--with-unixODBC=${INSTALL_ROOT}/usr --without-iodbc"
 elif list_find "$PHP5_DATABASE_DRIVERS" "iODBC"; then
   depends unixodbc "--with-iodbc=${INSTALL_ROOT}/usr --without-unixODBC"
 else
-  OPTS="$OPTS --without-iodbc --without-unixODBC"
+  list_add "PHP5_OPTS" "--without-iodbc --without-unixODBC"
 fi &&
 
 # DBA drivers
@@ -220,10 +243,9 @@ if [[ "${PHP5_GD}" == "external" ]]; then
 fi &&
 
 if [[ "${PHP5_GD}" != "none" ]]; then
-
     optional_depends libxpm \
                      "--with-xpm-dir=${INSTALL_ROOT}/usr" \
-                     "--without-xpm" \
+                     "--without-xpm-dir" \
                      "for XPM image support" &&
 
   if [[ "${PHP5_GD}" == "internal" ]]; then
@@ -241,18 +263,18 @@ if [[ "${PHP5_GD}" != "none" ]]; then
                      "for PNG support (for GD)"
   fi &&
 
-    optional_depends t1lib \
-                     "--with-t1lib=${INSTALL_ROOT}/usr" \
-                     "--without-t1lib" \
-                     "for t1lib support" &&
+  optional_depends t1lib \
+                   "--with-t1lib=${INSTALL_ROOT}/usr" \
+                   "--without-t1lib" \
+                   "for t1lib support" &&
 
-    optional_depends freetype2 \
-                     "--with-freetype-dir=${INSTALL_ROOT}/usr" \
-                     "--without-freetype-dir" \
-                     "for freetype2 support" &&
+  optional_depends freetype2 \
+                   "--with-freetype-dir=${INSTALL_ROOT}/usr" \
+                   "--without-freetype-dir" \
+                   "for freetype2 support" &&
 
-    optional_depends font-jis-misc \
-                     "--enable-gd-jis-conv" \
-                     "--disable-gd-jis-conv" \
-                     "for JIS-mapped Japanese font support"
+  optional_depends font-jis-misc \
+                   "--enable-gd-jis-conv" \
+                   "--disable-gd-jis-conv" \
+                   "for JIS-mapped Japanese font support"
 fi

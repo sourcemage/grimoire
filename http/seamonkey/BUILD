@@ -7,6 +7,13 @@ MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey  &&
 CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
+#
+# No AVX optimization for Mozilla (GCC 4.6/4.7 or XUL bug on
+# SandyBridge/IvyBridge CPUs). See PR 52762 on GCC bug tracker.
+#
+CFLAGS="${CFLAGS//-mavx} -mno-avx" &&
+CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx" &&
+
 MOZCONFIG="--prefix=$INSTALL_ROOT/usr \
            --with-default-mozilla-five-home=$INSTALL_ROOT/usr/lib/seamonkey \
            --enable-extensions=${SEAMONKEY_EXT// /,} \
@@ -20,6 +27,7 @@ MOZCONFIG="--prefix=$INSTALL_ROOT/usr \
            --with-system-nspr \
            --with-system-nss \
            --with-system-zlib \
+           --with-system-bz2 \
            --with-system-jpeg \
            --with-system-libevent \
            --disable-crashreporter \

@@ -1,11 +1,4 @@
-cd  $SPELL-$VERSION/src                 &&
-
-./configure  --enable-dns-for-realm     \
-             --infodir=/usr/share/info  \
-             --mandir=/usr/share/man    \
-             --enable-shared            \
-             --prefix=/usr              \
-             --localstatedir=/var       \
-             $OPTS                      &&
-make_single                             &&
-make
+cd  $SPELL-$VERSION/src &&
+CPPFLAGS="$CPPFLAGS -DUSE_INTERP_RESULT" &&
+OPTS+=" --enable-dns-for-realm"
+default_build

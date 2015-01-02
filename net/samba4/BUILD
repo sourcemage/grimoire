@@ -1,8 +1,11 @@
 OPTS="--enable-fhs                    \
-      $SAMBA4_PTHREADS                \
+      $SAMBA4                         \
       $OPTS"                          &&
 
-cd  $SOURCE_DIRECTORY/source4  &&
-make_single    &&
+if [[ "$SAMBA4_BRANCH"  ==  "scm" ]]; then
+  cd  $SOURCE_DIRECTORY/source4  &&
+  make_single
+fi &&
+
 default_build  &&
 make_normal

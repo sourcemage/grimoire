@@ -19,4 +19,4 @@ else
   make altinstall DESTDIR="$SOURCE_DIRECTORY/anywhere/$INSTALL_ROOT"
 fi &&
 
-message "Fake stage complete, installing to real path.."
+message "${MESSAGE_COLOR}Fake stage complete, installing to real path...${DEFAULT_COLOR}"

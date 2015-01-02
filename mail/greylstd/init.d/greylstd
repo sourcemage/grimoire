@@ -1,0 +1,25 @@
+#!/bin/bash
+
+. /etc/sysconfig/greylstd
+
+PROGRAM=/usr/sbin/greylstd
+PIDFILE="/var/run/greylstd/greylstd.pid"
+ARGS="-d $DBPATH"
+RUNLEVEL=3
+NEEDS="+network"
+
+start() {
+  required_executable /bin/su
+  required_executable /bin/id
+
+  echo "Starting $NAME..."
+
+  GROUP="$(id -ng $USER)"
+  RUNDIR="$(dirname $PIDFILE)"
+  [[ -d $RUNDIR ]] || mkdir -p $RUNDIR && chown $USER:$GROUP $RUNDIR
+
+  su $USER -s /bin/sh -c "$PROGRAM $ARGS"
+  evaluate_retval
+}
+
+. /etc/init.d/smgl_init

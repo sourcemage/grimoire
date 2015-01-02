@@ -1,1 +1,5 @@
-OPTS="--disable-dependency-tracking $AMSYNTH_OSS $OPTS"  default_build
+OPTS="--disable-dependency-tracking \
+      $AMSYNTH_OPTS \
+      $OPTS" &&
+
+default_build

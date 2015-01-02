@@ -1,4 +1,4 @@
-OPTS="--enable-video-extractor=${TRACKER_EXTRACTOR} \
+OPTS="--enable-generic-media-extractor=${TRACKER_EXTRACTOR} \
       ${TRACKER_SEARCH_TOOL}                        \
       ${TRACKER_PREFERENCES}                        \
       ${TRACKER_STATUS}                             \

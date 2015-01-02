@@ -1,3 +1,3 @@
 make_single &&
-make prefix="$INSTALL_ROOT/usr" CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" &&
+make prefix="$INSTALL_ROOT/usr" CFLAGS="$CFLAGS" LFLAGS="$LDFLAGS" &&
 make_normal

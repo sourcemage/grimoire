@@ -1,10 +1,6 @@
 create_group    at                                   &&
 create_account  at                                   &&
 
-if [ ! -d /var/spool/atjobs ]; then
-  mkdir  -p  /var/spool/atjobs
-fi                                                   &&
-
 SENDMAIL='#define  SENDMAIL  "/usr/sbin/sendmail"'   &&
 
 ./configure  --build=$BUILD                          \
@@ -19,4 +15,7 @@ SENDMAIL='#define  SENDMAIL  "/usr/sbin/sendmail"'   &&
              $OPTS                                   &&
 
 echo  "$SENDMAIL"  >>  config.h                      &&
-make_single
+
+make_single &&
+make &&
+make_normal

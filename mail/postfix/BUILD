@@ -2,14 +2,20 @@ create_account postfix &&
 create_account postdrop &&
 create_account mail &&
 
-mkdir -p "$INSTALL_ROOT/var/spool/mail" &&
-chmod 1777 "$INSTALL_ROOT/var/spool/mail" &&
-chown mail:mail "$INSTALL_ROOT/var/spool/mail" &&
-chgrp -R mail "$INSTALL_ROOT/var/spool/mail" &&
+# always correct permissions for older setups
+install -vm 2775 -d -o mail -g mail "$INSTALL_ROOT/var/spool/mail" &&
 
 # We want blank vars
 local AUXLIBS="-L$INSTALL_ROOT/usr/lib -L$INSTALL_ROOT/lib -lm" &&
 local CCARGS="" &&
+
+if is_depends_enabled $SPELL pcre; then
+    AUXLIBS="$AUXLIBS -lpcre" &&
+    CCARGS="$CCARGS -DHAS_PCRE" &&
+    message "${MESSAGE_COLOR}PCRE requested: Using PCRE${DEFAULT_COLOR}"
+else
+    CCARGS="$CCARGS -DNO_PCRE"
+fi &&
 
 if is_depends_enabled $SPELL openldap; then
     AUXLIBS="$AUXLIBS -lldap -llber" &&
@@ -38,6 +44,14 @@ if is_depends_enabled $SPELL cyrus-sasl; then
     message "${MESSAGE_COLOR}Cyrus-SASL requested: Using Cyrus-SASL${DEFAULT_COLOR}"
 fi &&
 
+if is_depends_enabled $SPELL db; then
+    AUXLIBS="$AUXLIBS -ldb"
+    CCARGS="$CCARGS -DHAS_DB -I$INSTALL_ROOT/usr/include" &&
+    message "${MESSAGE_COLOR}Berkeley DB requested: Using Berkeley DB${DEFAULT_COLOR}"
+else
+    CCARGS="$CCARGS -DNO_DB"
+fi &&
+
 if is_depends_enabled $SPELL sqlite; then
     AUXLIBS="$AUXLIBS -lsqlite3"
     CCARGS="$CCARGS -DHAS_SQLITE -I$INSTALL_ROOT/usr/include" &&
@@ -56,16 +70,14 @@ if is_depends_enabled $SPELL postgresql; then
     message "${MESSAGE_COLOR}PostgreSQL requested: Using PostgresSQL${DEFAULT_COLOR}"
 fi &&
 
-if is_depends_enabled $SPELL openssl; then
+if is_depends_enabled $SPELL $(get_spell_provider $SPELL SSL); then
     AUXLIBS="$AUXLIBS -lssl -lcrypto" &&
     CCARGS="$CCARGS -DHAS_SSL -DUSE_TLS -I$INSTALL_ROOT/usr/include/openssl" &&
-    message "${MESSAGE_COLOR}OpenSSL requested: Using OpenSSL for SSL/TLS${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}SSL library requested: Using $(get_spell_provider $SPELL SSL) for SSL/TLS${DEFAULT_COLOR}"
 fi &&
 
-# fix to get man pages to install in /usr/man
-#sedit "s:/usr/local:$INSTALL_ROOT/usr:" src/global/mail_params.h &&
+# fix to get man pages to install in /usr/share/man
 CCARGS="$CCARGS -DDEF_MANPAGE_DIR=\\\"$INSTALL_ROOT/usr/share/man\\\"" &&
-
 
 # NPTL glibc fix
 if glibc_is_nptl; then
@@ -77,18 +89,4 @@ make makefiles \
      "OPT=$CFLAGS" \
      "AUXLIBS=$AUXLIBS" \
      "CCARGS=$CCARGS" &&
-make &&
-
-# Fix directories in the main.cf
-if [[ "$POSTFIX_PRE_EXISTING" == "yes" ]]; then
-    if [[ "$POSTFIX_FIX_MAINCF" == "y" ]]; then
-        # repair directories in the main.cf
-        local MANPAGE_DIR="$(grep manpage_directory $INSTALL_ROOT/etc/postfix/main.cf | cut -d"=" -f2)" &&
-        MANPAGE_DIR="${MANPAGE_DIR## }" &&
-
-        if [[ "$MANPAGE_DIR" != "$INSTALL_ROOT/usr/share/man" ]]; then
-            sed -i -e "s|manpage_directory.*=.*|manpage_directory = $INSTALL_ROOT/usr/share/man|" \
-                "$INSTALL_ROOT/etc/postfix/main.cf"
-        fi
-    fi
-fi
+make

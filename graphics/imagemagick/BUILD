@@ -1,11 +1,10 @@
-if [[ "$IMAGEMAGICK_X" != "y" ]]; then
-  OPTS="--without-x $OPTS"
-fi &&
-
-# GS is broken with jpeg 8, so disable it
 OPTS="--enable-shared \
       --without-autotrace \
-      --without-gslib \
+      --with-threads \
+      --with-modules \
       $IMAGEMAGICK_HDRI \
+      $IMAGEMAGICK_OPENMP \
+      --with-quantum-depth=${IMAGEMAGICK_QUANTUM_DEPTH} \
       $OPTS" &&
+
 default_build

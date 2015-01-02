@@ -1,2 +1,1 @@
-make_single  &&
-default_build
+CFLAGS+="-Wno-error=deprecated-declarations" default_build

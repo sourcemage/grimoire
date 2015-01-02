@@ -1,37 +1,75 @@
-depends  glib2   &&
-depends  gtk+2   &&
-depends  id3lib  &&
+depends atk &&
+depends bzip2 &&
+depends cairo &&
+depends expat &&
+depends fontconfig &&
+depends freetype2 &&
+depends gdk-pixbuf2 &&
+depends libffi &&
+depends libpng &&
+depends libx11 &&
+depends libxau &&
+depends libxcb &&
+depends libxdmcp &&
+depends libxext &&
+depends libxrender &&
+depends pango &&
+depends pcre &&
+depends pixman &&
+depends zlib &&
+depends glib2 &&
+depends itstool &&
+
+if [ "$EASYTAG_GTK3" == "y" ]; then
+  depends gtk+3
+else
+  depends gtk+2 '--with-gtk2'
+fi  &&
+
+optional_depends libid3tag \
+                 "--enable-mp3" \
+                 "--disable-mp3" \
+                 "for MP3 files support" &&
+
+if is_depends_enabled $SPELL libid3tag; then
+  optional_depends id3lib \
+                   "--enable-id3v23" \
+                   "--disable-id3v23" \
+                   "for writing id3v2.3 tags support" &&
+
+  if is_depends_enabled $SPELL id3lib; then
+    depends -sub CXX gcc
+  fi
+fi &&
 
 optional_depends  flac                   \
                   "--enable-flac"        \
                   "--disable-flac"       \
                   "Enable Flac support"  &&
 
-optional_depends  libvorbis                    \
+optional_depends  libogg                    \
                   "--enable-ogg"               \
                   "--disable-ogg"              \
                   "Enable Ogg/Vorbis support"   &&
+
+if is_depends_enabled $SPELL libogg; then
+  depends libvorbis
+fi &&
 
 optional_depends  gettext               \
                   "--enable-nls"        \
                   "--disable-nls"       \
                   "Enable nls support"  &&
 
+optional_depends -sub MP4 taglib \
+                 "--enable-mp4" \
+                 "--disable-mp4" \
+                 "for MP4 files support" &&
+
 optional_depends  wavpack                   \
                   "--enable-wavpack"        \
                   "--disable-wavpack"       \
                   "Enable Wavpack support"  &&
-
-# easytag can use either faad2 or libmp4v2 for MP4
-# support, no --disable options to have that work
-optional_depends  faad2                           \
-                  "--enable-mp4"                  \
-                  ""                              \
-                  "Enable Mp4 container support"  &&
-optional_depends  mp4v2                           \
-                  "--enable-mp4"                  \
-                  ""                              \
-                  "Use libmp4v2 for Mp4 support"  &&
 
 optional_depends  speex                           \
                   "--enable-speex"                \

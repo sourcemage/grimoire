@@ -1,2 +1,2 @@
 OPTS+=" --enable-compiler-warnings=no" &&
-LIBS+=" -lm" default_build
+LIBS+=" -lm -lX11" default_build
