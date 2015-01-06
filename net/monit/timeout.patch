@@ -1,0 +1,20 @@
+--- src/net.c.orig	2014-12-22 21:41:37.000000000 +0300
++++ src/net.c	2015-01-07 01:23:01.461108587 +0300
+@@ -515,7 +515,7 @@
+                         gettimeofday(&t_in, NULL);
+                         /* The read from connection-less raw socket via recvfrom() provides messages regardless of origin, the source IP address is set in sout, we have to check the IP and skip responses belonging to other ICMP conversations */
+                         if (sout.sin_addr.s_addr != sa->sin_addr.s_addr || icmpin->icmp_type != ICMP_ECHOREPLY || id_in != id_out || seq_in >= (uint16_t)count) {
+-                                if ((read_timeout = timeout - ((t_in.tv_sec - t_out.tv_sec) + (t_in.tv_usec - t_out.tv_usec) / 1000.)) > 0)
++                                if ((read_timeout = timeout - ((t_in.tv_sec - t_out.tv_sec) * 1000 + (t_in.tv_usec - t_out.tv_usec) / 1000.)) > 0)
+                                         goto readnext; // Try to read next packet, but don't exceed the timeout while waiting for our response so we won't loop forever if the socket is flooded with other ICMP packets
+                         } else {
+                                 data = (unsigned char *)icmpin->icmp_data;
+@@ -525,7 +525,7 @@
+                                 break; // Wait for one response only
+                         }
+                 } else
+-                        LogError("Ping response for %s %d/%d timed out -- no response within %d seconds\n", hostname, i + 1, count, timeout);
++                        LogError("Ping response for %s %d/%d timed out -- no response within %d seconds\n", hostname, i + 1, count, timeout / 1000);
+         }
+ error1:
+         do {
