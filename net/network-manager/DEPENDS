@@ -1,13 +1,25 @@
-depends gconf2 &&
+depends dbus    &&
+depends dbus-glib &&
 depends gettext && 
 depends glib2 &&
-depends intltool && 
-depends iproute2 && 
-depends libnl &&
-depends wireless_tools &&
-depends wpa_supplicant &&
 depends iptables &&
+depends libnl    &&
+depends libgcrypt &&
+depends libndp   &&
+depends readline &&
+depends util-linux &&
 depends -sub GUDEV UDEV &&
+depends $NETWORK_MANAGER_CRYPT "--with-crypto=$NETWORK_MANAGER_CRYPT" &&
+
+optional_depends newt  \
+                 '--with-nmtui=yes' \
+                 '--with-nmtui=no' \
+                 'Build nmtui' &&
+
+optional_depends libsoup \
+                 '--with-libsoup=yes' \
+                 '--with-libsoup=no' \
+                 'SOAP support' &&
 
 optional_depends gtk-doc \
         "--enable-gtk-doc"  \
@@ -16,14 +28,19 @@ optional_depends gtk-doc \
 
 
 optional_depends policykit                    \
-                 "--enable-polkit"            \
-                 "--disable-polkit"           \
+                 "--enable-polkit=yes"        \
+                 "--enable-polkit=disabled"   \
                  "Enable PolicyKit support?"  &&
 
 optional_depends consolekit                                     \
-                 "--with-ck"                                    \
-                 "--without-ck"                                 \
+                 "--with-session-tracking=ck"                   \
+                 "--with-session-tracking=none"                 \
                  "Enable ConsoleKit session tracking support?"  &&
+
+optional_depends dnsmasq \
+                 "--with-dnsmasq" \
+                 "" \
+                 "DNS proxy with integrated DHCP" &&
 
 optional_depends dhcpcd                                 \
                 "--with-dhcpcd=yes --with-dhclient=no"  \
@@ -39,8 +56,18 @@ optional_depends linux-firmware                              \
                  "--with-kernel-firmware-dir=/lib/firmware"  \
                  "" "Use Linux Firmware?"                    &&
 
-if [ "$NETWORK_MANAGER_CRYPTO" = "nss" ]; then
-   depends nss "--with-crypto=nss" 
-else
-   depends gnutls "--with-crypto=gnutls"
-fi
+optional_depends upower \
+                 "--with-suspend-resume=upower" \
+                 "" \
+                 "Suspend/Resume support" &&
+
+optional_depends ifupdown \
+               "--enable-ifupdown" \
+               "" \
+               "Network activation" &&
+
+optional_depends BLUEZ \
+               "" \
+               "" \
+               "Bluetooth support" &&
+runtime_depends wpa_supplicant

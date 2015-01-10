@@ -1,9 +1,5 @@
-COPTS="$COPTS $DNSMASQ_IDN $DNSMASQ_RTC $DNSMASQ_TFTP $DNSMASQ_DHCP $DNSMASQ_SCRIPT"
-if is_depends_enabled $SPELL dbus; then
-    COPTS="$COPTS -DHAVE_DBUS"
-fi &&
+COPTS="$COPTS  $DNSMASQ_RTC $DNSMASQ_TFTP $DNSMASQ_DHCP $DNSMASQ_SCRIPT"
+make COPTS="$OPTS $COPTS" &&
 if is_depends_enabled $SPELL gettext; then
-    make AWK=gawk PREFIX=/usr CFLAGS="$CFLAGS $COPTS" all-i18n
-else
-    make AWK=gawk PREFIX=/usr CFLAGS="$CFLAGS $COPTS"
+  make all-i18n
 fi

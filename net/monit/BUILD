@@ -1,3 +1,5 @@
-OPTS="--bindir=$INSTALL_ROOT/sbin $OPTS" &&
-default_build_configure &&
-default_build_make
+OPTS="--bindir=$INSTALL_ROOT/sbin \
+      --sysconfdir=$INSTALL_ROOT/etc/sysconfig \
+      $OPTS" &&
+
+default_build
