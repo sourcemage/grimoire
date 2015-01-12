@@ -1,3 +1,5 @@
+# "PIC" is used as an identifier
+CXXFLAGS="${CXXFLAGS/-DPIC }" &&
 # LLVM_TARGETS
 OPTS+=" -DLLVM_TARGETS_TO_BUILD=`echo ${LLVM_TARGETS} | sed 's/ /;/g'`" &&
 # Not restricting targets, so that mesalib gets R600.
