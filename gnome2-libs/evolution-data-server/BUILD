@@ -12,7 +12,7 @@ fi &&
 
 OPTS="$CAL       \
       $EDS_LARGE \
-      $OPTS"     &&
+      --disable-uoa $OPTS"     &&
 
 make_single    &&
 default_build  &&

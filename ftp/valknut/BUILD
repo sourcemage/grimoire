@@ -1,6 +1,3 @@
-if check_if_qt4_provider
-then
-  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
-  PATH="$QTDIR/bin/qt4:$PATH"
-fi  &&
+QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
+PATH="$QTDIR/bin/qt4:$PATH"
 default_build

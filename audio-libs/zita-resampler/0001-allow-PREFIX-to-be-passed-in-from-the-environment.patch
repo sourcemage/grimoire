@@ -1,0 +1,68 @@
+From cd3d0caf78e3437fbdf24300fb7ef859a20d0935 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+Date: Fri, 21 Mar 2014 14:52:17 +0100
+Subject: [PATCH] allow PREFIX to be passed in from the environment
+
+- also honour CXXFLAGS/LDFLAGS passed in
+- remove the need to first install the library before building the apps
+---
+ apps/Makefile | 9 ++++-----
+ libs/Makefile | 9 ++++-----
+ 2 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/apps/Makefile b/apps/Makefile
+index a0f56ae..3fbfd6e 100644
+--- a/apps/Makefile
++++ b/apps/Makefile
+@@ -18,16 +18,15 @@
+ # ----------------------------------------------------------------------------
+ 
+ 
+-PREFIX = /usr/local
++PREFIX ?= /usr/local
+ SUFFIX := $(shell uname -m | sed -e 's/^unknown/$//' -e 's/^i.86/$//' -e 's/^x86_64/$/64/')
+-LIBDIR = lib$(SUFFIX)
++LIBDIR = lib
+ DISTDIR = zresample-$(VERSION)
+ VERSION = 0.4.0
+ MANDIR = /usr/share/man/man1
+-LDFLAGS += -L$(PREFIX)/$(LIBDIR)
++LDFLAGS += -L$(PREFIX)/$(LIBDIR) -L../libs
+ CPPFLAGS += -MMD -MP -DVERSION=\"$(VERSION)\"
+-CXXFLAGS += -O3  -ffast-math -Wall
+-CXXFLAGS += -march=native
++CXXFLAGS += -Wall -I../libs
+ 
+ 
+ all:	zresample zretune zresample.1.gz zretune.1.gz
+diff --git a/libs/Makefile b/libs/Makefile
+index 6877e52..45e06f2 100644
+--- a/libs/Makefile
++++ b/libs/Makefile
+@@ -20,9 +20,9 @@
+ 
+ # Modify as required.
+ #
+-PREFIX = /usr/local
++PREFIX ?= /usr/local
+ SUFFIX := $(shell uname -m | sed -e 's/^unknown/$//' -e 's/^i.86/$//' -e 's/^x86_64/$/64/')
+-LIBDIR = lib$(SUFFIX)
++LIBDIR = lib
+ 
+ MAJVERS = 1
+ MINVERS = 3.0
+@@ -30,9 +30,8 @@ VERSION = $(MAJVERS).$(MINVERS)
+ DISTDIR = zita-resampler-$(VERSION)
+ 
+ 
+-CPPFLAGS += -I. -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS
+-CXXFLAGS += -Wall -fPIC -O2 -ffast-math
+-CXXFLAGS += -march=native
++CPPFLAGS += -I. -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS -DPIC
++CXXFLAGS += -Wall -fPIC
+ LDFLAGS += 
+ LDLIBS +=
+ 
+-- 
+1.9.0
+

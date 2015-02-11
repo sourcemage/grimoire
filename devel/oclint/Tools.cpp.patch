@@ -1,0 +1,70 @@
+diff -Naupr a/tools/clang/lib/Driver/Tools.cpp b/tools/clang/lib/Driver/Tools.cpp
+--- a/tools/clang/lib/Driver/Tools.cpp	2012-11-21 08:56:23.000000000 +0100
++++ b/tools/clang/lib/Driver/Tools.cpp	2013-03-23 23:56:54.002059797 +0100
+@@ -1777,8 +1777,8 @@ void Clang::ConstructJob(Compilation &C,
+   // any flavor of the '-fno-...' arguments, both PIC and PIE are disabled. Any
+   // PIE option implicitly enables PIC at the same level.
+   bool PIE = false;
+-  bool PIC = getToolChain().isPICDefault();
+-  bool IsPICLevelTwo = PIC;
++  bool pic = getToolChain().isPICDefault();
++  bool IsPICLevelTwo = pic;
+   if (Arg *A = Args.getLastArg(options::OPT_fPIC, options::OPT_fno_PIC,
+                                options::OPT_fpic, options::OPT_fno_pic,
+                                options::OPT_fPIE, options::OPT_fno_PIE,
+@@ -1787,26 +1787,26 @@ void Clang::ConstructJob(Compilation &C,
+     if (O.matches(options::OPT_fPIC) || O.matches(options::OPT_fpic) ||
+         O.matches(options::OPT_fPIE) || O.matches(options::OPT_fpie)) {
+       PIE = O.matches(options::OPT_fPIE) || O.matches(options::OPT_fpie);
+-      PIC = PIE || O.matches(options::OPT_fPIC) || O.matches(options::OPT_fpic);
++      pic = PIE || O.matches(options::OPT_fPIC) || O.matches(options::OPT_fpic);
+       IsPICLevelTwo = O.matches(options::OPT_fPIE) ||
+                       O.matches(options::OPT_fPIC);
+     } else {
+-      PIE = PIC = false;
++      PIE = pic = false;
+     }
+   }
+   // Check whether the tool chain trumps the PIC-ness decision. If the PIC-ness
+   // is forced, then neither PIC nor PIE flags will have no effect.
+   if (getToolChain().isPICDefaultForced()) {
+     PIE = false;
+-    PIC = getToolChain().isPICDefault();
+-    IsPICLevelTwo = PIC;
++    pic = getToolChain().isPICDefault();
++    IsPICLevelTwo = pic;
+   }
+ 
+   // Inroduce a Darwin-specific hack. If the default is PIC but the flags
+   // specified while enabling PIC enabled level 1 PIC, just force it back to
+   // level 2 PIC instead. This matches the behavior of Darwin GCC (based on my
+   // informal testing).
+-  if (PIC && getToolChain().getTriple().isOSDarwin())
++  if (pic && getToolChain().getTriple().isOSDarwin())
+     IsPICLevelTwo |= getToolChain().isPICDefault();
+ 
+   // Note that these flags are trump-cards. Regardless of the order w.r.t. the
+@@ -1816,9 +1816,9 @@ void Clang::ConstructJob(Compilation &C,
+        Args.hasArg(options::OPT_fapple_kext)) &&
+       (Triple.getOS() != llvm::Triple::IOS ||
+        Triple.isOSVersionLT(6)))
+-    PIC = PIE = false;
++    pic = PIE = false;
+   if (Args.hasArg(options::OPT_static))
+-    PIC = PIE = false;
++    pic = PIE = false;
+ 
+   if (Arg *A = Args.getLastArg(options::OPT_mdynamic_no_pic)) {
+     // This is a very special mode. It trumps the other modes, almost no one
+@@ -1843,9 +1843,9 @@ void Clang::ConstructJob(Compilation &C,
+     // Currently, LLVM only knows about PIC vs. static; the PIE differences are
+     // handled in Clang's IRGen by the -pie-level flag.
+     CmdArgs.push_back("-mrelocation-model");
+-    CmdArgs.push_back(PIC ? "pic" : "static");
++    CmdArgs.push_back(pic ? "pic" : "static");
+ 
+-    if (PIC) {
++    if (pic) {
+       CmdArgs.push_back("-pic-level");
+       CmdArgs.push_back(IsPICLevelTwo ? "2" : "1");
+       if (PIE) {

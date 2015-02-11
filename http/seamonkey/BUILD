@@ -27,6 +27,7 @@ MOZCONFIG="--prefix=$INSTALL_ROOT/usr \
            --with-system-nspr \
            --with-system-nss \
            --with-system-zlib \
+           --with-system-bz2 \
            --with-system-jpeg \
            --with-system-libevent \
            --disable-crashreporter \

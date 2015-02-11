@@ -1,3 +1,31 @@
+. $GRIMOIRE/config_query_multi.function &&
+
 default_configure &&
-config_query_option FFMPEG_SWSCALE 'enable software scaler support?' y \
-                                   '--enable-swscale' '--disable-swscale'
+
+# backporting legacy options
+if [[ -n "$FFMPEG_SWSCALE" ]]; then
+  persistent_add FFMPEG_OPTS &&
+  list_add "FFMPEG_OPTS" "$FFMPEG_SWSCALE" &&
+
+  persistent_remove FFMPEG_SWSCALE
+fi &&
+
+config_query_option FFMPEG_OPTS "Enable software scaler support?" y \
+                                "--enable-swscale" \
+                                "--disable-swscale" &&
+
+config_query_option FFMPEG_OPTS "Enable debugging symbols?" y \
+                                "--enable-debug" \
+                                "--disable-debug" &&
+
+config_query_option FFMPEG_OPTS "Enable support for Blackmagick Decklink output?" n \
+                                "--enable-decklink" \
+                                "--disable-decklink" &&
+
+persistent_add FFMPEG_PROGRAM_LIST &&
+local FFMPEG_PROGRAM_LIST="ffmpeg ffprobe ffserver" &&
+
+config_query_multi FFMPEG_PROGRAMS "Which command line programs would you like to build?" \
+                                   $FFMPEG_PROGRAM_LIST \
+                                   all \
+                                   none

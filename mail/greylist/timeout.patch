@@ -1,0 +1,44 @@
+--- src/greylist.h.orig	2010-09-07 01:55:58.000000000 +0400
++++ src/greylist.h	2014-08-12 20:02:35.947227577 +0400
+@@ -30,6 +30,8 @@
+   Greylist(boost::shared_ptr<DataSource> ds, ModeType m, bool v, unsigned t, unsigned w) 
+     : _ds(ds), _mode(m), _verbose(v), _timeout(t), _weakbytes(w) { }
+   Core::ActionType decide(Triplet& triplet, Core::Extra& extra) {
++    extra.setTimeOut(_timeout);
++
+     unsigned long long id;
+     unsigned long count, uts;
+     if (!findTriplet(triplet, id, count, uts)) {
+--- src/core.h.orig	2010-09-07 01:55:58.000000000 +0400
++++ src/core.h	2014-08-12 20:01:51.536118878 +0400
+@@ -33,7 +33,7 @@
+ public:
+   class Extra {
+     std::string _comment, _prefix;
+-    unsigned long _diff, _count;
++    unsigned long _diff, _count, _timeout;
+   public:
+     Extra() : _comment(), _prefix(), _diff(0), _count(0) { }
+     void setComment(const std::string& c) { _comment = c; }
+@@ -42,6 +42,10 @@
+     const std::string& getPrefix() const { return _prefix; }
+     unsigned long getDiff() const { return _diff; }
+     unsigned long getCount() const { return _count; }
++    unsigned long getTimeOut() const { return _timeout; }
++    void setTimeOut(unsigned long t) {
++      _timeout = t;
++    }
+     void set(const std::string & p, unsigned long c, unsigned long t) {
+       _prefix = p;
+       _count = c;
+--- src/action.h.orig	2010-09-07 01:55:58.000000000 +0400
++++ src/action.h	2014-08-12 20:03:20.548341018 +0400
+@@ -70,7 +70,7 @@
+     if (_deferwithstatus && ((*_deferMap.find(action)).second == true)) {
+       std::stringstream stm;
+       stm << extra.getPrefix() << ": (" << extra.getCount() << ", " 
+-	<< extra.getDiff() << " secs)";
++	<< extra.getDiff() << "/" << extra.getTimeOut() << " secs)";
+       str += " " + stm.str(); 
+     }
+     str += "\n\n";

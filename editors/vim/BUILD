@@ -1,13 +1,17 @@
 #
 # First build without the GUI
 #
+if [[ $VIM_X_DISABLE == y ]]; then
+	OPTS="--without-x                  \
+	      $OPTS"
+fi                                    &&
+
 local  OLD_OPTS=$OPTS  &&
 
 OPTS="$GVIM_MULTIBYTE                 \
       --with-features=${VIM_FEATURES} \
       --disable-workshop              \
       --enable-gui=no                 \
-      --without-x                     \
       --disable-xim                   \
       --disable-fontset               \
       $GVIM_HANGUL                    \

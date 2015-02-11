@@ -1,3 +1,4 @@
+export LDFLAGS+=' -L/lib64 -lm'
 unset LANG
 
 if ! declare -f up_trigger > /dev/null; then
@@ -40,10 +41,8 @@ fi  &&
 
 ./Configure -Doptimize="$CFLAGS" $CONFIG_OPTS $PERL_PATHS &&
 
-make_single  &&
 make depend  &&
 make         &&
-make_normal  &&
 
 if [[ $NEW_CUSTOM  ==  y ]]; then
    cp config.sh $PERL_CONFIG

@@ -1,3 +1,3 @@
-./waf  configure --prefix=/usr --destdir="$INSTALL_ROOT"  \
-       --enable-pkg-config-dbus-service-dir $OPTS         &&
-./waf  build
+OPTS="--enable-pkg-config-dbus-service-dir $OPTS" &&
+./waf configure --nocache --prefix=${INSTALL_ROOT}/usr $OPTS &&
+./waf build

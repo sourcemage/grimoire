@@ -3,10 +3,6 @@ cd  $SOURCE_DIRECTORY             &&
 unpack_file  ''                   &&
 cd  mozilla*                       &&
 
-#Fedora  patch to remove glyph in title bar
-# http://osdir.com/ml/scm-fedora-commits/2011-06/msg10320.html
-patch -p0 < $SPELL_DIRECTORY/glyph.patch &&
-
 # Archlinux patch to drop release point from install path
 # http://projects.archlinux.org/svntogit/packages.git/plain/trunk/firefox-install-dir.patch?h=packages/firefox
 patch -p1 < $SPELL_DIRECTORY/install_dir.patch &&
@@ -19,23 +15,6 @@ else
    sed -i '27iac_add_options --disable-safe-browsing' .mozconfig
 fi &&
 
-if is_depends_enabled $SPELL wireless_tools; then
-   sed -i '27iac_add_options --enable-necko-wifi' .mozconfig
-else
-   sed -i '27iac_add_options --disable-necko-wifi' .mozconfig
-fi &&
-
-if is_depends_enabled $SPELL yasm; then
-   sed -i '27iac_add_options --enable-webm' .mozconfig
-else
-   sed -i '27iac_add_options --disable-webm' .mozconfig
-fi &&
-
-if ! is_depends_enabled $SPELL alsa-lib; then
-   sed -i '27iac_add_options --disable-ogg' .mozconfig &&
-   sed -i '27iac_add_options --disable-wave' .mozconfig
-fi &&
-
 if [[ "$FIREFOX_STRIP" == "y" ]]; then
    sed -i '27iac_add_options --enable-strip' .mozconfig
 fi &&
@@ -43,4 +22,9 @@ fi &&
 
 if [[ $FIREFOX_OFFICIAL == y ]]; then
   sed -i '27iac_add_options --enable-official-branding' .mozconfig || return 1
+fi &&
+
+if [[ $FIREFOX_PGO == y ]]; then
+  echo "mk_add_options PROFILE_GEN_SCRIPT='\$(PYTHON) \$(OBJDIR)/_profile/pgo/profileserver.py'" >> .mozconfig &&
+  patch -p0 < ${SPELL_DIRECTORY}/Makefile.in-pgo.patch
 fi
