@@ -1,0 +1,34 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+# Do not install default pam configuration files
+sedit 's|pam.d||' etc/Makefile.in &&
+
+# patch login.defs.linux so that spurious messages don't show up during login
+if is_depends_enabled $SPELL linux-pam; then
+  sedit '
+s|^CHFN_AUTH|#\0|g
+s|^CRACKLIB_DICTPATH|#\0|g
+s|^ENV_HZ|#\0|g
+s|^ENVIRON_FILE|#\0|g
+s|^ENV_PATH|#\0|g
+s|^ENV_SUPATH|#\0|g
+s|^FAILLOG_ENAB|#\0|g
+s|^FTMP_FILE|#\0|g
+s|^LASTLOG_ENAB|#\0|g
+s|^MAIL_CHECK_ENAB|#\0|g
+s|^MOTD_FILE|#\0|g
+s|^NOLOGINS_FILE|#\0|g
+s|^OBSCURE_CHECKS_ENAB|#\0|g
+s|^PASS_ALWAYS_WARN|#\0|g
+s|^PASS_CHANGE_TRIES|#\0|g
+s|^PASS_MIN_LEN|#\0|g
+s|^PORTTIME_CHECKS_ENAB|#\0|g
+s|^QUOTAS_ENAB|#\0|g
+s|^SU_WHEEL_ONLY|#\0|g
+' etc/login.defs
+else
+  sedit '
+s|^#ENCRYPT_METHOD.*|ENCRYPT_METHOD SHA512|
+' etc/login.defs
+fi
