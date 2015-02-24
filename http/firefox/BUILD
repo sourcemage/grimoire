@@ -23,7 +23,7 @@ CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 # fix symbol check in build scripts, firefox adds -s to LDFLAGS so we can
 # remove it here without changing anything...
 #
-LDFLAGS="${LDFLAGS//-s/}" &&
+LDFLAGS="${LDFLAGS//,-s/}" &&
 
 #
 # Avoid buggy GCC 4.6 AVX code generation, which breaks libxul
