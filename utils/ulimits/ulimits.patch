@@ -1,13 +1,10 @@
 # Author: Vlad Glagolev <stealth@sourcemage.org>
 #
 # Changes in this patch:
-# * groups and comments support
-# * bugfix for not found user or empty file
-# * bugfix for unlimited values
+# * multiple groups and comments support
 # * bugfix for tab separators
-
---- src/ulimits.c.orig	2013-01-28 14:39:13.000000000 +0400
-+++ src/ulimits.c	2014-10-02 21:39:49.318495483 +0400
+--- src/ulimits.c.orig
++++ src/ulimits.c
 @@ -29,6 +29,7 @@
  
  #include <unistd.h>
@@ -26,7 +23,7 @@
 + * @param gname A pointer to a groupname
 + * @return 0 if a user belongs to group, -1 otherwise
 + */
-+static int user_in_group(const *uname, const char *gname)
++static int user_in_group(const char *uname, const char *gname)
 +{
 +	struct group *groupdata;
 +	char *const *list;
@@ -64,59 +61,17 @@
   * Parses a single limit specification.
   * This function parses a single limit specification (that is, a single
   * letter followed by a numerical value) and fills the provided
-@@ -109,7 +151,7 @@
- parse_limit_value(char **s, struct rlimit_setting *rlimit)
- {
-     char *c, *p;
--    int value;
-+    int value, inf;
- 
-     if ( s == NULL || *s == NULL || rlimit == NULL ) {
-         errno = EINVAL;
-@@ -123,7 +165,16 @@
- 
-     /* Get the numerical value for the limit. */
-     errno = 0;
--    value = strtol(c + 1, &p, 10);
-+
-+    /* A single dash means no limits. */
-+    if (*(c+1) == '-') {
-+        p = c+2;
-+        inf = 1;
-+    } else {
-+        value = strtol(c + 1, &p, 10);
-+        inf = 0;
-+    }
-+
-     if ( errno || p == c + 1 )
+@@ -243,6 +285,9 @@
          return -1;
+     }
  
-@@ -132,7 +183,7 @@
- #define ULIMIT(symbol, letter, unused1, factor, unused2)    \
-     case letter:                                            \
-         rlimit->resource = symbol;                          \
--        rlimit->limit = value * factor;                     \
-+        rlimit->limit = inf == 1 ? RLIM_INFINITY : value * factor; \
-         break;
- #include "ulimits.h"
- #undef ULIMIT
-@@ -174,15 +225,6 @@
-     while ( *s == ' ' || *s == '\t' )
-         s += 1;
- 
--    /* A single dash means no limits. */
--    if ( *s == '-' && *(s + 1) == '\0' ) {
--        for ( ; n < RLIMIT_NLIMITS && n < len - 1 ; n++ ) {
--            rlimits[n].resource = n;
--            rlimits[n].limit = RLIM_INFINITY;
--        }
--        s += 1;
--    }
--
-     while ( *s != '\0' && n < len - 1 ) {
-         if ( parse_limit_value(&s, &(rlimits[n])) < 0 )
++    if ((n = strlen(buffer)) != 0)
++        buffer[n++] = ' ';
++
+     while ( (c = fgetc(f)) != '\n' ) {
+         if ( c == EOF )
              return -1;
-@@ -280,9 +322,11 @@
+@@ -284,9 +329,11 @@
      while ( ! found && ! feof(f) ) {
          c = fgetc(f);
  
@@ -130,7 +85,24 @@
              found = 1;
          else {
              n = 0;
-@@ -357,18 +401,21 @@
+@@ -343,7 +390,8 @@
+                     size_t                  len)
+ {
+     FILE *f;
+-    char lbuf[LIMIT_LINE_LENGTH+1], nbuf[USER_NAME_LENGTH+1];
++    // Initialize arrays to perform strlen() on them in get_line()
++    char lbuf[LIMIT_LINE_LENGTH+1] = "", nbuf[USER_NAME_LENGTH+1] = "";
+     int user_found = 0, default_found = 0;
+     ssize_t n = 0;
+ 
+@@ -355,13 +403,13 @@
+     if ( (f = open_limits_file(LIMITS_FILE)) == NULL )
+         return -1;
+ 
+-    while ( ! user_found && ! feof(f) ) {
++    while ( ! feof(f) ) {
+         if ( get_first_field(f, nbuf, sizeof(nbuf)) == -1 )
+             continue;
  
          if ( strcmp(nbuf, "*") == 0 )
              default_found = get_line(f, lbuf, sizeof(lbuf)) != -1;
@@ -139,19 +111,3 @@
              user_found = get_line(f, lbuf, sizeof(lbuf)) != -1;
          else
              discard_line(f);
-     }
-     fclose(f);
- 
--    if ( user_found || default_found )
-+    if ( user_found || default_found ) {
-         if ( (n = parse_limit_string(lbuf, rlimits, len)) == -1 )
-             errno = EBADMSG;
- 
--    return n;
-+        return n;
-+    }
-+
-+    return -1;
- }
- 
- static int
