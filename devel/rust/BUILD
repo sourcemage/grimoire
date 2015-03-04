@@ -1,2 +1,3 @@
-./configure --prefix=/usr --disable-docs &&
+CXXFLAGS="${CXXFLAGS//-DPIC}" &&
+./configure --prefix="$INSTALL_ROOT"/usr --disable-docs $OPTS &&
 make
