@@ -1,0 +1,107 @@
+From: Ismael Luceno <ismael@sourcemage.org>
+Subject: Fix build with GCC 4.x
+
+Specifies methods explicitly and avoids unnecesary type casts.
+
+--
+diff -ur aplus-fsf-4.22.orig/src/MSTypes/MSBuiltinTypeVectorInlines.C aplus-fsf-4.22/src/MSTypes/MSBuiltinTypeVectorInlines.C
+--- aplus-fsf-4.22.orig/src/MSTypes/MSBuiltinTypeVectorInlines.C	2008-03-31 13:45:07.000000000 -0300
++++ aplus-fsf-4.22/src/MSTypes/MSBuiltinTypeVectorInlines.C	2015-03-04 23:01:42.288609942 -0300
+@@ -77,7 +77,7 @@
+ template <class Type>
+ INLINELINKAGE MSBuiltinVector<Type> MSBuiltinVector<Type>::operator[] (const MSBinaryVector & bVect_) const
+ {
+-  return compress (*this, bVect_);
++  return this->compress (*this, bVect_);
+ }
+
+
+diff -ur aplus-fsf-4.22.orig/src/MSTypes/MSFloat.C aplus-fsf-4.22/src/MSTypes/MSFloat.C
+--- aplus-fsf-4.22.orig/src/MSTypes/MSFloat.C	2008-03-27 16:10:29.000000000 -0300
++++ aplus-fsf-4.22/src/MSTypes/MSFloat.C	2015-03-05 00:28:34.858745108 -0300
+@@ -111,7 +111,8 @@
+
+ MSError::ErrorStatus MSFloat::internalSet(const char *pString_)
+ {
+-  char	*np,buf[512];
++  const char *np;
++  char	buf[512];
+   
+   _real=0.0;
+   _flags=MSFloat::Set; // clear the Valid bit, i.e. isValid==MSFalse
+@@ -128,7 +129,7 @@
+    { return (MSError::BadReal); } // Disallow leading commas
+
+   // Make sure we don't save too many characters after the decimal
+-  char *decimal=strchr(pString_,'.');
++  const char *decimal=strchr(pString_,'.');
+   if ((decimal!=0)&&(strlen(decimal+1)>MSRealMaximumLength))
+    { return (MSError::IntTooBig); }
+   strcpy(buf,pString_);
+diff -ur aplus-fsf-4.22.orig/src/MSTypes/MSObjectTypeVectorInlines.C aplus-fsf-4.22/src/MSTypes/MSObjectTypeVectorInlines.C
+--- aplus-fsf-4.22.orig/src/MSTypes/MSObjectTypeVectorInlines.C	2008-03-31 13:45:06.000000000 -0300
++++ aplus-fsf-4.22/src/MSTypes/MSObjectTypeVectorInlines.C	2015-03-04 22:43:29.513581606 -0300
+@@ -87,7 +87,7 @@
+ template <class Type>
+ INLINELINKAGE MSObjectVector<Type> MSObjectVector<Type>::operator[] (const MSBinaryVector & bVect_) const
+ {
+-  return compress (*this, bVect_);
++  return this->compress (*this, bVect_);
+ }
+
+
+diff -ur aplus-fsf-4.22.orig/src/MSTypes/MSObservableTree.C aplus-fsf-4.22/src/MSTypes/MSObservableTree.C
+--- aplus-fsf-4.22.orig/src/MSTypes/MSObservableTree.C	2008-03-27 16:10:49.000000000 -0300
++++ aplus-fsf-4.22/src/MSTypes/MSObservableTree.C	2015-03-04 21:58:13.817511186 -0300
+@@ -94,7 +94,7 @@
+ void MSObservableTree<Element>::removeSubtree(const MSTabularTreeCursor<Element>& cursor_)
+ {
+   MSTabularTreeCursor<Element> cursor2(cursor_);
+-  unsigned long pos=position(cursor2);
++  unsigned long pos=this->position(cursor2);
+   cursor2.setToParent();
+   MSTabularTree<Element>::removeSubtree(cursor_);
+   if (cursor2.isValid()) changed(cursor2,pos,MSObservableTreeDelete);
+@@ -162,7 +162,7 @@
+ void MSObservableTree<Element>::replaceAt(MSTabularTreeCursor<Element> const& cursor_,Element const& element_)
+ {
+   MSTabularTree<Element>::replaceAt(cursor_,element_);
+-  changed(cursor_,position(cursor_),MSObservableTreeAssign);
++  changed(cursor_,this->position(cursor_),MSObservableTreeAssign);
+ }
+
+ template <class Element>
+@@ -170,10 +170,10 @@
+ {
+   if (&tree_!=this)
+    {
+-     if (isRoot(cursor_)) copy(tree_);
++     if (this->isRoot(cursor_)) copy(tree_);
+      else
+       {
+-	unsigned long pos=position(cursor_);
++	unsigned long pos=this->position(cursor_);
+	MSTabularTreeCursor<Element> cursor=cursor_;
+	cursor.setToParent();
+	MSTabularTree<Element>::removeSubtree(cursor_);
+@@ -199,7 +199,7 @@
+ template <class Element>
+ void MSObservableTree<Element>::elementChanged(MSTabularTreeCursor<Element> const& cursor_)
+ {
+-  changed(cursor_,position(cursor_),MSObservableTreeAssign);
++  changed(cursor_,this->position(cursor_),MSObservableTreeAssign);
+ }
+
+ template <class Element>
+diff -ur aplus-fsf-4.22.orig/src/MSTypes/MSUtil.C aplus-fsf-4.22/src/MSTypes/MSUtil.C
+--- aplus-fsf-4.22.orig/src/MSTypes/MSUtil.C	2008-03-27 16:10:34.000000000 -0300
++++ aplus-fsf-4.22/src/MSTypes/MSUtil.C	2015-03-05 02:59:50.033980433 -0300
+@@ -25,7 +25,7 @@
+ void MSUtil::comma(const char *fromBuffer_,char *toBuffer_,int size_)
+ {
+   int places,len,i,j;
+-  char *cp;
++  const char *cp;
+   
+   if ((cp=strchr(fromBuffer_,'.'))!=NULL)
+    {
