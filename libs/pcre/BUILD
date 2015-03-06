@@ -1,4 +1,5 @@
-OPTS+=" --disable-static $JIT $PCRE8 $PCRE16" &&
+OPTS="$JIT $PCRE8 $PCRE16 $OPTS" &&
+
 if [[ $BUILDUTF == y ]]; then
    OPTS="$OPTS --enable-utf"
   if [[ $UTFPROPERTIES == y ]]; then
