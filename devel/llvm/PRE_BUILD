@@ -1,9 +1,38 @@
 default_pre_build &&
 if [[ "$LLVM_WITH_CLANG" == y ]]; then
+  cd ${SOURCE_DIRECTORY}/projects &&
+  unpack_file 5 &&
+  mv compiler-rt-${VERSION}.src compiler-rt &&
+
   cd ${SOURCE_DIRECTORY}/tools &&
   unpack_file 3 &&
-  mv clang-${VERSION} clang
+  mv cfe-${VERSION}.src clang &&
+  cd ${SOURCE_DIRECTORY}/tools/clang &&
+  patch -p1 < $SPELL_DIRECTORY/0001-fix-scan-view-s-module-search-path.patch &&
+  sedit '
+	s:$RealBin/sorttable.js:/usr/share/llvm/scan-build/sorttable.js:
+	s:$RealBin/scanview.css:/usr/share/llvm/scan-build/scanview.css:
+  ' tools/scan-build/scan-build
 fi &&
 
-cd $SOURCE_DIRECTORY &&
-patch -p1 < $SPELL_DIRECTORY/gcc-4.7.patch
+if [[ "$LLVM_WITH_LLDB" == y ]]; then
+  cd ${SOURCE_DIRECTORY}/tools &&
+  unpack_file 7                &&
+  mv lldb-${VERSION} lldb
+fi &&
+
+# small cmake related fix for libffi
+cd ${SOURCE_DIRECTORY} &&
+if spell_ok libffi;then
+  FFI=`pkg-config --cflags-only-I libffi` &&
+  FFI=${FFI//-I/} &&
+  FFI=${FFI//\ */} &&
+  sed -i "/FFI_I/s|\"\"|\"$FFI\"|" CMakeLists.txt
+fi  &&
+
+if is_depends_enabled $SPELL python3;then
+  cd utils/llvm-build/llvmbuild &&
+  2to3 --no-diffs -wn .
+fi &&
+# do not build all backends
+sed -i "/^set.*all\"$/s/all//"  CMakeLists.txt

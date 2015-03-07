@@ -1,0 +1,42 @@
+diff -r ff57c0b7e75b OpenGTL/GTLCore/CMakeLists.txt
+--- a/OpenGTL/GTLCore/CMakeLists.txt	Sun Jan 22 09:58:38 2012 +0100
++++ b/OpenGTL/GTLCore/CMakeLists.txt	Tue Jan 31 21:14:40 2012 +0100
+@@ -30,7 +30,7 @@
+       ${LLVM_LIBRARIES_PATH}/LLVMSupport.lib
+       ${LLVM_LIBRARIES_PATH}/LLVMSystem.lib )
+ else(MSVC)
+-  FIND_LLVM_LIBS( ${LLVM_CONFIG_EXECUTABLE} "native bitwriter linker bitreader jit interpreter support ipo" LLVM_LIBS LLVM_NATIVE_OBJECTS )
++  FIND_LLVM_LIBS( ${LLVM_CONFIG_EXECUTABLE} "BitWriter Linker BitReader JIT Interpreter Support ipo" LLVM_LIBS LLVM_NATIVE_OBJECTS )
+ endif(MSVC)
+ 
+ include_directories( ${LLVM_INCLUDE_DIR} )
+@@ -140,7 +140,9 @@
+ set(EXTRA_GTLCORE_LINK_OPTIONS -Wl,-u,__ZTVN4llvm3JITE )
+ endif()
+ 
+-target_link_libraries(GTLCore ${LLVM_LDFLAGS} ${LLVM_LIBS} ${EXTRA_GTLCORE_LINK_OPTIONS})
++target_link_libraries(GTLCore ${LLVM_LDFLAGS} ${LLVM_LIBS} ${EXTRA_GTLCORE_LINK_OPTIONS}
++ LLVMLinker LLVMExecutionEngine LLVMX86Info LLVMX86CodeGen
++)
+ 
+ # Set the ABI version of the library
+ set_target_properties(GTLCore PROPERTIES VERSION ${OPENGTL_LIB_VERSION} SOVERSION ${OPENGTL_LIB_SOVERSION} )
+diff -r ff57c0b7e75b cmake/modules/FindLLVM.cmake
+--- a/cmake/modules/FindLLVM.cmake	Sun Jan 22 09:58:38 2012 +0100
++++ b/cmake/modules/FindLLVM.cmake	Tue Jan 31 21:14:53 2012 +0100
+@@ -38,7 +38,7 @@
+     exec_program(${LLVM_CONFIG_EXECUTABLE} ARGS --libdir OUTPUT_VARIABLE LLVM_LIB_DIR )
+     exec_program(${LLVM_CONFIG_EXECUTABLE} ARGS --includedir OUTPUT_VARIABLE LLVM_INCLUDE_DIR )
+     
+-    find_library(LLVM_SHARED_LIB NAMES LLVM-${LLVM_VERSION} PATHS ${LLVM_LIB_DIR})
++    find_library(LLVM_SHARED_LIB NAMES LLVMCore PATHS ${LLVM_LIB_DIR})
+     
+     exec_program(${LLVM_CONFIG_EXECUTABLE} ARGS --cxxflags  OUTPUT_VARIABLE LLVM_COMPILE_FLAGS )
+     
+@@ -97,4 +97,4 @@
+       message(FATAL_ERROR "Could NOT find LLVM")
+     endif(LLVM_FIND_REQUIRED)
+   endif(LLVM_FOUND)
+-endif (LLVM_INCLUDE_DIR)
+\ No newline at end of file
++endif (LLVM_INCLUDE_DIR)
