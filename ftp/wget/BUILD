@@ -6,6 +6,7 @@ OPTS="$WGET_OPTS $OPTS --build=${BUILD}"
 if use_gcc 4.0; then
   CFLAGS="${CFLAGS/-O3/-O2}"
 fi &&
+LDFLAGS="${LDFLAGS//-Wl,--as-needed} -lm" &&
 
   ./configure --prefix=${TRACK_ROOT}/usr  \
           --sysconfdir=${TRACK_ROOT}/etc  \
