@@ -1,8 +1,23 @@
 # Run if X or Y changes in version x.y.z for ABI (e.g. 3.0 -> 3.2) changes
-local OLD_SPELL_VERSION=""
-spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)"
-if [ "${OLD_SPELL_VERSION:0:3}" != "${VERSION:0:3}" ]; then
-   for each in $(show_up_depends $SPELL 1); do
-   up_trigger $each cast_self
-   done
+if spell_ok $SPELL; then
+  local OLD_SPELL_VERSION="$(installed_version $SPELL)" &&
+
+  if [ "${OLD_SPELL_VERSION:0:3}" != "${VERSION:0:3}" ]; then
+    message "${MESSAGE_COLOR}This is a possibly incompatible update of $SPELL..." &&
+    message "Figuring out what spells need to be recast, this may take a while.${DEFAULT_COLOR}" &&
+
+    local dependees="$(show_up_depends $SPELL 1)" &&
+
+    # LDFLAGS are taken from /usr/lib/pkgconfig/gobject-2.0.pc
+    if spell_ok glib2; then
+      dependees="`echo -e "$(show_up_depends glib2 1)\n$dependees" | sort | uniq`"
+    fi &&
+
+    for each in $dependees; do
+      if gaze install $each | xargs readelf -d 2> /dev/null |
+         grep -q "NEEDED.*libffi\.so"; then
+           up_trigger $each cast_self
+      fi
+    done
+  fi
 fi
