@@ -29,5 +29,9 @@ for option in $OPTS; do
 done &&
 
 make_single  &&
+# A frivolous hack to fix that:
+# OSError: [Errno 2] No such file or 
+#                 directory:  '/usr/src/thunderbird-31.2.0/comm-esr31/mozilla/thunderbird-build'
+ln -sf ../thunderbird-build mozilla/
 make -f client.mk build &&
 make_normal
