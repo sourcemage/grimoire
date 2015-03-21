@@ -1,7 +1,2 @@
-if is_depends_enabled $SPELL python3;then
- export PYTHON=/usr/bin/python3
-fi &&
-if is_depends_enabled $SPELL python;then
- export PYTHON=/usr/bin/python2.7
-fi &&
+export PYTHON=$(get_spell_provider_file $SPELL PYTHON '/usr/bin/python[0-9\.]*$') &&
 default_build
