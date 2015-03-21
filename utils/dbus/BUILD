@@ -5,6 +5,11 @@ fi &&
 if [ "$DBUS_SELINUX" == "y" ]; then
    OPTS="--enable-selinux  $OPTS"
 fi  &&
+# Glib2 is used for regression tests and can cause unnecessary build failure
+# when we're in a chain where libffi just has been updated and glib2 not yet.
+# Other solution would be to unnecessarily depend on glib2, or even
+# dbus-glib, which just smells too circular.
+OPTS="--without-dbus-glib --disable-modular-tests $OPTS" &&
 
 create_account  messagebus  &&
 default_build               &&
