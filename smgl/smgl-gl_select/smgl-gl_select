@@ -6,7 +6,7 @@
 # Minor - new GL provider added/removed
 # Point - bugfixes/filelist changes and so on
 #
-GL_SELECT_VERSION="2.0.4"
+GL_SELECT_VERSION="2.0.5"
 GL_LIBS="$(ls ${TRACK_ROOT}/usr/lib/.{mesa,nvidia,ati}/libGL.so 2>/dev/null \
   | awk -F"/" '{print $4}')"
 . /etc/sysconfig/gl_select
@@ -22,6 +22,12 @@ function gl_list() {
   ls -1 --color=none ${TRACK_ROOT}/usr/lib/.{mesa,nvidia,ati}/libGL.so 2>/dev/null \
              | awk -F"/" '{print $4}' | sed -e "s:\.::"
   exit 0
+}
+
+function gl_link_libs() {
+  fromdir=$1
+  todir=$2
+  ln -sf $(ls $fromdir/*.* | grep -v '.la$') $todir/ 2>/dev/null  
 }
 
 function gl_pick() {
@@ -70,38 +76,38 @@ function gl_pick() {
     case "$1" in
    ati) 
         [[ -e ${INSTALL_ROOT}${dir_list[0]}/libGL.so ]] &&
-        ln -sf ${INSTALL_ROOT}${dir_list[0]}/* \
-               ${INSTALL_ROOT}/usr/lib/ 2>/dev/null
+        gl_link_libs  ${INSTALL_ROOT}${dir_list[0]} \
+                      ${INSTALL_ROOT}/usr/lib
         [[ -e ${INSTALL_ROOT}${dir_list[3]}/gl.h ]] &&
         ln -sf ${INSTALL_ROOT}${dir_list[3]}/* \
                ${INSTALL_ROOT}/usr/include/GL/ 2>/dev/null
         [[ -e ${INSTALL_ROOT}${dir_list[6]}/libglx.so ]] &&
-        ln -sf ${INSTALL_ROOT}${dir_list[6]}/* \
-               ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions/ 2>/dev/null
+        gl_link_libs  ${INSTALL_ROOT}${dir_list[6]} \
+                      ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions
         echo -n "."
         ;;
   mesa) 
         [[ -e ${INSTALL_ROOT}${dir_list[2]}/libGL.so ]] &&
-        ln -sf ${INSTALL_ROOT}${dir_list[2]}/* \
-               ${INSTALL_ROOT}/usr/lib/ 2>/dev/null
+        gl_link_libs ${INSTALL_ROOT}${dir_list[2]} \
+                     ${INSTALL_ROOT}/usr/lib
         [[ -e ${INSTALL_ROOT}${dir_list[5]}/gl.h ]] &&
         ln -sf ${INSTALL_ROOT}${dir_list[5]}/* \
                ${INSTALL_ROOT}/usr/include/GL/ 2>/dev/null
         [[ -e ${INSTALL_ROOT}${dir_list[8]}/libglx.so ]] &&
-        ln -sf ${INSTALL_ROOT}${dir_list[8]}/* \
-               ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions/ 2>/dev/null
+        gl_link_libs ${INSTALL_ROOT}${dir_list[8]} \
+                     ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions
         echo -n "."
         ;;
 nvidia) 
         [[ -e ${INSTALL_ROOT}${dir_list[1]}/libGL.so ]] &&
-        ln -sf ${INSTALL_ROOT}${dir_list[1]}/* \
-               ${INSTALL_ROOT}/usr/lib/ 2>/dev/null
+        gl_link_libs ${INSTALL_ROOT}${dir_list[1]} \
+                     ${INSTALL_ROOT}/usr/lib
         [[ -e ${INSTALL_ROOT}${dir_list[4]}/gl.h ]] &&
         ln -sf ${INSTALL_ROOT}${dir_list[4]}/* \
                ${INSTALL_ROOT}/usr/include/GL/ 2>/dev/null
         [[ -e ${INSTALL_ROOT}${dir_list[7]}/libglx.so ]] &&
-        ln -sf ${INSTALL_ROOT}${dir_list[7]}/* \
-               ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions/ 2>/dev/null
+        gl_link_libs ${INSTALL_ROOT}${dir_list[7]} \
+                     ${INSTALL_ROOT}/usr/lib/xorg/modules/extensions
         echo -n "."
         ;;
      *) message "Unknown secondary files so I only linked the libGL.so"
@@ -137,7 +143,7 @@ nvidia)
 
 function gl_help() {
   message "gl_select -$GL_SELECT_VERSION
-Copyright (C) 2006-2009 Source Mage
+Copyright (C) 2006-2015 Source Mage
 This is free software.  You may redistribute copies of it under the terms of
 the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
 There is NO WARRANTY, to the extent permitted by law.
