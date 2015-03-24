@@ -12,5 +12,5 @@ OPTS="$OPTS --enable-static-cryptsetup" &&
 # collect2: error: ld returned 1 exit status
 # Makefile:625: recipe for target 'cryptsetup.static' failed
 # Having this essential tool build is so important that a hotfix is justified.
-export LIBS="$LIBS -lpthread" &&
+LIBS="$LIBS -lpthread" \
 default_build
