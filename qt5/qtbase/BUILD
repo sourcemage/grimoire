@@ -1,4 +1,3 @@
-QTDIR=$INSTALL_ROOT/opt/qt5 &&
 
 # need to specify version in path for gstreamer!!
 if is_depends_enabled $SPELL gstreamer;then
@@ -15,12 +14,11 @@ OPTS="$QT_DEBUG               \
       $QT_TESTS tests         \
       $QT_ACCESS              \
       $QT_AUDIO               \
-      $QT_JVS                 \
       $OPTS"                  &&
 cd $SOURCE_DIRECTORY &&
 
 ./configure  -opensource -confirm-license \
-             -prefix $QTDIR  -platform  linux-g++  \
+             -prefix $QT5DIR  -platform  linux-g++  \
              -reduce-relocations -reduce-exports $OPTS -v &&
 make
 
