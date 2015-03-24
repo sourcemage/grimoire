@@ -43,9 +43,17 @@ if is_depends_enabled $SPELL libx11; then
                    "--disable-xlib-xrender" \
                    "for Xlib Xrender surface backend" &&
 
-  config_query_option CAIRO_OPTS "Enable Xlib/XCB functions feature?" n \
-                                 "--enable-xlib-xcb" \
-                                 "--disable-xlib-xcb"
+  # Crashes firefox, see https://bugzilla.mozilla.org/show_bug.cgi?id=1136417
+  # Verified the crash with cairo-1.12.18 and cairo-1.14.2.
+  # It's off by default upstream, too, we just avoid suggestion dumb things
+  # to our users. They can always enable it via CONFIG_LOCAL.
+#  config_query_option CAIRO_OPTS "Enable Xlib/XCB functions feature?" n \
+#                                 "--enable-xlib-xcb" \
+#                                 "--disable-xlib-xcb"
+  message "${MESSAGE_COLOR}WARNING: Disabling xlib-xcb, which is unstable (crashes firefox).$DEFAULT_COLOR" &&
+  # Still need to disable it in case CAIRO_OPTS has it still in it.
+  CAIRO_OPTS+=' --disable-xlib-xcb'
+
 fi &&
 
 # these DRM options are bogus
