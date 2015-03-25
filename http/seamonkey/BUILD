@@ -2,6 +2,12 @@ cd $SOURCE_DIRECTORY/comm-release &&
 MOZILLA_HOME=$INSTALL_ROOT/usr/lib/seamonkey  &&
 
 #
+# Skip xpcshell tests which launch dbus on finish --
+# that prevents cast from correct completion
+#
+unset DISPLAY &&
+
+#
 # No fast optimization for Mozilla, bit us so many times...
 #
 CFLAGS="${CFLAGS//-O3/-O2}"      &&
