@@ -39,6 +39,7 @@ fi &&
 
 LDFLAGS=${LDFLAGS//-Wl,--as-needed/}  &&
 
+check_tmp_noexec /tmp &&
 ./configure  --prefix=${INSTALL_ROOT}/usr            \
              --mandir=${INSTALL_ROOT}/usr/share/man  \
              --enable-shared                         \
@@ -47,6 +48,6 @@ LDFLAGS=${LDFLAGS//-Wl,--as-needed/}  &&
              --enable-postproc                       \
              --enable-gpl                            \
              $OPTS                         &&
-
+check_tmp_noexec /tmp &&
 make V=1 &&
 make V=1 tools/qt-faststart
