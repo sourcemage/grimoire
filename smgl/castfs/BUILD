@@ -1,5 +1,7 @@
-# fixes static compilation after 2011-05-26 in FUSE
-LDFLAGS="-ldl -lpthread $LDFLAGS" &&
+if list_find "$CASTFS_OPTS" "--enable-debug"; then
+  CFLAGS="${CFLAGS/-O?/}" &&
+  LDFLAGS="${LDFLAGS/-s/}"
+fi &&
 
-OPTS="$OPTS $STATIC_FUSE" &&
+OPTS="--disable-xattr $CASTFS_OPTS $OPTS" &&
 default_build
