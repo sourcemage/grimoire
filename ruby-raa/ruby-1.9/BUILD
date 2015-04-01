@@ -1,3 +1,5 @@
-OPTS="$OPTS  --enable-shared --enable-pthread"  &&
+OPTS="--enable-rubygems \
+      --enable-shared \
+      $OPTS" &&
 CFLAGS="${CFLAGS/-fomit-frame-pointer/}" &&
 default_build
