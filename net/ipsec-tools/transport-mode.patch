@@ -1,0 +1,75 @@
+# Patch by John Wehle
+--- src/racoon/isakmp.c.ORIGINAL	2012-08-29 04:55:26.000000000 -0400
++++ src/racoon/isakmp.c	2014-08-16 22:27:10.336976657 -0400
+@@ -1074,7 +1074,7 @@ isakmp_ph1begin_i(rmconf, remote, local)
+ 	iph1->approval = NULL;
+ 
+ 	/* XXX copy remote address */
+-	if (copy_ph1addresses(iph1, rmconf, remote, local) < 0) {
++	if (copy_ph1addresses(iph1, rmconf, remote, local, TRUE) < 0) {
+ 		delph1(iph1);
+ 		return NULL;
+ 	}
+@@ -1188,7 +1188,7 @@ isakmp_ph1begin_r(msg, remote, local, et
+ 
+ 	/* copy remote address; remote and local always contain
+ 	 * port numbers so rmconf is not needed */
+-	if (copy_ph1addresses(iph1, NULL, remote, local) < 0) {
++	if (copy_ph1addresses(iph1, NULL, remote, local, FALSE) < 0) {
+ 		delph1(iph1);
+ 		return -1;
+ 	}
+@@ -2904,10 +2904,11 @@ isakmp_printpacket(msg, from, my, decode
+ #endif /*HAVE_PRINT_ISAKMP_C*/
+ 
+ int
+-copy_ph1addresses(iph1, rmconf, remote, local)
++copy_ph1addresses(iph1, rmconf, remote, local, initiator)
+ 	struct ph1handle *iph1;
+ 	struct remoteconf *rmconf;
+ 	struct sockaddr *remote, *local;
++	int initiator;
+ {
+ 	u_int16_t port;
+ 
+@@ -2923,7 +2924,7 @@ copy_ph1addresses(iph1, rmconf, remote, 
+ 	 * if remote has port # (in case of responder - from recvfrom(2))
+ 	 * respect content of "remote".
+ 	 */
+-	if (extract_port(iph1->remote) == 0) {
++	if (initiator || extract_port(iph1->remote) == 0) {
+ 		port = 0;
+ 		if (rmconf != NULL)
+ 			port = extract_port(rmconf->remote);
+@@ -2939,7 +2940,7 @@ copy_ph1addresses(iph1, rmconf, remote, 
+ 	if (iph1->local == NULL)
+ 		return -1;
+ 
+-	if (extract_port(iph1->local) == 0) {
++	if (initiator || extract_port(iph1->local) == 0) {
+ 		port = myaddr_getsport(iph1->local);
+ 		if (port == 0)
+ 			port = PORT_ISAKMP;
+--- src/racoon/isakmp_inf.c.ORIGINAL	2013-04-12 05:53:52.000000000 -0400
++++ src/racoon/isakmp_inf.c	2014-08-16 22:29:35.793972202 -0400
+@@ -724,7 +724,7 @@ isakmp_info_send_nx(isakmp, remote, loca
+ #endif
+ 
+ 	/* copy remote address */
+-	if (copy_ph1addresses(iph1, NULL, remote, local) < 0)
++	if (copy_ph1addresses(iph1, NULL, remote, local, FALSE) < 0)
+ 		goto end;
+ 
+ 	tlen = sizeof(*n) + spisiz;
+--- src/racoon/isakmp_var.h.ORIGINAL	2010-11-12 05:36:37.000000000 -0500
++++ src/racoon/isakmp_var.h	2014-08-16 22:25:55.863985365 -0400
+@@ -128,7 +128,8 @@ extern void isakmp_printpacket __P((vcha
+ #endif
+ 
+ extern int copy_ph1addresses __P(( struct ph1handle *,
+-	struct remoteconf *, struct sockaddr *, struct sockaddr *));
++	struct remoteconf *, struct sockaddr *, struct sockaddr *,
++	int initiator));
+ extern void log_ph1established __P((const struct ph1handle *));
+ 
+ extern void script_hook __P((struct ph1handle *, int));
