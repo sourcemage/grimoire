@@ -34,10 +34,6 @@ fi &&
 
 CFLAGS="${CFLAGS//-ffast-math}" &&
 
-if is_version_less "${VERSION}" 5.4; then
-  OPTS="--with-exec-dir=${INSTALL_ROOT}/usr/bin $OPTS"
-fi &&
-
 OPTS="--with-config-file-path=${INSTALL_ROOT}/etc \
                --disable-rpath \
                 --enable-bcmath \

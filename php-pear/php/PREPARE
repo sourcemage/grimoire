@@ -1,6 +1,22 @@
 . ${GRIMOIRE}/FUNCTIONS &&
 
-prepare_select_branch \
-                              stable \
-                              oldstable \
-                              legacy
+# PHP5 -> PHP
+if spell_ok $SPELL && [[ -n $PHP5_BRANCH ]]; then
+  persistent_add PHP_BRANCH &&
+  PHP_BRANCH="$PHP5_BRANCH" &&
+  persistent_remove PHP5_BRANCH &&
+
+  # backporting legacy branch selection
+  if [[ $PHP_BRANCH == alpha ]] || [[ $PHP_BRANCH == rc ]]; then
+    PHP_BRANCH="stable"
+  fi &&
+
+  # keep 5.4 branch selection
+  if [[ $(installed_version $SPELL | cut -d. -f1,2) == "5.4" ]]; then
+    PHP_BRANCH="legacy"
+  fi
+fi &&
+
+prepare_select_branch stable \
+                      previous \
+                      legacy
