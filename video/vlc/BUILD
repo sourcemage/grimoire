@@ -1,9 +1,4 @@
-OPTS="--disable-dependency-tracking --disable-macosx-defaults $OPTS"  &&
-
-if  [  "$V4L" = "y"  ];  then
-  OPTS="--enable-v4l $OPTS"
-fi  &&
-
+OPTS="--disable-dependency-tracking $OPTS"  &&
 
 if test "$(get_spell_provider $SPELL GECKO)" = firefox; then
   OPTS="MOZILLA_CONFIG=${INSTALL_ROOT}/usr/lib/firefox/firefox-config XPIDL=${INSTALL_ROOT}/usr/lib/firefox/ XPIDL_INCL=-I${INSTALL_ROOT}/usr/share/idl/firefox $OPTS"  &&
