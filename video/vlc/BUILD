@@ -22,16 +22,13 @@ fi  &&
 # help configure to find needed QT4 binaries
 # if not exported, configure doesn't find them
 if is_depends_enabled $SPELL qt4; then
-        export MOC="${INSTALL_ROOT}/usr/bin/qt4/moc"
-        export RCC="${INSTALL_ROOT}/usr/bin/qt4/rcc"
-        export UIC="${INSTALL_ROOT}/usr/bin/qt4/uic"
+  export PKG_CONFIG_PATH=$QT4DIR/lib/pkgconfig
+fi  &&
+if is_depends_enabled $SPELL qtbase; then
+  export PKG_CONFIG_PATH=$QT5DIR/lib/pkgconfig
 fi  &&
 
 if is_depends_enabled $SPELL goom; then
   LDFLAGS=${LDFLAGS/-Wl,--as-needed}
 fi &&
-
-default_build  &&
-
-export -n MOC RCC UIC  &&
-unset MOC RCC UIC
+default_build
