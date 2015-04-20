@@ -26,4 +26,8 @@ fi  &&
 if is_depends_enabled $SPELL goom; then
   LDFLAGS=${LDFLAGS/-Wl,--as-needed}
 fi &&
-default_build
+if is_depends_enabled $SPELL qt4; then
+  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}" PATH="$QTDIR/bin/qt4:$PATH" default_build
+else
+  default_build
+fi
