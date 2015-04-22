@@ -14,7 +14,7 @@ CXXFLAGS="${CXXFLAGS/-O3/-O0}"
 fi &&
 VGC=$(installed_version gcc) &&
 VGC=${VGC%.?} &&
-if [[ "${VGC}" == "4.7" ]] ; then
+if [[ "${VGC}" == "4.7" ]] || [[ "${VGC}" == "5.1" ]] ; then
   CFLAGS+=" -Wno-error=array-bounds"
 fi &&
 message CFLAGS=$CFLAGS
