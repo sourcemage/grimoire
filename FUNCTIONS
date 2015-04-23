@@ -508,12 +508,22 @@ function note_config_files() {
 # please use this one instead of maunaly calling waf when possible
 # Disabled caching as this has GREAT potential for borkage
 # and waf is fast without it as well
+# The waf disables options between versions and bails out if they are given,
+# so check first if they are supported..
 
 function waf_build() {
-  ./waf configure --prefix=${INSTALL_ROOT}/usr \
-                  --mandir=${INSTALL_ROOT}/usr/share/man \
+  local waf_opts="--prefix=$INSTALL_ROOT/usr"
+  # Some waf not know man, waf angry with man.
+  if ./waf --help | grep -q -- --mandir; then
+    waf_opts="$waf_opts --mandir=$INSTALL_ROOT/usr/share/man"
+  fi
+  # Same with some other options.
+  if ./waf --help | grep -q -- --nocache; then
+    waf_opts="$waf_opts --nocache"
+  fi
+  ./waf configure $waf_opts \
                   -j $MAKE_NJOBS \
-                 --nocache $OPTS &&
+                  $OPTS &&
   ./waf build
 }
 
