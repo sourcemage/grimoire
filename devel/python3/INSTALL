@@ -4,9 +4,16 @@ cp -av "$SOURCE_DIRECTORY/anywhere/$INSTALL_ROOT/usr" "$INSTALL_ROOT/" &&
 install -vm 755 "$SOURCE_DIRECTORY/Tools/i18n/"{pygettext.py,msgfmt.py} \
                 "$INSTALL_ROOT/usr/bin"
 # help some stupid installer scripts
-local PV=`echo ${VERSION}|cut -c-3` &&
+local PV=`echo ${VERSION}|cut -d . -f 1,2` &&
+
+# Ensure existence of /usr/bin/python3 and /usr/bin/python3-config 
+# symlinks, as they are not created with altinstall.
+# See https://mail.python.org/pipermail/python-dev/2011-March/108971.html
+# and the surrounding thread for fun.
+ln -sf python$PV "$INSTALL_ROOT/usr/bin/python3" &&
+ln -sf python$PV-config "$INSTALL_ROOT/usr/bin/python3-config" &&
+
 ln -sf ${TRACK_ROOT}/usr/include/python${PV}m ${INSTALL_ROOT}/usr/include/python${PV} &&
-ln -sf ${TRACK_ROOT}/usr/bin/python${PV} ${INSTALL_ROOT}/usr/bin/python3 &&
 # this is the primary/only version of python
 if [[ $PY3K == y ]]; then
  if [[ $SYMLINK == y   ]];then
