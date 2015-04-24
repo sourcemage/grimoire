@@ -1,55 +1,68 @@
-config_query_option AUDACIOUS_IPV6 \
-                    'Enable IPv6 support?' n \
-                    '--enable-ipv6' \
-                    '--disable-ipv6' &&
+# remove deprecated options
+if [[ -n $AUDACIOUS_IPV6 ]]; then
+  persistent_remove AUDACIOUS_IPV6
+fi &&
+if [[ -n $AUDACIOUS_AD ]]; then
+  persistent_remove AUDACIOUS_AD
+fi &&
 
-config_query_option AUDACIOUS_STATUS \
+if [[ ! -v AUDACIOUS_OPTS ]]; then
+  persistent_add AUDACIOUS_OPTS
+fi &&
+
+# backport legacy options
+for o in AUDACIOUS_STATUS AUDACIOUS_OSD AUDACIOUS_COSD AUDACIOUS_SONGCHANGE \
+         AUDACIOUS_HOTKEY AUDACIOUS_MPRIS AUDACIOUS_GTKUI AUDACIOUS_SKINS \
+         AUDACIOUS_LYRIC; do
+  if [[ -n ${!o} ]]; then
+    list_add "AUDACIOUS_OPTS" "${!o}" &&
+    persistent_remove ${o}
+  fi
+done &&
+
+config_query_option AUDACIOUS_OPTS \
                     'Enable X11 Status Icon plugin?' y \
                     '--enable-statusicon' \
                     '--disable-statusicon' &&
 
-config_query_option AUDACIOUS_OSD \
+config_query_option AUDACIOUS_OPTS \
                     'for OSD plugin' y \
                     '--enable-aosd' \
                     '--disable-aosd' &&
-if [[ "$AUDACIOUS_OSD" == '--enable-aosd' ]]; then
-  config_query_option AUDACIOUS_COSD \
+
+if list_find "$AUDACIOUS_OPTS" '--enable-aosd'; then
+  config_query_option AUDACIOUS_OPTS \
                     'for X Composite OSD plugin' y \
                     '--enable-aosd-xcomp' \
                     '--disable-aosd-xcomp'
 fi  &&
 
-config_query_option AUDACIOUS_SONGCHANGE \
+config_query_option AUDACIOUS_OPTS \
                     "Enable Song Change Plugin?" y \
                     "--enable-songchange" \
                     "--disable-songchange" &&
 
-config_query_option AUDACIOUS_HOTKEY \
+config_query_option AUDACIOUS_OPTS \
                     "Enable global hotkey plugin?" y \
                     "--enable-hotkey" \
                     "--disable-hotkey" &&
 
-config_query_option AUDACIOUS_MPRIS \
+config_query_option AUDACIOUS_OPTS \
                     "Enable mpris2 plugin?" y \
                     "--enable-mpris2" \
                     "--disable-mpris2" &&
 
-config_query_option AUDACIOUS_AD \
-                    "Enable AdPlug plugin?" y \
-                    "--enable-adplug" \
-                    "--disable-adplug" &&
-
-config_query_option AUDACIOUS_GTKUI \
+config_query_option AUDACIOUS_OPTS \
                     "Enable GTK Interface?" y \
                     "--enable-gtkui" \
                     "--disable-gtkui" &&
 
-config_query_option AUDACIOUS_SKINS \
+config_query_option AUDACIOUS_OPTS \
                     "Enable Winamp Classic interface?" y \
                     "--enable-skins" \
                     "--disable-skins" &&
 
-config_query_option AUDACIOUS_LYRIC \
+config_query_option AUDACIOUS_OPTS \
                     "Enable LyricWiki plugin?" y \
                     "--enable-lyricwiki" \
                     "--disable-lyricwiki" 
