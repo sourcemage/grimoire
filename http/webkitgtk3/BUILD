@@ -1,10 +1,4 @@
-OPTS="$WEBKIT_OPTS $OPTS" &&
-sed -i '30i#include <unicode/utf8.h>' \
-    Source/WebCore/platform/text/TextCodecUTF8.h &&
-sed -i '30i#include <unicode/utf16.h>' \
-    Source/WTF/wtf/text/StringBuilder.h &&
-sed -i '26i#include <unicode/utf16.h>' \
-    Source/WTF/wtf/text/StringImpl.h &&
-sed -i '29i#include <unicode/utf16.h>' \
-    Source/WTF/wtf/unicode/UTF8.h &&
-cmake_build
+OPTS="$WEBKIT_SVG $WEBKIT_WEBGL $OPTS" &&
+OPTS="--with-gtk=3.0 $OPTS" &&
+
+default_build
