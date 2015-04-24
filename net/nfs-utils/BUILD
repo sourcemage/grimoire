@@ -1,6 +1,5 @@
 OPTS="$OPTS             \
       --disable-gss     \
-      $NFS_UTILS_NFSV3  \
       $NFS_UTILS_NFSV4" &&
 
 make_single &&
