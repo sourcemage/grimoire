@@ -5,4 +5,5 @@ cd graphics/gstreamer &&
 sed -i 's/GMutexLocker /WebCore::&/' \
     VideoSinkGStreamer.cpp WebKitWebSourceGStreamer.cpp &&
 cd ${SOURCE_DIRECTORY} &&
+patch -p0 < $SCRIPT_DIRECTORY/webkitgtk-2.4.8-gcc5.patch &&
 default_build
