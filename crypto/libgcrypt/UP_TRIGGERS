@@ -1,9 +1,20 @@
-local OLD_SPELL_VERSION=""
-spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)" || return 0
-if [ "${VERSION:0:3}" != "${OLD_SPELL_VERSION:0:3}" ]; then
-  message "This is a possibly incompatible update of $SPELL..."
-  message "Figuring out what spells need to be recast, this may take a while."
-  for each in $(show_up_depends $SPELL 1); do
-    up_trigger $each check_self
-  done
+if spell_ok $SPELL; then
+  local NEW_SPELL_BRANCH="$(echo $VERSION | cut -d. -f1,2)" &&
+  local OLD_SPELL_BRANCH="$(installed_version $SPELL | cut -d. -f1,2)" &&
+
+  if test "${NEW_SPELL_BRANCH}" != "${OLD_SPELL_BRANCH}"; then
+    message "${MESSAGE_COLOR}This is a possibly incompatible update of ${SPELL_COLOR}$SPELL${MESSAGE_COLOR}..." &&
+    message "Figuring out what spells need to be recast, this may take a while.${DEFAULT_COLOR}" &&
+
+    for each in $(show_up_depends $SPELL 1); do
+      up_trigger $each check_self
+    done &&
+
+    # LDFLAGS are taken from /usr/lib/libgnome-keyring.la
+    if spell_ok libgnome-keyring; then
+      for each in $(show_up_depends libgnome-keyring 1); do
+        up_trigger $each check_self
+      done
+    fi
+  fi
 fi
