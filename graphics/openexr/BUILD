@@ -6,4 +6,4 @@ if [[ $RESTEST == y ]]; then
   OPTS="$OPTS --enable-imffuzztest"
 fi &&
 
-LDFLAGS="${LDFLAGS} -lpthread" default_build
+CXXFLAGS="${CXXFLAGS} -fpermissive" LDFLAGS="${LDFLAGS} -lpthread" default_build
