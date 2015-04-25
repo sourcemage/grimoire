@@ -3,15 +3,21 @@
 . $GRIMOIRE/config_query_multi.function
 
 QT5DIR=$INSTALL_ROOT/opt/qt5
+
 qt5_build() {
-  export PKG_CONFIG_PATH="$QT5DIR/lib/pkgconfig"
-  cd $SOURCE_DIRECTORY &&
-  QMAKEPATH="$QT5DIR/bin"
-# in some cases, we set a symlink to python in the source directory
-  PATH="$QMAKEPATH:$SOURCE_DIRECTORY:$PATH"
-  qmake PREFIX=$QT5DIR $OPTS *.pro &&
+  cd  $SOURCE_DIRECTORY &&
+  PATH="$QT5DIR/bin:$PATH"
+  qmake PREFIX=$QT5DIR LIBDIR=$QT5DIR/lib \
+    $OPTS $SRC/*.pro &&
   make
 }
+
+function qt5_cmake_build() {
+  PATH="$QT5DIR/bin/:$PATH"
+  export PKG_CONFIG_PATH="$QT5DIR/lib/pkgconfig"
+  cmake_build $QT5DIR
+}
+
 
 
 #---------------------------------------------------------------------
@@ -537,7 +543,16 @@ cmake_build() {
   mkdir -p build        &&
   cd build              &&
   prepare_cmake_flags   &&
-  cmake -DCMAKE_INSTALL_PREFIX="$INSTALL_ROOT"/usr \
+
+  if [[ -z $1 ]];then
+    CMAKE_INSTALL_PREFIX="$INSTALL_ROOT/usr"
+  else
+    CMAKE_INSTALL_PREFIX="$1"
+  fi &&
+
+  message INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX &&
+
+  cmake -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_INSTALL_MANDIR=share/man \
         -DCMAKE_PREFIX_PATH=share/apps/cmake/modules \
