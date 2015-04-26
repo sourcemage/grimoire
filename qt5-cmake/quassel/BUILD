@@ -1,0 +1,7 @@
+export LINGUAS=\"$QUAS_LING\" &&
+OPTS+=" -DWITH_KDE=OFF" &&
+OPTS+=" -DWANT_QTCLIENT=OFF" &&
+OPTS+=" -DWANT_CORE=OFF"  &&
+OPTS+=" -DWANT_MONO=ON"   &&
+OPTS+=" -DWITH_OXYGEN=OFF" &&
+default_build
