@@ -1,3 +1,5 @@
 OPTS="$NCMPCPP_OPTS $OPTS" &&
 
+OPTS="BOOST_LIB_SUFFIX= $OPTS" &&
+
 default_build
