@@ -10,7 +10,7 @@ sed -i '29i#include <unicode/utf16.h>' \
 sed -i 's;fltk-config13;fltk-config;g' \
     Source/WebKit/gtk/Makefile &&
 
-sed -i 's;ME) testapp/testapp;ME);' Source/WebKit/fltk/Makefile &&
+CXXFLAGS="$CXXFLAGS -DNDEBUG" &&
 
 make -C Source/WTF/wtf &&
 make -C Source/JavaScriptCore gen &&
