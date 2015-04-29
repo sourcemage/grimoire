@@ -1,0 +1,40 @@
+source $GRIMOIRE/FUNCTIONS      &&
+source  $GRIMOIRE/CM_CONFIGURE  &&
+
+local CFG=$SPELL_CONFIG
+
+get_kdelanguages()  {
+  local  i  LANGUAGE  LANGUAGES  &&
+    rm  -f  $CFG                                                   &&
+    touch  $CFG                                                    &&
+
+config_query_multi KDE_LANG "please specify the required languages" \
+   ar bg ca ca@valencia cs da de el en_GB es et eu fi fr ga gl \
+   gu he hi hr hu ia id is it ja kk km kn ko lt lv mai nb nds nl \
+   nn pa pl pt pt_BR ro ru sk sl sr sv th tr uk wa zh_CN zh_TW &&
+
+      local i=1                               &&
+      for  LANGUAGE  in  $KDE_LANG
+      do
+        if  [[  $i  ==  1  ]]
+        then
+          echo  SOURCE=$SPELLX-$LANGUAGE-\$VERSION.tar.xz  >>  $CFG  &&
+          echo  SOURCE_IGNORE=volatile                     >> $CFG &&
+          echo  SOURCE_URL[0]=\$SITE/\$SOURCE              >>  $CFG
+        else
+          echo  SOURCE$i=$SPELLX-$LANGUAGE-\$VERSION.tar.xz  >>  $CFG  &&
+          echo  SOURCE${i}_IGNORE=volatile                    >> $CFG &&
+          echo  SOURCE${i}_URL[0]=\$SITE/\$SOURCE$i            >>  $CFG
+       fi  &&
+        i=$[$i+1]
+      done
+}
+
+if  [[ -z $KDE_LANG ]]  || query "Reconfigure?"  n
+then
+  get_kdelanguages
+else
+  message  "${MESSAGE_COLOR}Using existing config${DEFAULT_COLOR}"
+fi &&
+
+.  $CFG
