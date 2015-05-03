@@ -1,12 +1,19 @@
-# recast the split compiler spells on a gcc version update, see bug #9813
-
 local OLD_SPELL_VERSION=""
 spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)"
 if [ "$VERSION" != "$OLD_SPELL_VERSION" ]; then
+  # recast the split compiler spells on a gcc version update, see bug #9813
   # this includes g77 for the upgrade from 3.4.x to 4.x compilers
   for each in ada fortran g++ g77 gcj objc; do
     if  spell_ok  $each; then
       up_trigger $each cast_self
     fi
-  done
+  done &&
+
+  # for C++ ABI change in 5.1 and, probably, for each major version change too
+  if [[ ${OLD_SPELL_VERSION:0:1} != ${VERSION:0:1} ]]; then
+    for each in $(grep "gcc:CXX" "$SUB_DEPENDS_STATUS" | cut -f1 -d:); do
+      if spell_ok $each; then
+        up_trigger $each cast_self
+    done
+  fi
 fi
