@@ -6,29 +6,33 @@ config_query_list UL_VERSION "What version do you want to use?" \
                              latest \
                              aes &&
 
-local OLD_SPELL_VERSION="" &&
-spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)" &&
-
 # util-linux 2.20 needs ttyX in /etc/inittab without /dev
 # http://www.sourcemage.org/issues/110
 message "${MESSAGE_COLOR}Checking sanity of $INSTALL_ROOT/etc/inittab...${DEFAULT_COLOR}" &&
 
 if grep -iq "/dev/tty" "$INSTALL_ROOT/etc/inittab"; then
-  if is_version_less ${OLD_SPELL_VERSION} 2.20; then
-    message "${PROBLEM_COLOR}" &&
-    message "WARNING: $INSTALL_ROOT/etc/inittab needs syntax update. You need to" &&
-    message "replace all '/dev/tty*' lines to 'tty*' equivalents, e.g.:" &&
-    message "${MESSAGE_COLOR}Before: tty1:linux:/sbin/agetty /dev/tty1 9600" &&
-    message "After:  tty1:linux:/sbin/agetty tty1 9600${PROBLEM_COLOR}" &&
-    message "Press 'n' to abort cast and do that manually by editing" &&
-    message "$INSTALL_ROOT/etc/inittab file under superuser, then recast $SPELL." &&
-    message "${DEFAULT_COLOR}" &&
+  if spell_ok $SPELL; then
+    local OLD_SPELL_VERSION="$(installed_version $SPELL)" &&
 
-    if ! query "Attempt to replace the lines automatically?" n; then
-      return 1
-    else
-      persistent_add UL_DEV_AUTOREPLACE &&
-      local UL_DEV_AUTOREPLACE="y"
+    if is_version_less ${OLD_SPELL_VERSION} 2.20; then
+      message "${PROBLEM_COLOR}" &&
+      message "WARNING: $INSTALL_ROOT/etc/inittab needs syntax update. You need to" &&
+      message "replace all '/dev/tty*' lines to 'tty*' equivalents, e.g.:" &&
+      message "${MESSAGE_COLOR}Before: tty1:linux:/sbin/agetty /dev/tty1 9600" &&
+      message "After: tty1:linux:/sbin/agetty tty1 9600${PROBLEM_COLOR}" &&
+      message "Press 'n' to abort cast and do that manually by editing" &&
+      message "$INSTALL_ROOT/etc/inittab file under superuser, then recast $SPELL." &&
+      message "${DEFAULT_COLOR}" &&
+
+      if ! query "Attempt to replace the lines automatically?" n; then
+        return 1
+      else
+        persistent_add UL_DEV_AUTOREPLACE &&
+        UL_DEV_AUTOREPLACE="y"
+      fi
     fi
+  else
+    message "${PROBLEM_COLOR}Your /etc/inittab was not managed by ${SPELL_COLOR}$SPELL${PROBLEM_COLOR} previously."
+    message "You should probably fix your '/dev/tty*' entries by removing '/dev/' from them.${DEFAULT_COLOR}"
   fi
 fi
