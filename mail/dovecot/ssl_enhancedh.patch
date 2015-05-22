@@ -1,0 +1,55 @@
+--- src/ssl-params/ssl-params-openssl.c.orig
++++ src/ssl-params/ssl-params-openssl.c
+@@ -13,7 +13,7 @@
+    default.. */
+ #define DH_GENERATOR 2
+ 
+-static int dh_param_bitsizes[] = { 512, 1024 };
++static int dh_param_bitsizes[] = { 512, 2048 };
+ 
+ static const char *ssl_last_error(void)
+ {
+--- src/login-common/ssl-proxy-openssl.c.orig
++++ src/login-common/ssl-proxy-openssl.c
+@@ -76,7 +76,7 @@
+ 	time_t last_refresh;
+ 	int fd;
+ 
+-	DH *dh_512, *dh_1024;
++	DH *dh_512, *dh_2048;
+ };
+ 
+ struct ssl_server_context {
+@@ -182,8 +182,8 @@
+ 	case 512:
+ 		params->dh_512 = d2i_DHparams(NULL, &cbuf, len);
+ 		break;
+-	case 1024:
+-		params->dh_1024 = d2i_DHparams(NULL, &cbuf, len);
++	case 2048:
++		params->dh_2048 = d2i_DHparams(NULL, &cbuf, len);
+ 		break;
+ 	default:
+ 		ssl_params_corrupted();
+@@ -199,9 +199,9 @@
+ 		DH_free(params->dh_512);
+                 params->dh_512 = NULL;
+ 	}
+-	if (params->dh_1024 != NULL) {
+-		DH_free(params->dh_1024);
+-                params->dh_1024 = NULL;
++	if (params->dh_2048 != NULL) {
++		DH_free(params->dh_2048);
++                params->dh_2048 = NULL;
+ 	}
+ }
+ 
+@@ -796,7 +796,7 @@
+ 	if (is_export && keylength == 512 && ssl_params.dh_512 != NULL)
+ 		return ssl_params.dh_512;
+ 
+-	return ssl_params.dh_1024;
++	return ssl_params.dh_2048;
+ }
+ 
+ static void ssl_info_callback(const SSL *ssl, int where, int ret)
