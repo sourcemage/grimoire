@@ -52,45 +52,56 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
  LINUX_DIRECTORY=$(gaze where -path linux | sed "s/linux -> //")
     . $LINUX_DIRECTORY/latest.defaults
 
-    if  [[  $(uname -r)  =  3.*  ]];  then
- HEADERS_VERSION=$(echo $LATEST_maintenance_patches_3 | sed "s/patch-//")
- HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_3}
-         SOURCE3=linux-${LATEST_3}.tar.xz
-     SOURCE3_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE3}"
-      case $HEADERS_VERSION in
-        3.[1-9]*)
-         SOURCE6="linux-${LATEST_3}.tar.sign"
-     SOURCE6_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE6}"
-                ;;
-               *)
-         SOURCE6="${SOURCE3}.sign"
-     SOURCE6_URL="${SOURCE3_URL}.sign"
-                ;;
-      esac
-  SOURCE6_IGNORE=signature
-     SOURCE3_GPG="kernel.gpg:${SOURCE6}:ESTABLISHED_UPSTREAM_KEY"
-      if [[ ${HEADERS_VERSION} != $LATEST_3 ]]; then
-         SOURCE7=patch-${HEADERS_VERSION}.xz
-     SOURCE7_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE7}"
-        if [[ ${HEADERS_VERSION} > 3.0.4 ]]; then
-         SOURCE8="patch-${HEADERS_VERSION}.sign"
-     SOURCE8_URL="${KERNEL_URL}/pub/linux/kernel/v3.0/${SOURCE8}"
-        else
-         SOURCE8="${SOURCE7}.sign"
-     SOURCE8_URL="${SOURCE7_URL}.sign"
-        fi
-  SOURCE8_IGNORE=signature
-     SOURCE7_GPG="kernel.gpg:${SOURCE8}:ESTABLISHED_UPSTREAM_KEY"
-      fi
-    else
+    case $(uname -r) in
+       2.*)
  HEADERS_VERSION=$(echo $LATEST_maintenance_patches | sed "s/patch-//")
  HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_2_6}
          SOURCE3=linux-${LATEST_2_6}.tar.bz2
          SOURCE6="${SOURCE3}.sign"
-  SOURCE6_IGNORE=signature
+    HEADERS_VDIR=v2.6
+         ;;
+       3.*)
+ HEADERS_VERSION=$(echo $LATEST_maintenance_patches_3 | sed "s/patch-//")
+ HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_3}
+         SOURCE3=linux-${LATEST_3}.tar.xz
+      if [[ $HEADERS_VERSION = 3.0* ]]; then
+         SOURCE6="${SOURCE3}.sign"
+      else
+         SOURCE6="linux-${LATEST_3}.tar.sign"
+      fi
+    HEADERS_VDIR=v3.x
+      if [[ ${HEADERS_VERSION} != $LATEST_3 ]]; then
+         SOURCE7=patch-${HEADERS_VERSION}.xz
+        if [[ ${HEADERS_VERSION} > 3.0.4 ]]; then
+         SOURCE8="patch-${HEADERS_VERSION}.sign"
+        else
+         SOURCE8="${SOURCE7}.sign"
+        fi
+      fi
+         ;;
+       4.*)
+ HEADERS_VERSION=$(echo $LATEST_maintenance_patches_4 | sed "s/patch-//")
+ HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_4}
+         SOURCE3=linux-${LATEST_4}.tar.xz
+         SOURCE6="linux-${LATEST_4}.tar.sign"
+    HEADERS_VDIR=v4.x
+      if [[ ${HEADERS_VERSION} != $LATEST_4 ]]; then
+         SOURCE7=patch-${HEADERS_VERSION}.xz
+         SOURCE8="patch-${HEADERS_VERSION}.sign"
+      fi
+         ;;
+    esac
+
      SOURCE3_GPG="kernel.gpg:${SOURCE6}:ESTABLISHED_UPSTREAM_KEY"
-     SOURCE3_URL="${KERNEL_URL}/pub/linux/kernel/v2.6/${SOURCE3}"
-     SOURCE6_URL="${SOURCE3_URL}.sign"
+     SOURCE3_URL="${KERNEL_URL}/pub/linux/kernel/$HEADERS_VDIR/${SOURCE3}"
+  SOURCE6_IGNORE=signature
+     SOURCE6_URL="${KERNEL_URL}/pub/linux/kernel/$HEADERS_VDIR/${SOURCE6}"
+
+    if [[ -n $SOURCE7 ]]; then
+     SOURCE7_GPG="kernel.gpg:${SOURCE8}:ESTABLISHED_UPSTREAM_KEY"
+     SOURCE7_URL="${KERNEL_URL}/pub/linux/kernel/$HEADERS_VDIR/${SOURCE7}"
+  SOURCE8_IGNORE=signature
+     SOURCE8_URL="${KERNEL_URL}/pub/linux/kernel/$HEADERS_VDIR/${SOURCE8}"
     fi
   fi
 fi
