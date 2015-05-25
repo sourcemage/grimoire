@@ -1,0 +1,1 @@
+make LANG=-DHOZ_LANG_EN BIN=hoz GBIN=ghoz $OPTS

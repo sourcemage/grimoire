@@ -791,6 +791,43 @@ function get_spell_provider_file(){
   | grep "$3" | sort | head -n 1
 }
 
+#---
+## Trigger check_self on spells depending on the one at hand if it
+## is being updated from an old version.
+## Purpose of the optional version filter  parameters is to limit the
+## triggering to cases of significant difference, like 1.2.x -> 1.3.y instead of
+## the smaller difference 1.2.x -> 1.2.y .
+## @params $1 - spell at hand
+## @params $2 - new version
+## @params $3 - command to filter versions with
+## @params $4 - and following: arguments to the filter command
+##
+## Example: check_dependees_on_update $SPELL $VERSION cut -d . -f 1,2
+## This will compare only x.y out of version x.y.z-betaY.
+#---
+function check_dependees_on_update()
+{
+  local   spell=$1; shift;
+  local version=$1; shift;
+  if spell_ok $spell; then
+    local old_version=$(installed_version $spell)
+    local new_version=$version
+    if [[ $# -gt 0 ]]; then
+      old_version=$(echo "$old_version" | "$@")
+      new_version=$(echo "$new_version" | "$@")
+    fi &&
+    if [[ "$new_version" != "$old_version" ]]; then
+      message "${MESSAGE_COLOR}This is a possibly incompatible update of $SPELL." &&
+      message "Figuring out what spells need to be checked for sanity...${DEFAULT_COLOR}" &&
+
+      for each in $(show_up_depends $SPELL 1); do
+          up_trigger $each check_self
+      done
+    fi
+  fi
+}
+
+#---
 
 . $GRIMOIRE/glselect.function
 . $GRIMOIRE/bzr_download.function
