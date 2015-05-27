@@ -1,0 +1,32 @@
+# Make sure group exists
+create_group  docker  &&
+
+# Install Docker
+install -m 0755 "${SOURCE_DIRECTORY}"/bundles/${VERSION}/dynbinary/docker-${VERSION} \
+  "${INSTALL_ROOT}"/usr/bin/docker  &&
+install -d -m 0755 "${INSTALL_ROOT}"/usr/libexec/docker  &&
+install -m 0755 "${SOURCE_DIRECTORY}"/bundles/${VERSION}/dynbinary/dockerinit-${VERSION} \
+  "${INSTALL_ROOT}"/usr/libexec/docker/dockerinit  &&
+
+# Install udev rules
+[[ -d "${INSTALL_ROOT}"/etc/udev/rules.d/ ]] || install -d -m 0755 "${INSTALL_ROOT}"/etc/udev/rules.d/  &&
+install -m 0644 "${SOURCE_DIRECTORY}"/contrib/udev/80-docker.rules \
+  "${INSTALL_ROOT}"/etc/udev/rules.d/80-docker.rules  &&
+
+# Install BASH completion
+[[ -d "${INSTALL_ROOT}"/etc/bash_completion.d/ ]] || install -d -m 0755 "${INSTALL_ROOT}"/etc/bash_completion.d/  &&
+install -m 0644 "${SOURCE_DIRECTORY}"/contrib/completion/bash/docker  \
+  "${INSTALL_ROOT}"/etc/bash_completion.d/docker  &&
+
+# Install VIm Syntax
+for VIMDIR in vimfiles vimfiles/ftdetect vimfiles/syntax; do
+  [[ -d "${INSTALL_ROOT}"/usr/share/vim/"${VIMDIR}"/ ]] || install -d -m 0755 "${INSTALL_ROOT}"/usr/share/vim/"${VIMDIR}"
+done  &&
+install -m 0644 "${SOURCE_DIRECTORY}"/contrib/syntax/vim/ftdetect/dockerfile.vim  \
+  "${INSTALL_ROOT}"/usr/share/vim/vimfiles/ftdetect/dockerfile.vim  &&
+install -m 0644 "${SOURCE_DIRECTORY}"/contrib/syntax/vim/syntax/dockerfile.vim  \
+  "${INSTALL_ROOT}"/usr/share/vim/vimfiles/syntax/dockerfile.vim  &&
+
+# Install SysConfig file as Sorcery seems to ignore this
+install_config_file "${SCRIPT_DIRECTORY}"/init.d/docker.conf  \
+  "${INSTALL_ROOT}"/etc/sysconfig/docker
