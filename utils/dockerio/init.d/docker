@@ -1,0 +1,81 @@
+#!/bin/sh
+
+# Modified from contrib/init/sysvinit-redhat/docker
+# Source function library.
+. /etc/init.d/smgl_init
+
+servicename='docker'
+PROGRAM="/usr/bin/${servicename}"
+UNSHARE='/usr/bin/unshare'
+PIDFILE="/var/run/${servicename}.pid"
+LOCKFILE="/var/lock/${servicename}"
+LOGFILE="/var/log/${servicename}"
+### BEGIN INIT INFO
+# Provides:       docker
+# Short-Description: start and stop docker
+# Description: Daemon for docker.com
+RUNLEVEL=3
+NEEDS="+network +remote_fs cgconfig"
+### END INIT INFO
+
+[ -e /etc/sysconfig/${servicename} ] && . /etc/sysconfig/${servicename}
+
+prestart() {
+	telinit run cgconfig status &> /dev/null
+
+	if [[ $? != 0 ]]; then
+		telinit run cgconfig start
+	fi
+}
+
+
+start() {
+    [ -x ${PROGRAM} ] || exit 5
+
+    check_for_cleanup
+
+    if ! [ -f ${PIDFILE} ]; then
+        prestart
+        printf "Starting ${servicename}:\t"
+        echo "\n$(date)\n" >> ${LOGFILE}
+        "${UNSHARE}" -m -- ${PROGRAM} -d ${SYSCONF_ARGS} &>> ${LOGFILE} &
+        pid=$!
+        touch ${LOCKFILE}
+        # wait up to 10 seconds for the PIDFILE to exist.  see
+        # https://github.com/docker/docker/issues/5359
+        tries=0
+        while [ ! -f ${PIDFILE} -a $tries -lt 10 ]; do
+            sleep 1
+            tries=$((tries + 1))
+        done
+        print_status success
+        echo
+    else
+        print_status failure
+        echo
+        printf "${PIDFILE} still exists...\n"
+        exit 7
+    fi
+}
+
+stop() {
+    echo -n $"Stopping ${servicename}: "
+    killproc ${PROGRAM} && rm -f ${LOCKFILE}
+}
+
+restart() {
+	stop
+	sleep 1
+	start
+}
+
+reload() {
+	restart
+}
+
+check_for_cleanup() {
+	if [ -f ${PIDFILE} ]; then
+		/bin/ps -fp $(cat ${PIDFILE}) > /dev/null || rm ${PIDFILE}
+	fi
+}
+

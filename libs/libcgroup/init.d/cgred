@@ -1,0 +1,119 @@
+#!/bin/bash
+#
+# Start/Stop the CGroups Rules Engine Daemon
+#
+# Copyright Red Hat Inc. 2008
+#
+# Authors:	Steve Olivieri <sjo@redhat.com>
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of version 2.1 of the GNU Lesser General Public License
+# as published by the Free Software Foundation.
+# 
+# This program is distributed in the hope that it would be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# cgred		CGroups Rules Engine Daemon
+# chkconfig:	- 14 86
+# description:	This is a daemon for automatically classifying processes \
+#		into cgroups based on UID/GID.
+#
+
+. /etc/init.d/smgl_init
+
+### BEGIN INIT INFO
+# Short-Description:	start and stop the cgroups rules engine daemon
+# Description:		CGroup Rules Engine is a tool for automatically using \
+#			cgroups to classify processes
+# processname: cgrulesengd
+# pidfile: /var/run/cgred.pid
+# Provides:		cgrulesengd
+DESC='CGroup Rules Engine is a tool for automatically using cgroups to classify processes'
+RUNLEVEL=S
+NEEDS="+local_fs +syslog cgconfig"
+### END INIT INFO
+
+# For convenience
+processname=cgrulesengd
+servicename=cgred
+prefix=/usr;exec_prefix=${prefix};sbindir=${exec_prefix}/sbin
+PROGRAM=$sbindir/cgrulesengd
+CGRED_CONF=/etc/cgrules.conf
+lockfile="/var/lock/${servicename}"
+pidfile=/var/run/cgred.pid
+
+
+# Sanity checks
+[ -x $PROGRAM ] || exit 1
+
+# Read in configuration options.
+if [ -f "/etc/sysconfig/cgred.conf" ] ; then
+	. /etc/sysconfig/cgred.conf
+	OPTIONS="$NODAEMON $LOG"
+	if [ -n "$LOG_FILE" ]; then
+		OPTIONS="$OPTIONS --logfile=$LOG_FILE"
+	fi
+	if [ -n "$SOCKET_USER" ]; then
+		OPTIONS="$OPTIONS -u $SOCKET_USER"
+	fi
+	if [ -n "$SOCKET_GROUP" ]; then
+		OPTIONS="$OPTIONS -g $SOCKET_GROUP"
+	fi
+else
+	OPTIONS=""
+fi
+
+start()
+{
+	echo -n $"Starting CGroup Rules Engine Daemon: "
+	if [ -f "$lockfile" ]; then
+		print_status failure "${servicename} is already running with PID `cat ${pidfile}`"
+		return 0
+	fi
+	num=`grep "cgroup" /proc/mounts | awk '$3=="cgroup"' | wc -l`
+	if [ $num -eq 0 ]; then
+		echo
+		print_status failure $"Cannot find cgroups, is cgconfig service running?"
+		return 1
+	fi
+	loadproc ${PROGRAM} ${OPTIONS}
+
+	touch "$lockfile"
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+	echo "`pidof $processname`" > $pidfile
+	return 0
+}
+
+stop()
+{
+	echo -n $"Stopping CGroup Rules Engine Daemon..."
+	if [ ! -f $pidfile ]; then
+		print_status success
+		return 0
+	fi
+	killproc "${PROGRAM}" 'SIGTERM' || return 1
+
+	rm -f "$lockfile" "$pidfile"
+	return 0
+}
+
+status()
+{
+  statusproc ${PROGRAM}
+}
+
+restart()
+{
+  #
+  # If the "reload" option is implemented, move the "force-reload"
+  # option to the "reload" entry above. If not, "force-reload" is
+  # just the same as "restart".
+  #
+  echo "Restarting $DESC: $servicename"
+  stop
+  sleep 1
+  start
+}
+
