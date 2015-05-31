@@ -1,0 +1,233 @@
+Author: Marco d'Itri
+
+Portability patch. Taken from Debian, includes a few modifications by me
+(Ismael Luceno).
+
+--- a/inetd.8
++++ b/inetd.8
+@@ -42,11 +42,7 @@
+ .Op Ar configuration_file
+ .Sh DESCRIPTION
+ .Nm inetd
+-should be run at boot time by
+-.Pa /etc/rc
+-(see
+-.Xr rc 8 ) .
+-It then listens for connections on certain internet sockets.
++listens for connections on certain internet sockets.
+ When a connection is found on one
+ of its sockets, it decides what service the socket
+ corresponds to, and invokes a program to service the request.
+@@ -149,7 +145,8 @@ The
+ .Em service name
+ entry is the name of a valid service in
+ the file
+-.Pa /etc/services .
++.Pa /etc/services
++or a port number.
+ For
+ .Dq internal
+ services (discussed below), the service
+@@ -166,7 +163,7 @@ The part on the right of the
+ is the RPC version number.
+ This can simply be a single numeric argument or a range of versions.
+ A range is bounded by the low version to the high version -
+-.Dq rusers/1-3 .
++.Dq rusers/1\-3 .
+ For
+ .Ux Ns -domain
+ sockets this field specifies the path name of the socket.
+@@ -186,7 +183,8 @@ reliably delivered message, or sequenced
+ The
+ .Em protocol
+ must be a valid protocol as given in
+-.Pa /etc/protocols .
++.Pa /etc/protocols or
++.Dq unix .
+ Examples might be
+ .Dq tcp
+ or
+@@ -368,9 +366,7 @@ If you have only one server on
+ only IPv6 traffic will be routed to the server.
+ .El
+ .Sh SEE ALSO
+-.Xr comsat 8 ,
+ .Xr fingerd 8 ,
+-.Xr ftp-proxy 8 ,
+ .Xr ftpd 8 ,
+ .Xr identd 8 ,
+ .Xr talkd 8
+@@ -383,7 +379,23 @@ Support for Sun-RPC
+ based services is modelled after that
+ provided by SunOS 4.1.
+ IPv6 support was added by the KAME project in 1999.
++.Pp
++Marco d'Itri ported this code from OpenBSD in summer 2002 and added
++socket buffers tuning and libwrap support from the NetBSD source tree.
+ .Sh BUGS
++On Linux systems, the daemon cannot reload its configuration and needs
++to be restarted when the host address for a service is changed between
++.Dq \&*
++and a specific address.
++.Pp
++Server programs used with
++.Dq dgram
++.Dq udp
++.Dq nowait
++must read from the network socket, or
++.Nm inetd
++will spawn processes until the maximum is reached.
++.Pp
+ Host address specifiers, while they make conceptual sense for RPC
+ services, do not work entirely correctly.
+ This is largely because the
+--- a/inetd.c
++++ b/inetd.c
+@@ -128,6 +128,7 @@
+ #include <sys/un.h>
+ #include <sys/file.h>
+ #include <sys/wait.h>
++#include <time.h>
+ #include <sys/time.h>
+ #include <sys/resource.h>
+ 
+@@ -146,11 +147,12 @@
+ #include <stdlib.h>
+ #include <unistd.h>
+ #include <string.h>
++#ifdef HAVE_SETUSERCONTEXT
+ #include <login_cap.h>
++#endif
+ #include <ifaddrs.h>
+ #include <rpc/rpc.h>
+ #include <rpc/pmap_clnt.h>
+-#include <rpcsvc/nfs_prot.h>
+ #include "pathnames.h"
+ 
+ #define	TOOMANY		256		/* don't start more than TOOMANY */
+@@ -324,14 +328,11 @@ main(int argc, char *argv[])
+ 	fd_set *fdsrp = NULL;
+ 	int readablen = 0, ch;
+ 	struct servtab *sep;
+-	extern char *optarg;
+-	extern int optind;
+ 	
+ 	while ((ch = getopt(argc, argv, "dR:")) != -1)
+ 		switch (ch) {
+ 		case 'd':
+ 			debug = 1;
+-			options |= SO_DEBUG;
+ 			break;
+ 		case 'R': {	/* invocation rate */
+ 			char *p;
+@@ -373,9 +374,13 @@ main(int argc, char *argv[])
+ 	umask(022);
+ 	if (debug == 0) {
+ 		daemon(0, 0);
++#ifdef HAVE_SETLOGIN
+ 		if (uid == 0)
+ 			(void) setlogin("");
++#endif
+ 	}
++	if (debug && uid == 0)
++		options |= SO_DEBUG;
+ 
+ 	if (uid == 0) {
+ 		gid_t gid = getgid();
+@@ -420,6 +425,15 @@ main(int argc, char *argv[])
+ 	sa.sa_handler = SIG_IGN;
+ 	sigaction(SIGPIPE, &sa, &sapipe);
+ 
++	/* space for daemons to overwrite environment for ps */
++	{
++#define DUMMYSIZE 100
++		char dummy[DUMMYSIZE];
++		memset(dummy, 'x', DUMMYSIZE - 1);
++		dummy[DUMMYSIZE - 1] = '\0';
++		setenv("inetd_dummy", dummy, 1);
++	}
++
+ 	for (;;) {
+ 		int n, ctrl = -1;
+ 
+@@ -576,9 +590,6 @@ dg_badinput(struct sockaddr *sa)
+ 		goto bad;
+ 	}
+ 
+-	if (port < IPPORT_RESERVED || port == NFS_PORT)
+-		goto bad;
+-
+ 	return (0);
+ 
+ bad:
+@@ -1852,7 +1865,7 @@ print_service(char *action, struct servt
+ 	fprintf(stderr,
+ 	    " wait.max=%d.%d user:group=%s:%s builtin=%lx server=%s\n",
+ 	    sep->se_wait, sep->se_max, sep->se_user,
+-	    sep->se_group ? sep->se_group : "wheel",
++	    sep->se_group ? sep->se_group : "(default)",
+ 	    (long)sep->se_bi, sep->se_server);
+ }
+ 
+@@ -1960,6 +1973,7 @@ spawn(struct servtab *sep, int ctrl)
+ 				if (uid != pwd->pw_uid)
+ 					exit(1);
+ 			} else {
++#ifdef HAVE_SETUSERCONTEXT
+ 				tmpint = LOGIN_SETALL &
+ 				    ~(LOGIN_SETGROUP|LOGIN_SETLOGIN);
+ 				if (pwd->pw_uid)
+@@ -1975,6 +1989,53 @@ spawn(struct servtab *sep, int ctrl)
+ 					    sep->se_service, sep->se_proto);
+ 					exit(1);
+ 				}
++#else
++				/* what about setpriority(2), setrlimit(2),
++				 * and umask(2)? The $PATH is cleared.
++				 */
++				if (pwd->pw_uid) {
++				    if (sep->se_group)
++					pwd->pw_gid = grp->gr_gid;
++				    if (setgid(pwd->pw_gid) < 0) {
++					syslog(LOG_ERR,
++					    "%s/%s: can't set gid %d: %m",
++					    sep->se_service, sep->se_proto,
++					    pwd->pw_gid);
++					exit(1);
++				    }
++				    if (initgroups(pwd->pw_name, pwd->pw_gid)
++					    < 0) {
++					syslog(LOG_ERR,
++					    "%s/%s: can't initgroups(%s): %m",
++					    sep->se_service, sep->se_proto,
++					    pwd->pw_name);
++					exit(1);
++				    }
++				    if (setuid(pwd->pw_uid) < 0) {
++					syslog(LOG_ERR,
++						"%s/%s: can't set uid %d: %m",
++						sep->se_service, sep->se_proto,
++						pwd->pw_uid);
++					exit(1);
++				    }
++				} else if (sep->se_group) {
++				    if (setgid(pwd->pw_gid) < 0) {
++					syslog(LOG_ERR,
++					    "%s/%s: can't set gid %d: %m",
++					    sep->se_service, sep->se_proto,
++					    pwd->pw_gid);
++					exit(1);
++				    }
++				    if (initgroups(pwd->pw_name, pwd->pw_gid)
++					    < 0) {
++					syslog(LOG_ERR,
++					    "%s/%s: can't initgroups(%s): %m",
++					    sep->se_service, sep->se_proto,
++					    pwd->pw_name);
++					exit(1);
++				    }
++				}
++#endif
+ 			}
+ 			if (debug)
+ 				fprintf(stderr, "%ld execv %s\n",

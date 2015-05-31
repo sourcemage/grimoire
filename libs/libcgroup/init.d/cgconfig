@@ -1,0 +1,139 @@
+#!/bin/bash
+#
+# Start/Stop the workload manager
+#
+# Copyright IBM Corporation. 2008
+#
+# Authors:     Balbir Singh <balbir@linux.vnet.ibm.com>
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of version 2.1 of the GNU Lesser General Public License
+# as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it would be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# cgconfig Control Groups Configuration Startup
+# chkconfig: - 5 95
+# description: This script runs the cgconfigparser utility to parse and setup
+#              the control group filesystem. It uses /etc/cgconfig.conf
+#              and parses the configuration specified in there.
+
+### BEGIN INIT INFO
+# Short-Description:    Create and setup control group filesystem(s)
+# Description:          Create and setup control group filesystem(s)
+# Should-Start:         ypbind
+# Should-Stop:          ypbind
+PIDFILE=/var/run/${servicename}
+RUNLEVEL=S
+NEEDS="+local_fs +syslog"
+### END INIT INFO
+
+. /etc/init.d/smgl_init
+
+# get correct location of binaries from configure
+prefix=/usr/;exec_prefix=${prefix};sbindir=${exec_prefix}/sbin
+servicename=cgconfig
+PROGRAM=$sbindir/cgconfigparser
+CONFIG_FILE=/etc/cgconfig.conf
+lockfile=/var/lock/${servicename}
+
+# read the config
+CREATE_DEFAULT=yes
+if [ -e /etc/sysconfig/cgconfig ]; then
+	. /etc/sysconfig/cgconfig
+fi
+
+create_default_groups() {
+	defaultcgroup=
+
+        if [ -f /etc/cgrules.conf ]; then
+	    read user ctrl defaultcgroup <<< \
+		    $(grep -m1 '^\*[[:space:]]\+' /etc/cgrules.conf)
+            if [ -n "$defaultcgroup" -a "$defaultcgroup" = "*" ]; then
+                print_status warning "/etc/cgrules.conf incorrect"
+                print_status warning "Overriding it"
+                defaultcgroup=
+            fi
+        fi
+
+        if [ -z $defaultcgroup ]
+        then
+            defaultcgroup=sysdefault/
+        fi
+
+        #
+        # Find all mounted subsystems and create comma-separated list
+        # of controllers.
+        #
+        controllers=`lssubsys 2>/dev/null | tr '\n' ',' | sed s/.$//`
+
+        #
+        # Create the default group, ignore errors when the default group
+        # already exists.
+        #
+        cgcreate -f 664 -d 775 -g $controllers:$defaultcgroup 2>/dev/null
+
+        #
+        # special rule for cpusets
+        #
+        if echo $controllers | grep -q -w cpuset; then
+                cpus=`cgget -nv -r cpuset.cpus /`
+                cgset -r cpuset.cpus=$cpus $defaultcgroup
+                mems=`cgget -nv -r cpuset.mems /`
+                cgset -r cpuset.mems=$mems $defaultcgroup
+        fi
+
+        #
+        # Classify everything to default cgroup. Ignore errors, some processes
+        # may exit after ps is run and before cgclassify moves them.
+        #
+        cgclassify -g $controllers:$defaultcgroup `ps --no-headers -eL o tid` \
+                 2>/dev/null || :
+}
+
+start() {
+	echo -n "Starting cgconfig service: "
+	if [ -f "$lockfile" ]; then
+		print_status warning "lock file already exists"
+		return 0
+	fi  &&
+
+	if [ ! -s $CONFIG_FILE ]; then
+		print_status failure "$CONFIG_FILE is not configured"
+		return 6
+	fi  &&
+
+	$PROGRAM -l $CONFIG_FILE
+	evaluate_retval || ( print_status failure "Failed to parse $CONFIG_FILE" && return 1 )
+
+	if [ $CREATE_DEFAULT = "yes" ]; then
+		create_default_groups
+	fi
+
+	touch "$lockfile" || ( print_status failure "Failed to touch $lockfile" && return 1 )
+}
+
+stop() {
+	echo -n "Stopping cgconfig service: "
+	cgclear
+	rm -f "$lockfile"
+	evaluate_retval
+}
+
+status() {
+	if [ -f "$lockfile" ]; then
+		print_status success "${servicename} already started" &&
+		return 0
+	else
+		print_status failure "${servicename} not started" &&
+		return 0
+	fi
+}
+
+restart() {
+	stop
+	sleep 1
+	start
+}
+
