@@ -1,1 +1,1 @@
-make -f "$SPELL_DIRECTORY/Makefile"
+make prefix="$INSTALL_ROOT/usr"
