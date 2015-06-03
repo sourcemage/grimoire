@@ -1,12 +1,32 @@
-depends glib2 &&
-depends libpng &&
-depends pcre &&
 depends ragel &&
+
+optional_depends glib2 \
+                 "--with-glib=yes --with-gobject=yes" \
+                 "--with-glib=no --with-gobject=no" \
+                 "to use glib" &&
+
+persistent_add HARFBUZZ_OPTS &&
+
+if is_depends_enabled $SPELL glib2; then
+  depends pcre &&
+
+  optional_depends gobject-introspection \
+                   "--enable-introspection=yes" \
+                   "--enable-introspection=no" \
+                   "to enable introspection for this build"
+else
+  list_add "HARFBUZZ_OPTS" "--enable-introspection=no"
+fi &&
 
 if spell_ok cairo; then
   optional_depends cairo "--with-cairo=yes" "--with-cairo=no" \
-                 "Enable tools used for command-line utilities?"
+                 "Enable tools used for command-line utilities?" &&
+
+  if is_depends_enabled $SPELL cairo; then
+    depends libpng
+  fi
 else
+  list_add "HARFBUZZ_OPTS" "--with-cairo=no" &&
   message "${PROBLEM_COLOR}cyclic ${SPELL_COLOR}cairo${PROBLEM_COLOR} optional dependency disabled until ${SPELL_COLOR}cairo${PROBLEM_COLOR} is cast${DEFAULT_COLOR}"
 fi &&
 
