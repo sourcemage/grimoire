@@ -2,7 +2,7 @@
 # or QtWebkit which forces building it... probably a buildsystem bug.
 CFLAGS="${CFLAGS/-ffast-math}"
 
-QTDIR=$INSTALL_ROOT/usr &&
+QTDIR=$QT4DIR  &&
 
 OPTS="$QT_DEBUG               \
       $QT_NIS                 \
@@ -23,17 +23,9 @@ OPTS="$QT_DEBUG               \
       $QT_PHONON              \
       $OPTS"                  &&
 
-./configure  -opensource -confirm-license                                     \
-             -prefix  "$INSTALL_ROOT/usr"                                     \
-             -bindir  "$INSTALL_ROOT/usr/bin/qt4"                             \
-             -docdir  "$INSTALL_ROOT/usr/share/doc/qt4"                       \
-             -plugindir  "$INSTALL_ROOT/usr/lib/qt4/plugins"                  \
-             -sysconfdir  "$INSTALL_ROOT/etc/qt4"                             \
-             -translationdir  "$INSTALL_ROOT//usr/share/doc/qt4/translations" \
-             -examplesdir  "$INSTALL_ROOT/usr/share/doc/qt4/examples"         \
-             -demosdir  "$INSTALL_ROOT/usr/share/doc/qt4/demos"               \
-             -datadir  "$INSTALL_ROOT/usr/share/qt4"                          \
-             -platform  linux-g++                                             \
-             $OPTS                                                            &&
+./configure  -opensource -confirm-license \
+             -prefix  "$QT4DIR"   \
+             -platform  linux-g++ \
+             $OPTS    &&
 
 make
