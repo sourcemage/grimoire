@@ -1,15 +1,15 @@
 message "Cyrus-SASL supports lots of authentication mechanisms, devided into 3 main categories:" &&
-message "plaintext (LOGIN, PLAIN), shared secret (DIGEST-MD5, CRAM-MD5) and Kerberos (KERBEROS_V4, GSSAPI)" &&
+message "password verification (LOGIN, PLAIN), shared secret (DIGEST-MD5, CRAM-MD5) and Kerberos (KERBEROS_V4, GSSAPI)" &&
 message "To avoid getting lost in configuring SASL, please choose *only* the mechanisms" &&
 message "you are actually planning to use." &&
-config_query CS_PLAINTEXT "Enable plaintext mechanisms?" n &&
-config_query CS_SHARED "Enable shared secret mechanisms?" n &&
+config_query CS_PLAINTEXT "Enable password verification (plaintext) mechanisms?" y &&
+config_query CS_SHARED "Enable shared secret mechanisms?" y &&
 config_query CS_KERBEROS "Enable kerberos mechanisms?" n &&
 
 # Some lonely options, doesn't fit with anything else
-config_query_option CS_ANON "Enable ANONYMOUS authentication? (you really don't want this)" n "--enable-anon" "--disable-anon" &&
+config_query_option CS_ANON "Enable ANONYMOUS authentication? (you really don't want this)" y "--enable-anon" "--disable-anon" &&
 config_query_option CS_NTLM "Enable NTLM authentication? (unsupported)" n "--enable-ntlm" "--disable-ntlm" &&
-config_query_option CS_APOP "Enable APOP authentication?" n "--enable-checkapop" "--disable-checkapop" &&
+config_query_option CS_APOP "Enable APOP authentication?" y "--enable-checkapop" "--disable-checkapop" &&
 
 if [ "$CS_PLAINTEXT" == "n" ] && [ "$CS_SHARED" == "n" ] && [ "$CS_KERBEROS" == "n" ]; then
   message "You didn't select any authentication mechanism!" &&
@@ -37,14 +37,16 @@ persistent_add CS_MECH &&
 
 if [ "$CS_PLAINTEXT" == "y" ]; then
   message "Plaintext by itself is not secure for obvious reasons," &&
-  message " but it can be usefull in combination with something like TLS" &&
+  message "but it can be useful in combination with something like TLS" &&
   config_query_option CS_PLAIN "Enable PLAIN authentication?" y "--enable-plain" "--disable-plain" &&
   config_query_option CS_LOGIN "Enable LOGIN authentication? (unsupported)" n "--enable-login" "--disable-login"
 elif [ "$CS_SHARED" == "y" ]; then
-  config_query_option CS_CRAM "Enable CRAM-MD5 authentication?" n "--enable-cram" "--disable-cram" &&
-  config_query_option CS_DIGEST "Enable DIGEST-MD5 authentication?" n "--enable-digest" "--disable-digest" &&
+  config_query_option CS_CRAM "Enable CRAM-MD5 authentication?" y "--enable-cram" "--disable-cram" &&
+  config_query_option CS_SCRAM "Enable SCRAM authentication?" y "--enable-scram" "--disable-scram" &&
+  config_query_option CS_DIGEST "Enable DIGEST-MD5 authentication?" y "--enable-digest" "--disable-digest" &&
   config_query_option CS_OTP "Enable One-Time-Password authentication?" y "--enable-otp" "--disable-otp" &&
-  config_query_option CS_SRP "Enable SRP authentication?" y "--enable-srp" "--disable-srp"
+  config_query_option CS_SRP "Enable SRP authentication?" n "--enable-srp" "--disable-srp" &&
+  config_query_option CS_PASSDSS "Enable PASSDSS authentication (${PROBLEM_COLOR}experimental${QUERY_COLOR})?" n "--enable-passdss" "--disable-passdss"
 elif [ "$CS_KERBEROS" == "y" ]; then
   true
   # deferred until DEPENDS to let sorcery manage options
