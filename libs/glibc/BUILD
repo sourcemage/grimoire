@@ -1,5 +1,14 @@
 make_single  &&
 
+# Following flags make the build fail
+for flag in \
+  -flto \
+  -Wunsafe-loop-optimizations
+do
+  LDFLAGS="${LDFLAGS/$flag}" &&
+  CFLAGS="${CFLAGS/$flag}"
+done &&
+
 if [[ $GLIBC_DEBUG == "y" ]]; then
   LDFLAGS="${LDFLAGS/-s/}"
 fi &&
