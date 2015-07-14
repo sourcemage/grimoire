@@ -6,5 +6,7 @@ CFLAGS="" &&
 LDFLAGS=${LDFLAGS/-Wl,-O1}   &&
 LDFLAGS=${LDFLAGS/-Wl,--hash-style=gnu}   &&
 LDFLAGS=${LDFLAGS/-Wl,--as-needed}   &&
+LDFLAGS=${LDFLAGS/-flto} &&
+LDFLAGS=${LDFLAGS/-fuse-linker-plugin} &&
 
 make
