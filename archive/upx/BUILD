@@ -1,3 +1,5 @@
+# XXX Build uses -Werror
+CXXFLAGS="${CXXFLAGS/-Wunsafe-loop-optimizations}" &&
 cd $SOURCE_DIRECTORY/src &&
 CXX=${CXX} default_build_make       &&
 
