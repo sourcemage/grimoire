@@ -1,3 +1,3 @@
 OPTS="$LIBVNCSERVER_OPTS $OPTS"
 
-default_build
+cmake_build
