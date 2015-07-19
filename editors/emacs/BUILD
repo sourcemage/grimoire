@@ -10,7 +10,7 @@ export  LDFLAGS="${LDFLAGS/-z combreloc/}"  &&
 export LDFLAGS="${LDFLAGS//-Wl,-O1/}"  &&
 
 # XXX Causes a segfault during the bootstrapping
-CFLAGS="${CFLAGS/-fsched-spec-load }" &&
+CFLAGS="${CFLAGS/-ftree-loop-if-convert-stores}" &&
 
 OPTS="$OPTS --with-x-toolkit=$EMACS_XTOOLKIT" &&
 if [[ "$EMACS_BRANCH" == "scm" ]]; then
