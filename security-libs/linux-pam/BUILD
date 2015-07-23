@@ -4,6 +4,8 @@ fi
 
 export PS2PDF=no
 
+OPTS="--enable-shared --enable-static $OPTS" &&
+
 #autoconf                                             &&
 ./configure  --libdir=/lib                           \
              --sbindir=/lib/security                 \
