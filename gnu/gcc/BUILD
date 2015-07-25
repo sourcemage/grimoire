@@ -111,10 +111,4 @@ OPTS="$GCC_MULTILIB $OPTS"                                         &&
 cd $SOURCE_DIRECTORY.bld                                              &&
 $SOURCE_DIRECTORY/configure $OPTS                                     &&
 
-if [[ "$GCC_TARGET" == "profiledbootstrap" ]] ||
-   [[ "$GCC_TARGET" == "profiledbootstrap-lean" ]] ; then
-  make_single 
-fi  &&
-echo "$MAKE_NJOBS  $JOBS_PER_HOST" &&
-make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET &&
-make_normal
+make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET
