@@ -1,5 +1,16 @@
-config_query DJANGO_SVN "Build SVN version?" n &&
+. "$GRIMOIRE"/FUNCTIONS &&
 
-if [[ $DJANGO_SVN == y ]]; then
-    config_query DJANGO_SVN_AUTOUPDATE "Update on every system update?" n
-fi
+# backport obsolete settings (also svn -> git)
+if spell_ok $SPELL && [[ $DJANGO_SVN == y ]]; then
+  persistent_add DJANGO_BRANCH &&
+  DJANGO_BRANCH="scm" &&
+  persistent_remove DJANGO_SVN &&
+
+  if [[ $DJANGO_SVN_AUTOUPDATE == y ]]; then
+    persistent_add DJANGO_AUTOUPDATE &&
+    DJANGO_AUTOUPDATE="y" &&
+    persistent_remove DJANGO_SVN_AUTOUPDATE
+  fi
+fi &&
+
+prepare_select_branch stable legacy scm
