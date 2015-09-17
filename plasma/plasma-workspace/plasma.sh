@@ -12,14 +12,6 @@ export QML2_IMPORT_PATH=$KF5/lib/qml
 export QML_IMPORT_PATH=$QML2_IMPORT_PATH
 export XCURSOR_PATH=$KF5/share/icons:~/.icons:/usr/share/icons:/usr/share/pixmaps
 
-# allow running kde4 apps in a plasma5 session
-#  put qt4 first, otherwise kamil/akonadi cannot find plugins
-  KDE4=/opt/qt4
-  if [[ -f $KDE4/bin/kdeinit4  ]];then
-    export XDG_DATA_DIRS+=":$KDE4/share"
-    export PATH+=":$KDE4/bin"
-    export QT_PLUGIN_PATH+=":$KDE4/lib/plugins"
-  fi
 # temporary runtime directories
 export XDG_RUNTIME_DIR=${TMPDIR-/tmp}/plasma-$USER
 
