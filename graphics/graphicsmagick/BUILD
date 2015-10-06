@@ -6,4 +6,5 @@ then
   OPTS="--without-png ${OPTS}"
 fi  &&
 
-default_build
+default_build &&
+make perl-build
