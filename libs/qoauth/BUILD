@@ -1,5 +1,5 @@
-QTDIR="${QTDIR:-$INSTALL_ROOT/usr}" &&
-PATH="$QTDIR/bin/qt4:$PATH" &&
-
-qmake &&
-make
+if is_depends_enabled $SPELL qtbase;then
+  qt5_build
+else
+  qt4_build
+fi
