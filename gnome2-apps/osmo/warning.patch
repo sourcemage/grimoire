@@ -1,0 +1,107 @@
+--- src/check_events.c.orig	2015-08-08 10:10:12.000000000 +0300
++++ src/check_events.c	2015-10-20 09:34:34.220984261 +0300
+@@ -341,60 +341,60 @@
+ #endif /* HAVE_LIBNOTIFY */
+ 
+ /*------------------------------------------------------------------------------*/
++static gboolean
++is_show_warning(TASK_ITEM *item, GUI *appGUI) {
++    if (item->warning_days > 0 || item->warning_time > 0) {
++        guint32 current_date, warning_date;
++        gint current_time, warning_time;
++        current_date = utl_date_get_current_julian();
++        current_time = utl_time_get_current_seconds();
++        utl_subtract_from_date(item->due_date_julian, item->due_time,
++                item->warning_days, item->warning_time * 60, &warning_date, &warning_time);
++
++        if (warning_date < current_date + (warning_time <= current_time) ? 1 : 0) {
++            if (item->repeat == TRUE && item->offline_ignore == TRUE) {
++                if (warning_date < appGUI->run_date + (warning_time < appGUI->run_time) ? 1 : 0) {
++                    return FALSE;
++                }
++            }
+ 
+-gboolean
++            return TRUE;
++        }
++    }
++    return FALSE;
++}
++
++static gboolean
++is_show_notification(TASK_ITEM *item) {
++    return utl_date_time_in_the_past_js (item->due_date_julian, item->due_time);
++}
++/*------------------------------------------------------------------------------*/
++
++static gboolean
+ tsk_show_warning_notification (TASK_ITEM *item, GUI *appGUI)
+ {
+-guint32 current_date, warning_date;
+-gint current_time, warning_time;
+-
+ 	if (tsk_check_notification_id (item->id, NOTIFY_WARNING, appGUI))
+ 		return FALSE;
+-
+-	if (item->warning_days > 0 || item->warning_time > 0) {
+-
+-		current_date = utl_date_get_current_julian ();
+-		current_time = utl_time_get_current_seconds ();
+-		utl_subtract_from_date (item->due_date_julian, item->due_time,
+-		                        item->warning_days, item->warning_time * 60, &warning_date, &warning_time);
+-
+-		if (warning_date < current_date + (warning_time <= current_time) ? 1 : 0) {
+-
+-			if (item->repeat == TRUE && item->offline_ignore == TRUE) {
+-				if (warning_date < appGUI->run_date + (warning_time < appGUI->run_time) ? 1 : 0) {
+-					return FALSE;
+-				}
+-			}
+-
+-			return TRUE;
+-		}
+-	}
+-
+-	return FALSE;
++	return is_show_warning(item, appGUI);
+ }
+ 
+ /*------------------------------------------------------------------------------*/
+ 
+-gboolean
++static gboolean
+ tsk_show_task_notification (TASK_ITEM *item, GUI *appGUI)
+ {
+ 	if (item->due_date_julian == 0 || tsk_check_notification_id (item->id, NOTIFY_ALARM, appGUI))
+ 		return FALSE;
+-
+-	if (utl_date_time_in_the_past_js (item->due_date_julian, item->due_time)) {
+-		return TRUE;
+-	}
+-
+-	return FALSE;
++	return is_show_notification(item);
+ }
+ 
+ /*------------------------------------------------------------------------------*/
+ 
+-gboolean
+-tsk_delete_ntask_notification(TASK_ITEM *item) {
++static gboolean
++tsk_delete_ntask_notification(TASK_ITEM *item, GUI *appGUI) {
+     if(item->done) {
+         return TRUE;
+-    } else if(!utl_date_time_in_the_past_js(item->due_date_julian, item->due_time)) {
++    } else if(!is_show_notification(item) && !is_show_warning(item, appGUI)) {
+         return TRUE;
+     }
+     return FALSE;
+@@ -418,7 +418,7 @@
+         return;
+     }
+ 
+-    if (tsk_delete_ntask_notification(item)) {
++    if (tsk_delete_ntask_notification(item, appGUI)) {
+         notify_task_delete(item->id, appGUI);
+     } else if (item->active == TRUE && item->done == FALSE) {
+ 
