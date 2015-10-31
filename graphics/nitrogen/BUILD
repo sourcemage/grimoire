@@ -1,1 +1,1 @@
-LDFLAGS+="-lX11" default_build
+LDFLAGS+=" -lX11" default_build
