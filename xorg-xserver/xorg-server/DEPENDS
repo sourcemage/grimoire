@@ -51,6 +51,11 @@ optional_depends  libxvmc                          \
                   "--disable-xvmc"                 \
                   "Enable support for XvMC"        &&
 
+optional_depends  LOGIN-DAEMON \
+                 '--enable-systemd-logind' \
+                 '--disable-systemd-logind' \
+                 'login daemon' &&
+depends dbus &&
 #
 # May only select one:
 # configure: error: Hotplugging through both libudev and dbus/hal not allowed
@@ -60,20 +65,19 @@ optional_depends  libxvmc                          \
 #
 # hal is preferred by upstream:
 #  --enable-config-udev    Build udev support (default: auto)
-#  --enable-config-dbus    Build D-BUS API support (default: no)
 #  --disable-config-hal    Build HAL support (default: auto)
 #
 
 message "You can either use hal+dbus OR udev for hotplugging" &&
 message "but NOT both" &&
 optional_depends  hal \
-         "--enable-config-hal --enable-config-dbus --disable-config-udev" \
-         "--disable-config-hal --disable-config-dbus" \
+         "--enable-config-hal  --disable-config-udev" \
+         "--disable-config-hal " \
          "Enable HAL support" &&
 
 if ! is_depends_enabled $SPELL hal; then
   optional_depends DEVICE-MANAGER \
-    "--enable-config-udev --disable-config-dbus --disable-config-hal" \
+    "--enable-config-udev --disable-config-hal" \
     "--disable-config-udev" \
     "enable udev kernel config support"
 fi &&
@@ -163,12 +167,13 @@ depends  libxtst                                   &&
 
 message 'additional fonts are not needed, but can be installed indiviually' &&
 
-message 'choose an input driver' &&
+message 'choose an input or video driver' &&
 message 'if these drivers are not suitable, choose from the xorg-drivers section' &&
 
 suggest_depends xf86-input-evdev '' ''  'modern input drivers' &&
 suggest_depends xf86-input-synaptics '' '' 'modern input drivers' &&
 suggest_depends xf86-input-libinput '' '' 'modern input drivers' &&
 suggest_depends xf86-video-ati   '' '' 'modern ATI drivers' &&
+suggest_depends xf86-video-amdgpu '' '' 'hardware accellerated AMD drivers' &&
 suggest_depends xf86-video-intel '' '' 'modern Intel drivers' &&
 suggest_depends xf86-video-nouveau '' '' 'modern NVidia drivers'
