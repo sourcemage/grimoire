@@ -1,3 +1,6 @@
+if [[ $SQLITE_ENABLE_JSON1 == y ]];then
+  CGLAGS+='-DSQLITE_ENABLE_JSON1=1'
+fi &&
 if [[ $SQLITE_META == y ]]; then
   CFLAGS="-DSQLITE_ENABLE_COLUMN_METADATA=1 $CFLAGS"
 fi &&
