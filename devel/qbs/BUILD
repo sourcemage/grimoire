@@ -1,10 +1,6 @@
 if is_depends_enabled $SPELL qtbase;then
- QTDIR=$QT5DIR
+  qt5_build
 else
- QTDIR=$QT4DIR
+  qt4_build
 fi
-export PKG_CONFIG_PATH="$QTDIR/lib/pkgconfig"
-PATH="$QTDIR/bin:$PATH:$SOURCE_DIRECTORY"
-qmake -r PREFIX=$QTDIR $OPTS qbs.pro &&
-make
 

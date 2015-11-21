@@ -1,0 +1,15 @@
+if spell_ok $SPELL; then
+  local OLD_SPELL_VERSION="" &&
+  OLD_SPELL_VERSION="$(installed_version ${SPELL})" &&
+
+  if [[ "${OLD_SPELL_VERSION}" != "${VERSION}" ]]; then
+    message "${MESSAGE_COLOR}This is a possibly incompatible update of ${SPELL_COLOR}${SPELL}${NO_COLOR}${MESSAGE_COLOR}...${DEFAULT_COLOR}"
+    message "${MESSAGE_COLOR}Figuring out what spells need to be checked, this may take a while.${DEFAULT_COLOR}"
+    for each in $(show_up_depends $SPELL); do
+      if gaze install $each | xargs readelf -d 2> /dev/null |
+         grep -q "NEEDED.*libvpx\.so"; then
+           up_trigger $each check_self
+      fi
+    done
+  fi
+fi

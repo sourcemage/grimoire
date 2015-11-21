@@ -1,4 +1,4 @@
-cd $SOURCE_DIRECTORY &&
-mkdir build  &&
-cd build     &&
+#cd $SOURCE_DIRECTORY &&
+#mkdir build  &&
+#cd build     &&
 cmake_build
