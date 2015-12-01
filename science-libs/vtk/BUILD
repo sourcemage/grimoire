@@ -1,7 +1,7 @@
 CFLAGS="${CFLAGS//-ffast-math}"     &&
 CXXFLAGS="${CXXFLAGS//-ffast-math}" &&
-
-OPTS+=" -DBUILD_SHARED_LIBS=ON -DWTK_USE_HYBRID=ON" &&
+OPTS+=" -DVTK_USE_SYSTEM_LIBRARIES=1"
+#OPTS+=" -DBUILD_SHARED_LIBS=ON -DVTK_USE_HYBRID=ON" &&
 
 # Building examples fails on VTK 6.1.0
 #OPTS+=' -DBUILD_EXAMPLES=ON'
