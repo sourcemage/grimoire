@@ -1,6 +1,7 @@
 CFLAGS="${CFLAGS//-ffast-math}"     &&
 CXXFLAGS="${CXXFLAGS//-ffast-math}" &&
-OPTS+=" -DVTK_USE_SYSTEM_LIBRARIES=1"
+OPTS+=" -DVTK_USE_SYSTEM_LIBRARIES=1" &&
+OPTS+=" -DVTK_FORBID_DOWNLOADS=1" &&
 #OPTS+=" -DBUILD_SHARED_LIBS=ON -DVTK_USE_HYBRID=ON" &&
 
 # Building examples fails on VTK 6.1.0
@@ -17,4 +18,8 @@ OPTS+=" -DVTK_USE_SYSTEM_LIBRARIES=1"
 #   OPTS+=" -DJAVA_AWT_LIBRARY=$JAVA_HOME/jre/lib/i386/libawt.so"
 # fi
 
-cmake_build
+if is_depends_enabled $SPELL qtbase;then
+  qt5_cmake_build
+else
+  cmake_build
+fi
