@@ -15,6 +15,7 @@ OPTS="--with-x11                        \
       --enable-ne2000                   \
       --disable-docbook                 \
       $RFB $SB16 $TERM $SMP $IPS        \
+      $BOCHS_OPTS                       \
       $OPTS"                            &&
 
 CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" default_build
