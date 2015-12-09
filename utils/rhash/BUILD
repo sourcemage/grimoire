@@ -1,1 +1,1 @@
-make
+make build-shared
