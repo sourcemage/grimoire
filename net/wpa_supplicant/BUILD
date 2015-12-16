@@ -26,7 +26,7 @@ done &&
 make &&
 
 if is_depends_enabled $SPELL qt4; then
-  PATH=/usr/bin/qt4:$PATH make wpa_gui-qt4
+  PATH=$QT4DIR/bin:$PATH make wpa_gui-qt4
 fi &&
 
 if is_depends_enabled $SPELL qt-x11; then
