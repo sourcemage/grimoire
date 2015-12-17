@@ -2,12 +2,6 @@
 # https://bugs.freedesktop.org/show_bug.cgi?id=70471
 # llvm-config output should contain -fno-rtti.
 CXXFLAGS+=" -fno-rtti" &&
-# Doesn't know where to look for libelf headers, yet.
-if is_depends_enabled $SPELL libelf; then
-  elfflags=$(pkg-config --cflags libelf)
-  CFLAGS+=" $elfflags"
-  CXXFLAGS+=" $elfflags"
-fi &&
 OPTS="--with-dri-drivers=${MESALIB_DRIVERS// /,} \
       --with-gallium-drivers=${MESALIB_GALLIUM// /,} \
       $MESALIB_OPTS \
