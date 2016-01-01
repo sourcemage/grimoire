@@ -543,6 +543,12 @@ cmake_build() {
   mkdir -p build        &&
   cd build              &&
   prepare_cmake_flags   &&
+  if [[ $CMAKE_GEN == Ninja ]];then
+    MAKE=ninja
+    OPTS+=" -G Ninja"
+  else
+    MAKE=make
+  fi &&
 
   if [[ -z $1 ]];then
     CMAKE_INSTALL_PREFIX="$INSTALL_ROOT/usr"
@@ -561,7 +567,15 @@ cmake_build() {
         -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
         -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
          $OPTS ../  &&
-  make
+  $MAKE
+}
+
+function cmake_install() {
+  if [[ $CMAKE_GEN == Ninja ]];then
+    ninja install
+  else
+    make install
+  fi
 }
 
 qt4_cmake_build() {
