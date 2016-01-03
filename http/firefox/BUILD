@@ -23,6 +23,8 @@ CXXFLAGS="${CXXFLAGS//-O3/-Os}"  &&
 # remove it here without changing anything...
 #
 LDFLAGS="${LDFLAGS// -s/}" &&
+LDFLAGS="${LDFLAGS//-s /}" &&
+LDFLAGS="${LDFLAGS//^-s$/}" &&
 
 #
 # Avoid buggy GCC 4.6 AVX code generation, which breaks libxul
