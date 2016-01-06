@@ -1,29 +1,16 @@
-function mutt_default_patch() {
-  . "${PATCH_DIRECTORY}/${PATCH}/PATCH_DETAILS" &&
-  bzcat "${PATCH_DIRECTORY}/${PATCH}/${PATCH_SOURCE}.bz2" > "${PATCH_SOURCE}" &&
-  if [[ -f "${PATCH_DIRECTORY}/${PATCH}/${PATCH_SOURCE}.${MUTT_BRANCH}.smgl.diff.bz2" ]]; then
-    bzcat "${PATCH_DIRECTORY}/${PATCH}/${PATCH_SOURCE}.${MUTT_BRANCH}.smgl.diff.bz2" > "${PATCH_SOURCE}.smgl.diff"
-  elif [[ -f "${PATCH_DIRECTORY}/${PATCH}/${PATCH_SOURCE}.smgl.diff.bz2" ]]; then
-    bzcat "${PATCH_DIRECTORY}/${PATCH}/${PATCH_SOURCE}.smgl.diff.bz2" > "${PATCH_SOURCE}.smgl.diff"
-  fi &&
-  if [[ -f "${PATCH_SOURCE}.smgl.diff" ]]; then
-    patch -p0 < "${PATCH_SOURCE}.smgl.diff"
-  fi &&
-  patch -p"${PATCH_STRIP:-1}" < "${PATCH_SOURCE}"
-}
-
 default_pre_build &&
-
 cd "${SOURCE_DIRECTORY}" &&
 
 for PATCH in ${REAL_PATCHES}; do
   message "${MESSAGE_COLOR}Applying patch ${PATCH}${DEFAULT_COLOR}" &&
-  PATCH_SOURCE=""
-  PATCH_STRIP=""
+  PATCH_SOURCE="" &&
+  PATCH_STRIP="" &&
   if [[ -x "$PATCH_DIRECTORY/$PATCH/PATCH" ]]; then
     . "${PATCH_DIRECTORY}/${PATCH}/PATCH" || return 1
   else
-    mutt_default_patch
+    . "${PATCH_DIRECTORY}/${PATCH}/PATCH_DETAILS" &&
+    bzcat "${PATCH_DIRECTORY}/${PATCH}/${PATCH_SOURCE}.bz2" |
+    patch -p"${PATCH_STRIP:-1}"
   fi
 done &&
 
