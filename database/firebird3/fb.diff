@@ -1,0 +1,138 @@
+From 82b95ca7cfaec0962f02c4bebd55bf64047684c7 Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Thu, 7 Jan 2016 15:59:12 +0100
+Subject: [PATCH 1/2] use system libedit
+
+---
+ CMakeLists.txt                  |  2 +-
+ builds/cmake/Configure.cmake    |  2 +-
+ src/include/gen/autoconfig.h.in |  4 ++--
+ src/isql/isql.epp               | 10 ++++------
+ 4 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d23b260..0423ca7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -215,7 +215,7 @@ if (UNIX)
+     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+ 
+     if (NOT CMAKE_CROSSCOMPILING)
+-        set(LIB_readline readline)
++        set(LIB_readline edit)
+     endif()
+     if (NOT FREEBSD)
+         set(LIB_dl dl)
+diff --git a/builds/cmake/Configure.cmake b/builds/cmake/Configure.cmake
+index 1e1e9a1..006f9a3 100644
+--- a/builds/cmake/Configure.cmake
++++ b/builds/cmake/Configure.cmake
+@@ -124,7 +124,7 @@ set(include_files_list
+     ctype.h
+     dirent.h
+     dlfcn.h
+-    editline.h
++    editline/readline.h
+     errno.h
+     fcntl.h
+     float.h
+diff --git a/src/include/gen/autoconfig.h.in b/src/include/gen/autoconfig.h.in
+index 997589e..4a04c7a 100644
+--- a/src/include/gen/autoconfig.h.in
++++ b/src/include/gen/autoconfig.h.in
+@@ -195,8 +195,8 @@
+ /* Define to 1 if you have the <dlfcn.h> header file. */
+ #cmakedefine HAVE_DLFCN_H 1
+ 
+-/* Define to 1 if you have the <editline.h> header file. */
+-#cmakedefine HAVE_EDITLINE_H 1
++/* Define to 1 if you have the <editline/readline.h> header file. */
++#cmakedefine HAVE_EDITLINE_READLINE_H 1
+ 
+ /* Define to 1 if you have the <errno.h> header file. */
+ #cmakedefine HAVE_ERRNO_H 1
+diff --git a/src/isql/isql.epp b/src/isql/isql.epp
+index d313c0d..48a8255 100644
+--- a/src/isql/isql.epp
++++ b/src/isql/isql.epp
+@@ -83,10 +83,8 @@
+ //#include <io.h> // mktemp
+ //#endif
+ 
+-#ifdef HAVE_EDITLINE_H
+-// This is a local file included in our distribution - but not always
+-// compiled into the system
+-#include "editline.h"
++#ifdef HAVE_EDITLINE_READLINE_H
++#include <editline/readline.h>
+ #endif
+ 
+ enum literal_string_type
+@@ -627,7 +625,7 @@ int ISQL_main(int argc, char* argv[])
+  *
+  **************************************/
+ 
+-#if defined(HAVE_EDITLINE_H) && defined(HAVE_LOCALE_H)
++#if defined(HAVE_EDITLINE_READLINE_H) && defined(HAVE_LOCALE_H)
+ 	setlocale(LC_CTYPE, "");
+ #endif
+ 	atexit(&atexit_fb_shutdown);
+@@ -856,7 +854,7 @@ static void readNextInputLine(const char* prompt)
+ 
+ 	getColumn = 0;
+ 
+-#ifdef HAVE_EDITLINE_H
++#ifdef HAVE_EDITLINE_READLINE_H
+ 	if (Filelist->readingStdin())
+ 	{
+ 		// CVC: On 2005-04-02, use an empty prompt when not working in
+-- 
+2.7.0
+
+From 2e2b3191bfe752f3330128448c4951677ed882c2 Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Sat, 24 Jan 2015 12:48:36 +0100
+Subject: [PATCH 2/2] use system libtommath
+
+---
+ CMakeLists.txt     | 1 -
+ src/CMakeLists.txt | 4 ++--
+ 2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0423ca7..51f02be 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -321,7 +321,6 @@ endif() # if (NOT CMAKE_CROSSCOMPILING)
+ 
+ crosscompile_prebuild_steps()
+ 
+-include_directories("extern/libtommath")
+ include_directories("extern/icu/include")
+ include_directories("extern/zlib")
+ 
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 9ca8421..583c4c8 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -413,7 +413,7 @@ add_library                 (boot_yvalve SHARED $<TARGET_OBJECTS:yvalve_common>
+ target_link_libraries       (boot_yvalve
+     PRIVATE remote
+     PRIVATE common
+-    PUBLIC libtommath
++    PUBLIC tommath
+     PUBLIC ${LIB_Ws2_32}
+     PUBLIC ${LIB_readline}
+     PUBLIC ${LIB_dl}
+@@ -436,7 +436,7 @@ add_library                 (yvalve SHARED $<TARGET_OBJECTS:yvalve_common> ${yva
+ target_link_libraries       (yvalve
+     PRIVATE remote
+     PRIVATE common
+-    PUBLIC libtommath
++    PUBLIC tommath
+     PUBLIC ${LIB_Ws2_32}
+     PUBLIC ${LIB_readline}
+     PUBLIC ${LIB_dl}
+-- 
+2.7.0
+
