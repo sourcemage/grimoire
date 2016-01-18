@@ -750,6 +750,27 @@ function is_version_less() {
 }
 
 #---
+## Check if a version is between two others. The range is inclusive.
+## @param $1 - first bound
+## @param $2 - version that may be in between
+## @param $3 - second bound
+#---
+function is_version_between() {
+  # First check if the boundaries have been hit.
+  [[ "$1" == "$2" ]] && return
+  [[ "$2" == "$3" ]] && return
+  # Check both ascending and descending order.
+  # If $1 and $3 are equal, there cannot be anything in between.
+  if is_version_less "$1" "$3"; then
+    is_version_less "$1" "$2" &&
+    is_version_less "$2" "$3"
+  else
+    is_version_less "$3" "$2" &&
+    is_version_less "$3" "$1"
+  fi
+}
+
+#---
 ## Check sanity of a temporary partition
 ## @param $1 - the partition to check for
 #---
@@ -803,6 +824,22 @@ function get_spell_provider_file(){
   | grep "$3" | sort | head -n 1
 }
 
+
+#---
+## Trigger checks on dependent spells. Used after checking if
+## an incompatible update is scheduled.
+## @params $1 - spell at hand
+#---
+function check_dependees()
+{
+  local spell=$1; shift
+  message "${MESSAGE_COLOR}This is a possibly incompatible update of $spell." &&
+  message "Figuring out what spells need to be checked for sanity...${DEFAULT_COLOR}" &&
+  for each in $(show_up_depends "$spell" 1); do
+    up_trigger $each check_self
+  done
+}
+
 #---
 ## Trigger check_self on spells depending on the one at hand if it
 ## is being updated from an old version.
@@ -829,13 +866,35 @@ function check_dependees_on_update()
       new_version=$(echo "$new_version" | "$@")
     fi &&
     if [[ "$new_version" != "$old_version" ]]; then
-      message "${MESSAGE_COLOR}This is a possibly incompatible update of $SPELL." &&
-      message "Figuring out what spells need to be checked for sanity...${DEFAULT_COLOR}" &&
-
-      for each in $(show_up_depends $SPELL 1); do
-          up_trigger $each check_self
-      done
+      check_dependees "$spell"
     fi
+  fi
+}
+
+#---
+## Trigger check_self on a certain version jump (known ABI breakage).
+## You know that a spell changed ABI most recently in version x, so you
+## provide this version and the function checks if updating the spell
+## crosses version x and hence dependees shall be triggered.
+## @params $1 - spell at hand
+## @params $2 - new version to be installed
+## @params $3 - version of last ABI breakage
+#---
+function check_dependees_versionjump()
+{
+  local   spell=$1; shift;
+  local version=$1; shift;
+  local breaker;
+  if spell_ok "$spell"; then
+    local old_version=$(installed_version "$spell")
+    [[ "$old_version" == "$version" ]] && return
+    # Now, if the versions differ, check if the breaking version is crossed.
+    for breaker in "$@"; do
+      if is_version_between "$old_version" "$breaker" "$version"; then
+        check_dependees "$spell"
+        return
+      fi
+    done
   fi
 }
 
