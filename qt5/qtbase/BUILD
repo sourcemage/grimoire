@@ -13,6 +13,7 @@ cd $SOURCE_DIRECTORY &&
 
 ./configure  -opensource -confirm-license \
              -prefix $QT5DIR  -platform  linux-g++  \
+             -no-rpath \
              -reduce-relocations -reduce-exports $OPTS -v &&
 make
 
