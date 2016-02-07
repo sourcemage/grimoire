@@ -2,6 +2,7 @@ CFLAGS="${CFLAGS//-ffast-math}"     &&
 CXXFLAGS="${CXXFLAGS//-ffast-math}" &&
 OPTS+=" -DVTK_USE_SYSTEM_LIBRARIES=1" &&
 OPTS+=" -DVTK_FORBID_DOWNLOADS=1" &&
+OPTS+=" -DVTK_RENDERING_BACKEND_DEFAULT=$VTK_GL" &&
 #OPTS+=" -DBUILD_SHARED_LIBS=ON -DVTK_USE_HYBRID=ON" &&
 
 # Building examples fails on VTK 6.1.0
