@@ -1,0 +1,138 @@
+diff --git a/dix/window.c b/dix/window.c
+index 25d29ec..9726ade 100644
+--- a/dix/window.c
++++ b/dix/window.c
+@@ -3647,7 +3647,7 @@ WindowParentHasDeviceCursor(WindowPtr pWin,
+  *	all of the windows
+  */
+ void
+-SetRootClip(ScreenPtr pScreen, Bool enable)
++SetRootClip(ScreenPtr pScreen, int enable)
+ {
+     WindowPtr pWin = pScreen->root;
+     WindowPtr pChild;
+@@ -3655,6 +3655,7 @@ SetRootClip(ScreenPtr pScreen, Bool enable)
+     Bool anyMarked = FALSE;
+     WindowPtr pLayerWin;
+     BoxRec box;
++    enum RootClipMode mode = enable;
+ 
+     if (!pWin)
+         return;
+@@ -3684,18 +3685,23 @@ SetRootClip(ScreenPtr pScreen, Bool enable)
+      * that assume the root borderClip can't change well, normally
+      * it doesn't...)
+      */
+-    if (enable) {
++    if (mode != ROOT_SIZE_NONE) {
++        pWin->drawable.width = pScreen->width;
++        pWin->drawable.height = pScreen->height;
++
+         box.x1 = 0;
+         box.y1 = 0;
+         box.x2 = pScreen->width;
+         box.y2 = pScreen->height;
++
+         RegionInit(&pWin->winSize, &box, 1);
+         RegionInit(&pWin->borderSize, &box, 1);
+-        if (WasViewable)
+-            RegionReset(&pWin->borderClip, &box);
+-        pWin->drawable.width = pScreen->width;
+-        pWin->drawable.height = pScreen->height;
+         RegionBreak(&pWin->clipList);
++
++	if (WasViewable && mode == ROOT_SIZE_SCREEN)
++            RegionReset(&pWin->borderClip, &box);
++	else
++            RegionEmpty(&pWin->borderClip);
+     }
+     else {
+         RegionEmpty(&pWin->borderClip);
+diff --git a/hw/xwayland/xwayland-glamor.c b/hw/xwayland/xwayland-glamor.c
+index 7f6fb9a..5557818 100644
+--- a/hw/xwayland/xwayland-glamor.c
++++ b/hw/xwayland/xwayland-glamor.c
+@@ -236,7 +236,7 @@ xwl_glamor_create_screen_resources(ScreenPtr screen)
+     if (xwl_screen->rootless) {
+         screen->devPrivate =
+             fbCreatePixmap(screen, 0, 0, screen->rootDepth, 0);
+-        SetRootClip(screen, FALSE);
++        SetRootClip(screen, ROOT_SIZE_SCREEN_EMPTY);
+     }
+     else {
+         screen->devPrivate =
+diff --git a/hw/xwayland/xwayland-output.c b/hw/xwayland/xwayland-output.c
+index e9ec190..f5c7194 100644
+--- a/hw/xwayland/xwayland-output.c
++++ b/hw/xwayland/xwayland-output.c
+@@ -164,8 +164,7 @@ update_screen_size(struct xwl_output *xwl_output, int width, int height)
+     struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
+     double mmpd;
+ 
+-    if (!xwl_screen->rootless)
+-        SetRootClip(xwl_screen->screen, FALSE);
++    SetRootClip(xwl_screen->screen, FALSE);
+ 
+     xwl_screen->width = width;
+     xwl_screen->height = height;
+@@ -181,6 +180,11 @@ update_screen_size(struct xwl_output *xwl_output, int width, int height)
+         xwl_screen->screen->mmHeight = height * mmpd;
+     }
+ 
++    if (xwl_screen->rootless)
++        SetRootClip(xwl_screen->screen, ROOT_SIZE_SCREEN_EMPTY);
++    else
++        SetRootClip(xwl_screen->screen, ROOT_SIZE_SCREEN);
++
+     if (xwl_screen->screen->root) {
+         xwl_screen->screen->root->drawable.width = width;
+         xwl_screen->screen->root->drawable.height = height;
+@@ -188,9 +192,6 @@ update_screen_size(struct xwl_output *xwl_output, int width, int height)
+     }
+ 
+     update_desktop_dimensions();
+-
+-    if (!xwl_screen->rootless)
+-        SetRootClip(xwl_screen->screen, TRUE);
+ }
+ 
+ static void
+diff --git a/hw/xwayland/xwayland-shm.c b/hw/xwayland/xwayland-shm.c
+index 7072be4..2fbe74d 100644
+--- a/hw/xwayland/xwayland-shm.c
++++ b/hw/xwayland/xwayland-shm.c
+@@ -282,7 +282,7 @@ xwl_shm_create_screen_resources(ScreenPtr screen)
+     if (xwl_screen->rootless) {
+         screen->devPrivate =
+             fbCreatePixmap(screen, 0, 0, screen->rootDepth, 0);
+-        SetRootClip(screen, FALSE);
++        SetRootClip(screen, ROOT_SIZE_SCREEN_EMPTY);
+     }
+     else
+         screen->devPrivate =
+diff --git a/include/window.h b/include/window.h
+index f13ed51..67c9f10 100644
+--- a/include/window.h
++++ b/include/window.h
+@@ -72,6 +72,12 @@ struct _Cursor;
+ typedef struct _BackingStore *BackingStorePtr;
+ typedef struct _Window *WindowPtr;
+ 
++enum RootClipMode {
++	ROOT_SIZE_NONE = 0, /**< resize the root window to 0x0 */
++	ROOT_SIZE_SCREEN = 1, /**< resize the root window to fit screen */
++	ROOT_SIZE_SCREEN_EMPTY = 2, /**< as above, but empty clip */
++};
++
+ typedef int (*VisitWindowProcPtr) (WindowPtr pWin,
+                                    void *data);
+ 
+@@ -221,7 +227,7 @@ extern _X_EXPORT RegionPtr CreateBoundingShape(WindowPtr /* pWin */ );
+ 
+ extern _X_EXPORT RegionPtr CreateClipShape(WindowPtr /* pWin */ );
+ 
+-extern _X_EXPORT void SetRootClip(ScreenPtr pScreen, Bool enable);
++extern _X_EXPORT void SetRootClip(ScreenPtr pScreen, int enable);
+ extern _X_EXPORT void PrintWindowTree(void);
+ extern _X_EXPORT void PrintPassiveGrabs(void);
+ 
