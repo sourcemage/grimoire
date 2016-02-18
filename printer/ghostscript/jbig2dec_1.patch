@@ -1,0 +1,74 @@
+From b0f5a97512332ecf2ec7cf1cc413fe7305a4060e Mon Sep 17 00:00:00 2001
+From: Chris Liddell <chris.liddell@artifex.com>
+Date: Thu, 7 Jan 2016 12:33:45 +0000
+Subject: [PATCH] Bug 696497: Fix support for building with no jbig2 decoder
+
+---
+ base/lib.mak |  9 +++++++++
+ psi/int.mak  | 22 ++++++++++++++++++----
+ 2 files changed, 27 insertions(+), 4 deletions(-)
+
+diff --git a/base/lib.mak b/base/lib.mak
+index 1efc341..4d7db1f 100644
+--- a/base/lib.mak
++++ b/base/lib.mak
+@@ -1735,6 +1735,10 @@ $(GLD)sjbig2_jbig2dec.dev : $(LIB_MAK) $(ECHOGS_XE) \
+ 	$(SETMOD) $(GLD)sjbig2_jbig2dec $(sjbig2_jbig2dec)
+ 	$(ADDMOD) $(GLD)sjbig2_jbig2dec -include $(GLD)jbig2dec.dev
+ 
++$(GLD)sjbig2_.dev : $(LIB_MAK) $(ECHOGS_XE) \
++  $(LIB_MAK) $(MAKEDIRS)
++	$(SETMOD) $(GLD)sjbig2_
++
+ # jbig2dec.dev is defined in jbig2.mak
+ 
+ $(GLOBJ)sjbig2.$(OBJ) : $(GLSRC)sjbig2.c $(AK) \
+@@ -1742,6 +1746,11 @@ $(GLOBJ)sjbig2.$(OBJ) : $(GLSRC)sjbig2.c $(AK) \
+  $(sjbig2_h) $(strimpl_h) $(LIB_MAK) $(MAKEDIRS)
+ 	$(GLJBIG2CC) $(GLO_)sjbig2.$(OBJ) $(C_) $(GLSRC)sjbig2.c
+ 
++$(GLOBJ)snojbig2.$(OBJ) : $(GLSRC)snojbig2.c $(AK) \
++ $(stdint__h) $(memory__h) $(stdio__h) $(gserrors_h) $(gdebug_h) \
++ $(strimpl_h) $(LIB_MAK) $(MAKEDIRS)
++	$(GLJBIG2CC) $(GLO_)snojbig2.$(OBJ) $(C_) $(GLSRC)snojbig2.c
++
+ # luratech version
+ sjbig2_luratech=$(GLOBJ)sjbig2_luratech.$(OBJ)
+ 
+diff --git a/psi/int.mak b/psi/int.mak
+index 05b5fec..2c6d6d0 100644
+--- a/psi/int.mak
++++ b/psi/int.mak
+@@ -1255,11 +1255,25 @@ $(PSOBJ)zfaes.$(OBJ) : $(PSSRC)zfaes.c $(OP) $(memory__h)\
+ # this can be turned on and off with a FEATURE_DEV
+ 
+ fjbig2_=$(PSOBJ)zfjbig2_$(JBIG2_LIB).$(OBJ)
+-$(PSD)jbig2.dev : $(ECHOGS_XE) $(fjbig2_) $(GLD)sjbig2.dev\
++
++$(PSD)jbig2_jbig2dec.dev : $(ECHOGS_XE) $(fjbig2_) $(GLD)sjbig2.dev\
++ $(INT_MAK) $(MAKEDIRS)
++	$(SETMOD) $(PSD)jbig2_jbig2dec $(fjbig2_)
++	$(ADDMOD) $(PSD)jbig2_jbig2dec -include $(GLD)sjbig2
++	$(ADDMOD) $(PSD)jbig2_jbig2dec -oper zfjbig2
++
++$(PSD)jbig2_luratech.dev : $(ECHOGS_XE) $(fjbig2_) $(GLD)sjbig2.dev\
+  $(INT_MAK) $(MAKEDIRS)
+-	$(SETMOD) $(PSD)jbig2 $(fjbig2_)
+-	$(ADDMOD) $(PSD)jbig2 -include $(GLD)sjbig2
+-	$(ADDMOD) $(PSD)jbig2 -oper zfjbig2
++	$(SETMOD) $(PSD)jbig2_luratech $(fjbig2_)
++	$(ADDMOD) $(PSD)jbig2_luratech -include $(GLD)sjbig2
++	$(ADDMOD) $(PSD)jbig2_luratech -oper zfjbig2
++
++$(PSD)jbig2_.dev : $(ECHOGS_XE) $(INT_MAK) $(MAKEDIRS)
++	$(SETMOD) $(PSD)jbig2_ 
++
++$(PSD)jbig2.dev : $(PSD)jbig2_$(JBIG2_LIB).dev $(INT_MAK) $(MAKEDIRS)
++	$(CP_) $(PSD)jbig2_$(JBIG2_LIB).dev $(PSD)jbig2.dev
++
+ 
+ $(PSOBJ)zfjbig2_jbig2dec.$(OBJ) : $(PSSRC)zfjbig2.c $(OP) $(memory__h)\
+  $(gsstruct_h) $(gstypes_h) $(ialloc_h) $(idict_h) $(ifilter_h)\
+-- 
+2.7.0
+
