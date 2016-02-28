@@ -1,22 +1,65 @@
 default_pre_build      &&
-cd ${SOURCE_DIRECTORY} &&
+cd "$SOURCE_DIRECTORY" &&
 
-# Use /usr/share/texmf and /usr/share/texmf-dist, adapted from lunarlinux 
+# removing as much internal things as possible
+      #asymptote \
+      #devnag \
+      #lacheck \
+      #m-tx \
+      #pmx \
+      #texdoctk \
+      #tpic2pdftex \
+      #vlna \
+      #xindy \
+for i in \
+      ps2eps \
+      t1utils \
+      xpdfopen
+do
+  rm -rf utils/"$i"
+done &&
+
+# Override bundled libraries' buildsystems to force system versions
+# XXX lua52 and luajit can't be so easily removed due to internal API
+# dependencies.
+for i in \
+      cairo \
+      freetype2 \
+      gd \
+      gmp \
+      graphite2 \
+      harfbuzz \
+      icu \
+      libpaper \
+      libpng \
+      mpfr \
+      pixman \
+      poppler \
+      potrace \
+      xpdf \
+      zlib \
+      zziplib
+do
+  rm -rf libs/"$i" &&
+  mkdir  libs/"$i" &&
+  cat <<"!" > libs/"$i"/configure &&
+#!/bin/sh
+echo '%:;echo $@ target suppressed' > Makefile
+!
+  chmod 755 libs/"$i"/configure
+done &&
+
+# Use /usr/share/texmf and /usr/share/texmf-dist, adapted from lunarlinux
 find -name Makefile\* -exec sed -i -e "s:\(\$.\)prefix\(./tex\):\1datadir\2:" {} \; &&
 find -name configure -exec sed -i -e "s:\(\$.\)prefix\(./tex\):\1datadir\2:" {} \; &&
 find -name \*.info -exec sed -i -e "s:/usr/local:/usr:" {} \; &&
 find -name \*.texi -exec sed -i -e "s:/usr/local:/usr:" {} \; &&
 
-patch -p1 < ${SPELL_DIRECTORY}/fix_paths.patch
+# Patch paths in texmf.cnf
+sedit '
+	s@^TEXMFROOT =.*@&/usr/share@
+	/^TEXMFLOCAL =/  s@=.*@= $SELFAUTODIR/local/share/texmf@
+	/^TEXMFSYSVAR =/ s@=.*@= /var/tmp/texmf-var@
+' texk/kpathsea/texmf.cnf &&
 
-# the sed on the patch is live so it will take into
-# account INSTALL_ROOT
-sed "s:/usr/share:$INSTALL_ROOT/usr/share:g" $SPELL_DIRECTORY/texmf.cnf_fix.patch | patch -p0 &&
-# patch mtxrun for context taking into account $INSTALL_ROOT, see HISTORY
-sed "s:/usr/bin:$INSTALL_ROOT/usr/bin:g" $SPELL_DIRECTORY/mtxrun_fix.patch | patch -p0 &&
-
-# removing as much internal things as possible
-rm -rf utils/{dialog,gzip,lzma,ps2eps,psutils,t1utils,texinfo,pdfopen} &&
-rm -rf libs/{freetype2,lua51,libpng,jpeg,expat,gd,luafilesystem,luafontforge,luamd5,luapeg,luazip,luazlib,ncurses,t1lib,unzip} &&
-
-mkdir ${COMPILE_DIRECTORY}
+mkdir "$COMPILE_DIRECTORY"
