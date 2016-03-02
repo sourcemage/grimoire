@@ -1,2 +1,4 @@
 OPTS+="-DENABLE_GR_AUDIO=on" &&
-qt4_cmake_build
+make_single                  &&
+qt4_cmake_build              &&
+make_normal

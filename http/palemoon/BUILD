@@ -34,6 +34,9 @@ PM_CONFIG="--prefix=${INSTALL_ROOT}/usr \
            ${PALEMOON_OPTS} \
            ${OPTS}" &&
 
+# Using a system-provided NSS library is currently not supported
+PM_CONFIG="--without-system-nss $PM_CONFIG" &&
+
 # TODO: we don't have recent libpng yet
 PM_CONFIG="--without-system-png $PM_CONFIG" &&
 
