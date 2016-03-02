@@ -1,4 +1,5 @@
-  QTDIR=/usr    &&
-  PATH=$QTDIR/bin/qt4:$PATH &&
-  export QTDIR=/usr/bin/qt4 && # ????? it runs /usr/bin/uic otherwise
-  scons prefix=$INSTALL_ROOT/usr
+export QTDIR=$QT4DIR  &&
+# Refuses to use ladspa unless path to plugins specified.
+export LADSPA_PATH=$INSTALL_ROOT/usr/lib/ladspa &&
+OPTS+=" $HYDROGEN_OSS" &&
+cmake_build
