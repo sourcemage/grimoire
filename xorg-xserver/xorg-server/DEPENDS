@@ -55,20 +55,16 @@ optional_depends  LOGIN-DAEMON \
                  '--enable-systemd-logind' \
                  '--disable-systemd-logind' \
                  'login daemon' &&
-depends dbus &&
+
 #
 # May only select one:
-# configure: error: Hotplugging through both libudev and dbus/hal not allowed
-#
-# NOTE: as hal depends on dbus, we can safely enable/disable dbus's configure
-# options with hal
+# configure: error: Hotplugging through both libudev and hal not allowed
 #
 # hal is preferred by upstream:
 #  --enable-config-udev    Build udev support (default: auto)
 #  --disable-config-hal    Build HAL support (default: auto)
 #
-
-message "You can either use hal+dbus OR udev for hotplugging" &&
+message "You can either use hal OR udev for hotplugging" &&
 message "but NOT both" &&
 optional_depends  hal \
          "--enable-config-hal  --disable-config-udev" \
@@ -80,6 +76,11 @@ if ! is_depends_enabled $SPELL hal; then
     "--enable-config-udev --disable-config-hal" \
     "--disable-config-udev" \
     "enable udev kernel config support"
+fi &&
+
+if    is_depends_enabled $SPELL $(get_spell_provider $SPELL LOGIN-DAEMON) \
+   || is_depends_enabled $SPELL hal; then
+  depends dbus
 fi &&
 
 optional_depends  dmxproto                           \
