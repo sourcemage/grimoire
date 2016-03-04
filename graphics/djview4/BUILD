@@ -1,5 +1,4 @@
-export QTDIR="${QTDIR:-$INSTALL_ROOT/usr}" &&
-export  PATH="$QTDIR/bin/qt4:$PATH" &&
-# configure script still finds /usr/bin/qmake, wants this extra setting
-export QMAKE="$QTDIR/bin/qt4/qmake" &&
+export QTDIR=$QT4DIR &&
+export  PATH="$QTDIR/bin:$PATH" &&
+export QMAKE="$QTDIR/bin/qmake" &&
 default_build
