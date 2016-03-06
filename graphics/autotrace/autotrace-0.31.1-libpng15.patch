@@ -1,0 +1,59 @@
+Description: Fix for libpng 1.6
+ libpng1.6 hides some implementation details, getters/setters are now to be used.
+Origin:
+http://pkgs.fedoraproject.org/cgit/rpms/autotrace.git/plain/autotrace-0.31.1-libpng15.patch?id=0fbea0205eddba3b39fcf17ac91984dd2aa5ab1e
+
+--- input-png.c.orig	2012-03-02 09:30:00.958350697 -0600
++++ input-png.c	2012-03-02 09:32:50.728927667 -0600
+@@ -42,7 +42,7 @@
+ 
+ static void handle_warning(png_structp png, const at_string message) {
+         LOG1("PNG warning: %s", message);
+-	at_exception_warning((at_exception_type *)png->error_ptr,
++	at_exception_warning((at_exception_type *)png_get_error_ptr(png),
+ 			     message);
+ 	/* at_exception_fatal((at_exception_type *)at_png->error_ptr,
+ 	   "PNG warning"); */
+@@ -50,7 +50,7 @@
+ 
+ static void handle_error(png_structp png, const at_string message) {
+ 	LOG1("PNG error: %s", message);
+-	at_exception_fatal((at_exception_type *)png->error_ptr,
++	at_exception_fatal((at_exception_type *)png_get_error_ptr(png),
+ 			   message);
+ 	/* at_exception_fatal((at_exception_type *)at_png->error_ptr,
+ 	   "PNG error"); */
+@@ -157,8 +157,8 @@
+ 
+ 	png_set_strip_16(png_ptr);
+ 	png_set_packing(png_ptr);
+-	if ((png_ptr->bit_depth < 8) ||
+-	    (png_ptr->color_type == PNG_COLOR_TYPE_PALETTE) ||
++	if ((png_get_bit_depth(png_ptr, info_ptr) < 8) ||
++	    (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_PALETTE) ||
+ 	    (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)))
+ 		png_set_expand(png_ptr);
+ 
+@@ -181,20 +181,10 @@
+ 				   PNG_BACKGROUND_GAMMA_FILE, 1, 1.0);
+ 	} else
+ 		png_set_strip_alpha(png_ptr);
++	png_set_interlace_handling(png_ptr);
+ 	png_read_update_info(png_ptr, info_ptr);
+ 
+-
+-	info_ptr->row_pointers = (png_bytepp)png_malloc(png_ptr,
+-							info_ptr->height * sizeof(png_bytep));
+-#ifdef PNG_FREE_ME_SUPPORTED
+-	info_ptr->free_me |= PNG_FREE_ROWS;
+-#endif
+-	for (row = 0; row < (int)info_ptr->height; row++)
+-		info_ptr->row_pointers[row] = (png_bytep)png_malloc(png_ptr,
+-								    png_get_rowbytes(png_ptr, info_ptr));
+-	
+-	png_read_image(png_ptr, info_ptr->row_pointers);
+-	info_ptr->valid |= PNG_INFO_IDAT;
++	png_read_png(png_ptr, info_ptr, PNG_TRANSFORM_IDENTITY, NULL);
+ 	png_read_end(png_ptr, info_ptr);
+ 	return png_get_rows(png_ptr, info_ptr);
+ }
