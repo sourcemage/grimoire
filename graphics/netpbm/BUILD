@@ -1,4 +1,4 @@
-if [[ "${NETPBM_SVN}" == 'y' ]]; then
+if test -e config.mk.in; then
   CONFIGFILE=config.mk
 else
   CONFIGFILE=Makefile.config
@@ -35,4 +35,4 @@ if list_find "$OPTS" yes-svga; then
   echo "LINUXSVGALIB = libvga.so" >> $CONFIGFILE
 fi &&
 sedit "s/^\(CFLAGS =\)/\1 ${CFLAGS} /" $CONFIGFILE &&
-make
+make CFLAGS_SHLIB=-fPIC
