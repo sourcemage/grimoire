@@ -18,6 +18,7 @@ cd "$COMPILE_DIRECTORY" &&
                             --disable-multiplatform \
                             --without-x \
                             --disable-native-texlive-build \
+                            --disable-static --enable-shared \
                             --with-banner-add="/Source Mage GNU/Linux" \
                             $OPTS &&
 make_single &&
