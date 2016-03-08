@@ -1,0 +1,26 @@
+default_pre_build &&
+message "${MESSAGE_COLOR}Hack build to make it work with as-needed linking.$DEFAULT_COLOR" &&
+cd "$SOURCE_DIRECTORY" &&
+patch -p1 <<'EOT'
+diff -ruN xplc-0.3.13/config/rules.mk xplc-0.3.13.as-needed/config/rules.mk
+--- xplc-0.3.13/config/rules.mk	2005-10-31 23:33:26.000000000 +0100
++++ xplc-0.3.13.as-needed/config/rules.mk	2016-03-08 20:27:09.316508641 +0100
+@@ -34,7 +34,7 @@
+ 	$(COMPILE.cpp) $(OUTPUT_OPTION) -S $<
+ 
+ %: %.o
+-	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@
++	$(LINK.cc) $^ $(LOADLIBES) $(LDLIBS) -o $@ $(LIBS)
+ 
+ lib%_s.a: lib%.a
+ 	$(LN_S) -f $^ $@
+@@ -44,7 +44,7 @@
+ 	$(RANLIB) $@
+ 
+ %.so:
+-	$(LINK.cc) $(SHARED) $^ -o $@
++	$(LINK.cc) $(SHARED) $^ -o $@ $(LIBS)
+ 
+ %.dll:
+ 	$(LINK.cc) $(SHARED) $^ -o $@
+EOT
