@@ -537,9 +537,20 @@ function waf_build() {
   if ./waf --help | grep -q -- --nocache; then
     waf_opts="$waf_opts --nocache"
   fi
-  ./waf configure $waf_opts \
-                  -j $MAKE_NJOBS \
-                  $OPTS &&
+  if ./waf --help | grep -q -- --cxxflags=CXXFLAGS; then
+    # Hack added for guitarix, maybe useful for others, too.
+    # Needed to be able to enable C++11 mode. We hope to be able
+    # Slip in something here. Full control ist still in waf's hands and
+    # it probably will add flags as it wants:-/
+    ./waf configure $waf_opts \
+      -j $MAKE_NJOBS \
+      --cxxflags="$CXXFLAGS" \
+      $OPTS
+  else
+     ./waf configure $waf_opts \
+       -j $MAKE_NJOBS \
+       $OPTS
+  fi &&
   ./waf build
 }
 
