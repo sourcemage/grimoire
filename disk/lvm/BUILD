@@ -3,7 +3,7 @@
             --sbindir=$INSTALL_ROOT/sbin    		\
             --libdir=$INSTALL_ROOT/lib      		\
             --sysconfdir=$INSTALL_ROOT/etc  		\
-	    --mandir=$INSTALL_ROOT/usr/share/man 	\
+            --mandir=$INSTALL_ROOT/usr/share/man 	\
             --enable-static_link              		\
             $LVM_OPTS $OPTS                             &&
 make_single &&
