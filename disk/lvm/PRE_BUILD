@@ -1,0 +1,18 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+# Please only remove that patch if it _really_ is not needed anymore.
+message "${MESSAGE_COLOR}Patching for breakage of static build \
+(presumably with --as-needed).$DEFAULT_COLOR" &&
+patch -p0 <<'EOT'
+--- tools/Makefile.in.orig	2016-03-16 17:32:09.859648238 +0100
++++ tools/Makefile.in	2016-03-16 17:35:31.807152952 +0100
+@@ -147,7 +147,7 @@
+ 
+ lvm.static: $(OBJECTS) lvm-static.o $(top_builddir)/lib/liblvm-internal.a  $(interfacebuilddir)/libdevmapper.a
+ 	$(CC) $(CFLAGS) $(LDFLAGS) -static -L$(interfacebuilddir) -o $@ \
+-	      $(OBJECTS) lvm-static.o $(LVMLIBS) $(STATIC_LIBS) $(LIBS)
++	      $(OBJECTS) lvm-static.o $(LVMLIBS) $(STATIC_LIBS) $(LIBS) $(PTHREAD_LIBS) -luuid
+ 
+ liblvm2cmd.a: $(top_builddir)/lib/liblvm-internal.a $(OBJECTS) lvmcmdlib.o lvm2cmd.o
+ 	cat $(top_builddir)/lib/liblvm-internal.a > $@
+EOT
