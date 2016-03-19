@@ -841,7 +841,7 @@ function get_spell_provider_file(){
 ## an incompatible update is scheduled.
 ## @params $1 - spell at hand
 #---
-function check_dependees()
+function check_dependers()
 {
   local spell=$1; shift
   message "${MESSAGE_COLOR}This is a possibly incompatible update of $spell." &&
@@ -862,10 +862,10 @@ function check_dependees()
 ## @params $3 - command to filter versions with
 ## @params $4 - and following: arguments to the filter command
 ##
-## Example: check_dependees_on_update $SPELL $VERSION cut -d . -f 1,2
+## Example: check_dependers_on_update $SPELL $VERSION cut -d . -f 1,2
 ## This will compare only x.y out of version x.y.z-betaY.
 #---
-function check_dependees_on_update()
+function check_dependers_on_update()
 {
   local   spell=$1; shift;
   local version=$1; shift;
@@ -877,7 +877,7 @@ function check_dependees_on_update()
       new_version=$(echo "$new_version" | "$@")
     fi &&
     if [[ "$new_version" != "$old_version" ]]; then
-      check_dependees "$spell"
+      check_dependers "$spell"
     fi
   fi
 }
@@ -886,12 +886,12 @@ function check_dependees_on_update()
 ## Trigger check_self on a certain version jump (known ABI breakage).
 ## You know that a spell changed ABI most recently in version x, so you
 ## provide this version and the function checks if updating the spell
-## crosses version x and hence dependees shall be triggered.
+## crosses version x and hence dependers shall be triggered.
 ## @params $1 - spell at hand
 ## @params $2 - new version to be installed
 ## @params $3 - version of last ABI breakage
 #---
-function check_dependees_versionjump()
+function check_dependers_versionjump()
 {
   local   spell=$1; shift;
   local version=$1; shift;
@@ -902,7 +902,7 @@ function check_dependees_versionjump()
     # Now, if the versions differ, check if the breaking version is crossed.
     for breaker in "$@"; do
       if is_version_between "$old_version" "$breaker" "$version"; then
-        check_dependees "$spell"
+        check_dependers "$spell"
         return
       fi
     done
