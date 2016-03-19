@@ -1,18 +1,56 @@
-if spell_ok $SPELL; then
-  local OLD_SPELL_VERSION="$(installed_version $SPELL)"
-  if [[ "${VERSION%.*}" != "${OLD_SPELL_VERSION%.*}" ]]; then
-    message "This is an ABI incompatible update of libpng..."
-    message "Determining which spells need to be recast, this may take a while."
 
-    for other_spell in $(gaze installed | cut -d: -f1); do
+if spell_ok $SPELL; then
+  local OLD_SPELL_VERSION="$(installed_version $SPELL)" &&
+  if [[ "${VERSION%.*}" != "${OLD_SPELL_VERSION%.*}" ]]; then
+    message
+    message "${MESSAGE_COLOR}This is an ABI incompatible update of ${SPELL_COLOR}${SPELL}${MESSAGE_COLOR}..." &&
+    message "Determining which spells need to be recast, this may take a while." &&
+
+    LANG= &&
+    local spells=$(gaze installed | cut -d: -f1) &&
+    local spell_count=$(wc -w <<< "$spells") &&
+    local spell_index=0 &&
+    local recast_list= &&
+    for other_spell in $spells; do
+      ((spell_index++)) &&
+      echo -ne "[${spell_index}/${spell_count} ${other_spell}]\e[K\r" &&
+      if [[ "$other_spell" == "$SPELL" ]]; then
+        continue
+      fi &&
       if gaze install $other_spell \
-         | xargs file -e apptype -e ascii -e compress -e tar \
+         | file -f - -e apptype -e cdf -e compress -e elf -e encoding -e soft -e tar \
+	 | grep '\<libtool library file\>' \
+	 | cut -d: -f1 \
+	 | xargs cat 2> /dev/null \
+	 | grep -q "^dependency_libs.*${SPELL}[0-9]*\.la"; then
+	list_add recast_list $other_spell &&
+	continue
+      fi &&
+      if gaze install $other_spell \
+         | file -f - -e apptype -e ascii -e cdf -e compress -e encoding -e soft -e tar \
          | grep '\<ELF\>.*\<dynamically linked\>' \
          | cut -d: -f1 \
          | xargs readelf -d 2> /dev/null \
-         | grep -q 'NEEDED)[[:space:]]*Shared library: \[libpng'; then
-        up_trigger $other_spell cast_self
+         | grep -q "NEEDED)[[:space:]]*Shared library: \[$SPELL"; then
+	list_add recast_list $other_spell
       fi
     done
+    if [[ -n "${recast_list}" ]]; then
+      message "
+${SPELL_COLOR}${PROBLEM_COLOR}You are about to upgrade (downgrade) ${SPELL_COLOR}${SPELL}${PROBLEM_COLOR} to a different major version.
+All spells that depend on ${SPELL_COLOR}${SPELL}${PROBLEM_COLOR} will need to be recast. To prevent cast
+failures due to circular dependencies these spells will be dispelled now
+and recast after ${SPELL_COLOR}${SPELL}${PROBLEM_COLOR} has finished casting. Note that if you abort the
+cast, or if the cast fails some of these spells may be left dispelled.
+It is highly recommended to upgrade (downgrade) ${SPELL_COLOR}${SPELL}${PROBLEM_COLOR} in a separate
+cast." &&
+      message "${MESSAGE_COLOR}The following spells will be dispelled and recast:" &&
+      message $(fold -s -w 72 <<< "${SPELL_COLOR}${recast_list}") &&
+      query "${QUERY_COLOR}Do you wish to upgrade (downgrade) ${SPELL_COLOR}${SPELL}${QUERY_COLOR} now?" n &&
+      for other_spell in $recast_list; do
+        dispel $other_spell &&
+        up_trigger $other_spell cast_self
+      done
+    fi
   fi
 fi
