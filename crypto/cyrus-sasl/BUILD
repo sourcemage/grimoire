@@ -10,17 +10,17 @@ OPTS="$OPTS \
   $CS_PLAIN \
   $CS_LOGIN \
   $CS_CRAM \
+  $CS_SCRAM \
   $CS_DIGEST \
   $CS_OTP \
   $CS_SRP \
+  $CS_PASSDSS \
   $CS_ANON \
   $CS_NTLM \
   $CS_APOP \
-  --disable-sample \
-"
+  --enable-static \
+  --disable-sample" &&
 
-sedit 's|extern sasl_global_callbacks_t global_callbacks;||g'           lib/saslint.h &&
-sedit 's|^\(sasl_global_callbacks_t\s\+global_callbacks;\)|static \1|g' lib/server.c  &&
 make_single   &&
 default_build &&
 

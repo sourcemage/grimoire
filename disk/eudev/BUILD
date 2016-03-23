@@ -7,6 +7,5 @@ cd $SOURCE_DIRECTORY &&
       --datarootdir=$INSTALL_ROOT/usr/share \
       --includedir=$INSTALL_ROOT/usr/include \
       --libdir=$INSTALL_ROOT/usr/lib \
-      --with-firmware-path=$INSTALL_ROOT/lib/firmware \
-      $UDEV_OPTS $UDEV_PERSIST $UDEV_MOD $OPTS &&
+      $UDEV_OPTS $UDEV_PERSIST $OPTS &&
 make

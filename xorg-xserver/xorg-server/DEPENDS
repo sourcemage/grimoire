@@ -51,31 +51,36 @@ optional_depends  libxvmc                          \
                   "--disable-xvmc"                 \
                   "Enable support for XvMC"        &&
 
+optional_depends  LOGIN-DAEMON \
+                 '--enable-systemd-logind' \
+                 '--disable-systemd-logind' \
+                 'login daemon' &&
+
 #
 # May only select one:
-# configure: error: Hotplugging through both libudev and dbus/hal not allowed
-#
-# NOTE: as hal depends on dbus, we can safely enable/disable dbus's configure
-# options with hal
+# configure: error: Hotplugging through both libudev and hal not allowed
 #
 # hal is preferred by upstream:
 #  --enable-config-udev    Build udev support (default: auto)
-#  --enable-config-dbus    Build D-BUS API support (default: no)
 #  --disable-config-hal    Build HAL support (default: auto)
 #
-
-message "You can either use hal+dbus OR udev for hotplugging" &&
+message "You can either use hal OR udev for hotplugging" &&
 message "but NOT both" &&
 optional_depends  hal \
-         "--enable-config-hal --enable-config-dbus --disable-config-udev" \
-         "--disable-config-hal --disable-config-dbus" \
+         "--enable-config-hal  --disable-config-udev" \
+         "--disable-config-hal " \
          "Enable HAL support" &&
 
 if ! is_depends_enabled $SPELL hal; then
   optional_depends DEVICE-MANAGER \
-    "--enable-config-udev --disable-config-dbus --disable-config-hal" \
+    "--enable-config-udev --disable-config-hal" \
     "--disable-config-udev" \
     "enable udev kernel config support"
+fi &&
+
+if    is_depends_enabled $SPELL $(get_spell_provider $SPELL LOGIN-DAEMON) \
+   || is_depends_enabled $SPELL hal; then
+  depends dbus
 fi &&
 
 optional_depends  dmxproto                           \
@@ -158,267 +163,18 @@ depends  AWK                                       &&
 depends  mesalib                                   &&
 depends  smgl-gl_select                            &&
 depends  rgb                                       &&
-depends  font-cursor-misc                          &&
-depends  font-misc-misc                            &&
-depends  font-alias                                &&
 depends  libpciaccess                              &&
 depends  libxtst                                   &&
 
-if list_find "$XORG_SERVER_FONT_100DPI" "all"
-then
-depends font-bh-100dpi                             &&
-depends font-adobe-100dpi                          &&
-depends font-bitstream-100dpi                      &&
-depends font-adobe-utopia-100dpi                   &&
-depends font-bh-lucidatypewriter-100dpi
-elif list_find "$XORG_SERVER_FONT_100DPI" "none"
-then
-true
-else
-for font100dpi in $XORG_SERVER_FONT_100DPI
-do
-depends $font100dpi
-done
-fi                                                 &&
+message 'additional fonts are not needed, but can be installed indiviually' &&
 
-if list_find "$XORG_SERVER_FONT_75DPI" "all"
-then
-depends font-bh-75dpi                              &&
-depends font-adobe-75dpi                           &&
-depends font-bitstream-75dpi                       &&
-depends font-adobe-utopia-75dpi                    &&
-depends font-bh-lucidatypewriter-75dpi
-elif list_find "$XORG_SERVER_FONT_75DPI" "none"
-then
-true
-else
-for font75dpi in $XORG_SERVER_FONT_75DPI
-do
-depends $font75dpi
-done
-fi                                                 &&
+message 'choose an input or video driver' &&
+message 'if these drivers are not suitable, choose from the xorg-drivers section' &&
 
-if list_find "$XORG_SERVER_FONT_SPEEDO" "all"
-then
-depends font-bitstream-speedo
-elif list_find "$XORG_SERVER_FONT_SPEEDO" "none"
-then
-true
-else
-for speedo in $XORG_SERVER_FONT_SPEEDO
-do
-depends $speedo
-done
-fi                                                 &&
-
-if list_find "$XORG_SERVER_FONT_TYPE1" "all"
-then
-depends font-bh-type1                              &&
-depends font-ibm-type1                             &&
-depends font-xfree86-type1                         &&
-depends font-bitstream-type1                       &&
-depends font-adobe-utopia-type1
-elif list_find "$XORG_SERVER_FONT_TYPE1" "none"
-then
-true
-else
-for type1 in $XORG_SERVER_FONT_TYPE1
-do
-depends $type1
-done
-fi                                                 &&
-
-if list_find "$XORG_SERVER_FONT_TTFOTF" "all"
-then
-depends font-bh-ttf                                &&
-depends font-misc-meltho                           &&
-depends font-misc-ethiopic
-elif list_find "$XORG_SERVER_FONT_TTFOTF" "none"
-then
-true
-else
-for ttfotf in $XORG_SERVER_FONT_TTFOTF
-do
-depends $ttfotf
-done
-fi                                                 &&
-
-if list_find "$XORG_SERVER_FONT_MISC" "all"
-then
-depends font-dec-misc                              &&
-depends font-sun-misc                              &&
-depends font-jis-misc                              &&
-depends font-mutt-misc                             &&
-depends font-sony-misc                             &&
-depends font-isas-misc                             &&
-depends font-micro-misc                            &&
-depends font-arabic-misc                           &&
-depends font-daewoo-misc                           &&
-depends font-misc-cyrillic                         &&
-depends font-cronyx-cyrillic                       &&
-depends font-schumacher-misc                       &&
-depends font-screen-cyrillic                       &&
-depends font-winitzki-cyrillic
-elif list_find "$XORG_SERVER_FONT_MISC" "none"
-then
-true
-else
-for misc in $XORG_SERVER_FONT_MISC
-do
-depends $misc
-done
-fi
-
-if list_find "$XORG_SERVER_INPUT_DRIVER" "sane"
-then
-runtime_depends_2 xf86-input-mouse                 &&
-runtime_depends_2 xf86-input-keyboard
-elif list_find "$XORG_SERVER_INPUT_DRIVER" "all"
-then
-runtime_depends_2 xf86-input-mouse                 &&
-runtime_depends_2 xf86-input-evdev                 &&
-runtime_depends_2 xf86-input-keyboard              &&
-runtime_depends_2 xf86-input-joystick              &&
-runtime_depends_2 xf86-input-synaptics             &&
-runtime_depends_2 xf86-input-aiptek                &&
-runtime_depends_2 linuxwacom
-elif list_find "$XORG_SERVER_INPUT_DRIVER" "none"
-then
-true
-else
-for input_driver in $XORG_SERVER_INPUT_DRIVER
-do
-runtime_depends_2 $input_driver
-done
-fi                                       &&
-
-if list_find "$XORG_SERVER_INPUT_OBSCURE" "all"
-then
-runtime_depends_2 xf86-input-dmc                   &&
-runtime_depends_2 xf86-input-fpit                  &&
-runtime_depends_2 xf86-input-ur98                  &&
-runtime_depends_2 xf86-input-void                  &&
-runtime_depends_2 xf86-input-summa                 &&
-runtime_depends_2 xf86-input-palmax                &&
-runtime_depends_2 xf86-input-acecad                &&
-runtime_depends_2 xf86-input-diamondtouch          &&
-runtime_depends_2 xf86-input-citron                &&
-runtime_depends_2 xf86-input-dynapro               &&
-runtime_depends_2 xf86-input-elo2300               &&
-runtime_depends_2 xf86-input-tek4957               &&
-runtime_depends_2 xf86-input-calcomp               &&
-runtime_depends_2 xf86-input-mutouch               &&
-runtime_depends_2 xf86-input-penmount              &&
-runtime_depends_2 xf86-input-spaceorb              &&
-runtime_depends_2 xf86-input-hyperpen              &&
-runtime_depends_2 xf86-input-magellan              &&
-runtime_depends_2 xf86-input-jamstudio             &&
-runtime_depends_2 xf86-input-magictouch            &&
-runtime_depends_2 xf86-input-microtouch            &&
-runtime_depends_2 xf86-input-digitaledge           &&
-runtime_depends_2 xf86-input-elographics
-elif list_find "$XORG_SERVER_INPUT_OBSCURE" "none"
-then
-true
-else
-for input_obscure in $XORG_SERVER_INPUT_OBSCURE
-do
-depends $input_obscure
-done
-fi                                       &&
-
-if list_find "$XORG_SERVER_VIDEO_DRIVER_COMMON" "sane"
-then
-runtime_depends_2 xf86-video-nv                    &&
-runtime_depends_2 xf86-video-s3                    &&
-runtime_depends_2 xf86-video-ati                   &&
-runtime_depends_2 xf86-video-mga                   &&
-runtime_depends_2 xf86-video-via                   &&
-runtime_depends_2 xf86-video-sis                   &&
-runtime_depends_2 xf86-video-intel                 &&
-runtime_depends_2 xf86-video-vesa
-elif list_find "$XORG_SERVER_VIDEO_DRIVER_COMMON" "all"
-then
-runtime_depends_2 xf86-video-nouveau               &&
-runtime_depends_2 xf86-video-nv                    &&
-runtime_depends_2 xf86-video-s3                    &&
-runtime_depends_2 xf86-video-ati                   &&
-runtime_depends_2 xf86-video-via                   &&
-runtime_depends_2 xf86-video-mga                   &&
-runtime_depends_2 xf86-video-sis                   &&
-runtime_depends_2 xf86-video-intel                 &&
-runtime_depends_2 xf86-video-i740                  &&
-runtime_depends_2 xf86-video-i128                  &&
-runtime_depends_2 xf86-video-vesa                  &&
-runtime_depends_2 xf86-video-fbdev                 &&
-runtime_depends_2 xf86-video-savage                &&
-runtime_depends_2 xf86-video-s3virge               &&
-runtime_depends_2 xf86-video-neomagic              &&
-runtime_depends_2 ati-fglrx "" "" z-rejected       &&
-runtime_depends_2 NVIDIA "" "" z-rejected
-elif list_find "$XORG_SERVER_VIDEO_DRIVER_COMMON" "none"
-then
-true
-else
-  for video_common in $XORG_SERVER_VIDEO_DRIVER_COMMON
-  do
-    if [[ $video_common == ati-fglrx || $video_common == NVIDIA ]]; then
-      runtime_depends_2 $video_common "" "" z-rejected
-    else
-      runtime_depends_2 $video_common
-    fi || return 1 # break the chain on any error
-  done
-fi                                       &&
-
-if list_find "$XORG_SERVER_VIDEO_DRIVER_UNCOMMON" "all"
-then
-runtime_depends_2 xf86-video-tga                   &&
-runtime_depends_2 xf86-video-v4l                   &&
-runtime_depends_2 xf86-video-tdfx                  &&
-runtime_depends_2 xf86-video-chips                 &&
-runtime_depends_2 xf86-video-cyrix                 &&
-runtime_depends_2 xf86-video-dummy                 &&
-runtime_depends_2 xf86-video-glint                 &&
-runtime_depends_2 xf86-video-tseng                 &&
-runtime_depends_2 xf86-video-sisusb                &&
-runtime_depends_2 xf86-video-cirrus                &&
-runtime_depends_2 xf86-video-vmware                &&
-runtime_depends_2 xf86-video-voodoo                &&
-runtime_depends_2 xf86-video-trident               &&
-runtime_depends_2 xf86-video-vga
-elif list_find "$XORG_SERVER_VIDEO_DRIVER_UNCOMMON" "none"
-then
-true
-else
-for video_uncommon in $XORG_SERVER_VIDEO_DRIVER_UNCOMMON
-do
-runtime_depends_2 $video_uncommon
-done
-fi                                       &&
-
-if list_find "$XORG_SERVER_VIDEO_DRIVER_OBSCURE" "all"
-then
-runtime_depends_2 xf86-video-nsc                   &&
-runtime_depends_2 xf86-video-apm                   &&
-runtime_depends_2 xf86-video-ark                   &&
-runtime_depends_2 xf86-video-geode                 &&
-runtime_depends_2 xf86-video-imstt                 &&
-runtime_depends_2 xf86-video-sunbw2                &&
-runtime_depends_2 xf86-video-suncg3                &&
-runtime_depends_2 xf86-video-suncg6                &&
-runtime_depends_2 xf86-video-sunffb                &&
-runtime_depends_2 xf86-video-sunleo                &&
-runtime_depends_2 xf86-video-suntcx                &&
-runtime_depends_2 xf86-video-suncg14               &&
-runtime_depends_2 xf86-video-newport               &&
-runtime_depends_2 xf86-video-rendition             &&
-runtime_depends_2 xf86-video-siliconmotion
-elif list_find "$XORG_SERVER_VIDEO_DRIVER_OBSCURE" "none"
-then
-true
-else
-for video_obscure in $XORG_SERVER_VIDEO_DRIVER_OBSCURE
-do
-runtime_depends_2 $video_obscure
-done
-fi
+suggest_depends xf86-input-evdev '' ''  'modern input drivers' &&
+suggest_depends xf86-input-synaptics '' '' 'modern input drivers' &&
+suggest_depends xf86-input-libinput '' '' 'modern input drivers' &&
+suggest_depends xf86-video-ati   '' '' 'modern ATI drivers' &&
+suggest_depends xf86-video-amdgpu '' '' 'hardware accellerated AMD drivers' &&
+suggest_depends xf86-video-intel '' '' 'modern Intel drivers' &&
+suggest_depends xf86-video-nouveau '' '' 'modern NVidia drivers'

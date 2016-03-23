@@ -1,0 +1,42 @@
+QT4DIR="$INSTALL_ROOT/opt/qt4"
+KDE4DIR="$QT4DIR"
+SRC=$SOURCE_DIRECTORY
+
+default_build() {
+ kde4_build
+}
+
+function default_install() {
+ cmake_install
+}
+
+#---------------------------------------------------------------------
+function kde4_build() {
+  export XDG_DATA_DIRS=$KDE4DIR/share:/usr/share
+  OPTS+=" -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=1 -Wno-dev"
+  qt4_cmake_build
+}
+
+
+
+# we need a default_final, default_post_remove
+# so that the mime and desktop databases get updated
+update_databases() {
+local DD
+DD=$KDE4DIR
+  if is_depends_enabled $SPELL shared-mime-info;then
+    update-mime-database $DD/share/mime/
+  fi
+  if [[ -e $DD/share/desktop-directories ]]; then
+    update-desktop-database $DD/share/desktop-directories
+  fi
+}
+
+default_final() {
+  update_databases
+}
+
+
+default_post_remove() {
+  update_databases
+}

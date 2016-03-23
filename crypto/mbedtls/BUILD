@@ -1,0 +1,2 @@
+OPTS+=" -DUSE_SHARED_MBEDTSL_LIBRARY=On"
+cmake_build

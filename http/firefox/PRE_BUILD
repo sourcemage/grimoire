@@ -1,27 +1,30 @@
-mk_source_dir  $SOURCE_DIRECTORY  &&
-cd  $SOURCE_DIRECTORY             &&
-unpack_file  ''                   &&
-cd  mozilla*                       &&
+default_pre_build  &&
+cd  $SOURCE_DIRECTORY &&
 
-# Archlinux patch to drop release point from install path
-# http://projects.archlinux.org/svntogit/packages.git/plain/trunk/firefox-install-dir.patch?h=packages/firefox
-patch -p1 < $SPELL_DIRECTORY/install_dir.patch &&
+# To remove version suffix from some directories
+sed 's;-$(MOZ_APP_VERSION);;g' -i config/baseconfig.mk &&
 
 cp -v $SPELL_DIRECTORY/mozconfig .mozconfig &&
 
 if [[ "$FIREFOX_SAFE" == "y" ]]; then
-   sed -i '27iac_add_options --enable-safe-browsing' .mozconfig
+   echo 'ac_add_options --enable-safe-browsing' >> .mozconfig
 else
-   sed -i '27iac_add_options --disable-safe-browsing' .mozconfig
+   echo 'ac_add_options --disable-safe-browsing' >> .mozconfig
 fi &&
 
+# Be explicit: stripped install is the default.
 if [[ "$FIREFOX_STRIP" == "y" ]]; then
-   sed -i '27iac_add_options --enable-strip' .mozconfig
+  echo 'ac_add_options --enable-install-strip' >> .mozconfig
+else
+  echo 'ac_add_options --disable-install-strip' >> .mozconfig
 fi &&
 
+if [[ "$FIREFOX_SDK" == "n" ]]; then
+  sed -i 's/^\(INSTALL_SDK = .*\)$/#\1/' browser/installer/Makefile.in
+fi &&
 
 if [[ $FIREFOX_OFFICIAL == y ]]; then
-  sed -i '27iac_add_options --enable-official-branding' .mozconfig || return 1
+  echo 'ac_add_options --enable-official-branding' >> .mozconfig
 fi &&
 
 if [[ $FIREFOX_PGO == y ]]; then

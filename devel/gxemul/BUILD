@@ -1,2 +1,2 @@
-./configure $OPTS
+./configure $OPTS &&
 make

@@ -5,20 +5,26 @@ optdep() {
 }
 
 optsyslib() {
-  optdep "$1" WITH_SYSTEM "$2" "Use system's $1 library"
+  local SS
+  if [[ -z $2 ]];then
+    SS=${1^^}
+  else
+    SS=$2
+  fi
+  optdep "$1" VTK_USE_SYSTEM "$SS" "Use system's $1 library"
 }
 
 optwrap() {
   optdep "$1" VTK_WRAP "$2" "Wrap VTK classes into the $1 language"
 }
 
-depends cmake      &&
-depends xorg-libs  &&
-depends tk         &&
-
-#optwrap JAVA   &&
-optwrap python &&
-optwrap tcl    &&
+depends -sub CXX gcc &&
+depends cmake    &&
+depends OPENGL   &&
+depends libx11   &&
+#optwrap JAVA     &&
+optwrap python   &&
+optwrap tcl      &&
 
 optsyslib zlib                &&
 optsyslib tiff                &&
@@ -31,11 +37,12 @@ optsyslib gl2ps               &&
 optsyslib hdf5                &&
 optsyslib netcdf              &&
 optsyslib libtheora OGGTHEORA &&
+optsyslib jsoncpp             &&
+optsyslib libproj4            &&
+#optsyslib xdmf2  XDMF          &&
 
-#optsyslib jsoncpp             &&
-#optsyslib libproj4            &&
-#optsyslib xdmf2               &&
-
+optional_depends  qtbase ' -DVTK_Group_Qt=1 -DVTK_QT_VERSION=5' '' 'Qt support' &&
+optional_depends  qtwebkit ' -DVTK_Group_Web=1' ' -DVTK_Group_Web=0' 'Browsing support' &&
 optional_depends  doxygen                       \
                   -DBUILD_DOCUMENTATION=O{N,FF} \
                   "build documentation"

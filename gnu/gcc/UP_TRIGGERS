@@ -1,3 +1,6 @@
+LC_ALL=C
+LC_CTYPE=C
+LANG=C
 local OLD_SPELL_VERSION=""
 spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)"
 if [ "$VERSION" != "$OLD_SPELL_VERSION" ]; then
@@ -10,10 +13,20 @@ if [ "$VERSION" != "$OLD_SPELL_VERSION" ]; then
   done &&
 
   # for C++ ABI change in 5.1 and, probably, for each major version change too
-  if [[ ${OLD_SPELL_VERSION%%.*} != ${VERSION%%.*} ]]; then
-    for each in $(grep "gcc:CXX" "$SUB_DEPENDS_STATUS" | cut -f1 -d:); do
-      if spell_ok $each; then
-        up_trigger $each cast_self
+  if   list_find "$GCC_COMPILER" c++ \
+    && [[ ${OLD_SPELL_VERSION%%.*} != ${VERSION%%.*} ]]; then
+    message "This is an ABI incompatible update of g++..."
+    message "Determining which spells need to be recast, this may take a while."
+
+    for other_spell in $(gaze installed | cut -d: -f1); do
+      [[ $SPELL != $other_spell ]] || continue
+      if gaze install $other_spell \
+         | xargs file -e apptype -e ascii -e compress -e tar \
+         | grep '\<ELF\>.*\<dynamically linked\>' \
+         | cut -d: -f1 \
+         | xargs readelf -d 2> /dev/null \
+         | grep -q 'NEEDED)[[:space:]]*Shared library: \[libstdc++'; then
+        up_trigger $other_spell cast_self
       fi
     done
   fi

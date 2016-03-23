@@ -2,19 +2,19 @@ depends  zip    &&
 if [[ "$AUDACITY_UNI" == "no" ]]; then
   depends wxgtk-no-unicode
 else
+  # Really make sure Audacity works with new wxgtk before
+  # changing this. As of version 2.1.1, wxgtk-2.8.x is strongly
+  # recommened!
   depends wxgtk
 fi &&
 optional_depends  lame "--with-lame" \
                        "--without-lame" \
                        "for mp3 import/export support" &&
-if [[ "$AUDACITY_BRANCH" != "current" ]]; then
-   depends libsndfile
-else
-   optional_depends  libsndfile                  \
-                  "--with-libsndfile=system"  \
-                  "--with-libsndfile=local"   \
-                  "to use system libsndfile"
-fi  &&
+
+optional_depends  libsndfile              \
+               "--with-libsndfile=system"  \
+               "--with-libsndfile=local"   \
+               "to use system libsndfile" &&
 if [[ "$AUDACITY_BRANCH" == "scm" ]]; then
    depends CVS
 fi  &&
@@ -50,21 +50,17 @@ optional_depends  JACK-DRIVER                  \
 message "${PROBLEM_COLOR}Do not use libsamplerate in conjunction with VST plug-in support!${DEFAULT_COLOR}" &&
 
 optional_depends  libsamplerate                   \
-                  "--with-libsamplerate"          \
-                  "--without-libsamplerate"       \
+                  "--with-libsamplerate=system"   \
+                  "--with-libsamplerate=local"    \
                   "to use external libsamplerate" &&
 
-if [[ "$AUDACITY_BRANCH" == "current" ]]; then
 optional_depends soundtouch    \
                  "--with-soundtouch=system"  \
-                 "--with-soundtouch=local"    \
-                 "to use external soundtouch for editing"
-fi  &&
+                 "--with-soundtouch=no"      \
+                 "to use external soundtouch for editing" &&
 
-case "$AUDACITY_BRANCH" in beta|scm)
-    optional_depends vamp-plugin-sdk "--enable-vamp"  "--disable-vamp" \
-                            "Compile with vamp plug-in support?"
-;; esac &&
+optional_depends  vamp-plugin-sdk "--with-libvamp=system"  "--with-libvamp=local" \
+                  "Compile with external vamp plug-in support?"
 
 optional_depends  LIBAVCODEC                              \
                   "--with-ffmpeg"                         \
@@ -83,24 +79,16 @@ optional_depends  redland                 \
                   "for reading RDF data"  &&
 
 optional_depends  slv2                       \
-                  "--with-slv2"              \
-                  "--without-slv2"           \
-                  "for loading LV2 plugins"  &&
+                  "--with-lv2=system"       \
+                  "--with-lv2=local"     \
+                  "for system LV2 loader"  &&
 
 optional_depends  liblrdf                                 \
                   "--with-liblrdf"                        \
                   "--without-liblrdf"                     \
                   "for categorisation of LADSPA plugins"  &&
 
-
-case "$AUDACITY_BRANCH" in
-  beta|scm)
-    optional_depends soundtouch                                  \
-                     "--with-soundtouch" "--without-soundtouch"  \
-                     "SoundTouch for pitch and tempo changing?"  &&
-
-    optional_depends portaudio19                                 \
-                     "--with-portaudio" "--without-portaudio"    \
-                     "Compile with portaudio v19?"             
-esac 
-
+optional_depends  portaudio19                             \
+                  "--with-portaudio=system"               \
+                  "--with-portaudio=local"                \
+                  "to use external portaudio"

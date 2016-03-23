@@ -1,5 +1,5 @@
 if is_depends_enabled $SPELL qt4; then
-    PATH="/usr/bin/qt4:$PATH"
+    PATH="$QT4DIR/bin:$PATH"
 fi &&
 # Don't pollute /tmp.
 sed -i 's,/tmp/log,log,g' bootStrap.bash &&

@@ -1,4 +1,4 @@
-  sedit   "s/-O./$CFLAGS/"  Makefile &&
-  sedit   "s/-z/-n/"       Makefile  &&
+sedit   "s/-O./$CFLAGS/"  Makefile &&
+sedit   "s/-z/-n/"       Makefile  &&
 
-  make
+make

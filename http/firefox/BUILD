@@ -1,5 +1,3 @@
-cd $SOURCE_DIRECTORY/mozilla* &&
-
 FIREFOX_HOME="$INSTALL_ROOT/usr/lib/firefox" &&
 export  MOZ_PHOENIX=1 &&
 
@@ -13,17 +11,20 @@ export LIBGL_ALWAYS_INDIRECT=1
 
 #
 # No fast optimization for Mozilla, bit us so many times...
-#
-CFLAGS="${CFLAGS//-Os/-O2}"      &&
-CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
-CFLAGS="${CFLAGS//-O3/-O2}"      &&
-CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
+# This used to default to -O2, but that produces crashing firefox for
+# sobukus with gcc-5.2.0; -Os seems more safe.
+CFLAGS="${CFLAGS//-O2/-Os}"      &&
+CXXFLAGS="${CXXFLAGS//-O2/-Os}"  &&
+CFLAGS="${CFLAGS//-O3/-Os}"      &&
+CXXFLAGS="${CXXFLAGS//-O3/-Os}"  &&
 
 #
 # fix symbol check in build scripts, firefox adds -s to LDFLAGS so we can
 # remove it here without changing anything...
 #
 LDFLAGS="${LDFLAGS// -s/}" &&
+LDFLAGS="${LDFLAGS//-s /}" &&
+LDFLAGS="${LDFLAGS//^-s$/}" &&
 
 #
 # Avoid buggy GCC 4.6 AVX code generation, which breaks libxul

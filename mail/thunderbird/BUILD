@@ -5,11 +5,12 @@ export  MOZ_THUNDERBIRD="1"   &&
 
 #
 # No fast optimization for Mozilla, bit us so many times...
-#
-CFLAGS="${CFLAGS//-Os/-O2}"      &&
-CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
-CFLAGS="${CFLAGS//-O3/-O2}"      &&
-CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
+# This used to default to -O2, but that produces crashing firefox for
+# sobukus with gcc-5.2.0; -Os seems more safe for Mozilla stuff.
+CFLAGS="${CFLAGS//-O2/-Os}"      &&
+CXXFLAGS="${CXXFLAGS//-O2/-Os}"  &&
+CFLAGS="${CFLAGS//-O3/-Os}"      &&
+CXXFLAGS="${CXXFLAGS//-O3/-Os}"  &&
 
 #
 # Avoid buggy GCC 4.6 AVX code generation, which breaks libxul

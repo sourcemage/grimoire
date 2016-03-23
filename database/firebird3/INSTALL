@@ -1,0 +1,50 @@
+cd $SOURCE_DIRECTORY/build/firebird &&
+# config files
+DEST=$INSTALL_ROOT/etc/firebird   &&
+mkdir -p $DEST &&
+chown firebird:firebird $DEST     &&
+
+# treate the security db as a config file
+install_config_file security3.fdb $DEST/security3.fdb &&
+chown firebird:firebird $DEST/security3.fdb  &&
+
+install_config_file firebird.conf  $DEST/firebird.conf    &&
+install_config_file databases.conf $DEST/databases.conf   &&
+#install_config_file fbintl.conf   $DEST/fbintl.conf  &&
+install_config_file plugins.conf  $DEST/plugins.conf &&
+install_config_file fbtrace.conf  $DEST/fbtrace.conf     &&
+
+# don't overwrite existing config files
+rm *.conf security3.fdb        &&
+
+#cp src/msg.fdb src/help.fdb $FB_PREFIX &&
+DEST=$FB_PREFIX  &&
+mkdir -p $DEST   &&
+cp -a * $DEST    &&
+
+# need some symlinks
+
+TGT=$TRACK_ROOT/opt/firebird     &&
+#ln -vsf $TGT/plugins $DEST       &&
+#ln -vsf $TGT/intl    $DEST       &&
+
+FROM=$INSTALL_ROOT/usr/include   &&
+mkdir -p $FROM &&
+
+ln -vsf $TGT/include/ibase.h   $FROM &&
+ln -vsf $TGT/include/iberror.h $FROM &&
+ln -vsf $TGT/include/ib_util.h $FROM &&
+FROM=$INSTALL_ROOT/usr/lib &&
+mkdir -p $FROM &&
+ln -vsf $TGT/lib/libfbclient.so $FROM &&
+ln -vsf $TGT/lib/libib_util.so  $FROM &&
+# link to config files
+FROM=$INSTALL_ROOT/opt/firebird &&
+TGT=$TRACK_ROOT/etc/firebird    &&
+ln -vsf $TGT/security3.fdb  $FROM &&
+ln -vsf $TGT/firebird.conf  $FROM &&
+ln -vsf $TGT/databases.conf $FROM &&
+ln -vsf $TGT/plugins.conf   $FROM &&
+# need a symlink for firebird.log
+TGT=$TRACK_ROOT/var/log/firebird.log &&
+ln -vsf $TGT    $DEST

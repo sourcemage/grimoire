@@ -1,3 +1,8 @@
+if [[ $LIBDRM_AMD == y ]]; then
+  OPTS="--enable-amdgpu $OPTS"
+else
+  OPTS="--disable-amdgpu $OPTS"
+fi  &&
 if [[ $LIBDRM_NV == y ]]; then
   OPTS="--enable-nouveau $OPTS"
 else
@@ -13,10 +18,4 @@ if [[ $LIBDRM_RADEON == y ]]; then
 else
   OPTS="--disable-radeon $OPTS"
 fi  &&
-
-default_build &&
-
-if [[ $LIBDRM_LIBS == y ]]; then
-  cd ${SOURCE_DIRECTORY}/radeon &&
-  make
-fi
+default_build

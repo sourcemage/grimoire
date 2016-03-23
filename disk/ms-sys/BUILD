@@ -1,2 +1,1 @@
-sedit  "s:/usr/local:/usr:"  Makefile  &&
-make
+make PREFIX="${INSTALL_ROOT}/usr"

@@ -1,0 +1,133 @@
+# build environment
+depends p7zip &&
+depends zip &&
+depends unzip &&
+depends -sub CXX gcc &&
+depends autoconf-2.13 &&
+depends perl &&
+depends python &&
+depends pkgconfig &&
+
+# main libraries
+depends glib2 &&
+depends libjpeg-turbo '--with-system-jpeg' &&
+depends zlib '--with-system-zlib' &&
+depends bzip2 '--with-system-bz2' &&
+depends gtk+2 '--enable-default-toolkit=cairo-gtk2' &&
+depends -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY" sqlite '--enable-system-sqlite' &&
+depends nspr '--with-system-nspr' &&
+# Using a system-provided NSS library is currently not supported.
+# depends -sub 3.19.x nss '--with-system-nss' &&
+depends libffi '--enable-system-ffi' &&
+depends libevent '--with-system-libevent' &&
+depends fontconfig &&
+
+# X libraries
+depends libx11 &&
+depends libxt &&
+depends libxext &&
+depends libice &&
+depends libsm &&
+depends libxscrnsaver &&
+depends libxrender &&
+
+# misc
+depends desktop-file-utils &&
+
+optional_depends freetype2 \
+                 "--disable-tree-freetype" \
+                 "--enable-tree-freetype" \
+                 "to use system FreeType library" &&
+
+optional_depends -sub "X TEE" cairo \
+                              "--enable-system-cairo" \
+                              "--disable-system-cairo" \
+                              "to use system version of cairo" &&
+
+if is_depends_enabled $SPELL cairo; then
+  message "${MESSAGE_COLOR}System cairo selected, forcing system version of ${SPELL_COLOR}pixman${MESSAGE_COLOR}...${DEFAULT_COLOR}" &&
+
+  depends pixman '--enable-system-pixman'
+else
+  list_add OPTS '--disable-system-pixman'
+fi &&
+
+optional_depends pango \
+                 "--enable-pango" \
+                 "--disable-pango" \
+                 "to use Pango engine" &&
+
+optional_depends gstreamer \
+                 "--enable-gstreamer" \
+                 "--disable-gstreamer" \
+                 "for GStreamer support" &&
+
+if is_depends_enabled $SPELL gstreamer; then
+  depends gst-plugins-base
+fi &&
+
+optional_depends dbus \
+                 "--enable-dbus" \
+                 "--disable-dbus" \
+                 "for dbus support" &&
+
+if is_depends_enabled $SPELL dbus; then
+  depends dbus-glib
+fi &&
+
+if list_find "${PALEMOON_OPTS}" "--enable-webm"; then
+  depends yasm &&
+  depends alsa-lib '--enable-alsa' &&
+
+  optional_depends libvpx \
+                   "--with-system-libvpx" \
+                   "--without-system-libvpx" \
+                   "to use system libvpx"
+elif list_find "${PALEMOON_OPTS}" "--enable-ogg" || list_find "${PALEMOON_OPTS}" "--enable-wave"; then
+  depends alsa-lib '--enable-alsa'
+else
+  optional_depends alsa-lib \
+                   "--enable-alsa" \
+                   "--disable-alsa" \
+                   "for ALSA support"
+fi &&
+
+optional_depends OPENGL \
+                 "--enable-webgl" \
+                 "--disable-webgl" \
+                 "for building of the WebGL implementation" &&
+
+optional_depends startup-notification \
+                 "--enable-startup-notification" \
+                 "--disable-startup-notification" \
+                 "for startup-notification support" &&
+
+optional_depends hunspell \
+                 "--enable-system-hunspell" \
+                 "--disable-system-hunspell" \
+                 "to use system hunspell library" &&
+
+optional_depends pulseaudio \
+                 "--enable-pulseaudio" \
+                 "--disable-pulseaudio" \
+                 "for PulseAudio support (${PROBLEM_COLOR}experimental${DEFAULT_COLOR})" &&
+
+optional_depends wireless_tools \
+                 "--enable-necko-wifi" \
+                 "--disable-necko-wifi" \
+                 "for necko wifi scanner" &&
+
+optional_depends gconf2 \
+                 "--enable-gconf" \
+                 "--disable-gconf" \
+                 "for Gconf support" &&
+
+optional_depends libproxy \
+                 "--enable-libproxy" \
+                 "--disable-libproxy" \
+                 "for libproxy support" &&
+
+optional_depends libgnomeui \
+                 "--enable-gnomeui" \
+                 "--disable-gnomeui" \
+                 "to use libgnomeui instead of GIO & GTK for icon theme support"

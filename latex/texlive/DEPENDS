@@ -1,3 +1,23 @@
+with_system() {
+  depends "$1" --with-system-"$1" &&
+  if [ "$2" ]; then
+    sub_depends "$1" "$2"
+  fi
+}
+
+with_system gmp &&
+with_system cairo &&
+with_system mpfr &&
+with_system libpaper &&
+with_system poppler &&
+with_system xpdf &&
+with_system graphite2 &&
+with_system harfbuzz &&
+with_system icu &&
+with_system pixman &&
+with_system potrace LIBPOTRACE &&
+with_system zziplib &&
+
 depends texlive-texmf &&
 depends xz-utils &&
 depends bison &&
@@ -5,29 +25,34 @@ depends -sub CXX gcc &&
 depends flex &&
 depends expat &&
 depends ed &&
-depends texinfo &&
 depends ghostscript '--with-gs=gs' &&
 depends fontconfig "--enable-xetex" &&
-depends freetype2 "--with-system-freetype2 --with-freetype2-includes=/usr/include/freetype2" &&
-depends libpng "--with-system-libpng --with-libpng-include=/usr/includes --with-libpng-libdir=/usr/lib" &&
-depends zlib "--with-system-zlib --with-zlib-libdir=/usr/lib --with-zlib-include=/usr/includes" &&
-depends t1lib "--with-system-t1lib --with-t1lib-libdir=/usr/lib --with-t1lib-includes=/usr/include" &&
-depends gd "--with-system-gd --with-gd-libdir=/usr/lib --with-gd-include=/usr/includes" &&
+depends perl &&
+
+with_system freetype2 &&
+with_system libpng &&
+with_system zlib &&
+depends t1lib &&
+with_system gd &&
 depends psutils '--disable-psutils' &&
 depends t1utils '--disable-t1utils' &&
-depends dialog '--disable-dialog' &&
 runtime_depends detex '--disable-detex' &&
 runtime_depends dvi2tty '--disable-dvi2tty' &&
 runtime_depends ps2eps '--disable-ps2eps' &&
-runtime_depends dvipdfmx "--disable-dvipdfmx" &&
+runtime_depends dvipdfmx "--disable-dvipdfm-x" &&
 runtime_depends dvipng '--disable-dvipng' &&
 runtime_depends lacheck '--disable-lacheck' &&
 runtime_depends lcdf-typetools '--disable-lcdf-typetools' &&
+# FIXME LUA and luajit dependencies aren't actually used, see PRE_BUILD
 optional_depends LUA \
                  '--enable-luatex' \
                  '--without-luatex' \
-                 'Extended version of pdfTeX with Lua, required for XeTeX and ConTeXt MkII and MKIV' && 
+                 'Extended version of pdfTeX with Lua (LuaTeX), required for XeTeX and ConTeXt MkII and MKIV' &&
+optional_depends luajit \
+                 '--enable-luajittex' \
+                 '--disable-luajittex' \
+                 'Enable LuaJITTeX' &&
 suggest_depends XDVI '--disable-xdvik' '--disable-xdvik' \
                 "For an X DVI viewer" &&
-suggest_depends RUBY '' '' "required for epspdf, context, hyph-utf8 (Hyphenation patterns expressed in UTF-8), & Huhyphn (hungarian hyphenation)" &&
-suggest_depends perl '' ''  "required for latexmk, epstopdf, psutils, ps2eps, TeXcount, latexdiff, context, pdfcrop, thumbpdf, perlTeX, texdef, mathsPIC, ptex, mathpazo, a2ping, vpe, sty2dtx, & various other scripts"
+suggest_depends RUBY '' '' \
+		"required for epspdf, context, hyph-utf8 (Hyphenation patterns expressed in UTF-8), & Huhyphn (hungarian hyphenation)"

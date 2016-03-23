@@ -1,3 +1,3 @@
-PATH="/usr/bin/qt4:${PATH}"  &&
+PATH="$QT4DIR/bin:${PATH}"  &&
 qmake PREFIX=${INSTALL_ROOT}/usr  &&
 make

@@ -8,34 +8,19 @@ fi &&
 
 ln -svf mf ${INSTALL_ROOT}/usr/bin/mf-nowin &&
 
+fmtutilcnf="$INSTALL_ROOT"/usr/share/texmf-dist/web2c/fmtutil.cnf
 # don't create aleph files
-sed -i -e '/aleph/d' ${INSTALL_ROOT}/usr/share/texmf/web2c/fmtutil.cnf &&
+sed -i -e '/aleph/d' "$fmtutilcnf" &&
 
 # remove luatex stuff from config file if not enabled
-if ! depends_is_enabled $SPELL lua51; then
-  sed -i -e '/luatex/d' ${INSTALL_ROOT}/usr/share/texmf/web2c/fmtutil.cnf
+if ! is_depends_enabled $SPELL LUA; then
+  sed -i -e '/luatex/d' "$fmtutilcnf"
 fi &&
 
 # create symlinks to latex, pdflatex, etc
-${INSTALL_ROOT}/usr/bin/texlinks -f ${INSTALL_ROOT}/usr/share/texmf/web2c/fmtutil.cnf ${INSTALL_ROOT}/usr/bin &&
+${INSTALL_ROOT}/usr/bin/texlinks -f "$fmtutilcnf" ${INSTALL_ROOT}/usr/bin &&
 
-# update filename db & create all formats
-mktexlsr &&
-fmtutil-sys --cnffile ${INSTALL_ROOT}/usr/share/texmf/web2c/fmtutil.cnf --fmtdir ${INSTALL_ROOT}/usr/share/texmf/web2c --all &&
-
-# allow fontconfig to see latex fonts 
-install -Cv ${SPELL_DIRECTORY}/09-texlive-fonts.conf ${INSTALL_ROOT}/etc/fonts/conf.avail &&
-ln -fs ${INSTALL_ROOT}/etc/fonts/conf.avail/09-texlive-fonts.conf ${INSTALL_ROOT}/etc/fonts/conf.d &&
-fc-cache -fsv && 
-
-if is_depends_enabled $SPELL lua ; then 
-  # update filename db & create formats for context
-  mtxrun --generate &&
-  # generate fonts for luatex & context
-  OSFONTDIR="${INSTALL_ROOT}/usr/share/texmf-dist/fonts/;${INSTALL_ROOT}/usr/share/texmf/fonts/;${INSTALL_ROOT}/usr/local/share/texmf/fonts" mtxrun --script fonts --reload 
-fi &&
-
-# updmap is broken without an install of TexLive::TLUtils
+# updmap and fmtutil-sys are broken without an install of TexLive::TLUtils
 # This comes with the installer, which we don't use, one source:
 # ftp://tug.org/texlive/historic/2012/tlnet-final/tlpkg/
 # Now, there happens to be a copy here, too ... just using it.
@@ -43,4 +28,26 @@ fi &&
 # damn well also ensure that this tool can run.
 # Proper use would install tlpkg, which we don't use, just for that lib.
 mkdir -p "$INSTALL_ROOT/usr/share/tlpkg" &&
-cp -vr "$SOURCE_DIRECTORY/texk/tests/TeXLive"  "$INSTALL_ROOT/usr/share/tlpkg"
+cp -vdR "$SOURCE_DIRECTORY/texk/tests/TeXLive" \
+	"$INSTALL_ROOT/usr/share/tlpkg" &&
+
+# update filename db & create all formats
+mktexlsr &&
+fmtutil-sys --cnffile "$fmtutilcnf" --fmtdir ${INSTALL_ROOT}/usr/share/texmf-dist/web2c --all &&
+
+# allow fontconfig to see latex fonts
+install -Cv ${SPELL_DIRECTORY}/09-texlive-fonts.conf ${INSTALL_ROOT}/etc/fonts/conf.avail &&
+ln -fs ${INSTALL_ROOT}/etc/fonts/conf.avail/09-texlive-fonts.conf ${INSTALL_ROOT}/etc/fonts/conf.d &&
+fc-cache -fsv &&
+
+if is_depends_enabled $SPELL LUA; then
+  # update filename db & create formats for context
+  mtxrun --generate &&
+  # generate fonts for luatex & context
+  OSFONTDIR="${INSTALL_ROOT}/usr/share/texmf-dist/fonts/;${INSTALL_ROOT}/usr/share/texmf/fonts/;${INSTALL_ROOT}/usr/local/share/texmf/fonts" mtxrun --script fonts --reload 
+fi &&
+
+# Fixup for really stupid fuckup. Newer versions should have this fixed. Please.
+if test -e "$INSTALL_ROOT/usr/lib/kpathsea/c-auto.h"; then
+  ln -s ../../lib/kpathsea/c-auto.h "$INSTALL_ROOT/usr/include/kpathsea/c-auto.h"
+fi

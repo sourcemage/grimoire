@@ -1,0 +1,2 @@
+OPTS+=" -DBUILD_SHARED_LIBS=1 -DBUILD_STATIC_LIBS=0" &&
+cmake_build

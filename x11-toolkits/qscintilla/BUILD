@@ -8,5 +8,5 @@ else
   QTSCINT=Qt3
 fi &&
  cd $SOURCE_DIRECTORY/$QTSCINT          &&
- qmake qscintilla.pro                   &&
+ PATH=$INSTALL_ROOT/opt/qt4/bin:$PATH qmake qscintilla.pro &&
  make

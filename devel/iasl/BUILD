@@ -1,3 +1,4 @@
+CFLAGS="${CFLAGS/-Wunsafe-loop-optimizations}" &&
 cd generate/unix &&
 
 make_single  &&

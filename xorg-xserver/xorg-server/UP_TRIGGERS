@@ -1,18 +1,11 @@
-local each
-local epicfail
-
-case "$(installed_version $SPELL)" in
-  1.4.2|1.3.0.0|1.2.99.903|1.2.99.902|1.2.0|1.1.1|1.0.1|1.0.0|0.99.4) epicfail=y;;
-  *) epicfail=n;;
-esac &&
-
-for each in synaptics $(gaze -q -g "$(gaze -q grimoires | tr " " "\n" | \
-  grep -Ex "test|stable(-rc|-[0-9]+\.[0-9]+)?")" section xorg-driver);do
-  if spell_ok $each; then
-    if [[ $epicfail == y ]]; then
-      up_trigger $each cast_self
-    else
-      up_trigger $each check_self
-    fi
+local OLD_SPELL_VERSION=""
+if spell_ok  $SPELL; then
+  OLD_SPELL_VERSION="$(installed_version $SPELL)"
+  if test "${VERSION:0:3}" != "${OLD_SPELL_VERSION:0:3}"; then
+    message "This is a possibly incompatible update of $SPELL..."
+    message "Figuring out what spells need to be recast, this may take a while."
+    for each in $(show_up_depends $SPELL 1); do
+       up_trigger $each check_self
+    done
   fi
-done
+fi

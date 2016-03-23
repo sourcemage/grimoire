@@ -36,12 +36,20 @@ case $MESALIB_BUILD in
                     none all $AVAILABLE_GALLIUM
   if [[ $MESALIB_GALLIUM = all ]]; then
     MESALIB_GALLIUM=$AVAILABLE_GALLIUM
-  fi
+  fi &&
+
+  if list_find "$MESALIB_GALLIUM" r600;then
+    config_query_option MESALIB_OPTS "LLVM backend for graphics shaders " n\
+       "--enable-r600-llvm-compiler" ""
+  fi &&
 
   if [[ $MESALIB_GALLIUM != "" ]] && [[ $MESALIB_GALLIUM != none ]]; then
-    list_add MESALIB_OPTS "--enable-egl"
-    config_query_multi MESA_EGL "which EGL platforms?" drm fbdev wayland x11
-    if list_find  wayland "$MESA_EGL";then
+    list_add MESALIB_OPTS "--enable-gallium-llvm" &&
+    list_add MESALIB_OPTS "--enable-egl"  &&
+# remove obsolete fbdev option
+    list_remove MESA_EGL fbdev &&
+    config_query_multi MESA_EGL "which EGL platforms?" drm wayland x11
+    if list_find  "$MESA_EGL" wayland;then
       list_remove MESALIB_OPTS "--disable-shared-glapi" &&
       list_remove MESALIB_OPTS "--disable-gbm"     &&
       list_remove MESALIB_OPTS "--disable-gles2"   &&
@@ -63,7 +71,7 @@ case $MESALIB_BUILD in
     MESALIB_GALLIUM=
     config_query_option MESALIB_OPTS "enable EGL library?" y \
                          "--enable-egl" "--disable-egl"
-    if list_find --enable-egl "$MESALIB_OPTS"; then
+    if list_find "$MESALIB_OPTS" --enable-egl; then
       MESALIB_OPTS+=" --enable-gbm" # Mandatory!
     fi
   fi

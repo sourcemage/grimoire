@@ -1,5 +1,5 @@
 if is_depends_enabled $SPELL qt4; then
-    PATH="/usr/bin/qt4:$PATH"
+    PATH="$QT4DIR/bin:$PATH"
 fi &&
 # sudo calls would install stuff right away
 sed -i 's:^sudo:# sudo:' bootStrap.sh &&

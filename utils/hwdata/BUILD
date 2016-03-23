@@ -1,1 +1,1 @@
-true
+make Makefile.inc

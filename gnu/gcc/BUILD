@@ -100,7 +100,7 @@ if [[ "$GCC_CLOOG" == "y" ]]; then
   OPTS="--enable-cloog-backend=isl $OPTS"  &&
   OPTS="--disable-isl-version-check $OPTS"
 else
-  OPTS="--without-cloog $OPTS"
+  OPTS="--without-isl --without-cloog $OPTS"
 fi &&
 OPTS="--enable-lto $OPTS"                                          &&
 OPTS="--with-linker-hash-style=gnu $OPTS"                          &&
@@ -111,10 +111,4 @@ OPTS="$GCC_MULTILIB $OPTS"                                         &&
 cd $SOURCE_DIRECTORY.bld                                              &&
 $SOURCE_DIRECTORY/configure $OPTS                                     &&
 
-if [[ "$GCC_TARGET" == "profiledbootstrap" ]] ||
-   [[ "$GCC_TARGET" == "profiledbootstrap-lean" ]] ; then
-  make_single 
-fi  &&
-echo "$MAKE_NJOBS  $JOBS_PER_HOST" &&
-make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET &&
-make_normal
+make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET

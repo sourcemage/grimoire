@@ -7,13 +7,17 @@ patch -p1 < $SPELL_DIRECTORY/0001-remove-version-number-from-thunderbird-s-insta
 
 cp -v "${SPELL_DIRECTORY}"/mozconfig .mozconfig &&
 
+# Be explicit: stripped install is the default.
 if [[ "$THUNDERBIRD_STRIP" == "y" ]]; then
-   sed -i '27iac_add_options --enable-strip' .mozconfig
+  echo 'ac_add_options --enable-install-strip' >> .mozconfig
+else
+  echo 'ac_add_options --disable-install-strip' >> .mozconfig
 fi &&
 
-if [[ $THUNDERBIRD_OFFICIAL == y ]]; then
-  sed -i '27iac_add_options --enable-official-branding' .mozconfig || return 1
-fi
+if [[ "$THUNDERBIRD_SDK" == "n" ]]; then
+  sed -i 's/^\(INSTALL_SDK = .*\)$/#\1/' mail/installer/Makefile.in
+fi &&
 
-cd mozilla &&
-patch -p1 < $SPELL_DIRECTORY/0002-1f10a8067853.patch
+if [[ "$THUNDERBIRD_OFFICIAL" == y ]]; then
+  echo 'ac_add_options --enable-official-branding' >> .mozconfig
+fi

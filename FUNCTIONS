@@ -2,11 +2,12 @@
 . $GRIMOIRE/libgcc
 . $GRIMOIRE/config_query_multi.function
 
+QT4DIR=$INSTALL_ROOT/opt/qt4
 QT5DIR=$INSTALL_ROOT/opt/qt5
 
 qt5_build() {
-  cd  $SOURCE_DIRECTORY &&
   PATH="$QT5DIR/bin:$PATH"
+  export PKG_CONFIG_PATH="$QT5DIR/lib/pkgconfig"
   qmake PREFIX=$QT5DIR LIBDIR=$QT5DIR/lib \
     $OPTS *.pro &&
   make
@@ -527,9 +528,20 @@ function waf_build() {
   if ./waf --help | grep -q -- --nocache; then
     waf_opts="$waf_opts --nocache"
   fi
-  ./waf configure $waf_opts \
-                  -j $MAKE_NJOBS \
-                  $OPTS &&
+  if ./waf --help | grep -q -- --cxxflags=CXXFLAGS; then
+    # Hack added for guitarix, maybe useful for others, too.
+    # Needed to be able to enable C++11 mode. We hope to be able
+    # Slip in something here. Full control ist still in waf's hands and
+    # it probably will add flags as it wants:-/
+    ./waf configure $waf_opts \
+      -j $MAKE_NJOBS \
+      --cxxflags="$CXXFLAGS" \
+      $OPTS
+  else
+     ./waf configure $waf_opts \
+       -j $MAKE_NJOBS \
+       $OPTS
+  fi &&
   ./waf build
 }
 
@@ -539,10 +551,15 @@ function waf_install() {
 
 # spells in several  sections now need cmake or qt4
 cmake_build() {
-  cd "$SOURCE_DIRECTORY"  &&
   mkdir -p build        &&
   cd build              &&
   prepare_cmake_flags   &&
+  if [[ $CMAKE_GEN == Ninja ]];then
+    MAKE=ninja
+    OPTS+=" -G Ninja"
+  else
+    MAKE=make
+  fi &&
 
   if [[ -z $1 ]];then
     CMAKE_INSTALL_PREFIX="$INSTALL_ROOT/usr"
@@ -556,24 +573,31 @@ cmake_build() {
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_INSTALL_MANDIR=share/man \
         -DCMAKE_PREFIX_PATH=share/apps/cmake/modules \
-        -DSYSCONFDIR="$INSTALL_ROOT"/etc \
-        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_SYSCONFDIR=$INSTALL_ROOT/etc \
+        -DCMAKE_BUILD_TYPE=$CM_BUILD_TYPE \
         -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
         -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
          $OPTS ../  &&
-  make
+  $MAKE
+}
+
+function cmake_install() {
+  if [[ $CMAKE_GEN == Ninja ]];then
+    ninja install
+  else
+    make install
+  fi
 }
 
 qt4_cmake_build() {
-  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
-  PATH="$QTDIR/bin/qt4:$PATH"
-  cmake_build
+  PATH="$QT4DIR/bin/:$PATH"
+  export PKG_CONFIG_PATH="$QT4DIR/lib/pkgconfig"
+  cmake_build $QT4DIR
 }
 
 qt4_build() {
-  QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"
-  PATH="$QTDIR/bin/qt4:$PATH"
-  qmake PREFIX=$INSTALL_ROOT/usr &&
+  PATH="$QT4DIR/bin:$PATH"
+  qmake PREFIX=$QT4DIR $OPTS *.pro &&
   make
 }
 
@@ -737,6 +761,27 @@ function is_version_less() {
 }
 
 #---
+## Check if a version is between two others. The range is inclusive.
+## @param $1 - first bound
+## @param $2 - version that may be in between
+## @param $3 - second bound
+#---
+function is_version_between() {
+  # First check if the boundaries have been hit.
+  [[ "$1" == "$2" ]] && return
+  [[ "$2" == "$3" ]] && return
+  # Check both ascending and descending order.
+  # If $1 and $3 are equal, there cannot be anything in between.
+  if is_version_less "$1" "$3"; then
+    is_version_less "$1" "$2" &&
+    is_version_less "$2" "$3"
+  else
+    is_version_less "$3" "$2" &&
+    is_version_less "$3" "$1"
+  fi
+}
+
+#---
 ## Check sanity of a temporary partition
 ## @param $1 - the partition to check for
 #---
@@ -790,6 +835,22 @@ function get_spell_provider_file(){
   | grep "$3" | sort | head -n 1
 }
 
+
+#---
+## Trigger checks on dependent spells. Used after checking if
+## an incompatible update is scheduled.
+## @params $1 - spell at hand
+#---
+function check_dependents()
+{
+  local spell=$1; shift
+  message "${MESSAGE_COLOR}This is a possibly incompatible update of $spell." &&
+  message "Figuring out what spells need to be checked for sanity...${DEFAULT_COLOR}" &&
+  for each in $(show_up_depends "$spell" 1); do
+    up_trigger $each check_self
+  done
+}
+
 #---
 ## Trigger check_self on spells depending on the one at hand if it
 ## is being updated from an old version.
@@ -801,10 +862,10 @@ function get_spell_provider_file(){
 ## @params $3 - command to filter versions with
 ## @params $4 - and following: arguments to the filter command
 ##
-## Example: check_dependees_on_update $SPELL $VERSION cut -d . -f 1,2
+## Example: check_dependents_on_update $SPELL $VERSION cut -d . -f 1,2
 ## This will compare only x.y out of version x.y.z-betaY.
 #---
-function check_dependees_on_update()
+function check_dependents_on_update()
 {
   local   spell=$1; shift;
   local version=$1; shift;
@@ -816,13 +877,35 @@ function check_dependees_on_update()
       new_version=$(echo "$new_version" | "$@")
     fi &&
     if [[ "$new_version" != "$old_version" ]]; then
-      message "${MESSAGE_COLOR}This is a possibly incompatible update of $SPELL." &&
-      message "Figuring out what spells need to be checked for sanity...${DEFAULT_COLOR}" &&
-
-      for each in $(show_up_depends $SPELL 1); do
-          up_trigger $each check_self
-      done
+      check_dependents "$spell"
     fi
+  fi
+}
+
+#---
+## Trigger check_self on a certain version jump (known ABI breakage).
+## You know that a spell changed ABI most recently in version x, so you
+## provide this version and the function checks if updating the spell
+## crosses version x and hence dependers shall be triggered.
+## @params $1 - spell at hand
+## @params $2 - new version to be installed
+## @params $3 - version of last ABI breakage
+#---
+function check_dependents_versionjump()
+{
+  local   spell=$1; shift;
+  local version=$1; shift;
+  local breaker;
+  if spell_ok "$spell"; then
+    local old_version=$(installed_version "$spell")
+    [[ "$old_version" == "$version" ]] && return
+    # Now, if the versions differ, check if the breaking version is crossed.
+    for breaker in "$@"; do
+      if is_version_between "$old_version" "$breaker" "$version"; then
+        check_dependents "$spell"
+        return
+      fi
+    done
   fi
 }
 
@@ -831,3 +914,15 @@ function check_dependees_on_update()
 . $GRIMOIRE/glselect.function
 . $GRIMOIRE/bzr_download.function
 . $GRIMOIRE/hg_download.function
+
+
+# some spells need lots of disk space
+# chk_space looks for $1 GB
+chk_space() {
+SPACE=`df --output=avail,target -l -BG|grep " /$" |cut -dG -f1 |sed "s/ //g"`
+if [[ $SPACE -lt "$1" ]];then
+  echo "${PROBLEM_COLOR}insufficient space on root device. $SPELL requires >= $1 GB${DEFAULT_COLOR}"
+  return 1
+fi
+return 0
+}

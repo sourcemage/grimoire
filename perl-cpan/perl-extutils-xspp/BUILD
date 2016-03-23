@@ -1,0 +1,2 @@
+perl Build.PL
+./Build

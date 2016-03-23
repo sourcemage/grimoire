@@ -1,24 +1,41 @@
 if [[ $WEECHAT_BRANCH == scm ]]; then
-  depends git &&
-  depends gettext &&
-
-  if [[ $WEECHAT_CMAKE != y ]]; then
-    depends autoconf &&
-    depends automake &&
-    depends libtool
-  fi
+  depends git
 fi &&
 
-if [[ $WEECHAT_CMAKE == y ]]; then
-  depends cmake
-fi &&
-
-depends ncurses &&
+depends cmake &&
+depends curl &&
+depends zlib &&
 depends libgcrypt &&
+depends gettext &&
 
-optional_depends gnutls "" "--disable-gnutls" "Turn on gnutls support" &&
-optional_depends perl "" "--disable-perl" "Turns on Perl script plugin" &&
-optional_depends python "" "--disable-python" "Turns on Python script plugin" &&
-optional_depends RUBY "" "--disable-ruby" "Turns on Ruby script plugin" &&
-optional_depends LUA "" "--disable-lua" "Turn on Lua script plugin" &&
-optional_depends aspell "" "--disable-aspell" "Turn on Aspell plugin"
+optional_depends gnutls "-DENABLE_GNUTLS=ON" "-DENABLE_GNUTLS=OFF" "Turn on gnutls support" &&
+if is_depends_enabled $SPELL gnutls; then
+  depends ca-certificates
+fi &&
+
+optional_depends asciidoc "-DENABLE_DOC=ON" "-DENABLE_DOC=OFF" "build documentation?" &&
+if is_depends_enabled asciidoc; then
+  depends source-highlight
+fi &&
+
+optional_depends xsltproc "-DENABLE_MAN=ON" "-DENABLE_MAN=OFF" "build manpages" &&
+if is_depends_enabled xsltproc; then
+  depends docbook-xml &&
+  depends docbook-xsl
+fi &&
+
+
+optional_depends perl "-DENABLE_PERL=ON" "-DENABLE_PERL=ON" "Turns on Perl script plugin" &&
+optional_depends python "-DENABLE_PYTHON=ON" "-DENABLE_PYTHON=OFF" "Turns on Python script plugin" &&
+optional_depends python3 "-DENABLE_PYTHON3=ON" "-DENABLE_PYTHON3=OFF" "Turns on Python 3 script plugin" &&
+optional_depends RUBY "-DENABLE_RUBY=ON" "-DENABLE_RUBY=OFF" "Turns on Ruby script plugin" &&
+optional_depends LUA "-DENABLE_LUA=ON" "-DENABLE_LUA=OFF" "Turn on Lua script plugin" &&
+optional_depends aspell "-DENABLE_ASPELL=ON" "-DENABLE_ASPELL=OFF" "Turn on Aspell plugin" &&
+optional_depends guile "-DENABLE_GUILE=ON" "-DENABLE_GUILE=OFF" "Turn on Scheme script plugin" &&
+optional_depends libv8 "-DENABLE_JAVASCRIPT=ON" "-DENABLE_JAVASCRIPT=OFF" "Turn on JavaScript script plugin" &&
+optional_depends ncurses "-DENABLE_NCURSES=ON" "-DENABLE_NCURSES=OFF" "Enable ncurses interface" &&
+optional_depends tcl "-DENABLE_TCL=ON" "-DENABLE_TCL=OFF" "Enable tcl script plugin" &&
+
+if is_depends_enabled $SPELL aspell; then
+  optional_depends enchant "-DENABLE_ENCHANT=ON" "-DENABLE_ENCHANT=OFF" "enable Enchant lib for Aspell plugin"
+fi

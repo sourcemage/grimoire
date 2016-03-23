@@ -3,7 +3,10 @@ export XDG_DATA_DIRS=$KF5DIR/share:/usr/share
 
 #---------------------------------------------------------------------
 function kde5_build() {
-  OPTS+=" -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=1 -Wno-dev  $CM_TESTS"
+  CXXFLAGS+=' -Wno-deprecated-declarations'
+  OPTS+=" -DLIB_INSTALL_DIR=lib"
+  OPTS+=" -Wno-dev $CM_TESTS"
+  OPTS+=" -DKDE_SKIP_UNINSTALL_TARGET=1"
   qt5_cmake_build
 }
 
@@ -12,9 +15,9 @@ default_build() {
  kde5_build
 }
 
-#function default_install() {
-# cmake_install
-#}
+function default_install() {
+ cmake_install
+}
 
 
 # we need a default_final, default_post_remove
@@ -23,7 +26,7 @@ update_databases() {
 local DD
   DD=$KF5DIR
 #  update-mime-database takes a long time, so only do it when needed
-  if is_depends_enabled $SPELL;then
+  if is_depends_enabled $SPELL shared-mime-info;then
     update-mime-database $DD/share/mime/
   fi
   if [[ -e $DD/share/desktop-directories ]]; then

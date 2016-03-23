@@ -1,2 +1,5 @@
-OPTS="$OPTS --enable-thumbnailer"
-default_build
+OPTS="$OPTS                       \
+      -DCMAKE_BUILD_TYPE=Release  \
+      -DENABLE_GIO=ON             \
+      -DENABLE_THUMBNAILER=ON "   &&
+cmake_build

@@ -1,6 +1,4 @@
-[[ "$KTINY" = off ]] || OPTS +=" $KTINY" &&
+OPTS+=" -DPRODUCTSET=$CPROD" &&
+OPTS+=" -DPACKAGERS_BUILD=OFF" &&
 OPTS+=" -DQT3SUPPORT=$QT3" &&
-if [[ $KDE_NEPOMUK == n ]];then
-  OPTS+=" -DNEPOMUK=off"
-fi &&
 default_build

@@ -1,1 +1,1 @@
-qt4_cmake_build
+qt5_cmake_build

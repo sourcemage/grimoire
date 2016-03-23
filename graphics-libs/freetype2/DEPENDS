@@ -1,13 +1,25 @@
-depends  glib2   &&
-depends  libpng  &&
-depends  pcre    &&
+optional_depends libpng \
+                 "--with-png=yes" \
+                 "--with-png=no" \
+                 "to support png compressed OpenType embedded bitmaps" &&
 
 # freetype2 with harfbuzz requires harfbuzz built against freetype2 first
 if spell_ok ${SPELL}; then
   optional_depends  -sub 'FT'  'harfbuzz'                        \
                     '--with-harfbuzz=yes'                        \
                     '--with-harfbuzz=no'                         \
-                    'to improve auto-hinting of OpenType fonts'
+                    'to improve auto-hinting of OpenType fonts'  &&
+
+  # LDFLAGS are taken from /usr/lib/libharfbuzz.la
+  if is_depends_enabled $SPELL harfbuzz; then
+    if is_depends_enabled harfbuzz glib2; then
+      depends glib2 &&
+      depends pcre
+    fi
+  fi
 else
-  message "${PROBLEM_COLOR}harfbuzz optional dependency disabled until ${DEFAULT_COLOR}${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}${PROBLEM_COLOR} is cast.${DEFAULT_COLOR}"
+  message "${PROBLEM_COLOR}harfbuzz optional dependency disabled until ${DEFAULT_COLOR}${SPELL_COLOR}${SPELL}${DEFAULT_COLOR}${PROBLEM_COLOR} is cast.${DEFAULT_COLOR}" &&
+  persistent_add FREETYPE_OPTS &&
+  list_add FREETYPE_OPTS "--with-harfbuzz=no"
 fi
+

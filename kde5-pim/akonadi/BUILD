@@ -1,0 +1,2 @@
+OPTS+=" -DDATABASE_BACKEND=$DEFAULT_DB" &&
+default_build

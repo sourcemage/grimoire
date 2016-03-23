@@ -1,17 +1,45 @@
 depends -sub CXX gcc &&
 depends  qt4         &&
-depends  scons       &&
+depends  cmake       &&
 depends  libsndfile  &&
-depends JACK-DRIVER  &&
-depends libtar       &&
-depends liblrdf      &&
+
+optional_depends  libarchive \
+                  "-DWANT_LIBARCHIVE=ON" \
+                  "-DWANT_LIBARCHIVE=OFF" \
+                  "libarchive for file access instead of libtar and zlib" &&
+if ! is_depends_enabled $SPELL libarchive; then
+  depends libtar
+fi &&
+
+optional_depends  liblrdf \
+                  "-DWANT_LRDF=ON" \
+                  "-DWANT_LRDF=OFF" \
+                  "for ladspa plugins (triggers plain ladspa dependency, too)" &&
+if is_depends_enabled $SPELL liblrdf; then
+  depends ladspa
+fi &&
+
+optional_depends  JACK-DRIVER \
+                  "-DWANT_JACK=ON" \
+                  "-DWANT_JACK=OFF" \
+                  "for JACK output" &&
 
 optional_depends  alsa-lib            \
-                  "--enable-alsa"     \
-                  "--disable-alsa"    \
-                  "for ALSA support"  &&
+                  "-DWANT_ALSA=ON"     \
+                  "-DWANT_ALSA=OFF"    \
+                  "for ALSA output"  &&
 
-optional_depends  flac  	            \
-                  "--enable-flac-support"   \
-                  "--disable-flac-support"  \
-                  "for flac support" 
+optional_depends  oss  \
+                  "-DWANT_OSS=ON" \
+                  "-DWANT_OSS=OFF" \
+                  "for OSS4 output" &&
+
+optional_depends  pulseaudio \
+                  "-DWANT_PULSEAUDIO=ON" \
+                  "-DWANT_PULSEAUDIO=OFF" \
+                  "for pulseaudio output" &&
+
+optional_depends  lash \
+                  "-DWANT_LASH=ON" \
+                  "-DWANT_LASH=OFF" \
+                  "session handling"

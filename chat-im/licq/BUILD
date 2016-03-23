@@ -1,3 +1,4 @@
+OPTS="$OPTS -DBUILD_TESTS=off"
 local_cmake_build()
 {
   mkdir -p build        &&
