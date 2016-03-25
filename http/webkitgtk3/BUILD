@@ -1,6 +1,7 @@
 OPTS="$WEBKIT_OPTS $OPTS" &&
 sed -i '30i#include <unicode/utf8.h>' \
-    Source/WebCore/platform/text/TextCodecUTF8.h &&
+    Source/WebCore/platform/text/TextCodecUTF8.h \
+    Source/WebCore/platform/text/hyphen/HyphenationLibHyphen.cpp &&
 sed -i '30i#include <unicode/utf16.h>' \
     Source/WTF/wtf/text/StringBuilder.h &&
 sed -i '26i#include <unicode/utf16.h>' \
