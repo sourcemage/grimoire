@@ -1,6 +1,4 @@
-if is_depends_enabled $SPELL qtbase;then
-  qt5_build
-else
-  qt4_build
-fi
-
+# do not use qt5_build
+cd $SOURCE_DIRECTORY &&
+$QT5DIR/bin/qmake -recursive qbs.pro &&
+make
