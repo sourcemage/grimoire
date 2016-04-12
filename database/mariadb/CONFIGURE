@@ -1,4 +1,5 @@
 source $GRIMOIRE/config_query_multi.function &&
+source $GRIMOIRE/CMAKE_CONFIGURE &&
 
 # backporting legacy options
 if [[ -n "$MADB_OPTS" ]]; then
@@ -7,7 +8,7 @@ if [[ -n "$MADB_OPTS" ]]; then
   persistent_remove MADB_OPTS
 fi &&
 
-if [[ $MARIADB_BRANCH == 5.5 ]]; then
+if [[ $MARIADB_BRANCH == 5.5 ]] || [[ $MARIADB_BRANCH == 10.1 ]]; then
   if list_find "$MARIADB_OPTS" "--with-embedded-server"; then
     list_remove "MARIADB_OPTS" "--with-embedded-server" &&
     list_add "MARIADB_OPTS" "-DWITH_EMBEDDED_SERVER=ON"
@@ -100,7 +101,7 @@ if [[ -n "$MADB_ENGINES" ]]; then
   persistent_remove MADB_ENGINES
 fi &&
 
-if [[ $MARIADB_BRANCH == 5.5 ]]; then
+if [[ $MARIADB_BRANCH == 5.5 ]] || [[ $MARIADB_BRANCH == 10.1 ]]; then
   local MARIADB_ENGINES_LIST="archive aria blackhole csv example federated federatedx heap innobase myisam myisammrg ndbcluster oqgraph partition perfschema sphinx tokudb xtradb"
 else
   local MARIADB_ENGINES_LIST="archive aria blackhole csv example federated federatedx heap ibmdb2i innodb_plugin myisam ndbcluster oqgraph pbxt sphinx xtradb"
@@ -117,8 +118,10 @@ elif list_find "$MARIADB_ENGINES" "none"; then
   MARIADB_ENGINES="none"
 fi &&
 
-if list_find "$MARIADB_ENGINES" "aria" && [[ $MARIADB_BRANCH == 5.5 ]]; then
+if list_find "$MARIADB_ENGINES" "aria";then
+  if [[ $MARIADB_BRANCH == 5.5 ]] || [[ $MARIADB_BRANCH == 10.1 ]]; then
   config_query_option MARIADB_OPTS "Use Aria engine (instead of MyISAM) for temporary tables?" y \
                                    "-DUSE_ARIA_FOR_TMP_TABLES=ON" \
                                    "-DUSE_ARIA_FOR_TMP_TABLES=OFF"
+  fi
 fi

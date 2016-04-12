@@ -3,7 +3,7 @@ create_account mariadb &&
 OPTS="$MARIADB_OPTS $OPTS" &&
 CFLAGS="${CFLAGS//-ffast-math}" &&
 
-if [[ $MARIADB_BRANCH == 5.5 ]]; then
+if [[ $MARIADB_BRANCH == 5.5 ]] || [[ $MARIADB_BRANCH == 10.1 ]]; then
   if [[ $MARIA_TESTS == n ]]; then
     OPTS="-DWITH_UNIT_TESTS=OFF -DINSTALL_MYSQLTESTDIR=OFF $OPTS"
   else
