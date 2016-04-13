@@ -1,9 +1,7 @@
-#stupid qt4 spell
-PATH="$PATH:/usr/bin/qt4"                                       &&
-disable_pic                                                     &&
-QTDIR=${QTDIR:-$INSTALL_ROOT/usr}                               &&
-OPTS="$ENABLE_DVB $ENABLE_OSS $ENABLE_FIREWIRE $ENABLE_JOYSTICK \
-      --disable-distcc --qmake=/usr/bin/qt4/qmake               \
-      $OPTS"				                        &&
-./configure  --prefix=/usr $OPTS                                &&
-make
+cd $SOURCE_DIRECTORY/mythtv &&
+export PKG_CONFIG_PATH="$QT5DIR/lib/pkgconfig" &&
+OPTS+=" $ENABLE_DVB $ENABLE_OSS $ENABLE_FIREWIRE $ENABLE_JOYSTICK --disable-distcc\
+       --qmake=$QT5DIR/bin/qmake \
+       --disable-systemd_notify"  &&
+./configure  --prefix=/usr $OPTS  &&
+make 
