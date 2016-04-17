@@ -1,0 +1,39 @@
+Index: /trunk/src/xpra/client/gtk2/client.py
+===================================================================
+--- /trunk/src/xpra/client/gtk2/client.py	(revision 12401)
++++ /trunk/src/xpra/client/gtk2/client.py	(revision 12402)
+@@ -200,6 +200,18 @@
+                 clipboardlog.warn("Warning: no clipboard types matching '%s'", self.client_clipboard_type)
+             clipboard_options = filtered
+-        clipboardlog("get_clipboard_helper_classes()=%s", clipboard_options)
+-        return clipboard_options
++        #now try to load them:
++        clipboardlog("get_clipboard_helper_classes() options=%s", clipboard_options)
++        loadable = []
++        for co in clipboard_options:
++            try:
++                parts = co.split(".")
++                mod = ".".join(parts[:-1])
++                __import__(mod, {}, {}, [parts[-1]])
++                loadable.append(co)
++            except ImportError as e:
++                clipboardlog("cannot load %s: %s", co, e)
++                continue
++        clipboardlog("get_clipboard_helper_classes()=%s", loadable)
++        return loadable
+ 
+     def make_clipboard_helper(self):
+Index: /trunk/src/xpra/client/gtk_base/gtk_tray_menu_base.py
+===================================================================
+--- /trunk/src/xpra/client/gtk_base/gtk_tray_menu_base.py	(revision 12401)
++++ /trunk/src/xpra/client/gtk_base/gtk_tray_menu_base.py	(revision 12402)
+@@ -556,6 +556,7 @@
+             copts = self.client.get_clipboard_helper_classes()
+             #ugly alert: the helper does not exist yet.. we just check the helper classnames:
+-            for c in copts:
+-                if c.find("translated_clipboard")>0:
++            if len(copts)>0:
++                chname = copts[0].lower()
++                if chname.find("translated_clipboard")>0 or chname.find("osxclipboard"):
+                     return self.make_translatedclipboard_optionsmenuitem()
+         except:
