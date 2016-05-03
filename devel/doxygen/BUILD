@@ -1,5 +1,5 @@
-QTDIR="${QTDIR:-$INSTALL_ROOT/usr}"        \
-OPTS="$ENGLISH  $OPTS"                     \
-./configure  --prefix "$INSTALL_ROOT/usr"  \
-             $OPTS                         &&
-make
+OPTS="$ENGLISH_ONLY  $OPTS"
+if is_depends_enabled $SPELL qtbase;then
+  PATH="$QT5DIR/bin/:$PATH"
+fi &&
+cmake_build
