@@ -1,4 +1,5 @@
 cd $SOURCE_DIRECTORY          &&
+CXXFLAGS+=" -std=c++03" &&
 autoconf								&&
 OPTS="${!tempopts} $OPTS"     &&
 OPTS="$OPTS --build=${BUILD}" &&
