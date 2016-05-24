@@ -1,0 +1,74 @@
+2016-04-20  Yvan Roux  <yvan.roux@linaro.org>
+
+	* stdlib/setenv.c (unsetenv): Fix ambiguous 'else'.
+	* nis/nis_call.c (nis_server_cache_add): Likewise.
+
+Index: glibc-2.23/nis/nis_call.c
+===================================================================
+--- glibc-2.23.orig/nis/nis_call.c
++++ glibc-2.23/nis/nis_call.c
+@@ -680,16 +680,18 @@ nis_server_cache_add (const_nis_name nam
+   /* Choose which entry should be evicted from the cache.  */
+   loc = &nis_server_cache[0];
+   if (*loc != NULL)
+-    for (i = 1; i < 16; ++i)
+-      if (nis_server_cache[i] == NULL)
+-	{
++    {
++      for (i = 1; i < 16; ++i)
++	if (nis_server_cache[i] == NULL)
++	  {
++	    loc = &nis_server_cache[i];
++	    break;
++	  }
++	else if ((*loc)->uses > nis_server_cache[i]->uses
++		 || ((*loc)->uses == nis_server_cache[i]->uses
++		     && (*loc)->expires > nis_server_cache[i]->expires))
+ 	  loc = &nis_server_cache[i];
+-	  break;
+-	}
+-      else if ((*loc)->uses > nis_server_cache[i]->uses
+-	       || ((*loc)->uses == nis_server_cache[i]->uses
+-		   && (*loc)->expires > nis_server_cache[i]->expires))
+-	loc = &nis_server_cache[i];
++    }
+   old = *loc;
+   *loc = new;
+ 
+Index: glibc-2.23/stdlib/setenv.c
+===================================================================
+--- glibc-2.23.orig/stdlib/setenv.c
++++ glibc-2.23/stdlib/setenv.c
+@@ -278,18 +278,20 @@ unsetenv (const char *name)
+   ep = __environ;
+   if (ep != NULL)
+     while (*ep != NULL)
+-      if (!strncmp (*ep, name, len) && (*ep)[len] == '=')
+-	{
+-	  /* Found it.  Remove this pointer by moving later ones back.  */
+-	  char **dp = ep;
++      {
++	if (!strncmp (*ep, name, len) && (*ep)[len] == '=')
++	  {
++	    /* Found it.  Remove this pointer by moving later ones back.  */
++	    char **dp = ep;
+ 
+-	  do
+-	    dp[0] = dp[1];
+-	  while (*dp++);
+-	  /* Continue the loop in case NAME appears again.  */
+-	}
+-      else
+-	++ep;
++	    do
++		dp[0] = dp[1];
++	    while (*dp++);
++	    /* Continue the loop in case NAME appears again.  */
++	  }
++	else
++	  ++ep;
++      }
+ 
+   UNLOCK;
+ 
+
