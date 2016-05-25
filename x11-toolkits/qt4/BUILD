@@ -1,6 +1,8 @@
 # Remove -ffast-math from CFLAGS, gives problems when building internal SQLite,
 # or QtWebkit which forces building it... probably a buildsystem bug.
-CFLAGS="${CFLAGS/-ffast-math}"
+CFLAGS="${CFLAGS/-ffast-math}" &&
+CFLAGS="$CFLAGS -fno-delete-null-pointer-checks -Wno-deprecated"     &&
+CXXFLAGS="$CXXFLAGS -fno-delete-null-pointer-checks -std=gnu++98 -Wno-deprecated" &&
 
 QTDIR=$QT4DIR  &&
 
@@ -28,4 +30,4 @@ OPTS="$QT_DEBUG               \
              -platform  linux-g++ \
              $OPTS    &&
 
-make
+default_build_make
