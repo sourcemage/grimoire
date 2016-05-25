@@ -13,10 +13,10 @@ export LIBGL_ALWAYS_INDIRECT=1
 # No fast optimization for Mozilla, bit us so many times...
 # This used to default to -O2, but that produces crashing firefox for
 # sobukus with gcc-5.2.0; -Os seems more safe.
-CFLAGS="${CFLAGS//-O2/-Os}"      &&
-CXXFLAGS="${CXXFLAGS//-O2/-Os}"  &&
-CFLAGS="${CFLAGS//-O3/-Os}"      &&
-CXXFLAGS="${CXXFLAGS//-O3/-Os}"  &&
+CFLAGS="${CFLAGS//-Os/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
+CFLAGS="${CFLAGS//-O3/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
 #
 # fix symbol check in build scripts, firefox adds -s to LDFLAGS so we can
