@@ -1,6 +1,6 @@
 diff -Naur ifupdown.orig/inet.defn ifupdown/inet.defn
---- ifupdown.orig/inet.defn	2016-01-21 14:22:51.000000000 -0800
-+++ ifupdown/inet.defn	2016-03-08 13:46:18.629539315 -0800
+--- ifupdown.orig/inet.defn	2016-04-20 05:57:37.000000000 -0700
++++ ifupdown/inet.defn	2016-06-01 13:19:31.682554276 -0700
 @@ -6,10 +6,10 @@
      This method may be used to define the IPv4 loopback interface.
  
@@ -102,18 +102,18 @@ diff -Naur ifupdown.orig/inet.defn ifupdown/inet.defn
  method ppp
    description
 diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
---- ifupdown.orig/inet6.defn	2016-01-21 14:24:47.000000000 -0800
-+++ ifupdown/inet6.defn	2016-03-08 13:46:18.629539315 -0800
-@@ -24,7 +24,7 @@
+--- ifupdown.orig/inet6.defn	2016-05-19 03:05:34.000000000 -0700
++++ ifupdown/inet6.defn	2016-06-01 13:19:31.682554276 -0700
+@@ -25,7 +25,7 @@
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.use_tempaddr=%privext%]]
      -/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.accept_ra=%accept_ra%
      -/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.autoconf=1
 -    /bin/ip link set dev %iface% up
 +    /sbin/ip link set dev %iface% up
      /lib/ifupdown/wait-for-ll6.sh if (var_true("dhcp", ifd) && execable("/lib/ifupdown/wait-for-ll6.sh"))
-     /sbin/dhclient -6 -S -pf /run/dhclient6.%iface%.pid -lf /var/lib/dhcp/dhclient6.%iface%.leases -I -df /var/lib/dhcp/dhclient.%iface%.leases %iface% \
-         if (var_true("dhcp", ifd) && execable("/sbin/dhclient"))
-@@ -32,19 +32,19 @@
+     /sbin/dhclient -6 -P -pf /run/dhclient6.%iface%.pid -lf /var/lib/dhcp/dhclient6.%iface%.leases -I -df /var/lib/dhcp/dhclient.%iface%.leases %iface% \
+         if (var_true("dhcp", ifd) && execable("/sbin/dhclient") && var_true("request_prefix", ifd))
+@@ -35,19 +35,19 @@
          elsif (var_true("dhcp", ifd))
  
    down
@@ -139,15 +139,19 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
  
  method static
    description
-@@ -82,15 +82,15 @@
+@@ -85,18 +85,18 @@
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.accept_ra=%accept_ra%]]
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.autoconf=%autoconf%]]
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.mtu=%mtu%]]
 -    /bin/ip link set dev %iface% [[address %hwaddress%]] up
--    /bin/ip -6 addr add %address%[[/%netmask%]] [[scope %scope%]] dev %iface% [[preferred_lft %preferred-lifetime%]]
--    [[ /bin/ip -6 route add default via %gateway% [[metric %metric%]] dev %iface% onlink ]]
+-    /bin/ip -6 addr add %address%[[/%netmask%]] [[scope %scope%]] dev %iface% [[preferred_lft %preferred-lifetime%]] \
 +    /sbin/ip link set dev %iface% [[address %hwaddress%]] up
-+    /sbin/ip -6 addr add %address%[[/%netmask%]] [[scope %scope%]] dev %iface% [[preferred_lft %preferred-lifetime%]]
++    /sbin/ip -6 addr add %address%[[/%netmask%]] [[scope %scope%]] dev %iface% [[preferred_lft %preferred-lifetime%]] \
+                 if (!var_set("dad-attempts", ifd) || var_true("dad-attempts", ifd))
+-    /bin/ip -6 addr add %address%[[/%netmask%]] [[scope %scope%]] dev %iface% [[preferred_lft %preferred-lifetime%]] nodad \
++    /sbin/ip -6 addr add %address%[[/%netmask%]] [[scope %scope%]] dev %iface% [[preferred_lft %preferred-lifetime%]] nodad \
+                 if (var_set("dad-attempts", ifd) && !var_true("dad-attempts", ifd))
+-    [[ /bin/ip -6 route add default via %gateway% [[metric %metric%]] dev %iface% onlink ]]
 +    [[ /sbin/ip -6 route add default via %gateway% [[metric %metric%]] dev %iface% onlink ]]
      /lib/ifupdown/settle-dad.sh if (!no_act && execable("/lib/ifupdown/settle-dad.sh") && (var_true("dad-attempts", ifd)))
  
@@ -161,7 +165,7 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
  		if (iface_is_link())
  
  method manual
-@@ -108,11 +108,11 @@
+@@ -114,11 +114,11 @@
  
    up
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.mtu=%mtu%]]
@@ -176,16 +180,16 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
          if (iface_is_link() || !do_all)
  
  method dhcp
-@@ -135,7 +135,7 @@
+@@ -142,7 +142,7 @@
      /sbin/modprobe -q net-pf-10 > /dev/null 2>&1 || true # ignore failure.
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.accept_ra=%accept_ra%]]
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.autoconf=%autoconf%]]
 -    /bin/ip link set dev %iface% [[address %hwaddress%]] up
 +    /sbin/ip link set dev %iface% [[address %hwaddress%]] up
      /lib/ifupdown/wait-for-ll6.sh if (execable("/lib/ifupdown/wait-for-ll6.sh"))
-     /sbin/dhclient -6 -pf /run/dhclient6.%iface%.pid -lf /var/lib/dhcp/dhclient6.%iface%.leases -I -df /var/lib/dhcp/dhclient.%iface%.leases %iface% \
-         if (execable("/sbin/dhclient"))
-@@ -148,7 +148,7 @@
+     /sbin/dhclient -6 -pf /run/dhclient6.%iface%.pid -lf /var/lib/dhcp/dhclient6.%iface%.leases -I -P -N -df /var/lib/dhcp/dhclient.%iface%.leases %iface% \
+         if (execable("/sbin/dhclient") && var_true("request_prefix", ifd))
+@@ -157,7 +157,7 @@
      echo 'No DHCPv6 client software found!' >/dev/stderr; false \
          elsif (1)
  
@@ -194,7 +198,7 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
  		if (iface_is_link())
  
  method v4tunnel
-@@ -174,15 +174,15 @@
+@@ -183,15 +183,15 @@
  
    up
      /sbin/modprobe -q net-pf-10 > /dev/null 2>&1 || true # ignore failure.
@@ -216,7 +220,7 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
  
  method 6to4
    description
-@@ -203,16 +203,16 @@
+@@ -212,16 +212,16 @@
  
    up
      /sbin/modprobe -q net-pf-10 > /dev/null 2>&1 || true # ignore failure.
@@ -241,9 +245,9 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
  
  architecture kfreebsd
 diff -Naur ifupdown.orig/link.defn ifupdown/link.defn
---- ifupdown.orig/link.defn	2016-01-09 13:11:05.000000000 -0800
-+++ ifupdown/link.defn	2016-03-08 13:46:18.630539302 -0800
-@@ -13,14 +13,14 @@
+--- ifupdown.orig/link.defn	2016-04-21 08:35:56.000000000 -0700
++++ ifupdown/link.defn	2016-06-01 13:19:31.682554276 -0700
+@@ -16,15 +16,15 @@
      if test -d /sys/class/net/%link% -a \
              ! -d /sys/class/net/%iface0% ; \
      then \
@@ -255,11 +259,13 @@ diff -Naur ifupdown.orig/link.defn ifupdown/link.defn
 -    -/bin/ip link set up dev %iface% 2>/dev/null \
 +    -/sbin/ip link set up dev %iface% 2>/dev/null \
  	if (iface_is_lo())
+-    [[/bin/ip link set %iface0% alias "%description%"]]
++    [[/sbin/ip link set %iface0% alias "%description%"]]
    down
 -    /bin/ip link del %iface% if (iface_has(".") && (!iface_has(":")) && (!var_set_anywhere("bridge_ports", ifd)))
 -    -/bin/ip link set down dev %iface% 2>/dev/null \
 +    /sbin/ip link del %iface% if (iface_has(".") && (!iface_has(":")) && (!var_set_anywhere("bridge_ports", ifd)))
 +    -/sbin/ip link set down dev %iface% 2>/dev/null \
  	if (iface_is_lo())
+     [[-test -n "%description%" && /bin/echo > /sys/class/net/%iface0%/ifalias]]
  
- architecture kfreebsd
