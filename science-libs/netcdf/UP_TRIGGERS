@@ -1,0 +1,19 @@
+# up_trigger everything on all version updates
+
+if spell_ok $SPELL; then
+  local OLD_SPELL_VERSION="$(installed_version $SPELL)" &&
+
+  if test "${VERSION}" != "${OLD_SPELL_VERSION}"; then
+    message "${MESSAGE_COLOR}This is a possibly incompatible update of $SPELL..." &&
+    message "Figuring out what spells need to be recast, this may take a while.${DEFAULT_COLOR}" &&
+
+    local dependees="$(show_up_depends $SPELL 1)" &&
+
+    for each in $dependees; do
+      if gaze install $each | xargs ldd 2> /dev/null |
+         grep -q 'libnetcdf.so'; then
+           up_trigger $each check_self
+      fi
+    done
+  fi
+fi
