@@ -1,19 +1,3 @@
-# local BACKENDS="aqhbci aqdtaus"  && aqdtaus is broken
-local BACKENDS="aqhbci"  &&
-local FRONTENDS="cbanking"                    &&
-
-if  list_find  "$OPTS"  "--enable-libofx";  then
-  BACKENDS="$BACKENDS aqofxconnect"
-fi  &&
-
-if [ "${AQBANKING_GTK}" == "y" ]; then
-   local FRONTENDS="${FRONTENDS} g2banking"
-fi  &&
-
-OPTS="${OPTS} --disable-qt3"
-OPTS="${OPTS} --disable-kde3"
-
-
 ./configure --build=${BUILD}                           \
             --host=${HOST}                             \
             --prefix=${INSTALL_ROOT}/usr               \
@@ -21,10 +5,12 @@ OPTS="${OPTS} --disable-kde3"
             --localstatedir=${INSTALL_ROOT}/var        \
             --mandir=${INSTALL_ROOT}/usr/share/man     \
             --infodir=${INSTALL_ROOT}/usr/share/info   \
-            --with-backends="${BACKENDS}"              \
-            --with-frontends="${FRONTENDS}"            \
+            --with-backends="${AQ_BACK}"               \
+            --with-imexporters="${AQ_EXIM}"            \
+            --with-parsers="${AQ_PARSE}"               \
+            --with-bankinfos="${AQ_INFO}"              \
 	    --disable-tutorials			       \
             $OPTS                                      &&
 make_single  &&
-make  &&
-make_normal
+make         &&
+#make_normal
