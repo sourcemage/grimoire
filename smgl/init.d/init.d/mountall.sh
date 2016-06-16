@@ -73,29 +73,53 @@ scanlvm()
 
 start_cryptfs()
 {
-  if optional_executable /usr/sbin/cryptsetup && [ -f /etc/crypttab ]
-  then
-    echo "Attempting to open luks encrypted partitions"
-    grep -v '^#' /etc/crypttab |
-    grep -v '^$'               |
-    while read line
-    do
-      parts=( $line )
-      echo "Opening ${parts[0]} as ${parts[1]}"
-      if cryptsetup isLuks ${parts[0]}
-      then
-        if [[ -b /dev/mapper/${parts[1]} ]]
-        then
-          builtin echo "Device already exists maybe its open already"
-        else
-          cryptsetup luksOpen ${parts[0]} ${parts[1]} < /dev/console > /dev/console 2>&1
-        fi
-      else
-        builtin echo "Error device ${parts[0]} isn't a luks partition"
-        return 1
-      fi
-    done
-  fi
+  optional_executable /usr/sbin/cryptsetup && [ -f /etc/crypttab ] || return
+  echo "Attempting to open encrypted block devices"
+  # TODO implement parsing of options
+  awk '
+    BEGIN {
+      T["loopaes"]
+      T["luks"]
+      T["plain"]
+      T["swap"]
+      T["tcrypt"]
+    }
+    /^#/ || $0=="" {next}
+    {
+      type = $3 in T ? $3 : "luks"
+      print $1, $2, type
+    }
+  ' /etc/crypttab |
+  while read dev name type opts
+  do
+    echo "Opening $dev as $name"
+    if [[ -b /dev/mapper/"$name" ]]
+    then
+      builtin echo "Device already exists, maybe it's open"
+    else
+      case "$type" in
+        swap)
+          type=plain opts="-d /dev/urandom -c aes-xts-plain64"
+          ;;&
+        luks)
+          if ! cryptsetup isLuks "$dev"
+          then
+            builtin echo "Error: $dev isn't a luks device"
+            return 1
+          fi
+          ;;&
+        *)
+          cryptsetup open --type "$type" "$dev" "$name" $opts \
+            </dev/console >/dev/console 2>&1
+          ;;&
+        swap)
+          mkswap /dev/mapper/"$name" &&
+          echo -n "Activating swap..." &&
+          swapon /dev/mapper/"$name"
+          ;;
+      esac
+    fi
+  done
 }
 
 start()
@@ -137,7 +161,7 @@ start()
 
   if [ "$CLEAN_TMP" == "yes" ] ; then
     echo "Cleaning out /tmp..."
-    [ -d /tmp ] && shopt -s dotglob && rm -rf /tmp/* && shopt -u dotglob
+    [ -d /tmp ] && find /tmp -mindepth 1 -delete
     evaluate_retval
   fi
 
