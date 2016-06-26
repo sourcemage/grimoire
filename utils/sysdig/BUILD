@@ -1,3 +1,5 @@
-OPTS="-DENABLE_DKMS=NO $OPTS" &&
+OPTS="-DSYSDIG_VERSION=$VERSION \
+      -DENABLE_DKMS=NO \
+      $OPTS" &&
 
 cmake_build

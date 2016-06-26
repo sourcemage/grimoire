@@ -1,0 +1,357 @@
+--- userspace/libsinsp/event.cpp.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/event.cpp	2016-06-25 18:46:13.220961611 -0400
+@@ -61,6 +61,7 @@
+ {
+ 	m_flags = EF_NONE;
+ 	m_tinfo = NULL;
++	m_check_id = 0;
+ #ifdef _DEBUG
+ 	m_filtered_out = false;
+ #endif
+@@ -73,6 +74,7 @@
+ 	m_inspector = inspector;
+ 	m_flags = EF_NONE;
+ 	m_tinfo = NULL;
++	m_check_id = 0;
+ #ifdef _DEBUG
+ 	m_filtered_out = false;
+ #endif
+--- userspace/libsinsp/event.h.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/event.h	2016-06-25 18:44:54.830921592 -0400
+@@ -379,7 +379,7 @@
+ 	uint16_t m_cpuid;
+ 	uint64_t m_evtnum;
+ 	uint32_t m_flags;
+-	int32_t m_check_id = 0;
++	int32_t m_check_id;
+ 	bool m_params_loaded;
+ 	const struct ppm_event_info* m_info;
+ 	vector<sinsp_evt_param> m_params;
+--- userspace/libsinsp/sinsp.h.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/sinsp.h	2016-06-25 18:51:54.626135898 -0400
+@@ -837,7 +837,7 @@
+ 	// True if sysdig is ran with -v.
+ 	// Used by mesos and k8s objects.
+ 	//
+-	bool m_verbose_json = false;
++	bool m_verbose_json;
+ 
+ 	//
+ 	// True if the command line argument is set to show container information
+--- userspace/libsinsp/sinsp.cpp.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/sinsp.cpp	2016-06-25 18:53:28.084183609 -0400
+@@ -105,6 +105,7 @@
+ 	m_last_procrequest_tod = 0;
+ 	m_get_procs_cpu_from_driver = false;
+ 	m_is_tracers_capture_enabled = false;
++	m_verbose_json = false;
+ 
+ 	// Unless the cmd line arg "-pc" or "-pcontainer" is supplied this is false
+ 	m_print_container_data = false;
+--- userspace/libsinsp/k8s_component.h.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/k8s_component.h	2016-06-25 20:15:58.464230081 -0400
+@@ -29,6 +29,8 @@
+ 	class port
+ 	{
+ 	public:
++		port(): m_port(0) {}
++
+ 		void set_name(const std::string& name);
+ 
+ 		const std::string& get_name() const;
+@@ -47,7 +49,7 @@
+ 
+ 	private:
+ 		std::string m_name;
+-		uint32_t    m_port = 0;
++		uint32_t    m_port;
+ 		std::string m_protocol;
+ 	};
+ 
+@@ -280,8 +282,8 @@
+ 	std::string       m_node_name;
+ 	std::string       m_host_ip;
+ 	std::string       m_internal_ip;
+-	int               m_restart_count_tot = -1;
+-	mutable int       m_restart_count_diff = 0;
++	int               m_restart_count_tot;
++	mutable int       m_restart_count_diff;
+ };
+ 
+ 
+@@ -308,8 +310,8 @@
+ private:
+ 	int get_replica(const Json::Value& item);
+ 
+-	int m_spec_replicas = UNKNOWN_REPLICAS;
+-	int m_stat_replicas = UNKNOWN_REPLICAS;
++	int m_spec_replicas;
++	int m_stat_replicas;
+ };
+ 
+ 
+@@ -322,10 +324,12 @@
+ public:
+ 	struct net_port
+ 	{
+-		uint32_t    m_port = 0;
++		uint32_t    m_port;
+ 		std::string m_protocol;
+-		uint32_t    m_target_port = 0;
+-		uint32_t    m_node_port = 0;
++		uint32_t    m_target_port;
++		uint32_t    m_node_port;
++
++		net_port(): m_port(0), m_target_port(0), m_node_port(0) {}
+ 	};
+ 
+ 	typedef std::vector<net_port> port_list;
+@@ -578,7 +578,7 @@
+ 
+ inline void k8s_node_t::emplace_host_ip(std::string&& host_ip)
+ {
+-	m_host_ips.emplace(std::move(host_ip));
++	m_host_ips.insert(std::move(host_ip));
+ }
+ 
+ inline std::string k8s_node_t::get_node_name() const
+--- userspace/libsinsp/k8s_component.cpp.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/k8s_component.cpp	2016-06-25 20:17:15.024315567 -0400
+@@ -505,7 +505,7 @@
+ 							const Json::Value& ip = address[entry];
+ 							if(!ip.isNull())
+ 							{
+-								address_list.emplace(ip.asString());
++								address_list.insert(ip.asString());
+ 							}
+ 						}
+ 					}
+@@ -522,7 +522,7 @@
+ //
+ 
+ k8s_pod_t::k8s_pod_t(const std::string& name, const std::string& uid, const std::string& ns) :
+-	k8s_component(COMPONENT_TYPE, name, uid, ns)
++	k8s_component(COMPONENT_TYPE, name, uid, ns), m_restart_count_tot(-1), m_restart_count_diff(0)
+ {
+ }
+ 
+@@ -557,7 +557,7 @@
+ // replication controller
+ //
+ k8s_rc_t::k8s_rc_t(const std::string& name, const std::string& uid, const std::string& ns) : 
+-	k8s_component(COMPONENT_TYPE, name, uid, ns)
++	k8s_component(COMPONENT_TYPE, name, uid, ns), m_spec_replicas(UNKNOWN_REPLICAS), m_stat_replicas(UNKNOWN_REPLICAS)
+ {
+ }
+
+--- userspace/libsinsp/uri.h.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/uri.h	2016-06-25 20:26:30.103935358 -0400
+@@ -53,7 +53,7 @@
+ 
+ 	std::string m_scheme, m_user, m_password, m_host, m_path, m_query;
+ 	int m_port;
+-	bool m_has_port = true;
++	bool m_has_port;
+ };
+ 
+ inline const std::string& uri::get_scheme() const
+--- userspace/libsinsp/uri.cpp.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/uri.cpp	2016-06-25 20:27:19.019989976 -0400
+@@ -12,7 +12,7 @@
+ const std::string uri::SPECIAL_CHARS = "!#$&'()*+,/:;=?@[]";
+ const std::string uri::AMBIGUOUS_CHARS = " \"%-.<>\\^_`{|}~";
+ 
+-uri::uri(std::string str)
++uri::uri(std::string str): m_has_port(0)
+ {
+ 	parsed_uri p_uri = parse_uri(str.c_str());
+ 	if(p_uri.error)
+--- userspace/libsinsp/sinsp_curl.h.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/sinsp_curl.h	2016-06-25 21:23:27.769971736 -0400
+@@ -43,7 +43,7 @@
+ 		std::string m_key;
+ 		std::string m_key_passphrase;
+ 		std::string m_ca_cert;
+-		bool        m_verify_peer = false;
++		bool        m_verify_peer;
+ 	};
+ 
+ 	class bearer_token
+--- userspace/libsinsp/mesos_http.h.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/mesos_http.h	2016-06-25 20:36:26.381379731 -0400
+@@ -99,7 +99,7 @@
+ 	marathon_uri_t          m_marathon_uris;
+ 	bool                    m_discover_lead_master;
+ 	bool                    m_discover_marathon;
+-	std::string::size_type  m_content_length = std::string::npos;
++	std::string::size_type  m_content_length;
+ 
+ 	friend class mesos;
+ 
+--- userspace/libsinsp/mesos_http.cpp.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/mesos_http.cpp	2016-06-25 20:37:03.018404617 -0400
+@@ -32,7 +32,8 @@
+ 	m_request(make_request(url, m_curl_version)),
+ 	m_is_mesos_state(url.to_string().find(mesos::default_state_api) != std::string::npos),
+ 	m_discover_lead_master(discover_mesos_lead_master),
+-	m_discover_marathon(discover_marathon)
++	m_discover_marathon(discover_marathon),
++	m_content_length(std::string::npos)
+ {
+ 	if(!m_sync_curl || !m_select_curl)
+ 	{
+--- userspace/libsinsp/mesos.h.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/mesos.h	2016-06-25 20:42:53.884642953 -0400
+@@ -134,19 +134,19 @@
+ 	void remove_framework(const Json::Value& framework);
+ 
+ 	mesos_state_t m_state;
+-	bool          m_creation_logged = false;
++	bool          m_creation_logged;
+ 	bool          m_discover_mesos_leader;
+ 	bool          m_discover_marathon_uris;
+ 	long          m_timeout_ms;
+-	bool          m_verbose = false;
++	bool          m_verbose;
+ 
+ 	typedef std::map<std::string, json_ptr_t> json_map_type_t;
+ 	json_ptr_t      m_mesos_state_json;
+ 	json_map_type_t m_marathon_groups_json;
+ 	json_map_type_t m_marathon_apps_json;
+-	time_t          m_last_mesos_refresh = 0;
+-	time_t          m_last_marathon_refresh = 0;
+-	bool            m_json_error = false;
++	time_t          m_last_mesos_refresh;
++	time_t          m_last_marathon_refresh;
++	bool            m_json_error;
+ 
+ 	typedef std::unordered_set<std::string> framework_list_t;
+ 	framework_list_t m_inactive_frameworks;
+--- userspace/libsinsp/mesos.cpp.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/mesos.cpp	2016-06-25 20:43:53.976683772 -0400
+@@ -42,6 +42,11 @@
+ 		m_timeout_ms(timeout_ms),
+ 		m_verbose(verbose)
+ {
++	m_verbose = false;
++	m_creation_logged = false;
++	m_last_mesos_refresh = 0;
++	m_last_marathon_refresh = 0;
++	m_json_error = false;
+ #ifdef HAS_CAPTURE
+ 	g_logger.log(std::string("Creating Mesos object for [" +
+ 							 (m_mesos_uri.empty() ? std::string("capture replay") : m_mesos_uri)  +
+--- userspace/libsinsp/filterchecks.h.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/filterchecks.h	2016-06-25 20:47:09.469919427 -0400
+@@ -131,7 +131,7 @@
+ 	virtual int32_t get_check_id();
+ 
+ 	sinsp* m_inspector;
+-	bool m_needs_state_tracking = false;
++	bool m_needs_state_tracking;
+ 	boolop m_boolop;
+ 	cmpop m_cmpop;
+ 	sinsp_field_aggregation m_aggregation;
+@@ -157,7 +157,7 @@
+ 
+ private:
+ 	void set_inspector(sinsp* inspector);
+-	int32_t m_check_id = 0;
++	int32_t m_check_id;
+ 
+ friend class sinsp_filter_check_list;
+ };
+--- userspace/libsinsp/filter.cpp.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/filter.cpp	2016-06-25 20:47:56.550997253 -0400
+@@ -480,6 +480,8 @@
+ 	m_aggregation = A_NONE;
+ 	m_merge_aggregation = A_NONE;
+ 	m_val_storages = vector<vector<uint8_t>> (1, vector<uint8_t>(256));
++	m_needs_state_tracking = false;
++	m_check_id = 0;
+ }
+ 
+ void sinsp_filter_check::set_inspector(sinsp* inspector)
+--- userspace/libsinsp/container.cpp.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/container.cpp	2016-06-25 20:50:32.806255548 -0400
+@@ -638,7 +638,7 @@
+ 		container->m_image = jroot["name"].asString();
+ 		for(const auto& label_entry : jroot["labels"])
+ 		{
+-			container->m_labels.emplace(label_entry["name"].asString(), label_entry["value"].asString());
++			container->m_labels.insert(make_pair(label_entry["name"].asString(), label_entry["value"].asString()));
+ 		}
+ 		auto version_label_it = container->m_labels.find("version");
+ 		if(version_label_it != container->m_labels.end())
+--- userspace/libsinsp/socket_handler.h.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/socket_handler.h	2016-06-25 20:52:28.893447444 -0400
+@@ -46,7 +46,8 @@
+ 		m_request(make_request(m_url, http_version)),
+ 		m_http_version(http_version),
+ 		m_json_begin("\r\n{"),
+-		m_json_end(m_http_version == HTTP_VERSION_10 ? "}\r\n" : "}\r\n0")
++		m_json_end(m_http_version == HTTP_VERSION_10 ? "}\r\n" : "}\r\n0"),
++		m_content_length(std::string::npos)
+ 	{
+ 	}
+ 
+@@ -459,7 +460,7 @@
+ 	std::string             m_http_version;
+ 	std::string             m_json_begin;
+ 	std::string             m_json_end;
+-	std::string::size_type  m_content_length = std::string::npos;
++	std::string::size_type  m_content_length;
+ };
+ 
+ template <typename T>
+--- userspace/libsinsp/fdinfo.cpp.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/fdinfo.cpp	2016-06-25 20:53:35.102556890 -0400
+@@ -309,7 +309,7 @@
+ #ifdef GATHER_INTERNAL_STATS
+ 			m_inspector->m_stats.m_n_added_fds++;
+ #endif
+-			pair<unordered_map<int64_t, sinsp_fdinfo_t>::iterator, bool> insert_res = m_table.emplace(fd, *fdinfo);
++			pair<unordered_map<int64_t, sinsp_fdinfo_t>::iterator, bool> insert_res = m_table.insert(make_pair(fd, *fdinfo));
+ 			return &(insert_res.first->second);
+ 		}
+ 		else
+--- userspace/libsinsp/k8s_dispatcher.h.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/k8s_dispatcher.h	2016-06-25 20:56:24.349836661 -0400
+@@ -31,7 +31,7 @@
+ 
+ 	struct msg_data
+ 	{
+-		msg_reason  m_reason = COMPONENT_UNKNOWN;
++		msg_reason  m_reason;
+ 		std::string m_name;
+ 		std::string m_uid;
+ 		std::string m_namespace;
+@@ -40,6 +40,8 @@
+ 		{
+ 			return m_reason != COMPONENT_UNKNOWN;
+ 		}
++
++		msg_data(): m_reason(COMPONENT_UNKNOWN) {}
+ 	};
+ 
+ 	k8s_dispatcher() = delete;
+--- userspace/libsinsp/user_event.cpp.orig	2016-06-17 11:55:07.000000000 -0400
++++ userspace/libsinsp/user_event.cpp	2016-06-25 21:25:43.677202917 -0400
+@@ -101,7 +101,7 @@
+ 	}
+ 	if(get_meta(evt.kind()) == m_list.end())
+ 	{
+-		m_list.emplace(std::move(evt));
++		m_list.insert(std::move(evt));
+ 	}
+ }
+ 
+@@ -110,7 +110,7 @@
+ 	if(ci_compare_str(evt.kind(), user_event_meta_t::PERMIT_ALL))
+ 	{
+ 		m_list.clear();
+-		m_list.emplace(std::move(evt));
++		m_list.insert(std::move(evt));
+ 		return true;
+ 	}
+ 	user_event_meta_t loc_evt(evt);
