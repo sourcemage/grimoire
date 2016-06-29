@@ -10,6 +10,12 @@ fi &&
 sed 's;-$(MOZ_APP_VERSION);;g' -i config/baseconfig.mk &&
 
 cp -v $SPELL_DIRECTORY/mozconfig .mozconfig &&
+# Fun with modern GCC flags to fix breakage with modern GCC only.
+if is_version_less "$(gcc --version | head -n 1  | cut -f 3 -d ' ')" 6; then
+  echo 'ac_add_options --enable-optimize="${CXXFLAGS} -fno-fast-math -fpermissive"' >> .mozconfig
+else
+  echo 'ac_add_options --enable-optimize="${CXXFLAGS} -fno-fast-math -fpermissive -flifetime-dse=1"' >> .mozconfig
+fi &&
 
 if [[ "$FIREFOX_SAFE" == "y" ]]; then
    echo 'ac_add_options --enable-safe-browsing' >> .mozconfig
