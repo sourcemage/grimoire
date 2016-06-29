@@ -10,6 +10,7 @@ OPTS="--disable-fsck $OPTS" &&
           --mandir=${TRACK_ROOT}/usr/share/man \
 --with-root-prefix=${TRACK_ROOT} \
                    --enable-elf-shlibs \
+                   ${E2FSPROGS_HARDEN} \
                    $OPTS &&
 
 make DESTDIR="$INSTALL_ROOT"
