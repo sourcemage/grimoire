@@ -1,0 +1,127 @@
+depends  autoconf-2.13                                           &&
+depends  -sub CXX gcc                                            &&
+depends  perl                                                    &&
+depends  python                                                  &&
+depends  icu     "--with-system-icu"                             &&
+
+depends  glib2                                                   &&
+# Fixing to gtk+2 for now, change on ESR > 45.x
+FIREFOX_GTK_VERSION=2 &&
+depends  "gtk+${FIREFOX_GTK_VERSION}"   "--enable-default-toolkit=cairo-gtk${FIREFOX_GTK_VERSION}" &&
+depends  atk                                                     &&
+depends  libx11                                                  &&
+depends  libxext                                                 &&
+depends  libxrender                                              &&
+depends  libxt                                                   &&
+depends  libxcomposite                                           &&
+
+depends  pango  "--enable-pango"                                 &&
+depends  libxft "--enable-xft --disable-freetype2"               &&
+
+
+#depends  -sub TEE cairo  '--enable-system-cairo' &&
+depends  gdk-pixbuf2                                             &&
+
+depends  libjpeg-turbo "--with-system-jpeg"                      &&
+depends -sub APNG libpng "--enable-system-png"                   &&
+depends  librsvg2 "--enable-svg"                                 &&
+
+depends  nspr               "--with-system-nspr"                 &&
+depends  -sub "3.21.x" nss  "--with-system-nss"                  &&
+
+depends  -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY ENABLE_DBSTAT_VTAB" sqlite "--enable-system-sqlite"    &&
+
+depends  libidl                                                  &&
+
+depends  zip                                                     &&
+depends  zlib               "--with-system-zlib"                 &&
+
+depends bzip2               "--with-system-bz2"                  &&
+depends libevent            "--with-system-libevent"             &&
+depends libvpx              "--with-system-vpx"                  &&
+depends libffi              "--enable-system-ffi"                &&
+depends hunspell            "--enable-system-hunspell"           &&
+depends pixman              "--enable-system-pixman"             &&
+
+optional_depends  startup-notification  \
+                  "--enable-startup-notification" \
+                  "--disable-startup-notification" \
+                  "for startup notifications"      &&
+
+optional_depends  gconf2  \
+                  "--enable-gconf" \
+                  "--disable-gconf" \
+                  "for gconf support"      &&
+
+optional_depends  wireless_tools \
+                  "--enable-necko-wifi" \
+                  "--disable-necko-wifi" \
+                  "for Necko WiFi scanning" &&
+
+optional_depends  pulseaudio \
+                  "--enable-pulseaudio" \
+                  "--disable-pulseaudio" \
+                  "use pulseaudio for audio support" &&
+
+# Firefox is currently borked and does not compile without alsa-lib headers,
+# this should have been fixed when Firefox started using Mozilla core 23, but it
+# wasn't see https://bugzilla.mozilla.org/show_bug.cgi?id=875268
+depends alsa-lib &&
+#optional_depends  alsa-lib \
+#                  '--enable-wave' \
+#                  '--disable-wave --disable-ogg --disable-webm --disable-dash' \
+#                  'for audio/video support' &&
+
+if is_depends_enabled $SPELL alsa-lib; then
+  # Firefox tries to use ogg/ogg.h even with --disable-ogg given
+  #optional_depends  libogg \
+  #                  '--enable-ogg' \
+  #                  '--disable-ogg' \
+  #                  'for sound support' &&
+  depends libogg &&
+
+  # configure script checks for yasm even when --disable-webm and --disable-dash are given
+  #optional_depends  yasm \
+  #                  '--enable-webm --enable-dash' \
+  #                  '--disable-webm --disable-dash' \
+  #                  'for WebM video support'
+  depends yasm
+fi &&
+
+optional_depends  dbus-glib \
+                  "--enable-dbus" \
+                  "--disable-dbus" \
+                  "for dbus support" &&
+
+# Firefox is currently borked and does not compile without OpenGL headers
+#optional_depends  OPENGL \
+#                  '--enable-webgl' \
+#                  '--disable-webgl --without-gl-provider' \
+#                  'for WebGL support' &&
+depends OPENGL &&
+
+optional_depends  LIBAVCODEC \
+                  "--enable-ffmpeg" \
+                  "--disable-ffmpeg" \
+                  "for fragmented H264/AAC decoding" &&
+
+optional_depends  gstreamer \
+                  "--enable-gstreamer" \
+                  "--disable-gstreamer" \
+                  "for gstreamer based AV support" &&
+if is_depends_enabled $SPELL gstreamer; then
+  depends gst-plugins-base
+else
+  optional_depends  gstreamer-1.0 \
+                    "--enable-gstreamer=1.0" \
+                    "" \
+                    "for gstreamer 1.0 based AV support" &&
+  if is_depends_enabled $SPELL gstreamer-1.0; then
+    depends gst-plugins-base-1.0
+  fi
+fi &&
+
+
+
+suggest_depends_2 firefox-smglwiki "" "" \
+  "to enable searching the SMGL Wiki from the Search Bar"

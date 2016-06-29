@@ -1,0 +1,43 @@
+default_pre_build  &&
+cd  $SOURCE_DIRECTORY &&
+
+patch -Np1 < ${SPELL_DIRECTORY}/gcc6.patch &&
+
+# To remove version suffix from some directories
+sed 's;-$(MOZ_APP_VERSION);;g' -i config/baseconfig.mk &&
+
+cp -v $SPELL_DIRECTORY/mozconfig .mozconfig &&
+
+# Fun with modern GCC flags to fix breakage with modern GCC only.
+if is_version_less $(gcc --version | head -n 1  | cut -f 3 -d ' ') 6; then
+  echo 'ac_add_options --enable-optimize="${CXXFLAGS} -fno-fast-math -fpermissive"' >> .mozconfig
+else
+  echo 'ac_add_options --enable-optimize="${CXXFLAGS} -fno-fast-math -fpermissive -flifetime-dse=1"' >> .mozconfig
+fi &&
+
+if [[ "$FIREFOX_SAFE" == "y" ]]; then
+   echo 'ac_add_options --enable-safe-browsing' >> .mozconfig
+else
+   echo 'ac_add_options --disable-safe-browsing' >> .mozconfig
+fi &&
+
+# Be explicit: stripped install is the default.
+if [[ "$FIREFOX_STRIP" == "y" ]]; then
+  echo 'ac_add_options --enable-install-strip' >> .mozconfig
+else
+  echo 'ac_add_options --disable-install-strip' >> .mozconfig
+fi &&
+
+if [[ "$FIREFOX_SDK" == "n" ]]; then
+  sed -i 's/^\(INSTALL_SDK = .*\)$/#\1/' browser/installer/Makefile.in
+fi &&
+
+if [[ $FIREFOX_OFFICIAL == y ]]; then
+  echo 'ac_add_options --enable-official-branding' >> .mozconfig
+fi &&
+
+if [[ $FIREFOX_PGO == y ]]; then
+  echo "mk_add_options PROFILE_GEN_SCRIPT='\$(PYTHON) \$(OBJDIR)/_profile/pgo/profileserver.py'" >> .mozconfig
+else
+  echo "ac_add_options --disable-tests" >> .mozconfig 
+fi
