@@ -1,6 +1,26 @@
 default_pre_build          &&
 cd $SOURCE_DIRECTORY 	   &&
 
+# Fix breakage with newer gcc. See
+# http://lists.qt-project.org/pipermail/development/2016-June/026354.html
+# Had to remove permission change from patch, would have made configure
+# non-executable.
+patch -p1 <<EOT &&
+diff --git a/configure b/configure
+index 10ad7ca..3cdae43
+--- a/configure
++++ b/configure
+@@ -8050,7 +8050,7 @@ g++*)
+     3.*)
+         COMPILER_VERSION="3.*"
+         ;;
+-    5*|4.*)
++    [56789]*|4.*)
+         COMPILER_VERSION="4"
+         ;;
+     *)
+EOT
+
 sed -i '/-Werror/d' src/3rdparty/webkit/Source/WebKit.pri &&
 
 # fix bad .pro file for 4.6.0-beta1
