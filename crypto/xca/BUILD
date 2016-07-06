@@ -1,3 +1,4 @@
+CXXFLAGS+=" -fpermissive" &&
 if is_depends_enabled $SPELL qtbase;then
   OPTS+=" --with-qt=$QT5DIR"
 else
