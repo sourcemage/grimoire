@@ -1,5 +1,18 @@
 default_pre_build    &&
-cd $SOURCE_DIRECTORY &&
 
-patch -p1 < $SPELL_DIRECTORY/gl_select.patch &&
+cd ${SOURCE_DIRECTORY}/src &&
+sed -e '/lib_LTLIBRARIES/s:lib_:egl&:' \
+    -e '/lib_LTLIBRARIES/iegllibdir = ${libdir}/.mesa' \
+    -i egl/Makefile.am &&
+sed -e '/lib_LTLIBRARIES/s:lib_:gl_:' \
+    -e '/gl_LTLIBRARIES/igldir = ${libdir}/.mesa' \
+    -i glx/Makefile.am &&
+sed -e '/lib_LTLIBRARIES += es1api/s:lib_:gles_:' \
+    -e '/_LTLIBRARIES += es1api/iglesdir = ${libdir}/.mesa' \
+    -e '/lib_LTLIBRARIES += es2api/s:lib_:gles2_:' \
+    -e '/_LTLIBRARIES += es2api/igles2dir = ${libdir}/.mesa' \
+    -i mapi/Makefile.am &&
+sed -i '/gldir/s;GL;&/.mesa;' mesa/Makefile.am &&
+
+cd ${SOURCE_DIRECTORY} &&
 autoreconf -f -i --symlink
