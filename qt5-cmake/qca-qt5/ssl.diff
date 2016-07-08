@@ -1,0 +1,88 @@
+--- qca-ossl.cpp.orig	2016-07-08 18:02:53.000000000 +0200
++++ qca-ossl.cpp	2016-07-08 20:19:02.000000000 +0200
+@@ -37,6 +37,7 @@
+ #include <openssl/x509v3.h>
+ #include <openssl/pkcs12.h>
+ #include <openssl/ssl.h>
++#include <openssl/sha.h>
+ 
+ #ifndef OSSL_097
+ // comment this out if you'd rather use openssl 0.9.6
+@@ -1930,9 +1931,13 @@
+ 	virtual void startSign(SignatureAlgorithm alg, SignatureFormat)
+ 	{
+ 		const EVP_MD *md = 0;
++#ifndef OPENSSL_NO_SHA1
+ 		if(alg == EMSA3_SHA1)
+ 			md = EVP_sha1();
+ 		else if(alg == EMSA3_MD5)
++#else
++		if(alg == EMSA3_MD5)
++#endif
+ 			md = EVP_md5();
+ #ifdef HAVE_OPENSSL_MD2
+ 		else if(alg == EMSA3_MD2)
+@@ -1958,9 +1963,13 @@
+ 	virtual void startVerify(SignatureAlgorithm alg, SignatureFormat)
+ 	{
+ 		const EVP_MD *md = 0;
++#ifndef OPENSSL_NO_SHA1
+ 		if(alg == EMSA3_SHA1)
+ 			md = EVP_sha1();
+ 		else if(alg == EMSA3_MD5)
++#else
++		if(alg == EMSA3_MD5)
++#endif
+ 			md = EVP_md5();
+ #ifdef HAVE_OPENSSL_MD2
+ 		else if(alg == EMSA3_MD2)
+@@ -5403,9 +5412,11 @@
+ 			ctx = SSL_CTX_new(SSLv2_client_method());
+ 			break;
+ #endif
++#ifndef OPENSSL_NO_SSL2
+ 		case TLS::SSL_v3:
+ 			ctx = SSL_CTX_new(SSLv3_client_method());
+ 			break;
++#endif
+ 		case TLS::TLS_v1:
+ 			ctx = SSL_CTX_new(TLSv1_client_method());
+ 			break;
+@@ -7131,10 +7142,15 @@
+ 			return new opensslRandomContext(this);
+ 		else if ( type == "info" )
+ 			return new opensslInfoContext(this);
++#ifndef OPENSSL_NO_SHA1
+ 		else if ( type == "sha1" )
+ 			return new opensslHashContext( EVP_sha1(), this, type);
++#else
++/*
+ 		else if ( type == "sha0" )
+ 			return new opensslHashContext( EVP_sha(), this, type);
++*/
++#endif
+ 		else if ( type == "ripemd160" )
+ 			return new opensslHashContext( EVP_ripemd160(), this, type);
+ #ifdef HAVE_OPENSSL_MD2
+@@ -7167,8 +7183,10 @@
+ 			return new opensslHashContext( EVP_whirlpool(), this, type);
+ #endif
+ */
++#ifndef OPENSSL_NO_SHA1
+ 		else if ( type == "pbkdf1(sha1)" )
+ 			return new opensslPbkdf1Context( EVP_sha1(), this, type );
++#endif
+ #ifdef HAVE_OPENSSL_MD2
+ 		else if ( type == "pbkdf1(md2)" )
+ 			return new opensslPbkdf1Context( EVP_md2(), this, type );
+@@ -7177,8 +7195,10 @@
+ 			return new opensslPbkdf2Context( this, type );
+ 		else if ( type == "hmac(md5)" )
+ 			return new opensslHMACContext( EVP_md5(), this, type );
++#ifndef OPENSSL_NO_SHA1
+ 		else if ( type == "hmac(sha1)" )
+ 			return new opensslHMACContext( EVP_sha1(),this, type );
++#endif
+ #ifdef SHA224_DIGEST_LENGTH
+ 		else if ( type == "hmac(sha224)" )
+ 			return new opensslHMACContext( EVP_sha224(), this, type);
