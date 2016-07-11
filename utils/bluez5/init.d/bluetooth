@@ -1,29 +1,16 @@
 #!/bin/bash
 
-PROGRAM=/usr/sbin/bluetoothd
+PROGRAM=/usr/libexec/bluetooth/bluetoothd
 RUNLEVEL=3
 NEEDS="+local_fs smgl-messagebus"
-UART_CONF="/etc/bluetooth/uart"
 
 . /etc/init.d/smgl_init
 
-start_uarts() {
-	[ -f /usr/sbin/hciattach -a -f $UART_CONF ] || return
-	grep -v '^#' $UART_CONF | while read i; do
-		/usr/sbin/hciattach $i
-	done
-}
-
-stop_uarts() {
-	killproc hciattach > /dev/null 2>&1
-}
 
 start() {
 	echo "Starting $NAME..."
-	$PROGRAM
+	$PROGRAM &
 	evaluate_retval
-
-	start_uarts
 
 	[ -d /var/lock/subsys ] || mkdir -p /var/lock/subsys
 	touch /var/lock/subsys/bluetooth
@@ -33,7 +20,6 @@ stop() {
 	echo "Shutting down $NAME..."
 	killproc bluetoothd
 
-	stop_uarts
 	rm -f  /var/lock/subsys/bluetooth
 }
 
