@@ -1,0 +1,38 @@
+#!/bin/bash
+
+. /etc/sysconfig/bird
+
+if [ -x /usr/sbin/bird6 ]; then
+  PROGRAM=/usr/sbin/bird6
+  BIRDC=/usr/sbin/birdc6
+else
+  PROGRAM=/usr/sbin/bird
+  BIRDC=/usr/sbin/birdc
+fi
+
+PIDFILE=/var/run/bird/bird.pid
+ARGS="-P $PIDFILE $BIRD_ARGS"
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/init.d/smgl_init
+
+
+start() {
+  local PIDFILE_DIR="$(dirname $PIDFILE)"
+
+  [ -d $PIDFILE_DIR ] || mkdir $PIDFILE_DIR && chown bird:bird $PIDFILE_DIR &&
+
+  _start
+}
+
+stop() {
+  if pgrep -f $PROGRAM > /dev/null; then
+    echo "Stopping $NAME..."
+
+    $BIRDC down &> /dev/null
+    evaluate_retval
+  else
+    _stop
+  fi
+}
