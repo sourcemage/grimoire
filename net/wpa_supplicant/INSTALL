@@ -13,14 +13,27 @@ if is_depends_enabled $SPELL qt4; then
 fi &&
 
 if is_depends_enabled $SPELL dbus; then
-  install -vm 755 -d "$INSTALL_ROOT/usr/share/dbus-1/system-services" &&
+  local DBUS_CONFIG_DIR="$INSTALL_ROOT/etc/dbus-1/system.d" &&
+  local DBUS_SYSTEM_DIR="$INSTALL_ROOT/usr/share/dbus-1/system-services" &&
 
-  DBUS_FILE="$INSTALL_ROOT/usr/share/dbus-1/system-services/fi.epitest.hostap.WPASupplicant.service" &&
+  if [ ! -d "$DBUS_SYSTEM_DIR" ]; then
+    install -vm 755 -d "$DBUS_SYSTEM_DIR"
+  fi &&
+
+  if [ ! -d "$DBUS_CONFIG_DIR" ]; then
+    install -vm 755 -d "$DBUS_CONFIG_DIR"
+  fi &&
+
+  DBUS_FILE="$DBUS_SYSTEM_DIR/fi.epitest.hostap.WPASupplicant.service" &&
+  DBUS_FILE2="$DBUS_SYSTEM_DIR/fi.w1.wpa_supplicant1.service" &&
 
   if [[ $WPA_RELEASE == legacy ]]; then
-    install -Tvm 644 dbus-wpa_supplicant.service "$DBUS_FILE"
-  elif [[ $WPA_RELEASE == devel ]]; then
-    install -Tvm 644 dbus/fi.epitest.hostap.WPASupplicant.service "$DBUS_FILE"
+    install -Tvm 644 dbus-wpa_supplicant.service "$DBUS_FILE" &&
+    install_config_file dbus-wpa_supplicant.conf "$DBUS_CONFIG_DIR/wpa_supplicant.conf"
+  else
+    install -Tvm 644 dbus/fi.epitest.hostap.WPASupplicant.service "$DBUS_FILE" &&
+    install -Tvm 644 dbus/fi.w1.wpa_supplicant1.service "$DBUS_FILE2" &&
+    install_config_file dbus/dbus-wpa_supplicant.conf "$DBUS_CONFIG_DIR/wpa_supplicant.conf"
   fi
 fi &&
 
