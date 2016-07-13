@@ -1,3 +1,3 @@
-OPTS="$BLUEZOPTS $OPTS" &&
-OPTS+=" --disable-systemd" &&
+OPTS="--disable-systemd $OPTS" &&
+
 default_build
