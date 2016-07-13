@@ -1,2 +1,3 @@
-OPTS="$OPTS $CONNMAN_ETH $CONNMAN_WIFI $CONNMAN_BLT" &&
+OPTS="${CONNMAN_OPTS} ${OPTS}" &&
+
 default_build 
