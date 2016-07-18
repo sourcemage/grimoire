@@ -79,10 +79,10 @@
  };
  
  
-@@ -308,8 +310,8 @@
- private:
- 	int get_replica(const Json::Value& item);
+@@ -318,8 +318,8 @@
+ 	static int get_count(const Json::Value& item, const std::string& replica_name = "replicas");
  
+ protected:
 -	int m_spec_replicas = UNKNOWN_REPLICAS;
 -	int m_stat_replicas = UNKNOWN_REPLICAS;
 +	int m_spec_replicas;
@@ -135,15 +135,6 @@
  {
  }
  
-@@ -557,7 +557,7 @@
- // replication controller
- //
- k8s_rc_t::k8s_rc_t(const std::string& name, const std::string& uid, const std::string& ns) : 
--	k8s_component(COMPONENT_TYPE, name, uid, ns)
-+	k8s_component(COMPONENT_TYPE, name, uid, ns), m_spec_replicas(UNKNOWN_REPLICAS), m_stat_replicas(UNKNOWN_REPLICAS)
- {
- }
-
 --- userspace/libsinsp/uri.h.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/uri.h	2016-06-25 20:26:30.103935358 -0400
 @@ -53,7 +53,7 @@
@@ -283,27 +274,6 @@
  		}
  		auto version_label_it = container->m_labels.find("version");
  		if(version_label_it != container->m_labels.end())
---- userspace/libsinsp/socket_handler.h.orig	2016-06-17 11:55:07.000000000 -0400
-+++ userspace/libsinsp/socket_handler.h	2016-06-25 20:52:28.893447444 -0400
-@@ -46,7 +46,8 @@
- 		m_request(make_request(m_url, http_version)),
- 		m_http_version(http_version),
- 		m_json_begin("\r\n{"),
--		m_json_end(m_http_version == HTTP_VERSION_10 ? "}\r\n" : "}\r\n0")
-+		m_json_end(m_http_version == HTTP_VERSION_10 ? "}\r\n" : "}\r\n0"),
-+		m_content_length(std::string::npos)
- 	{
- 	}
- 
-@@ -459,7 +460,7 @@
- 	std::string             m_http_version;
- 	std::string             m_json_begin;
- 	std::string             m_json_end;
--	std::string::size_type  m_content_length = std::string::npos;
-+	std::string::size_type  m_content_length;
- };
- 
- template <typename T>
 --- userspace/libsinsp/fdinfo.cpp.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/fdinfo.cpp	2016-06-25 20:53:35.102556890 -0400
 @@ -309,7 +309,7 @@
