@@ -1,0 +1,86 @@
+--- src/check_events.c.orig
++++ src/check_events.c
+@@ -679,6 +679,14 @@
+ #endif  /* TASKS_ENABLED */
+ 
+ /*------------------------------------------------------------------------------*/
++static void
++refresh_calendar(GUI *appGUI) {
++    if (appGUI->current_tab == PAGE_CALENDAR) {
++        /* redraw calendar to move the Today marker */
++        gtk_widget_queue_draw(appGUI->cal->calendar);
++    }
++}
++/*------------------------------------------------------------------------------*/
+ 
+ gboolean
+ time_handler (gpointer data)
+@@ -716,6 +724,7 @@
+ #ifdef TASKS_ENABLED
+ 		refresh_tasks (appGUI);
+ #endif  /* TASKS_ENABLED */
++                refresh_calendar(appGUI);
+ 
+ 		/* update systray status */
+ 		gui_systray_update_icon (appGUI);
+--- src/calendar.c.orig
++++ src/calendar.c
+@@ -510,13 +510,7 @@
+ update_clock (GUI *appGUI)
+ {
+ #ifdef HAVE_LIBWEBKIT
+-GDate *date;
+-gboolean current_date;
+-    
+-    date = appGUI->cal->date;
+-    current_date = (g_date_get_julian (date) == utl_date_get_current_julian ());
+-
+-    if (current_date && config.di_show_current_time) {
++    if (config.di_show_current_time) {
+         cal_set_day_info (appGUI);
+     }
+ 
+@@ -544,7 +538,6 @@
+ gchar tmpbuf[BUFFER_SIZE];
+ GDate *date;
+ guint dday, dmonth, dyear;
+-gboolean current_date;
+ gint edays, i;
+ gchar *text;
+     
+@@ -553,8 +546,6 @@
+     dday = g_date_get_day (date);
+     dmonth = g_date_get_month (date) - 1;
+     dyear = g_date_get_year (date);
+-
+-    current_date = (g_date_get_julian (date) == utl_date_get_current_julian ());
+ 
+ #ifdef HAVE_LIBWEBKIT
+ 
+@@ -592,7 +583,7 @@
+     /* body */
+     output = utl_strconcat (output, "<table><tr>", NULL);
+ 
+-    if (current_date && config.di_show_current_time) {
++    if (config.di_show_current_time) {
+         gchar *tstr = utl_time_print_default (utl_time_get_current_seconds (), config.di_show_current_time_seconds);
+         g_snprintf (tmpbuf, BUFFER_SIZE, "<th>%s:</th><td>", _("Current time"));
+         output = utl_strconcat (output, tmpbuf, tstr, "</td>", NULL);
+@@ -766,7 +757,7 @@
+ 
+     i = 0;
+ 
+-    if (current_date && config.di_show_current_time) {
++    if (config.di_show_current_time) {
+         g_snprintf (tmpbuf, BUFFER_SIZE, "<b>%s:</b>", _("Current time"));
+         label = gtk_label_new (tmpbuf);
+         gtk_widget_show (label);
+@@ -867,7 +858,7 @@
+     i = 0;
+ 
+     appGUI->cal->time_label = gtk_label_new (NULL);
+-    if (current_date && config.di_show_current_time) {
++    if (config.di_show_current_time) {
+         update_clock (appGUI);
+         gtk_widget_show (appGUI->cal->time_label);
+         gtk_grid_attach (GTK_GRID (table), appGUI->cal->time_label, 1, i, 2, 1);
