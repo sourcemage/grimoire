@@ -1,5 +1,4 @@
-# Auto-discover Go
-export AUTO_GOPATH=1 &&
+export GOPATH="${SOURCE_DIRECTORY}" &&
 
 go get -d &&
 go build -ldflags "$LDFLAGS"
