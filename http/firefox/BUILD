@@ -51,6 +51,5 @@ else
   MAKE_TARGET=build
 fi &&
 
-make_single  &&
-make -f client.mk $MAKE_TARGET &&
-make_normal
+echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
+make -f client.mk $MAKE_TARGET
