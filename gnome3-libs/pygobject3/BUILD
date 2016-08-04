@@ -1,2 +1,2 @@
 OPTS="$OPTS --enable-thread" &&
-default_build
+PYTHON=python2 default_build
