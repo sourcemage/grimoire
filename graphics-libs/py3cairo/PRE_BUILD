@@ -1,0 +1,24 @@
+default_pre_build      &&
+cd "$SOURCE_DIRECTORY" &&
+
+# Hack taken from Gentoo
+patch -fp1 <<"!" &&
+--- a/waf
++++ b/waf
+@@ -153,6 +153,9 @@
+	return dir
+
+ wafdir = find_lib()
++if sys.argv[1:] == ['unpack']:
++    print(wafdir)
++    exit()
+ sys.path.insert(0, wafdir)
+ from waflib.Tools.c_config import MACRO_TO_DESTOS
+ MACRO_TO_DESTOS['__POWERPC__'] = 'darwin'
+!
+
+ln -s "$(./waf unpack)"/waflib . &&
+if [ -d "$SPELL_DIRECTORY/patches" ]; then
+  find "$SPELL_DIRECTORY/patches" \( -name \*.patch -o -name \*.diff \) \
+    -print0 | sort -zV | xargs -0 -n 1 patch -fp1 -i
+fi
