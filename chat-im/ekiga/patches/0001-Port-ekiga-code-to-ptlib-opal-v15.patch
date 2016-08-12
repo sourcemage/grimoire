@@ -1,0 +1,698 @@
+From edab0c3f852d25e8bbf27029e3947fbe33cfaae1 Mon Sep 17 00:00:00 2001
+From: Eugen Dedu <eugen.dedu@univ-fcomte.fr>
+Date: Thu, 11 Aug 2016 17:03:23 -0300
+Subject: [PATCH 1/2] Port ekiga code to ptlib/opal v15
+
+[ismael: Backported to 4.0.1 and edited to reduce noise & size]
+
+Selectively merges changes from following commits:
+* 4d9799252d180b85cf15a9311301fe6337c9d39b
+  ("Port ekiga code to ptlib/opal v15 (trunk currently)")
+* 6f0a71b4df8093dbaa2335b70a4ea36ce3f5ed0d
+  ("Port ekiga 4.0.1 to ptlib/opal v14")
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ lib/engine/audiooutput/audiooutput-scheduler.cpp   |  2 +-
+ lib/engine/components/opal/h323-endpoint.cpp       |  4 +-
+ lib/engine/components/opal/opal-account.cpp        | 38 +++++++------------
+ lib/engine/components/opal/opal-audio.cpp          | 27 ++++++-------
+ lib/engine/components/opal/opal-audio.h            |  6 +--
+ lib/engine/components/opal/opal-call-manager.cpp   | 25 ++++++------
+ lib/engine/components/opal/opal-call.cpp           | 18 ++++-----
+ lib/engine/components/opal/opal-call.h             |  3 +-
+ lib/engine/components/opal/opal-plugins-hook.cpp   |  2 +
+ lib/engine/components/opal/opal-videoinput.cpp     |  2 +
+ lib/engine/components/opal/opal-videoinput.h       |  4 +-
+ lib/engine/components/opal/pcss-endpoint.h         |  2 +-
+ lib/engine/components/opal/sip-endpoint.cpp        | 24 ++++--------
+ lib/engine/components/opal/sip-endpoint.h          |  3 +-
+ .../components/ptlib/videoinput-manager-ptlib.cpp  | 44 +++++++++++++++-------
+ src/gui/main.cpp                                   |  4 ++
+ 16 files changed, 103 insertions(+), 105 deletions(-)
+
+diff --git a/lib/engine/audiooutput/audiooutput-scheduler.cpp b/lib/engine/audiooutput/audiooutput-scheduler.cpp
+index 997260532e73..0c00324b322e 100644
+--- a/lib/engine/audiooutput/audiooutput-scheduler.cpp
++++ b/lib/engine/audiooutput/audiooutput-scheduler.cpp
+@@ -233,7 +233,7 @@ void AudioEventScheduler::load_wav(const std::string & event_name, bool is_file_
+   }
+
+   if (wav->IsValid ()) {
+-    len = wav->GetDataLength();
++    len = wav->GetLength();
+     channels = wav->GetChannels ();
+     sample_rate = wav->GetSampleRate ();
+     bps = wav->GetSampleSize ();
+diff --git a/lib/engine/components/opal/h323-endpoint.cpp b/lib/engine/components/opal/h323-endpoint.cpp
+index b5028edc1c75..75913e7ec167 100644
+--- a/lib/engine/components/opal/h323-endpoint.cpp
++++ b/lib/engine/components/opal/h323-endpoint.cpp
+@@ -264,7 +264,7 @@ Opal::H323::EndPoint::set_initial_bandwidth (unsigned kind_of_net)
+   }
+
+   /* Initial requested bandwidth */
+-  SetInitialBandwidth (bandwidth);
++  SetInitialBandwidth (OpalBandwidth::Tx, bandwidth);
+ }
+
+
+@@ -340,7 +340,7 @@ Opal::H323::EndPoint::Register (const Opal::Account& account)
+       // Registering failed
+       if (GetGatekeeper () != NULL) {
+
+-        switch (gatekeeper->GetRegistrationFailReason ()) {
++        switch (GetGatekeeper()->GetRegistrationFailReason ()) {
+
+         case H323Gatekeeper::DuplicateAlias :
+           // Translators : The alias we are registering already exists : failure
+diff --git a/lib/engine/components/opal/opal-account.cpp b/lib/engine/components/opal/opal-account.cpp
+index 7505f5ccb3bf..40e996f2d645 100644
+--- a/lib/engine/components/opal/opal-account.cpp
++++ b/lib/engine/components/opal/opal-account.cpp
+@@ -581,22 +581,14 @@ Opal::Account::publish (const Ekiga::PersonalDetails& details)
+ {
+   std::string presence = details.get_presence ();
+
+-  if (presence == "available")
+-    personal_state = OpalPresenceInfo::Available;
+-  else if (presence == "away")
+-    personal_state = OpalPresenceInfo::Away;
+-  else if (presence == "busy")
+-    personal_state = OpalPresenceInfo::Busy;
+-  else {  // ekiga knows only these three presence types
+-    std::string s = "Warning: Unknown presence type ";
+-    s.append (presence);
+-    g_warning ("%s",s.data());
+-  }
+-
++  personal_state = OpalPresenceInfo::Available;
+   presence_status = details.get_status ();
+
+   if (presentity) {
+-    presentity->SetLocalPresence (personal_state, presence_status);
++    OpalPresenceInfo opi = OpalPresenceInfo (OpalPresenceInfo::Available);
++    opi.m_activities = PString (presence);
++    opi.m_note = presence_status;
++    presentity->SetLocalPresence (opi);
+     PTRACE (4, "Ekiga\tSent its own presence (publish) for " << get_aor() << ": " << presence << ", note " << presence_status);
+   }
+ }
+@@ -808,33 +800,29 @@ Opal::Account::setup_presentity ()
+
+ void
+ Opal::Account::OnPresenceChange (OpalPresentity& /*presentity*/,
+-				 const OpalPresenceInfo& info)
++                                 const std::auto_ptr<OpalPresenceInfo> info)
+ {
+   std::string new_presence;
+   std::string new_status = "";
+
+-  SIPURL sip_uri = SIPURL (info.m_entity);
++  SIPURL sip_uri = SIPURL (info->m_entity);
+   sip_uri.Sanitise (SIPURL::ExternalURI);
+   std::string uri = sip_uri.AsString ();
+-  PCaselessString note = info.m_note;
++  PCaselessString note = info->m_note;
+
+-  PTRACE (4, "Ekiga\tReceived a presence change (notify) for " << info.m_entity << ": state " << info.m_state << ", note " << info.m_note);
+-
+-  if (info.m_state == OpalPresenceInfo::Unchanged)
+-    return;
++  PTRACE (4, "Ekiga\tReceived a presence change (notify) for " << info->m_entity << ": state " << info->m_state << ", activities " << info->m_activities << ", note " << info->m_note);
+
+   if (!uri.compare (0, 5, "pres:"))
+     uri.replace (0, 5, "sip:");  // replace "pres:" sith "sip:" FIXME
+
+-  new_status = (const char*) info.m_note;
+-  switch (info.m_state) {
++  new_status = (const char*) info->m_note;
++  switch (info->m_state) {
+
+   case OpalPresenceInfo::Unchanged:
+     // do not change presence
+     break;
+   case OpalPresenceInfo::Available:
+     new_presence = "available";
+-    if (!note.IsEmpty ()) {
+       if (note.Find ("dnd") != P_MAX_INDEX
+           || note.Find ("meeting") != P_MAX_INDEX
+           || note.Find ("do not disturb") != P_MAX_INDEX
+@@ -853,7 +841,6 @@ Opal::Account::OnPresenceChange (OpalPresentity& /*presentity*/,
+                || note.Find ("call") != P_MAX_INDEX) {
+         new_presence = "inacall";
+       }
+-    }
+     break;
+   case OpalPresenceInfo::NoPresence:
+     new_presence = "offline";
+@@ -861,9 +848,9 @@ Opal::Account::OnPresenceChange (OpalPresentity& /*presentity*/,
+   case OpalPresenceInfo::InternalError:
+   case OpalPresenceInfo::Forbidden:
+   case OpalPresenceInfo::Unavailable:
+-  case OpalPresenceInfo::UnknownExtended:
+     new_presence = "unknown";
+     break;
++  #if 0
+   case OpalPresenceInfo::Away:
+     new_presence = "away";
+     break;
+@@ -953,6 +940,7 @@ Opal::Account::OnPresenceChange (OpalPresentity& /*presentity*/,
+   case OpalPresenceInfo::Worship:
+     new_presence = "away";
+     break;
++  #endif
+   default:
+     break;
+   }
+diff --git a/lib/engine/components/opal/opal-audio.cpp b/lib/engine/components/opal/opal-audio.cpp
+index ff7fee4fbbeb..c36cc2228148 100644
+--- a/lib/engine/components/opal/opal-audio.cpp
++++ b/lib/engine/components/opal/opal-audio.cpp
+@@ -60,7 +60,8 @@ PSoundChannel_EKIGA::PSoundChannel_EKIGA (const PString & /*_device*/,
+   audiooutput_core (core.get<Ekiga::AudioOutputCore> ("audiooutput-core"))
+ {
+   opened = false;
+-  Open (device, dir, numChannels, sampleRate, bitsPerSample);
++  Params params (dir, device, PString::Empty(), numChannels, sampleRate, bitsPerSample);
++  Open (params);
+ }
+
+
+@@ -79,24 +80,18 @@ PString PSoundChannel_EKIGA::GetDefaultDevice(Directions dir)
+ }
+
+
+-bool PSoundChannel_EKIGA::Open (const PString & /*_device*/,
+-                              Directions _dir,
+-                              unsigned _numChannels,
+-                              unsigned _sampleRate,
+-                              unsigned _bitsPerSample)
++bool PSoundChannel_EKIGA::Open (const Params & params)
+ {
+-  direction = _dir;
++  direction = params.m_direction;
+
+-  if (_dir == Recorder) {
+-    audioinput_core->start_stream(_numChannels, _sampleRate, _bitsPerSample);
+-  }
+-  else {
+-    audiooutput_core->start (_numChannels, _sampleRate, _bitsPerSample);
+-  }
++  if (params.m_direction == Recorder)
++    audioinput_core->start_stream (params.m_channels, params.m_sampleRate, params.m_bitsPerSample);
++  else
++    audiooutput_core->start (params.m_channels, params.m_sampleRate, params.m_bitsPerSample);
+
+-  mNumChannels   = _numChannels;
+-  mSampleRate    = _sampleRate;
+-  mBitsPerSample = _bitsPerSample;
++  mNumChannels   = params.m_channels;
++  mSampleRate    = params.m_sampleRate;
++  mBitsPerSample = params.m_bitsPerSample;
+
+   opened = true;
+   return true;
+diff --git a/lib/engine/components/opal/opal-audio.h b/lib/engine/components/opal/opal-audio.h
+index 6dcd828e08bf..5cbd6fbf52c0 100644
+--- a/lib/engine/components/opal/opal-audio.h
++++ b/lib/engine/components/opal/opal-audio.h
+@@ -57,11 +57,7 @@ public:
+                    Ekiga::ServiceCore & _core);
+   ~PSoundChannel_EKIGA();
+   static PString GetDefaultDevice(PSoundChannel::Directions);
+-  bool Open(const PString & _device,
+-       Directions _dir,
+-       unsigned _numChannels,
+-       unsigned _sampleRate,
+-       unsigned _bitsPerSample);
++  bool Open(const Params & params);
+   bool Close();
+   bool Write(const void * buf, PINDEX len);
+   bool Read(void * buf, PINDEX len);
+diff --git a/lib/engine/components/opal/opal-call-manager.cpp b/lib/engine/components/opal/opal-call-manager.cpp
+index 1739857498b7..99f769d71a87 100644
+--- a/lib/engine/components/opal/opal-call-manager.cpp
++++ b/lib/engine/components/opal/opal-call-manager.cpp
+@@ -49,6 +49,8 @@
+ #include "call-manager.h"
+ #include "form-request-simple.h"
+
++#include <opal/transcoders.h>
++
+ #include <stdlib.h>
+
+ // opal manages its endpoints itself, so we must be wary
+@@ -197,10 +199,7 @@ void CallManager::set_echo_cancellation (bool enabled)
+
+   // General settings
+   ec = GetEchoCancelParams ();
+-  if (enabled)
+-    ec.m_mode = OpalEchoCanceler::Cancelation;
+-  else
+-    ec.m_mode = OpalEchoCanceler::NoCancelation;
++  ec.m_enabled = enabled;
+   SetEchoCancelParams (ec);
+
+   // Adjust setting for all connections of all calls
+@@ -229,15 +228,18 @@ bool CallManager::get_echo_cancellation () const
+ {
+   OpalEchoCanceler::Params ec = GetEchoCancelParams ();
+
+-  return (ec.m_mode == OpalEchoCanceler::Cancelation);
++  return ec.m_enabled;
+ }
+
+
+ void CallManager::set_maximum_jitter (unsigned max_val)
+ {
+   // Adjust general settings
+-  SetAudioJitterDelay (20, PMIN (PMAX (max_val, 20), 1000));
++  unsigned val = std::min (std::max (max_val, (unsigned) 20), (unsigned) 1000);
+
++  SetAudioJitterDelay (20, val);
++
++#if 0
+   // Adjust setting for all sessions of all connections of all calls
+   for (PSafePtr<OpalCall> call = activeCalls;
+        call != NULL;
+@@ -263,6 +265,7 @@ void CallManager::set_maximum_jitter (unsigned max_val)
+       }
+     }
+   }
++#endif
+ }
+
+
+@@ -318,7 +321,7 @@ bool CallManager::get_silence_detection () const
+
+ void CallManager::set_reject_delay (unsigned delay)
+ {
+-  reject_delay = PMAX (5, delay);
++  reject_delay = std::max ((unsigned) 5, delay);
+ }
+
+
+@@ -418,7 +421,7 @@ void CallManager::set_codecs (Ekiga::CodecList & _codecs)
+             && (rate == all_media_formats [j].GetClockRate () || name == "G722")) {
+
+           // Found something
+-          order += all_media_formats [j];
++          order = order + all_media_formats [j];
+         }
+       }
+     }
+@@ -430,7 +433,7 @@ void CallManager::set_codecs (Ekiga::CodecList & _codecs)
+   for (int j = 0 ;
+        j < all_media_formats.GetSize () ;
+        j++)
+-    order += all_media_formats [j];
++    order = order + all_media_formats [j];
+
+
+   // Build the mask
+@@ -440,7 +443,7 @@ void CallManager::set_codecs (Ekiga::CodecList & _codecs)
+   for (int i = 0 ;
+        i < all_media_formats.GetSize () ;
+        i++)
+-    mask += all_media_formats [i];
++    mask = mask + all_media_formats [i];
+
+   // Blacklist IM protocols for now
+   mask += "T.140";
+@@ -821,7 +824,7 @@ CallManager::HandleSTUNResult ()
+
+     if (result == PSTUNClient::SymmetricNat
+	|| result == PSTUNClient::BlockedNat
+-	|| result == PSTUNClient::PartialBlockedNat) {
++	|| result == PSTUNClient::PartiallyBlocked) {
+
+       error = true;
+     } else {
+diff --git a/lib/engine/components/opal/opal-call.cpp b/lib/engine/components/opal/opal-call.cpp
+index 1edd72b0720a..a6dc319771e2 100644
+--- a/lib/engine/components/opal/opal-call.cpp
++++ b/lib/engine/components/opal/opal-call.cpp
+@@ -40,7 +40,7 @@
+
+ #include <glib/gi18n.h>
+ #include <opal/opal.h>
+-#include <opal/pcss.h>
++#include <ep/pcss.h>
+ #include <sip/sippdu.h>
+
+ #include "call.h"
+@@ -161,10 +161,7 @@ Opal::Call::toggle_hold ()
+   if (connection != NULL) {
+
+     on_hold = connection->IsOnHold (false);
+-    if (!on_hold)
+-      connection->Hold (false, true);
+-    else
+-      connection->Hold (false, false);
++    connection->HoldRemote (!on_hold);
+   }
+ }
+
+@@ -212,13 +209,13 @@ void Opal::Call::set_no_answer_forward (unsigned delay, const std::string & uri)
+ {
+   forward_uri = uri;
+
+-  NoAnswerTimer.SetInterval (0, PMIN (delay, 60));
++  NoAnswerTimer.SetInterval (0, std::min (delay, (unsigned) 60));
+ }
+
+
+ void Opal::Call::set_reject_delay (unsigned delay)
+ {
+-  NoAnswerTimer.SetInterval (0, PMIN (delay, 60));
++  NoAnswerTimer.SetInterval (0, std::min (delay, (unsigned) 60));
+ }
+
+
+@@ -347,7 +344,6 @@ Opal::Call::parse_info (OpalConnection & connection)
+ PBoolean
+ Opal::Call::OnEstablished (OpalConnection & connection)
+ {
+-  RTP_Session *session = NULL;
+   OpalMediaStreamPtr stream;
+
+   NoAnswerTimer.Stop (false);
+@@ -358,6 +354,7 @@ Opal::Call::OnEstablished (OpalConnection & connection)
+     Ekiga::Runtime::run_in_main (boost::bind (&Opal::Call::emit_established_in_main, this));
+   }
+
++#if 0
+   if (PIsDescendant(&connection, OpalRTPConnection)) {
+
+     stream = connection.GetMediaStream (OpalMediaType::Audio (), false);
+@@ -384,6 +381,7 @@ Opal::Call::OnEstablished (OpalConnection & connection)
+       }
+     }
+   }
++#endif
+
+   return OpalCall::OnEstablished (connection);
+ }
+@@ -587,8 +585,8 @@ Opal::Call::OnClosedMediaStream (OpalMediaStream & stream)
+
+
+ void
+-Opal::Call::OnRTPStatistics (const OpalConnection & /* connection */,
+-			     const RTP_Session & session)
++Opal::Call::OnRTPStatistics2 (const OpalConnection & /* connection */,
++			     const OpalRTPSession & session)
+ {
+   PWaitAndSignal m(stats_mutex); // The stats are computed from two different threads
+
+diff --git a/lib/engine/components/opal/opal-call.h b/lib/engine/components/opal/opal-call.h
+index 0e2a2a3c6df3..e3c23620ce4f 100644
+--- a/lib/engine/components/opal/opal-call.h
++++ b/lib/engine/components/opal/opal-call.h
+@@ -37,6 +37,7 @@
+
+ #include <opal/opal.h>
+ #include <opal/call.h>
++#include <ep/pcss.h>
+
+ #include "runtime.h"
+ #include "services.h"
+@@ -177,7 +178,7 @@ public:
+
+     void OnClosedMediaStream (OpalMediaStream & stream);
+
+-    void OnRTPStatistics (const OpalConnection & connection, const RTP_Session & session);
++    void OnRTPStatistics2 (const OpalConnection & connection, const OpalRTPSession & session);
+
+     void DoSetUp (OpalConnection & connection);
+
+diff --git a/lib/engine/components/opal/opal-plugins-hook.cpp b/lib/engine/components/opal/opal-plugins-hook.cpp
+index f58b442632dd..e2065a24d25e 100644
+--- a/lib/engine/components/opal/opal-plugins-hook.cpp
++++ b/lib/engine/components/opal/opal-plugins-hook.cpp
+@@ -121,6 +121,7 @@ static boost::shared_ptr<PVideoOutputDevice_EKIGA_PluginServiceDescriptor> video
+ void
+ hook_ekiga_plugins_to_opal (Ekiga::ServiceCore& core)
+ {
++  #if 0
+   audio = boost::shared_ptr<PSoundChannel_EKIGA_PluginServiceDescriptor> (new PSoundChannel_EKIGA_PluginServiceDescriptor (core));
+   videoinput = boost::shared_ptr<PVideoInputDevice_EKIGA_PluginServiceDescriptor> (new PVideoInputDevice_EKIGA_PluginServiceDescriptor (core));
+   videooutput = boost::shared_ptr<PVideoOutputDevice_EKIGA_PluginServiceDescriptor> (new PVideoOutputDevice_EKIGA_PluginServiceDescriptor (core));
+@@ -131,4 +132,5 @@ hook_ekiga_plugins_to_opal (Ekiga::ServiceCore& core)
+						      videoinput.get ());
+   PPluginManager::GetPluginManager().RegisterService ("EKIGA", "PVideoOutputDevice",
+						      videooutput.get ());
++  #endif
+ }
+diff --git a/lib/engine/components/opal/opal-videoinput.cpp b/lib/engine/components/opal/opal-videoinput.cpp
+index ea8186768051..a9589c2bce03 100644
+--- a/lib/engine/components/opal/opal-videoinput.cpp
++++ b/lib/engine/components/opal/opal-videoinput.cpp
+@@ -238,6 +238,7 @@ PVideoInputDevice_EKIGA::GetFrameSizeLimits (unsigned & minWidth,
+ }
+
+
++#if 0
+ bool PVideoInputDevice_EKIGA::GetParameters (int *whiteness,
+					       int *brightness,
+					       int *colour,
+@@ -252,3 +253,4 @@ bool PVideoInputDevice_EKIGA::GetParameters (int *whiteness,
+
+   return true;
+ }
++#endif
+\ No newline at end of file
+diff --git a/lib/engine/components/opal/opal-videoinput.h b/lib/engine/components/opal/opal-videoinput.h
+index 4d801c0a7d65..ddf690f0f53c 100644
+--- a/lib/engine/components/opal/opal-videoinput.h
++++ b/lib/engine/components/opal/opal-videoinput.h
+@@ -170,12 +170,14 @@ class PVideoInputDevice_EKIGA : public PVideoInputDevice
+			           unsigned &maxWidth,
+			           unsigned &maxHeight);
+
++#if 0
+   virtual bool GetParameters (int *whiteness,
+		              int *brightness,
+		              int *colour,
+		              int *contrast,
+		              int *hue);
+-
++#endif
++
+
+   virtual PStringArray GetDeviceNames() const;
+
+diff --git a/lib/engine/components/opal/pcss-endpoint.h b/lib/engine/components/opal/pcss-endpoint.h
+index 4ee2ea3a3436..ec00d7a08adf 100644
+--- a/lib/engine/components/opal/pcss-endpoint.h
++++ b/lib/engine/components/opal/pcss-endpoint.h
+@@ -43,7 +43,7 @@
+ #include "runtime.h"
+
+ #include <opal/opal.h>
+-#include <opal/pcss.h>
++#include <ep/pcss.h>
+
+ namespace Opal {
+   class CallManager;
+diff --git a/lib/engine/components/opal/sip-endpoint.cpp b/lib/engine/components/opal/sip-endpoint.cpp
+index 898e0f2013a2..a282897809d8 100644
+--- a/lib/engine/components/opal/sip-endpoint.cpp
++++ b/lib/engine/components/opal/sip-endpoint.cpp
+@@ -159,7 +159,7 @@ Opal::Sip::EndPoint::EndPoint (Opal::CallManager & _manager,
+   manager.AddRouteEntry("pc:.* = sip:<da>");
+
+   /* NAT Binding */
+-  SetNATBindingRefreshMethod (SIPEndPoint::Options);
++  SetNATBindingRefreshMethod (KeepAliveByOPTION);
+ }
+
+
+@@ -294,8 +294,7 @@ Opal::Sip::EndPoint::send_message (const std::string & _uri,
+   if (!_uri.empty () && (_uri.find ("sip:") == 0 || _uri.find (':') == string::npos) && !_message.empty ()) {
+     OpalIM im;
+     im.m_to = PURL (_uri);
+-    im.m_mimeType = "text/plain;charset=UTF-8";
+-    im.m_body = _message;
++    im.m_bodies.SetAt (PMIMEInfo::TextPlain(), _message);
+     Message (im);
+     return true;
+   }
+@@ -529,19 +528,13 @@ Opal::Sip::EndPoint::Register (const std::string username,
+			       unsigned timeout)
+ {
+   PString _aor;
+-  std::stringstream aor;
+   std::string host(host_);
+   std::string::size_type loc = host.find (":", 0);
+   if (loc != std::string::npos)
+     host = host.substr (0, loc);
+
+-  if (username.find ("@") == std::string::npos)
+-    aor << username << "@" << host;
+-  else
+-    aor << username;
+-
+   SIPRegister::Params params;
+-  params.m_addressOfRecord = PString (aor.str ());
++  params.m_addressOfRecord = PString (username);
+   params.m_registrarAddress = PString (host_);
+   params.m_compatibility = compat_mode;
+   params.m_authID = auth_username;
+@@ -557,7 +550,7 @@ Opal::Sip::EndPoint::Register (const std::string username,
+     status.m_reRegistering = false;
+     status.m_userData = NULL;
+     status.m_reason = SIP_PDU::Local_TransportError;
+-    status.m_addressofRecord = PString (aor.str ());
++    status.m_addressofRecord = PString (username);
+
+     OnRegistrationStatus (status);
+   }
+@@ -879,8 +872,7 @@ Opal::Sip::EndPoint::OnIncomingConnection (OpalConnection &connection,
+
+
+ bool
+-Opal::Sip::EndPoint::OnReceivedMESSAGE (OpalTransport & transport,
+-					SIP_PDU & pdu)
++Opal::Sip::EndPoint::OnReceivedMESSAGE (SIP_PDU & pdu)
+ {
+   if (pdu.GetMIME().GetContentType(false) != "text/plain")
+     return false; // Ignore what we do not handle.
+@@ -901,7 +893,7 @@ Opal::Sip::EndPoint::OnReceivedMESSAGE (OpalTransport & transport,
+
+   Ekiga::Runtime::run_in_main (boost::bind (&Opal::Sip::EndPoint::push_message_in_main, this, message_uri, display_name, _message));
+
+-  return SIPEndPoint::OnReceivedMESSAGE (transport, pdu);
++  return SIPEndPoint::OnReceivedMESSAGE (pdu);
+ }
+
+
+@@ -924,7 +916,7 @@ Opal::Sip::EndPoint::OnMESSAGECompleted (const SIPMessage::Params & params,
+   if (reason == SIP_PDU::Failure_TemporarilyUnavailable)
+     reason_shown += _("user offline");
+   else
+-    reason_shown += SIP_PDU::GetStatusCodeDescription (reason);  // too many to translate them with _()...
++    reason_shown += SIP_PDU::GetStatusCodeDescription (reason).operator std::string ();  // too many to translate them with _()...
+
+   Ekiga::Runtime::run_in_main (boost::bind (&Opal::Sip::EndPoint::push_notice_in_main, this, uri, display_name, reason_shown));
+ }
+@@ -941,7 +933,7 @@ Opal::Sip::EndPoint::GetRegisteredPartyName (const SIPURL & aor,
+     return local_aor.c_str ();
+
+   // as a last resort, use the local address
+-  return GetDefaultRegisteredPartyName (transport);
++  return GetDefaultLocalURL (transport);
+ }
+
+
+diff --git a/lib/engine/components/opal/sip-endpoint.h b/lib/engine/components/opal/sip-endpoint.h
+index 4d7570c7a0c6..5f1c484cd1c8 100644
+--- a/lib/engine/components/opal/sip-endpoint.h
++++ b/lib/engine/components/opal/sip-endpoint.h
+@@ -157,8 +157,7 @@ namespace Opal {
+
+       void OnDialogInfoReceived (const SIPDialogNotification & info);
+
+-      bool OnReceivedMESSAGE (OpalTransport & transport,
+-                              SIP_PDU & pdu);
++      bool OnReceivedMESSAGE (SIP_PDU & pdu);
+
+       void OnMESSAGECompleted (const SIPMessage::Params & params,
+                                SIP_PDU::StatusCodes reason);
+diff --git a/lib/engine/components/ptlib/videoinput-manager-ptlib.cpp b/lib/engine/components/ptlib/videoinput-manager-ptlib.cpp
+index 86e609898f0d..59d3586fc6f1 100644
+--- a/lib/engine/components/ptlib/videoinput-manager-ptlib.cpp
++++ b/lib/engine/components/ptlib/videoinput-manager-ptlib.cpp
+@@ -150,15 +150,15 @@ bool GMVideoInputManager_ptlib::open (unsigned width, unsigned height, unsigned
+     return false;
+   }
+
+-  int whiteness, brightness, colour, contrast, hue;
+-  input_device->GetParameters (&whiteness, &brightness, &colour, &contrast, &hue);
++  struct PVideoDevice::Attributes attr;
++  input_device->GetAttributes (attr);
+   current_state.opened = true;
+
+   Ekiga::VideoInputSettings settings;
+-  settings.whiteness = whiteness >> 8;
+-  settings.brightness = brightness >> 8;
+-  settings.colour = colour >> 8;
+-  settings.contrast = contrast >> 8;
++  settings.whiteness = attr.m_gamma >> 8;
++  settings.brightness = attr.m_brightness >> 8;
++  settings.colour = attr.m_saturation >> 8;
++  settings.contrast = attr.m_contrast >> 8;
+   settings.modifyable = true;
+
+   Ekiga::Runtime::run_in_main (boost::bind (&GMVideoInputManager_ptlib::device_opened_in_main, this, current_state.device, settings));
+@@ -199,29 +199,45 @@ bool GMVideoInputManager_ptlib::get_frame_data (char *data)
+ void GMVideoInputManager_ptlib::set_colour (unsigned colour)
+ {
+   PTRACE(4, "GMVideoInputManager_ptlib\tSetting colour to " << colour);
+-  if (input_device)
+-    input_device->SetColour(colour << 8);
++  if (input_device) {
++    struct PVideoDevice::Attributes attr;
++    input_device->GetAttributes (attr);
++    attr.m_saturation = colour << 8;
++    input_device->SetAttributes (attr);
++  }
+ }
+
+ void GMVideoInputManager_ptlib::set_brightness (unsigned brightness)
+ {
+   PTRACE(4, "GMVideoInputManager_ptlib\tSetting brightness to " << brightness);
+-  if (input_device)
+-    input_device->SetBrightness(brightness << 8);
++  if (input_device) {
++    struct PVideoDevice::Attributes attr;
++    input_device->GetAttributes (attr);
++    attr.m_brightness = brightness << 8;
++    input_device->SetAttributes (attr);
++  }
+ }
+
+ void GMVideoInputManager_ptlib::set_whiteness (unsigned whiteness)
+ {
+   PTRACE(4, "GMVideoInputManager_ptlib\tSetting whiteness to " << whiteness);
+-  if (input_device)
+-    input_device->SetWhiteness(whiteness << 8);
++  if (input_device) {
++    struct PVideoDevice::Attributes attr;
++    input_device->GetAttributes (attr);
++    attr.m_gamma = whiteness << 8;
++    input_device->SetAttributes (attr);
++  }
+ }
+
+ void GMVideoInputManager_ptlib::set_contrast (unsigned contrast)
+ {
+   PTRACE(4, "GMVideoInputManager_ptlib\tSetting contrast to " << contrast);
+-  if (input_device)
+-    input_device->SetContrast(contrast << 8);
++  if (input_device) {
++    struct PVideoDevice::Attributes attr;
++    input_device->GetAttributes (attr);
++    attr.m_contrast = contrast << 8;
++    input_device->SetAttributes (attr);
++  }
+ }
+
+ bool GMVideoInputManager_ptlib::has_device(const std::string & source, const std::string & device_name, unsigned capabilities, Ekiga::VideoInputDevice & device)
+diff --git a/src/gui/main.cpp b/src/gui/main.cpp
+index 98650e392f03..a3a5fc67385c 100644
+--- a/src/gui/main.cpp
++++ b/src/gui/main.cpp
+@@ -183,6 +183,10 @@ main (int argc,
+ #endif
+
+   /* Ekiga initialisation */
++  // SetDirectories must appear before GnomeMeeting (PProcess) object creation,
++  // otherwise it searches for plugins in /usr/bin too, which increases ekiga
++  // startup time by several seconds
++  PPluginManager::GetPluginManager().SetDirectories (PString (P_DEFAULT_PLUGIN_DIR));
+   // should come *after* ptrace initialisation, to track codec loading for ex.
+   GnomeMeeting instance;
+
+--
+2.9.2

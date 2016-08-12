@@ -1,9 +1,2 @@
-OPTS="--disable-avahi $OPTS"   &&
-if [ "$GTK_ONLY" == "y" ]; then
-     echo "Building without gnome support"   &&
-     OPTS="$OPTS --disable-gnome --disable-eds"
-else
-     echo "Building with gnome support"
-fi &&
-./configure --prefix=${INSTALL_ROOT}/usr --sysconfdir=${INSTALL_ROOT}/etc  $OPTS &&
-make
+CXXFLAGS+=" -DBOOST_SIGNALS_NO_DEPRECATION_WARNING" && # for Ekiga 4.0.1
+default_build
