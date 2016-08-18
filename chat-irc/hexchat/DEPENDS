@@ -5,7 +5,7 @@ optional_depends gettext \
                  "--disable-nls" \
                  "for Native Language Support" &&
 
-optional_depends openssl \
+optional_depends SSL \
                  "--enable-openssl=/usr/bin/openssl" \
                  "--disable-openssl" \
                  "to enable use of openSSL" &&
@@ -21,15 +21,32 @@ if list_find "$HEXCHAT_OPTS" "--disable-textfe" && ! is_depends_enabled $SPELL g
 fi &&
 
 if list_find "$HEXCHAT_OPTS" "--enable-plugin"; then
-  optional_depends python \
-                  "--enable-python=python2" \
-                  "--disable-python" \
-                  "for Python scripting support" &&
+  config_query_list HEXCHAT_PYTHON "Which version do you want for Python scripting support?" \
+                                   none \
+                                   python2 \
+                                   python3 &&
+
+  case $HEXCHAT_PYTHON in
+    none)
+      list_add HEXCHAT_OPTS '--disable-python'
+    ;;
+    python2)
+      depends python '--enable-python=python2'
+    ;;
+    python3)
+      depends python3 '--enable-python=python3'
+    ;;
+  esac &&
 
   optional_depends perl \
                    "--enable-perl" \
                    "--disable-perl" \
-                   "for Perl scripting support"
+                   "for Perl scripting support" &&
+
+  optional_depends LUA \
+                   "--enable-lua" \
+                   "--disable-lua" \
+                   "for Lua scripting support"
 else
   list_add HEXCHAT_OPTS '--disable-python' &&
   list_add HEXCHAT_OPTS '--disable-perl'
@@ -54,11 +71,6 @@ optional_depends libcanberra \
                  "--enable-libcanberra" \
                  "--disable-libcanberra" \
                  "for libcanberra support" &&
-
-optional_depends libntlm \
-                 "--enable-ntlm" \
-                 "--disable-ntlm" \
-                 "for Microsoft's NTLM auth library support" &&
 
 optional_depends libproxy \
                  "--enable-libproxy" \
