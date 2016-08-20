@@ -5,8 +5,8 @@ optional_depends   "MAIL-TRANSPORT-AGENT"                       \
                    ""                                           \
                    ""                                           \
                    "to send mail"                               &&
-                    
-if [[ "$MUTT_BRANCH" == "scm" ]]; then 
+
+if [[ "$MUTT_BRANCH" == "scm" ]]; then
 	depends mercurial
 fi &&
 
@@ -32,54 +32,50 @@ optional_depends   "ispell"                                     \
                    ""                                           \
                    "for spell checking"                         &&
 
-if [[ "$MUTT_BRANCH" != "stable" ]]; then
-  # Do NOT add --with-ssl here, that only works if POP/IMAP are used.  This is
-  # mostly just here to prompt for SSL if they don't have it and want
-  # S/MIME.
-  optional_depends "SSL"                                    \
-                   ""                                           \
-                   ""                                           \
-                   "to support S/MIME signing and encrypting messages" &&
+# Do NOT add --with-ssl here, that only works if POP/IMAP are used.  This is
+# mostly just here to prompt for SSL if they don't have it and want
+# S/MIME.
+optional_depends "SSL"                                        \
+                 ""                                           \
+                 ""                                           \
+                 "to support S/MIME signing and encrypting messages" &&
 
-  optional_depends "gpgme"                                      \
-                   "--enable-gpgme"                             \
-                   ""                                           \
-                   "alternate backend for PGP and S/MIME"       &&
+optional_depends "gpgme"                                      \
+                 "--enable-gpgme"                             \
+                 ""                                           \
+                 "alternate backend for PGP and S/MIME"       &&
 
-  if list_find "${MUTT_OPTS}" "--enable-hcache"; then
-    config_query_list HCACHE_BACKEND                            \
-                      "Use which header cache backend?"         \
-                      gdbm db                                   &&
-    if [[ "$HCACHE_BACKEND" == "db" ]]; then
-      TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --without-gdbm --with-bdb"
-    fi &&
-    depends "${HCACHE_BACKEND}"
+if list_find "${MUTT_OPTS}" "--enable-hcache"; then
+  config_query_list HCACHE_BACKEND                            \
+                    "Use which header cache backend?"         \
+                    gdbm db                                   &&
+  if [[ "$HCACHE_BACKEND" == "db" ]]; then
+    TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --without-gdbm --with-bdb"
   fi &&
-
-  optional_depends "libidn"                                     \
-                   "--with-idn"                                 \
-                   ""                                           \
-                   "to use GNU libidn for domain names"
+  depends "${HCACHE_BACKEND}"
 fi &&
+
+optional_depends "libidn"                                     \
+                 "--with-idn"                                 \
+                 ""                                           \
+                 "to use GNU libidn for domain names"         &&
 
 if list_find "${MUTT_OPTS}" "--enable-pop" || list_find "${MUTT_OPTS}" "--enable-imap"; then
   # If they have POP/IMAP then prompt again for SSL to get --with-ssl.
-  optional_depends "SSL"                                    \
+  optional_depends "SSL"                                        \
                    "--with-ssl"                                 \
                    ""                                           \
                    "to enable SSL support for POP/IMAP"         &&
 
-  if [[ "$MUTT_BRANCH" != "stable" ]]; then
-    optional_depends "gnutls"                                   \
-                     "--with-gnutls"                            \
-                     ""                                         \
-                     "to enable SSL support for POP/IMAP via gnutls" &&
+  optional_depends "gnutls"                                     \
+                   "--with-gnutls"                              \
+                   ""                                           \
+                   "to enable SSL support for POP/IMAP via gnutls" &&
 
-    optional_depends "cyrus-sasl"                               \
-                     "--with-sasl"                             \
-                     ""                                         \
-                     "to enable SASL2 authentication for POP/IMAP"
-  fi
+  optional_depends "cyrus-sasl"                                \
+                   "--with-sasl"                               \
+                   ""                                          \
+                   "to enable SASL2 authentication for POP/IMAP"
 fi &&
 
 if list_find "${MUTT_OPTS}" "--enable-imap"; then
