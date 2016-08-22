@@ -87,7 +87,7 @@ OPTS="--libexecdir=${INSTALL_ROOT}/usr/lib $OPTS"                  &&
 OPTS="--mandir=${INSTALL_ROOT}/usr/share/man $OPTS"                &&
 OPTS="--infodir=${INSTALL_ROOT}/usr/share/info $OPTS"              &&
 OPTS="--with-bugurl=http://bugs.sourcemage.org $OPTS"              &&
-OPTS="--enable-languages=${GCC_COMPILER// /,},c,c++,lto $OPTS"     &&
+OPTS="--enable-languages=${GCC_COMPILER// /,},lto $OPTS"     &&
 OPTS="--enable-shared $OPTS"                                       &&
 OPTS="--enable-threads=posix $OPTS"                                &&
 OPTS="--enable-__cxa_atexit $OPTS"                                 &&
