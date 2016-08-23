@@ -33,6 +33,4 @@ fi &&
                              $NGINX_OPTS \
                              $OPTS &&
 
-make_single &&
-make &&
-make_normal
+make
