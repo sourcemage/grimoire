@@ -1,3 +1,5 @@
+sed -i 's;etc/;/&;g' setup.py &&
+
 if is_depends_enabled ${SPELL} python; then
   default_build_python
 else
