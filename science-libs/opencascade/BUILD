@@ -1,2 +1,2 @@
-OPTS+=" -DUSE_FREEIMAGE=off -DUSE_VTK=off" &&
+OPTS+=" -DUSE_FREEIMAGE=off" &&
 cmake_build
