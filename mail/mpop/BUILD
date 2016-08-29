@@ -1,5 +1,5 @@
 if [[ "$MPOP_TLS" == "none" ]]
 then
-OPTS="--with-ssl=no $OPTS"
+OPTS="--with-tls=no $OPTS"
 fi  &&
 default_build
