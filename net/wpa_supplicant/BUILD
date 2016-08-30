@@ -19,13 +19,14 @@ VARS="$VARS CONFIG_TLS" &&
 
 for var in $VARS $OPTS; do
   if [[ ${!var} != n ]]; then
-    echo "$var=${!var:-y}" >> .config
+    echo "$var=${!var:-y}"
     # We ship libnl-3.
     if [[ "$var" = CONFIG_DRIVER_NL80211 ]]; then
-      echo CONFIG_LIBNL32=y >> .config
+      echo CONFIG_LIBNL32=y
     fi
   fi
-done &&
+done > .config &&
+echo "CFLAGS += $CFLAGS" >> .config
 
 make &&
 
