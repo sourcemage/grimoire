@@ -1,0 +1,3 @@
+OPTS+=" -DBUILD_SHARED_LIBS=1 -DFMT_DOC=0"
+cmake_build
+
