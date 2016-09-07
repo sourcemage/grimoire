@@ -28,7 +28,13 @@ if [[ $MARIADB_BRANCH == 5.5 ]] || [[ $MARIADB_BRANCH == 10.1 ]]; then
         $OPTS" &&
 
   if [[ $MARIADB_ENGINES == none ]] || [[ $MARIADB_ENGINES == all ]]; then
-    OPTS="-DWITH_${MARIADB_ENGINES^^} $OPTS"
+    if [[ $MARIADB_BRANCH == 5.5 ]] || [[ $MARIADB_BRANCH == 10.1 ]]; then
+      for engine in $MARIADB_ENGINES; do
+        OPTS="-DWITH_${engine^^}_STORAGE_ENGINE=OFF $OPTS"
+      done
+    else
+      OPTS="-DWITH_${MARIADB_ENGINES^^} $OPTS"
+    fi
   else
     for engine in $MARIADB_ENGINES; do
       OPTS="-DWITH_${engine^^}_STORAGE_ENGINE=ON $OPTS"
