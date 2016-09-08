@@ -1,9 +1,32 @@
-depends	 libnet	  &&
-depends  libpcap  &&
-depends  ncurses  &&
-depends  SSL  &&
+depends cmake &&
+depends curl '-DSYSTEM_CURL=YES' &&
+depends libnet '-DSYSTEM_LIBNET=YES' &&
+depends libpcap &&
+depends SSL &&
 
-optional_depends  gtk+2                  \
-                  "--enable-gtk"         \
-                  "--disable-gtk"        \
-                  "for gtk+2 interface"
+optional_depends ncurses \
+                 "-DENABLE_CURSES=YES" \
+                 "-DENABLE_CURSES=NO" \
+                 "for curses interface" &&
+
+if [[ $ETTERCAP_GTK == "gtk+2" ]]; then
+  depends gtk+2 '-DENABLE_GTK=YES -DGTK_BUILD_TYPE=GTK2'
+elif [[ $ETTERCAP_GTK == "gtk+3" ]]; then
+  depends gtk+3 '-DENABLE_GTK=YES -DGTK_BUILD_TYPE=GTK3'
+fi &&
+
+optional_depends luajit \
+                 "-DENABLE_LUA=YES -DSYSTEM_LUAJIT=YES" \
+                 "-DENABLE_LUA=NO" \
+                 "for LUA support (${PROBLEM_COLOR}EXPERIMENTAL${DEFAULT_COLOR})" &&
+
+optional_depends ghostscript \
+                 "-DENABLE_PDF_DOCS=YES" \
+                 "-DENABLE_PDF_DOCS=NO" \
+                 "to enable PDF documentation generation" &&
+
+if is_depends_enabled ${SPELL} ghostscript; then
+  depends groff
+fi &&
+
+optional_depends libbsd "" "" "to avoid use of internal strlcat and strlcpy implementation"
