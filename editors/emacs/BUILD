@@ -12,27 +12,12 @@ export LDFLAGS="${LDFLAGS//-Wl,-O1/}"  &&
 # XXX Causes a segfault during the bootstrapping
 CFLAGS="${CFLAGS/-ftree-loop-if-convert-stores}" &&
 
-OPTS="$OPTS --with-x-toolkit=$EMACS_XTOOLKIT" &&
+OPTS="${OPTS} --with-x-toolkit=${EMACS_XTOOLKIT} ${EMACS_OPTS}" &&
 if [[ "$EMACS_BRANCH" == "scm" ]]; then
   # Crashes with -O3
   export  CFLAGS="${CFLAGS//-O3/-O2}"      &&
 
-  OPTS="$OPTS --build=${BUILD}" &&
-
-  if [[ $CROSS_INSTALL == on ]]; then
-    OPTS="$OPTS --host=${HOST}"
-  fi &&
-
-  # Fix broken permissions
-  chmod +x build-aux/update-subdirs &&
-
-  ./autogen.sh &&
-  ./configure --prefix=${INSTALL_ROOT}/usr  \
-              --sysconfdir=${INSTALL_ROOT}/etc  \
-              --localstatedir=${INSTALL_ROOT}/var  \
-              --mandir=${INSTALL_ROOT}/usr/share/man   \
-              --infodir=${INSTALL_ROOT}/usr/share/info  \
-              $OPTS                 &&
+  default_build_configure &&
   make bootstrap
 else
   default_build
