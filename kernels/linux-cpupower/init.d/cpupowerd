@@ -1,0 +1,67 @@
+#!/bin/bash
+# 
+# Source Mage init.d install information
+#
+# Startup script for cpupower.
+#
+
+# `/usr/bin/cpupower frequency-set` fails to work
+PROGRAM=/usr/bin/cpufreq-set
+DESC="CPU Power Tool"
+RUNLEVEL=3
+
+. /etc/init.d/smgl_init
+. /etc/sysconfig/cpupowerd
+
+required_executable $PROGRAM
+
+start()
+{
+	# From https://gist.github.com/devkral/1579210
+	params=''
+	if [[ "${governor}" ]]; then
+		grep -qw "${governor}" /sys/devices/system/cpu/cpu*/cpufreq/scaling_available_governors || modprobe -q cpufreq_${governor}
+		if [[ "${governor}" != "userspace" ]] && [[ "${freq}" ]]; then
+			echo "Error: freq needs userspace governor"
+			exit 1
+		fi
+      
+		params="-g ${governor} "
+		params+="${min_freq:+-d $min_freq} "
+		params+="${max_freq:+-u $max_freq} "
+		params+="${freq:+-f $freq} "
+	else
+		echo "Governer isn't set."
+		exit 1
+	fi
+
+	echo "Starting $DESC: $NAME ${params}"
+	loadproc $PROGRAM ${params}
+	evaluate_retval
+}
+
+stop()
+{
+	echo "Stopping $DESC: $NAME "
+	killproc $PROGRAM
+	evaluate_retval
+}
+
+status()
+{
+	statusproc $PROGRAM
+}
+
+restart()
+{
+	#
+	# If the "reload" option is implemented, move the "force-reload"
+	# option to the "reload" entry above. If not, "force-reload" is
+	# just the same as "restart".
+	#
+	echo "Restarting $DESC: $NAME"
+	stop
+	sleep 1
+	start
+}
+

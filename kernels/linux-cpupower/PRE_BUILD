@@ -1,0 +1,38 @@
+# kenel.org signs the uncompressed files...
+mk_source_dir "${SOURCE_DIRECTORY}"  &&
+cd "${SOURCE_DIRECTORY}"             &&
+# Make sure our target doesn't exist before uncompressing
+if [[ -f "${SOURCE_CACHE}/${SOURCE/.xz}" ]]; then
+  rm "${SOURCE_CACHE}/${SOURCE/.xz}"
+fi  &&
+unxz -k "${SOURCE_CACHE}/${SOURCE}"  &&
+# Fake new SOURCE for unpack_file and verify_file
+SOURCE=${SOURCE/.xz}  &&
+verify_file ''        &&
+unpack_file ''        &&
+# Clean up
+message "${MESSAGE_COLOR}Removing temporary ${SOURCE_CACHE}/${SOURCE}...${DEFAULT_COLOR}"  &&
+rm "${SOURCE_CACHE}/${SOURCE}"                                                             &&
+
+# Subdirectory
+cd linux-${VERSION%.*}  &&
+
+# If not a .0 release, apply the patch
+if [[ "${VERSION##*.}" != '0' ]]; then
+  message "${MESSAGE_COLOR}Applying patch for ${VERSION}...${DEFAULT_COLOR}"  &&
+  # Make sure our target doesn't exist before uncompressing
+  if [[ -f "${SOURCE_CACHE}/${SOURCE3/.xz}" ]]; then
+    rm "${SOURCE_CACHE}/${SOURCE3/.xz}"
+  fi  &&
+  unxz -k "${SOURCE_CACHE}/${SOURCE3}"       &&
+  # Fake new SOURCE3 for unpack_file and verify_file
+  SOURCE3=${SOURCE3/.xz}                    &&
+  verify_file '3'                           &&
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE3}"  &&
+  # Clean up
+  message "${MESSAGE_COLOR}Removing temporary ${SOURCE_CACHE3}/${SOURCE}...${DEFAULT_COLOR}"  &&
+  rm "${SOURCE_CACHE}/${SOURCE3}"
+fi  &&
+
+# Fix copying of symlinks
+sed -i 's:cp -fpR:cp -d:' "${SOURCE_DIRECTORY}"/linux-${VERSION%.*}/tools/power/cpupower/Makefile
