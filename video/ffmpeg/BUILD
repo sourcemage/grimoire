@@ -6,7 +6,7 @@ elif list_find "$FFMPEG_PROGRAMS" "all"; then
   :
 else
   for program in $FFMPEG_PROGRAM_LIST; do
-    if ! list_find "$program" "$FFMPEG_PROGRAMS"; then
+    if ! list_find "$FFMPEG_PROGRAMS" "$program"; then
       OPTS="--disable-$program $OPTS"
     fi
   done &&
