@@ -1,6 +1,5 @@
-diff -Naur ifupdown.orig/inet.defn ifupdown/inet.defn
---- ifupdown.orig/inet.defn	2016-04-20 05:57:37.000000000 -0700
-+++ ifupdown/inet.defn	2016-06-01 13:19:31.682554276 -0700
+--- ifupdown/inet.defn.orig	2016-04-20 08:57:37.000000000 -0400
++++ ifupdown/inet.defn	2016-09-26 20:35:06.011280480 -0400
 @@ -6,10 +6,10 @@
      This method may be used to define the IPv4 loopback interface.
  
@@ -101,19 +100,21 @@ diff -Naur ifupdown.orig/inet.defn ifupdown/inet.defn
  
  method ppp
    description
-diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
---- ifupdown.orig/inet6.defn	2016-05-19 03:05:34.000000000 -0700
-+++ ifupdown/inet6.defn	2016-06-01 13:19:31.682554276 -0700
-@@ -25,7 +25,7 @@
+--- ifupdown/inet6.defn.orig	2016-09-17 05:19:54.000000000 -0400
++++ ifupdown/inet6.defn	2016-09-26 20:35:06.016280533 -0400
+@@ -25,9 +25,9 @@
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.use_tempaddr=%privext%]]
      -/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.accept_ra=%accept_ra%
      -/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.autoconf=1
+-    /bin/ip addr flush dev %iface% mngtmpaddr \
++    /sbin/ip addr flush dev %iface% mngtmpaddr \
+         if (var_set("accept_ra", ifd) && !var_true("accept_ra", ifd))
 -    /bin/ip link set dev %iface% up
 +    /sbin/ip link set dev %iface% up
      /lib/ifupdown/wait-for-ll6.sh if (var_true("dhcp", ifd) && execable("/lib/ifupdown/wait-for-ll6.sh"))
      /sbin/dhclient -6 -P -pf /run/dhclient6.%iface%.pid -lf /var/lib/dhcp/dhclient6.%iface%.leases -I -df /var/lib/dhcp/dhclient.%iface%.leases %iface% \
          if (var_true("dhcp", ifd) && execable("/sbin/dhclient") && var_true("request_prefix", ifd))
-@@ -35,19 +35,19 @@
+@@ -37,19 +37,19 @@
          elsif (var_true("dhcp", ifd))
  
    down
@@ -139,10 +140,13 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
  
  method static
    description
-@@ -85,18 +85,18 @@
+@@ -87,20 +87,20 @@
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.accept_ra=%accept_ra%]]
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.autoconf=%autoconf%]]
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.mtu=%mtu%]]
+-    /bin/ip addr flush dev %iface% mngtmpaddr \
++    /sbin/ip addr flush dev %iface% mngtmpaddr \
+         if (var_set("accept_ra", ifd) && !var_true("accept_ra", ifd))
 -    /bin/ip link set dev %iface% [[address %hwaddress%]] up
 -    /bin/ip -6 addr add %address%[[/%netmask%]] [[scope %scope%]] dev %iface% [[preferred_lft %preferred-lifetime%]] \
 +    /sbin/ip link set dev %iface% [[address %hwaddress%]] up
@@ -165,7 +169,7 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
  		if (iface_is_link())
  
  method manual
-@@ -114,11 +114,11 @@
+@@ -118,11 +118,11 @@
  
    up
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.mtu=%mtu%]]
@@ -180,16 +184,19 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
          if (iface_is_link() || !do_all)
  
  method dhcp
-@@ -142,7 +142,7 @@
+@@ -146,9 +146,9 @@
      /sbin/modprobe -q net-pf-10 > /dev/null 2>&1 || true # ignore failure.
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.accept_ra=%accept_ra%]]
      -[[/sbin/sysctl -q -e -w net.ipv6.conf.%iface/.//%.autoconf=%autoconf%]]
+-    /bin/ip addr flush dev %iface% mngtmpaddr \
++    /sbin/ip addr flush dev %iface% mngtmpaddr \
+         if (var_set("accept_ra", ifd) && !var_true("accept_ra", ifd))
 -    /bin/ip link set dev %iface% [[address %hwaddress%]] up
 +    /sbin/ip link set dev %iface% [[address %hwaddress%]] up
      /lib/ifupdown/wait-for-ll6.sh if (execable("/lib/ifupdown/wait-for-ll6.sh"))
      /sbin/dhclient -6 -pf /run/dhclient6.%iface%.pid -lf /var/lib/dhcp/dhclient6.%iface%.leases -I -P -N -df /var/lib/dhcp/dhclient.%iface%.leases %iface% \
          if (execable("/sbin/dhclient") && var_true("request_prefix", ifd))
-@@ -157,7 +157,7 @@
+@@ -163,7 +163,7 @@
      echo 'No DHCPv6 client software found!' >/dev/stderr; false \
          elsif (1)
  
@@ -198,7 +205,7 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
  		if (iface_is_link())
  
  method v4tunnel
-@@ -183,15 +183,15 @@
+@@ -189,15 +189,15 @@
  
    up
      /sbin/modprobe -q net-pf-10 > /dev/null 2>&1 || true # ignore failure.
@@ -220,7 +227,7 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
  
  method 6to4
    description
-@@ -212,16 +212,16 @@
+@@ -218,16 +218,16 @@
  
    up
      /sbin/modprobe -q net-pf-10 > /dev/null 2>&1 || true # ignore failure.
@@ -244,17 +251,17 @@ diff -Naur ifupdown.orig/inet6.defn ifupdown/inet6.defn
  
  
  architecture kfreebsd
-diff -Naur ifupdown.orig/link.defn ifupdown/link.defn
---- ifupdown.orig/link.defn	2016-04-21 08:35:56.000000000 -0700
-+++ ifupdown/link.defn	2016-06-01 13:19:31.682554276 -0700
-@@ -16,15 +16,15 @@
-     if test -d /sys/class/net/%link% -a \
-             ! -d /sys/class/net/%iface0% ; \
-     then \
--        /bin/ip link set up dev %link%; \
--        /bin/ip link add link %link% name %iface0% type vlan id %vlan_id%; \
-+        /sbin/ip link set up dev %link%; \
-+        /sbin/ip link add link %link% name %iface0% type vlan id %vlan_id%; \
+--- ifupdown/link.defn.orig	2016-09-22 05:19:23.000000000 -0400
++++ ifupdown/link.defn	2016-09-26 20:35:06.017280543 -0400
+@@ -19,20 +19,20 @@
+         if test -d /sys/class/net/%link%/device/infiniband; then \
+             echo 0x%vlan_id1% > /sys/class/net/%link%/create_child; \
+         else \
+-            /bin/ip link set up dev %link%; \
+-            /bin/ip link add link %link% name %iface0% type vlan id %vlan_id%; \
++            /sbin/ip link set up dev %link%; \
++            /sbin/ip link add link %link% name %iface0% type vlan id %vlan_id%; \
+ 	fi; \
      fi if (iface_has(".") && (!var_set_anywhere("bridge_ports", ifd)))
 -    -/bin/ip link set up dev %iface% 2>/dev/null \
 +    -/sbin/ip link set up dev %iface% 2>/dev/null \
@@ -262,9 +269,13 @@ diff -Naur ifupdown.orig/link.defn ifupdown/link.defn
 -    [[/bin/ip link set %iface0% alias "%description%"]]
 +    [[/sbin/ip link set %iface0% alias "%description%"]]
    down
--    /bin/ip link del %iface% if (iface_has(".") && (!iface_has(":")) && (!var_set_anywhere("bridge_ports", ifd)))
+     if test -d /sys/class/net/%link%/device/infiniband; then \
+         echo 0x%vlan_id1% > /sys/class/net/%link%/delete_child; \
+     else \
+-        /bin/ip link del %iface%; \
++        /sbin/ip link del %iface%; \
+     fi if (iface_has(".") && (!iface_has(":")) && (!var_set_anywhere("bridge_ports", ifd)))
 -    -/bin/ip link set down dev %iface% 2>/dev/null \
-+    /sbin/ip link del %iface% if (iface_has(".") && (!iface_has(":")) && (!var_set_anywhere("bridge_ports", ifd)))
 +    -/sbin/ip link set down dev %iface% 2>/dev/null \
  	if (iface_is_lo())
      [[-test -n "%description%" && /bin/echo > /sys/class/net/%iface0%/ifalias]]
