@@ -1,0 +1,126 @@
+Adapted from https://github.com/antirez/redis/commit/e6f39338e6464fb29f630120d8949b0d535e2e3f.patch
+
+--- src/config.c.orig	2014-12-16 03:18:20.000000000 -0500
++++ src/config.c	2016-09-30 16:25:06.586589235 -0400
+@@ -49,7 +49,7 @@
+     {NULL, 0}
+ };
+ 
+-clientBufferLimitsConfig clientBufferLimitsDefaults[REDIS_CLIENT_TYPE_COUNT] = {
++clientBufferLimitsConfig clientBufferLimitsDefaults[REDIS_CLIENT_TYPE_OBUF_COUNT] = {
+     {0, 0, 0}, /* normal */
+     {1024*1024*256, 1024*1024*64, 60}, /* slave */
+     {1024*1024*32, 1024*1024*8, 60}  /* pubsub */
+@@ -1105,13 +1105,13 @@
+         sds buf = sdsempty();
+         int j;
+ 
+-        for (j = 0; j < REDIS_CLIENT_TYPE_COUNT; j++) {
++        for (j = 0; j < REDIS_CLIENT_TYPE_OBUF_COUNT; j++) {
+             buf = sdscatprintf(buf,"%s %llu %llu %ld",
+                     getClientTypeName(j),
+                     server.client_obuf_limits[j].hard_limit_bytes,
+                     server.client_obuf_limits[j].soft_limit_bytes,
+                     (long) server.client_obuf_limits[j].soft_limit_seconds);
+-            if (j != REDIS_CLIENT_TYPE_COUNT-1)
++            if (j != REDIS_CLIENT_TYPE_OBUF_COUNT-1)
+                 buf = sdscatlen(buf," ",1);
+         }
+         addReplyBulkCString(c,"client-output-buffer-limit");
+@@ -1526,7 +1526,7 @@
+     int j;
+     char *option = "client-output-buffer-limit";
+ 
+-    for (j = 0; j < REDIS_CLIENT_TYPE_COUNT; j++) {
++    for (j = 0; j < REDIS_CLIENT_TYPE_OBUF_COUNT; j++) {
+         int force = (server.client_obuf_limits[j].hard_limit_bytes !=
+                     clientBufferLimitsDefaults[j].hard_limit_bytes) ||
+                     (server.client_obuf_limits[j].soft_limit_bytes !=
+--- src/networking.c.orig	2014-12-16 03:18:20.000000000 -0500
++++ src/networking.c	2016-09-30 16:37:53.980349749 -0400
+@@ -1526,12 +1526,13 @@
+  * REDIS_CLIENT_TYPE_NORMAL -> Normal client
+  * REDIS_CLIENT_TYPE_SLAVE  -> Slave or client executing MONITOR command
+  * REDIS_CLIENT_TYPE_PUBSUB -> Client subscribed to Pub/Sub channels
++ * REDIS_CLIENT_TYPE_MASTER -> The client representing our replication master.
+  */
+ int getClientType(redisClient *c) {
++    if (c->flags & REDIS_MASTER) return REDIS_CLIENT_TYPE_MASTER;
+     if ((c->flags & REDIS_SLAVE) && !(c->flags & REDIS_MONITOR))
+         return REDIS_CLIENT_TYPE_SLAVE;
+-    if (c->flags & REDIS_PUBSUB)
+-        return REDIS_CLIENT_TYPE_PUBSUB;
++    if (c->flags & REDIS_PUBSUB) return REDIS_CLIENT_TYPE_PUBSUB;
+     return REDIS_CLIENT_TYPE_NORMAL;
+ }
+ 
+@@ -1539,6 +1540,7 @@
+     if (!strcasecmp(name,"normal")) return REDIS_CLIENT_TYPE_NORMAL;
+     else if (!strcasecmp(name,"slave")) return REDIS_CLIENT_TYPE_SLAVE;
+     else if (!strcasecmp(name,"pubsub")) return REDIS_CLIENT_TYPE_PUBSUB;
++    else if (!strcasecmp(name,"master")) return REDIS_CLIENT_TYPE_MASTER;
+     else return -1;
+ }
+ 
+@@ -1547,6 +1549,7 @@
+     case REDIS_CLIENT_TYPE_NORMAL: return "normal";
+     case REDIS_CLIENT_TYPE_SLAVE:  return "slave";
+     case REDIS_CLIENT_TYPE_PUBSUB: return "pubsub";
++    case REDIS_CLIENT_TYPE_MASTER: return "master";
+     default:                       return NULL;
+     }
+ }
+@@ -1562,6 +1565,10 @@
+     unsigned long used_mem = getClientOutputBufferMemoryUsage(c);
+ 
+     class = getClientType(c);
++    /* For the purpose of output buffer limiting, masters are handled
++     * like normal clients. */
++    if (class == REDIS_CLIENT_TYPE_MASTER) class = REDIS_CLIENT_TYPE_NORMAL;
++
+     if (server.client_obuf_limits[class].hard_limit_bytes &&
+         used_mem >= server.client_obuf_limits[class].hard_limit_bytes)
+         hard = 1;
+--- src/redis.h.orig	2014-12-16 03:18:20.000000000 -0500
++++ src/redis.h	2016-09-30 16:29:11.324284488 -0400
+@@ -261,7 +261,10 @@
+ #define REDIS_CLIENT_TYPE_NORMAL 0 /* Normal req-reply clients + MONITORs */
+ #define REDIS_CLIENT_TYPE_SLAVE 1  /* Slaves. */
+ #define REDIS_CLIENT_TYPE_PUBSUB 2 /* Clients subscribed to PubSub channels. */
+-#define REDIS_CLIENT_TYPE_COUNT 3
++#define REDIS_CLIENT_TYPE_MASTER 3 /* Master. */
++#define REDIS_CLIENT_TYPE_OBUF_COUNT 3 /* Number of clients to expose to output
++                                          buffer configuration. Just the first
++                                          three: normal, slave, pubsub. */
+ 
+ /* Slave replication state - from the point of view of the slave. */
+ #define REDIS_REPL_NONE 0 /* No active replication */
+@@ -569,7 +572,7 @@
+     time_t soft_limit_seconds;
+ } clientBufferLimitsConfig;
+ 
+-extern clientBufferLimitsConfig clientBufferLimitsDefaults[REDIS_CLIENT_TYPE_COUNT];
++extern clientBufferLimitsConfig clientBufferLimitsDefaults[REDIS_CLIENT_TYPE_OBUF_COUNT];
+ 
+ /* The redisOp structure defines a Redis Operation, that is an instance of
+  * a command with an argument vector, database ID, propagation target
+@@ -685,7 +688,7 @@
+     size_t client_max_querybuf_len; /* Limit for client query buffer length */
+     int dbnum;                      /* Total number of configured DBs */
+     int daemonize;                  /* True if running as a daemon */
+-    clientBufferLimitsConfig client_obuf_limits[REDIS_CLIENT_TYPE_COUNT];
++    clientBufferLimitsConfig client_obuf_limits[REDIS_CLIENT_TYPE_OBUF_COUNT];
+     /* AOF persistence */
+     int aof_state;                  /* REDIS_AOF_(ON|OFF|WAIT_REWRITE) */
+     int aof_fsync;                  /* Kind of fsync() policy */
+--- src/redis.c.orig	2014-12-16 03:18:20.000000000 -0500
++++ src/redis.c	2016-09-30 16:28:51.135397850 -0400
+@@ -1419,7 +1419,7 @@
+     server.repl_no_slaves_since = time(NULL);
+ 
+     /* Client output buffer limits */
+-    for (j = 0; j < REDIS_CLIENT_TYPE_COUNT; j++)
++    for (j = 0; j < REDIS_CLIENT_TYPE_OBUF_COUNT; j++)
+         server.client_obuf_limits[j] = clientBufferLimitsDefaults[j];
+ 
+     /* Double constants initialization */
