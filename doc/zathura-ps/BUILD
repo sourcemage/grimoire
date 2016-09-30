@@ -1,0 +1,3 @@
+OPTS="VERBOSE=1 $OPTS" &&
+
+make $OPTS
