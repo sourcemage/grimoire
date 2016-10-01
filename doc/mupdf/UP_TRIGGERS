@@ -1,0 +1,11 @@
+# up_trigger everything on recast because of static libs (libmupdf.a, libmupdfthird.a)
+
+if spell_ok ${SPELL}; then
+  message "${MESSAGE_COLOR}This is due to rebuild of static libraries in ${SPELL_COLOR}${SPELL}${MESSAGE_COLOR}"
+  message "Figuring out what spells need to be recast, this may take a while...${DEFAULT_COLOR}"
+  for each in $(show_up_depends ${SPELL} 1); do
+    if gaze install $each | xargs readelf -s 2> /dev/null | grep -q "FUNC.*fz_"; then
+      up_trigger $each cast_self
+    fi
+  done
+fi
