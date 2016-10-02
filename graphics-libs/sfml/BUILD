@@ -1,1 +1,2 @@
+OPTS="$OPTS -DSFML_INSTALL_PKGCONFIG_FILES=on" &&
 cmake_build
