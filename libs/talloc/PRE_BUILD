@@ -1,9 +1,15 @@
-default_pre_build                 &&
-cd  $SOURCE_DIRECTORY &&
-if [[ "$TALLOC_SCM" == "y" ]]
-then
+default_pre_build       &&
+cd  "$SOURCE_DIRECTORY" &&
+
+if [[ "$TALLOC_SCM" == "y" ]]; then
   cd lib/$SPELL &&
   NOCONFIGURE="on"  ./autogen.sh
-fi
+fi &&
+
+cd "${SOURCE_DIRECTORY}" &&
+if ! is_depends_enabled $SPELL docbook-xsl; then
+  patch -p1 < "${SPELL_DIRECTORY}/0001-do-not-build-manpage.patch"
+fi &&
+
 # XXX doesn't work with python3
 sedit '1s/$/2/' buildtools/bin/waf
