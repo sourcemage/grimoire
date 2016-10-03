@@ -1,0 +1,107 @@
+depends "automake" &&
+
+persistent_add TMP_NEOMUTT_OPTS &&
+TMP_NEOMUTT_OPTS=""             &&
+
+optional_depends   "MAIL-TRANSPORT-AGENT"                       \
+                   ""                                           \
+                   ""                                           \
+                   "to send mail"                               &&
+
+config_query_list TERMINAL_LIBRARY                              \
+                  "Build against which terminal library?"       \
+                  ncurses slang                                 &&
+
+if [[ ${TERMINAL_LIBRARY} = "ncurses" ]]; then
+  TMP_NEOMUTT_OPTS="${TMP_NEOMUTT_OPTS} --with-curses"
+else
+  TMP_NEOMUTT_OPTS="${TMP_NEOMUTT_OPTS} --with-${TERMINAL_LIBRARY}"
+fi &&
+
+depends "${TERMINAL_LIBRARY}"                                   &&
+
+optional_depends   "gnupg"                                      \
+                   ""                                           \
+                   "--disable-pgp"                              \
+                   "to support PGP signing and encrypting messages" &&
+
+optional_depends   "ispell"                                     \
+                   ""                                           \
+                   ""                                           \
+                   "for spell checking"                         &&
+
+# Do NOT add --with-ssl here, that only works if POP/IMAP are used.  This is
+# mostly just here to prompt for SSL if they don't have it and want
+# S/MIME.
+optional_depends "SSL"                                        \
+                 ""                                           \
+                 ""                                           \
+                 "to support S/MIME signing and encrypting messages" &&
+
+optional_depends "gpgme"                                      \
+                 "--enable-gpgme"                             \
+                 ""                                           \
+                 "alternate backend for PGP and S/MIME"       &&
+
+if list_find "${NEOMUTT_OPTS}" "--enable-hcache"; then
+  config_query_list HCACHE_BACKEND                            \
+                    "Use which header cache backend?"         \
+                    gdbm db lmdb                              &&
+  if [[ "$HCACHE_BACKEND" == "db" ]]; then
+    TMP_NEOMUTT_OPTS="${TMP_NEOMUTT_OPTS} --without-gdbm --with-bdb"
+  elif [[ "$HCACHE_BACKEND" == "lmdb" ]]; then
+    TMP_NEOMUTT_OPTS="${TMP_NEOMUTT_OPTS} --without-gdbm --with-lmdb"
+  fi &&
+  depends "${HCACHE_BACKEND}"
+fi &&
+
+optional_depends "tokyocabinet"                               \
+                 ""                                           \
+                 "--without-tokyocabinet"                     \
+                 "Use tokyocabinet?"                          &&
+
+optional_depends "kyotocabinet"                               \
+                 ""                                           \
+                 "--without-kyotocabinet"                     \
+                 "Use kyotocabinet?"                          &&
+
+optional_depends "qdbm"                                       \
+                 ""                                           \
+                 "--without-qdbm"                             \
+                 "Use kyotocabinet?"                          &&
+
+optional_depends "libidn"                                     \
+                 "--with-idn"                                 \
+                 ""                                           \
+                 "to use GNU libidn for domain names"         &&
+
+if list_find "${NEOMUTT_OPTS}" "--enable-pop" || list_find "${NEOMUTT_OPTS}" "--enable-imap"; then
+  # If they have POP/IMAP then prompt again for SSL to get --with-ssl.
+  optional_depends "SSL"                                        \
+                   "--with-ssl"                                 \
+                   ""                                           \
+                   "to enable SSL support for POP/IMAP"         &&
+
+  optional_depends "gnutls"                                     \
+                   "--with-gnutls"                              \
+                   ""                                           \
+                   "to enable SSL support for POP/IMAP via gnutls" &&
+
+  optional_depends "libsasl"                                   \
+                   "--with-sasl"                               \
+                   ""                                          \
+                   "to enable SASL2 authentication for POP/IMAP"
+fi &&
+
+if list_find "${NEOMUTT_OPTS}" "--enable-imap"; then
+  optional_depends "krb5"                                       \
+                   "--with-gss"                                 \
+                   ""                                           \
+                   "to enable GSSAPI authentication for IMAP"
+fi &&
+
+optional_depends "notmuch"                                      \
+                 "--enable-notmuch"                             \
+                 "--disable-notmuch"                            \
+                 "Enable NOTMUCH support"
+
