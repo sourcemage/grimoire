@@ -2,7 +2,7 @@
 
 . /etc/sysconfig/subversion
 
-PIDFILE=/var/run/subversion.pid
+PIDFILE=/var/run/subversion/svnserve.pid
 PROGRAM=/usr/bin/svnserve
 RUNLEVEL=3
 NEEDS="+network +remote_fs"
@@ -17,5 +17,17 @@ OPTS="-d --pid-file $PIDFILE -r $REPOSITORIES"
 
 start()
 {
-  loadproc "${PROGRAM}" $OPTS
+  mkdir -p $(dirname $PIDFILE)
+  if [[ -z "$DAEMON_USER" ]]; then
+    loadproc "${PROGRAM}" $OPTS
+  else
+    # This can succeed to start svnserve,
+    # but that could quickly fail without us noticing.
+    chown "$DAEMON_USER" $(dirname $PIDFILE) &&
+    su -c "$PROGRAM $OPTS" "$DAEMON_USER"
+    # Kludge to detect failure (because of user permissions, normally).
+    sleep 1
+    test -e /proc/$(cat $PIDFILE)/exe
+    evaluate_retval
+  fi
 }
