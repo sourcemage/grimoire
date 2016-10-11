@@ -8,6 +8,12 @@ if ! is_depends_enabled $SPELL libselinux; then
   sedit "/^HAVE_SELINUX/d" Config
 fi &&
 
+if ! is_depends_enabled ${SPELL} db
+then
+  sedit "/^HAVE_BERKELEY_DB/d" Config &&
+  sedit "/ARPDDIR/d" Makefile
+fi &&
+
 echo "CFLAGS += -I$INSTALL_ROOT/usr/include/libnl3" >> ip/Makefile &&
 
 if gcc -include netinet/in.h -E - < /dev/null | grep -q IPPROTO_SCTP ; then
