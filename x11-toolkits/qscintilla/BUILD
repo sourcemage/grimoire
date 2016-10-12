@@ -1,12 +1,6 @@
-
-QTDIR=/usr                              &&
-local QTSCINT                           &&
-if is_depends_enabled $SPELL qt4 ; then
-  PATH=$QTDIR/bin/qt4:$PATH
-  QTSCINT=Qt4Qt5
+cd $SOURCE_DIRECTORY/Qt4Qt5 &&
+if is_depends_enabled $SPELL qt4; then
+  qt4_build
 else
-  QTSCINT=Qt3
-fi &&
- cd $SOURCE_DIRECTORY/$QTSCINT          &&
- PATH=$INSTALL_ROOT/opt/qt4/bin:$PATH qmake qscintilla.pro &&
- make
+  qt5_build
+fi
