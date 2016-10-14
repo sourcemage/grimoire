@@ -1,0 +1,162 @@
+From 39d30073180aeed73ce26ca2a20be19d643e3160 Mon Sep 17 00:00:00 2001
+From: Lukas Fleischer <lfleischer@calcurse.org>
+Date: Fri, 14 Oct 2016 07:44:37 +0200
+Subject: Prevent segfault when all todo items are hidden
+
+To prevent from illegal memory access, we checked whether the list of
+todo items is empty before performing an interactive todo item action
+such as flagging or removal. However, since 1a4bf2b (Add a "hide
+completed" view to the todo panel, 2016-01-17), it is possible to hide
+completed items from the todo panel. Thus, it may occur that the todo
+list box is empty while the list of todo items is not.
+
+To detect such situations as well, teach todo_get_item() to return NULL
+if the requested item does not exist. Then, instead of checking whether
+the todo item list is non-empty, make sure that the item returned by
+todo_get_item() is non-NULL when performing an action.
+
+Reported-by: Vlad Glagolev <scm@vaygr.net>
+Signed-off-by: Lukas Fleischer <lfleischer@calcurse.org>
+---
+ src/todo.c    |  3 +++
+ src/ui-todo.c | 46 +++++++++++++++++++++++++---------------------
+ 2 files changed, 28 insertions(+), 21 deletions(-)
+
+diff --git a/src/todo.c b/src/todo.c
+index 9a6f72f..8027803 100644
+--- a/src/todo.c
++++ b/src/todo.c
+@@ -59,6 +59,9 @@ struct todo *todo_get_item(int item_number, int skip_completed)
+ 	else
+ 		i = LLIST_NTH(&todolist, item_number);
+ 
++	if (!i)
++		return NULL;
++
+ 	return LLIST_GET_DATA(i);
+ }
+ 
+diff --git a/src/ui-todo.c b/src/ui-todo.c
+index 8eaef08..50bb30d 100644
+--- a/src/ui-todo.c
++++ b/src/ui-todo.c
+@@ -87,15 +87,14 @@ void ui_todo_delete(void)
+ 	const int nb_erase_choice = 2;
+ 	int answer;
+ 
+-	if (!LLIST_FIRST(&todolist) ||
+-	    (conf.confirm_delete
+-	     && (status_ask_bool(del_todo_str) != 1))) {
++	struct todo *item = ui_todo_selitem();
++
++	if (!item || (conf.confirm_delete &&
++		      (status_ask_bool(del_todo_str) != 1))) {
+ 		wins_erase_status_bar();
+ 		return;
+ 	}
+ 
+-	struct todo *item = ui_todo_selitem();
+-
+ 	if (item->note)
+ 		answer = status_ask_choice(erase_warning, erase_choice,
+ 					   nb_erase_choice);
+@@ -121,12 +120,12 @@ void ui_todo_delete(void)
+ /* Edit the description of an already existing todo item. */
+ void ui_todo_edit(void)
+ {
+-	if (!LLIST_FIRST(&todolist))
+-		return;
+-
+ 	struct todo *item = ui_todo_selitem();
+ 	const char *mesg = _("Enter the new TODO description:");
+ 
++	if (!item)
++		return;
++
+ 	status_mesg(mesg, "");
+ 	updatestring(win[STA].p, &item->mesg, 0, 1);
+ 	todo_resort(item);
+@@ -144,11 +143,11 @@ void ui_todo_pipe(void)
+ 	int pid;
+ 	FILE *fpout;
+ 
+-	if (!LLIST_FIRST(&todolist))
+-		return;
+-
+ 	struct todo *item = ui_todo_selitem();
+ 
++	if (!item)
++		return;
++
+ 	status_mesg(_("Pipe item to external command:"), "");
+ 	if (getstring(win[STA].p, cmd, BUFSIZ, 0, 1) != GETSTRING_VALID)
+ 		return;
+@@ -284,10 +283,11 @@ void ui_todo_update_panel(int which_pan)
+ /* Change an item priority by pressing '+' or '-' inside TODO panel. */
+ void ui_todo_chg_priority(int diff)
+ {
+-	if (!LLIST_FIRST(&todolist))
++	struct todo *item = ui_todo_selitem();
++
++	if (!item)
+ 		return;
+ 
+-	struct todo *item = ui_todo_selitem();
+ 	int id = item->id + diff;
+ 	struct todo *item_new;
+ 
+@@ -304,19 +304,21 @@ void ui_todo_chg_priority(int diff)
+ 
+ void ui_todo_popup_item(void)
+ {
+-	if (!LLIST_FIRST(&todolist))
++	struct todo *item = ui_todo_selitem();
++
++	if (!item)
+ 		return;
+ 
+-	struct todo *item = ui_todo_selitem();
+ 	item_in_popup(NULL, NULL, item->mesg, _("TODO:"));
+ }
+ 
+ void ui_todo_flag(void)
+ {
+-	if (!LLIST_FIRST(&todolist))
++	struct todo *item = ui_todo_selitem();
++
++	if (!item)
+ 		return;
+ 
+-	struct todo *item = ui_todo_selitem();
+ 	todo_flag(item);
+ 	ui_todo_load_items();
+ 	io_set_modified();
+@@ -325,19 +327,21 @@ void ui_todo_flag(void)
+ 
+ void ui_todo_view_note(void)
+ {
+-	if (!LLIST_FIRST(&todolist))
++	struct todo *item = ui_todo_selitem();
++
++	if (!item)
+ 		return;
+ 
+-	struct todo *item = ui_todo_selitem();
+ 	todo_view_note(item, conf.pager);
+ }
+ 
+ void ui_todo_edit_note(void)
+ {
+-	if (!LLIST_FIRST(&todolist))
++	struct todo *item = ui_todo_selitem();
++
++	if (!item)
+ 		return;
+ 
+-	struct todo *item = ui_todo_selitem();
+ 	todo_edit_note(item, conf.editor);
+ 	io_set_modified();
+ }
+-- 
+cgit v0.12-53-gcebf
+
