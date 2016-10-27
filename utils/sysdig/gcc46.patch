@@ -29,7 +29,20 @@
  	vector<sinsp_evt_param> m_params;
 --- userspace/libsinsp/sinsp.h.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/sinsp.h	2016-06-25 18:51:54.626135898 -0400
-@@ -837,7 +837,7 @@
+@@ -851,10 +851,10 @@
+ 	std::shared_ptr<sinsp_bearer_token> m_k8s_bt;
+ 	unique_ptr<k8s_api_handler> m_k8s_api_handler;
+ 	shared_ptr<socket_collector<socket_data_handler<k8s_handler>>> m_k8s_collector;
+-	bool m_k8s_api_detected = false;
++	bool m_k8s_api_detected;
+ 	unique_ptr<k8s_api_handler> m_k8s_ext_handler;
+ 	k8s_ext_list_ptr_t m_ext_list_ptr;
+-	bool m_k8s_ext_detect_done = false;
++	bool m_k8s_ext_detect_done;
+ #endif // HAS_CAPTURE
+ 	k8s* m_k8s_client;
+ 	uint64_t m_k8s_last_watch_time_ns;
+@@ -871,7 +871,7 @@
  	// True if sysdig is ran with -v.
  	// Used by mesos and k8s objects.
  	//
@@ -40,7 +53,7 @@
  	// True if the command line argument is set to show container information
 --- userspace/libsinsp/sinsp.cpp.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/sinsp.cpp	2016-06-25 18:53:28.084183609 -0400
-@@ -105,6 +105,7 @@
+@@ -109,11 +109,14 @@
  	m_last_procrequest_tod = 0;
  	m_get_procs_cpu_from_driver = false;
  	m_is_tracers_capture_enabled = false;
@@ -48,6 +61,13 @@
  
  	// Unless the cmd line arg "-pc" or "-pcontainer" is supplied this is false
  	m_print_container_data = false;
+ 
+ #if defined(HAS_CAPTURE)
++	m_k8s_api_detected = false;
++	m_k8s_ext_detect_done = false;
+ 	m_sysdig_pid = getpid();
+ #endif
+ 
 --- userspace/libsinsp/k8s_component.h.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/k8s_component.h	2016-06-25 20:15:58.464230081 -0400
 @@ -29,6 +29,8 @@
@@ -68,7 +88,32 @@
  		std::string m_protocol;
  	};
  
-@@ -280,8 +282,8 @@
+@@ -117,12 +119,14 @@
+ 
+ 	struct msg_data
+ 	{
+-		msg_reason  m_reason = COMPONENT_UNKNOWN;
++		msg_reason  m_reason;
+ 		std::string m_name;
+ 		std::string m_uid;
+ 		std::string m_namespace;
+ 		std::string m_kind;
+ 
++		msg_data(): m_reason(COMPONENT_UNKNOWN) {}
++
+ 		bool is_valid() const
+ 		{
+ 			return m_reason != COMPONENT_UNKNOWN;
+@@ -200,7 +204,7 @@
+ 			{
+ 				if(item.isConvertibleTo(Json::stringValue))
+ 				{
+-					list.emplace(item.asString());
++					list.insert(item.asString());
+ 				}
+ 			}
+ 		}
+@@ -342,8 +346,8 @@
  	std::string       m_node_name;
  	std::string       m_host_ip;
  	std::string       m_internal_ip;
@@ -79,8 +124,8 @@
  };
  
  
-@@ -318,8 +318,8 @@
- 	static int get_count(const Json::Value& item, const std::string& replica_name = "replicas");
+@@ -367,8 +371,8 @@
+ 	static void set_replicas(k8s_replicas_t& replicas, const Json::Value& item);
  
  protected:
 -	int m_spec_replicas = UNKNOWN_REPLICAS;
@@ -90,7 +135,7 @@
  };
  
  
-@@ -322,10 +324,12 @@
+@@ -424,10 +428,12 @@
  public:
  	struct net_port
  	{
@@ -106,7 +151,16 @@
  	};
  
  	typedef std::vector<net_port> port_list;
-@@ -578,7 +578,7 @@
+@@ -527,7 +533,7 @@
+ 
+ 	name_translation_map_t  m_name_translation;
+ 	std::map<std::string, Json::Value> m_postponed_events;
+-	bool m_force_delete = false;
++	bool m_force_delete;
+ };
+ 
+ typedef std::vector<k8s_ns_t>         k8s_namespaces;
+@@ -735,7 +741,7 @@
  
  inline void k8s_node_t::emplace_host_ip(std::string&& host_ip)
  {
@@ -117,7 +171,7 @@
  inline std::string k8s_node_t::get_node_name() const
 --- userspace/libsinsp/k8s_component.cpp.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/k8s_component.cpp	2016-06-25 20:17:15.024315567 -0400
-@@ -505,7 +505,7 @@
+@@ -427,7 +427,7 @@
  							const Json::Value& ip = address[entry];
  							if(!ip.isNull())
  							{
@@ -126,12 +180,22 @@
  							}
  						}
  					}
-@@ -522,7 +522,7 @@
+@@ -444,7 +444,7 @@
  //
  
  k8s_pod_t::k8s_pod_t(const std::string& name, const std::string& uid, const std::string& ns) :
 -	k8s_component(COMPONENT_TYPE, name, uid, ns)
 +	k8s_component(COMPONENT_TYPE, name, uid, ns), m_restart_count_tot(-1), m_restart_count_diff(0)
+ {
+ }
+ 
+@@ -768,7 +768,8 @@
+ 		// Daemon Set
+ 		//
+ 		// { "SelectingAll", "Selecting All Pods" } duplicate
+-	}
++	},
++	m_force_delete(false)
  {
  }
  
@@ -157,43 +221,38 @@
  {
  	parsed_uri p_uri = parse_uri(str.c_str());
  	if(p_uri.error)
---- userspace/libsinsp/sinsp_curl.h.orig	2016-06-17 11:55:07.000000000 -0400
-+++ userspace/libsinsp/sinsp_curl.h	2016-06-25 21:23:27.769971736 -0400
-@@ -43,7 +43,7 @@
- 		std::string m_key;
- 		std::string m_key_passphrase;
- 		std::string m_ca_cert;
--		bool        m_verify_peer = false;
-+		bool        m_verify_peer;
  	};
  
  	class bearer_token
 --- userspace/libsinsp/mesos_http.h.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/mesos_http.h	2016-06-25 20:36:26.381379731 -0400
-@@ -99,7 +99,7 @@
- 	marathon_uri_t          m_marathon_uris;
+@@ -99,8 +99,8 @@
  	bool                    m_discover_lead_master;
  	bool                    m_discover_marathon;
+ 	//bool                    m_redirect = false;
 -	std::string::size_type  m_content_length = std::string::npos;
+-	char                    m_redirect[CURL_MAX_HTTP_HEADER] = {0};
 +	std::string::size_type  m_content_length;
++	char                    m_redirect[CURL_MAX_HTTP_HEADER];
  
  	friend class mesos;
  
 --- userspace/libsinsp/mesos_http.cpp.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/mesos_http.cpp	2016-06-25 20:37:03.018404617 -0400
-@@ -32,7 +32,8 @@
+@@ -33,7 +33,9 @@
  	m_request(make_request(url, m_curl_version)),
  	m_is_mesos_state(url.to_string().find(mesos::default_state_api) != std::string::npos),
  	m_discover_lead_master(discover_mesos_lead_master),
 -	m_discover_marathon(discover_marathon)
 +	m_discover_marathon(discover_marathon),
-+	m_content_length(std::string::npos)
++	m_content_length(std::string::npos),
++	m_redirect({0})
  {
  	if(!m_sync_curl || !m_select_curl)
  	{
 --- userspace/libsinsp/mesos.h.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/mesos.h	2016-06-25 20:42:53.884642953 -0400
-@@ -134,19 +134,19 @@
+@@ -141,20 +141,20 @@
  	void remove_framework(const Json::Value& framework);
  
  	mesos_state_t m_state;
@@ -206,21 +265,23 @@
 +	bool          m_verbose;
  
  	typedef std::map<std::string, json_ptr_t> json_map_type_t;
- 	json_ptr_t      m_mesos_state_json;
- 	json_map_type_t m_marathon_groups_json;
- 	json_map_type_t m_marathon_apps_json;
--	time_t          m_last_mesos_refresh = 0;
--	time_t          m_last_marathon_refresh = 0;
--	bool            m_json_error = false;
-+	time_t          m_last_mesos_refresh;
-+	time_t          m_last_marathon_refresh;
-+	bool            m_json_error;
+ 	json_ptr_t         m_mesos_state_json;
+ 	json_map_type_t    m_marathon_groups_json;
+ 	json_map_type_t    m_marathon_apps_json;
+-	time_t             m_last_mesos_refresh = 0;
+-	time_t             m_last_marathon_refresh = 0;
+-	bool               m_json_error = false;
+-	bool               m_testing = false;
++	time_t             m_last_mesos_refresh;
++	time_t             m_last_marathon_refresh;
++	bool               m_json_error;
++	bool               m_testing;
+ 	uri::credentials_t m_mesos_credentials;
+ 	uri::credentials_t m_marathon_credentials;
  
- 	typedef std::unordered_set<std::string> framework_list_t;
- 	framework_list_t m_inactive_frameworks;
 --- userspace/libsinsp/mesos.cpp.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/mesos.cpp	2016-06-25 20:43:53.976683772 -0400
-@@ -42,6 +42,11 @@
+@@ -42,6 +42,12 @@
  		m_timeout_ms(timeout_ms),
  		m_verbose(verbose)
  {
@@ -229,6 +290,7 @@
 +	m_last_mesos_refresh = 0;
 +	m_last_marathon_refresh = 0;
 +	m_json_error = false;
++	m_testing = false;
  #ifdef HAS_CAPTURE
  	g_logger.log(std::string("Creating Mesos object for [" +
  							 (m_mesos_uri.empty() ? std::string("capture replay") : m_mesos_uri)  +
@@ -252,17 +314,6 @@
  
  friend class sinsp_filter_check_list;
  };
---- userspace/libsinsp/filter.cpp.orig	2016-06-17 11:55:07.000000000 -0400
-+++ userspace/libsinsp/filter.cpp	2016-06-25 20:47:56.550997253 -0400
-@@ -480,6 +480,8 @@
- 	m_aggregation = A_NONE;
- 	m_merge_aggregation = A_NONE;
- 	m_val_storages = vector<vector<uint8_t>> (1, vector<uint8_t>(256));
-+	m_needs_state_tracking = false;
-+	m_check_id = 0;
- }
- 
- void sinsp_filter_check::set_inspector(sinsp* inspector)
 --- userspace/libsinsp/container.cpp.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/container.cpp	2016-06-25 20:50:32.806255548 -0400
 @@ -638,7 +638,7 @@
@@ -325,3 +376,434 @@
  		return true;
  	}
  	user_event_meta_t loc_evt(evt);
+--- userspace/libsinsp/parsers.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/parsers.h	2016-10-26 14:56:47.597630892 -0400
+@@ -176,7 +176,7 @@
+ 	vector<sinsp_protodecoder*> m_protodecoders;
+ 
+ 	metaevents_state m_k8s_metaevents_state;
+-	int              m_k8s_capture_version = -1;
++	int              m_k8s_capture_version;
+ 	metaevents_state m_mesos_metaevents_state;
+ 
+ 	stack<uint8_t*> m_tmp_events_buffer;
+--- userspace/libsinsp/parsers.cpp.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/parsers.cpp	2016-10-26 14:59:28.449800038 -0400
+@@ -56,7 +56,8 @@
+ sinsp_parser::sinsp_parser(sinsp *inspector) :
+ 	m_inspector(inspector),
+ 	m_tmp_evt(m_inspector),
+-	m_fd_listener(NULL)
++	m_fd_listener(NULL),
++	m_k8s_capture_version(-1)
+ {
+ 	m_fake_userevt = (scap_evt*)m_fake_userevt_storage;
+ 	m_inspector->m_partial_tracers_pool = new simple_lifo_queue<sinsp_partial_tracer>(128);
+@@ -69,7 +70,8 @@
+ sinsp_parser::sinsp_parser(sinsp *inspector) :
+ 	m_inspector(inspector),
+ 	m_tmp_evt(m_inspector),
+-	m_fd_listener(NULL)
++	m_fd_listener(NULL),
++	m_k8s_capture_version(-1)
+ {
+ 	m_fake_userevt = (scap_evt*)m_fake_userevt_storage;
+ 
+--- userspace/libsinsp/k8s_state.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/k8s_state.h	2016-10-26 15:11:30.934393292 -0400
+@@ -353,7 +353,7 @@
+ 	// used by to quickly lookup any component by uid
+ 	component_map_t m_component_map;
+ 	bool            m_is_captured;
+-	int             m_capture_version = -1;
++	int             m_capture_version;
+ 
+ 	friend class k8s_dispatcher;
+ 	friend class k8s_handler;
+--- userspace/libsinsp/sinsp_auth.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/sinsp_auth.h	2016-10-26 15:16:38.518894867 -0400
+@@ -40,7 +40,7 @@
+ 	std::string m_key;
+ 	std::string m_key_passphrase;
+ 	std::string m_ca_cert;
+-	bool        m_verify_peer = false;
++	bool        m_verify_peer;
+ };
+ 
+ class sinsp_bearer_token
+--- userspace/libsinsp/socket_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/socket_handler.h	2016-10-26 15:25:11.790901756 -0400
+@@ -60,14 +60,33 @@
+ 			m_url(url),
+ 			m_keep_alive(keep_alive ? std::string("Connection: keep-alive\r\n") : std::string()),
+ 			m_path(path.empty() ? m_url.get_path() : path),
++			m_connecting(false),
++			m_connected(false),
++			m_connect_called(false),
++			m_connection_error(false),
++			m_enabled(false),
++			m_socket(1),
+ 			m_blocking(blocking),
++			m_sock_err(0),
++			m_dns_reqs(nullptr),
+ 			m_ssl(ssl),
+ 			m_bt(bt),
+ 			m_timeout_ms(timeout_ms),
++			m_json_callback(nullptr),
+ 			m_request(make_request(url, http_version)),
+ 			m_http_version(http_version),
+ 			m_json_begin("\r\n{"),
+-			m_json_end(m_http_version == HTTP_VERSION_10 ? "}\r\n" : "}\r\n0")
++			m_json_end(m_http_version == HTTP_VERSION_10 ? "}\r\n" : "}\r\n0"),
++			m_ssl_init_complete(false),
++			m_ssl_context(nullptr),
++			m_ssl_connection(nullptr),
++			m_file_addr({0}),
++			m_serv_addr({0}),
++			m_sa(0),
++			m_sa_len(0),
++			m_content_length(std::string::npos),
++			m_close_on_chunked_end(false),
++			m_is_docker(false)
+ 	{
+ 		g_logger.log(std::string("Creating Socket handler object for (" + id + ") "
+ 					 "[" + uri(url).to_string(false) + ']'), sinsp_logger::SEV_DEBUG);
+@@ -1660,21 +1679,21 @@
+ 	std::string              m_keep_alive;
+ 	std::string              m_path;
+ 	std::string              m_address;
+-	bool                     m_connecting = false;
+-	bool                     m_connected = false;
+-	bool                     m_connect_called = false;
+-	bool                     m_connection_error = false;
+-	bool                     m_enabled = false;
+-	int                      m_socket = -1;
+-	bool                     m_blocking = false;
++	bool                     m_connecting;
++	bool                     m_connected;
++	bool                     m_connect_called;
++	bool                     m_connection_error;
++	bool                     m_enabled;
++	int                      m_socket;
++	bool                     m_blocking;
+ 	std::vector<char>        m_buf;
+-	int                      m_sock_err = 0;
+-	struct gaicb**           m_dns_reqs = nullptr;
++	int                      m_sock_err;
++	struct gaicb**           m_dns_reqs;
+ 	static dns_list_t        m_pending_dns_reqs;
+ 	ssl_ptr_t                m_ssl;
+ 	bt_ptr_t                 m_bt;
+ 	long                     m_timeout_ms;
+-	json_callback_func_t     m_json_callback = nullptr;
++	json_callback_func_t     m_json_callback;
+ 	std::string              m_data_buf;
+ 	std::string              m_request;
+ 	std::string              m_http_version;
+@@ -1682,17 +1701,17 @@
+ 	std::string              m_json_end;
+ 	std::vector<std::string> m_json_filters;
+ 	json_query               m_jq;
+-	bool                     m_ssl_init_complete = false;
+-	SSL_CTX*                 m_ssl_context = nullptr;
+-	SSL*                     m_ssl_connection = nullptr;
++	bool                     m_ssl_init_complete;
++	SSL_CTX*                 m_ssl_context;
++	SSL*                     m_ssl_connection;
+ 	password_vec_t           m_ssl_key_pass;
+-	struct sockaddr_un       m_file_addr = {0};
+-	struct sockaddr_in       m_serv_addr = {0};
+-	struct sockaddr*         m_sa = 0;
+-	socklen_t                m_sa_len = 0;
+-	std::string::size_type   m_content_length = std::string::npos;
+-	bool                     m_close_on_chunked_end = false;
+-	bool                     m_is_docker = false;
++	struct sockaddr_un       m_file_addr;
++	struct sockaddr_in       m_serv_addr;
++	struct sockaddr*         m_sa;
++	socklen_t                m_sa_len;
++	std::string::size_type   m_content_length;
++	bool                     m_close_on_chunked_end;
++	bool                     m_is_docker;
+ };
+ 
+ template <typename T>
+--- userspace/libsinsp/socket_collector.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/socket_collector.h	2016-10-26 15:28:04.390192035 -0400
+@@ -18,7 +18,8 @@
+ 		m_nfds(0),
+ 		m_loop(do_loop),
+ 		m_timeout_ms(timeout_ms),
+-		m_stopped(false)
++		m_stopped(false),
++		m_steady_state(false)
+ 	{
+ 		clear_fds();
+ 	}
+@@ -361,11 +362,11 @@
+ 	socket_map_t     m_sockets;
+ 	fd_set           m_infd;
+ 	fd_set           m_errfd;
+-	int              m_nfds = 0;
+-	bool             m_loop = false;
++	int              m_nfds;
++	bool             m_loop;
+ 	long             m_timeout_ms;
+-	bool             m_stopped = false;
+-	bool             m_steady_state = false;
++	bool             m_stopped;
++	bool             m_steady_state;
+ };
+ 
+ #endif // HAS_CAPTURE
+--- userspace/libsinsp/k8s_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/k8s_handler.h	2016-10-26 15:30:09.826402994 -0400
+@@ -102,9 +102,9 @@
+ 	void log_error(const msg_data& data, const Json::Value& root);
+ 	void log_not_found(const msg_data& data) const;
+ 
+-	k8s_state_t* m_state = nullptr;
+-	bool         m_state_built = false;
+-	bool         m_data_received = false;
++	k8s_state_t* m_state;
++	bool         m_state_built;
++	bool         m_data_received;
+ 	static std::string ERROR_FILTER;
+ 
+ private:
+@@ -141,8 +141,8 @@
+ 	std::string     m_json_end;
+ 	long            m_timeout_ms;
+ 	std::string     m_url;
+-	bool            m_req_sent = false;
+-	bool            m_resp_recvd = false;
++	bool            m_req_sent;
++	bool            m_resp_recvd;
+ 	json_query      m_jq;
+ 	std::string     m_http_version;
+ 	ssl_ptr_t       m_ssl;
+@@ -153,7 +153,7 @@
+ 	// this flag indicates whether handler should continue to watch after receiving
+ 	// the initial state
+ 	bool m_watch;
+-	bool m_watching = false; // indication of being in watch mode
++	bool m_watching; // indication of being in watch mode
+ 
+ 	// flag indicating whether to connect to K8s API server (no connection needed when
+ 	// replaying capture)
+@@ -163,7 +163,7 @@
+ 	// it must have its state fully built before this handler can begin building its own state
+ 	ptr_t m_dependency_handler;
+ 
+-	bool m_blocking_socket = false;
++	bool m_blocking_socket;
+ #endif // HAS_CAPTURE
+ 
+ 	event_list_t m_events;
+@@ -183,7 +183,7 @@
+ 	// at all (eg. there is no need to capture api or extensions detection data)
+ 	//
+ 	// global capture flag is checked in the k8s state call
+-	bool m_is_captured = false;
++	bool m_is_captured;
+ };
+ 
+ #ifdef HAS_CAPTURE
+--- userspace/libsinsp/k8s_handler.cpp.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/k8s_handler.cpp	2016-10-26 15:38:23.737896659 -0400
+@@ -45,6 +45,8 @@
+ 	bool blocking_socket,
+ #endif // HAS_CAPTURE
+ 	k8s_state_t* state): m_state(state),
++		m_state_built(false),
++		m_data_received(false),
+ 		m_id(id + "_state"),
+ #ifdef HAS_CAPTURE
+ 		m_collector(collector),
+@@ -55,15 +57,18 @@
+ 		m_json_end("}\n"),
+ 		m_timeout_ms(timeout_ms),
+ 		m_url(url),
++		m_req_sent(false),
++		m_resp_recvd(false),
+ 		m_http_version(http_version),
+ 		m_ssl(ssl),
+ 		m_bt(bt),
+ 		m_watch(watch),
++		m_watching(false),
+ 		m_connect(connect),
+ 		m_dependency_handler(dependency_handler),
+-		m_blocking_socket(blocking_socket),
++		m_blocking_socket(blocking_socket = false),
+ #endif // HAS_CAPTURE
+-		m_is_captured(is_captured)
++		m_is_captured(is_captured = false)
+ {
+ #ifdef HAS_CAPTURE
+ 	g_logger.log("Creating K8s " + name() + " (" + m_id + ") "
+@@ -592,7 +597,7 @@
+ 	for(struct addrinfo* p = servinfo; p != NULL; p = p->ai_next)
+ 	{
+ 		struct sockaddr_in* h = (struct sockaddr_in*)p->ai_addr;
+-		ip_addrs.emplace(inet_ntoa(h->sin_addr));
++		ip_addrs.insert(inet_ntoa(h->sin_addr));
+ 	}
+ 
+ 	freeaddrinfo(servinfo);
+--- userspace/libsinsp/sinsp_curl.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/sinsp_curl.h	2016-10-26 15:40:35.302150834 -0400
+@@ -76,7 +76,7 @@
+ 	ssl::ptr_t          m_ssl;
+ 	bearer_token::ptr_t m_bt;
+ 	bool                m_debug;
+-	char                m_redirect[CURL_MAX_HTTP_HEADER] = {0};
++	char                m_redirect[CURL_MAX_HTTP_HEADER];
+ };
+ 
+ inline void sinsp_curl::set_timeout(long milliseconds)
+--- userspace/libsinsp/sinsp_curl.cpp.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/sinsp_curl.cpp	2016-10-26 15:43:00.618474851 -0400
+@@ -18,7 +18,7 @@
+ sinsp_curl::data sinsp_curl::m_config;
+ 
+ sinsp_curl::sinsp_curl(const uri& url, long timeout_ms, bool debug):
+-	m_curl(curl_easy_init()), m_uri(url), m_timeout_ms(timeout_ms), m_debug(debug)
++	m_curl(curl_easy_init()), m_uri(url), m_timeout_ms(timeout_ms), m_debug(debug), m_redirect({0})
+ 
+ {
+ 	init();
+@@ -26,7 +26,8 @@
+ 
+ sinsp_curl::sinsp_curl(const uri& url, const std::string& bearer_token_file, long timeout_ms, bool debug):
+ 	m_curl(curl_easy_init()), m_uri(url), m_timeout_ms(timeout_ms), m_bt(new bearer_token(bearer_token_file)),
+-	m_debug(debug)
++	m_debug(debug),
++	m_redirect({0})
+ {
+ 	init();
+ }
+@@ -39,7 +40,8 @@
+ 		m_curl(curl_easy_init()), m_uri(url), m_timeout_ms(timeout_ms),
+ 		m_ssl(new ssl(cert, key, key_passphrase, ca_cert, verify_peer, cert_type)),
+ 		m_bt(new bearer_token(bearer_token_file)),
+-		m_debug(debug)
++		m_debug(debug),
++		m_redirect({0})
+ {
+ 	init();
+ }
+@@ -48,7 +50,8 @@
+ 		m_curl(curl_easy_init()), m_uri(url), m_timeout_ms(timeout_ms),
+ 		m_ssl(p_ssl),
+ 		m_bt(p_bt),
+-		m_debug(debug)
++		m_debug(debug),
++		m_redirect({0})
+ {
+ 	init();
+ }
+--- userspace/libsinsp/k8s_net.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/k8s_net.h	2016-10-26 15:44:30.397675035 -0400
+@@ -78,7 +78,7 @@
+ 	bt_ptr_t        m_bt;
+ 	bool            m_stopped;
+ 	handler_map_t   m_handlers;
+-	bool            m_blocking_sockets = false;
++	bool            m_blocking_sockets;
+ 	ext_list_ptr_t  m_extensions;
+ 	filter_ptr_t    m_event_filter;
+ 	std::string     m_machine_id;
+--- userspace/libsinsp/k8s.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/k8s.h	2016-10-26 15:47:17.606047865 -0400
+@@ -80,7 +80,7 @@
+ 	handler_map_t  m_handler_map;
+ 
+ #ifdef HAS_CAPTURE
+-	k8s_net* m_net = nullptr;
++	k8s_net* m_net;
+ #endif
+ 
+ 	static k8s_component::type_map m_components;
+--- userspace/libsinsp/docker.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/docker.h	2016-10-26 15:52:15.582987051 -0400
+@@ -116,8 +116,8 @@
+ 	const entity_events_t  m_network_events;
+ 	severity_map_t         m_severity_map;
+ 	name_translation_map_t m_name_translation;
+-	size_t                 m_event_counter = 0;
+-	bool                   m_event_limit_exceeded = false;
++	size_t                 m_event_counter;
++	bool                   m_event_limit_exceeded;
+ };
+ 
+ inline const std::string& docker::get_id() const
+--- userspace/libsinsp/docker.cpp.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/docker.cpp	2016-10-26 15:53:54.538207695 -0400
+@@ -112,7 +112,9 @@
+ 			{ "connect",    "Connected"    },
+ 			{ "disconnect", "Disconnected" }
+ 			// { "destroy"     "Destroyed"    } duplicate
+-		}
++		},
++		m_event_counter(0),
++		m_event_limit_exceeded(false)
+ {
+ 	g_logger.log(std::string("Creating Docker object for " +
+ 							(url.empty() ? std::string("capture replay") : url)),
+--- userspace/libsinsp/json_query.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/json_query.h	2016-10-26 16:02:45.246528453 -0400
+@@ -20,6 +20,7 @@
+ #include <string.h>
+ #include <alloca.h>
+ #include <assert.h>
++#include <stdexcept>
+ 
+ // jq is not C++-friendly
+ extern "C"
+--- userspace/libsinsp/k8s_api_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/k8s_api_handler.h	2016-10-26 16:04:54.211865284 -0400
+@@ -35,7 +35,7 @@
+ 
+ 
+ 	api_list_t m_extensions;
+-	bool       m_error = false;
++	bool       m_error;
+ };
+ 
+ inline bool k8s_api_handler::error() const
+--- userspace/libsinsp/k8s_api_handler.cpp.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/k8s_api_handler.cpp	2016-10-26 16:06:42.106147081 -0400
+@@ -26,7 +26,8 @@
+ #ifdef HAS_CAPTURE
+ 					url, path, filter, ".", collector, http_version, 1000L, ssl, bt,
+ #endif // HAS_CAPTURE
+-					false, true, std::make_shared<k8s_dummy_handler>(), blocking_socket, nullptr)
++					false, true, std::make_shared<k8s_dummy_handler>(), blocking_socket, nullptr),
++		m_error(false)
+ {
+ }
+ 
+--- userspace/libsinsp/k8s_event_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/k8s_event_handler.h	2016-10-26 16:29:13.008406254 -0400
+@@ -39,6 +39,6 @@
+ 	void handle_json(Json::Value&& root);
+ 
+ 	filter_ptr_t m_event_filter;
+-	bool         m_event_ignored = false;
+-	bool         m_event_limit_exceeded = false;
++	bool         m_event_ignored;
++	bool         m_event_limit_exceeded;
+ };
+--- userspace/libsinsp/k8s_event_handler.cpp.orig	2016-10-25 18:43:37.000000000 -0400
++++ userspace/libsinsp/k8s_event_handler.cpp	2016-10-26 16:30:33.392527121 -0400
+@@ -71,7 +71,9 @@
+ 					connect, dependency_handler, blocking_socket,
+ #endif // HAS_CAPTURE
+ 					&state),
+-		m_event_filter(event_filter)
++		m_event_filter(event_filter),
++		m_event_ignored(false),
++		m_event_limit_exceeded(false)
+ {
+ }
+ 

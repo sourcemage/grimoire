@@ -1,0 +1,23 @@
+#!/bin/bash
+
+. /etc/sysconfig/i2pd
+
+PROGRAM=/usr/sbin/i2pd
+PIDFILE=/var/run/i2pd/i2pd.pid
+ARGS="--daemon --service --pidfile $PIDFILE $I2PD_ARGS"
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/init.d/smgl_init
+
+start() {
+  local RUNDIR="/var/run/i2pd"
+
+  if [ ! -d $RUNDIR ] || [ `stat -c '%U:%G' $RUNDIR` != "nobody:nogroup" ]; then
+    mkdir -p $RUNDIR && chown nobody:nogroup $RUNDIR
+  fi
+
+  echo "Starting $NAME..."
+  su nobody -s /bin/sh -c "$PROGRAM $ARGS"
+  evaluate_retval
+}

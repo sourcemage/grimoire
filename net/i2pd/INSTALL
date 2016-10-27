@@ -1,0 +1,23 @@
+install -vm 755 i2pd "${INSTALL_ROOT}/usr/sbin/i2pd" &&
+install -vm 755 libi2pd.so libi2pdclient.so "${INSTALL_ROOT}/usr/lib" &&
+
+install -vm 755 -d "${INSTALL_ROOT}/usr/share/i2pd" &&
+cp -vr contrib/certificates "${INSTALL_ROOT}/usr/share/i2pd" &&
+
+install -vm 755 -d -o nobody -g nogroup "${INSTALL_ROOT}/var/lib/i2pd" &&
+
+ln -vsf "${TRACK_ROOT}/usr/share/i2pd/certificates" \
+        "${INSTALL_ROOT}/var/lib/i2pd/certificates" &&
+
+install -vm 755 -d "${INSTALL_ROOT}/etc/i2pd" &&
+
+for cf in i2pd.conf subscriptions.txt tunnels.conf; do
+  install_config_file docs/${cf} "${INSTALL_ROOT}/etc/i2pd/${cf}" &&
+
+  ln -vsf "${TRACK_ROOT}/etc/i2pd/${cf}" "${INSTALL_ROOT}/var/lib/i2pd/${cf}"
+done &&
+
+if [[ $INIT_INSTALLED ]]; then
+  install_config_file "${SPELL_DIRECTORY}/init.d/i2pd.conf" \
+                      "${INSTALL_ROOT}/etc/sysconfig/i2pd"
+fi

@@ -1,0 +1,55 @@
+--- Makefile.linux.orig	2016-10-17 00:37:40.000000000 -0400
++++ Makefile.linux	2016-10-19 19:43:21.061181283 -0400
+@@ -18,7 +18,7 @@
+ else ifeq ($(shell expr match ${CXXVER} "4\.[7-9]"),3) # >= 4.7
+ 	NEEDED_CXXFLAGS += -std=c++11 -D_GLIBCXX_USE_NANOSLEEP=1
+ else ifeq ($(shell expr match ${CXXVER} "4\.6"),3) # = 4.6
+-	NEEDED_CXXFLAGS += -std=c++0x
++	NEEDED_CXXFLAGS += -std=c++0x -D_GLIBCXX_USE_NANOSLEEP=1
+ else ifeq ($(shell expr match ${CXXVER} "[5-6]\.[0-9]"),3) # gcc >= 5.0
+ 	NEEDED_CXXFLAGS += -std=c++11
+ else # not supported
+--- Tunnel.cpp.orig	2016-10-17 00:37:40.000000000 -0400
++++ Tunnel.cpp	2016-10-19 19:56:06.096526898 -0400
+@@ -406,7 +406,7 @@
+ 	
+ 	void Tunnels::AddTransitTunnel (std::shared_ptr<TransitTunnel> tunnel)
+ 	{
+-		if (m_Tunnels.emplace (tunnel->GetTunnelID (), tunnel).second)
++		if (m_Tunnels.insert (make_pair(tunnel->GetTunnelID (), tunnel)).second)
+ 			m_TransitTunnels.push_back (tunnel);
+ 		else
+ 			LogPrint (eLogError, "Tunnel: tunnel with id ", tunnel->GetTunnelID (), " already exists");
+@@ -808,7 +808,7 @@
+ 
+ 	void Tunnels::AddInboundTunnel (std::shared_ptr<InboundTunnel> newTunnel)
+ 	{
+-		if (m_Tunnels.emplace (newTunnel->GetTunnelID (), newTunnel).second)
++		if (m_Tunnels.insert (make_pair(newTunnel->GetTunnelID (), newTunnel)).second)
+ 		{
+ 			m_InboundTunnels.push_back (newTunnel);
+ 			auto pool = newTunnel->GetTunnelPool ();
+--- TunnelPool.cpp.orig	2016-10-17 00:37:40.000000000 -0400
++++ TunnelPool.cpp	2016-10-19 19:59:27.000000000 -0400
+@@ -9,6 +9,12 @@
+ #include "Log.h"
+ #include "TunnelPool.h"
+ 
++template<typename T> struct decltype_t {
++	typedef T type;
++};
++
++#define DECLTYPE(expr) decltype_t<decltype(expr)>::type
++
+ namespace i2p
+ {
+ namespace tunnel
+@@ -285,7 +291,7 @@
+ 		buf += 4;	
+ 		uint64_t timestamp = bufbe64toh (buf);
+ 
+-		decltype(m_Tests)::mapped_type test;
++		DECLTYPE(m_Tests)::mapped_type test;
+ 		bool found = false;	
+ 		{
+ 			std::unique_lock<std::mutex> l(m_TestsMutex);
