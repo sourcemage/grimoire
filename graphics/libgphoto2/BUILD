@@ -1,3 +1,3 @@
-OPTS="--with-drivers=$DRIVER $OPTS" &&
+OPTS="--with-camlibs=$DRIVER $OPTS" &&
 
 default_build  
