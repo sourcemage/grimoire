@@ -1,8 +1,8 @@
 project(pugixml)
-cmake_minimum_required(VERSION 2.8.11)
-set(VERSION 1.2)
+cmake_minimum_required(VERSION 3.6)
+set(VERSION 1.7)
 set(HEADERS src/pugixml.hpp src/pugiconfig.hpp)
-set(SOURCES ${HEADERS} src/pugixml.cpp)
+set(SOURCES src/pugixml.cpp)
 
 add_library(pugixml SHARED ${SOURCES})
 
