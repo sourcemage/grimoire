@@ -4,6 +4,7 @@
 CXXFLAGS+=" -fno-rtti" &&
 OPTS="--with-dri-drivers=${MESALIB_DRIVERS// /,} \
       --with-gallium-drivers=${MESALIB_GALLIUM// /,} \
+      --with-vulkan-drivers=${MESALIB_VULKAN// /,} \
       $MESALIB_OPTS \
       --with-egl-platforms=${MESA_EGL//\ /,}  \
       $OPTS" && 

@@ -1,3 +1,5 @@
+list_remove MESALIB_OPTS "--enable-r600-llvm-compiler" &&
+
 . $GRIMOIRE/config_query_multi.function                                  &&
 message "${MESSAGE_COLOR}MesaLib build types:\n"                         \
         "xlib:   Stand-alone software rendering library;\n"              \
@@ -29,18 +31,13 @@ case $MESALIB_BUILD in
 
   
 # TODO: Proper dependencies for those ... also libdrm ...
-  AVAILABLE_GALLIUM="i915 ilo nouveau r300 r600 radeonsi swrast"
+  AVAILABLE_GALLIUM="i915 ilo llvmpipe nouveau r300 r600 radeon radeonsi softpipe  svga  swrast virgl"
 
   config_query_multi MESALIB_GALLIUM                                       \
                    "What Gallium3D drivers woulld you like to build?"    \
                     none all $AVAILABLE_GALLIUM
   if [[ $MESALIB_GALLIUM = all ]]; then
     MESALIB_GALLIUM=$AVAILABLE_GALLIUM
-  fi &&
-
-  if list_find "$MESALIB_GALLIUM" r600;then
-    config_query_option MESALIB_OPTS "LLVM backend for graphics shaders " n\
-       "--enable-r600-llvm-compiler" ""
   fi &&
 
   if [[ $MESALIB_GALLIUM != "" ]] && [[ $MESALIB_GALLIUM != none ]]; then
@@ -82,4 +79,15 @@ case $MESALIB_BUILD in
 esac &&
 
 config_query_option MESALIB_OPTS "enable TLS support in GLX" n \
-                    "--enable-glx-tls" "--disable-glx-tls"
+                    "--enable-glx-tls" "--disable-glx-tls" &&
+# Vulkan support
+AVAILABLE_VULKAN="radeon intel"
+config_query_multi MESALIB_VULKAN \
+     "which Vulkan drivers to build" \
+     none all $AVAILABLE_VULKAN  &&
+if list_find "$MESALIB_VULKAN" all; then
+   MESALIB_VULKAN="$AVAILABLE_VULKAN"
+fi
+if list_find "$MESALIB_VULKAN" none; then
+  MESALIB_VULKAN="no"
+fi
