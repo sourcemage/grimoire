@@ -18,6 +18,13 @@ CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
 CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
+# harden
+LDFLAGS="$LDFLAGS -Wl,-z,now"
+
+# for gcc 6
+CFLAGS="$CXXFLAGS -fno-delete-null-pointer-checks -fno-schedule-insns2"   &&
+CXXFLAGS="$CXXFLAGS -fno-delete-null-pointer-checks -fno-schedule-insns2" &&
+
 #
 # fix symbol check in build scripts, firefox adds -s to LDFLAGS so we can
 # remove it here without changing anything...
