@@ -46,7 +46,7 @@ echo "mk_add_options MOZ_MAKE_FLAGS=\"-j$MAKE_NJOBS\"" >> ${MOZCONFIG} &&
 # required for non-duplicated data in the package
 echo "mk_add_options MOZ_OBJDIR=${SOURCE_DIRECTORY}/pmbuild" >> ${MOZCONFIG} &&
 
-echo "ac_add_options --enable-optimize=\"${CFLAGS}\"" >> ${MOZCONFIG} &&
+echo "ac_add_options --enable-optimize=\"${CXXFLAGS} -fpermissive\"" >> ${MOZCONFIG} &&
 
 for o in $PM_CONFIG; do
   echo "ac_add_options $o" >> ${MOZCONFIG}
