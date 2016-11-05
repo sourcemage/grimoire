@@ -1,2 +1,1 @@
-#sedit "s:^CXXFLAGS:# CXXFLAGS:" GNUmakefile  &&
-make
+make libcryptopp.a libcryptopp.so
