@@ -1,7 +1,4 @@
-cd src &&
-sedit '1iIPEPREFIX = /usr' config.pri &&
-sedit '34i#include <cstring>' ipelib/ipedct.cpp &&
-sedit '41i#include <cstring>' ipelib/ipepdfwriter.cpp &&
-# needs qt4 qmake or it links against qt3
-$INSTALL_ROOT/usr/bin/qt4/qmake &&
-make
+qt="$INSTALL_ROOT/opt/qt5"
+export PATH="$qt/bin:$PATH" PKG_CONFIG_PATH="$qt/lib/pkgconfig"
+
+make -C src IPEPREFIX="$INSTALL_ROOT"/usr LUA_PACKAGE=lua
