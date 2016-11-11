@@ -433,7 +433,7 @@
  class sinsp_bearer_token
 --- userspace/libsinsp/socket_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/socket_handler.h	2016-10-26 15:25:11.790901756 -0400
-@@ -60,14 +60,33 @@
+@@ -61,12 +61,33 @@
  			m_url(url),
  			m_keep_alive(keep_alive ? std::string("Connection: keep-alive\r\n") : std::string()),
  			m_path(path.empty() ? m_url.get_path() : path),
@@ -451,10 +451,8 @@
  			m_timeout_ms(timeout_ms),
 +			m_json_callback(nullptr),
  			m_request(make_request(url, http_version)),
- 			m_http_version(http_version),
- 			m_json_begin("\r\n{"),
--			m_json_end(m_http_version == HTTP_VERSION_10 ? "}\r\n" : "}\r\n0")
-+			m_json_end(m_http_version == HTTP_VERSION_10 ? "}\r\n" : "}\r\n0"),
+-			m_http_version(http_version)
++			m_http_version(http_version),
 +			m_ssl_init_complete(false),
 +			m_ssl_context(nullptr),
 +			m_ssl_connection(nullptr),
@@ -463,12 +461,27 @@
 +			m_sa(0),
 +			m_sa_len(0),
 +			m_content_length(std::string::npos),
-+			m_close_on_chunked_end(false),
-+			m_is_docker(false)
++			m_check_chunked(false),
++			m_close_on_chunked_end(true),
++			m_wants_send(false),
++			m_http_parser(nullptr)
  	{
  		g_logger.log(std::string("Creating Socket handler object for (" + id + ") "
  					 "[" + uri(url).to_string(false) + ']'), sinsp_logger::SEV_DEBUG);
-@@ -1660,21 +1679,21 @@
+@@ -1506,8 +1506,10 @@
+ 
+ 	struct http_parser_data
+ 	{
+-		std::string*              m_data_buf = nullptr;
+-		std::vector<std::string>* m_json = nullptr;
++		std::string*              m_data_buf;
++		std::vector<std::string>* m_json;
++
++		http_parser_data(): m_data_buf(nullptr), m_json(nullptr) {}
+ 	};
+ 
+ 	static int http_body_callback(http_parser* parser, const char* data, size_t len)
+@@ -1561,42 +1582,42 @@
  	std::string              m_keep_alive;
  	std::string              m_path;
  	std::string              m_address;
@@ -500,9 +513,8 @@
  	std::string              m_data_buf;
  	std::string              m_request;
  	std::string              m_http_version;
-@@ -1682,17 +1701,17 @@
- 	std::string              m_json_end;
  	std::vector<std::string> m_json_filters;
+ 	std::vector<std::string> m_json;
  	json_query               m_jq;
 -	bool                     m_ssl_init_complete = false;
 -	SSL_CTX*                 m_ssl_context = nullptr;
@@ -516,18 +528,24 @@
 -	struct sockaddr*         m_sa = 0;
 -	socklen_t                m_sa_len = 0;
 -	std::string::size_type   m_content_length = std::string::npos;
--	bool                     m_close_on_chunked_end = false;
--	bool                     m_is_docker = false;
 +	struct sockaddr_un       m_file_addr;
 +	struct sockaddr_in       m_serv_addr;
 +	struct sockaddr*         m_sa;
 +	socklen_t                m_sa_len;
 +	std::string::size_type   m_content_length;
+ 	std::string              m_chunked_end;
+-	bool                     m_check_chunked = false;
+-	bool                     m_close_on_chunked_end = true;
+-	bool                     m_wants_send = false;
++	bool                     m_check_chunked;
 +	bool                     m_close_on_chunked_end;
-+	bool                     m_is_docker;
++	bool                     m_wants_send;
+ 	http_parser_settings     m_http_parser_settings;
+-	http_parser*             m_http_parser = nullptr;
++	http_parser*             m_http_parser;
+ 	http_parser_data         m_http_parser_data;
  };
  
- template <typename T>
 --- userspace/libsinsp/socket_collector.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/socket_collector.h	2016-10-26 15:28:04.390192035 -0400
 @@ -18,7 +18,8 @@
@@ -558,7 +576,7 @@
  #endif // HAS_CAPTURE
 --- userspace/libsinsp/k8s_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/k8s_handler.h	2016-10-26 15:30:09.826402994 -0400
-@@ -102,9 +102,9 @@
+@@ -103,9 +103,9 @@
  	void log_error(const msg_data& data, const Json::Value& root);
  	void log_not_found(const msg_data& data) const;
  
@@ -572,7 +590,7 @@
  
  private:
 @@ -141,8 +141,8 @@
- 	std::string     m_json_end;
+ 	std::string     m_event_uri;
  	long            m_timeout_ms;
  	std::string     m_url;
 -	bool            m_req_sent = false;
@@ -600,12 +618,15 @@
  #endif // HAS_CAPTURE
  
  	event_list_t m_events;
-@@ -183,7 +183,7 @@
+@@ -183,9 +183,9 @@
  	// at all (eg. there is no need to capture api or extensions detection data)
  	//
  	// global capture flag is checked in the k8s state call
 -	bool m_is_captured = false;
 +	bool m_is_captured;
+ 
+-	bool m_connect_logged = false;
++	bool m_connect_logged;
  };
  
  #ifdef HAS_CAPTURE
@@ -620,8 +641,8 @@
  		m_id(id + "_state"),
  #ifdef HAS_CAPTURE
  		m_collector(collector),
-@@ -55,15 +57,18 @@
- 		m_json_end("}\n"),
+@@ -54,15 +56,19 @@
+ 		m_filter(&m_state_filter),
  		m_timeout_ms(timeout_ms),
  		m_url(url),
 +		m_req_sent(false),
@@ -637,11 +658,12 @@
 +		m_blocking_socket(blocking_socket = false),
  #endif // HAS_CAPTURE
 -		m_is_captured(is_captured)
-+		m_is_captured(is_captured = false)
++		m_is_captured(is_captured = false),
++		m_connect_logged(false)
  {
  #ifdef HAS_CAPTURE
  	g_logger.log("Creating K8s " + name() + " (" + m_id + ") "
-@@ -592,7 +597,7 @@
+@@ -606,7 +612,7 @@
  	for(struct addrinfo* p = servinfo; p != NULL; p = p->ai_next)
  	{
  		struct sockaddr_in* h = (struct sockaddr_in*)p->ai_addr;
