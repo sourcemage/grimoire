@@ -1,0 +1,240 @@
+diff -Nuar firefox-50.0.orig/config/Makefile.in firefox-50.0/config/Makefile.in
+--- firefox-50.0.orig/config/Makefile.in	2016-10-31 16:15:27.000000000 -0400
++++ firefox-50.0/config/Makefile.in	2016-11-15 17:54:56.577336376 -0500
+@@ -41,6 +41,8 @@
+ 	$(PYTHON) -m mozbuild.action.preprocessor $(DEFINES) $(ACDEFINES) \
+ 		-DMOZ_TREE_CAIRO=$(MOZ_TREE_CAIRO) \
+ 		-DMOZ_TREE_PIXMAN=$(MOZ_TREE_PIXMAN) \
++		-DMOZ_SYSTEM_GRAPHITE2=$(MOZ_SYSTEM_GRAPHITE2) \
++		-DMOZ_SYSTEM_HARFBUZZ=$(MOZ_SYSTEM_HARFBUZZ) \
+ 		-DMOZ_SYSTEM_HUNSPELL=$(MOZ_SYSTEM_HUNSPELL) \
+ 		-DMOZ_SYSTEM_BZ2=$(MOZ_SYSTEM_BZ2) \
+ 		-DMOZ_SYSTEM_ZLIB=$(MOZ_SYSTEM_ZLIB) \
+diff -Nuar firefox-50.0.orig/config/system-headers firefox-50.0/config/system-headers
+--- firefox-50.0.orig/config/system-headers	2016-10-31 16:15:28.000000000 -0400
++++ firefox-50.0/config/system-headers	2016-11-15 17:54:56.577336376 -0500
+@@ -1264,6 +1264,15 @@
+ libsn/sn-monitor.h
+ libsn/sn-util.h
+ #endif
++#if MOZ_SYSTEM_GRAPHITE2==1
++graphite2/Font.h
++graphite2/Segment.h
++#endif
++#if MOZ_SYSTEM_HARFBUZZ==1
++harfbuzz/hb-glib.h
++harfbuzz/hb-ot.h
++harfbuzz/hb.h
++#endif
+ #if MOZ_SYSTEM_HUNSPELL==1
+ hunspell.hxx
+ #endif
+diff -Nuar firefox-50.0.orig/dom/base/moz.build firefox-50.0/dom/base/moz.build
+--- firefox-50.0.orig/dom/base/moz.build	2016-10-31 16:15:32.000000000 -0400
++++ firefox-50.0/dom/base/moz.build	2016-11-15 17:54:56.583336388 -0500
+@@ -457,6 +457,9 @@
+ if CONFIG['MOZ_X11']:
+     CXXFLAGS += CONFIG['TK_CFLAGS']
+ 
++if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
++    CXXFLAGS += CONFIG['MOZ_HARFBUZZ_CFLAGS']
++
+ GENERATED_FILES += [
+     'PropertyUseCounterMap.inc',
+     'UseCounterList.h',
+diff -Nuar firefox-50.0.orig/extensions/spellcheck/hunspell/glue/moz.build firefox-50.0/extensions/spellcheck/hunspell/glue/moz.build
+--- firefox-50.0.orig/extensions/spellcheck/hunspell/glue/moz.build	2016-10-31 16:15:27.000000000 -0400
++++ firefox-50.0/extensions/spellcheck/hunspell/glue/moz.build	2016-11-15 17:54:56.583336388 -0500
+@@ -34,4 +34,4 @@
+ 
+ # This variable is referenced in configure.in.  Make sure to change that file
+ # too if you need to change this variable.
+-DEFINES['HUNSPELL_STATIC'] = True
++DEFINES['HUNSPELL_STATIC'] = not CONFIG['MOZ_SYSTEM_HUNSPELL']
+diff -Nuar firefox-50.0.orig/gfx/graphite2/moz-gr-update.sh firefox-50.0/gfx/graphite2/moz-gr-update.sh
+--- firefox-50.0.orig/gfx/graphite2/moz-gr-update.sh	2016-07-25 16:22:05.000000000 -0400
++++ firefox-50.0/gfx/graphite2/moz-gr-update.sh	2016-11-15 17:54:56.584336390 -0500
+@@ -1,6 +1,7 @@
+ #!/bin/bash
+ 
+ # Script used to update the Graphite2 library in the mozilla source tree
++# and bump version for --with-system-graphite2
+ 
+ # This script lives in gfx/graphite2, along with the library source,
+ # but must be run from the top level of the mozilla-central tree.
+@@ -37,12 +38,16 @@
+ #find gfx/graphite2/ -name "*.cpp" -exec perl -p -i -e "s/<cstdio>/<stdio.h>/;s/Windows.h/windows.h/;" {} \;
+ #find gfx/graphite2/ -name "*.h" -exec perl -p -i -e "s/<cstdio>/<stdio.h>/;s/Windows.h/windows.h/;" {} \;
+ 
++# chase version for --with-system-graphite2
++perl -p -i -e "s/[0-9]+\,[0-9]+\,[0-9]+/$RELEASE/ and tr/./,/ \
++  if /GR2_VERSION_REQUIRE/" old-configure.in
++
+ # summarize what's been touched
+ echo Updated to $RELEASE.
+ echo Here is what changed in the gfx/graphite2 directory:
+ echo
+ 
+-hg stat gfx/graphite2
++hg stat old-configure.in gfx/graphite2
+ 
+ echo
+ echo If gfx/graphite2/src/files.mk has changed, please make corresponding
+diff -Nuar firefox-50.0.orig/gfx/harfbuzz/README-mozilla firefox-50.0/gfx/harfbuzz/README-mozilla
+--- firefox-50.0.orig/gfx/harfbuzz/README-mozilla	2016-07-25 16:22:05.000000000 -0400
++++ firefox-50.0/gfx/harfbuzz/README-mozilla	2016-11-15 17:54:56.586336394 -0500
+@@ -20,3 +20,8 @@
+ 
+ If the collection of source files changes, manual updates to moz.build may be
+ needed, as we don't use the upstream makefiles.
++
++The in-tree copy may be omitted during build by --with-system-harfbuzz.
++Make sure to keep pkg-config version check within toolkit/moz.configure in sync
++with checkout version or increment latest tag by one if it's not based
++on upstream release.
+diff -Nuar firefox-50.0.orig/gfx/moz.build firefox-50.0/gfx/moz.build
+--- firefox-50.0.orig/gfx/moz.build	2016-10-31 16:15:31.000000000 -0400
++++ firefox-50.0/gfx/moz.build	2016-11-15 17:54:56.586336394 -0500
+@@ -7,6 +7,12 @@
+ if CONFIG['MOZ_TREE_CAIRO']:
+     DIRS += ['cairo']
+ 
++if not CONFIG['MOZ_SYSTEM_GRAPHITE2']:
++    DIRS += ['graphite2/src' ]
++
++if not CONFIG['MOZ_SYSTEM_HARFBUZZ']:
++    DIRS += ['harfbuzz/src']
++
+ DIRS += [
+     '2d',
+     'ycbcr',
+@@ -15,8 +21,6 @@
+     'qcms',
+     'gl',
+     'layers',
+-    'graphite2/src',
+-    'harfbuzz/src',
+     'ots/src',
+     'thebes',
+     'ipc',
+diff -Nuar firefox-50.0.orig/gfx/skia/generate_mozbuild.py firefox-50.0/gfx/skia/generate_mozbuild.py
+--- firefox-50.0.orig/gfx/skia/generate_mozbuild.py	2016-10-31 16:15:31.000000000 -0400
++++ firefox-50.0/gfx/skia/generate_mozbuild.py	2016-11-15 17:54:56.586336394 -0500
+@@ -140,6 +140,9 @@
+         '-Wno-unused-private-field',
+     ]
+ 
++if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
++    CXXFLAGS += CONFIG['MOZ_HARFBUZZ_CFLAGS']
++
+ if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3', 'android', 'gonk'):
+     CXXFLAGS += CONFIG['MOZ_CAIRO_CFLAGS']
+     CXXFLAGS += CONFIG['CAIRO_FT_CFLAGS']
+diff -Nuar firefox-50.0.orig/gfx/skia/moz.build firefox-50.0/gfx/skia/moz.build
+--- firefox-50.0.orig/gfx/skia/moz.build	2016-10-31 16:15:31.000000000 -0400
++++ firefox-50.0/gfx/skia/moz.build	2016-11-15 17:54:56.587336396 -0500
+@@ -664,6 +664,9 @@
+         '-Wno-unused-private-field',
+     ]
+ 
++if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
++    CXXFLAGS += CONFIG['MOZ_HARFBUZZ_CFLAGS']
++
+ if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3', 'android', 'gonk'):
+     CXXFLAGS += CONFIG['MOZ_CAIRO_CFLAGS']
+     CXXFLAGS += CONFIG['CAIRO_FT_CFLAGS']
+diff -Nuar firefox-50.0.orig/gfx/thebes/moz.build firefox-50.0/gfx/thebes/moz.build
+--- firefox-50.0.orig/gfx/thebes/moz.build	2016-10-31 16:15:32.000000000 -0400
++++ firefox-50.0/gfx/thebes/moz.build	2016-11-15 17:54:56.588336398 -0500
+@@ -263,6 +263,14 @@
+ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'gonk':
+   LOCAL_INCLUDES += ['/widget/gonk']
+ 
++if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
++  CXXFLAGS += CONFIG['MOZ_HARFBUZZ_CFLAGS']
++
++if CONFIG['MOZ_SYSTEM_GRAPHITE2']:
++  CXXFLAGS += CONFIG['MOZ_GRAPHITE2_CFLAGS']
++else:
++  DEFINES['GRAPHITE2_STATIC'] = True
++
+ if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('android', 'gtk2', 'gtk3', 'gonk'):
+     DEFINES['MOZ_ENABLE_FREETYPE'] = True
+ 
+diff -Nuar firefox-50.0.orig/intl/unicharutil/util/moz.build firefox-50.0/intl/unicharutil/util/moz.build
+--- firefox-50.0.orig/intl/unicharutil/util/moz.build	2016-10-31 16:15:32.000000000 -0400
++++ firefox-50.0/intl/unicharutil/util/moz.build	2016-11-15 17:54:56.590336402 -0500
+@@ -42,4 +42,7 @@
+ if CONFIG['ENABLE_INTL_API']:
+     USE_LIBS += ['icu']
+ 
++if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
++    CXXFLAGS += CONFIG['MOZ_HARFBUZZ_CFLAGS']
++
+ DIST_INSTALL = True
+diff -Nuar firefox-50.0.orig/netwerk/dns/moz.build firefox-50.0/netwerk/dns/moz.build
+--- firefox-50.0.orig/netwerk/dns/moz.build	2016-10-31 16:15:27.000000000 -0400
++++ firefox-50.0/netwerk/dns/moz.build	2016-11-15 17:54:56.590336402 -0500
+@@ -66,6 +66,9 @@
+     '/netwerk/base',
+ ]
+ 
++if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
++    CXXFLAGS += CONFIG['MOZ_HARFBUZZ_CFLAGS']
++
+ if CONFIG['ENABLE_INTL_API']:
+     DEFINES['IDNA2008'] = True
+     USE_LIBS += ['icu']
+diff -Nuar firefox-50.0.orig/toolkit/library/moz.build firefox-50.0/toolkit/library/moz.build
+--- firefox-50.0.orig/toolkit/library/moz.build	2016-11-04 20:20:16.000000000 -0400
++++ firefox-50.0/toolkit/library/moz.build	2016-11-15 17:54:56.595336412 -0500
+@@ -220,6 +220,12 @@
+ if CONFIG['MOZ_SYSTEM_PNG']:
+     OS_LIBS += CONFIG['MOZ_PNG_LIBS']
+ 
++if CONFIG['MOZ_SYSTEM_GRAPHITE2']:
++    OS_LIBS += CONFIG['MOZ_GRAPHITE2_LIBS']
++
++if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
++    OS_LIBS += CONFIG['MOZ_HARFBUZZ_LIBS']
++
+ if CONFIG['MOZ_SYSTEM_HUNSPELL']:
+     OS_LIBS += CONFIG['MOZ_HUNSPELL_LIBS']
+ 
+diff -Nuar firefox-50.0.orig/toolkit/moz.configure firefox-50.0/toolkit/moz.configure
+--- firefox-50.0.orig/toolkit/moz.configure	2016-10-31 16:15:37.000000000 -0400
++++ firefox-50.0/toolkit/moz.configure	2016-11-15 17:54:56.595336412 -0500
+@@ -274,6 +274,33 @@
+ 
+ add_old_configure_assignment('USE_FC_FREETYPE', fc_freetype)
+ 
++# Graphite2
++# ==============================================================
++option('--with-system-graphite2',
++        help="Use system graphite2 (located with pkgconfig)")
++
++@depends('--with-system-graphite2')
++def check_for_graphite2(value):
++    return bool(value)
++
++system_graphite2 = pkg_check_modules('MOZ_GRAPHITE2', 'graphite2',
++                                     check_for_graphite2)
++
++set_config('MOZ_SYSTEM_GRAPHITE2', depends_if(system_graphite2)(lambda _: True))
++
++# HarfBuzz
++# ==============================================================
++option('--with-system-harfbuzz',
++       help="Use system harfbuzz (located with pkgconfig)")
++
++@depends('--with-system-harfbuzz')
++def check_for_harfbuzz(value):
++    return bool(value)
++
++system_harfbuzz = pkg_check_modules('MOZ_HARFBUZZ', 'harfbuzz >= 1.3.3',
++                                    check_for_harfbuzz)
++
++set_config('MOZ_SYSTEM_HARFBUZZ', depends_if(system_harfbuzz)(lambda _: True))
+ 
+ # Apple platform decoder support
+ # ==============================================================
