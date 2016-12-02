@@ -1,4 +1,2 @@
-OPTS="--with-rcdir=no $OPTS" &&
-make_single &&
-default_build &&
-make_normal
+OPTS="--with-rcdir=no --disable-mutool $OPTS" &&
+default_build

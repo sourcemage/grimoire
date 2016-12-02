@@ -19,5 +19,21 @@ config_query_option GRUB2_OPTS 'build and install the efiemu runtimes?' y \
                              '--enable-efiemu' \
                              '--disable-efiemu' &&
 
+# Conversion to match {target-cpu}-{target-platform} ./configure syntax
+case ${GRUB2_PLATFORM} in
+     pc/i386) GRUB2_PLATFORM='i386-pc' ;;
+    efi/i386) GRUB2_PLATFORM='i386-efi' ;;
+  efi/x86_64) GRUB2_PLATFORM='x86_64-efi' ;;
+           *) ;; # Do nothing
+esac &&
+
 config_query_list GRUB2_PLATFORM "Select platform:" \
-				 pc/i386 efi/i386 efi/x86_64
+				 i386-pc i386-efi x86_64-efi  &&
+
+case ${GRUB2_PLATFORM} in
+  *-efi) message "${MESSAGE_COLOR}EFI emulation runtime not supported on platform ${GRUB2_PLATFORM}. Disabled.${DEFAULT_COLOR}" &&
+         list_remove GRUB2_OPTS '--enable-efiemu'  &&
+         list_add    GRUB2_OPTS '--disable-efiemu'
+         ;;
+      *) ;; # Do nothing
+esac

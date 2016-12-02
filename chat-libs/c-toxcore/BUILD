@@ -1,0 +1,2 @@
+OPTS+=" -DWARNINGS=0 -DBUILD_AV_TEST=0"
+cmake_build
