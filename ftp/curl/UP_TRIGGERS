@@ -1,12 +1,5 @@
-local OLD_SPELL_VERSION=""
-spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)"
-if [ "${VERSION:0:4}" != "${OLD_SPELL_VERSION:0:4}" ]; then
-  message "This is a possibly incompatible update of curl..."
-  message "Figuring out what spells need to be recast, this may take a while."
-  for each in $(show_up_depends $SPELL 1); do
-    if gaze install-spell $each | xargs readelf -s 2> /dev/null | 
-       grep -q curl_easy_; then
-      up_trigger $each check_self
-    fi
-  done
-fi
+. "$GRIMOIRE/FUNCTIONS" &&
+# Curl is behaving itself for about 10 years now. Let's
+# only look out for known ABI breakage. See
+# https://abi-laboratory.pro/tracker/timeline/curl/
+check_dependents_versionjump $SPELL $VERSION 7.19.6
