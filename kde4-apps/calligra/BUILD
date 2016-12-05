@@ -1,4 +1,0 @@
-OPTS+=" -DPRODUCTSET=$CPROD" &&
-OPTS+=" -DPACKAGERS_BUILD=OFF" &&
-OPTS+=" -DQT3SUPPORT=$QT3" &&
-default_build
