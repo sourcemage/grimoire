@@ -1,2 +1,1 @@
-OPTS="$OPTS --disable-mime-install" &&
-default_build
+default_build_python3
