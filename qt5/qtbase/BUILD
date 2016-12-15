@@ -1,7 +1,6 @@
 
 OPTS="$QT_DEBUG               \
       $QT_DECL                \
-      $QT_NIS                 \
       $QT_GIF                 \
       $QT_PCH                 \
       $QT_EXAMPLE examples    \

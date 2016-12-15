@@ -12,5 +12,5 @@
 	    --disable-tutorials			       \
             $OPTS                                      &&
 make_single  &&
-make         &&
-#make_normal
+make &&
+make_normal
