@@ -53,10 +53,10 @@
  	// True if the command line argument is set to show container information
 --- userspace/libsinsp/sinsp.cpp.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/sinsp.cpp	2016-06-25 18:53:28.084183609 -0400
-@@ -109,11 +109,14 @@
- 	m_last_procrequest_tod = 0;
+@@ -110,11 +110,14 @@
  	m_get_procs_cpu_from_driver = false;
  	m_is_tracers_capture_enabled = false;
+ 	m_file_start_offset = 0;
 +	m_verbose_json = false;
  
  	// Unless the cmd line arg "-pc" or "-pcontainer" is supplied this is false
@@ -226,7 +226,7 @@
  	class bearer_token
 --- userspace/libsinsp/mesos_http.h.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/mesos_http.h	2016-06-25 20:36:26.381379731 -0400
-@@ -99,8 +99,8 @@
+@@ -105,8 +105,8 @@
  	bool                    m_discover_lead_master;
  	bool                    m_discover_marathon;
  	//bool                    m_redirect = false;
@@ -234,19 +234,18 @@
 -	char                    m_redirect[CURL_MAX_HTTP_HEADER] = {0};
 +	std::string::size_type  m_content_length;
 +	char                    m_redirect[CURL_MAX_HTTP_HEADER];
- 
- 	friend class mesos;
+ 	string                  m_token;
+ 	sinsp_curl_http_headers m_sync_curl_headers;
  
 --- userspace/libsinsp/mesos_http.cpp.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/mesos_http.cpp	2016-06-25 20:37:03.018404617 -0400
-@@ -33,7 +33,9 @@
- 	m_request(make_request(url, m_curl_version)),
+@@ -36,7 +36,9 @@
  	m_is_mesos_state(url.to_string().find(mesos::default_state_api) != std::string::npos),
  	m_discover_lead_master(discover_mesos_lead_master),
--	m_discover_marathon(discover_marathon)
-+	m_discover_marathon(discover_marathon),
+ 	m_discover_marathon(discover_marathon),
 +	m_content_length(std::string::npos),
-+	m_redirect({0})
++	m_redirect({0}),
+ 	m_token(token)
  {
  	if(!m_sync_curl || !m_select_curl)
  	{
@@ -281,9 +280,22 @@
  
 --- userspace/libsinsp/mesos.cpp.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/mesos.cpp	2016-06-25 20:43:53.976683772 -0400
-@@ -42,6 +42,12 @@
- 		m_timeout_ms(timeout_ms),
- 		m_verbose(verbose)
+@@ -7,6 +7,12 @@
+ #include "sinsp.h"
+ #include "sinsp_int.h"
+ 
++template<typename T> struct decltype_t {
++       typedef T type;
++};
++
++#define DECLTYPE_T(expr) decltype_t<decltype(expr)>::type
++
+ const mesos_component::component_map mesos::m_components =
+ {
+ 	{ mesos_component::MESOS_FRAMEWORK, "framework" },
+@@ -94,6 +100,12 @@
+ 		m_verbose(verbose),
+ 		m_testing(false)
  {
 +	m_verbose = false;
 +	m_creation_logged = false;
@@ -294,6 +306,15 @@
  #ifdef HAS_CAPTURE
  	g_logger.log(std::string("Creating Mesos object for [" +
  							 (m_mesos_uri.empty() ? std::string("capture replay") : m_mesos_uri)  +
+@@ -766,7 +778,7 @@
+ 								m_activated_frameworks.insert(uid.asString());
+ #ifdef HAS_CAPTURE
+ 								if(mesos_framework::is_root_marathon(name) && 
+-									find_if(m_marathon_groups_http.begin(), m_marathon_groups_http.end(), [uid](const decltype(m_marathon_groups_http)::value_type& item)
++									find_if(m_marathon_groups_http.begin(), m_marathon_groups_http.end(), [uid](const DECLTYPE_T(m_marathon_groups_http)::value_type& item)
+ 									{
+ 										return item.second->get_framework_id() == uid.asString();
+ 									}) == m_marathon_groups_http.end())
 --- userspace/libsinsp/filterchecks.h.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/filterchecks.h	2016-06-25 20:47:09.469919427 -0400
 @@ -131,7 +131,7 @@
@@ -433,7 +454,7 @@
  class sinsp_bearer_token
 --- userspace/libsinsp/socket_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/socket_handler.h	2016-10-26 15:25:11.790901756 -0400
-@@ -61,12 +61,33 @@
+@@ -62,12 +62,34 @@
  			m_url(url),
  			m_keep_alive(keep_alive ? std::string("Connection: keep-alive\r\n") : std::string()),
  			m_path(path.empty() ? m_url.get_path() : path),
@@ -451,8 +472,7 @@
  			m_timeout_ms(timeout_ms),
 +			m_json_callback(nullptr),
  			m_request(make_request(url, http_version)),
--			m_http_version(http_version)
-+			m_http_version(http_version),
+ 			m_http_version(http_version),
 +			m_ssl_init_complete(false),
 +			m_ssl_context(nullptr),
 +			m_ssl_connection(nullptr),
@@ -464,24 +484,27 @@
 +			m_check_chunked(false),
 +			m_close_on_chunked_end(true),
 +			m_wants_send(false),
-+			m_http_parser(nullptr)
++			m_msg_completed(false),
++			m_http_parser(nullptr),
+ 			m_data_limit(data_limit)
  	{
  		g_logger.log(std::string("Creating Socket handler object for (" + id + ") "
- 					 "[" + uri(url).to_string(false) + ']'), sinsp_logger::SEV_DEBUG);
-@@ -1506,8 +1506,10 @@
+@@ -1516,9 +1538,11 @@
  
  	struct http_parser_data
  	{
 -		std::string*              m_data_buf = nullptr;
 -		std::vector<std::string>* m_json = nullptr;
+-		bool* m_msg_completed = nullptr;
 +		std::string*              m_data_buf;
 +		std::vector<std::string>* m_json;
++		bool*                     m_msg_completed;
 +
-+		http_parser_data(): m_data_buf(nullptr), m_json(nullptr) {}
++		http_parser_data(): m_data_buf(nullptr), m_json(nullptr), m_msg_completed(nullptr) {}
  	};
  
  	static int http_body_callback(http_parser* parser, const char* data, size_t len)
-@@ -1561,42 +1582,42 @@
+@@ -1589,45 +1613,45 @@
  	std::string              m_keep_alive;
  	std::string              m_path;
  	std::string              m_address;
@@ -537,15 +560,20 @@
 -	bool                     m_check_chunked = false;
 -	bool                     m_close_on_chunked_end = true;
 -	bool                     m_wants_send = false;
+-	bool                     m_msg_completed = false;
 +	bool                     m_check_chunked;
 +	bool                     m_close_on_chunked_end;
 +	bool                     m_wants_send;
++	bool                     m_msg_completed;
  	http_parser_settings     m_http_parser_settings;
 -	http_parser*             m_http_parser = nullptr;
 +	http_parser*             m_http_parser;
  	http_parser_data         m_http_parser_data;
+-	unsigned                 m_data_limit = 524288; // bytes
++	unsigned                 m_data_limit;
  };
  
+ template <typename T>
 --- userspace/libsinsp/socket_collector.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/socket_collector.h	2016-10-26 15:28:04.390192035 -0400
 @@ -18,7 +18,8 @@
@@ -576,7 +604,7 @@
  #endif // HAS_CAPTURE
 --- userspace/libsinsp/k8s_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/k8s_handler.h	2016-10-26 15:30:09.826402994 -0400
-@@ -103,9 +103,9 @@
+@@ -107,9 +107,9 @@
  	void log_error(const msg_data& data, const Json::Value& root);
  	void log_not_found(const msg_data& data) const;
  
@@ -589,7 +617,7 @@
  	static std::string ERROR_FILTER;
  
  private:
-@@ -141,8 +141,8 @@
+@@ -145,8 +145,8 @@
  	std::string     m_event_uri;
  	long            m_timeout_ms;
  	std::string     m_url;
@@ -600,7 +628,7 @@
  	json_query      m_jq;
  	std::string     m_http_version;
  	ssl_ptr_t       m_ssl;
-@@ -153,7 +153,7 @@
+@@ -157,7 +157,7 @@
  	// this flag indicates whether handler should continue to watch after receiving
  	// the initial state
  	bool m_watch;
@@ -609,16 +637,24 @@
  
  	// flag indicating whether to connect to K8s API server (no connection needed when
  	// replaying capture)
-@@ -163,7 +163,7 @@
+@@ -167,13 +167,13 @@
  	// it must have its state fully built before this handler can begin building its own state
  	ptr_t m_dependency_handler;
  
 -	bool m_blocking_socket = false;
 +	bool m_blocking_socket;
+ 
  #endif // HAS_CAPTURE
  
+ 	// limits the number of messages handled in single cycle
+-	unsigned m_max_messages = ~0;
+-	bool m_state_processing_started = false;
++	unsigned m_max_messages;
++	bool m_state_processing_started;
+ 
  	event_list_t m_events;
-@@ -183,9 +183,9 @@
+ 
+@@ -192,9 +192,9 @@
  	// at all (eg. there is no need to capture api or extensions detection data)
  	//
  	// global capture flag is checked in the k8s state call
@@ -629,19 +665,19 @@
 +	bool m_connect_logged;
  };
  
- #ifdef HAS_CAPTURE
+ inline unsigned k8s_handler::get_max_messages() const
 --- userspace/libsinsp/k8s_handler.cpp.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/k8s_handler.cpp	2016-10-26 15:38:23.737896659 -0400
-@@ -45,6 +45,8 @@
- 	bool blocking_socket,
+@@ -46,6 +46,8 @@
  #endif // HAS_CAPTURE
+ 	unsigned max_messages,
  	k8s_state_t* state): m_state(state),
 +		m_state_built(false),
 +		m_data_received(false),
  		m_id(id + "_state"),
  #ifdef HAS_CAPTURE
  		m_collector(collector),
-@@ -54,15 +56,19 @@
+@@ -55,16 +57,21 @@
  		m_filter(&m_state_filter),
  		m_timeout_ms(timeout_ms),
  		m_url(url),
@@ -657,13 +693,16 @@
 -		m_blocking_socket(blocking_socket),
 +		m_blocking_socket(blocking_socket = false),
  #endif // HAS_CAPTURE
+-		m_max_messages(max_messages),
 -		m_is_captured(is_captured)
++		m_max_messages(max_messages = ~0),
++		m_state_processing_started(false),
 +		m_is_captured(is_captured = false),
 +		m_connect_logged(false)
  {
  #ifdef HAS_CAPTURE
  	g_logger.log("Creating K8s " + name() + " (" + m_id + ") "
-@@ -606,7 +612,7 @@
+@@ -608,7 +614,7 @@
  	for(struct addrinfo* p = servinfo; p != NULL; p = p->ai_next)
  	{
  		struct sockaddr_in* h = (struct sockaddr_in*)p->ai_addr;
@@ -674,15 +713,15 @@
  	freeaddrinfo(servinfo);
 --- userspace/libsinsp/sinsp_curl.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/sinsp_curl.h	2016-10-26 15:40:35.302150834 -0400
-@@ -76,7 +76,7 @@
+@@ -122,7 +122,7 @@
  	ssl::ptr_t          m_ssl;
  	bearer_token::ptr_t m_bt;
  	bool                m_debug;
 -	char                m_redirect[CURL_MAX_HTTP_HEADER] = {0};
 +	char                m_redirect[CURL_MAX_HTTP_HEADER];
- };
- 
- inline void sinsp_curl::set_timeout(long milliseconds)
+ 	stringstream        m_body;
+ 	sinsp_curl_http_headers m_headers;
+ 	vector<string>      m_response_headers;
 --- userspace/libsinsp/sinsp_curl.cpp.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/sinsp_curl.cpp	2016-10-26 15:43:00.618474851 -0400
 @@ -18,7 +18,7 @@
@@ -795,13 +834,13 @@
  inline bool k8s_api_handler::error() const
 --- userspace/libsinsp/k8s_api_handler.cpp.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/k8s_api_handler.cpp	2016-10-26 16:06:42.106147081 -0400
-@@ -26,7 +26,8 @@
- #ifdef HAS_CAPTURE
- 					url, path, filter, ".", collector, http_version, 1000L, ssl, bt,
+@@ -27,7 +27,8 @@
+		    url, path, filter, ".", collector, http_version, 1000L, ssl, bt,
+		    false, true, std::make_shared<k8s_dummy_handler>(), blocking_socket,
  #endif // HAS_CAPTURE
--					false, true, std::make_shared<k8s_dummy_handler>(), blocking_socket, nullptr)
-+					false, true, std::make_shared<k8s_dummy_handler>(), blocking_socket, nullptr),
-+		m_error(false)
+-					 ~0, nullptr)
++					 ~0, nullptr),
++					m_error(false)
  {
  }
  
@@ -821,7 +860,7 @@
 @@ -71,7 +71,9 @@
  					connect, dependency_handler, blocking_socket,
  #endif // HAS_CAPTURE
- 					&state),
+ 					~0, &state),
 -		m_event_filter(event_filter)
 +		m_event_filter(event_filter),
 +		m_event_ignored(false),
