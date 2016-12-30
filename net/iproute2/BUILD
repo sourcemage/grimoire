@@ -1,7 +1,9 @@
 ./configure  &&
 
 if ! is_depends_enabled $SPELL iptables; then
-  sedit "/^TC_CONFIG_XT/d" Config
+  sedit "/^TC_CONFIG_XT/d" Config &&
+  sedit "/^TC_CONFIG_XT_OLD/d" Config &&
+  sedit "s/TC_CONFIG_NO_XT:=n/TC_CONFIG_NO_XT:=y/" Config
 fi &&
 
 if ! is_depends_enabled $SPELL libselinux; then
