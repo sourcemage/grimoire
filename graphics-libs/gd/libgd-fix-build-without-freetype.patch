@@ -1,0 +1,53 @@
+From b7a01fe6e3a2b70c4f77f577947d36ae925dad06 Mon Sep 17 00:00:00 2001
+From: Mike Frysinger <vapier@gentoo.org>
+Date: Wed, 10 Aug 2016 13:35:08 +0800
+Subject: [PATCH] gdft: fix build when freetype is disabled
+
+In file included from gdft.c:20:0:
+entities.h:17:4: error: 'entities' defined but not used [-Werror=unused-variable]
+
+gdft.c:1741:15: error: 'font_path' defined but not used [-Werror=unused-function]
+ static char * font_path(char **fontpath, char *name_list)
+---
+ src/gdft.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/gdft.c b/src/gdft.c
+index 9661f2b..57b3d79 100644
+--- a/src/gdft.c
++++ b/src/gdft.c
+@@ -17,7 +17,6 @@
+ 
+ #include "gd.h"
+ #include "gdhelpers.h"
+-#include "entities.h"
+ #include "gd_intern.h"
+ 
+ /* 2.0.10: WIN32, not MSWIN32 */
+@@ -46,7 +45,10 @@ static int fontConfigFlag = 0;
+ static char *font_pattern(char **fontpath, char *fontpattern);
+ #endif
+ 
++#ifdef HAVE_LIBFREETYPE
++#include "entities.h"
+ static char *font_path(char **fontpath, char *name_list);
++#endif
+ 
+ /* 2.0.30: move these up here so we can build correctly without freetype
+ 	but with fontconfig */
+@@ -1737,6 +1739,7 @@ static char * font_pattern(char **fontpath, char *fontpattern)
+ 
+ #endif /* HAVE_LIBFONTCONFIG */
+ 
++#ifdef HAVE_LIBFREETYPE
+ /* Look up font using font names as file names. */
+ static char * font_path(char **fontpath, char *name_list)
+ {
+@@ -1855,6 +1858,7 @@ static char * font_path(char **fontpath, char *name_list)
+ 	*fontpath = fullname;
+ 	return NULL;
+ }
++#endif
+ 
+ /*
+ 	Function: gdFTUseFontConfig
