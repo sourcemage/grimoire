@@ -1,3 +1,3 @@
-OPTS="--enable-shared --disable-static $OPTS"  &&
+OPTS="-DJAS_ENABLE_SHARED=true $OPTS"  &&
 
-default_build
+cmake_build
