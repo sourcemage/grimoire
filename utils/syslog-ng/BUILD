@@ -1,6 +1,4 @@
-OPTS="--enable-dynamic-linking $OPTS"  &&
-
-#sedit  "s/-O2/$CFLAGS/"  configure
+OPTS+=" --enable-dynamic-linking ${SYSLOG_NG_OPTS}"  &&
 
 ./configure  --build=$BUILD                          \
             --prefix=${TRACK_ROOT}/usr              \
