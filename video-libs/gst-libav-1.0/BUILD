@@ -1,3 +1,5 @@
+OPTS+=" --disable-fatal-warnings" &&
+
 # need -Os to build
 CFLAGS="$CFLAGS -Os"  &&
 
