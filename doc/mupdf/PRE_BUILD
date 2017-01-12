@@ -1,15 +1,15 @@
 default_pre_build &&
 cd "${SOURCE_DIRECTORY}" &&
 
-rm -rf thirdparty/{curl,freetype,harfbuzz,jbig2dec,jpeg,openjpeg,zlib} &&
+sedit "/OPJ_STATIC$/d" source/fitz/load-jpx.c &&
+sedit "s:-DOPJ_STATIC::" Makethird &&
+patch -p1 < "${SPELL_DIRECTORY}/mupdf-1.10a-shared_libs-1.patch" &&
 
-patch -p1 < "${SPELL_DIRECTORY}/mupdf-1.9-upstream_fix-1.patch" &&
-patch -p0 < "${SPELL_DIRECTORY}/linebreak.patch" &&
+rm -rf thirdparty/{curl,freetype,harfbuzz,glfw,jbig2dec,jpeg,zlib} &&
 
-if spell_ok openjpeg && is_version_less $(installed_version openjpeg) 2.0; then
-  patch -p0 < "${SPELL_DIRECTORY}/openjpeg-1.5.patch" &&
-
-  sedit "s:libopenjp2:libopenjpeg:g" Makerules
+# building against older system OpenJPEG library is unsupported
+if spell_ok openjpeg && ! is_version_less $(installed_version openjpeg) 2.0; then
+  rm -rf thirdparty/openjpeg
 else
-  patch -p1 < "${SPELL_DIRECTORY}/openjpeg-2.1.patch"
+  patch -p0 < "${SPELL_DIRECTORY}/opj_malloc.patch"
 fi
