@@ -8,11 +8,17 @@ depends swig &&
 depends yajl &&
 depends -sub STL tinyxml &&
 depends taglib &&
-depends glew "--enable-gl" &&
+depends mesalib &&
+depends libx11 "--enable-x11" &&
+depends glew   "--enable-gl"  &&
 optional_depends libvdpau \
                  "--enable-vdpau" \
                  "--disable-vdpau" \
                  "for VDPAU decoding" &&
+optional_depends libva \
+                 "--enable-vaapi" \
+                 "--disable-vaapi" \
+                 "for VAAPI support" &&
 depends libmad &&
 depends JPEG &&
 depends libsamplerate &&
@@ -42,6 +48,7 @@ depends libxtst &&
 depends libxmu &&
 depends libxinerama &&
 depends curl &&
+depends SSL  &&
 depends dbus &&
 depends fribidi &&
 depends gnutls &&
@@ -84,21 +91,27 @@ optional_depends goom \
                  "--enable-goom" \
                  "--disable-goom" \
                  "for GOOM visualization" &&
-optional_depends rtmpdump \
-                 "--enable-rtmp" \
-                 "--disable-rtmp" \
-                 "RTMP support via librtmp" &&
+if [[ "${KODI_BRANCH}" == "stable" ]]; then
+  optional_depends rtmpdump \
+                   "--enable-rtmp" \
+                   "--disable-rtmp" \
+                   "RTMP support via librtmp"
+else
+  depends rtmpdump
+fi &&
 optional_depends faac \
                  "--enable-faac" \
                  "--disable-faac" \
                  "for faac support" &&
-optional_depends libdvdcss \
-                 "--enable-dvdcss" \
-                 "--disable-dvdcss" \
-                 "for DVDCSS support" &&
+if [[ "${KODI_BRANCH}" == "stable" ]]; then
+  optional_depends libdvdcss \
+                   "--enable-dvdcss" \
+                   "--disable-dvdcss" \
+                   "for DVDCSS support"
+fi &&
 optional_depends libbluray \
                  "--enable-libbluray" \
-                 "" \
+                 "--disable-libbluray" \
                  "for libbluray support" &&
 optional_depends a52dec \
                  "--enable-external-liba52" \
@@ -108,6 +121,16 @@ optional_depends libdca \
                  "--enable-external-libdts" \
                  "--disable-external-libdts" \
                  "use system libdts" &&
+if [[ "${KODI_BRANCH}" != "stable" ]]; then
+  optional_depends libxslt \
+                   "--enable-libxslt" \
+                   "--disable-libxslt" \
+                   "for XSLT scrapers"
+fi &&
+optional_depends DEVICE-MANAGER \
+                 "--enable-udev" \
+                 "--disable-udev" \
+                 "for udev support" &&
 depends faad2 &&
 depends libmpeg2 &&
 depends libass &&
@@ -120,10 +143,17 @@ optional_depends cwiid \
                  "" \
                  "" \
                  "for wiimote support" &&
-optional_depends BLUEZ \
-                 "" \
-                 "" \
-                 "for bluetooth support" &&
+if [[ "${KODI_BRANCH}" == "stable" ]]; then
+  optional_depends BLUEZ \
+                   "" \
+                   "" \
+                   "for bluetooth support"
+else
+  optional_depends BLUEZ \
+                   "--enable-libbluetooth" \
+                   "--disable-libbluetooth" \
+                   "for bluetooth support"
+fi
 depends zlib &&
 depends libmms &&
 optional_depends samba \
@@ -137,7 +167,10 @@ optional_depends libmicrohttpd \
                  "--disable-webserver" \
                  "for webserver support" &&
 depends libmodplug &&
-depends libssh &&
+optional_depends libssh \
+                 "--enable-ssh" \
+                 "-disable-ssh" \
+                 "for SFTP support" &&
 depends gettext &&
 depends cvs &&
 depends libtool &&
@@ -145,7 +178,22 @@ optional_depends libusb \
                  "--enable-libusb" \
                  "--disable-libusb" \
                  "for libusb support" &&
-
-optional_depends GIFLIB "--enable-gif" "--disable-gif" "gif support via libgif" &&
-depends dcadec &&
+optional_depends libcec \
+                 "--enable-libcec" \
+                 "--disable-libcec" \
+                 "for TV remote control support via HDMI" &&
+if [[ "${KODI_BRANCH}" != "stable" ]]; then
+  optional_depends lcms2 \
+                   "--enable-lcms2" \
+                   "--disable-lcms2" \
+                   "for color managment support"
+fi &&
+optional_depends libcap \
+                 "--enable-libcap" \
+                 "--disable-libcap" \
+                 "for libcap support" &&
+if [[ "${KODI_BRANCH}" == "stable" ]]; then
+  optional_depends GIFLIB "--enable-gif" "--disable-gif" "gif support via libgif" &&
+  depends dcadec
+fi &&
 depends crossguid
