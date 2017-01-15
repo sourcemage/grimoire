@@ -1,2 +1,1 @@
-OPTS="$OPTS --disable-libQgpsmm" &&
-default_build
+scons -j$MAKE_NJOBS prefix="$INSTALL_ROOT"/usr $OPTS
