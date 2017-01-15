@@ -52,8 +52,7 @@ done &&
 
 local MAKE_TARGET
 if [[ $FIREFOX_PGO == y ]]; then
-  MAKE_TARGET=profiledbuild &&
-  echo "ac_add_options --enable-profile-guided-optimization" >> .mozconfig
+  MAKE_TARGET=profiledbuild
 else
   MAKE_TARGET=build
 fi &&
