@@ -1,2 +1,2 @@
-PATH="$QT5DIR/bin:$PATH"
-make PREFIX="$INSTALL_ROOT/usr"
+qt5_cmake_build &&
+make lrelease
