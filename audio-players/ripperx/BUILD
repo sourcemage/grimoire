@@ -1,1 +1,1 @@
-LIBS+=" -lm" default_build
+LIBS+=" -lm -lz" default_build
