@@ -73,7 +73,7 @@ scanlvm()
 
 start_cryptfs()
 {
-  optional_executable /usr/sbin/cryptsetup && [ -f /etc/crypttab ] || return
+  optional_executable /usr/sbin/cryptsetup && [ -f /etc/crypttab ] || return 0
   echo "Attempting to open encrypted block devices"
   # TODO implement parsing of options
   awk '
