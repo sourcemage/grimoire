@@ -150,7 +150,7 @@ start()
   evaluate_retval
 
   # bug 7311 - if proc was mounted, list it in mtab; awk is /usr friendly
-  if ! [[ -h /etc/mtab]] && awk 'BEGIN{proc=1} /\/proc/{proc=0} END{exit proc}' /proc/mounts; then
+  if ! [[ -h /etc/mtab ]] && awk 'BEGIN{proc=1} /\/proc/{proc=0} END{exit proc}' /proc/mounts; then
     builtin echo 'none /proc proc rw 0 0' >> /etc/mtab
   fi
 
