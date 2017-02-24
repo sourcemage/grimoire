@@ -454,7 +454,7 @@
  class sinsp_bearer_token
 --- userspace/libsinsp/socket_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/socket_handler.h	2016-10-26 15:25:11.790901756 -0400
-@@ -62,12 +62,34 @@
+@@ -63,12 +63,32 @@
  			m_url(url),
  			m_keep_alive(keep_alive ? std::string("Connection: keep-alive\r\n") : std::string()),
  			m_path(path.empty() ? m_url.get_path() : path),
@@ -480,31 +480,31 @@
 +			m_serv_addr({0}),
 +			m_sa(0),
 +			m_sa_len(0),
-+			m_content_length(std::string::npos),
-+			m_check_chunked(false),
 +			m_close_on_chunked_end(true),
 +			m_wants_send(false),
 +			m_msg_completed(false),
 +			m_http_parser(nullptr),
  			m_data_limit(data_limit)
+ 
  	{
- 		g_logger.log(std::string("Creating Socket handler object for (" + id + ") "
-@@ -1516,9 +1538,11 @@
+@@ -1512,10 +1533,12 @@
  
  	struct http_parser_data
  	{
--		std::string*              m_data_buf = nullptr;
+-		std::string* m_data_buf = nullptr;
 -		std::vector<std::string>* m_json = nullptr;
+-		int* m_http_response = nullptr;
 -		bool* m_msg_completed = nullptr;
-+		std::string*              m_data_buf;
++		std::string* m_data_buf;
 +		std::vector<std::string>* m_json;
-+		bool*                     m_msg_completed;
++		int* m_http_response;
++		bool* m_msg_completed;
 +
-+		http_parser_data(): m_data_buf(nullptr), m_json(nullptr), m_msg_completed(nullptr) {}
++		http_parser_data(): m_data_buf(nullptr), m_json(nullptr), m_http_response(nullptr), m_msg_completed(nullptr) {}
  	};
  
  	static int http_body_callback(http_parser* parser, const char* data, size_t len)
-@@ -1589,45 +1613,45 @@
+@@ -1599,43 +1622,43 @@
  	std::string              m_keep_alive;
  	std::string              m_path;
  	std::string              m_address;
@@ -550,27 +550,24 @@
 -	struct sockaddr_in       m_serv_addr = {0};
 -	struct sockaddr*         m_sa = 0;
 -	socklen_t                m_sa_len = 0;
--	std::string::size_type   m_content_length = std::string::npos;
+-	bool                     m_close_on_chunked_end = true;
+-	bool                     m_wants_send = false;
+-	int                      m_http_response = -1;
+-	bool                     m_msg_completed = false;
 +	struct sockaddr_un       m_file_addr;
 +	struct sockaddr_in       m_serv_addr;
 +	struct sockaddr*         m_sa;
 +	socklen_t                m_sa_len;
-+	std::string::size_type   m_content_length;
- 	std::string              m_chunked_end;
--	bool                     m_check_chunked = false;
--	bool                     m_close_on_chunked_end = true;
--	bool                     m_wants_send = false;
--	bool                     m_msg_completed = false;
-+	bool                     m_check_chunked;
 +	bool                     m_close_on_chunked_end;
 +	bool                     m_wants_send;
++	int                      m_http_response;
 +	bool                     m_msg_completed;
  	http_parser_settings     m_http_parser_settings;
 -	http_parser*             m_http_parser = nullptr;
 +	http_parser*             m_http_parser;
  	http_parser_data         m_http_parser_data;
 -	unsigned                 m_data_limit = 524288; // bytes
-+	unsigned                 m_data_limit;
++	unsigned                 m_data_limit; // bytes
  };
  
  template <typename T>
@@ -587,18 +584,18 @@
  		clear_fds();
  	}
 @@ -361,11 +362,11 @@
- 	socket_map_t     m_sockets;
- 	fd_set           m_infd;
- 	fd_set           m_errfd;
--	int              m_nfds = 0;
--	bool             m_loop = false;
-+	int              m_nfds;
-+	bool             m_loop;
- 	long             m_timeout_ms;
--	bool             m_stopped = false;
--	bool             m_steady_state = false;
-+	bool             m_stopped;
-+	bool             m_steady_state;
+ 	socket_map_t m_sockets;
+ 	fd_set       m_infd;
+ 	fd_set       m_errfd;
+-	int          m_nfds = 0;
+-	bool         m_loop = false;
++	int          m_nfds;
++	bool         m_loop;
+ 	long         m_timeout_ms;
+-	bool         m_stopped = false;
+-	bool         m_steady_state = false;
++	bool         m_stopped;
++	bool         m_steady_state;
  };
  
  #endif // HAS_CAPTURE
@@ -765,15 +762,15 @@
  }
 --- userspace/libsinsp/k8s_net.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/k8s_net.h	2016-10-26 15:44:30.397675035 -0400
-@@ -78,7 +78,7 @@
+@@ -76,7 +76,7 @@
  	bt_ptr_t        m_bt;
  	bool            m_stopped;
  	handler_map_t   m_handlers;
 -	bool            m_blocking_sockets = false;
 +	bool            m_blocking_sockets;
- 	ext_list_ptr_t  m_extensions;
  	filter_ptr_t    m_event_filter;
  	std::string     m_machine_id;
+ };
 --- userspace/libsinsp/k8s.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/k8s.h	2016-10-26 15:47:17.606047865 -0400
 @@ -80,7 +80,7 @@
@@ -868,3 +865,16 @@
  {
  }
  
+--- userspace/libsinsp/filter.cpp.orig	2017-02-24 11:34:12.000000000 -0500
++++ userspace/libsinsp/filter.cpp	2017-02-24 13:04:34.028090551 -0500
+@@ -2057,8 +2057,8 @@
+ 		if(it == m_filter_by_tag.end() ||
+ 		   it->first != tag)
+ 		{
+-			it = m_filter_by_tag.emplace_hint(it,
+-							  std::make_pair(tag, std::list<filter_wrapper*>()));
++			it = m_filter_by_tag.insert(it,
++							  std::make_pair(tag, std::move(std::list<filter_wrapper*>())));
+ 		}
+ 
+ 		it->second.push_back(wrap);
