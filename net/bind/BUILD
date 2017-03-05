@@ -1,5 +1,6 @@
 OPTS="$BIND_CAPS  \
       $BIND_IPV6  \
+      --without-libjson \
       $OPTS"      &&
 
 create_account  bind  &&
