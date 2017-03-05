@@ -3,6 +3,7 @@
       --localstatedir=${INSTALL_ROOT}/var             \
              --mandir=${INSTALL_ROOT}/usr/share/man   \
             --infodir=${INSTALL_ROOT}/usr/share/info  \
+            --without-libjson                         \
                       $OPTS                           &&
 
 make_single  &&
