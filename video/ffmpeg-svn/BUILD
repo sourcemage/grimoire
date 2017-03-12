@@ -9,6 +9,7 @@ LDFLAGS=${LDFLAGS/-Wl,--as-needed} &&
 #  OPTS="--enable-lib$FFAMR $FFMPEG_SWSCALE $OPTS"
 #fi  &&
 
+check_tmp_noexec /tmp &&
 ./configure  --prefix=${INSTALL_ROOT}/usr            \
              --mandir=${INSTALL_ROOT}/usr/share/man  \
              --enable-shared                         \
@@ -18,4 +19,5 @@ LDFLAGS=${LDFLAGS/-Wl,--as-needed} &&
              --enable-postproc                       \
              --enable-gpl                            \
              $OPTS                         &&
+check_tmp_noexec /tmp &&
 make
