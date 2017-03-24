@@ -1,0 +1,91 @@
+From c9778ad0146f0571a9e5e942f20caf0fc96a73b5 Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Thu, 7 Jan 2016 15:59:12 +0100
+Subject: [PATCH 1/4] use system libedit
+
+---
+ CMakeLists.txt                  |  2 +-
+ builds/cmake/Configure.cmake    |  2 +-
+ src/include/gen/autoconfig.h.in |  4 ++--
+ src/isql/isql.epp               | 10 ++++------
+ 4 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d23b260..0423ca7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -215,7 +215,7 @@ if (UNIX)
+     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+ 
+     if (NOT CMAKE_CROSSCOMPILING)
+-        set(LIB_readline readline)
++        set(LIB_readline edit)
+     endif()
+     if (NOT FREEBSD)
+         set(LIB_dl dl)
+diff --git a/builds/cmake/Configure.cmake b/builds/cmake/Configure.cmake
+index 1e1e9a1..006f9a3 100644
+--- a/builds/cmake/Configure.cmake
++++ b/builds/cmake/Configure.cmake
+@@ -124,7 +124,7 @@ set(include_files_list
+     ctype.h
+     dirent.h
+     dlfcn.h
+-    editline.h
++    editline/readline.h
+     errno.h
+     fcntl.h
+     float.h
+diff --git a/src/include/gen/autoconfig.h.in b/src/include/gen/autoconfig.h.in
+index 997589e..4a04c7a 100644
+--- a/src/include/gen/autoconfig.h.in
++++ b/src/include/gen/autoconfig.h.in
+@@ -195,8 +195,8 @@
+ /* Define to 1 if you have the <dlfcn.h> header file. */
+ #cmakedefine HAVE_DLFCN_H 1
+ 
+-/* Define to 1 if you have the <editline.h> header file. */
+-#cmakedefine HAVE_EDITLINE_H 1
++/* Define to 1 if you have the <editline/readline.h> header file. */
++#cmakedefine HAVE_EDITLINE_READLINE_H 1
+ 
+ /* Define to 1 if you have the <errno.h> header file. */
+ #cmakedefine HAVE_ERRNO_H 1
+diff --git a/src/isql/isql.epp b/src/isql/isql.epp
+index 98b37bb..3e90cd2 100644
+--- a/src/isql/isql.epp
++++ b/src/isql/isql.epp
+@@ -78,10 +78,8 @@
+ #include <locale.h>
+ #endif
+ 
+-#ifdef HAVE_EDITLINE_H
+-// This is a local file included in our distribution - but not always
+-// compiled into the system
+-#include "editline.h"
++#ifdef HAVE_EDITLINE_READLINE_H
++#include <editline/readline.h>
+ #endif
+ 
+ enum literal_string_type
+@@ -622,7 +620,7 @@ int ISQL_main(int argc, char* argv[])
+  *
+  **************************************/
+ 
+-#if defined(HAVE_EDITLINE_H) && defined(HAVE_LOCALE_H)
++#if defined(HAVE_EDITLINE_READLINE_H) && defined(HAVE_LOCALE_H)
+ 	setlocale(LC_CTYPE, "");
+ #endif
+ 	atexit(&atexit_fb_shutdown);
+@@ -851,7 +849,7 @@ static void readNextInputLine(const char* prompt)
+ 
+ 	getColumn = 0;
+ 
+-#ifdef HAVE_EDITLINE_H
++#ifdef HAVE_EDITLINE_READLINE_H
+ 	if (Filelist->readingStdin())
+ 	{
+ 		// CVC: On 2005-04-02, use an empty prompt when not working in
+-- 
+2.12.1
+
