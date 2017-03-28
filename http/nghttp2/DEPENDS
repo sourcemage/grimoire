@@ -1,31 +1,34 @@
 depends -sub CXX gcc &&
-depends cmake &&
 depends -sub WITHSSL libevent &&
 depends pkgconfig &&
 
-optional_depends -sub THREAD boost \
-                 "" \
-                 "" \
+optional_depends -sub "SYSTEM THREAD" boost \
+                 "--enable-asio-lib" \
+                 "--disable-asio-lib" \
                  "for threading support" &&
 
 optional_depends jansson \
-                 "" \
-                 "" \
+                 "--enable-hpack-tools" \
+                 "--disable-hpack-tools" \
                  "for HPACK tools" &&
 
-optional_depends libev \
-                 "" \
-                 "" \
-                 "enable utils" &&
+if [[ ${INIT_INSTALLED} ]]; then
+  depends libev "--enable-app"
+else
+  optional_depends libev \
+                   "--enable-app" \
+                   "--disable-app" \
+                   "enable utils"
+fi &&
 
 optional_depends libxml2 \
-                 "" \
-                 "" \
+                 "--with-libxml2" \
+                 "--without-libxml2" \
                  "for XML support" &&
 
 optional_depends PYTHON \
-                 "" \
-                 "" \
+                 "--enable-python-bindings" \
+                 "--disable-python-bindings" \
                  "for Python bindings (needs cython too)" &&
 
 if is_depends_enabled $SPELL $(get_spell_provider $SPELL PYTHON); then
@@ -33,11 +36,12 @@ if is_depends_enabled $SPELL $(get_spell_provider $SPELL PYTHON); then
 fi &&
 
 if is_depends_enabled ${SPELL} libev; then
+  depends c-ares &&
   depends SSL &&
   depends zlib
 fi &&
 
 optional_depends systemd \
-                 "" \
-                 "" \
+                 "--with-systemd" \
+                 "--without-systemd" \
                  "for systemd support"
