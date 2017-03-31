@@ -9,32 +9,40 @@ Description: Generate shared libraries for mupdf, instead of static ones. This
 diff -Naur a/Makefile b/Makefile
 --- a/Makefile	2016-11-21 11:21:11.000000000 +0100
 +++ b/Makefile	2016-11-27 10:26:11.411353082 +0100
-@@ -15,7 +15,7 @@
+@@ -14,7 +14,7 @@
  # Do not specify CFLAGS or LIBS on the make invocation line - specify
  # XCFLAGS or XLIBS instead. Make ignores any lines in the makefile that
  # set a variable that was set on the command line.
--CFLAGS += $(XCFLAGS) -Iinclude -I$(GEN)
-+CFLAGS += $(XCFLAGS) -Iinclude -I$(GEN) -fPIC
+-CFLAGS += $(XCFLAGS) -Iinclude -Igenerated
++CFLAGS += $(XCFLAGS) -Iinclude -Igenerated -fPIC
  LIBS += $(XLIBS) -lm
  
  LIBS += $(FREETYPE_LIBS)
-@@ -152,14 +152,16 @@
+@@ -300,19 +300,22 @@
  
  # --- Library ---
  
 -MUPDF_LIB = $(OUT)/libmupdf.a
 -THIRD_LIB = $(OUT)/libmupdfthird.a
+-THREAD_LIB = $(OUT)/libmuthreads.a
 +MUPDF_LIB = $(OUT)/libmupdf.so
 +THIRD_LIB = $(OUT)/libmupdfthird.so
++THREAD_LIB = $(OUT)/libmuthreads.so
  
  MUPDF_OBJ := $(FITZ_OBJ) $(FONT_OBJ) $(PDF_OBJ) $(XPS_OBJ) $(SVG_OBJ) $(CBZ_OBJ) $(HTML_OBJ) $(GPRF_OBJ)
- THIRD_OBJ := $(FREETYPE_OBJ) $(HARFBUZZ_OBJ) $(JBIG2DEC_OBJ) $(JPEG_OBJ) $(JPEGXR_OBJ) $(LURATECH_OBJ) $(MUJS_OBJ) $(OPENJPEG_OBJ) $(ZLIB_OBJ)
+ THIRD_OBJ := $(FREETYPE_OBJ) $(HARFBUZZ_OBJ) $(JBIG2DEC_OBJ) $(LIBJPEG_OBJ) $(JPEGXR_OBJ) $(LURATECH_OBJ) $(MUJS_OBJ) $(OPENJPEG_OBJ) $(ZLIB_OBJ)
+ THREAD_OBJ := $(THREAD_OBJ)
  
 -$(MUPDF_LIB) : $(MUPDF_OBJ)
 +$(MUPDF_LIB) : $(MUPDF_OBJ) $(THIRD_LIB)
 +	$(LINK_CMD) -shared -Wl,-soname -Wl,libmupdf.so -Wl,--no-undefined
  $(THIRD_LIB) : $(THIRD_OBJ)
 +	$(LINK_CMD) -shared -Wl,-soname -Wl,libmupdfthird.so -Wl,--no-undefined
+ $(THREAD_LIB) : $(THREAD_OBJ)
++	$(LINK_CMD) -pthread -shared -Wl,-soname -Wl,libmuthreads.so -Wl,--no-undefined
  
- INSTALL_LIBS := $(MUPDF_LIB) $(THIRD_LIB)
+-INSTALL_LIBS := $(MUPDF_LIB) $(THIRD_LIB)
++INSTALL_LIBS := $(MUPDF_LIB) $(THIRD_LIB) $(THREAD_LIB)
+ 
+ # --- Tools and Apps ---
  
