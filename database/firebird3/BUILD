@@ -1,4 +1,4 @@
-CXXFLAGS+=" -Wno-narrowing -msse4" &&
+CXXFLAGS+=" -Wno-narrowing -Wno-deprecated-declarations -Wno-invalid-offsetof" &&
 CXXFLAGS+=" -fno-sized-deallocation -fno-delete-null-pointer-checks -flifetime-dse=1 -fcheck-new" &&
 persistent_add FB_PREFIX               &&
 FB_PREFIX=${INSTALL_ROOT}/opt/firebird &&
