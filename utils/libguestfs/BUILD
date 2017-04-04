@@ -4,4 +4,7 @@ OPTS="--disable-daemon     \
       --disable-appliance  \
       $OPTS"               &&
 
+# Disable checking KVM features: It's broken
+export vmchannel_test=no  &&
+
 default_build
