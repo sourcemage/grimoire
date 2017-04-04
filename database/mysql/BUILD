@@ -58,19 +58,12 @@ fi  &&
 OPTS="$OPTS --with-mysqld-user=mysql  --without-bench    \
         --localstatedir=${INSTALL_ROOT}/var/lib/mysql    \
         --enable-assembler --enable-thread-safe-client"  &&
-default_build                                            &&
 
-#./configure  --build=$BUILD                             \
-#            --prefix=$INSTALL_ROOT/usr                  \
-#        --sysconfdir=$INSTALL_ROOT/etc                  \
-#            --mandir=$INSTALL_ROOT/usr/share/man        \
-#           --infodir=$INSTALL_ROOT/usr/share/info       \
-#     --localstatedir=/var/lib/mysql                     \
-#  --with-mysqld-user=mysql                              \
-#           --without-bench                              \
-#            --enable-assembler                          \
-#            --enable-thread-safe-client                 \
-#                     $OPTS                              &&
+# Fix compiling with gcc 6+ (C++11 and newer)
+export CFLAGS=" -std=gnu++98 ${CFLAGS}"                  &&
+export CXXFLAGS=" -std=gnu++98 ${CXXFLAGS}"              &&
+
+default_build                                            &&
 
 export  LD_PRELOAD="$LD_PRELOAD_OLD"                     &&
 make  pkglibdir=${TRACK_ROOT}/usr/lib
