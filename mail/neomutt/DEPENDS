@@ -1,24 +1,13 @@
 depends "automake" &&
 
-persistent_add TMP_NEOMUTT_OPTS &&
-TMP_NEOMUTT_OPTS=""             &&
+persistent_remove TMP_NEOMUTT_OPTS &&
 
 optional_depends   "MAIL-TRANSPORT-AGENT"                       \
                    ""                                           \
                    ""                                           \
                    "to send mail"                               &&
 
-config_query_list TERMINAL_LIBRARY                              \
-                  "Build against which terminal library?"       \
-                  ncurses slang                                 &&
-
-if [[ ${TERMINAL_LIBRARY} = "ncurses" ]]; then
-  TMP_NEOMUTT_OPTS="${TMP_NEOMUTT_OPTS} --with-curses"
-else
-  TMP_NEOMUTT_OPTS="${TMP_NEOMUTT_OPTS} --with-${TERMINAL_LIBRARY}"
-fi &&
-
-depends "${TERMINAL_LIBRARY}"                                   &&
+depends "${TERMINAL_LIBRARY}" "--with-${TERMINAL_LIBRARY/ncurses/curses}" &&
 
 optional_depends   "gnupg"                                      \
                    ""                                           \
@@ -43,17 +32,16 @@ optional_depends "gpgme"                                      \
                  ""                                           \
                  "alternate backend for PGP and S/MIME"       &&
 
-if list_find "${NEOMUTT_OPTS}" "--enable-hcache"; then
-  config_query_list HCACHE_BACKEND                            \
-                    "Use which header cache backend?"         \
-                    gdbm db lmdb                              &&
-  if [[ "$HCACHE_BACKEND" == "db" ]]; then
-    TMP_NEOMUTT_OPTS="${TMP_NEOMUTT_OPTS} --without-gdbm --with-bdb"
-  elif [[ "$HCACHE_BACKEND" == "lmdb" ]]; then
-    TMP_NEOMUTT_OPTS="${TMP_NEOMUTT_OPTS} --without-gdbm --with-lmdb"
-  fi &&
-  depends "${HCACHE_BACKEND}"
-fi &&
+case ${HCACHE_BACKEND} in
+    db)
+        depends "${HCACHE_BACKEND}" "--with-bdb --without-gdbm --without-lmdb" ;;
+  lmdb)
+        depends "${HCACHE_BACKEND}" "--with-lmdb --without-db --without-gdbm"  ;;
+  gdbm)
+        depends "${HCACHE_BACKEND}" "--with-gdbm --without-db --without-lmdb"  ;;
+     *)
+        ;;
+ esac &&
 
 optional_depends "tokyocabinet"                               \
                  ""                                           \
@@ -87,7 +75,7 @@ if list_find "${NEOMUTT_OPTS}" "--enable-pop" || list_find "${NEOMUTT_OPTS}" "--
                    ""                                           \
                    "to enable SSL support for POP/IMAP via gnutls" &&
 
-  optional_depends "libsasl"                                   \
+  optional_depends "LIBSASL"                                   \
                    "--with-sasl"                               \
                    ""                                          \
                    "to enable SASL2 authentication for POP/IMAP"
@@ -104,4 +92,3 @@ optional_depends "notmuch"                                      \
                  "--enable-notmuch"                             \
                  "--disable-notmuch"                            \
                  "Enable NOTMUCH support"
-
