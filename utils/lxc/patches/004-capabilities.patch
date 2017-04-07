@@ -1,0 +1,153 @@
+From e37dda715615d09543b9e15c181f9e0a422646da Mon Sep 17 00:00:00 2001
+From: Fabrice Fontaine <fontaine.fabrice@gmail.com>
+Date: Sat, 11 Feb 2017 22:40:19 +0100
+Subject: [PATCH] Add HAVE_LIBCAP
+
+Currently it is impossible to build lxc with --disable-capabilities if
+the user has libcap-dev installed on his system as:
+ - calls to cap_xxx functions are not protected by HAVE_LIBCAP defines.
+ The whole file is only protected by HAVE_SYS_CAPABILITY_H.
+ - AC_CHECK_LIB default action-if-found is overriden by [true] so
+ HAVE_LIBCAP is never written to config.h
+
+This patch replaces all HAVE_SYS_CAPABILITY_H checks by HAVE_LIBCAP
+checks (fix #1361)
+
+Signed-off-by: Fabrice Fontaine <fontaine.fabrice@gmail.com>
+---
+ configure.ac    |  5 +++--
+ src/lxc/caps.c  |  2 +-
+ src/lxc/caps.h  |  2 +-
+ src/lxc/conf.c  |  6 +++---
+ src/lxc/start.c | 10 +++++-----
+ 5 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 612ca46..d5767e1 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -370,7 +370,8 @@ fi
+ AM_CONDITIONAL([ENABLE_CAP], [test "x$enable_capabilities" = "xyes"])
+ 
+ AM_COND_IF([ENABLE_CAP],
+-	[AC_CHECK_LIB(cap,cap_set_proc,[true],[AC_MSG_ERROR([You are missing libcap support.])])
++	[AC_CHECK_HEADER([sys/capability.h],[],[AC_MSG_ERROR([You must install the libcap development package in order to compile lxc])])
++	AC_CHECK_LIB(cap,cap_set_proc,[],[AC_MSG_ERROR([You must install the libcap development package in order to compile lxc])])
+ 	AC_SUBST([CAP_LIBS], [-lcap])])
+ 
+ # HAVE_SCMP_FILTER_CTX=1 will tell us we have libseccomp api >= 1.0.0
+@@ -638,7 +639,7 @@ AC_CHECK_DECLS([PR_SET_NO_NEW_PRIVS], [], [], [#include <sys/prctl.h>])
+ AC_CHECK_DECLS([PR_GET_NO_NEW_PRIVS], [], [], [#include <sys/prctl.h>])
+ 
+ # Check for some headers
+-AC_CHECK_HEADERS([sys/signalfd.h pty.h ifaddrs.h sys/capability.h sys/memfd.h sys/personality.h utmpx.h sys/timerfd.h])
++AC_CHECK_HEADERS([sys/signalfd.h pty.h ifaddrs.h sys/memfd.h sys/personality.h utmpx.h sys/timerfd.h])
+ 
+ # lookup major()/minor()/makedev()
+ AC_HEADER_MAJOR
+diff --git a/src/lxc/caps.c b/src/lxc/caps.c
+index 73b5516..1d46c45 100644
+--- a/src/lxc/caps.c
++++ b/src/lxc/caps.c
+@@ -36,7 +36,7 @@
+ 
+ lxc_log_define(lxc_caps, lxc);
+ 
+-#if HAVE_SYS_CAPABILITY_H
++#if HAVE_LIBCAP
+ 
+ #ifndef PR_CAPBSET_READ
+ #define PR_CAPBSET_READ 23
+diff --git a/src/lxc/caps.h b/src/lxc/caps.h
+index 390dbdd..8d60fdc 100644
+--- a/src/lxc/caps.h
++++ b/src/lxc/caps.h
+@@ -27,7 +27,7 @@
+ #ifndef __LXC_CAPS_H
+ #define __LXC_CAPS_H
+ 
+-#if HAVE_SYS_CAPABILITY_H
++#if HAVE_LIBCAP
+ #include <sys/capability.h>
+ 
+ extern int lxc_caps_down(void);
+diff --git a/src/lxc/conf.c b/src/lxc/conf.c
+index 6f31d33..b94fbbb 100644
+--- a/src/lxc/conf.c
++++ b/src/lxc/conf.c
+@@ -91,7 +91,7 @@
+ #include "utils.h"
+ #include "lsm/lsm.h"
+ 
+-#if HAVE_SYS_CAPABILITY_H
++#if HAVE_LIBCAP
+ #include <sys/capability.h>
+ #endif
+ 
+@@ -107,7 +107,7 @@
+ 
+ lxc_log_define(lxc_conf, lxc);
+ 
+-#if HAVE_SYS_CAPABILITY_H
++#if HAVE_LIBCAP
+ #ifndef CAP_SETFCAP
+ #define CAP_SETFCAP 31
+ #endif
+@@ -316,7 +316,7 @@ static struct mount_opt mount_opt[] = {
+ 	{ NULL,            0, 0              },
+ };
+ 
+-#if HAVE_SYS_CAPABILITY_H
++#if HAVE_LIBCAP
+ static struct caps_opt caps_opt[] = {
+ 	{ "chown",             CAP_CHOWN             },
+ 	{ "dac_override",      CAP_DAC_OVERRIDE      },
+diff --git a/src/lxc/start.c b/src/lxc/start.c
+index 2929514..ab5f5ad 100644
+--- a/src/lxc/start.c
++++ b/src/lxc/start.c
+@@ -46,7 +46,7 @@
+ #include <sys/un.h>
+ #include <sys/wait.h>
+ 
+-#if HAVE_SYS_CAPABILITY_H
++#if HAVE_LIBCAP
+ #include <sys/capability.h>
+ #endif
+ 
+@@ -375,7 +375,7 @@ int lxc_poll(const char *name, struct lxc_handler *handler)
+ 	}
+ 
+ 	if (handler->conf->need_utmp_watch) {
+-		#if HAVE_SYS_CAPABILITY_H
++		#if HAVE_LIBCAP
+ 		if (lxc_utmp_mainloop_add(&descr, handler)) {
+ 			ERROR("Failed to add utmp handler to LXC mainloop.");
+ 			goto out_mainloop_open;
+@@ -787,7 +787,7 @@ static int do_start(void *data)
+ 		goto out_warn_father;
+ 	}
+ 
+-	#if HAVE_SYS_CAPABILITY_H
++	#if HAVE_LIBCAP
+ 	if (handler->conf->need_utmp_watch) {
+ 		if (prctl(PR_CAPBSET_DROP, CAP_SYS_BOOT, 0, 0, 0)) {
+ 			SYSERROR("Failed to remove the CAP_SYS_BOOT capability.");
+@@ -898,7 +898,7 @@ static int do_start(void *data)
+ 		 * further above. Only drop groups if we can, so ensure that we
+ 		 * have necessary privilege.
+ 		 */
+-		#if HAVE_SYS_CAPABILITY_H
++		#if HAVE_LIBCAP
+ 		have_cap_setgid = lxc_cap_is_set(CAP_SETGID, CAP_EFFECTIVE);
+ 		#else
+ 		have_cap_setgid = false;
+@@ -1337,7 +1337,7 @@ int __lxc_start(const char *name, struct lxc_conf *conf,
+ 	handler->netnsfd = -1;
+ 
+ 	if (must_drop_cap_sys_boot(handler->conf)) {
+-		#if HAVE_SYS_CAPABILITY_H
++		#if HAVE_LIBCAP
+ 		DEBUG("Dropping CAP_SYS_BOOT capability.");
+ 		#else
+ 		DEBUG("Not dropping CAP_SYS_BOOT capability as capabilities aren't supported.");
