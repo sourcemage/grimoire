@@ -1,5 +1,4 @@
-persistent_add TMP_MUTT_OPTS &&
-TMP_MUTT_OPTS="" &&
+persistent_remove TMP_MUTT_OPTS &&
 
 optional_depends   "MAIL-TRANSPORT-AGENT"                       \
                    ""                                           \
@@ -10,17 +9,7 @@ if [[ "$MUTT_BRANCH" == "scm" ]]; then
 	depends mercurial
 fi &&
 
-config_query_list TERMINAL_LIBRARY                              \
-                  "Build against which terminal library?"       \
-                  ncurses slang                                 &&
-
-if [[ ${TERMINAL_LIBRARY} = "ncurses" ]]; then
-  TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --with-curses"
-else
-  TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --with-${TERMINAL_LIBRARY}"
-fi &&
-
-depends "${TERMINAL_LIBRARY}"                                   &&
+depends "${TERMINAL_LIBRARY}" "--with-${TERMINAL_LIBRARY/ncurses/curses}" &&
 
 optional_depends   "gnupg"                                      \
                    ""                                           \
@@ -45,14 +34,27 @@ optional_depends "gpgme"                                      \
                  ""                                           \
                  "alternate backend for PGP and S/MIME"       &&
 
-if list_find "${MUTT_OPTS}" "--enable-hcache"; then
-  config_query_list HCACHE_BACKEND                            \
-                    "Use which header cache backend?"         \
-                    gdbm db                                   &&
-  if [[ "$HCACHE_BACKEND" == "db" ]]; then
-    TMP_MUTT_OPTS="${TMP_MUTT_OPTS} --without-gdbm --with-bdb"
-  fi &&
-  depends "${HCACHE_BACKEND}"
+case ${HCACHE_BACKEND} in
+    db)
+        depends "${HCACHE_BACKEND}" "--with-bdb --without-gdbm --without-lmdb" ;;
+  lmdb)
+        depends "${HCACHE_BACKEND}" "--with-lmdb --without-db --without-gdbm"  ;;
+  gdbm)
+        depends "${HCACHE_BACKEND}" "--with-gdbm --without-db --without-lmdb"  ;;
+     *)
+        ;;
+ esac &&
+
+if [[ "${MUTT_BRANCH}" != "stable" ]]; then
+  optional_depends "tokyocabinet"                             \
+                   ""                                         \
+                   "--without-tokyocabinet"                   \
+                   "Use tokyocabinet?"                        &&
+
+  optional_depends "kyotocabinet"                             \
+                   ""                                         \
+                   "--without-kyotocabinet"                   \
+                   "Use kyotocabinet?"
 fi &&
 
 optional_depends "libidn"                                     \
@@ -72,7 +74,7 @@ if list_find "${MUTT_OPTS}" "--enable-pop" || list_find "${MUTT_OPTS}" "--enable
                    ""                                           \
                    "to enable SSL support for POP/IMAP via gnutls" &&
 
-  optional_depends "cyrus-sasl"                                \
+  optional_depends "LIBSASL"                                   \
                    "--with-sasl"                               \
                    ""                                          \
                    "to enable SASL2 authentication for POP/IMAP"
