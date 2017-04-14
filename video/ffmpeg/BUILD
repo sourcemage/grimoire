@@ -39,6 +39,8 @@ fi &&
 
 LDFLAGS=${LDFLAGS//-Wl,--as-needed/}  &&
 
+OPTS="--disable-cuda --disable-cuvid $OPTS" &&
+
 check_tmp_noexec /tmp &&
 ./configure  --prefix=${INSTALL_ROOT}/usr            \
              --mandir=${INSTALL_ROOT}/usr/share/man  \
