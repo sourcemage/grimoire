@@ -30,24 +30,69 @@ case ${MESALIB_BUILD} in
   optional_depends DEVICE-MANAGER \
                    "" \
                    "--enable-sysfs" \
-                   "Use a device manager instead of sysfs"
+                   "Use a device manager instead of sysfs" &&
+
+ optional_depends llvm \
+                  "--enable-llvm --enable-egl" \
+                  "--disable-llvm" \
+                  "for Gallium drivers" &&
+
+  if is_depends_enabled "${SPELL}" "llvm"; then
+    depends LIBELF  &&
+    depends mako    &&
+    depends python  &&
+
+    local AVAILABLE_GALLIUM="i915 ilo nouveau r300 r600 radeonsi freedreno svga swrast vc4 virgl etnaviv imx" &&
+
+    list_remove MESALIB_GALLIUM 'llvmpipe'  &&
+    list_remove MESALIB_GALLIUM 'radeon'  &&
+
+    config_query_multi MESALIB_GALLIUM \
+                      "What Gallium3D drivers would you like to build?" \
+                      all ${AVAILABLE_GALLIUM} &&
+    if list_find "${MESALIB_GALLIUM}" "all"; then
+      MESALIB_GALLIUM=${AVAILABLE_GALLIUM}
+    fi &&
+
+    # remove obsolete fbdev option
+    list_remove MESA_EGL fbdev &&
+
+    config_query_multi MESA_EGL "which EGL platforms?" android drm surfaceless x11 wayland &&
+
+    if list_find "${MESA_EGL}" "wayland"; then
+      list_remove MESALIB_OPTS "--disable-shared-glapi" &&
+      list_remove MESALIB_OPTS "--disable-gbm"     &&
+      list_remove MESALIB_OPTS "--disable-gles2"   &&
+      list_add MESALIB_OPTS "--enable-shared-glapi --enable-gbm --enable-gles2" &&
+      depends wayland
+    else
+      list_remove MESALIB_OPTS '--disable-shared-glapi'  &&
+      list_add    MESALIB_OPTS '--enable-shared-glapi'
+
+      config_query_option MESALIB_OPTS "enable Generic Buffer Management?" n \
+                        "--enable-gbm" "--disable-gbm"
+      config_query_option MESALIB_OPTS "enable support for OpenGL ES 2.x API?" n \
+                        "--enable-gles2" "--disable-gles2"
+    fi
+
+    if list_find "${MESALIB_GALLIUM}" "i915"; then
+      sub_depends libdrm INTEL
+    fi &&
+    if list_find "${MESALIB_GALLIUM}" "nouveau"; then
+      sub_depends libdrm NOUVEAU
+    fi &&
+    if (list_find "${MESALIB_GALLIUM}" "r300") ||
+      (list_find "${MESALIB_GALLIUM}" "r600"); then
+      sub_depends libdrm RADEON
+    fi &&
+    if list_find "${MESALIB_GALLIUM}" "radeonsi"; then
+      sub_depends libdrm AMD
+    fi
+  fi
   ;;
  *)
   ;;
 esac &&
-
-if [[ -n ${MESALIB_GALLIUM} ]] && [[ "${MESALIB_GALLIUM}" != "none" ]]; then
-  depends llvm    &&
-  depends LIBELF  &&
-  depends mako    &&
-  depends python  &&
-  if list_find  "${MESA_EGL}" wayland;then
-    depends wayland
-  fi &&
-  if list_find   "${MESALIB_GALLIUM}" radeonsi;then
-    sub_depends libdrm AMD
-  fi
-fi &&
 
 if ( list_find  "${MESALIB_DRIVERS}"  i915 ) || \
    ( list_find  "${MESALIB_DRIVERS}" i965); then
@@ -63,9 +108,6 @@ if ( list_find "${MESALIB_DRIVERS}" nouveau); then
   sub_depends libdrm NOUVEAU
 fi &&
 
-if list_find  "${MESA_EGL}" wayland;then
-  depends wayland
-fi &&
 optional_depends libva    "" "" "video acceleration support" &&
 optional_depends libvdpau "" "" "VDPAU support" &&
 optional_depends libxvmc  "--enable-xvmc" "--disable-xvmc" "XvMC support (obsolete)"

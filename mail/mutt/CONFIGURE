@@ -44,6 +44,10 @@ elif [[ ! -z "${REAL_PATCHES}" ]]; then
     "${UPDATE_DOC_DEFAULT}"
 fi &&
 
+config_query_list   TERMINAL_LIBRARY                                 \
+                    "Build against which terminal library?"          \
+                    ncurses slang                                    &&
+
 config_query_option MUTT_OPTS "Enable POP support?"                  \
                               "y"                                    \
                               "--enable-pop"                         \
@@ -64,6 +68,14 @@ config_query_option MUTT_OPTS "Enable the header cache?"             \
                               "n"                                    \
                               "--enable-hcache"                      \
                               "--disable-hcache"                     &&
+if list_find "${MUTT_OPTS}" "--enable-hcache"; then
+  local BACKENDS="db gdbm" &&
+  if [[ "${MUTT_BRANCH}" != "stable" ]]; then
+    BACKENDS+=" lmdb"
+  fi &&
+  config_query_list HCACHE_BACKEND "Use which header cache backend?" \
+                    ${BACKENDS}
+fi &&
 config_query_option MUTT_OPTS "Enable SMTP support?"                 \
                               "y"                                    \
                               "--enable-smtp"                        \

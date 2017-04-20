@@ -9,6 +9,6 @@ vulkan_drivers=${vulkan_drivers//none/no} &&
 OPTS+=" --with-dri-drivers=${MESALIB_DRIVERS// /,} \
     --with-gallium-drivers=${MESALIB_GALLIUM// /,} \
      --with-vulkan-drivers=${vulkan_drivers} \
-      --with-egl-platforms=${MESA_EGL//\ /,} \
+      --with-platforms=${MESA_EGL//\ /,} \
                  ${MESALIB_OPTS}" &&
 default_build

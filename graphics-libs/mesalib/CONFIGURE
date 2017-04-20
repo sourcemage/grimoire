@@ -27,50 +27,6 @@ case $MESALIB_BUILD in
 
   if list_find "$MESALIB_DRIVERS" all; then
     MESALIB_DRIVERS="$AVAILABLE_DRIVERS"
-  fi &&
-
-  
-# TODO: Proper dependencies for those ... also libdrm ...
-  AVAILABLE_GALLIUM="i915 llvmpipe nouveau r300 r600 radeon radeonsi softpipe  svga  swrast virgl"
-
-  config_query_multi MESALIB_GALLIUM                                       \
-                   "What Gallium3D drivers woulld you like to build?"    \
-                    none all $AVAILABLE_GALLIUM
-  if [[ $MESALIB_GALLIUM = all ]]; then
-    MESALIB_GALLIUM=$AVAILABLE_GALLIUM
-  fi &&
-
-  if [[ $MESALIB_GALLIUM != "" ]] && [[ $MESALIB_GALLIUM != none ]]; then
-    list_add MESALIB_OPTS "--enable-gallium-llvm" &&
-    list_add MESALIB_OPTS "--enable-egl"  &&
-# remove obsolete fbdev option
-    list_remove MESA_EGL fbdev &&
-    config_query_multi MESA_EGL "which EGL platforms?" drm wayland x11
-    if list_find  "$MESA_EGL" wayland;then
-      list_remove MESALIB_OPTS "--disable-shared-glapi" &&
-      list_remove MESALIB_OPTS "--disable-gbm"     &&
-      list_remove MESALIB_OPTS "--disable-gles2"   &&
-      list_add MESALIB_OPTS "--enable-shared-glapi"&&
-      list_add MESALIB_OPTS "--enable-gbm"         &&
-      list_add MESALIB_OPTS "--enable-gles2"
-    else
-      config_query_option MESALIB_OPTS "enable shared GLapi" n \
-                         "--enable-shared-glapi" "--disable-shared-glapi" &&
-
-      config_query_option MESALIB_OPTS "enable Generic Buffer Management?" n \
-                         "--enable-gbm" "--disable-gbm"
-      config_query_option MESALIB_OPTS "enable support for OpenGL ES 2.x API?" n \
-                         "--enable-gles2" "--disable-gles2"
-    fi
-#    config_query_option MESALIB_OPTS "enable support for OpenGL ES 1.x API?" n \
-#                         "--enable-gles1" "--disable-gles1"
-  else   
-    MESALIB_GALLIUM=
-    config_query_option MESALIB_OPTS "enable EGL library?" y \
-                         "--enable-egl" "--disable-egl"
-    if list_find "$MESALIB_OPTS" --enable-egl; then
-      MESALIB_OPTS+=" --enable-gbm" # Mandatory!
-    fi
   fi
   ;;
  xlib)

@@ -53,10 +53,10 @@
  	// True if the command line argument is set to show container information
 --- userspace/libsinsp/sinsp.cpp.orig	2016-06-17 11:55:07.000000000 -0400
 +++ userspace/libsinsp/sinsp.cpp	2016-06-25 18:53:28.084183609 -0400
-@@ -110,11 +110,14 @@
- 	m_get_procs_cpu_from_driver = false;
+@@ -112,11 +112,14 @@
  	m_is_tracers_capture_enabled = false;
  	m_file_start_offset = 0;
+ 	m_flush_memory_dump = false;
 +	m_verbose_json = false;
  
  	// Unless the cmd line arg "-pc" or "-pcontainer" is supplied this is false
@@ -454,7 +454,7 @@
  class sinsp_bearer_token
 --- userspace/libsinsp/socket_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/socket_handler.h	2016-10-26 15:25:11.790901756 -0400
-@@ -63,12 +63,32 @@
+@@ -64,12 +64,32 @@
  			m_url(url),
  			m_keep_alive(keep_alive ? std::string("Connection: keep-alive\r\n") : std::string()),
  			m_path(path.empty() ? m_url.get_path() : path),
@@ -484,10 +484,10 @@
 +			m_wants_send(false),
 +			m_msg_completed(false),
 +			m_http_parser(nullptr),
- 			m_data_limit(data_limit)
+ 			m_data_limit(data_limit),
+ 			m_fetching_state(fetching_state)
  
- 	{
-@@ -1512,10 +1533,12 @@
+@@ -1514,11 +1534,13 @@
  
  	struct http_parser_data
  	{
@@ -495,16 +495,18 @@
 -		std::vector<std::string>* m_json = nullptr;
 -		int* m_http_response = nullptr;
 -		bool* m_msg_completed = nullptr;
+-		bool* m_fetching_state = nullptr;
 +		std::string* m_data_buf;
 +		std::vector<std::string>* m_json;
 +		int* m_http_response;
 +		bool* m_msg_completed;
++		bool* m_fetching_state;
 +
-+		http_parser_data(): m_data_buf(nullptr), m_json(nullptr), m_http_response(nullptr), m_msg_completed(nullptr) {}
++		http_parser_data(): m_data_buf(nullptr), m_json(nullptr), m_http_response(nullptr), m_msg_completed(nullptr), m_fetching_state(nullptr) {}
  	};
  
  	static int http_body_callback(http_parser* parser, const char* data, size_t len)
-@@ -1599,43 +1622,43 @@
+@@ -1645,43 +1667,43 @@
  	std::string              m_keep_alive;
  	std::string              m_path;
  	std::string              m_address;
@@ -568,6 +570,15 @@
  	http_parser_data         m_http_parser_data;
 -	unsigned                 m_data_limit = 524288; // bytes
 +	unsigned                 m_data_limit; // bytes
+ 
+ 	// older versions of kubernetes send pretty-printed JSON by default;
+ 	// that creates a problem with JSON-newline-delimit-based detection logic,
+@@ -1692,7 +1714,7 @@
+ 	// this flag is true by default and it remains true until the first state http
+ 	// request for this handler is completed, at which point all newlines are purged
+ 	// from the string and the purged buffer is posted for further processing
+-	bool                     m_fetching_state = true;
++	bool                     m_fetching_state;
  };
  
  template <typename T>
@@ -878,3 +889,16 @@
  		}
  
  		it->second.push_back(wrap);
+--- userspace/libsinsp/eventformatter.cpp.orig	2017-03-28 05:17:05.000000000 -0400
++++ userspace/libsinsp/eventformatter.cpp	2017-03-28 09:40:18.730608144 -0400
+@@ -287,8 +287,8 @@
+ 	if(it == m_formatter_cache.end() ||
+ 	   it->first != format)
+ 	{
+-		it = m_formatter_cache.emplace_hint(it,
+-						    std::make_pair(format, make_shared<sinsp_evt_formatter>(m_inspector, format)));
++		it = m_formatter_cache.insert(it,
++					      std::make_pair(format, std::move(make_shared<sinsp_evt_formatter>(m_inspector, format))));
+ 	}
+ 
+ 	return it->second->tostring(evt, res);
