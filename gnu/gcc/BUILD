@@ -3,13 +3,7 @@
 CFLAGS=${CFLAGS/-pipe/}     &&
 CXXFLAGS=${CXXFLAGS/-pipe/} &&
 
-if list_find "$GCC_COMPILER" "java"; then
-  OPTS+=" --enable-libgcj" &&
-  OPTS+=" --disable-plugin"
-else
-  OPTS+=" --disable-libgcj" &&
-  OPTS+=" --enable-plugin"
-fi &&
+OPTS+=" --enable-plugin" &&
 
 if list_find "$GCC_COMPILER" "fortran"; then
   OPTS+=" --enable-libquadmath"
