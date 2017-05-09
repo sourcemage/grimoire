@@ -1,4 +1,19 @@
 default_pre_build &&
 cd "$SOURCE_DIRECTORY" &&
 
-patch -p1 < "$SPELL_DIRECTORY/flex.patch"
+# a..r
+local patches=`seq 2 19` &&
+
+for src in ${patches}; do
+  verify_file ${src} || return 1
+done &&
+
+for src in ${patches}; do
+  local source=SOURCE${src} &&
+
+  zcat ${SOURCE_CACHE}/${!source} | patch -p1 || return 1
+done
+
+if [ "${VILE_SYMLINK}" == "y" ]; then
+  sedit "s:@VILE_SYMLINK@:vi:g" makefile.in
+fi
