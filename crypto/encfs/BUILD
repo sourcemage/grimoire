@@ -1,2 +1,2 @@
-autoreconf -if &&
-default_build
+#autoreconf -if &&
+cmake_build
