@@ -8,8 +8,13 @@ if [[ "${QEMU_KVM}" != "--disable-kvm" ]]; then
   fi  &&
 
   # Some packages (libguestfs) depend on the qemu-system-${ARCH} file
-  ln -sf /usr/bin/qemu-${ARCH} \
-        "${INSTALL_ROOT}"/usr/bin/qemu-system-${ARCH}  &&
+  # But for sure overwriting qemu-system-${ARCH} with a link to the
+  # userspace emulator is a very bad idea?! Putting this check in here
+  # until someone explains that whole thing to me. --sobukus
+  if ! test -e "${INSTALL_ROOT}"/usr/bin/qemu-system-${ARCH}; then
+    ln -sf /usr/bin/qemu-${ARCH} \
+          "${INSTALL_ROOT}"/usr/bin/qemu-system-${ARCH}
+  fi &&
 
   ln -sf /usr/bin/qemu-system-${ARCH} \
         "${INSTALL_ROOT}"/usr/bin/qemu-kvm
