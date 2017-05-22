@@ -21,9 +21,7 @@ LDFLAGS="-ldl $LDFLAGS" &&
 CFLAGS="${CFLAGS//-ffast-math}" &&
 OPTS="--enable-dynamic-extensions $SQLITE_TSAFE $OPTS" &&
 
-make_single &&
 default_build &&
-make_normal &&
 
 if [[ $SQLITE_VERSION == tea ]]; then
   # reset options to these
@@ -34,7 +32,5 @@ if [[ $SQLITE_VERSION == tea ]]; then
   fi &&
 
   cd tea &&
-  make_single &&
-  default_build &&
-  make_normal
+  default_build
 fi
