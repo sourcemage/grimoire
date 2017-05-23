@@ -1,22 +1,24 @@
-mk_source_dir "${SOURCE_DIRECTORY}"  &&
-# Make sure our target doesn't exist before uncompressing
-if [[ -f "${SOURCE_CACHE}/${SOURCE/.xz}" ]]; then
-  rm "${SOURCE_CACHE}/${SOURCE/.xz}"
-fi  &&
-unxz -k "${SOURCE_CACHE}/${SOURCE}"  &&
+if [[ "${BTRFS_PROGS_BRANCH}" != scm ]]; then
+  mk_source_dir "${SOURCE_DIRECTORY}"  &&
+  # Make sure our target doesn't exist before uncompressing
+  if [[ -f "${SOURCE_CACHE}/${SOURCE/.xz}" ]]; then
+    rm "${SOURCE_CACHE}/${SOURCE/.xz}"
+  fi  &&
+  unxz -k "${SOURCE_CACHE}/${SOURCE}"  &&
 
-# Fake new SOURCE for unpack_file and verify_file
-cd "${BUILD_DIRECTORY}"  &&
-SOURCE=${SOURCE/.xz}     &&
-verify_file ''           &&
-unpack_file ''           &&
+  # Fake new SOURCE for unpack_file and verify_file
+  cd "${BUILD_DIRECTORY}"  &&
+  SOURCE=${SOURCE/.xz}     &&
+  verify_file ''           &&
+  unpack_file ''           &&
 
-# Clean up
-message "${MESSAGE_COLOR}Removing temporary ${SOURCE_CACHE}/${SOURCE}...${DEFAULT_COLOR}"  &&
-rm "${SOURCE_CACHE}/${SOURCE}" &&
+  # Clean up
+  message "${MESSAGE_COLOR}Removing temporary ${SOURCE_CACHE}/${SOURCE}...${DEFAULT_COLOR}"  &&
+  rm "${SOURCE_CACHE}/${SOURCE}" &&
 
-cd "$SOURCE_DIRECTORY" &&
-
-if [[ "$BTRFS_PROGS_BRANCH" == scm ]]; then
+  cd "${SOURCE_DIRECTORY}"
+else
+  default_pre_build &&
+  cd "${SOURCE_DIRECTORY}" &&
   ./autogen.sh
 fi
