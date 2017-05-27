@@ -31,7 +31,7 @@ if [ "$GTKENGINE_THINICE" == "n" ]; then
 fi                                        &&
 
 if [ "$GTKENGINE_LUA" == "y" ]; then
-   OPTS="$OPTS --enable-thinice"
+   OPTS="$OPTS --enable-lua"
 fi                                        &&
 
 if [ "$GTKENGINE_ANIMATION" == "y" ]; then
