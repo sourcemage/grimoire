@@ -3,6 +3,4 @@
 #
 # cryptsetup wants the static lib
 OPTS+=" --enable-static" &&
-shopt -s extglob &&
-CFLAGS="${CFLAGS//-O+([[:digit:]]|fast)/}" default_build &&
-shopt -u extglob
+default_build
