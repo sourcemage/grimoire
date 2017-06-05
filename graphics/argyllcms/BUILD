@@ -1,3 +1,1 @@
-jam -q -fJambase -j${MAKE_NJOBS}       &&
-jam -fJambase install                  &&
-rm ${SOURCE_DIRECTORY}/bin/License.txt
+CFLAGS="$CFLAGS -DUNIX -D_THREAD_SAFE" jam -dx -fJambase -j${MAKE_NJOBS}

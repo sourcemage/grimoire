@@ -1,0 +1,98 @@
+From d0809ded29bf1dc22620b60a905e851cb4a9e0bd Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+Date: Mon, 5 Jun 2017 15:47:55 +0200
+Subject: [PATCH] fix compilation with gcc 7
+
+---
+ numlib/numsup.c    | 28 +++++++++++++++-------------
+ xml/mxml-attr.c    |  2 ++
+ xml/mxml-node.c    |  1 +
+ xml/mxml-private.c |  1 +
+ 4 files changed, 19 insertions(+), 13 deletions(-)
+
+diff --git a/numlib/numsup.c b/numlib/numsup.c
+index 39011ae..1bffedb 100755
+--- a/numlib/numsup.c
++++ b/numlib/numsup.c
+@@ -44,6 +44,21 @@
+  *       can get a callback on out of memory etc. ???
+  *
+  */
++#ifdef UNIX
++# define A1LOG_LOCK(log, deb)								\
++	if (g_log_init == 0) {									\
++	    pthread_mutex_init(&log->lock, NULL);				\
++		pthread_mutex_lock(&log->lock);						\
++		g_log_init = 1;										\
++	} else {												\
++		pthread_mutex_lock(&log->lock);						\
++	}														\
++	if (deb && !g_deb_init) {								\
++		va_loge(log, "Argyll 'V%s' Build '%s' System '%s'\n",ARGYLL_VERSION_STR,ARGYLL_BUILD_STR, get_sys_info());	\
++		g_deb_init = 1;										\
++	}
++# define A1LOG_UNLOCK(log) pthread_mutex_unlock(&log->lock)
++#endif
+ 
+ /* Globals */
+ 
+@@ -356,19 +371,6 @@ static char *get_sys_info() {
+ 	return sysinfo;
+ }
+ 
+-# define A1LOG_LOCK(log, deb)								\
+-	if (g_log_init == 0) {									\
+-	    pthread_mutex_init(&log->lock, NULL);				\
+-		pthread_mutex_lock(&log->lock);						\
+-		g_log_init = 1;										\
+-	} else {												\
+-		pthread_mutex_lock(&log->lock);						\
+-	}														\
+-	if (deb && !g_deb_init) {								\
+-		va_loge(log, "Argyll 'V%s' Build '%s' System '%s'\n",ARGYLL_VERSION_STR,ARGYLL_BUILD_STR, get_sys_info());	\
+-		g_deb_init = 1;										\
+-	}
+-# define A1LOG_UNLOCK(log) pthread_mutex_unlock(&log->lock)
+ #endif
+ 
+ 
+diff --git a/xml/mxml-attr.c b/xml/mxml-attr.c
+index 53f8076..ed755ea 100755
+--- a/xml/mxml-attr.c
++++ b/xml/mxml-attr.c
+@@ -29,6 +29,8 @@
+ #include "mxml-config.h"
+ #include "mxml.h"
+ 
++#include <stdarg.h>
++
+ 
+ /*
+  * Local functions...
+diff --git a/xml/mxml-node.c b/xml/mxml-node.c
+index bebda10..be76335 100755
+--- a/xml/mxml-node.c
++++ b/xml/mxml-node.c
+@@ -40,6 +40,7 @@
+ #include "mxml-config.h"
+ #include "mxml.h"
+ 
++#include <stdarg.h>
+ 
+ /*
+  * Local functions...
+diff --git a/xml/mxml-private.c b/xml/mxml-private.c
+index 72f3e23..4d77156 100755
+--- a/xml/mxml-private.c
++++ b/xml/mxml-private.c
+@@ -28,6 +28,7 @@
+ 
+ #include "mxml-private.h"
+ 
++#include <stdarg.h>
+ 
+ /*
+  * Some crazy people think that unloading a shared object is a good or safe
+-- 
+2.12.0
+
