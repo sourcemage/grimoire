@@ -1,1 +1,1 @@
-CXXFLAGS+="-pthread" LDFLAGS+="-pthread" default_build
+CXXFLAGS+=" -pthread" LDFLAGS+=" -pthread" default_build
