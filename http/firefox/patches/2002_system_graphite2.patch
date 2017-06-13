@@ -28,7 +28,7 @@ diff --git a/config/Makefile.in b/config/Makefile.in
 diff --git a/config/system-headers b/config/system-headers
 --- a/config/system-headers
 +++ b/config/system-headers
-@@ -1260,16 +1260,20 @@ zlib.h
+@@ -1263,16 +1263,20 @@ zlib.h
  #ifdef MOZ_ENABLE_STARTUP_NOTIFICATION
  libsn/sn.h
  libsn/sn-common.h
@@ -96,11 +96,11 @@ diff --git a/gfx/graphite2/moz-gr-update.sh b/gfx/graphite2/moz-gr-update.sh
 diff --git a/gfx/moz.build b/gfx/moz.build
 --- a/gfx/moz.build
 +++ b/gfx/moz.build
-@@ -2,28 +2,30 @@
- # vim: set filetype=python:
- # This Source Code Form is subject to the terms of the Mozilla Public
- # License, v. 2.0. If a copy of the MPL was not distributed with this
+@@ -5,28 +5,30 @@
  # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+ with Files('**'):
+     BUG_COMPONENT = ('Core', 'Graphics')
  
  if CONFIG['MOZ_TREE_CAIRO']:
      DIRS += ['cairo']
@@ -125,20 +125,20 @@ diff --git a/gfx/moz.build b/gfx/moz.build
      'ipc',
      'vr',
      'config',
+     'webrender_bindings',
  ]
  
- if CONFIG['MOZ_ENABLE_SKIA']:
 diff --git a/gfx/thebes/moz.build b/gfx/thebes/moz.build
 --- a/gfx/thebes/moz.build
 +++ b/gfx/thebes/moz.build
-@@ -261,16 +261,19 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('and
+@@ -269,16 +269,19 @@ CFLAGS += CONFIG['TK_CFLAGS']
+ if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('android'):
      CXXFLAGS += CONFIG['CAIRO_FT_CFLAGS']
  
  if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk2', 'gtk3'):
      CXXFLAGS += CONFIG['MOZ_PANGO_CFLAGS']
  
  LOCAL_INCLUDES += CONFIG['SKIA_INCLUDES']
- LOCAL_INCLUDES += ['/media/libyuv/include']
  
 -DEFINES['GRAPHITE2_STATIC'] = True
 +if CONFIG['MOZ_SYSTEM_GRAPHITE2']:
@@ -155,9 +155,14 @@ diff --git a/gfx/thebes/moz.build b/gfx/thebes/moz.build
 diff --git a/old-configure.in b/old-configure.in
 --- a/old-configure.in
 +++ b/old-configure.in
-@@ -4860,6 +4860,27 @@
- AC_SUBST(MOZ_LINUX_32_SSE2_STARTUP_ERROR)
-
+@@ -4799,16 +4799,37 @@ if test "$USE_FC_FREETYPE"; then
+         CPPFLAGS="$CPPFLAGS $FT2_CFLAGS $XCFLAGS"
+         MOZ_CHECK_HEADERS([fontconfig/fcfreetype.h], ,
+             [AC_MSG_ERROR(Can't find header fontconfig/fcfreetype.h.)], [#include <fontconfig/fontconfig.h>])
+         CPPFLAGS="$_SAVE_CPPFLAGS"
+     fi
+ fi
+ 
  dnl ========================================================
 +dnl Check for graphite2
 +dnl ========================================================
@@ -180,13 +185,18 @@ diff --git a/old-configure.in b/old-configure.in
 +fi
 +
 +dnl ========================================================
+ dnl Check if we need the 32-bit Linux SSE2 error dialog
+ dnl ========================================================
+ 
+ AC_SUBST(MOZ_LINUX_32_SSE2_STARTUP_ERROR)
+ 
+ dnl ========================================================
  dnl Check for pixman and cairo
  dnl ========================================================
-
 diff --git a/toolkit/library/moz.build b/toolkit/library/moz.build
 --- a/toolkit/library/moz.build
 +++ b/toolkit/library/moz.build
-@@ -224,16 +224,19 @@ if CONFIG['SERVO_TARGET_DIR']:
+@@ -223,16 +223,19 @@ if CONFIG['SERVO_TARGET_DIR']:
          OS_LIBS += ['-L%s' % CONFIG['SERVO_TARGET_DIR'], '-lgeckoservo']
  
  if CONFIG['MOZ_SYSTEM_JPEG']:
@@ -209,7 +219,7 @@ diff --git a/toolkit/library/moz.build b/toolkit/library/moz.build
 diff --git a/toolkit/moz.configure b/toolkit/moz.configure
 --- a/toolkit/moz.configure
 +++ b/toolkit/moz.configure
-@@ -333,16 +333,30 @@ def ft2_info(freetype2_combined_info, tr
+@@ -338,16 +338,30 @@ def ft2_info(freetype2_combined_info, tr
          return freetype2_combined_info
  
  set_config('FT2_LIBS', delayed_getattr(ft2_info, 'libs'))
@@ -237,6 +247,6 @@ diff --git a/toolkit/moz.configure b/toolkit/moz.configure
  option('--with-system-harfbuzz',
         help="Use system harfbuzz (located with pkgconfig)")
  
- @depends('--with-system-harfbuzz')
- def check_for_harfbuzz(value):
-     return bool(value)
+ system_harfbuzz = pkg_check_modules('MOZ_HARFBUZZ', 'harfbuzz >= 1.4.2',
+                                     when='--with-system-harfbuzz')
+ 
