@@ -46,8 +46,6 @@ if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
 
-OPTS+=" --disable-rust" &&
-
 for option in $OPTS; do
   echo "ac_add_options $option" >> .mozconfig
 done &&
