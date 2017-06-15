@@ -18,6 +18,13 @@ CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
 CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
+# harden
+LDFLAGS="$LDFLAGS -Wl,-z,now"
+
+# for gcc 6
+CFLAGS="$CXXFLAGS -fno-delete-null-pointer-checks -fno-schedule-insns2"   &&
+CXXFLAGS="$CXXFLAGS -fno-delete-null-pointer-checks -fno-schedule-insns2" &&
+
 #
 # fix symbol check in build scripts, firefox adds -s to LDFLAGS so we can
 # remove it here without changing anything...
@@ -39,18 +46,18 @@ if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
 
+OPTS+=" --disable-rust" &&
+
 for option in $OPTS; do
   echo "ac_add_options $option" >> .mozconfig
 done &&
 
 local MAKE_TARGET
 if [[ $FIREFOX_PGO == y ]]; then
-  MAKE_TARGET=profiledbuild &&
-  echo "ac_add_options --enable-profile-guided-optimization" >> .mozconfig
+  MAKE_TARGET=profiledbuild
 else
   MAKE_TARGET=build
 fi &&
 
-make_single  &&
-make -f client.mk $MAKE_TARGET &&
-make_normal
+echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
+make -f client.mk $MAKE_TARGET
