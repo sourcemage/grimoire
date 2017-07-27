@@ -1,0 +1,132 @@
+--- bin/bna.orig
++++ bin/bna
+@@ -4,7 +4,7 @@
+ import sys
+ from argparse import ArgumentParser
+ from binascii import hexlify, unhexlify
+-from configparser import ConfigParser
++from ConfigParser import ConfigParser
+ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.path.pardir))
+ import bna
+ 
+@@ -100,7 +100,7 @@
+ 		sys.stderr.write("Error: %s\n" % (msg))
+ 		exit(1)
+ 
+-	def print(self, msg):
++	def printm(self, msg):
+ 		print(msg)
+ 
+ 	def add_serial(self, serial, secret):
+@@ -122,7 +122,7 @@
+ 			self.config.remove_option("bna", "default_serial")
+ 
+ 		self.writeConfig()
+-		self.print("Successfully deleted serial %s" % (bna.prettify_serial(serial)))
++		self.printm("Successfully deleted serial %s" % (bna.prettify_serial(serial)))
+ 
+ 	def restore_serial(self, serial, code):
+ 		serial = bna.normalize_serial(serial)
+@@ -131,19 +131,19 @@
+ 
+ 		secret = bna.restore(serial, code)
+ 		self.add_serial(serial, hexlify(secret).decode("ascii"))
+-		self.print("Restored serial %s" % (bna.prettify_serial(serial)))
++		self.printm("Restored serial %s" % (bna.prettify_serial(serial)))
+ 
+ 	def list_serials(self):
+ 		default = self.get_default_serial()
+ 		total = 0
+ 		for serial in self._serials():
+ 			if serial == default:
+-				self.print("%s (default)" % (serial))
++				self.printm("%s (default)" % (serial))
+ 			else:
+-				self.print(serial)
++				self.printm(serial)
+ 			total += 1
+ 
+-		self.print("%i items" % (total))
++		self.printm("%i items" % (total))
+ 
+ 	def query_new_authenticator(self):
+ 		try:
+@@ -156,11 +156,11 @@
+ 
+ 		self.add_serial(serial, secret)
+ 
+-		self.print("Success. Your new serial is: %s" % (bna.prettify_serial(serial)))
++		self.printm("Success. Your new serial is: %s" % (bna.prettify_serial(serial)))
+ 
+ 	def run_live(self):
+ 		from time import sleep
+-		self.print("Ctrl-C to exit")
++		self.printm("Ctrl-C to exit")
+ 		while 1:
+ 			token, time_remaining = bna.get_token(secret=self._secret)
+ 			if self.args.remaining:
+@@ -273,12 +273,12 @@
+ 		# Print the restore code if the user asked for it
+ 		if self.args.restorecode:
+ 			code = bna.get_restore_code(serial, self._secret)
+-			self.print(code)
++			self.printm(code)
+ 			return 0
+ 
+ 		if self.args.otpauth_url:
+ 			url = bna.get_otpauth_url(serial, self._secret)
+-			self.print(url)
++			self.printm(url)
+ 			return 0
+ 
+ 		# otherwise print the token
+@@ -287,9 +287,9 @@
+ 		else:
+ 			token, time_remaining = bna.get_token(secret=self._secret)
+ 			if self.args.remaining:
+-				self.print("%08i (%02is remaining)" % (token, time_remaining))
++				self.printm("%08i (%02is remaining)" % (token, time_remaining))
+ 			else:
+-				self.print("%08i" % (token))
++				self.printm("%08i" % (token))
+ 
+ 		return 0
+ 
+--- bna.py.orig
++++ bna.py
+@@ -12,7 +12,7 @@
+ 
+ from binascii import hexlify
+ from hashlib import sha1
+-from http.client import HTTPConnection
++from httplib import HTTPConnection
+ from struct import pack, unpack
+ from time import time
+ 
+@@ -88,7 +88,7 @@
+ def decrypt(response, otp):
+ 	ret = bytearray()
+ 	for c, e in zip(response, otp):
+-		ret.append(c ^ e)
++		ret.append(ord(c) ^ ord(e))
+ 	return ret
+ 
+ 
+@@ -124,7 +124,7 @@
+ def bytes_to_restore_code(digest):
+ 	ret = []
+ 	for i in digest:
+-		c = i & 0x1f
++		c = ord(i) & 0x1f
+ 		if c < 10:
+ 			c += 48
+ 		else:
+@@ -160,7 +160,7 @@
+ 	msg = pack(">Q", int(t / seconds))
+ 	r = hmac.new(secret, msg, sha1).digest()
+ 	k = r[19]
+-	idx = k & 0x0f
++	idx = ord(k) & 0x0f
+ 	h = unpack(">L", r[idx:idx + 4])[0] & 0x7fffffff
+ 	return h % (10 ** digits), -(t % seconds - seconds)
+ 
