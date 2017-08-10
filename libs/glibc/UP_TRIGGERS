@@ -6,3 +6,15 @@ fi
 if $(gaze from $INSTALL_ROOT/usr/include/drm|grep -q glibc) && spell_ok libdrm; then
   up_trigger libdrm cast_self
 fi
+
+# Certain spells erroneously used xlocale.h, which was removed in glibc 2.26
+# See https://bugzilla.redhat.com/show_bug.cgi?id=1464244 for perl
+local OLD_SPELL_VERSION=""
+spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)"
+if [ "x${OLD_SPELL_VERSION}" == "x2.25" ] && [ "x${VERSION}" != "x${OLD_SPELL_VERSION}" ]; then
+  for each in perl; do
+    if spell_ok $each; then
+      up_trigger $each cast_self
+    fi
+  done
+fi
