@@ -853,36 +853,56 @@ function get_spell_provider_file(){
 
 
 #---
-## Trigger checks on dependent spells. Used after checking if
+## Trigger an action on dependent spells. Used after checking if
 ## an incompatible update is scheduled.
-## @params $1 - spell at hand
+## @params $1 - action
+## @params $2 - spell at hand
 #---
-function check_dependents()
+function act_dependents()
 {
-  local spell=$1; shift
+  local action=$1; shift
+  local  spell=$1; shift
   message "${MESSAGE_COLOR}This is a possibly incompatible update of $spell." &&
   message "Figuring out what spells need to be checked for sanity...${DEFAULT_COLOR}" &&
   for each in $(show_up_depends "$spell" 1); do
-    up_trigger $each check_self
+    up_trigger $each $action
   done
 }
 
 #---
-## Trigger check_self on spells depending on the one at hand if it
+## Trigger check_self on dependent spells.
+#---
+function check_dependents()
+{
+  act_dependents check_self "$@"
+}
+
+#---
+## Trigger cast_self on dependent spells.
+#---
+function cast_dependents()
+{
+  act_dependents cast_self "$@"
+}
+
+#---
+## Trigger an action on spells depending on the one at hand if it
 ## is being updated from an old version.
 ## Purpose of the optional version filter  parameters is to limit the
 ## triggering to cases of significant difference, like 1.2.x -> 1.3.y instead of
 ## the smaller difference 1.2.x -> 1.2.y .
-## @params $1 - spell at hand
-## @params $2 - new version
-## @params $3 - command to filter versions with
-## @params $4 - and following: arguments to the filter command
+## @params $1 - action
+## @params $2 - spell at hand
+## @params $3 - new version
+## @params $4 - command to filter versions with
+## @params $5 - and following: arguments to the filter command
 ##
-## Example: check_dependents_on_update $SPELL $VERSION cut -d . -f 1,2
+## Example: act_dependents_on_update check_self $SPELL $VERSION cut -d . -f 1,2
 ## This will compare only x.y out of version x.y.z-betaY.
 #---
-function check_dependents_on_update()
+function act_dependents_on_update()
 {
+  local  action=$1; shift;
   local   spell=$1; shift;
   local version=$1; shift;
   if spell_ok $spell; then
@@ -893,9 +913,25 @@ function check_dependents_on_update()
       new_version=$(echo "$new_version" | "$@")
     fi &&
     if [[ "$new_version" != "$old_version" ]]; then
-      check_dependents "$spell"
+      act_dependents "$action" "$spell"
     fi
   fi
+}
+
+#---
+## Trigger check_self on dependent spells on update.
+#---
+function check_dependents_on_update()
+{
+  act_dependents_on_update check_self "$@"
+}
+
+#---
+## Trigger cast_self on dependent spells on update.
+#---
+function cast_dependents_on_update()
+{
+  act_dependents_on_update cast_self "$@"
 }
 
 #---
@@ -903,12 +939,14 @@ function check_dependents_on_update()
 ## You know that a spell changed ABI most recently in version x, so you
 ## provide this version and the function checks if updating the spell
 ## crosses version x and hence dependers shall be triggered.
-## @params $1 - spell at hand
-## @params $2 - new version to be installed
-## @params $3 - version of last ABI breakage
+## #params $1 - action
+## @params $2 - spell at hand
+## @params $3 - new version to be installed
+## @params $4 - version of last ABI breakage
 #---
-function check_dependents_versionjump()
+function act_dependents_versionjump()
 {
+  local  action=$1; shift;
   local   spell=$1; shift;
   local version=$1; shift;
   local breaker;
@@ -918,11 +956,27 @@ function check_dependents_versionjump()
     # Now, if the versions differ, check if the breaking version is crossed.
     for breaker in "$@"; do
       if is_version_between "$old_version" "$breaker" "$version"; then
-        check_dependents "$spell"
+        act_dependents "$action" "$spell"
         return
       fi
     done
   fi
+}
+
+#---
+## Trigger check_self on dependent spells on version jump.
+#---
+function check_dependents_versionjump()
+{
+  act_dependents_versionjump check_self "$@"
+}
+
+#---
+## Trigger cast_self on dependent spells on version jump.
+#---
+function cast_dependents_versionjump()
+{
+  act_dependents_versionjump cast_self "$@"
 }
 
 #---
