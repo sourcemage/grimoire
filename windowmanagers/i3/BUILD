@@ -1,1 +1,2 @@
-make DESTDIR="${INSTALL_ROOT}" PREFIX=/usr
+OPTS+=" --disable-builddir" &&
+default_build
