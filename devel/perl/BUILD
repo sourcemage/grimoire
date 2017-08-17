@@ -39,7 +39,7 @@ else
    rm -f config.sh
 fi  &&
 
-./Configure -Doptimize="$CFLAGS" $CONFIG_OPTS $PERL_PATHS &&
+setarch ${HOST%%-*} ./Configure -Doptimize="$CFLAGS" $CONFIG_OPTS $PERL_PATHS &&
 
 make depend  &&
 make         &&

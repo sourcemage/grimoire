@@ -1,3 +1,3 @@
-OPTS="--disable-systemd $OPTS" &&
+OPTS="--enable-deprecated --disable-systemd $OPTS" &&
 
 default_build

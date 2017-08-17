@@ -1,46 +1,6 @@
-depends gnupg &&
-depends smgl-fhs &&
-depends gperf &&
-depends pkgconfig &&
-if [[ "${UDEV_HWDB}" == '--enable-hwdb' ]]; then
-  depends USBIDS &&
-  depends PCIIDS
+# Work around udev -> eudev migration if gnupg is built with LIBUSB support
+if is_depends_enabled gnupg $(get_spell_provider gnupg LIBUSB); then
+  depends -sub STATIC gnupg
 fi &&
-
-if [[ "$(get_spell_provider ${SPELL} PCIIDS)" == 'pciutils' ]]; then
-  depends -sub NO_ZLIB pciutils
-fi &&
-
-optional_depends acl \
-                 "--enable-udev_acl" \
-                 "--disable-udev_acl" \
-                 "for local user acl permissions support" &&
-
-if is_depends_enabled $SPELL acl; then
-  optional_depends CONSOLE-MANAGER '' '' 'session/seat support'
-fi &&
-
-optional_depends glib2 \
-                 '--enable-gudev' \
-                 '--disable-gudev' \
-                 'for GObject libudev (has function generator) support' &&
-
-optional_depends gobject-introspection \
-                 "--enable-introspection" \
-                 "--disable-introspection" \
-                 "for GObject introspection support" &&
-
-optional_depends gtk-doc \
-                 "--enable-gtk-doc" \
-                 "--disable-gtk-doc" \
-                 "build and install documentation?" &&
-
-optional_depends libselinux \
-                 "--with-selinux" \
-                 "--without-selinux" \
-                 "for SELinux support" &&
-
-optional_depends SYSTEM-LOGGER \
-                 "--enable-logging" \
-                 "--disable-logging" \
-                 "for logging to syslog"
+depends eudev &&
+force_depends eudev

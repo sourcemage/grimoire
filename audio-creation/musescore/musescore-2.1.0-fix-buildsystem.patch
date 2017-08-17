@@ -1,0 +1,2162 @@
+From b518c7ffa69ee69ed8cb57c1f29b4e7564c441f9 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sat, 12 Aug 2017 22:09:56 +0200
+Subject: [PATCH] musescore 2.1.0 fix buildsystem
+
+---
+ CMakeLists.txt                          |  27 +-
+ CMakeLists.txt.orig                     | 690 ++++++++++++++++++++++++++++++++
+ aeolus/CMakeLists.txt                   |   2 +-
+ audiofile/CMakeLists.txt                |   2 +-
+ awl/CMakeLists.txt                      |   2 +-
+ build/CreatePrecompiledHeader.cmake     |   2 +-
+ bww2mxml/CMakeLists.txt                 |   2 +-
+ effects/CMakeLists.txt                  |   2 +-
+ fluid/CMakeLists.txt                    |   2 +-
+ fonttools/CMakeLists.txt                |   2 +-
+ libmscore/CMakeLists.txt                |   4 +-
+ manual/CMakeLists.txt                   |   4 +-
+ midi/CMakeLists.txt                     |   2 +-
+ miditools/CMakeLists.txt                |   4 +-
+ mscore/CMakeLists.txt                   |   4 +-
+ mscore/CMakeLists.txt.orig              | 664 ++++++++++++++++++++++++++++++
+ mstyle/CMakeLists.txt                   |   2 +-
+ mtest/CMakeLists.txt                    |  24 +-
+ mtest/CMakeLists.txt.orig               | 177 ++++++++
+ mtest/cmake.inc                         |   8 +-
+ mtest/cmake.inc.orig                    |  81 ++++
+ omr/CMakeLists.txt                      |   2 +-
+ synthesizer/CMakeLists.txt              |   2 +-
+ thirdparty/beatroot/CMakeLists.txt      |   2 +-
+ thirdparty/diff/CMakeLists.txt          |   2 +-
+ thirdparty/kQOAuth/CMakeLists.txt       |   2 +-
+ thirdparty/ofqf/CMakeLists.txt          |   2 +-
+ thirdparty/qzip/CMakeLists.txt          |   2 +-
+ thirdparty/rtf2html/CMakeLists.txt      |   2 +-
+ thirdparty/singleapp/src/CMakeLists.txt |   2 +-
+ thirdparty/xmlstream/CMakeLists.txt     |   2 +-
+ zerberus/CMakeLists.txt                 |   2 +-
+ 32 files changed, 1660 insertions(+), 69 deletions(-)
+ create mode 100644 CMakeLists.txt.orig
+ create mode 100644 mscore/CMakeLists.txt.orig
+ create mode 100644 mtest/CMakeLists.txt.orig
+ create mode 100644 mtest/cmake.inc.orig
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0795047..d4e4249 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -153,23 +153,14 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+       endif()
+ endif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+ 
+-if (APPLE)
+-   set(CMAKE_CXX_FLAGS_DEBUG   "-std=c++11 -fPIC -stdlib=libc++ -g -Wno-inconsistent-missing-override")
+-   set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -fPIC -stdlib=libc++ -O2 -DNDEBUG -DQT_NO_DEBUG -Wno-inconsistent-missing-override")
+-else (APPLE)
+-   if (MINGW)
+-      # -mno-ms-bitfields see #22048
+-      set(CMAKE_CXX_FLAGS_DEBUG   "-std=c++11 -mno-ms-bitfields -g")
+-      set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -mno-ms-bitfields -O2 -DNDEBUG -DQT_NO_DEBUG")
+-      set(CMAKE_EXE_LINKER_FLAGS "-Wl,--large-address-aware")
+-   else (MINGW)
+-      set(CMAKE_CXX_FLAGS_DEBUG   "-std=c++11 -fPIC -g")
+-      set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -fPIC -O2 -DNDEBUG -DQT_NO_DEBUG")
+-   endif (MINGW)
+-endif(APPLE)
++
++set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fPIE -DNDEBUG -DQT_NO_DEBUG")
++set(CMAKE_CXX_STANDARD 11)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++set(CMAKE_CXX_EXTENSIONS OFF)
+ 
+ set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
+-set(CMAKE_BUILD_WITH_INSTALL_RPATH ON) # Call CMake with option -DCMAKE_SKIP_RPATH to not set RPATH (Debian packaging requirement)
++set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF) # Call CMake with option -DCMAKE_SKIP_RPATH to not set RPATH (Debian packaging requirement)
+ set(CMAKE_SKIP_RULE_DEPENDENCY TRUE)
+ 
+ # The Mscore version number.
+@@ -473,7 +464,6 @@ if (NOT MINGW AND NOT APPLE)
+     #     set library search path for runtime linker to load the same
+     #     qt libraries as we used at compile time
+     #
+-    SET(CMAKE_INSTALL_RPATH "${_qt5Core_install_prefix}/lib") # ignored if CMAKE_SKIP_RPATH="TRUE"
+     string(TOUPPER "mscore${MSCORE_INSTALL_SUFFIX}" MAN_MSCORE_UPPER) # Command name shown in uppercase in man pages by convention
+     if (${MSCORE_INSTALL_SUFFIX} MATCHES "portable") # Note: "-portable-anything" would match
+       # Build portable AppImage as per https://github.com/probonopd/AppImageKit
+@@ -577,9 +567,8 @@ add_custom_command(
+     DEPENDS ${PROJECT_SOURCE_DIR}/all.h
+     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+     )
+-if (NOT MINGW)
+-  set(BUILD_PCH true)
+-endif(NOT MINGW)
++
++set(BUILD_PCH false)
+ 
+ precompiled_header(QT_INCLUDES all ${BUILD_PCH})
+ 
+diff --git a/CMakeLists.txt.orig b/CMakeLists.txt.orig
+new file mode 100644
+index 0000000..0795047
+--- /dev/null
++++ b/CMakeLists.txt.orig
+@@ -0,0 +1,690 @@
++#=============================================================================
++#  Mscore
++#  Linux Music Score Editor
++#
++#  Copyright (C) 2002-2011 by Werner Schweer and others
++#
++#  This program is free software; you can redistribute it and/or modify
++#  it under the terms of the GNU General Public License version 2.
++#
++#  This program is distributed in the hope that it will be useful,
++#  but WITHOUT ANY WARRANTY; without even the implied warranty of
++#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#  GNU General Public License for more details.
++#
++#  You should have received a copy of the GNU General Public License
++#  along with this program; if not, write to the Free Software
++#  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++#=============================================================================
++
++project(mscore)
++
++#minimum tested, report if it works with older
++CMAKE_MINIMUM_REQUIRED(VERSION 2.8.7)
++
++set (CI $ENV{CI})
++if (CI)
++    SET_PROPERTY(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
++    SET_PROPERTY(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
++endif (CI)
++
++cmake_policy(SET CMP0003 NEW)
++
++if(POLICY CMP0053)
++      cmake_policy(SET CMP0053 OLD)
++endif(POLICY CMP0053)
++
++if(POLICY CMP0045)
++      cmake_policy(SET CMP0045 OLD)
++endif(POLICY CMP0045)
++
++if(POLICY CMP0020)
++      cmake_policy(SET CMP0020 OLD)
++endif(POLICY CMP0020)
++
++# silently ignore non-existent dependencies (mops1, mops2)
++if(POLICY CMP0046)
++      cmake_policy(SET CMP0046 OLD)
++endif(POLICY CMP0046)
++
++# ignore MACOSX_RPATH is not specified for awlplugin
++if(POLICY CMP0042)
++      cmake_policy(SET CMP0042 OLD)
++endif(POLICY CMP0042)
++
++include (${PROJECT_SOURCE_DIR}/build/ECMQt4To5Porting.cmake)
++include (${PROJECT_SOURCE_DIR}/build/FindQt5Transitional.cmake)
++
++#include modules
++set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/build" ${CMAKE_MODULE_PATH})
++include (UsePkgConfig1) #defines MACRO(PKGCONFIG1 _package _minVersion _include_DIR _link_DIR _link_FLAGS _cflags)
++include (TargetDoc)
++include (FindPulseAudio)
++include (GetCompilerVersion)
++include (CreatePrecompiledHeader)
++
++# for debugging the make system uncomment next line:
++# set(CMAKE_VERBOSE_MAKEFILE ON)
++
++set (CMAKE_AUTOMOC TRUE)
++
++set(MSCORE_UNSTABLE  FALSE)          # mark as unstable
++
++set(USE_SSE           TRUE)
++set(SCRIPT_INTERFACE  TRUE)
++
++# Disable components not supported on Windows
++if (MINGW)
++      set(WIN_NOT_AVAIL "not available on Windows")
++      option(BUILD_PULSEAUDIO ${WIN_NOT_AVAIL} OFF)
++      option(BUILD_ALSA ${WIN_NOT_AVAIL} OFF)
++endif (MINGW)
++
++# Disable components not supported on Mac
++if (APPLE)
++      set(MAC_NOT_AVAIL "not available on Mac")
++      option(BUILD_PULSEAUDIO ${MAC_NOT_AVAIL} OFF)
++      option(BUILD_ALSA ${MAC_NOT_AVAIL} OFF)
++endif (APPLE)
++
++# Disable components not supported on Linux/BSD
++if (NOT APPLE AND NOT MINGW)
++      set(NIX_NOT_AVAIL "Not available on Linux/BSD")
++      option(BUILD_PORTMIDI "PortMidi disabled on Linux. (It uses ALSA but it's better to use ALSA directly)" OFF)
++endif (NOT APPLE AND NOT MINGW)
++
++option(AEOLUS        "enable pipe organ synthesizer"      OFF)
++option(ZERBERUS      "enable experimental sfz sampler"    ON)
++option(OSC           "enable OSC remote control protocol" ON)
++option(OMR           "enable PDF import"  OFF)                 # OMR - optical music recognition
++# for installation see: http://ubuntuforums.org/showthread.php?t=1647350
++option(OCR           "enable OCR, requires OMR" OFF)           # requires tesseract 3.0, needs work on mac/win
++option(SOUNDFONT3    "ogg vorbis compressed fonts" ON)         # enable ogg vorbis compressed fonts, require ogg & vorbis
++option(HAS_AUDIOFILE "enable audio export" ON)                 # requires libsndfile
++option(USE_SYSTEM_QTSINGLEAPPLICATION "Use system QtSingleApplication" OFF)
++option(USE_SYSTEM_FREETYPE "Use system FreeType" OFF)          # requires freetype >= 2.5.2, does not work on win
++option(BUILD_LAME    "enable mp3 export" ON)                   # requires libmp3lame (non-free), call CMake with -DBUILD_LAME="OFF" to disable
++
++SET(JACK_LONGNAME "jack (jack audio connection kit)")
++SET(JACK_MIN_VERSION "0.98.0")
++option(BUILD_JACK    "Build with support for ${JACK_LONGNAME} audio backend. jack >= ${JACK_MIN_VERSION} will be needed." ON)
++option(BUILD_PULSEAUDIO "Build with support for Pulseaudio audio backend." ON)
++option(BUILD_ALSA "Build with support for ALSA audio backend." ON)
++option(BUILD_PORTAUDIO "Build with support for Portaudio audio backend." ON)
++option(BUILD_PORTMIDI "Build with support for PortAudio's MIDI features." ${BUILD_PORTAUDIO}) # PortAudio required
++option(BUILD_WEBKIT "Built in webkit support" ON)
++option(BUILD_PCH "Build using precompiled headers." OFF)
++option(BUILD_FOR_WINSTORE "Build for the Windows Store." OFF)
++
++if (APPLE)
++      set (CMAKE_CXX_COMPILER   clang++)
++      set (CMAKE_CXX_COMPILER_ID "Clang")
++      # Currently, just 'ppc', 'i386' or 'ppc i386' are useful architectures,
++      # because the Flash-Player is not yet available as a 64-bit version.
++      # Flash is required for displaying the videos of MuseScore-Connect.
++      # See http://qt.gitorious.org/qt/pages/Qt470KnownIssues
++      # Since 10.6+ only runs on intel, just set it to i386.
++      set(CMAKE_OSX_ARCHITECTURES x86_64)
++
++      # Adjust and uncomment this variable, if you target a different version
++      # of MacOSX.
++      # set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk)
++
++      set(CMAKE_OSX_DEPLOYMENT_TARGET 10.7)      #min version required
++      set(HAS_AUDIOFILE TRUE)            # requires libsndfile
++
++      find_library(AudioToolboxFW        NAMES AudioToolbox)
++      find_library(AudioUnitFW           NAMES AudioUnit)
++      find_library(CoreAudioFW           NAMES CoreAudio)
++      find_library(CoreMidiFW            NAMES CoreMIDI)
++      find_library(SystemConfigurationFW NAMES SystemConfiguration)
++      find_library(CoreServicesFW        NAMES CoreServices)
++      set(OsxFrameworks ${AudioToolboxFW} ${AudioUnitFW} ${CoreAudioFW} ${CoreMidiFW} ${SystemConfigurationFW} ${CoreServicesFW})
++endif (APPLE)
++
++#
++#     Check for gcc compiler >= 4.7
++#
++if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
++      if (${CMAKE_CXX_COMPILER_MAJOR} LESS 4
++        OR ((${CMAKE_CXX_COMPILER_MAJOR} EQUAL 4) AND (${CMAKE_CXX_COMPILER_MINOR} LESS 7)))
++            message(FATAL_ERROR "bad gcc compiler version " ${CMAKE_CXX_COMPILER_VERSION}
++                  " >= 4.7 required")
++      endif()
++endif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
++
++if (APPLE)
++   set(CMAKE_CXX_FLAGS_DEBUG   "-std=c++11 -fPIC -stdlib=libc++ -g -Wno-inconsistent-missing-override")
++   set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -fPIC -stdlib=libc++ -O2 -DNDEBUG -DQT_NO_DEBUG -Wno-inconsistent-missing-override")
++else (APPLE)
++   if (MINGW)
++      # -mno-ms-bitfields see #22048
++      set(CMAKE_CXX_FLAGS_DEBUG   "-std=c++11 -mno-ms-bitfields -g")
++      set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -mno-ms-bitfields -O2 -DNDEBUG -DQT_NO_DEBUG")
++      set(CMAKE_EXE_LINKER_FLAGS "-Wl,--large-address-aware")
++   else (MINGW)
++      set(CMAKE_CXX_FLAGS_DEBUG   "-std=c++11 -fPIC -g")
++      set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -fPIC -O2 -DNDEBUG -DQT_NO_DEBUG")
++   endif (MINGW)
++endif(APPLE)
++
++set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
++set(CMAKE_BUILD_WITH_INSTALL_RPATH ON) # Call CMake with option -DCMAKE_SKIP_RPATH to not set RPATH (Debian packaging requirement)
++set(CMAKE_SKIP_RULE_DEPENDENCY TRUE)
++
++# The Mscore version number.
++SET(MUSESCORE_NAME "MuseScore")
++SET(MUSESCORE_VERSION_MAJOR  "2")
++SET(MUSESCORE_VERSION_MINOR  "1")
++SET(MUSESCORE_VERSION_PATCH  "0")
++SET(MUSESCORE_VERSION       "${MUSESCORE_VERSION_MAJOR}.${MUSESCORE_VERSION_MINOR}")
++SET(MUSESCORE_NAME_VERSION "${MUSESCORE_NAME} ${MUSESCORE_VERSION_MAJOR}")
++#
++# version schema x.x.x is hardcoded in source
++#
++SET(MUSESCORE_VERSION_FULL  "${MUSESCORE_VERSION}.${MUSESCORE_VERSION_PATCH}")
++
++if (MUSESCORE_LABEL)
++  SET (MUSESCORE_NAME_VERSION "${MUSESCORE_NAME_VERSION} ${MUSESCORE_LABEL}")
++endif (MUSESCORE_LABEL)
++
++if (MSCORE_UNSTABLE)
++  SET (MUSESCORE_NAME_VERSION "${MUSESCORE_NAME_VERSION} (${MUSESCORE_VERSION_FULL} unstable)")
++endif (MSCORE_UNSTABLE)
++
++if (MINGW OR APPLE)
++  if(MINGW)
++      SET(Mscore_INSTALL_NAME  "")
++      SET(Mscore_SHARE_NAME    "./")
++  else(MINGW)
++      SET(Mscore_INSTALL_NAME  "Contents/Resources/")
++      SET(Mscore_SHARE_NAME    "mscore.app/")
++  endif(MINGW)
++else (MINGW OR APPLE)
++      SET(Mscore_INSTALL_NAME  "mscore${MSCORE_INSTALL_SUFFIX}-${MUSESCORE_VERSION}/")
++      SET(Mscore_SHARE_NAME    "share/")
++endif (MINGW OR APPLE)
++
++##
++##  look for Qt5
++##
++SET(QT_MIN_VERSION    "5.3.0")
++
++SET(QT_USE_QTXML         TRUE)
++SET(QT_USE_QTSVG         TRUE)
++SET(QT_USE_QTNETWORK     TRUE)
++SET(QT_USE_QTDESIGNER    TRUE)
++IF (BUILD_WEBKIT)
++  SET(QT_USE_QTWEBKIT    TRUE)
++  SET(USE_WEBKIT 1)
++ELSE (BUILD_WEBKIT)
++  SET(QT_USE_QTWEBKIT    FALSE)
++ENDIF (BUILD_WEBKIT)
++SET(QT_USE_QTXMLPATTERNS TRUE)
++SET(QT_USE_QTHELP        TRUE)
++
++#find_package(Qt5 COMPONENTS Widgets Xml Svg Network Designer WebKit Declarative)
++
++if (BUILD_FOR_WINSTORE)
++  set(FOR_WINSTORE 1)
++endif(BUILD_FOR_WINSTORE)
++
++##
++## freetype2 >= 2.5.2
++##
++
++if (USE_SYSTEM_FREETYPE)
++      if (APPLE)
++            PKGCONFIG (freetype2 2.5.2 FREETYPE_INCLUDE_DIRS FREETYPE_LIBDIR FREETYPE_LIBRARIES FREETYPE_CPP)
++            if (FREETYPE_INCLUDE_DIRS)
++                  STRING(REGEX REPLACE  "\"" "" FREETYPE_INCLUDE_DIRS ${FREETYPE_INCLUDE_DIRS})
++                  STRING(REGEX REPLACE  "\"" "" FREETYPE_LIBDIR ${FREETYPE_LIBDIR})
++                  message("freetype2 detected ${FREETYPE_INCLUDE_DIRS} ${FREETYPE_LIBDIR} ${FREETYPE_LIBRARIES}")
++            else (FREETYPE_INCLUDE_DIRS)
++                  message(FATAL_ERROR "freetype >= 2.5.2 is required\n")
++            endif (FREETYPE_INCLUDE_DIRS)
++      else (APPLE)
++            find_package(Freetype REQUIRED)
++      endif (APPLE)
++endif (USE_SYSTEM_FREETYPE)
++
++##
++## alsa >= 1.0.0
++##
++
++if (BUILD_ALSA)
++      PKGCONFIG1 (alsa 1.0.0 ALSA_INCDIR ALSA_LIBDIR ALSA_LIB ALSA_CPP )
++      if (NOT ALSA_INCDIR)
++            message(SEND_ERROR "Error: ALSA support requested (BUILD_ALSA=${BUILD_ALSA}), but ALSA >= 1.0.0 was not found.")
++      else (NOT ALSA_INCDIR)
++            message("ALSA >= 1.0.0 found. ALSA support enabled. INCDIR ${ALSA_INCDIR}, LIBDIR ${ALSA_LIBDIR}, LIB ${ALSA_LIB}, CPP ${ALSA_CPP}")
++            set (USE_ALSA 1)
++      endif (NOT ALSA_INCDIR)
++else (BUILD_ALSA)
++     message(STATUS "ALSA support disabled")
++endif (BUILD_ALSA)
++
++##
++## MIDI
++##
++
++if (APPLE OR MINGW)
++      set (HAS_MIDI 1)
++else (APPLE OR MINGW)
++      if (USE_ALSA)
++            set (HAS_MIDI 1)
++      endif (USE_ALSA)
++endif (APPLE OR MINGW)
++
++##
++## pulseaudio
++##
++
++if (BUILD_PULSEAUDIO)
++      if (PULSEAUDIO_FOUND)
++            set(USE_PULSEAUDIO 1)
++            message("Pulseaudio found. Pulseaudio support enabled.")
++      else (PULSEAUDIO_FOUND)
++            message(SEND_ERROR "Error: Pulseaudio support requested (BUILD_PULSEAUDIO=${BUILD_PULSEAUDIO}), but Pulseaudio was not found.")
++      endif (PULSEAUDIO_FOUND)
++else (BUILD_PULSEAUDIO)
++      message(STATUS "Pulseaudio support disabled")
++endif (BUILD_PULSEAUDIO)
++
++##
++## lame
++##
++if (APPLE OR MINGW)
++      IF (BUILD_LAME)
++            include (FindLame)
++            set (USE_LAME 1)
++      ENDIF (BUILD_LAME)
++else (APPLE OR MINGW)
++      IF (BUILD_LAME)
++            include (FindLame)
++            IF (LAME_FOUND)
++                  set(USE_LAME 1)
++                  MESSAGE("LAME found.")
++            ELSE (LAME_FOUND)
++                  set(USE_LAME 0)
++                  MESSAGE("LAME not found.")
++            ENDIF (LAME_FOUND)
++      ELSE (BUILD_LAME)
++            MESSAGE(STATUS "LAME mp3 support disabled")
++      ENDIF (BUILD_LAME)
++endif (APPLE OR MINGW)
++
++##
++## find jack >= JACK_MIN_VERSION
++##
++
++IF(BUILD_JACK)
++     IF(MINGW)
++           set (USE_JACK 1)
++           IF("$ENV{PROCESSOR_ARCHITEW6432}" STREQUAL "")
++              IF("$ENV{PROCESSOR_ARCHITECTURE}" STREQUAL "x86")
++                 # "pure" 32-bit environment
++                 set (JACK_INCDIR "$ENV{PROGRAMFILES}/Jack/includes")
++                 set (JACK_LIB "$ENV{PROGRAMFILES}/Jack/lib/libjack.a")
++              ELSE("$ENV{PROCESSOR_ARCHITECTURE}" STREQUAL "x86")
++                 # "pure" 64-bit environment
++                 set (JACK_INCDIR "$ENV{PROGRAMFILES(x86)}/Jack/includes")
++                 set (JACK_LIB "$ENV{PROGRAMFILES(x86)}/Jack/lib/libjack.a")
++              ENDIF("$ENV{PROCESSOR_ARCHITECTURE}" STREQUAL "x86")
++           ELSE("$ENV{PROCESSOR_ARCHITEW6432}" STREQUAL "")
++              IF("$ENV{PROCESSOR_ARCHITECTURE}" STREQUAL "x86")
++                 # 32-bit program running with an underlying 64-bit environment
++                 set (JACK_INCDIR "$ENV{PROGRAMFILES(x86)}/Jack/includes")
++                 set (JACK_LIB "$ENV{PROGRAMFILES(x86)}/Jack/lib/libjack.a")
++              ELSE("$ENV{PROCESSOR_ARCHITECTURE}" STREQUAL "x86")
++                 # theoretically impossible case...
++                 MESSAGE(SEND_ERROR "Error: Impossible program/environment bitness combination deduced: 64-bit program running in 32-bit environment. This is a programming error. PROCESSOR_ARCHITEW6432=$ENV{PROCESSOR_ARCHITEW6432}. PROCESSOR_ARCHITECTURE=$ENV{PROCESSOR_ARCHITECTURE}")
++              ENDIF("$ENV{PROCESSOR_ARCHITECTURE}" STREQUAL "x86")
++           ENDIF("$ENV{PROCESSOR_ARCHITEW6432}" STREQUAL "")
++           MESSAGE("jack support enabled.")
++     ELSE(MINGW)
++           PKGCONFIG1 (jack ${JACK_MIN_VERSION} JACK_INCDIR JACK_LIBDIR JACK_LIB JACK_CPP)
++           IF(JACK_INCDIR)
++                 MESSAGE(STATUS "${JACK_LONGNAME} >= ${JACK_MIN_VERSION} found. jack support enabled.")
++                 SET(USE_JACK 1)
++           ELSE(JACK_INCDIR)
++                 MESSAGE(STATUS "${JACK_LONGNAME} >= ${JACK_MIN_VERSION} not found")
++                 MESSAGE(SEND_ERROR "Error: jack support requested (BUILD_JACK=${BUILD_JACK}), but jack was not found")
++           ENDIF(JACK_INCDIR)
++     ENDIF(MINGW)
++ELSE(BUILD_JACK)
++     MESSAGE(STATUS "${JACK_LONGNAME} support disabled")
++ENDIF(BUILD_JACK)
++
++
++##
++## portaudio
++##
++
++if (BUILD_PORTAUDIO)
++    if (MINGW)
++        set ( USE_PORTAUDIO 1 )
++    else (MINGW)
++        PKGCONFIG1 (portaudio-2.0 19 PORTAUDIO_INCDIR PORTAUDIO_LIBDIR PORTAUDIO_LIB PORTAUDIO_CPP)
++        if (PORTAUDIO_INCDIR)
++              message("PortAudio found. PortAudio support enabled. INCDIR ${PORTAUDIO_INCDIR}, LIBDIR ${PORTAUDIO_LIBDIR}, LIB ${PORTAUDIO_LIB}")
++              set ( USE_PORTAUDIO 1 )
++        else (PORTAUDIO_INCDIR)
++              message(SEND_ERROR "Error: Portaudio support requested (BUILD_PORTAUDIO=${BUILD_PORTAUDIO}), but portaudio-2.0 Version 19 was not found (package portaudio19-dev)")
++        endif (PORTAUDIO_INCDIR)
++    endif (MINGW)
++else (BUILD_PORTAUDIO)
++     message(STATUS "Portaudio support disabled")
++endif (BUILD_PORTAUDIO)
++
++##
++## PortMidi
++##
++
++if (BUILD_PORTMIDI)
++    if (NOT BUILD_PORTAUDIO)
++        message(SEND_ERROR "Error: PortMidi support requested (BUILD_PORTMIDI=${BUILD_PORTMIDI}), but PortAudio support is disabled (BUILD_PORTAUDIO=${BUILD_PORTAUDIO}). PortMidi requires PortAudio.")
++    endif (NOT BUILD_PORTAUDIO)
++    set (USE_PORTMIDI 1)
++else (BUILD_PORTMIDI)
++    message(STATUS "PortMidi support disabled")
++endif (BUILD_PORTMIDI)
++
++if (APPLE)
++   if(SOUNDFONT3)
++      ##
++      ## libvorbis
++      ##
++
++      PKGCONFIG1 (vorbis 1.3.3 VORBIS_INCDIR VORBIS_LIBDIR VORBIS_LIB VORBIS_CPP)
++      if (VORBIS_INCDIR)
++          message("libvorbis detected ${VORBIS_INCDIR} ${VORBIS_LIBDIR} ${VORBIS_LIB}")
++      else (VORBIS_INCDIR)
++          message("libvorbis not found\n")
++      endif (VORBIS_INCDIR)
++
++
++      ##
++      ## libogg
++      ##
++
++      PKGCONFIG1 (ogg 1.3.0 OGG_INCDIR OGG_LIBDIR OGG_LIB OGG_CPP)
++      if (OGG_INCDIR)
++          message("libogg detected ${OGG_INCDIR} ${OGG_LIBDIR} ${OGG_LIB}")
++      else (OGG_INCDIR)
++          message("libogg not found\n")
++      endif (OGG_INCDIR)
++   endif(SOUNDFONT3)
++
++   if(HAS_AUDIOFILE)
++      ##
++      ## libsndfile
++      ##
++
++      PKGCONFIG1 (sndfile 1.0.25 SNDFILE_INCDIR SNDFILE_LIBDIR SNDFILE_LIB SNDFILE_CPP)
++      if (SNDFILE_INCDIR)
++          message("libsndfile detected ${SNDFILE_INCDIR} ${SNDFILE_LIBDIR} ${SNDFILE_LIB}")
++      else (SNDFILE_INCDIR)
++         message("libsndfile not found\n")
++      endif (SNDFILE_INCDIR)
++   endif(HAS_AUDIOFILE)
++else(APPLE)
++   if(MINGW)
++      set(SNDFILE_LIB sndfile-1)
++   else(MINGW)
++      set(SNDFILE_LIB sndfile)
++   endif(MINGW)
++   set(OGG_LIB ogg)
++   set(VORBIS_LIB vorbis)
++endif(APPLE)
++
++##
++## QtSingleApplication
++##
++
++if (USE_SYSTEM_QTSINGLEAPPLICATION)
++      find_path(QTSINGLEAPPLICATION_INCLUDE_DIRS qtsingleapplication.h PATH_SUFFIXES QtSolutions)
++      find_library(QTSINGLEAPPLICATION_LIBRARIES QtSolutions_SingleApplication-2.6)
++else(USE_SYSTEM_QTSINGLEAPPLICATION)
++      subdirs (thirdparty/singleapp)
++      set(QTSINGLEAPPLICATION_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/singleapp/src)
++      set(QTSINGLEAPPLICATION_LIBRARIES qtsingleapp)
++endif(USE_SYSTEM_QTSINGLEAPPLICATION)
++
++##
++## produce config.h file
++##
++configure_file (
++      ${PROJECT_SOURCE_DIR}/build/config.h.in
++      ${PROJECT_BINARY_DIR}/config.h
++      )
++configure_file (
++      ${PROJECT_SOURCE_DIR}/build/Doxyfile.in
++      ${PROJECT_BINARY_DIR}/Doxyfile
++      )
++configure_file (
++      ${PROJECT_SOURCE_DIR}/build/Doxyfile-LibMscore.in
++      ${PROJECT_BINARY_DIR}/Doxyfile-LibMscore
++      )
++
++if (NOT MINGW AND NOT APPLE)
++    #### PACKAGING for Linux and BSD based systems (more in mscore/CMakeLists.txt) ####
++    #
++    #     set library search path for runtime linker to load the same
++    #     qt libraries as we used at compile time
++    #
++    SET(CMAKE_INSTALL_RPATH "${_qt5Core_install_prefix}/lib") # ignored if CMAKE_SKIP_RPATH="TRUE"
++    string(TOUPPER "mscore${MSCORE_INSTALL_SUFFIX}" MAN_MSCORE_UPPER) # Command name shown in uppercase in man pages by convention
++    if (${MSCORE_INSTALL_SUFFIX} MATCHES "portable") # Note: "-portable-anything" would match
++      # Build portable AppImage as per https://github.com/probonopd/AppImageKit
++      if (NOT DEFINED ARCH)
++        execute_process(COMMAND arch OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)# get architecture (strip trailing newline)
++      endif (NOT DEFINED ARCH)
++      get_filename_component(PORTABLE_INSTALL_PATH ${CMAKE_INSTALL_PREFIX} PATH)# get path (dirname)
++      get_filename_component(PORTABLE_INSTALL_NAME ${CMAKE_INSTALL_PREFIX} NAME)# strip path (basename)
++      if (NOT MSCORE_UNSTABLE)
++        set(PORTABLE_INSTALL_NAME "${PORTABLE_INSTALL_NAME}-${MUSESCORE_VERSION_FULL}") # append version info.
++      endif (NOT MSCORE_UNSTABLE)
++      set(PORTABLE_INSTALL_NAME "${PORTABLE_INSTALL_NAME}-${ARCH}") # append system architecture.
++      set(CMAKE_INSTALL_PREFIX ${PORTABLE_INSTALL_PATH}/${PORTABLE_INSTALL_NAME}.AppDir) # e.g. "MuseScore-X.Y.Z-x86_64.AppDir"
++      execute_process(COMMAND echo ${CMAKE_INSTALL_PREFIX} OUTPUT_FILE PREFIX.txt)
++      # Prepare portable scripts:
++      configure_file(build/Linux+BSD/portable/AppRun.in          AppRun         @ONLY)
++      configure_file(build/Linux+BSD/portable/portable-utils.in  portable-utils @ONLY)
++      set(SCRIPT_PERMS PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ WORLD_READ)
++      install(PROGRAMS ${PROJECT_BINARY_DIR}/AppRun     DESTINATION .   COMPONENT portable ${SCRIPT_PERMS})
++      install(PROGRAMS ${PROJECT_BINARY_DIR}/portable-utils
++                       build/Linux+BSD/portable/ldd-recursive
++                       build/rm-empty-dirs              DESTINATION bin COMPONENT portable ${SCRIPT_PERMS})
++      install(FILES    build/Linux+BSD/portable/qt.conf DESTINATION bin COMPONENT portable)
++    else (${MSCORE_INSTALL_SUFFIX} MATCHES "portable")
++      set(MAN_PORTABLE '.\"') # comment out lines in man page that are only relevent to the portable version
++    endif (${MSCORE_INSTALL_SUFFIX} MATCHES "portable")
++    # install desktop file (perform variable substitution first)
++    configure_file(build/Linux+BSD/mscore.desktop.in mscore${MSCORE_INSTALL_SUFFIX}.desktop)
++    install( FILES ${PROJECT_BINARY_DIR}/mscore${MSCORE_INSTALL_SUFFIX}.desktop DESTINATION share/applications)
++    # substitute variables within man pages
++    set(MAN_NAME mscore)
++    set(MAN_ALIAS musescore)
++    set(MAN_EXTENSION .1)
++    set(MAN_FULL_NAME ${MAN_NAME}${MSCORE_INSTALL_SUFFIX}${MAN_EXTENSION})
++    set(MAN_FULL_ALIAS ${MAN_ALIAS}${MSCORE_INSTALL_SUFFIX}${MAN_EXTENSION})
++    set(MAN_TARGET ${PROJECT_SOURCE_DIR}/build/Linux+BSD/${MAN_NAME}${MAN_EXTENSION}.in)
++    set(MAN_BUILD ${PROJECT_BINARY_DIR}/${MAN_FULL_NAME})
++    configure_file(${MAN_TARGET} ${MAN_BUILD})
++    # compress man pages if gzip is installed (don't on OpenBSD)
++    # note: compressing man pages is normal on Linux but not OpenBSD
++    find_program( GZIP_EXECUTABLE gzip DOC "A tool for compressing manpages (optional)." )
++    if (GZIP_EXECUTABLE AND NOT CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
++        message(STATUS "Found gzip. Man pages will be compressed.")
++        set(MAN_TARGET ${MAN_BUILD})
++        set(MAN_EXTENSION ${MAN_EXTENSION}.gz)
++        set(MAN_FULL_NAME ${MAN_NAME}${MSCORE_INSTALL_SUFFIX}${MAN_EXTENSION})
++        set(MAN_FULL_ALIAS ${MAN_ALIAS}${MSCORE_INSTALL_SUFFIX}${MAN_EXTENSION})
++        set(MAN_BUILD ${PROJECT_BINARY_DIR}/${MAN_FULL_NAME})
++        add_custom_command(
++            OUTPUT ${MAN_BUILD}
++            DEPENDS ${MAN_TARGET}
++            COMMAND ${GZIP_EXECUTABLE} -9 < ${MAN_TARGET} > ${MAN_BUILD}
++            )
++        add_custom_target(manpages ALL
++            DEPENDS ${MAN_BUILD}
++            COMMAND echo "Man pages have been compressed ready for installation."
++            VERBATIM
++            )
++    else (GZIP_EXECUTABLE AND NOT CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
++        if (CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
++            message(STATUS "System is OpenBSD: Man pages will not be compressed.")
++        else (CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
++            message(STATUS "gzip not found (it is optional). Man pages will not be compressed.")
++        endif (CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
++        add_custom_target(manpages ALL
++            COMMAND echo "Man pages will be installed uncompressed."
++            VERBATIM
++            )
++    endif (GZIP_EXECUTABLE AND NOT CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
++    # install man pages in either compressed or uncompressed form
++    install( FILES ${MAN_BUILD} DESTINATION share/man/man1 COMPONENT doc)
++    # create symlink alias for man pages so `man musescore` = `man mscore`
++    find_program( LN_EXECUTABLE ln DOC "A tool for creating symbolic link aliases (optional)." )
++    if (LN_EXECUTABLE)
++        message(STATUS "Found ln. Symlink aliases will be created for MuseScore executable and the man pages.")
++        add_custom_command(
++            TARGET manpages
++            COMMAND echo "Creating symlink alias for man pages."
++            COMMAND ${LN_EXECUTABLE} -sf "${MAN_FULL_NAME}" "${MAN_FULL_ALIAS}"
++            COMMAND echo 'Symlink alias: ${MAN_FULL_ALIAS} -> ${MAN_FULL_NAME}'
++            )
++        install( FILES ${PROJECT_BINARY_DIR}/${MAN_FULL_ALIAS} DESTINATION share/man/man1 COMPONENT doc)
++     else (LN_EXECUTABLE)
++         message(STATUS "ln not found (it is optional). No symlink aliases will be created.")
++     endif (LN_EXECUTABLE)
++    # add .MSCZ and .MSCX to MIME database (informs system that filetypes .MSCZ & .MSCX are MuseScore files)
++    configure_file(build/Linux+BSD/musescore.xml.in musescore${MSCORE_INSTALL_SUFFIX}.xml)
++    install( FILES ${PROJECT_BINARY_DIR}/musescore${MSCORE_INSTALL_SUFFIX}.xml DESTINATION share/mime/packages COMPONENT doc)
++    # Note: must now run "update-mime-database" to apply changes. This is done in the Makefile.
++endif (NOT MINGW AND NOT APPLE)
++
++#
++#  create precompiled header file
++#
++
++# all.h is expected in PROJECT_BINARY_DIR by subdirs
++add_custom_command(
++    OUTPUT ${PROJECT_BINARY_DIR}/all.h
++    COMMAND ${CMAKE_COMMAND}
++    ARGS -E copy ${PROJECT_SOURCE_DIR}/all.h ${PROJECT_BINARY_DIR}/all.h
++    DEPENDS ${PROJECT_SOURCE_DIR}/all.h
++    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
++    )
++if (NOT MINGW)
++  set(BUILD_PCH true)
++endif(NOT MINGW)
++
++precompiled_header(QT_INCLUDES all ${BUILD_PCH})
++
++ADD_CUSTOM_TARGET(mops1 DEPENDS ${PROJECT_BINARY_DIR}/all.h)
++ADD_CUSTOM_TARGET(mops2 DEPENDS ${PCH})
++
++##
++## add subdirs
++##
++subdirs(
++      mscore  awl bww2mxml share midi audiofile fluid mstyle libmscore synthesizer
++      effects thirdparty/rtf2html thirdparty/diff thirdparty/beatroot
++      thirdparty/xmlstream thirdparty/qzip thirdparty/kQOAuth
++      )
++if (APPLE AND CMAKE_BUILD_TYPE MATCHES "DEBUG")
++#with xcode, we need to have all the targets in the same project
++add_subdirectory(mtest)
++else(APPLE AND CMAKE_BUILD_TYPE MATCHES "DEBUG")
++add_subdirectory(mtest EXCLUDE_FROM_ALL)
++endif(APPLE AND CMAKE_BUILD_TYPE MATCHES "DEBUG")
++
++add_subdirectory(rdoc EXCLUDE_FROM_ALL)
++add_subdirectory(miditools EXCLUDE_FROM_ALL)
++add_subdirectory(fonttools EXCLUDE_FROM_ALL)
++add_subdirectory(manual)
++add_subdirectory(demos)
++
++if (USE_PORTMIDI AND (MINGW OR APPLE))
++      subdirs (thirdparty/portmidi)
++endif (USE_PORTMIDI AND (MINGW OR APPLE))
++
++if (AEOLUS)
++      subdirs (aeolus)
++endif (AEOLUS)
++
++if (ZERBERUS)
++      subdirs (zerberus)
++endif (ZERBERUS)
++
++if (OMR)
++      subdirs (omr)
++endif (OMR)
++
++if (OSC)
++      subdirs (thirdparty/ofqf)
++endif (OSC)
++
++if (NOT USE_SYSTEM_FREETYPE)
++      subdirs (thirdparty/freetype)
++endif (NOT USE_SYSTEM_FREETYPE)
++
++
++##
++## includes
++##
++include_directories(
++   ${PROJECT_SOURCE_DIR}
++   ${PROJECT_BINARY_DIR}
++   ${ALSA_INCDIR}
++   ${JACK_INCDIR}
++   ${PORTAUDIO_INCDIR}
++   ${OGG_INCDIR}
++   ${VORBIS_INCDIR}
++   ${SNDFILE_INCDIR}
++   ${LAME_INCLUDE_DIR}
++)
++
++if (USE_SYSTEM_FREETYPE)
++      include_directories(${FREETYPE_INCLUDE_DIRS})
++else (USE_SYSTEM_FREETYPE)
++      include_directories(${PROJECT_SOURCE_DIR}/thirdparty/freetype/include)
++endif (USE_SYSTEM_FREETYPE)
++
++##
++##  Include packaging
++##
++
++include(Packaging)
++
++##
++##  custom target for translation generation
++##
++
++add_custom_target(lupdate
++   COMMAND ${PROJECT_SOURCE_DIR}/build/gen-qt-projectfile ${PROJECT_SOURCE_DIR} > mscore.pro
++   COMMAND ${QT_LUPDATE_EXECUTABLE} ${PROJECT_BINARY_DIR}/mscore.pro
++   COMMAND ${PROJECT_SOURCE_DIR}/build/gen-instruments-projectfile ${PROJECT_SOURCE_DIR}/share/instruments > instruments.pro
++   COMMAND ${QT_LUPDATE_EXECUTABLE} ${PROJECT_BINARY_DIR}/instruments.pro
++   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
++   )
++
++add_custom_target(lrelease
++   COMMAND ${PROJECT_SOURCE_DIR}/build/gen-qt-projectfile ${PROJECT_SOURCE_DIR} > mscore.pro
++   COMMAND ${PROJECT_SOURCE_DIR}/build/gen-qt-projectfile ${PROJECT_SOURCE_DIR}/share/instruments > instruments.pro
++   COMMAND ${QT_LRELEASE_EXECUTABLE} ${PROJECT_SOURCE_DIR}/share/locale/*.ts
++   WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
++   )
++
++
++##
++##  create and install the plugin framework manual
++##
++
++add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/plugins
++   COMMAND genManual ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR}
++   DEPENDS genManual
++   )
++
+diff --git a/aeolus/CMakeLists.txt b/aeolus/CMakeLists.txt
+index 7962e87..a23aef3 100644
+--- a/aeolus/CMakeLists.txt
++++ b/aeolus/CMakeLists.txt
+@@ -43,7 +43,7 @@ add_library (aeolus STATIC
+ set_target_properties (
+       aeolus
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ install(DIRECTORY
+diff --git a/audiofile/CMakeLists.txt b/audiofile/CMakeLists.txt
+index 5b1dd48..0d28df8 100644
+--- a/audiofile/CMakeLists.txt
++++ b/audiofile/CMakeLists.txt
+@@ -26,7 +26,7 @@ add_library (audiofile STATIC
+ set_target_properties (
+       audiofile
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(audiofile all)
+diff --git a/awl/CMakeLists.txt b/awl/CMakeLists.txt
+index 9589cce..f4172ed 100644
+--- a/awl/CMakeLists.txt
++++ b/awl/CMakeLists.txt
+@@ -43,7 +43,7 @@ add_library (
+ set_target_properties (
+       awl
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(awl all)
+diff --git a/build/CreatePrecompiledHeader.cmake b/build/CreatePrecompiledHeader.cmake
+index 6cb671a..3d4aae3 100644
+--- a/build/CreatePrecompiledHeader.cmake
++++ b/build/CreatePrecompiledHeader.cmake
+@@ -36,7 +36,7 @@ macro( precompiled_header includes header_name build_pch)
+             set (PCH ${PROJECT_BINARY_DIR}/${header_name}.h.gch)
+             add_custom_command(
+              OUTPUT ${PROJECT_BINARY_DIR}/${header_name}.h.gch
+-             COMMAND ${CMAKE_CXX_COMPILER} -x c++-header -g  ${compile_flags} -o ${header_name}.h.gch ${header_name}.h
++             COMMAND ${CMAKE_CXX_COMPILER} -x c++-header ${compile_flags} -o ${header_name}.h.gch ${header_name}.h
+              DEPENDS ${PROJECT_BINARY_DIR}/${header_name}.h
+              WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+              VERBATIM
+diff --git a/bww2mxml/CMakeLists.txt b/bww2mxml/CMakeLists.txt
+index d6b7794..acec8b5 100644
+--- a/bww2mxml/CMakeLists.txt
++++ b/bww2mxml/CMakeLists.txt
+@@ -49,7 +49,7 @@ if (NOT MINGW AND NOT APPLE)
+    set_target_properties (
+          bww2mxml
+          PROPERTIES
+-            COMPILE_FLAGS "-x c++ -include ${PROJECT_BINARY_DIR}/all.h -g -Wall -Wextra -Winvalid-pch"
++            COMPILE_FLAGS "-x c++ -include ${PROJECT_BINARY_DIR}/all.h -Wall -Wextra -Winvalid-pch"
+          )
+ 
+    target_link_libraries(bww2mxml
+diff --git a/effects/CMakeLists.txt b/effects/CMakeLists.txt
+index a695f1d..cf94cae 100644
+--- a/effects/CMakeLists.txt
++++ b/effects/CMakeLists.txt
+@@ -44,7 +44,7 @@ add_library (effects STATIC
+ set_target_properties (
+       effects
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(effects all)
+diff --git a/fluid/CMakeLists.txt b/fluid/CMakeLists.txt
+index 1dc8d2f..3fede66 100644
+--- a/fluid/CMakeLists.txt
++++ b/fluid/CMakeLists.txt
+@@ -45,7 +45,7 @@ add_library (fluid STATIC
+ set_target_properties (
+       fluid
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(fluid all)
+diff --git a/fonttools/CMakeLists.txt b/fonttools/CMakeLists.txt
+index 74a525b..f318f4c 100644
+--- a/fonttools/CMakeLists.txt
++++ b/fonttools/CMakeLists.txt
+@@ -19,5 +19,5 @@ add_executable(
+       )
+ 
+ target_link_libraries(genft ${QT_LIBRARIES} -lfreetype)
+-set_target_properties(genft PROPERTIES COMPILE_FLAGS "-I/usr/include/freetype2 -g -Wall -Wextra -Winvalid-pch")
++set_target_properties(genft PROPERTIES COMPILE_FLAGS "-I/usr/include/freetype2 -Wall -Wextra -Winvalid-pch")
+ 
+diff --git a/libmscore/CMakeLists.txt b/libmscore/CMakeLists.txt
+index 446d413..5d871a8 100644
+--- a/libmscore/CMakeLists.txt
++++ b/libmscore/CMakeLists.txt
+@@ -71,8 +71,8 @@ add_library (
+ set_target_properties (
+       libmscore
+       PROPERTIES
+-         COMPILE_FLAGS "-g ${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+-#         COMPILE_FLAGS "-g ${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch -Woverloaded-virtual"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
++#         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch -Woverloaded-virtual"
+       )
+ 
+ xcode_pch(libmscore all)
+diff --git a/manual/CMakeLists.txt b/manual/CMakeLists.txt
+index cf6edca..ceffd73 100644
+--- a/manual/CMakeLists.txt
++++ b/manual/CMakeLists.txt
+@@ -36,13 +36,13 @@ if(APPLE)
+ set_target_properties (
+       genManual
+       PROPERTIES
+-      COMPILE_FLAGS "-include all.h -D TESTROOT=\\\\\"${PROJECT_SOURCE_DIR}\\\\\" -g -Wall -Wextra"
++      COMPILE_FLAGS "-include all.h -D TESTROOT=\\\\\"${PROJECT_SOURCE_DIR}\\\\\" -Wall -Wextra"
+       )
+ else(APPLE)
+ set_target_properties (
+       genManual
+       PROPERTIES
+-      COMPILE_FLAGS "-include all.h -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -g -Wall -Wextra"
++      COMPILE_FLAGS "-include all.h -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -Wall -Wextra"
+       )
+ endif(APPLE)
+ 
+diff --git a/midi/CMakeLists.txt b/midi/CMakeLists.txt
+index 05fbb83..ea95480 100644
+--- a/midi/CMakeLists.txt
++++ b/midi/CMakeLists.txt
+@@ -27,7 +27,7 @@ add_library (midi STATIC
+ set_target_properties (
+       midi
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(midi all)
+diff --git a/miditools/CMakeLists.txt b/miditools/CMakeLists.txt
+index 6df79c4..f8145e0 100644
+--- a/miditools/CMakeLists.txt
++++ b/miditools/CMakeLists.txt
+@@ -13,7 +13,7 @@
+ add_executable (smf2xml smf2xml.cpp xmlwriter.cpp midifile.cpp)
+ 
+ set_target_properties(smf2xml
+-      PROPERTIES COMPILE_FLAGS "-g -Wall -Wextra"
++      PROPERTIES COMPILE_FLAGS "-Wall -Wextra"
+       )
+ target_link_libraries(smf2xml
+       ${QT_LIBRARIES}
+@@ -23,7 +23,7 @@ add_executable (xml2smf xml2smf.cpp xmlreader.cpp midifile.cpp)
+ 
+ set_target_properties (
+       xml2smf
+-      PROPERTIES COMPILE_FLAGS "-g -Wall -Wextra"
++      PROPERTIES COMPILE_FLAGS "-Wall -Wextra"
+       )
+ target_link_libraries(xml2smf
+       ${QT_LIBRARIES}
+diff --git a/mscore/CMakeLists.txt b/mscore/CMakeLists.txt
+index 36196e1..0af0017 100644
+--- a/mscore/CMakeLists.txt
++++ b/mscore/CMakeLists.txt
+@@ -379,7 +379,7 @@ if (MINGW)
+       if (CMAKE_BUILD_TYPE MATCHES "DEBUG")
+             set_target_properties(mscore
+                   PROPERTIES
+-                  COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch ${QT_DEFINITIONS} -DQT_SVG_LIB -DQT_GUI_LIB -DQT_XML_LIB -DQT_CORE_LIB"
++                  COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch ${QT_DEFINITIONS} -DQT_SVG_LIB -DQT_GUI_LIB -DQT_XML_LIB -DQT_CORE_LIB"
+                   LINK_FLAGS "${PROJECT_BINARY_DIR}/resfile.o -mwindows -mconsole -L ${CROSSQT}/lib"
+                   )
+       else (CMAKE_BUILD_TYPE MATCHES "DEBUG")
+@@ -526,7 +526,7 @@ else (MINGW)
+ 
+       set_target_properties(mscore
+             PROPERTIES
+-            COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wno-overloaded-virtual -Winvalid-pch"
++            COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wno-overloaded-virtual -Winvalid-pch"
+             )
+ 
+       if (OMR)
+diff --git a/mscore/CMakeLists.txt.orig b/mscore/CMakeLists.txt.orig
+new file mode 100644
+index 0000000..36196e1
+--- /dev/null
++++ b/mscore/CMakeLists.txt.orig
+@@ -0,0 +1,664 @@
++#=============================================================================
++#  MuseScore
++#  Linux Music Score Editor
++#
++#  Copyright (C) 2002-2013 by Werner Schweer and others
++#
++#  This program is free software; you can redistribute it and/or modify
++#  it under the terms of the GNU General Public License version 2.
++#
++#  This program is distributed in the hope that it will be useful,
++#  but WITHOUT ANY WARRANTY; without even the implied warranty of
++#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#  GNU General Public License for more details.
++#
++#  You should have received a copy of the GNU General Public License
++#  along with this program; if not, write to the Free Software
++#  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++#=============================================================================
++
++include (${PROJECT_SOURCE_DIR}/build/gch.cmake)
++
++SET_SOURCE_FILES_PROPERTIES(revision.h PROPERTIES GENERATED TRUE)
++
++include_directories(
++      ${CMAKE_CURRENT_BINARY_DIR}
++      ${PROJECT_SOURCE_DIR}
++      ${PROJECT_SOURCE_DIR}/thirdparty
++      ${QTSINGLEAPPLICATION_INCLUDE_DIRS}
++      )
++
++if (SCRIPT_INTERFACE)
++      set (SCRIPT_FILES mscorePlugins pluginCreator.cpp qmledit.cpp pluginManager.cpp)
++      set (SCRIPT_UI   pluginCreator.ui pluginManager.ui)
++endif (SCRIPT_INTERFACE)
++
++QT5_WRAP_UI (ui_headers
++      insertmeasuresdialog.ui editinstrument.ui editstyle.ui instrdialog.ui instrwidget.ui
++      measuresdialog.ui pagesettings.ui mixer.ui playpanel.ui prefsdialog.ui measureproperties.ui
++      textpalette.ui  timedialog.ui symboldialog.ui  shortcutcapturedialog.ui  editdrumset.ui
++      editstaff.ui voltaproperties.ui timesigproperties.ui
++      instrwizard.ui timesigwizard.ui newwizard.ui aboutbox.ui aboutmusicxmlbox.ui
++      transposedialog.ui lineproperties.ui excerptsdialog.ui  stafftext.ui tupletdialog.ui
++      glissandoprop.ui articulation.ui metaedit.ui palette.ui selectdialog.ui selectnotedialog.ui
++      synthcontrol.ui splitstaff.ui cellproperties.ui keyedit.ui selectinstr.ui
++      fretdprops.ui editstafftype.ui sectionbreak.ui  bend.ui tremolobar.ui textproperties.ui
++      editpitch.ui editstringdata.ui editraster.ui mediadialog.ui textstyle.ui albummanager.ui layer.ui
++      omrpanel.ui masterpalette.ui harmonyedit.ui pathlistdialog.ui
++      note_groups.ui resourceManager.ui stafftypetemplates.ui
++      startcenter.ui scorePreview.ui scoreBrowser.ui
++      logindialog.ui uploadscoredialog.ui breaksdialog.ui
++
++      importmidi/importmidi_panel.ui
++
++      debugger/barline.ui
++      debugger/harmony.ui
++      debugger/box.ui
++      debugger/keysig.ui
++      debugger/rest.ui
++      debugger/articulationbase.ui
++      debugger/accidental.ui
++      debugger/clef.ui
++      debugger/slursegment.ui
++      debugger/spanner.ui
++      debugger/tremolo.ui
++      debugger/beam.ui
++      debugger/lyrics.ui
++      debugger/linesegment.ui
++      debugger/textline.ui
++      debugger/line.ui
++      debugger/slurtie.ui
++      debugger/tie.ui
++      debugger/tuplet.ui
++      debugger/dynamic.ui
++      debugger/hairpin.ui
++      debugger/chord.ui
++      debugger/chordrest.ui
++      debugger/segment.ui
++      debugger/measure.ui
++      debugger/element.ui
++      debugger/debugger.ui
++      debugger/note.ui
++      debugger/page.ui
++      debugger/text.ui
++      debugger/stem.ui
++      debugger/system.ui
++      debugger/timesig.ui
++
++      inspector/inspector_element.ui
++      inspector/inspector_vbox.ui
++      inspector/inspector_tbox.ui
++      inspector/inspector_articulation.ui
++      inspector/inspector_spacer.ui
++      inspector/inspector_hbox.ui
++      inspector/inspector_segment.ui
++      inspector/inspector_beam.ui
++      inspector/inspector_note.ui
++      inspector/inspector_rest.ui
++      inspector/inspector_chord.ui
++      inspector/inspector_group_element.ui
++      inspector/inspector_image.ui
++      inspector/inspector_lasso.ui
++      inspector/inspector_volta.ui
++      inspector/inspector_ottava.ui
++      inspector/inspector_trill.ui
++      inspector/inspector_hairpin.ui
++      inspector/inspector_jump.ui
++      inspector/inspector_marker.ui
++      inspector/inspector_glissando.ui
++      inspector/inspector_clef.ui
++      inspector/inspector_timesig.ui
++      inspector/inspector_keysig.ui
++      inspector/inspector_barline.ui
++      inspector/inspector_tuplet.ui
++      inspector/inspector_accidental.ui
++      inspector/inspector_tempotext.ui
++      inspector/inspector_dynamic.ui
++      inspector/inspector_line.ui
++      inspector/inspector_textline.ui
++      inspector/inspector_slur.ui
++      inspector/inspector_text.ui
++      inspector/inspector_ambitus.ui
++      inspector/inspector_empty.ui
++      inspector/inspector_fret.ui
++      inspector/inspector_break.ui
++      inspector/inspector_bend.ui
++      inspector/inspector_arpeggio.ui
++      inspector/inspector_tremolo.ui
++      inspector/inspector_caesura.ui
++      ${SCRIPT_UI}
++      )
++
++if (APPLE)
++      QT5_ADD_RESOURCES (qrc_files musescore.qrc musescorefonts-Mac.qrc)
++else (APPLE)
++      QT5_ADD_RESOURCES (qrc_files musescore.qrc
++            musescorefonts-MScore.qrc
++            musescorefonts-Gootville.qrc
++            musescorefonts-Bravura.qrc
++            musescorefonts-MuseJazz.qrc
++            musescorefonts-FreeSerif.qrc
++            musescorefonts-Free.qrc)
++endif (APPLE)
++
++
++set (AUDIO "")
++if (MINGW)
++      set (resource_file ${PROJECT_BINARY_DIR}/resfile.o)
++else (MINGW)
++      if (USE_ALSA)
++            set (AUDIO ${AUDIO} alsa.cpp)
++      endif (USE_ALSA)
++endif (MINGW)
++
++if (USE_PORTAUDIO)
++      set (AUDIO ${AUDIO} pa.cpp)
++endif (USE_PORTAUDIO)
++
++if (USE_PULSEAUDIO)
++      set (AUDIO ${AUDIO} pulseaudio.cpp)
++endif (USE_PULSEAUDIO)
++
++if (USE_PORTMIDI)
++      set (AUDIO ${AUDIO} pm.cpp)
++endif (USE_PORTMIDI)
++
++if (USE_LAME)
++      set (AUDIO ${AUDIO} exportmp3.cpp)
++endif (USE_LAME)
++
++if (USE_JACK)
++      set (AUDIO ${AUDIO} jackaudio.cpp jackweakapi.cpp)
++endif (USE_JACK)
++
++if (USE_ALSA OR USE_PORTMIDI)
++      set (AUDIO ${AUDIO} mididriver.cpp)
++endif (USE_ALSA OR USE_PORTMIDI)
++
++if (${CMAKE_SYSTEM} MATCHES "GNU-0.3")
++      # include some cmake support file
++      INCLUDE (Platform/GNU)
++      set ( USE_ALSA 0 )
++      set ( USE_PORTMIDI 0 )
++endif (${CMAKE_SYSTEM} MATCHES "GNU-0.3")
++
++if (${CMAKE_SYSTEM} MATCHES "kFreeBSD")
++      # include some cmake support file
++      INCLUDE (Platform/kFreeBSD)
++      set ( USE_ALSA 0 )
++      set ( USE_PORTMIDI 0 )
++endif (${CMAKE_SYSTEM} MATCHES "kFreeBSD")
++
++if (APPLE)
++      set (ExecutableName mscore MACOSX_BUNDLE)
++      set (MACOSX_BUNDLE_ICON_FILE      mscore.icns)
++      set (MACOSX_BUNDLE_GUI_IDENTIFIER org.musescore.MuseScore)
++      set (MACOSX_BUNDLE_LONG_VERSION_STRING ${MUSESCORE_VERSION_FULL})
++      set (MACOSX_BUNDLE_BUNDLE_NAME MuseScore)
++      set (MACOSX_BUNDLE_SHORT_VERSION_STRING ${MUSESCORE_VERSION})
++      set (MACOSX_BUNDLE_BUNDLE_VERSION ${MUSESCORE_VERSION_FULL})
++      set (MACOSX_BUNDLE_COPYRIGHT musescore.org)
++else (APPLE)
++      set (ExecutableName mscore)
++endif (APPLE)
++
++if (OMR)
++      set(OMR_FILES omrpanel.cpp)
++endif (OMR)
++
++if (APPLE)
++      file(GLOB_RECURSE INCS "*.h")
++else (APPLE)
++      set(INCS "")
++endif (APPLE)
++
++add_executable ( ${ExecutableName}
++      ${qrc_files}
++      ${ui_headers}
++      ${PROJECT_BINARY_DIR}/all.h
++      ${PCH}
++      ${resource_file}
++      ${INCS}
++
++      recordbutton.h greendotbutton prefsdialog.h
++      scoreview.cpp editinstrument.cpp editstyle.cpp
++      icons.cpp importbww.cpp
++      importmxml.cpp importmxmlpass1.cpp importmxmlpass2.cpp
++      instrdialog.cpp instrwidget.cpp
++      debugger/debugger.cpp menus.cpp
++      musescore.cpp navigator.cpp pagesettings.cpp palette.cpp
++      mixer.cpp playpanel.cpp selectionwindow.cpp preferences.cpp measureproperties.cpp
++      seq.cpp textpalette.cpp
++      timedialog.cpp symboldialog.cpp shortcutcapturedialog.cpp
++      simplebutton.cpp musedata.cpp
++      editdrumset.cpp editstaff.cpp voltaproperties.cpp
++      timesigproperties.cpp newwizard.cpp transposedialog.cpp
++      excerptsdialog.cpp metaedit.cpp magbox.cpp
++      capella.cpp capxml.cpp exportaudio.cpp palettebox.cpp
++      textproperties.cpp synthcontrol.cpp drumroll.cpp pianoroll.cpp piano.cpp
++      pianoview.cpp drumview.cpp scoretab.cpp keyedit.cpp harmonyedit.cpp
++      updatechecker.cpp importove.cpp ove.cpp ruler.cpp
++      importgtp.cpp importgtp-gp4.cpp importgtp-gp5.cpp importgtp-gp6.cpp fotomode.cpp drumtools.cpp
++      selinstrument.cpp editstafftype.cpp texttools.cpp
++      editpitch.cpp editstringdata.cpp editraster.cpp pianotools.cpp mediadialog.cpp
++      workspace.cpp chordview.cpp
++      album.cpp albummanager.cpp
++      textstyle.cpp
++      lineproperties.cpp stafftextproperties.cpp splitstaff.cpp
++      tupletdialog.cpp glissandoproperties.cpp
++      articulationprop.cpp textprop.cpp
++      fretproperties.cpp sectionbreakprop.cpp
++      bendproperties.cpp tremolobarprop.cpp file.cpp keyb.cpp osc.cpp
++      layer.cpp selectdialog.cpp selectnotedialog.cpp propertymenu.cpp shortcut.cpp bb.cpp
++      inspector/inspector.cpp dragelement.cpp svggenerator.cpp
++      inspector/inspectorBase.cpp inspector/inspectorBeam.cpp masterpalette.cpp
++      inspector/inspectorGroupElement.cpp dragdrop.cpp inspector/inspectorImage.cpp
++      inspector/inspectorFret.cpp
++      inspector/inspectorText.cpp
++      waveview.cpp helpBrowser.cpp inspector/inspectorLasso.cpp
++      editelement.cpp inspector/inspectorVolta.cpp inspector/inspectorOttava.cpp enableplayforwidget.cpp
++      inspector/inspectorTrill.cpp
++      inspector/inspectorHairpin.cpp qmlplugin.cpp editlyrics.cpp
++      musicxmlfonthandler.cpp musicxmlsupport.cpp exportxml.cpp importxml.cpp importxmlfirstpass.cpp
++      savePositions.cpp inspector/inspectorJump.cpp inspector/inspectorMarker.cpp
++      inspector/inspectorGlissando.cpp inspector/inspectorNote.cpp inspector/inspectorAmbitus.cpp
++      inspector/inspectorArpeggio.cpp
++      paletteBoxButton.cpp driver.cpp exportmidi.cpp noteGroups.cpp
++      pathlistdialog.cpp exampleview.cpp inspector/inspectorTextLine.cpp miconengine.cpp
++      importmidi/importmidi.cpp
++      importmidi/importmidi_panel.cpp importmidi/importmidi_operations.cpp
++      importmidi/importmidi_model.cpp importmidi/importmidi_delegate.cpp
++      importmidi/importmidi_meter.cpp importmidi/importmidi_quant.cpp
++      importmidi/importmidi_tuplet.cpp importmidi/importmidi_chord.cpp
++      importmidi/importmidi_swing.cpp importmidi/importmidi_fraction.cpp
++      importmidi/importmidi_drum.cpp importmidi/importmidi_clef.cpp
++      importmidi/importmidi_lrhand.cpp importmidi/importmidi_lyrics.cpp
++      importmidi/importmidi_inner.cpp importmidi/importmidi_tie.cpp
++      importmidi/importmidi_tuplet_voice.cpp importmidi/importmidi_beat.cpp
++      importmidi/importmidi_tuplet_detect.cpp importmidi/importmidi_tuplet_filter.cpp
++      importmidi/importmidi_tuplet_tonotes.cpp importmidi/importmidi_simplify.cpp
++      importmidi/importmidi_voice.cpp importmidi/importmidi_view.cpp importmidi/importmidi_key.cpp
++      importmidi/importmidi_tempo.cpp importmidi/importmidi_instrument.cpp
++      importmidi/importmidi_chordname.cpp
++      resourceManager.cpp downloadUtils.cpp
++      textcursor.cpp continuouspanel.cpp accessibletoolbutton.cpp scoreaccessibility.cpp
++      startcenter.cpp scoreBrowser.cpp scorePreview.cpp scoreInfo.cpp
++      logindialog.cpp loginmanager.cpp uploadscoredialog.cpp breaksdialog.cpp searchComboBox.cpp
++      help.cpp help.h
++      toolbuttonmenu.cpp
++
++      ${OMR_FILES}
++      ${AUDIO}
++      ${SCRIPT_FILES}
++      driver.h
++      tremolobarcanvas.h bendcanvas.h fretcanvas.h keycanvas.h harmonycanvas.h
++      )
++
++target_link_libraries(mscore
++      awl
++      mstyle
++      diff_match_patch
++      bww
++      rtf2html
++      ${QTSINGLEAPPLICATION_LIBRARIES}
++      synthesizer
++      midi
++      fluid
++      effects
++      vorbisfile
++      libmscore
++      xmlstream
++      qzip
++      beatroot
++      kqoauth
++      )
++
++if (USE_SYSTEM_FREETYPE)
++      target_link_libraries(mscore ${FREETYPE_LIBRARIES})
++endif (USE_SYSTEM_FREETYPE)
++
++if (MINGW)
++      set(MSCORE_OUTPUT_NAME ${MUSESCORE_NAME})
++elseif (MSCORE_INSTALL_SUFFIX)
++      set(MSCORE_OUTPUT_NAME "${ExecutableName}${MSCORE_INSTALL_SUFFIX}")
++endif (MINGW)
++
++#if MSCORE_OUTPUT_NAME is set (e.g, when cmake is called by the user), the output executable will be
++#called MSCORE_OUTPUT_NAME instead of 'mscore'. This can be used to have MuseScore stable and unstable
++#both installed in the same prefix on a Linux system.
++if (MSCORE_OUTPUT_NAME)
++  set_target_properties(
++      ${ExecutableName}
++      PROPERTIES
++      OUTPUT_NAME ${MSCORE_OUTPUT_NAME}
++      )
++endif (MSCORE_OUTPUT_NAME)
++
++if (ZERBERUS)
++      target_link_libraries(mscore zerberus synthesizer)
++endif (ZERBERUS)
++if (AEOLUS)
++      target_link_libraries(mscore aeolus)
++endif (AEOLUS)
++if (SOUNDFONT3)
++      target_link_libraries(mscore ${VORBIS_LIB} ${OGG_LIB})
++endif (SOUNDFONT3)
++
++if (HAS_AUDIOFILE)
++      target_link_libraries(mscore audiofile ${SNDFILE_LIB})
++endif (HAS_AUDIOFILE)
++
++if (APPLE)
++      set_target_properties(mscore
++            PROPERTIES
++            MACOSX_BUNDLE_INFO_PLIST ${PROJECT_SOURCE_DIR}/build/MacOSXBundleInfo.plist.in
++            )
++      #enable dSym generation
++      #set_target_properties (mscore
++      #   PROPERTIES
++      #      XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
++endif (APPLE)
++
++if (OSC)
++      target_link_libraries(mscore ofqf)
++endif (OSC)
++
++if (MINGW)
++      add_custom_command(
++            OUTPUT ${PROJECT_BINARY_DIR}/resfile.o
++            COMMAND ${QT_WRC_EXECUTABLE} -i mscore.rc -o ${PROJECT_BINARY_DIR}/mscore.res
++            COMMAND ${QT_WINE_EXECUTABLE} /home/ws/.wine/drive_c/MingW/bin/windres.exe ${PROJECT_BINARY_DIR}/mscore.res -o ${PROJECT_BINARY_DIR}/resfile.o
++            DEPENDS ${PROJECT_SOURCE_DIR}/mscore/data/mscore.rc
++            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/mscore/data
++            )
++      set_source_files_properties(
++            ${PROJECT_BINARY_DIR}/resfile.o
++            PROPERTIES generated true
++            )
++      # Windows: add -mconsole to LINK_FLAGS to get a console window for debug output
++      if (CMAKE_BUILD_TYPE MATCHES "DEBUG")
++            set_target_properties(mscore
++                  PROPERTIES
++                  COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch ${QT_DEFINITIONS} -DQT_SVG_LIB -DQT_GUI_LIB -DQT_XML_LIB -DQT_CORE_LIB"
++                  LINK_FLAGS "${PROJECT_BINARY_DIR}/resfile.o -mwindows -mconsole -L ${CROSSQT}/lib"
++                  )
++      else (CMAKE_BUILD_TYPE MATCHES "DEBUG")
++            set_target_properties(mscore
++                  PROPERTIES
++                  COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch ${QT_DEFINITIONS} -DQT_SVG_LIB -DQT_GUI_LIB -DQT_XML_LIB -DQT_CORE_LIB"
++                  LINK_FLAGS "-Wl,-S ${PROJECT_BINARY_DIR}/resfile.o -mwindows -L ${CROSSQT}/lib"
++            )
++      endif (CMAKE_BUILD_TYPE MATCHES "DEBUG")
++
++      target_link_libraries(mscore
++            portaudio
++            portmidi
++            winmm
++            mscore_freetype
++            z
++            )
++
++      if (OMR)
++            target_link_libraries(mscore omr fitz jbig2dec jpeg openjpeg)
++            if (OCR)
++                  target_link_libraries(mscore tesseract_api)
++            endif (OCR)
++      endif (OMR)
++
++      target_link_libraries(mscore ${QT_mingw_LIBRARIES})
++
++      install(TARGETS mscore RUNTIME DESTINATION bin)
++
++      # Keep dependencies in alphabetical order. Changes made to this list
++      # might need to be made in "build/Linux+BSD/portable/copy-libs" too.
++      install(FILES
++            ${CROSS}/bin/libgcc_s_dw2-1.dll
++            ${CROSS}/bin/libstdc++-6.dll
++            ${CROSS}/bin/libwinpthread-1.dll
++            ${CROSS}/lib/libogg.dll
++            ${CROSS}/lib/libsndfile-1.dll
++            ${CROSS}/lib/libvorbis.dll
++            ${CROSS}/lib/libvorbisfile.dll
++            ${CROSS}/lib/portaudio.dll
++            ${CROSS}/opt/bin/libeay32.dll
++            ${CROSS}/opt/bin/ssleay32.dll
++            ${CROSSQT}/bin/icudt53.dll
++            ${CROSSQT}/bin/icuin53.dll
++            ${CROSSQT}/bin/icuuc53.dll
++            ${CROSSQT}/bin/Qt5CLucene.dll
++            ${CROSSQT}/bin/Qt5Core.dll
++            ${CROSSQT}/bin/Qt5Gui.dll
++            ${CROSSQT}/bin/Qt5Help.dll
++            ${CROSSQT}/bin/Qt5Multimedia.dll
++            ${CROSSQT}/bin/Qt5MultimediaWidgets.dll
++            ${CROSSQT}/bin/Qt5Network.dll
++            ${CROSSQT}/bin/Qt5OpenGL.dll
++            ${CROSSQT}/bin/Qt5Positioning.dll
++            ${CROSSQT}/bin/Qt5PrintSupport.dll
++            ${CROSSQT}/bin/Qt5Qml.dll
++            ${CROSSQT}/bin/Qt5Quick.dll
++            ${CROSSQT}/bin/Qt5Sensors.dll
++            ${CROSSQT}/bin/Qt5Sql.dll
++            ${CROSSQT}/bin/Qt5Svg.dll
++            ${CROSSQT}/bin/Qt5WebChannel.dll
++            ${CROSSQT}/bin/Qt5WebKit.dll
++            ${CROSSQT}/bin/Qt5WebKitWidgets.dll
++            ${CROSSQT}/bin/Qt5Widgets.dll
++            ${CROSSQT}/bin/Qt5Xml.dll
++            ${CROSSQT}/bin/Qt5XmlPatterns.dll
++            ${PROJECT_SOURCE_DIR}/build/qt.conf
++            DESTINATION bin
++            )
++
++      install(FILES
++            ${CROSSQT}/plugins/iconengines/qsvgicon.dll
++            DESTINATION bin/iconengines
++            )
++
++      install(FILES
++            ${CROSSQT}/plugins/imageformats/qjpeg.dll
++            ${CROSSQT}/plugins/imageformats/qmng.dll
++            ${CROSSQT}/plugins/imageformats/qsvg.dll
++            ${CROSSQT}/plugins/imageformats/qtiff.dll
++            DESTINATION bin/imageformats
++            )
++
++      install(FILES
++            ${CROSSQT}/plugins/platforms/qwindows.dll
++            DESTINATION bin/platforms
++            )
++
++      install(FILES
++            ${CROSSQT}/plugins/printsupport/windowsprintersupport.dll
++            DESTINATION bin/printsupport
++            )
++
++      install(FILES
++            ${CROSSQT}/plugins/sqldrivers/qsqlite.dll
++            DESTINATION bin/sqldrivers
++            )
++
++      install(DIRECTORY
++            ${CROSSQT}/qml
++            DESTINATION .
++            REGEX ".*d\\.dll" EXCLUDE
++            REGEX ".*QtGraphicalEffects.*" EXCLUDE
++            REGEX ".*QtMultimedia.*" EXCLUDE
++            REGEX ".*QtSensors.*" EXCLUDE
++            REGEX ".*QtTest.*" EXCLUDE
++            REGEX ".*QtWebkit.*" EXCLUDE
++            )
++else (MINGW)
++      target_link_libraries(mscore
++            ${ALSA_LIB}
++            ${QT_LIBRARIES}
++            z
++            dl
++            pthread
++            )
++
++      if (USE_SYSTEM_FREETYPE)
++            target_link_libraries(mscore freetype)
++      else (USE_SYSTEM_FREETYPE)
++            target_link_libraries(mscore mscore_freetype)
++      endif (USE_SYSTEM_FREETYPE)
++
++    if (USE_PORTMIDI)
++        if (APPLE)
++            set(PORTMIDI_LIB portmidi)
++        else (APPLE)
++            set(PORTMIDI_LIB -lportmidi -lporttime) # Remove -lporttime on RPM-based systems where PortTime is part of PortMidi.
++        endif (APPLE)
++        target_link_libraries(mscore ${PORTMIDI_LIB})
++    endif (USE_PORTMIDI)
++
++    if (USE_PULSEAUDIO)
++      target_link_libraries(mscore ${PULSEAUDIO_LIBRARY})
++    endif (USE_PULSEAUDIO)
++
++      if (USE_PORTAUDIO)
++            target_link_libraries(mscore ${PORTAUDIO_LIB})
++      endif (USE_PORTAUDIO)
++
++      if (USE_PULSEAUDIO)
++            target_link_libraries(mscore ${PULSEAUDIO_LIBRARY})
++      endif (USE_PULSEAUDIO)
++
++      set_target_properties(mscore
++            PROPERTIES
++            COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wno-overloaded-virtual -Winvalid-pch"
++            )
++
++      if (OMR)
++            target_link_libraries(mscore omr fitz fontconfig jbig2dec jpeg openjpeg)
++            if (USE_SYSTEM_FREETYPE)
++                  target_link_libraries(mscore freetype)
++            endif (USE_SYSTEM_FREETYPE)
++            if (OCR)
++                  target_link_libraries(mscore tesseract_api)
++            endif (OCR)
++      endif (OMR)
++
++      if (APPLE)
++            if (USE_PORTMIDI)
++                  target_link_libraries(mscore portmidi)
++            endif (USE_PORTMIDI)
++            target_link_libraries(mscore ${OsxFrameworks})
++      else (APPLE)
++            target_link_libraries(mscore rt)
++      endif (APPLE)
++
++      # gold does not use indirect shared libraries for symbol resolution, Linux only
++      if (NOT APPLE)
++            if (USE_JACK)
++                  target_link_libraries(mscore dl)
++            endif (USE_JACK)
++                  target_link_libraries(mscore rt)
++      endif (NOT APPLE)
++
++      if (APPLE)
++            set_target_properties(mscore
++                  PROPERTIES
++                  LINK_FLAGS "-stdlib=libc++"
++                  )
++      xcode_pch(mscore all)
++      install (TARGETS mscore BUNDLE DESTINATION ${CMAKE_INSTALL_PREFIX})
++      install (FILES data/mscore.icns DESTINATION ${Mscore_SHARE_NAME}${Mscore_INSTALL_NAME})
++      install (FILES data/musescoreDocument.icns DESTINATION ${Mscore_SHARE_NAME}${Mscore_INSTALL_NAME})
++      else (APPLE)
++            #### PACKAGING for Linux and BSD based systems (more in top-level CMakeLists.txt) ####
++            # install mscore executable (package maintainers may add "MuseScore" and/or "musescore" aliases that symlink to mscore)
++            install(TARGETS mscore RUNTIME DESTINATION bin)
++            if (LN_EXECUTABLE)
++                  add_custom_target(mscore_alias ALL
++                        COMMAND echo "Creating symlink alias for mscore executable."
++                        COMMAND ${LN_EXECUTABLE} -sf "mscore${MSCORE_INSTALL_SUFFIX}" "musescore${MSCORE_INSTALL_SUFFIX}"
++                        COMMAND echo 'Symlink alias: musescore${MSCORE_INSTALL_SUFFIX} -> mscore${MSCORE_INSTALL_SUFFIX}'
++                        )
++                  install(FILES ${PROJECT_BINARY_DIR}/mscore/musescore${MSCORE_INSTALL_SUFFIX} DESTINATION bin)
++            else (LN_EXECUTABLE)
++                  add_custom_target(mscore_alias ALL
++                        COMMAND echo "No symlink aliases will be created."
++                        VERBATIM
++                        )
++            endif (LN_EXECUTABLE)
++
++            # install MuseScore icons (use SVGs where possible, but install PNGs as backup for systems that don't support SVG)
++            if (MSCORE_UNSTABLE)
++                  set(MSCORE_ICON_BASE ../assets/musescore-icon-square) # square icons on development builds
++            else (MSCORE_UNSTABLE)
++                  set(MSCORE_ICON_BASE ../assets/musescore-icon-round) # round icons on stable releases
++            endif (MSCORE_UNSTABLE)
++
++            install(FILES ${MSCORE_ICON_BASE}.svg RENAME mscore${MSCORE_INSTALL_SUFFIX}.svg DESTINATION share/icons/hicolor/scalable/apps)
++            install(FILES ${MSCORE_ICON_BASE}-16.png RENAME mscore${MSCORE_INSTALL_SUFFIX}.png DESTINATION share/icons/hicolor/16x16/apps)
++            install(FILES ${MSCORE_ICON_BASE}-24.png RENAME mscore${MSCORE_INSTALL_SUFFIX}.png DESTINATION share/icons/hicolor/24x24/apps)
++            install(FILES ${MSCORE_ICON_BASE}-32.png RENAME mscore${MSCORE_INSTALL_SUFFIX}.png DESTINATION share/icons/hicolor/32x32/apps)
++            install(FILES ${MSCORE_ICON_BASE}-48.png RENAME mscore${MSCORE_INSTALL_SUFFIX}.png DESTINATION share/icons/hicolor/48x48/apps)
++            install(FILES ${MSCORE_ICON_BASE}-64.png RENAME mscore${MSCORE_INSTALL_SUFFIX}.png DESTINATION share/icons/hicolor/64x64/apps)
++            install(FILES ${MSCORE_ICON_BASE}-96.png RENAME mscore${MSCORE_INSTALL_SUFFIX}.png DESTINATION share/icons/hicolor/96x96/apps)
++            install(FILES ${MSCORE_ICON_BASE}-128.png RENAME mscore${MSCORE_INSTALL_SUFFIX}.png DESTINATION share/icons/hicolor/128x128/apps)
++            install(FILES ${MSCORE_ICON_BASE}-512.png RENAME mscore${MSCORE_INSTALL_SUFFIX}.png DESTINATION share/icons/hicolor/512x512/apps)
++            # install MIME (filetype) icons for each mimetype on Linux
++            install(FILES ../assets/mscz-icon.svg
++                  RENAME application-x-musescore${MSCORE_INSTALL_SUFFIX}.svg
++                  DESTINATION share/icons/hicolor/scalable/mimetypes) # SVG icon for .MSCZ files
++            install(FILES ../assets/mscz-icon-48.png
++                  RENAME application-x-musescore${MSCORE_INSTALL_SUFFIX}.png
++                  DESTINATION share/icons/hicolor/48x48/mimetypes) # PNG icon for .MSCZ files
++            install(FILES ../assets/mscx-icon.svg
++                  RENAME application-x-musescore${MSCORE_INSTALL_SUFFIX}+xml.svg
++                  DESTINATION share/icons/hicolor/scalable/mimetypes) # SVG icon for .MSCX files
++            install(FILES ../assets/mscx-icon-48.png
++                  RENAME application-x-musescore${MSCORE_INSTALL_SUFFIX}+xml.png
++                  DESTINATION share/icons/hicolor/48x48/mimetypes) # PNG icon for .MSCX files
++            # use a custom icon for MusicXML files (there isn't a standard icon for MusicXML files)
++            install(FILES ../assets/mxl-icon.svg
++                  RENAME application-vnd.recordare.musicxml${MSCORE_INSTALL_SUFFIX}.svg
++                  DESTINATION share/icons/hicolor/scalable/mimetypes) # SVG icon for .MXL (compressed MusicXML) files
++            install(FILES ../assets/mxl-icon-48.png
++                  RENAME application-vnd.recordare.musicxml${MSCORE_INSTALL_SUFFIX}.png
++                  DESTINATION share/icons/hicolor/48x48/mimetypes) # PNG icon for .MXL (compressed MusicXML) files
++            install(FILES ../assets/xml-icon.svg
++                  RENAME application-vnd.recordare.musicxml${MSCORE_INSTALL_SUFFIX}+xml.svg
++                  DESTINATION share/icons/hicolor/scalable/mimetypes) # SVG icon for .XML (MusicXML) files
++            install(FILES ../assets/xml-icon-48.png
++                  RENAME application-vnd.recordare.musicxml${MSCORE_INSTALL_SUFFIX}+xml.png
++                  DESTINATION share/icons/hicolor/48x48/mimetypes) # PNG icon for .XML (MusicXML) files
++            # Note: must now run "gtk-update-icon-cache" to set the new icons. This is done in the Makefile.
++      endif (APPLE)
++endif (MINGW)
++
++if (APPLE)
++     install(FILES
++            ../fonts/gootville/Gootville.otf
++            ../fonts/gootville/GootvilleText.otf
++            ../fonts/mscore/mscore.ttf
++            ../fonts/mscore/MScoreText.ttf
++            ../fonts/MuseJazz.ttf
++            ../fonts/FreeSerif.ttf
++            ../fonts/FreeSerifBold.ttf
++            ../fonts/FreeSerifItalic.ttf
++            ../fonts/FreeSerifBoldItalic.ttf
++            ../fonts/FreeSans.ttf
++            ../fonts/mscoreTab.ttf
++            ../fonts/mscore-BC.ttf
++            ../fonts/bravura/Bravura.otf
++            ../fonts/bravura/BravuraText.otf
++            DESTINATION ${Mscore_SHARE_NAME}${Mscore_INSTALL_NAME}fonts
++            )
++     install(DIRECTORY
++            ${QT_INSTALL_PREFIX}/qml
++            DESTINATION ${Mscore_SHARE_NAME}${Mscore_INSTALL_NAME}
++            REGEX ".*QtWebkit.*" EXCLUDE
++            REGEX ".*QtTest.*" EXCLUDE
++            REGEX ".*QtSensors.*" EXCLUDE
++            REGEX ".*QtGraphicalEffects.*" EXCLUDE
++            REGEX ".*QtMultimedia.*" EXCLUDE
++            REGEX ".*QtAudioEngine.*" EXCLUDE
++            REGEX ".*_debug\\.dylib" EXCLUDE
++            )
++endif (APPLE)
++
++ADD_DEPENDENCIES(${ExecutableName} mops1)
++ADD_DEPENDENCIES(${ExecutableName} mops2)
+diff --git a/mstyle/CMakeLists.txt b/mstyle/CMakeLists.txt
+index e60d901..d3ba643 100644
+--- a/mstyle/CMakeLists.txt
++++ b/mstyle/CMakeLists.txt
+@@ -49,7 +49,7 @@ add_library (
+ set_target_properties (
+       mstyle
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(mstyle all)
+diff --git a/mtest/CMakeLists.txt b/mtest/CMakeLists.txt
+index 0831c08..3e37b2d 100644
+--- a/mtest/CMakeLists.txt
++++ b/mtest/CMakeLists.txt
+@@ -113,20 +113,10 @@ target_link_libraries(
+ 
+ set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
+ 
+-if (APPLE)
+-   set(CMAKE_CXX_FLAGS_DEBUG   "-std=c++0x -fPIC -stdlib=libc++ -g -Wno-inconsistent-missing-override")
+-   set(CMAKE_CXX_FLAGS_RELEASE "-std=c++0x -fPIC -stdlib=libc++ -O2 -DNDEBUG -DQT_NO_DEBUG -Wno-inconsistent-missing-override")
+-else (APPLE)
+-   if (MINGW)
+-      # -mno-ms-bitfields see #22048
+-      set(CMAKE_CXX_FLAGS_DEBUG   "-std=gnu++0x -mno-ms-bitfields -g")
+-      set(CMAKE_CXX_FLAGS_RELEASE "-std=gnu++0x -mno-ms-bitfields -O2 -DNDEBUG -DQT_NO_DEBUG")
+-   else (MINGW)
+-      set(CMAKE_CXX_FLAGS_DEBUG   "-std=gnu++0x -fPIC -g")
+-      set(CMAKE_CXX_FLAGS_RELEASE "-std=gnu++0x -fPIC -O2 -DNDEBUG -DQT_NO_DEBUG")
+-   endif (MINGW)
+-endif(APPLE)
+-
++set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fPIE -DNDEBUG -DQT_NO_DEBUG")
++set(CMAKE_CXX_STANDARD 11)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++set(CMAKE_CXX_EXTENSIONS OFF)
+ 
+ string(REPLACE ";" ";-I" INC "${QT_INCLUDES}")
+ 
+@@ -134,17 +124,17 @@ if (APPLE AND (CMAKE_VERSION VERSION_LESS "3.5.0"))
+ set_target_properties (
+       testutils
+       PROPERTIES
+-      COMPILE_FLAGS "-include all.h -D TESTROOT=\\\\\"${PROJECT_SOURCE_DIR}\\\\\" -g -Wall -Wextra"
++      COMPILE_FLAGS "-include all.h -D TESTROOT=\\\\\"${PROJECT_SOURCE_DIR}\\\\\" -Wall -Wextra"
+       )
+ else (APPLE AND (CMAKE_VERSION VERSION_LESS "3.5.0"))
+ set_target_properties (
+       testutils
+       PROPERTIES
+-      COMPILE_FLAGS "-include all.h -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -g -Wall -Wextra"
++      COMPILE_FLAGS "-include all.h -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -Wall -Wextra"
+       )
+ endif (APPLE AND (CMAKE_VERSION VERSION_LESS "3.5.0"))
+ 
+-#      COMPILE_FLAGS "-include all.h -I ${INC} -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -g -Wall -Wextra"
++#      COMPILE_FLAGS "-include all.h -I ${INC} -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -Wall -Wextra"
+ 
+ add_custom_target(report
+       COMMAND ant -f ${PROJECT_SOURCE_DIR}/mtest/build.xml -Droot.dir=${PROJECT_BINARY_DIR}/mtest report
+diff --git a/mtest/CMakeLists.txt.orig b/mtest/CMakeLists.txt.orig
+new file mode 100644
+index 0000000..0831c08
+--- /dev/null
++++ b/mtest/CMakeLists.txt.orig
+@@ -0,0 +1,177 @@
++#=============================================================================
++#  MuseScore
++#  Music Composition & Notation
++#  $Id:$
++#
++#  Copyright (C) 2011-2013 Werner Schweer
++#
++#  This program is free software; you can redistribute it and/or modify
++#  it under the terms of the GNU General Public License version 2
++#  as published by the Free Software Foundation and appearing in
++#  the file LICENSE.GPL
++#=============================================================================
++
++# set(CMAKE_VERBOSE_MAKEFILE ON)
++enable_testing()
++
++include_directories(
++      ${PROJECT_BINARY_DIR}
++      ${PROJECT_SOURCE_DIR}
++      ${PROJECT_SOURCE_DIR}/thirdparty/freetype/include
++      )
++
++if (OMR)
++set(OMR_SRC ${PROJECT_SOURCE_DIR}/omr/importpdf.cpp)
++endif (OMR)
++
++QT5_ADD_RESOURCES(qrc_files ${PROJECT_SOURCE_DIR}/mtest/mtest.qrc
++            ${PROJECT_SOURCE_DIR}/mscore/musescorefonts-MScore.qrc
++            ${PROJECT_SOURCE_DIR}/mscore/musescorefonts-Gootville.qrc
++            ${PROJECT_SOURCE_DIR}/mscore/musescorefonts-Bravura.qrc
++            ${PROJECT_SOURCE_DIR}/mscore/musescorefonts-MuseJazz.qrc
++            ${PROJECT_SOURCE_DIR}/mscore/musescorefonts-Free.qrc
++            ${PROJECT_SOURCE_DIR}/mscore/musescorefonts-FreeSerif.qrc
++      )
++
++add_library (testResources STATIC
++      ${qrc_files}
++      )
++
++add_library(
++      testutils STATIC
++      testutils.cpp
++      ${PROJECT_SOURCE_DIR}/libmscore/mcursor.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/album.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/bb.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/capella.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/capxml.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/exportxml.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importgtp.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importgtp-gp4.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importgtp-gp5.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importgtp-gp6.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importove.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/ove.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_operations.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_meter.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_quant.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_tuplet.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_tuplet_detect.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_tuplet_filter.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_tuplet_voice.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_tuplet_tonotes.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_chord.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_fraction.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_swing.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_drum.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_clef.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_lrhand.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_lyrics.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_tie.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_inner.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_beat.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_simplify.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_voice.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_key.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_tempo.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_model.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_instrument.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmidi/importmidi_chordname.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/exportmidi.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmxml.cpp               # required by importxml.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmxmlpass1.cpp          # required by importxml.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importmxmlpass2.cpp          # required by importxml.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importxml.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/importxmlfirstpass.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/musicxmlfonthandler.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/musicxmlsupport.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/qmlplugin.cpp
++      ${PROJECT_SOURCE_DIR}/mscore/shortcut.cpp
++      ${PROJECT_SOURCE_DIR}/thirdparty/rtf2html/fmt_opts.cpp    # required by capella.cpp and capxml.cpp
++      ${PROJECT_SOURCE_DIR}/thirdparty/rtf2html/rtf2html.cpp    # required by capella.cpp and capxml.cpp
++      ${PROJECT_SOURCE_DIR}/thirdparty/rtf2html/rtf_keyword.cpp # required by capella.cpp and capxml.cpp
++      ${PROJECT_SOURCE_DIR}/thirdparty/rtf2html/rtf_table.cpp   # required by capella.cpp and capxml.cpp
++      ${PROJECT_SOURCE_DIR}/thirdparty/beatroot/Agent.cpp           # required by importmidi.cpp
++      ${PROJECT_SOURCE_DIR}/thirdparty/beatroot/AgentList.cpp       # required by importmidi.cpp
++      ${PROJECT_SOURCE_DIR}/thirdparty/beatroot/BeatTracker.cpp     # required by importmidi.cpp
++      ${PROJECT_SOURCE_DIR}/thirdparty/beatroot/Induction.cpp       # required by importmidi.cpp
++      ${OMR_SRC}
++      omr
++      )
++
++add_executable(
++      mtest
++      mtest.cpp
++      )
++
++target_link_libraries(
++      mtest
++      ${QT_LIBRARIES}
++      mscore_freetype
++      )
++
++set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
++
++if (APPLE)
++   set(CMAKE_CXX_FLAGS_DEBUG   "-std=c++0x -fPIC -stdlib=libc++ -g -Wno-inconsistent-missing-override")
++   set(CMAKE_CXX_FLAGS_RELEASE "-std=c++0x -fPIC -stdlib=libc++ -O2 -DNDEBUG -DQT_NO_DEBUG -Wno-inconsistent-missing-override")
++else (APPLE)
++   if (MINGW)
++      # -mno-ms-bitfields see #22048
++      set(CMAKE_CXX_FLAGS_DEBUG   "-std=gnu++0x -mno-ms-bitfields -g")
++      set(CMAKE_CXX_FLAGS_RELEASE "-std=gnu++0x -mno-ms-bitfields -O2 -DNDEBUG -DQT_NO_DEBUG")
++   else (MINGW)
++      set(CMAKE_CXX_FLAGS_DEBUG   "-std=gnu++0x -fPIC -g")
++      set(CMAKE_CXX_FLAGS_RELEASE "-std=gnu++0x -fPIC -O2 -DNDEBUG -DQT_NO_DEBUG")
++   endif (MINGW)
++endif(APPLE)
++
++
++string(REPLACE ";" ";-I" INC "${QT_INCLUDES}")
++
++if (APPLE AND (CMAKE_VERSION VERSION_LESS "3.5.0"))
++set_target_properties (
++      testutils
++      PROPERTIES
++      COMPILE_FLAGS "-include all.h -D TESTROOT=\\\\\"${PROJECT_SOURCE_DIR}\\\\\" -g -Wall -Wextra"
++      )
++else (APPLE AND (CMAKE_VERSION VERSION_LESS "3.5.0"))
++set_target_properties (
++      testutils
++      PROPERTIES
++      COMPILE_FLAGS "-include all.h -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -g -Wall -Wextra"
++      )
++endif (APPLE AND (CMAKE_VERSION VERSION_LESS "3.5.0"))
++
++#      COMPILE_FLAGS "-include all.h -I ${INC} -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -g -Wall -Wextra"
++
++add_custom_target(report
++      COMMAND ant -f ${PROJECT_SOURCE_DIR}/mtest/build.xml -Droot.dir=${PROJECT_BINARY_DIR}/mtest report
++      WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/mtest"
++      )
++
++add_custom_target(reporthtml
++      COMMAND ant -f ${PROJECT_SOURCE_DIR}/mtest/build.xml -Droot.dir=${PROJECT_BINARY_DIR}/mtest reporthtml
++      WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/mtest"
++      )
++
++subdirs (libmscore importmidi capella biab musicxml guitarpro scripting testoves zerberus)
++
++install(FILES
++      ../share/styles/chords_std.xml
++      ../share/styles/chords_jazz.xml
++      ../share/styles/chords.xml
++      ../share/styles/stdchords.xml
++      ../share/styles/jazzchords.xml
++      ../share/styles/cchords_muse.xml
++      ../share/styles/cchords_nrb.xml
++      ../share/styles/cchords_rb.xml
++      ../share/styles/cchords_sym.xml
++      DESTINATION ${PROJECT_BINARY_DIR}/mtest/styles
++      )
++
++
++if (OMR)
++subdirs(omr)
++endif (OMR)
+diff --git a/mtest/cmake.inc b/mtest/cmake.inc
+index 9de4518..6fb1eb2 100644
+--- a/mtest/cmake.inc
++++ b/mtest/cmake.inc
+@@ -57,16 +57,16 @@ set_target_properties (
+       ${TARGET}
+       PROPERTIES
+       AUTOMOC true
+-      COMPILE_FLAGS "-include all.h -D QT_GUI_LIB -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -g -Wall -Wextra"
+-      LINK_FLAGS    "-g -stdlib=libc++"
++      COMPILE_FLAGS "-include all.h -D QT_GUI_LIB -D TESTROOT=\\\\\"${PROJECT_SOURCE_DIR}\\\\\" -Wall -Wextra"
++      LINK_FLAGS    "-stdlib=libc++"
+       )
+ else(APPLE)
+ set_target_properties (
+       ${TARGET}
+       PROPERTIES
+       AUTOMOC true
+-      COMPILE_FLAGS "-include all.h -D QT_GUI_LIB -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -g -Wall -Wextra"
+-      LINK_FLAGS    "-g"
++      COMPILE_FLAGS "-include all.h -D QT_GUI_LIB -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -Wall -Wextra"
++      LINK_FLAGS    ""
+       )
+ endif(APPLE)
+ 
+diff --git a/mtest/cmake.inc.orig b/mtest/cmake.inc.orig
+new file mode 100644
+index 0000000..9de4518
+--- /dev/null
++++ b/mtest/cmake.inc.orig
+@@ -0,0 +1,81 @@
++#=============================================================================
++#  MuseScore
++#  Music Composition & Notation
++#  $Id:$
++#
++#  Copyright (C) 2011 Werner Schweer
++#
++#  This program is free software; you can redistribute it and/or modify
++#  it under the terms of the GNU General Public License version 2
++#  as published by the Free Software Foundation and appearing in
++#  the file LICENSE.GPL
++#=============================================================================
++
++add_executable(
++      ${TARGET}
++      ${ui_headers}
++      ${mocs}
++      ${TARGET}.cpp
++      )
++
++target_link_libraries(
++      ${TARGET}
++      ${QT_QTTEST_LIBRARY}
++      testutils
++      testResources
++      libmscore
++      synthesizer
++      midi
++      xmlstream
++      qzip
++      z
++      ${QT_LIBRARIES}
++      mscore_freetype
++      z
++      )
++
++if (NOT MINGW AND NOT APPLE)
++   target_link_libraries(${TARGET}
++      dl
++      pthread)
++endif (NOT MINGW AND NOT APPLE)
++
++if (OMR)
++      target_link_libraries(${TARGET} omr fitz openjpeg jbig2dec jpeg fontconfig)
++      if (OCR)
++            target_link_libraries(${TARGET} tesseract_api)
++      endif (OCR)
++endif (OMR)
++
++if (APPLE)
++target_link_libraries(${TARGET} ${OsxFrameworks})
++target_link_libraries(${TARGET}
++      dl
++      pthread
++      )
++set_target_properties (
++      ${TARGET}
++      PROPERTIES
++      AUTOMOC true
++      COMPILE_FLAGS "-include all.h -D QT_GUI_LIB -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -g -Wall -Wextra"
++      LINK_FLAGS    "-g -stdlib=libc++"
++      )
++else(APPLE)
++set_target_properties (
++      ${TARGET}
++      PROPERTIES
++      AUTOMOC true
++      COMPILE_FLAGS "-include all.h -D QT_GUI_LIB -D TESTROOT=\\\"${PROJECT_SOURCE_DIR}\\\" -g -Wall -Wextra"
++      LINK_FLAGS    "-g"
++      )
++endif(APPLE)
++
++if (APPLE AND (CMAKE_VERSION VERSION_LESS "3.5.0"))
++set_target_properties (
++      ${TARGET}
++      PROPERTIES
++      COMPILE_FLAGS "-include all.h -D QT_GUI_LIB -D TESTROOT=\\\\\"${PROJECT_SOURCE_DIR}\\\\\" -g -Wall -Wextra"
++      )
++endif (APPLE AND (CMAKE_VERSION VERSION_LESS "3.5.0"))
++
++add_test(${TARGET} ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}  -xunitxml -o result.xml)
+diff --git a/omr/CMakeLists.txt b/omr/CMakeLists.txt
+index 88615e5..d719e89 100644
+--- a/omr/CMakeLists.txt
++++ b/omr/CMakeLists.txt
+@@ -42,7 +42,7 @@ add_library (
+ set_target_properties (
+       omr
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(omr all)
+diff --git a/synthesizer/CMakeLists.txt b/synthesizer/CMakeLists.txt
+index 0520920..e9bd15b 100644
+--- a/synthesizer/CMakeLists.txt
++++ b/synthesizer/CMakeLists.txt
+@@ -29,7 +29,7 @@ add_library (synthesizer STATIC
+ set_target_properties (
+       synthesizer
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(synthesizer all)
+diff --git a/thirdparty/beatroot/CMakeLists.txt b/thirdparty/beatroot/CMakeLists.txt
+index ae905c7..9b039e8 100644
+--- a/thirdparty/beatroot/CMakeLists.txt
++++ b/thirdparty/beatroot/CMakeLists.txt
+@@ -14,7 +14,7 @@ add_library (
+ 
+ set_target_properties( beatroot
+    PROPERTIES
+-      COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++      COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+    )
+ 
+ xcode_pch(beatroot all)
+diff --git a/thirdparty/diff/CMakeLists.txt b/thirdparty/diff/CMakeLists.txt
+index d0155b2..35bd6ac 100644
+--- a/thirdparty/diff/CMakeLists.txt
++++ b/thirdparty/diff/CMakeLists.txt
+@@ -36,7 +36,7 @@ add_library(diff_match_patch STATIC
+ set_target_properties (
+       diff_match_patch
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(diff_match_patch all)
+diff --git a/thirdparty/kQOAuth/CMakeLists.txt b/thirdparty/kQOAuth/CMakeLists.txt
+index 9beb6b1..f7ec1c5 100644
+--- a/thirdparty/kQOAuth/CMakeLists.txt
++++ b/thirdparty/kQOAuth/CMakeLists.txt
+@@ -40,7 +40,7 @@ add_library(kqoauth STATIC
+ set_target_properties (
+       kqoauth
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -I ${PROJECT_SOURCE_DIR}/thirdparty/openssl/include -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -I ${PROJECT_SOURCE_DIR}/thirdparty/openssl/include -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(kqoauth all)
+diff --git a/thirdparty/ofqf/CMakeLists.txt b/thirdparty/ofqf/CMakeLists.txt
+index fc39a0a..8c11f07 100644
+--- a/thirdparty/ofqf/CMakeLists.txt
++++ b/thirdparty/ofqf/CMakeLists.txt
+@@ -36,7 +36,7 @@ add_library(ofqf STATIC
+ set_target_properties (
+       ofqf
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(ofqf all)
+diff --git a/thirdparty/qzip/CMakeLists.txt b/thirdparty/qzip/CMakeLists.txt
+index 77b1997..417017e 100644
+--- a/thirdparty/qzip/CMakeLists.txt
++++ b/thirdparty/qzip/CMakeLists.txt
+@@ -29,7 +29,7 @@ add_library(qzip STATIC
+ set_target_properties (
+       qzip
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(qzip all)
+diff --git a/thirdparty/rtf2html/CMakeLists.txt b/thirdparty/rtf2html/CMakeLists.txt
+index 230339b..6c94a06 100644
+--- a/thirdparty/rtf2html/CMakeLists.txt
++++ b/thirdparty/rtf2html/CMakeLists.txt
+@@ -37,7 +37,7 @@ add_library (
+ 
+ set_target_properties( rtf2html
+    PROPERTIES
+-      COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++      COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+    )
+ 
+ xcode_pch(rtf2html all)
+diff --git a/thirdparty/singleapp/src/CMakeLists.txt b/thirdparty/singleapp/src/CMakeLists.txt
+index 2504b01..936fa3f 100644
+--- a/thirdparty/singleapp/src/CMakeLists.txt
++++ b/thirdparty/singleapp/src/CMakeLists.txt
+@@ -31,7 +31,7 @@ add_library (
+ set_target_properties (
+   qtsingleapp
+   PROPERTIES
+-  COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++  COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+   )
+ 
+ xcode_pch(qtsingleapp all)
+diff --git a/thirdparty/xmlstream/CMakeLists.txt b/thirdparty/xmlstream/CMakeLists.txt
+index 5991e09..7f1268e 100644
+--- a/thirdparty/xmlstream/CMakeLists.txt
++++ b/thirdparty/xmlstream/CMakeLists.txt
+@@ -29,7 +29,7 @@ add_library(xmlstream STATIC
+ set_target_properties (
+       xmlstream
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(xmlstream all)
+diff --git a/zerberus/CMakeLists.txt b/zerberus/CMakeLists.txt
+index c0db571..58d8ddf 100644
+--- a/zerberus/CMakeLists.txt
++++ b/zerberus/CMakeLists.txt
+@@ -31,7 +31,7 @@ add_library (zerberus STATIC
+ set_target_properties (
+       zerberus
+       PROPERTIES
+-         COMPILE_FLAGS "${PCH_INCLUDE} -g -Wall -Wextra -Winvalid-pch"
++         COMPILE_FLAGS "${PCH_INCLUDE} -Wall -Wextra -Winvalid-pch"
+       )
+ 
+ xcode_pch(zerberus all)
+-- 
+2.14.1
+

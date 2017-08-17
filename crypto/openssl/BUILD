@@ -1,9 +1,9 @@
 # again check if it's there or net and only then use the variable
 # else one would lose sse support on a new system
 if ! grep -q "sse" /proc/cpuinfo ; then
-if [[ $OPENSSL_SSE == n ]]; then
-  OPTS="no-sse2 $OPTS"
-fi
+  if [[ $OPENSSL_SSE == n ]]; then
+    OPTS="no-sse2 $OPTS"
+  fi
 fi                                                          &&
 OPTS="$OPENSSL_TLSEXT $OPTS"                                &&
 OPTS="--prefix=${INSTALL_ROOT}/usr                          \
@@ -12,8 +12,8 @@ OPTS="--prefix=${INSTALL_ROOT}/usr                          \
       enable-md2                                            \
       shared                                                \
       threads                                               \
-      $OPTS"
-./config  $OPTS   &&
+      $OPTS" &&
+setarch ${HOST%%-*} ./config  $OPTS   &&
 
 sedit  "s/-O3//"                    Makefile                &&
 sedit  "s/-m486//"                  Makefile                &&

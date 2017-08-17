@@ -12,50 +12,11 @@ function fixlinks() { # $1 = install root
 make_normal                                     &&
 
 # setup staging
-persistent_add TMPSTAGING &&
-local TMPSTAGING=/tmp/sorcery/ncurses.$$        &&
-mkdir -p $TMPSTAGING/lib                        &&
 MVERSION=${VERSION/.*/}                         &&
-
-# install libs to staging
-make  install.libs   DESTDIR="$TMPSTAGING"      &&
-{ # setting these off to the side -- they are protected as well
-  cp $INSTALL_ROOT/lib/lib*curses* $TMPSTAGING/lib/; true; # but we don't care if there is nothing there (e.g. chroot install)
-}  &&  ldconfig  &&  ldconfig $TMPSTAGING/lib   &&
-fixlinks                      $TMPSTAGING       &&
-ldconfig  &&  ldconfig        $TMPSTAGING/lib   &&
 
 # install to real install root
 make  install.libs  DESTDIR="$INSTALL_ROOT"     &&
 fixlinks                     $INSTALL_ROOT      &&
-
-# get rid of the old version of libncurses.so (otherwise tic will complain during 5.4 -> 5.5)
-{ 
-mv $INSTALL_ROOT/lib/libncurses.so.$VERSION      \
-   $INSTALL_ROOT/lib/libncurses.so-bak.$VERSION  &&
-mv $INSTALL_ROOT/lib/libncurses.so.$MVERSION      \
-   $INSTALL_ROOT/lib/libncurses.so-bak.$MVERSION &&
-{ rm $INSTALL_ROOT/lib/libncurses.so.* ; true; } && # we might not be using an old version
-mv $INSTALL_ROOT/lib/libncurses.so-bak.$VERSION  \
-   $INSTALL_ROOT/lib/libncurses.so.$VERSION      &&
-mv $INSTALL_ROOT/lib/libncurses.so-bak.$MVERSION \
-   $INSTALL_ROOT/lib/libncurses.so.$MVERSION     &&
-ldconfig; true # but we don't care if there is nothing there (chroot install)
-} &&
-
-# get rid of the old version of libncursesw.so  Bug #13408
-{ 
-mv $INSTALL_ROOT/lib/libncursesw.so.$VERSION      \
-   $INSTALL_ROOT/lib/libncursesw.so-bak.$VERSION  &&
-mv $INSTALL_ROOT/lib/libncursesw.so.$MVERSION      \
-   $INSTALL_ROOT/lib/libncursesw.so-bak.$MVERSION &&
-{ rm $INSTALL_ROOT/lib/libncursesw.so.* ; true; } && # we might not be using an old version
-mv $INSTALL_ROOT/lib/libncursesw.so-bak.$VERSION  \
-   $INSTALL_ROOT/lib/libncursesw.so.$VERSION      &&
-mv $INSTALL_ROOT/lib/libncursesw.so-bak.$MVERSION \
-   $INSTALL_ROOT/lib/libncursesw.so.$MVERSION     &&
-ldconfig; true # but we don't care if there is nothing there (chroot install)
-} &&
 
 # Do not install the libs again. Causes problems.  Bug #13408
 

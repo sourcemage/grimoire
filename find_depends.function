@@ -1,0 +1,244 @@
+#---------------------------------------------------------------------
+## @Synopsis Set of functions for dependency discovery
+##
+## @Copyright Source Mage Team
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## Find all spells that depend on at least one of a given list of
+## libtool archives and a given list of shared objects.
+##
+## @param dependencies_var: output variable name
+## @param libtool_names: a list of libtool archive names
+## @param so_names: a list of shared object names
+## @param excluded_spells: a list of spells to be excluded
+## @stdout progress messages
+#---------------------------------------------------------------------
+function find_libtool_so_dependencies() {
+  local dependencies_var="$1" &&
+  local libtool_names="$2" &&
+  local so_names="$3" &&
+  local excluded_spells="$4" &&
+
+  LANG= &&
+  local spells=$(gaze installed | cut -d: -f1) &&
+  local spell_count=$(wc -l <<< "$spells") &&
+  local spell_index=0 &&
+  for spell in $spells; do
+    ((spell_index++)) &&
+    message -n "${DEFAULT_COLOR}[${spell_index}/${spell_count} ${spell}]\e[K\r" &&
+    if list_find "$excluded_spells" "$spell"; then
+      continue
+    fi &&
+    if spell_has_libtool_dependency $spell "$libtool_names"; then
+      list_add "$dependencies_var" $spell &&
+      continue
+    fi &&
+    if spell_has_shared_object_dependency $spell "$so_names"; then
+      list_add "$dependencies_var" "$spell"
+    fi
+  done &&
+  message
+}
+
+#---------------------------------------------------------------------
+## Find all spells that depend on at least one of a given list of
+## libtool archives
+##
+## @param dependencies_var: output variable name
+## @param libtool_names: a list of libtool archive names
+## @param excluded_spells: a list of spells to be excluded
+## @stdout progress messages
+#---------------------------------------------------------------------
+function find_libtool_dependencies() {
+  local dependencies_var="$1" &&
+  local libtool_names="$2" &&
+  local excluded_spells="$3" &&
+
+  LANG= &&
+  local spells=$(gaze installed | cut -d: -f1) &&
+  local spell_count=$(wc -l <<< "$spells") &&
+  local spell_index=0 &&
+  for spell in $spells; do
+    ((spell_index++)) &&
+    message -n "${DEFAULT_COLOR}[${spell_index}/${spell_count} ${spell}]\e[K\r" &&
+    if list_find "$excluded_spells" "$spell"; then
+      continue
+    fi &&
+    if spell_has_libtool_dependency $spell "$libtool_names"; then
+      list_add "$dependencies_var" $spell
+    fi
+  done &&
+  message
+}
+
+#---------------------------------------------------------------------
+## Find all spells that depend on at least one of a given list of
+## shared objects.
+##
+## @param dependencies_var: output variable name
+## @param so_names: a list of shared object names
+## @param excluded_spells: a list of spells to be excluded
+## @stdout progress messages
+#---------------------------------------------------------------------
+function find_shared_object_dependencies() {
+  local dependencies_var="$1" &&
+  local so_names="$2" &&
+  local excluded_spells="$3" &&
+
+  LANG= &&
+  local spells=$(gaze installed | cut -d: -f1) &&
+  local spell_count=$(wc -l <<< "$spells") &&
+  local spell_index=0 &&
+  for spell in $spells; do
+    ((spell_index++)) &&
+    message -n "${DEFAULT_COLOR}[${spell_index}/${spell_count} ${spell}]\e[K\r" &&
+    if list_find "$excluded_spells" "$spell"; then
+      continue
+    fi &&
+    if spell_has_shared_object_dependency $spell "$so_names"; then
+      list_add "$dependencies_var" "$spell"
+    fi
+  done &&
+  message
+}
+
+#---------------------------------------------------------------------
+## Determine whether the given spell depends on at least one of a
+## given list of libtool archives
+##
+## @param spell: spell to check for dependency
+## @param libtool_names: a list of libtool archive names
+## 
+## @return 0 if the given spell depends on any of the given libtool archives
+## @return 1 if the given spell does not depend on any of the given libtool archives
+## @return 2 if any error occurs
+#---------------------------------------------------------------------
+function spell_has_libtool_dependency() {
+  local spell="$1"
+  local libtool_names="$2"
+
+  find_spell_libtool_archives "$spell" \
+  | xargs grep --quiet --basic-regexp --file=<(sed -e 's/[.[^$\*]/\\&/g' -e 's/.*/^dependency_libs.*&/' <<< "$libtool_names")
+
+  return $(( ${PIPESTATUS[0]} > 0 ? 2 : ${PIPESTATUS[-1]} ))
+}
+
+#---------------------------------------------------------------------
+## Determine whether the given spell depends on at least one of a
+## given list of shared objects
+##
+## @param spell: spell to check for dependency
+## @param so_names: a list of shared object names
+## 
+## @return 0 if the given spell depends on any of the given shared objects
+## @return 1 if the given spell does not depend on any of the given shared objects
+## @return 2 if any error occurs
+#---------------------------------------------------------------------
+function spell_has_shared_object_dependency() {
+  local spell="$1"
+  local so_names="$2"
+
+  find_spell_dynamically_linked_ELF_objects "$spell" \
+  | xargs readelf -d 2> /dev/null \
+  | grep --quiet --basic-regexp --file=<(sed -e 's/[.[^$\*]/\\&/g' -e 's/.*/NEEDED)[[:space:]]*Shared library: \\[&/' <<< "$so_names")
+
+  return $(( (${PIPESTATUS[0]} > 0 || ${PIPESTATUS[1]} > 0) ? 2 : ${PIPESTATUS[-1]} ))
+}
+
+#---------------------------------------------------------------------
+## List all libtool archives installed by a spell
+##
+## @param spell: spell to list libtool archives for
+## @stdout a list of all libtool archives installed by the spell
+#---------------------------------------------------------------------
+function find_spell_libtool_archives() {
+  local -a file_opts
+  OPTIND=1
+  while getopts ':L' opt; do
+    case "$opt" in
+      L)
+        file_opts+=("--dereference")
+        ;;
+      \?)
+        return 1
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+  local spell="$1"
+
+  local magic="\
+0       search/80       .la\ -\ a\ libtool\ library\ file       libtool library file"
+
+  LANG=
+  gaze install "$spell" \
+  | file --magic-file <(echo "$magic") "${file_opts[@]}" --files-from - \
+  | sed -n -e '/\<libtool library file\>/s/:.*//p'
+}
+
+#---------------------------------------------------------------------
+## List all shared objects installed by a spell
+##
+## @param spell: spell to list shared objects for
+## @stdout a list of all shared objects installed by the spell
+#---------------------------------------------------------------------
+function find_spell_shared_objects() {
+  local -a file_opts
+  OPTIND=1
+  while getopts ':L' opt; do
+    case $opt in
+      L)
+        file_opts+=("--dereference")
+        ;;
+      \?)
+        return 1
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+  local spell="$1"
+
+  local magic="\
+0       string          \177ELF         ELF
+>5      byte            1               LSB
+>>16    leshort         3               shared object,
+>5      byte            2               MSB
+>>16    beshort         3               shared object,"
+
+  LANG=
+  gaze install "$spell" \
+  | file --magic-file <(echo "$magic") "${file_opts[@]}" --files-from - \
+  | sed -n -e '/\<ELF\>.*\<shared object\>/s/:.*//p'
+}
+
+#---------------------------------------------------------------------
+## List all dynamically linked ELF objects installed by a spell
+##
+## @param spell: spell to list dynamically linked ELF objects for
+## @stdout a list of all dynamically linked ELF objects installed by the spell
+#---------------------------------------------------------------------
+function find_spell_dynamically_linked_ELF_objects() {
+  local -a file_opts
+  OPTIND=1
+  while getopts ':L' opt; do
+    case "$opt" in
+      L)
+        file_opts+=("--dereference")
+        ;;
+      \?)
+        return 1
+        ;;
+    esac
+  done
+  shift $((OPTIND - 1))
+  local spell="$1"
+
+  local magic="\
+0       string          \177ELF         ELF"
+
+  LANG=
+  gaze install "$spell" \
+  | file --magic-file <(echo "$magic") "${file_opts[@]}" --files-from - \
+  | sed -n -e '/\<ELF\>.*\<dynamically linked\>/s/:.*//p'
+}
