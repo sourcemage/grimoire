@@ -1,2 +1,2 @@
-#autoreconf -if &&
+OPTS+=' -DBUILD_SHARED_LIBS=1 -DINSTALL_LIBENCFS=1' &&
 cmake_build
