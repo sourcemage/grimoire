@@ -60,4 +60,6 @@ else
 fi &&
 
 echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
+# For some weird reason, MP4Decoder.h is not found otherwise.
+CPPFLAGS="$CPPFLAGS -I$SOURCE_DIRECTORY/dom/media/fmp4/" &&
 make -f client.mk $MAKE_TARGET
