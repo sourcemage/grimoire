@@ -1,0 +1,41 @@
+Author: Dany St-Amant <dany.ephemeral.2014@icloud.com>
+Description: SYSAPPEND: Fix space stripping
+ The description of SYSAPPEND for the DMI information states that the spaces
+ are replaced by underscores, but this replacement does not occur in 6.03 (Closes: #795596).
+
+diff -Naurp syslinux.orig/com32/elflink/ldlinux/readconfig.c syslinux/com32/elflink/ldlinux/readconfig.c
+--- syslinux.orig/com32/elflink/ldlinux/readconfig.c
++++ syslinux/com32/elflink/ldlinux/readconfig.c
+@@ -330,7 +330,7 @@ static char *copy_sysappend_string(char
+     char c;
+ 
+     while ((c = *src++)) {
+-	if (c <= ' ' && c == '\x7f') {
++	if (c <= ' ' || c == '\x7f') {
+ 	    if (!was_space)
+ 		*dst++ = '_';
+ 	    was_space = true;
+diff -Naurp syslinux.orig/com32/menu/readconfig.c syslinux/com32/menu/readconfig.c
+--- syslinux.orig/com32/menu/readconfig.c
++++ syslinux/com32/menu/readconfig.c
+@@ -299,7 +299,7 @@ static char *copy_sysappend_string(char
+     char c;
+ 
+     while ((c = *src++)) {
+-	if (c <= ' ' && c == '\x7f') {
++	if (c <= ' ' || c == '\x7f') {
+ 	    if (!was_space)
+ 		*dst++ = '_';
+ 	    was_space = true;
+diff -Naurp syslinux.orig/core/sysappend.c syslinux/core/sysappend.c
+--- syslinux.orig/core/sysappend.c
++++ syslinux/core/sysappend.c
+@@ -35,7 +35,7 @@ static char *copy_and_mangle(char *dst,
+     char c;
+ 
+     while ((c = *src++)) {
+-	if (c <= ' ' && c == '\x7f') {
++	if (c <= ' ' || c == '\x7f') {
+ 	    if (!was_space)
+ 		*dst++ = '_';
+ 	    was_space = true;
