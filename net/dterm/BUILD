@@ -1,0 +1,1 @@
+make COPT="$CFLAGS -Wall"
