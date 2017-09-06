@@ -24,7 +24,7 @@ mk_mailman_dir $MAILMAN_SPOOL 'spool' &&
 ./configure  --build=$BUILD           \
             --prefix=$MAILMAN_PREFIX  \
    --with-var-prefix=$MAILMAN_SPOOL   \
-      --with-cgi-gid=nogroup          \
+      --with-cgi-gid=$MAILMAN_CGI_GID \
                      $OPTS            &&
 make_single  &&
 make
