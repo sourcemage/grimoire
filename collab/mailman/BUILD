@@ -14,7 +14,7 @@ function mk_mailman_dir() {
   chmod -R a+rx,g+ws $DIRECTORY
 }
 
-create_account  mailman  &&
+create_account mailman "$MAILMAN_SPOOL" &&
 
 sedit  's: -f $(PACKAGEDIR)/mm_cfg.py: -e $(PACKAGEDIR)/mm_cfg.py:' Mailman/Makefile.in &&
 
