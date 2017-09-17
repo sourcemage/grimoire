@@ -1,0 +1,20 @@
+mk_source_dir $SOURCE_DIRECTORY &&
+cd $SOURCE_DIRECTORY &&
+unpack_file  &&
+#
+# the project's build system is broken, so do it myself
+#
+
+
+sed -i '/cpack/D' CMakeLists.txt &&
+SCRYPT=vendor/scrypt/scrypt-$VX  &&
+cp $INSTALL_ROOT/usr/include/scrypt/*.h  \
+   $SPELL_DIRECTORY/CMakeLists.txt \
+   $SCRYPT/scrypt   &&
+sed -i "s|vendor|$SCRYPT/scrypt|" CMakeLists.txt &&
+sed -i "1i \
+include_directories(\${CMAKE_SOURCE_DIR}/$SCRYPT)" \
+ src/cpp-utils/CMakeLists.txt \
+ src/cryfs/CMakeLists.txt \
+ src/cryfs-cli/CMakeLists.txt &&
+sed -i 's/spdlog/fmt/' src/cpp-utils/CMakeLists.txt
