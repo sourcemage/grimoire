@@ -1,0 +1,36 @@
+--- src/cache.cpp.orig	2017-09-20 15:35:24.000000000 -0400
++++ src/cache.cpp	2017-09-22 08:07:07.216014236 -0400
+@@ -206,7 +206,7 @@
+ static int guid_callback(void * myguids, int argc, char ** argv, char ** /* azColName */) {
+ 	auto* guids = static_cast<std::unordered_set<std::string> *>(myguids);
+ 	assert (argc == 1);
+-	guids->emplace(argv[0]);
++	guids->insert(argv[0]);
+ 	return 0;
+ }
+ 
+--- src/tagsouppullparser.cpp.orig	2017-09-20 15:35:24.000000000 -0400
++++ src/tagsouppullparser.cpp	2017-09-22 08:09:36.264588407 -0400
+@@ -504,7 +504,7 @@
+ 			text = tagstr.substr(last_pos, pos - last_pos);
+ 			if (text[text.length()-1] == '/') {
+ 				// a kludge for <br/>
+-				text.pop_back();
++				text.erase(text.size() - 1);
+ 			}
+ 			LOG(level::DEBUG, "parse_tag: tag name = %s", text);
+ 		} else {
+--- src/listformatter.cpp.orig	2017-09-20 15:35:24.000000000 -0400
++++ src/listformatter.cpp	2017-09-22 14:57:54.720041454 -0400
+@@ -46,10 +46,7 @@
+ 	}
+ 
+ 	if (itempos == UINT_MAX) {
+-		lines.insert(
+-				lines.cend(),
+-				formatted_text.cbegin(),
+-				formatted_text.cend());
++		std::move(formatted_text.cbegin(), formatted_text.cend(), std::back_inserter(lines));
+ 	} else {
+ 		lines[itempos] = formatted_text[0];
+ 	}
