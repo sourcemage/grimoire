@@ -1,15 +1,11 @@
-OPTS="$POPPLER_OPTS $OPTS" &&
-
-# -lm fixes the ./configure problem (http://www.sourcemage.org/issues/15)
-LDFLAGS="-lm $LDFLAGS" &&
-
-if is_depends_enabled $SPELL qt4; then
-  export PATH="$QT4DIR/bin:$PATH" &&
-  export PKG_CONFIG_PATH="$QT4DIR/lib/pkgconfig/"
-fi &&
-if is_depends_enabled $SPELL qtbase; then
-  export PATH="$QT5DIR/bin:$PATH" &&
-  export PKG_CONFIG_PATH="$QT5DIR/lib/pkgconfig/"
-fi &&
-
-default_build
+if is_depends_enabled $SPELL qt4;then
+ QTP=/opt/qt4
+fi&&
+if is_depends_enabled $SPELL qtbase;then
+ QTP+=":/opt/qt5"
+fi&&
+export CMAKE_PREFIX_PATH=$QTP &&
+OPTS+=" $XPDF_HEADERS -DCMAKE_BUILD_TYPE=$KDE_BUILD_TYPE" &&
+OPTS+=" -DBUILD_GTK_TESTS=0 -DBUILD_QT4_TESTS=0 -DBUILD_CPP_TESTS=0 " &&
+OPTS+=" -DBUILD_QT5_TESTS=0" &&
+cmake_build
