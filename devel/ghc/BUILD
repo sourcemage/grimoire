@@ -1,9 +1,12 @@
 GHC_DIR=/usr/bin
 
+echo "BuildFlavour = perf"      >> "${SPELL}-${VERSION}/mk/build.mk" &&
+echo "V = 0"                    >> "${SPELL}-${VERSION}/mk/build.mk" &&
+echo "XSLTPROC_OPTS += --nonet" >> "${SPELL}-${VERSION}/mk/build.mk" &&
+
 if [[ -x ${INSTALL_ROOT}/usr/bin/ghc-pkg-7.2.1 ]]; then
   ghc-pkg-7.2.1 trust base
 fi &&
-make_single &&
 
 if [[ $SOURCE2 != "" ]] ; then
   cd ghc-bin &&
@@ -15,8 +18,6 @@ if [[ $SOURCE2 != "" ]] ; then
   GHC_DIR=${SOURCE_DIRECTORY}/ghc-bin-installed/bin &&
   cd ..
 fi &&
-
-make_normal &&
 
 cd $SPELL-$VERSION &&
 
