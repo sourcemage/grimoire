@@ -53,7 +53,12 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
         return 1
       fi
     fi &&
-    make mrproper
+    make mrproper &&
+    # A fix from git that avoids linking breakage with pthread and longjmp.
+    if ! [[ "${GLIBC_BRANCH}" == "scm" ]]; then
+      (cd "$SOURCE_DIRECTORY" &&
+      patch -Np1 < "$SCRIPT_DIRECTORY/pthread-longjmp.patch")
+    fi
 else
   cd      $SOURCE_DIRECTORY                         &&
   #
