@@ -6,4 +6,5 @@ if is_depends_enabled $SPELL qtbase;then
 fi &&
 export CMAKE_PREFIX_PATH=$QTP &&
 OPTS+=" $XPDF_HEADERS -DBUILD_CPP_TESTS=0" &&
+echo "OPTS=$OPTS" &&
 cmake_build
