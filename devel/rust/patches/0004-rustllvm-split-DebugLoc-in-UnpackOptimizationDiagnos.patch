@@ -1,0 +1,195 @@
+From 1ee87b3765b4cc0ab78aec25009e4e5295024f93 Mon Sep 17 00:00:00 2001
+From: Tim Neumann <mail@timnn.me>
+Date: Fri, 21 Jul 2017 14:29:23 +0200
+Subject: [PATCH] rustllvm: split DebugLoc in UnpackOptimizationDiagnostic
+
+---
+ src/librustc_llvm/diagnostic.rs  | 32 +++++++++++++++++++++++---------
+ src/librustc_llvm/ffi.rs         |  4 +++-
+ src/librustc_trans/back/write.rs | 14 ++++++--------
+ src/rustllvm/RustWrapper.cpp     | 23 ++++++++++++++++++++---
+ 4 files changed, 52 insertions(+), 21 deletions(-)
+
+diff --git a/src/librustc_llvm/diagnostic.rs b/src/librustc_llvm/diagnostic.rs
+index cef6199a74..c5276e0c97 100644
+--- a/src/librustc_llvm/diagnostic.rs
++++ b/src/librustc_llvm/diagnostic.rs
+@@ -17,7 +17,6 @@ use libc::c_uint;
+ use std::ptr;
+ 
+ use {DiagnosticInfoRef, TwineRef, ValueRef};
+-use ffi::DebugLocRef;
+ 
+ #[derive(Copy, Clone)]
+ pub enum OptimizationDiagnosticKind {
+@@ -47,7 +46,9 @@ pub struct OptimizationDiagnostic {
+     pub kind: OptimizationDiagnosticKind,
+     pub pass_name: String,
+     pub function: ValueRef,
+-    pub debug_loc: DebugLocRef,
++    pub line: c_uint,
++    pub column: c_uint,
++    pub filename: String,
+     pub message: String,
+ }
+ 
+@@ -56,24 +57,37 @@ impl OptimizationDiagnostic {
+                      di: DiagnosticInfoRef)
+                      -> OptimizationDiagnostic {
+         let mut function = ptr::null_mut();
+-        let mut debug_loc = ptr::null_mut();
++        let mut line = 0;
++        let mut column = 0;
+ 
+         let mut message = None;
++        let mut filename = None;
+         let pass_name = super::build_string(|pass_name|
+             message = super::build_string(|message|
+-                super::LLVMRustUnpackOptimizationDiagnostic(di,
+-                                                            pass_name,
+-                                                            &mut function,
+-                                                            &mut debug_loc,
+-                                                            message)
++                filename = super::build_string(|filename|
++                    super::LLVMRustUnpackOptimizationDiagnostic(di,
++                                                                pass_name,
++                                                                &mut function,
++                                                                &mut line,
++                                                                &mut column,
++                                                                filename,
++                                                                message)
++                )
+             )
+         );
+ 
++        let mut filename = filename.unwrap_or(String::new());
++        if filename.is_empty() {
++            filename.push_str("<unknown file>");
++        }
++
+         OptimizationDiagnostic {
+             kind: kind,
+             pass_name: pass_name.expect("got a non-UTF8 pass name from LLVM"),
+             function: function,
+-            debug_loc: debug_loc,
++            line: line,
++            column: column,
++            filename: filename,
+             message: message.expect("got a non-UTF8 OptimizationDiagnostic message from LLVM")
+         }
+     }
+diff --git a/src/librustc_llvm/ffi.rs b/src/librustc_llvm/ffi.rs
+index 9f0ee95b5a..24d4040ccb 100644
+--- a/src/librustc_llvm/ffi.rs
++++ b/src/librustc_llvm/ffi.rs
+@@ -1633,7 +1633,9 @@ extern "C" {
+     pub fn LLVMRustUnpackOptimizationDiagnostic(DI: DiagnosticInfoRef,
+                                                 pass_name_out: RustStringRef,
+                                                 function_out: *mut ValueRef,
+-                                                debugloc_out: *mut DebugLocRef,
++                                                loc_line_out: *mut c_uint,
++                                                loc_column_out: *mut c_uint,
++                                                loc_filename_out: RustStringRef,
+                                                 message_out: RustStringRef);
+     pub fn LLVMRustUnpackInlineAsmDiagnostic(DI: DiagnosticInfoRef,
+                                              cookie_out: *mut c_uint,
+diff --git a/src/librustc_trans/back/write.rs b/src/librustc_trans/back/write.rs
+index 5e227ec467..26553c8502 100644
+--- a/src/librustc_trans/back/write.rs
++++ b/src/librustc_trans/back/write.rs
+@@ -16,7 +16,7 @@ use rustc::session::config::{self, OutputFilenames, OutputType, OutputTypes, Pas
+                              AllPasses, Sanitizer};
+ use rustc::session::Session;
+ use llvm;
+-use llvm::{ModuleRef, TargetMachineRef, PassManagerRef, DiagnosticInfoRef, ContextRef};
++use llvm::{ModuleRef, TargetMachineRef, PassManagerRef, DiagnosticInfoRef};
+ use llvm::SMDiagnosticRef;
+ use {CrateTranslation, ModuleLlvm, ModuleSource, ModuleTranslation};
+ use rustc::hir::def_id::CrateNum;
+@@ -307,7 +307,6 @@ pub struct CodegenContext<'a> {
+ }
+ 
+ struct HandlerFreeVars<'a> {
+-    llcx: ContextRef,
+     cgcx: &'a CodegenContext<'a>,
+ }
+ 
+@@ -329,7 +328,7 @@ unsafe extern "C" fn inline_asm_handler(diag: SMDiagnosticRef,
+ }
+ 
+ unsafe extern "C" fn diagnostic_handler(info: DiagnosticInfoRef, user: *mut c_void) {
+-    let HandlerFreeVars { llcx, cgcx } = *(user as *const HandlerFreeVars);
++    let HandlerFreeVars { cgcx, .. } = *(user as *const HandlerFreeVars);
+ 
+     match llvm::diagnostic::Diagnostic::unpack(info) {
+         llvm::diagnostic::InlineAsm(inline) => {
+@@ -345,11 +344,12 @@ unsafe extern "C" fn diagnostic_handler(info: DiagnosticInfoRef, user: *mut c_vo
+             };
+ 
+             if enabled {
+-                let loc = llvm::debug_loc_to_string(llcx, opt.debug_loc);
+-                cgcx.handler.note_without_error(&format!("optimization {} for {} at {}: {}",
++                cgcx.handler.note_without_error(&format!("optimization {} for {} at {}:{}:{}: {}",
+                                                 opt.kind.describe(),
+                                                 opt.pass_name,
+-                                                if loc.is_empty() { "[unknown]" } else { &*loc },
++                                                opt.filename,
++                                                opt.line,
++                                                opt.column,
+                                                 opt.message));
+             }
+         }
+@@ -370,9 +370,7 @@ unsafe fn optimize_and_codegen(cgcx: &CodegenContext,
+     let llcx = mllvm.llcx;
+     let tm = config.tm;
+ 
+-    // llcx doesn't outlive this function, so we can put this on the stack.
+     let fv = HandlerFreeVars {
+-        llcx: llcx,
+         cgcx: cgcx,
+     };
+     let fv = &fv as *const HandlerFreeVars as *mut c_void;
+diff --git a/src/rustllvm/RustWrapper.cpp b/src/rustllvm/RustWrapper.cpp
+index 896c822450..94185b5432 100644
+--- a/src/rustllvm/RustWrapper.cpp
++++ b/src/rustllvm/RustWrapper.cpp
+@@ -906,8 +906,8 @@ extern "C" void LLVMRustWriteTwineToString(LLVMTwineRef T, RustStringRef Str) {
+ 
+ extern "C" void LLVMRustUnpackOptimizationDiagnostic(
+     LLVMDiagnosticInfoRef DI, RustStringRef PassNameOut,
+-    LLVMValueRef *FunctionOut, LLVMDebugLocRef *DebugLocOut,
+-    RustStringRef MessageOut) {
++    LLVMValueRef *FunctionOut, unsigned* Line, unsigned* Column,
++    RustStringRef FilenameOut, RustStringRef MessageOut) {
+   // Undefined to call this not on an optimization diagnostic!
+   llvm::DiagnosticInfoOptimizationBase *Opt =
+       static_cast<llvm::DiagnosticInfoOptimizationBase *>(unwrap(DI));
+@@ -915,7 +915,24 @@ extern "C" void LLVMRustUnpackOptimizationDiagnostic(
+   RawRustStringOstream PassNameOS(PassNameOut);
+   PassNameOS << Opt->getPassName();
+   *FunctionOut = wrap(&Opt->getFunction());
+-  *DebugLocOut = wrap(&Opt->getDebugLoc());
++
++  RawRustStringOstream FilenameOS(FilenameOut);
++#if LLVM_VERSION_GE(5,0)
++  DiagnosticLocation loc = Opt->getLocation();
++  if (loc.isValid()) {
++    *Line = loc.getLine();
++    *Column = loc.getColumn();
++    FilenameOS << loc.getFilename();
++  }
++#else
++  const DebugLoc &loc = Opt->getDebugLoc();
++  if (loc) {
++    *Line = loc.getLine();
++    *Column = loc.getCol();
++    FilenameOS << cast<DIScope>(loc.getScope())->getFilename();
++  }
++#endif
++
+   RawRustStringOstream MessageOS(MessageOut);
+   MessageOS << Opt->getMsg();
+ }
+-- 
+2.14.2
+
