@@ -1,0 +1,263 @@
+From c56528a3770ca51571c5d9372ec1c6e8cfe954c1 Mon Sep 17 00:00:00 2001
+From: stsp <stsp@13f79535-47bb-0310-9956-ffa450edef68>
+Date: Fri, 3 Feb 2017 11:44:40 +0000
+Subject: [PATCH] Create a 1.3.x branch which backports SSL build fixes from
+ r1775239-r1781240.
+
+git-svn-id: https://svn.apache.org/repos/asf/serf/branches/1.3.x-sslbuild@1781542 13f79535-47bb-0310-9956-ffa450edef68
+---
+ SConstruct            | 15 +++++++++++++++
+ buckets/ssl_buckets.c | 43 ++++++++++++++++++++++---------------------
+ 2 files changed, 37 insertions(+), 21 deletions(-)
+
+diff --git a/SConstruct b/SConstruct
+index 4358a23..4d0202f 100644
+--- a/SConstruct
++++ b/SConstruct
+@@ -374,6 +374,21 @@ else:
+   env.Append(LIBPATH=['$OPENSSL/lib'])
+ 
+ 
++# Check for OpenSSL functions which are only available in some of
++# the versions we support. Also handles forks like LibreSSL.
++conf = Configure(env)
++if not conf.CheckFunc('BIO_set_init'):
++  env.Append(CPPDEFINES=['SERF_NO_SSL_BIO_WRAPPERS'])
++if not conf.CheckFunc('X509_STORE_get0_param'):
++  env.Append(CPPDEFINES=['SERF_NO_SSL_X509_STORE_WRAPPERS'])
++if conf.CheckFunc('CRYPTO_set_locking_callback'):
++  env.Append(CPPDEFINES=['SERF_HAVE_SSL_LOCKING_CALLBACKS'])
++if conf.CheckFunc('OPENSSL_malloc_init'):
++  env.Append(CPPDEFINES=['SERF_HAVE_OPENSSL_MALLOC_INIT'])
++if conf.CheckFunc('SSL_set_alpn_protos'):
++  env.Append(CPPDEFINES=['SERF_HAVE_OPENSSL_ALPN'])
++env = conf.Finish()
++
+ # If build with gssapi, get its information and define SERF_HAVE_GSSAPI
+ if gssapi and CALLOUT_OKAY:
+     env.ParseConfig('$GSSAPI --cflags gssapi')
+diff --git a/buckets/ssl_buckets.c b/buckets/ssl_buckets.c
+index b01e535..6a9d8fd 100644
+--- a/buckets/ssl_buckets.c
++++ b/buckets/ssl_buckets.c
+@@ -52,8 +52,8 @@
+ #define APR_ARRAY_PUSH(ary,type) (*((type *)apr_array_push(ary)))
+ #endif
+ 
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-#define USE_OPENSSL_1_1_API
++#ifdef SERF_NO_SSL_X509_STORE_WRAPPERS
++#define X509_STORE_get0_param(store) ((store)->param)
+ #endif
+ 
+ 
+@@ -239,7 +239,7 @@ apps_ssl_info_callback(const SSL *s, int where, int ret)
+ 
+ static void bio_set_data(BIO *bio, void *data)
+ {
+-#ifdef USE_OPENSSL_1_1_API
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
+     BIO_set_data(bio, data);
+ #else
+     bio->ptr = data;
+@@ -248,7 +248,7 @@ static void bio_set_data(BIO *bio, void *data)
+ 
+ static void *bio_get_data(BIO *bio)
+ {
+-#ifdef USE_OPENSSL_1_1_API
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
+     return BIO_get_data(bio);
+ #else
+     return bio->ptr;
+@@ -381,7 +381,7 @@ static int bio_file_gets(BIO *bio, char *in, int inlen)
+ 
+ static int bio_bucket_create(BIO *bio)
+ {
+-#ifdef USE_OPENSSL_1_1_API
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
+     BIO_set_shutdown(bio, 1);
+     BIO_set_init(bio, 1);
+     BIO_set_data(bio, NULL);
+@@ -424,7 +424,7 @@ static long bio_bucket_ctrl(BIO *bio, int cmd, long num, void *ptr)
+     return ret;
+ }
+ 
+-#ifndef USE_OPENSSL_1_1_API
++#ifdef SERF_NO_SSL_BIO_WRAPPERS
+ static BIO_METHOD bio_bucket_method = {
+     BIO_TYPE_MEM,
+     "Serf SSL encryption and decryption buckets",
+@@ -460,7 +460,7 @@ static BIO_METHOD *bio_meth_bucket_new(void)
+ {
+     BIO_METHOD *biom = NULL;
+ 
+-#ifdef USE_OPENSSL_1_1_API
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
+     biom = BIO_meth_new(BIO_TYPE_MEM,
+                         "Serf SSL encryption and decryption buckets");
+     if (biom) {
+@@ -481,15 +481,16 @@ static BIO_METHOD *bio_meth_file_new(void)
+ {
+     BIO_METHOD *biom = NULL;
+ 
+-#ifdef USE_OPENSSL_1_1_API
+-    biom = BIO_meth_new(BIO_TYPE_FILE,
+-                        "Wrapper around APR file structures");
+-    BIO_meth_set_write(biom, bio_file_write);
+-    BIO_meth_set_read(biom, bio_file_read);
+-    BIO_meth_set_gets(biom, bio_file_gets);
+-    BIO_meth_set_ctrl(biom, bio_bucket_ctrl);
+-    BIO_meth_set_create(biom, bio_bucket_create);
+-    BIO_meth_set_destroy(biom, bio_bucket_destroy);
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
++    biom = BIO_meth_new(BIO_TYPE_FILE, "Wrapper around APR file structures");
++    if (biom) {
++        BIO_meth_set_write(biom, bio_file_write);
++        BIO_meth_set_read(biom, bio_file_read);
++        BIO_meth_set_gets(biom, bio_file_gets);
++        BIO_meth_set_ctrl(biom, bio_bucket_ctrl);
++        BIO_meth_set_create(biom, bio_bucket_create);
++        BIO_meth_set_destroy(biom, bio_bucket_destroy);
++    }
+ #else
+     biom = &bio_file_method;
+ #endif
+@@ -499,7 +500,7 @@ static BIO_METHOD *bio_meth_file_new(void)
+ 
+ static void bio_meth_free(BIO_METHOD *biom)
+ {
+-#ifdef USE_OPENSSL_1_1_API
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
+     BIO_meth_free(biom);
+ #endif
+ }
+@@ -1052,7 +1053,7 @@ static apr_status_t ssl_encrypt(void *baton, apr_size_t bufsize,
+     return status;
+ }
+ 
+-#if APR_HAS_THREADS && !defined(USE_OPENSSL_1_1_API)
++#if APR_HAS_THREADS && defined(SERF_HAVE_SSL_LOCKING_CALLBACKS)
+ static apr_pool_t *ssl_pool;
+ static apr_thread_mutex_t **ssl_locks;
+ 
+@@ -1139,7 +1140,7 @@ static void init_ssl_libraries(void)
+     val = apr_atomic_cas32(&have_init_ssl, INIT_BUSY, INIT_UNINITIALIZED);
+ 
+     if (!val) {
+-#if APR_HAS_THREADS && !defined(USE_OPENSSL_1_1_API)
++#if APR_HAS_THREADS && defined(SERF_HAVE_SSL_LOCKING_CALLBACKS)
+         int i, numlocks;
+ #endif
+ 
+@@ -1156,7 +1157,7 @@ static void init_ssl_libraries(void)
+         }
+ #endif
+ 
+-#ifdef USE_OPENSSL_1_1_API
++#ifdef SERF_HAVE_OPENSSL_MALLOC_INIT
+         OPENSSL_malloc_init();
+ #else
+         CRYPTO_malloc_init();
+@@ -1166,7 +1167,7 @@ static void init_ssl_libraries(void)
+         SSL_library_init();
+         OpenSSL_add_all_algorithms();
+ 
+-#if APR_HAS_THREADS && !defined(USE_OPENSSL_1_1_API)
++#if APR_HAS_THREADS && defined(SERF_HAVE_SSL_LOCKING_CALLBACKS)
+         numlocks = CRYPTO_num_locks();
+         apr_pool_create(&ssl_pool, NULL);
+         ssl_locks = apr_palloc(ssl_pool, sizeof(apr_thread_mutex_t*)*numlocks);
+-- 
+2.14.2
+
+From d40c383884df4d9c4425e9ae51baf1159e439da0 Mon Sep 17 00:00:00 2001
+From: stsp <stsp@13f79535-47bb-0310-9956-ffa450edef68>
+Date: Sat, 4 Feb 2017 12:06:38 +0000
+Subject: [PATCH] On the 1.3.x-sslbuild branch, fix 'scons check' build with
+ LibreSSL.
+
+* test/server/test_sslserver.c
+  (USE_OPENSSL_1_1_API): Remove this definition.
+  (bio_set_data, bio_get_data, bio_apr_socket_create,
+   bio_meth_apr_socket_new, cleanup_https_server): Use SERF_NO_SSL_BIO_WRAPPERS
+    instead of USE_OPENSSL_1_1_API.
+  (init_ssl_context): Use SERF_HAVE_OPENSSL_MALLOC_INIT instead.
+
+
+git-svn-id: https://svn.apache.org/repos/asf/serf/branches/1.3.x-sslbuild@1781660 13f79535-47bb-0310-9956-ffa450edef68
+---
+ test/server/test_sslserver.c | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/test/server/test_sslserver.c b/test/server/test_sslserver.c
+index 6c1a028..f73bea3 100644
+--- a/test/server/test_sslserver.c
++++ b/test/server/test_sslserver.c
+@@ -27,10 +27,6 @@
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
+ 
+-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-#define USE_OPENSSL_1_1_API
+-#endif
+-
+ static int init_done = 0;
+ 
+ typedef struct ssl_context_t {
+@@ -52,7 +48,7 @@ static int pem_passwd_cb(char *buf, int size, int rwflag, void *userdata)
+ 
+ static void bio_set_data(BIO *bio, void *data)
+ {
+-#ifdef USE_OPENSSL_1_1_API
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
+     BIO_set_data(bio, data);
+ #else
+     bio->ptr = data;
+@@ -61,7 +57,7 @@ static void bio_set_data(BIO *bio, void *data)
+ 
+ static void *bio_get_data(BIO *bio)
+ {
+-#ifdef USE_OPENSSL_1_1_API
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
+     return BIO_get_data(bio);
+ #else
+     return bio->ptr;
+@@ -70,7 +66,7 @@ static void *bio_get_data(BIO *bio)
+ 
+ static int bio_apr_socket_create(BIO *bio)
+ {
+-#ifdef USE_OPENSSL_1_1_API
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
+     BIO_set_shutdown(bio, 1);
+     BIO_set_init(bio, 1);
+     BIO_set_data(bio, NULL);
+@@ -179,7 +175,7 @@ static BIO_METHOD *bio_meth_apr_socket_new(void)
+ {
+     BIO_METHOD *biom = NULL;
+ 
+-#ifdef USE_OPENSSL_1_1_API
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
+     biom = BIO_meth_new(BIO_TYPE_SOCKET, "APR sockets");
+     if (biom) {
+         BIO_meth_set_write(biom, bio_apr_socket_write);
+@@ -228,7 +224,7 @@ init_ssl_context(serv_ctx_t *serv_ctx,
+     /* Init OpenSSL globally */
+     if (!init_done)
+     {
+-#ifdef USE_OPENSSL_1_1_API
++#ifdef SERF_HAVE_OPENSSL_MALLOC_INIT
+         OPENSSL_malloc_init();
+ #else
+         CRYPTO_malloc_init();
+@@ -446,7 +442,7 @@ static apr_status_t cleanup_https_server(void *baton)
+     if (ssl_ctx) {
+         if (ssl_ctx->ssl) {
+           SSL_clear(ssl_ctx->ssl);
+-#ifdef USE_OPENSSL_1_1_API
++#ifndef SERF_NO_SSL_BIO_WRAPPERS
+           BIO_meth_free(ssl_ctx->biom);
+ #endif
+         }
+-- 
+2.14.2
+
