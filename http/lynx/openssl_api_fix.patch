@@ -1,0 +1,19 @@
+Replace direct manipulation of the SSL struct with proper
+API usage; fixes building against LibreSSL.
+
+--- a/WWW/Library/Implementation/HTTP.c
++++ b/WWW/Library/Implementation/HTTP.c
+@@ -720,7 +720,12 @@ static int HTLoadHTTP(const char *arg,
+ #elif SSLEAY_VERSION_NUMBER >= 0x0900
+ #ifndef USE_NSS_COMPAT_INCL
+ 	if (!try_tls) {
+-	    handle->options |= SSL_OP_NO_TLSv1;
++#if (!defined(LIBRESSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L) \
++    || LIBRESSL_VERSION_NUMBER >= 0x2060000fL
++	    SSL_set_min_proto_version(handle, TLS1_1_VERSION);
++#else
++	    SSL_set_options(handle, SSL_OP_NO_TLSv1);
++#endif
+ #if OPENSSL_VERSION_NUMBER >= 0x0090806fL && !defined(OPENSSL_NO_TLSEXT)
+ 	} else {
+ 	    int ret = (int) SSL_set_tlsext_host_name(handle, ssl_host);
