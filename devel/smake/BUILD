@@ -1,5 +1,7 @@
-if [ -x /opt/schily/bin/smake ]; then
-  /opt/schily/bin/smake
+PATH="$PATH:/opt/schily/bin"
+if type smake >/dev/null; then
+  MAKE=smake
 else
-  make
+  MAKE=make
 fi
+$MAKE INS_BASE="$INSTALL_ROOT"/usr

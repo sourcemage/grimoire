@@ -1,0 +1,34 @@
+From fb217afe86a5b9fccf8565d2d15afc83fceb91b6 Mon Sep 17 00:00:00 2001
+From: Alex Crichton <alex@alexcrichton.com>
+Date: Fri, 21 Jul 2017 09:41:29 -0700
+Subject: [PATCH] Fix archive member names on 5.0
+
+---
+ src/rustllvm/ArchiveWrapper.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/rustllvm/ArchiveWrapper.cpp b/src/rustllvm/ArchiveWrapper.cpp
+index f04251136f..7f76861c07 100644
+--- a/src/rustllvm/ArchiveWrapper.cpp
++++ b/src/rustllvm/ArchiveWrapper.cpp
+@@ -12,6 +12,7 @@
+ 
+ #include "llvm/Object/Archive.h"
+ #include "llvm/Object/ArchiveWriter.h"
++#include "llvm/Support/Path.h"
+ 
+ using namespace llvm;
+ using namespace llvm::object;
+@@ -256,6 +257,9 @@ LLVMRustWriteArchive(char *Dst, size_t NumMembers,
+         LLVMRustSetLastError(toString(MOrErr.takeError()).c_str());
+         return LLVMRustResult::Failure;
+       }
++#if LLVM_VERSION_GE(5, 0)
++      MOrErr->MemberName = sys::path::filename(MOrErr->MemberName);
++#endif
+       Members.push_back(std::move(*MOrErr));
+ #elif LLVM_VERSION_EQ(3, 8)
+       Members.push_back(NewArchiveIterator(Member->Filename));
+-- 
+2.14.2
+

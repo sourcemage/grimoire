@@ -102,6 +102,9 @@ OPTS="--disable-werror $OPTS"                                      &&
 OPTS="--enable-checking=release $OPTS"                             &&
 OPTS="$GCC_MULTILIB $OPTS"                                         &&
 
+# https://sourceware.org/bugzilla/show_bug.cgi?id=21930
+export glibcxx_cv_c99_math_cxx98=yes glibcxx_cv_c99_math_cxx11=yes &&
+
 cd $SOURCE_DIRECTORY.bld                                              &&
 $SOURCE_DIRECTORY/configure $OPTS                                     &&
 

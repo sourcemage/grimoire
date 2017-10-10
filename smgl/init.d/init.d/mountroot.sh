@@ -60,7 +60,7 @@ start()
   # Prefer the newer mdadm to raidtools
   #
   if   [ -f /etc/mdadm.conf ] ; then
-    mdadm  --assemble  --scan
+    mdadm  --assemble  --scan  --run
     mdadm  --follow    --scan  --delay=120  --daemonise
   elif [ -f /etc/raidtab    ] ; then
     raidstart  --all

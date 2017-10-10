@@ -1,2 +1,2 @@
-CXXFLAGS+=" -std=c++11" &&
+CXXFLAGS+=" -std=c++11 -fpermissive" &&
 default_build

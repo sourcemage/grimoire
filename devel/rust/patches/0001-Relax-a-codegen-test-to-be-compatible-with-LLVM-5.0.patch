@@ -1,0 +1,59 @@
+From 38e40ce50653b8164915b8142e883c5a57b33e7b Mon Sep 17 00:00:00 2001
+From: Alex Crichton <alex@alexcrichton.com>
+Date: Fri, 21 Jul 2017 14:13:47 -0700
+Subject: [PATCH] Relax a codegen test to be compatible with LLVM 5.0
+
+---
+ src/test/codegen/lifetime_start_end.rs | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/test/codegen/lifetime_start_end.rs b/src/test/codegen/lifetime_start_end.rs
+index 5c1f1f8f2b..1f900a3770 100644
+--- a/src/test/codegen/lifetime_start_end.rs
++++ b/src/test/codegen/lifetime_start_end.rs
+@@ -19,34 +19,34 @@ pub fn test() {
+     &a; // keep variable in an alloca
+ 
+ // CHECK: [[S_a:%[0-9]+]] = bitcast i32* %a to i8*
+-// CHECK: call void @llvm.lifetime.start(i{{[0-9 ]+}}, i8* [[S_a]])
++// CHECK: call void @llvm.lifetime.start{{.*}}(i{{[0-9 ]+}}, i8* [[S_a]])
+ 
+     {
+         let b = &Some(a);
+         &b; // keep variable in an alloca
+ 
+ // CHECK: [[S_b:%[0-9]+]] = bitcast %"core::option::Option<i32>"** %b to i8*
+-// CHECK: call void @llvm.lifetime.start(i{{[0-9 ]+}}, i8* [[S_b]])
++// CHECK: call void @llvm.lifetime.start{{.*}}(i{{[0-9 ]+}}, i8* [[S_b]])
+ 
+ // CHECK: [[S__5:%[0-9]+]] = bitcast %"core::option::Option<i32>"* %_5 to i8*
+-// CHECK: call void @llvm.lifetime.start(i{{[0-9 ]+}}, i8* [[S__5]])
++// CHECK: call void @llvm.lifetime.start{{.*}}(i{{[0-9 ]+}}, i8* [[S__5]])
+ 
+ // CHECK: [[E_b:%[0-9]+]] = bitcast %"core::option::Option<i32>"** %b to i8*
+-// CHECK: call void @llvm.lifetime.end(i{{[0-9 ]+}}, i8* [[E_b]])
++// CHECK: call void @llvm.lifetime.end{{.*}}(i{{[0-9 ]+}}, i8* [[E_b]])
+ 
+ // CHECK: [[E__5:%[0-9]+]] = bitcast %"core::option::Option<i32>"* %_5 to i8*
+-// CHECK: call void @llvm.lifetime.end(i{{[0-9 ]+}}, i8* [[E__5]])
++// CHECK: call void @llvm.lifetime.end{{.*}}(i{{[0-9 ]+}}, i8* [[E__5]])
+     }
+ 
+     let c = 1;
+     &c; // keep variable in an alloca
+ 
+ // CHECK: [[S_c:%[0-9]+]] = bitcast i32* %c to i8*
+-// CHECK: call void @llvm.lifetime.start(i{{[0-9 ]+}}, i8* [[S_c]])
++// CHECK: call void @llvm.lifetime.start{{.*}}(i{{[0-9 ]+}}, i8* [[S_c]])
+ 
+ // CHECK: [[E_c:%[0-9]+]] = bitcast i32* %c to i8*
+-// CHECK: call void @llvm.lifetime.end(i{{[0-9 ]+}}, i8* [[E_c]])
++// CHECK: call void @llvm.lifetime.end{{.*}}(i{{[0-9 ]+}}, i8* [[E_c]])
+ 
+ // CHECK: [[E_a:%[0-9]+]] = bitcast i32* %a to i8*
+-// CHECK: call void @llvm.lifetime.end(i{{[0-9 ]+}}, i8* [[E_a]])
++// CHECK: call void @llvm.lifetime.end{{.*}}(i{{[0-9 ]+}}, i8* [[E_a]])
+ }
+-- 
+2.14.2
+
