@@ -46,11 +46,14 @@ if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
 
+# Stylo can't find some system libraries for now
+OPTS+=" --disable-stylo" &&
+
 for option in $OPTS; do
   echo "ac_add_options $option" >> .mozconfig
 done &&
 
-local MAKE_TARGET
+local MAKE_TARGET &&
 if [[ $FIREFOX_PGO == y ]]; then
   MAKE_TARGET=profiledbuild
 else
