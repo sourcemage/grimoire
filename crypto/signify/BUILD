@@ -1,1 +1,1 @@
-make
+make EXTRA_CFLAGS="${CFLAGS}" EXTRA_LDFLAGS="${LDFLAGS}"
