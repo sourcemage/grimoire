@@ -1,0 +1,1 @@
+OPTS="-DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/usr $OPTS" qt5_cmake_build
