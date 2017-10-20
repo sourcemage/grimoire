@@ -1,9 +1,9 @@
 mklinks() {
-  local f="$1" dst="$INSTALL_ROOT/etc/network"
-  shift
+  local f="$1" dst="$2"
+  shift 2
   for i in "$@"; do
     mkdir -p "$dst/$i" &&
-    ln -sft "$dst/$i" "../../wpa_supplicant/$f" || return
+    ln -sf "../../wpa_supplicant/$f" "$dst/$i/${f%.sh}" || return
   done
 }
 
@@ -19,7 +19,14 @@ install -m644 -D -t "$INSTALL_ROOT"/usr/share/man/man8/ \
 install -m755 -D -t "$INSTALL_ROOT"/usr/sbin/ \
 	wpa_action &&
 
-mklinks hostapd.sh       if-pre-up.d if-post-down.d &&
-mklinks wpasupplicant.sh if-pre-up.d if-up.d if-down.d if-post-down.d &&
-mkdir -p "$INSTALL_ROOT"/etc/ifplugd/action.d &&
-ln -sft "$INSTALL_ROOT"/etc/ifplugd/action.d action_wpa.sh
+mklinks hostapd.sh \
+	"$INSTALL_ROOT/etc/network" \
+	if-pre-up.d if-post-down.d &&
+
+mklinks wpasupplicant.sh \
+	"$INSTALL_ROOT/etc/network" \
+	if-pre-up.d if-up.d if-down.d if-post-down.d &&
+
+mklinks action_wpa.sh \
+	"$INSTALL_ROOT"/etc/ifplugd \
+	action.d
