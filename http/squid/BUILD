@@ -21,6 +21,7 @@ SQUID_AUTH_NTLM='' &&
   --enable-auth-basic="$SQUID_AUTH_BASIC"            \
   --enable-digest-auth-helpers="$SQUID_AUTH_DIGEST"  \
   --enable-ntlm-auth-helpers="$SQUID_AUTH_NTLM"      \
+  --enable-storeio="ufs ${SQUID_STOREIO}"            \
     $SQUID_ARP_ACL                                   \
     $OPTS                                            &&                                          
 
