@@ -1,3 +1,3 @@
-CFLAGS="${CFLAGS/-ffast-math}" &&
-OPTS+=" shared"  &&
+#CFLAGS="${CFLAGS/-ffast-math}" &&
+OPTS+=" -shared"  &&
 default_build
