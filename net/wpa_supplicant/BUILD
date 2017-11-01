@@ -28,7 +28,7 @@ for var in $VARS $OPTS; do
 done > .config &&
 echo "CFLAGS += $CFLAGS" >> .config
 
-make &&
+make BINDIR=/sbin &&
 
 if is_depends_enabled $SPELL qt4; then
   PATH=$QT4DIR/bin:$PATH make wpa_gui-qt4

@@ -1,1 +1,1 @@
-make ${OPTS} PREFIX="${INSTALL_ROOT}/usr"
+make ${OPTS} ${SXIV_OPTS} PREFIX="${INSTALL_ROOT}/usr"
