@@ -1,11 +1,15 @@
-disable_pic force &&
-
 # LLVM_TARGETS
-OPTS+=" -DLLVM_TARGETS_TO_BUILD=`echo ${LLVM_TARGETS} | sed 's/ /;/g'`" &&
-# Not restricting targets, so that mesalib gets R600.
-#if [[ $LLVM_EXP_R600 == y   ]];then
-#  OPTS+=" -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=R600"
-#fi &&
-OPTS+=" -DBUILD_SHARED_LIBS=1 -DCMAKE_BUILD_TYPE=RELEASE" &&
+OPTS+=" -DLLVM_TARGETS_TO_BUILD=${LLVM_TARGETS// /;}" &&
+# recommended by mesa project
+OPTS+=" -DLLVM_LINK_LLVM_DYLIB=1 -DCMAKE_BUILD_TYPE=RELEASE" &&
+# use modern c++ features
+OPTS+=" -DLLVM_ENABLE_CXX1Y=1 -DLLVM_ENABLE_CXX1Z=1 " &&
+# prevent unnecessary use of libedit and ncurses
+if ! is_depends_enabled $SPELL libedit;then
+  OPTS+=" -DLLVM_ENABLE_LIBEDIT=0" &&
+  OPTS+=" -DLLVM_ENABLE_TERMINFO=0" &&
+  OPTS+=" -DLLVM_ENABLE_BACKTRACES=0"
+fi &&
+
 message opts=$OPTS &&
 cmake_build
