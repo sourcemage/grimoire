@@ -5,5 +5,7 @@ if is_depends_enabled $SPELL qtbase;then
  QTP+=":${INSTALL_ROOT}/opt/qt5"
 fi &&
 export CMAKE_PREFIX_PATH=$QTP &&
-OPTS+=" $XPDF_HEADERS -DBUILD_CPP_TESTS=0" &&
+OPTS+=" $XPDF_HEADERS -DBUILD_CPP_TESTS=0
+             -DCMAKE_INSTALL_INCLUDEDIR=${INSTALL_ROOT}/usr/include
+                 -DCMAKE_INSTALL_LIBDIR=${INSTALL_ROOT}/usr/lib" &&
 cmake_build
