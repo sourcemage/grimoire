@@ -1,1 +1,1 @@
-cmake_build
+OPTS="-DOGRE_CONFIG_ENABLE_FREEIMAGE=off $OPTS" cmake_build
