@@ -1,19 +1,16 @@
-Description: Generate shared libraries for mupdf, instead of static ones. This
-             allows to have the font information (around 35 MB) at one place
-             only, instead of in all the executables.
 diff -Naur a/Makefile b/Makefile
---- a/Makefile	2016-11-21 11:21:11.000000000 +0100
-+++ b/Makefile	2016-11-27 10:26:11.411353082 +0100
+--- a/Makefile	2017-12-13 17:58:02.420417776 -0500
++++ b/Makefile	2017-12-13 18:12:46.955204891 -0500
 @@ -14,7 +14,7 @@
  # Do not specify CFLAGS or LIBS on the make invocation line - specify
  # XCFLAGS or XLIBS instead. Make ignores any lines in the makefile that
  # set a variable that was set on the command line.
--CFLAGS += $(XCFLAGS) -Iinclude -Igenerated
-+CFLAGS += $(XCFLAGS) -Iinclude -Igenerated -fPIC
+-CFLAGS += $(XCFLAGS) -Iinclude
++CFLAGS += $(XCFLAGS) -Iinclude -fPIC
  LIBS += $(XLIBS) -lm
  
  LIBS += $(FREETYPE_LIBS)
-@@ -300,19 +300,22 @@
+@@ -312,9 +312,9 @@
  
  # --- Library ---
  
@@ -24,8 +21,10 @@ diff -Naur a/Makefile b/Makefile
 +THIRD_LIB = $(OUT)/libmupdfthird.so
 +THREAD_LIB = $(OUT)/libmuthreads.so
  
- MUPDF_OBJ := $(FITZ_OBJ) $(FONT_OBJ) $(PDF_OBJ) $(XPS_OBJ) $(SVG_OBJ) $(CBZ_OBJ) $(HTML_OBJ) $(GPRF_OBJ)
- THIRD_OBJ := $(FREETYPE_OBJ) $(HARFBUZZ_OBJ) $(JBIG2DEC_OBJ) $(LIBJPEG_OBJ) $(JPEGXR_OBJ) $(LURATECH_OBJ) $(MUJS_OBJ) $(OPENJPEG_OBJ) $(ZLIB_OBJ)
+ MUPDF_OBJ := \
+ 	$(FITZ_OBJ) \
+@@ -343,11 +343,14 @@
+ 
  THREAD_OBJ := $(THREAD_OBJ)
  
 -$(MUPDF_LIB) : $(MUPDF_OBJ)
@@ -34,9 +33,10 @@ diff -Naur a/Makefile b/Makefile
  $(THIRD_LIB) : $(THIRD_OBJ)
 +	$(LINK_CMD) -shared -Wl,-soname -Wl,libmupdfthird.so -Wl,--no-undefined
  $(THREAD_LIB) : $(THREAD_OBJ)
-+	$(LINK_CMD) -pthread -shared -Wl,-soname -Wl,libmuthreads.so -Wl,--no-undefined
- 
+-
 -INSTALL_LIBS := $(MUPDF_LIB) $(THIRD_LIB)
++	$(LINK_CMD) -pthread -shared -Wl,-soname -Wl,libmuthreads.so -Wl,--no-undefined
++ 
 +INSTALL_LIBS := $(MUPDF_LIB) $(THIRD_LIB) $(THREAD_LIB)
  
  # --- Tools and Apps ---
