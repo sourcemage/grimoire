@@ -1,0 +1,62 @@
+From 3efa00365fc13f3145b143ee41b90fb5405b334f Mon Sep 17 00:00:00 2001
+From: Tatsuyuki Ishi <ishitatsuyuki@gmail.com>
+Date: Tue, 17 Oct 2017 14:41:56 +0900
+Subject: [PATCH] Update ThinLTO (internalization) for LLVM 5
+
+Ref: https://github.com/llvm-mirror/llvm/commit/ccb80b9c0f60f33780e5e29bf66a87bb56968b99
+---
+ src/rustllvm/PassWrapper.cpp | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/rustllvm/PassWrapper.cpp b/src/rustllvm/PassWrapper.cpp
+index c7d966fcdf..b397ad1e98 100644
+--- a/src/rustllvm/PassWrapper.cpp
++++ b/src/rustllvm/PassWrapper.cpp
+@@ -902,7 +902,7 @@ addPreservedGUID(const ModuleSummaryIndex &Index,
+ 
+     GlobalValueSummary *GVSummary = Summary.get();
+     if (isa<FunctionSummary>(GVSummary)) {
+-      FunctionSummary *FS = cast<FunctionSummary>(GVSummary);
++      auto *FS = cast<FunctionSummary>(GVSummary);
+       for (auto &Call: FS->calls()) {
+         addPreservedGUID(Index, Preserved, Call.first.getGUID());
+       }
+@@ -910,6 +910,11 @@ addPreservedGUID(const ModuleSummaryIndex &Index,
+         addPreservedGUID(Index, Preserved, GUID);
+       }
+     }
++    if (isa<AliasSummary>(GVSummary)) {
++      auto *AS = cast<AliasSummary>(GVSummary);
++      auto GUID = AS->getAliasee().getOriginalName();
++      addPreservedGUID(Index, Preserved, GUID);
++    }
+   }
+ #else
+   auto SummaryList = Index.findGlobalValueSummaryList(GUID);
+@@ -997,6 +1002,15 @@ LLVMRustCreateThinLTOData(LLVMRustThinLTOModule *modules,
+   // combined index
+   //
+   // This is copied from `lib/LTO/ThinLTOCodeGenerator.cpp`
++#if LLVM_VERSION_GE(5, 0)
++  computeDeadSymbols(Ret->Index, Ret->GUIDPreservedSymbols);
++  ComputeCrossModuleImport(
++    Ret->Index,
++    Ret->ModuleToDefinedGVSummaries,
++    Ret->ImportLists,
++    Ret->ExportLists
++  );
++#else
+   auto DeadSymbols = computeDeadSymbols(Ret->Index, Ret->GUIDPreservedSymbols);
+   ComputeCrossModuleImport(
+     Ret->Index,
+@@ -1005,6 +1019,7 @@ LLVMRustCreateThinLTOData(LLVMRustThinLTOModule *modules,
+     Ret->ExportLists,
+     &DeadSymbols
+   );
++#endif
+ 
+   // Resolve LinkOnce/Weak symbols, this has to be computed early be cause it
+   // impacts the caching.
+-- 
+2.15.0
+

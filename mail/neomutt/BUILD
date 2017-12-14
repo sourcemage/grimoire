@@ -1,5 +1,5 @@
-OPTS="--with-docdir=${INSTALL_ROOT}/usr/share/doc/mutt
+OPTS+="    --docdir=${INSTALL_ROOT}/usr/share/doc/mutt
     --with-mailpath=${INSTALL_ROOT}/var/spool/mail
-          ${NEOMUTT_OPTS} ${OPTS}" &&
+                    ${NEOMUTT_OPTS}" &&
 
 default_build
