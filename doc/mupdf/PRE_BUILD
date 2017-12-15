@@ -5,11 +5,17 @@ sedit "/OPJ_STATIC$/d" source/fitz/load-jpx.c &&
 sedit "s:-DOPJ_STATIC::" Makethird &&
 patch -p1 < "${SPELL_DIRECTORY}/mupdf-${VERSION}-shared_libs-1.patch" &&
 
-rm -rf thirdparty/{curl,freetype,harfbuzz,glfw,jbig2dec,jpeg,libjpeg,zlib} &&
+rm -rf thirdparty/{curl,freeglut,freetype,harfbuzz,glfw,jbig2dec,jpeg,lcms2,libjpeg,zlib} &&
 
 # building against older system OpenJPEG library is unsupported
 if spell_ok openjpeg && ! is_version_less $(installed_version openjpeg) 2.0; then
   rm -rf thirdparty/openjpeg
 else
   patch -p0 < "${SPELL_DIRECTORY}/opj_malloc.patch"
-fi
+fi &&
+
+sed -e "/zlib.h/i#include <limits.h>" \
+    -e "s;z_const;const;" \
+    -i source/fitz/compress.c &&
+sed "/zlib.h/i#include <limits.h>" \
+    -i source/fitz/load-png.c source/pdf/pdf-write.c
