@@ -1,15 +1,35 @@
 depends  autoconf  &&
-depends  keyutils  &&
+
+#optional_depends libcap-ng \
+#                 "--with-libcap-ng" \
+#                 "--without-libcap-ng" \
+#                 "for libcap-ng support" &&
+
+#if ! is_depends_enabled ${SPELL} libcap-ng; then
+  optional_depends libcap \
+                   "--with-libcap" \
+                   "--without-libcap" \
+                   "for libcap support"
+#fi &&
+
 optional_depends systemd \
-  "--enable-systemd" \
-  "--disable-systemd" \
-  "for systemd specific behavior for mount.cifs" &&
+                 "--enable-systemd" \
+                 "--disable-systemd" \
+                 "for systemd specific behavior for mount.cifs" &&
+
 optional_depends LINUX-PAM-HEADERS \
-  "--enable-pam" \
-  "--disable-pam" \
-  "for cifscreds PAM module" &&
+                 "--enable-pam" \
+                 "--disable-pam" \
+                 "for cifscreds PAM module" &&
 
-if [[ "$CIFS_UPCALL" == "y" ]]; then
-    depends  krb5
+if list_find "$CIFS_UTILS_OPTS" "--enable-cifsupcall"; then
+  depends krb5 &&
+  depends talloc
+fi &&
+
+if list_find "$CIFS_UTILS_OPTS" "--enable-cifsupcall" || \
+   list_find "$CIFS_UTILS_OPTS" "--enable-cifsidmap" || \
+   list_find "$CIFS_UTILS_OPTS" "--enable-cifscreds" || \
+   is_depends_enabled ${SPELL} $(get_spell_provider $SPELL LINUX-PAM-HEADERS); then
+  depends keyutils
 fi
-

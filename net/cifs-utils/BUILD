@@ -1,25 +1,12 @@
-if [[ "$CIFS_UPCALL" == "y" ]]; then
-    OPTS="$OPTS --enable-cifsupcall"
-else
-    OPTS="$OPTS --disable-cifsupcall"
-fi &&
+# requires wbclient.h from samba/libwbclient
+for opt in "--enable-cifsidmap" "--enable-cifsacl"; do
+  if list_find "$CIFS_UTILS_OPTS" "$opt"; then
+    message "${PROBLEM_COLOR}WARNING: option ${QUERY_COLOR}'$opt'${PROBLEM_COLOR} requires a non-existent spell, disabling it...${DEFAULT_COLOR}" &&
 
-if [[ "$CIFS_CREDS" == "y" ]]; then
-    OPTS="$OPTS --enable-cifscreds"
-else
-    OPTS="$OPTS --disable-cifscreds"
-fi &&
+    list_remove CIFS_UTILS_OPTS "$opt"
+  fi
+done &&
 
-if [[ "$CIFS_IDMAP" == "y" ]]; then
-    OPTS="$OPTS --enable-cifsidmap"
-else
-    OPTS="$OPTS --disable-cifsidmap"
-fi &&
-
-if [[ "$CIFS_ACL" == "y" ]]; then
-    OPTS="$OPTS --enable-cifsacl"
-else
-    OPTS="$OPTS --disable-cifsacl"
-fi &&
+OPTS="${CIFS_UTILS_OPTS} ${OPTS}" &&
 
 default_build

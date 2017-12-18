@@ -1,15 +1,66 @@
-if spell_ok krb5; then
-    config_query CIFS_UPCALL "Enable cifs.upcall utility ?" y
-else
-    config_query CIFS_UPCALL "Enable cifs.upcall utility ?" n
+persistent_add CIFS_UTILS_OPTS &&
+
+# backporting legacy options
+if [ -n "$CIFS_UPCALL" ]; then
+  if [ "$CIFS_UPCALL" == y ]; then
+    local opt="--enable-cifsupcall"
+  else
+    local opt="--disable-cifsupcall"
+  fi
+
+  list_add CIFS_UTILS_OPTS "$opt" &&
+
+  persistent_remove CIFS_UPCALL
 fi &&
 
-if spell_ok keyutils; then
-    config_query CIFS_CREDS "Enable cifscreds utility ?"  y &&
-    config_query CIFS_IDMAP "Enable cifs.idmap utility ?" y &&
-    config_query CIFS_ACL "Enable cifsacl utility ?" y
-else
-    config_query CIFS_CREDS "Enable cifscreds utility ?"  n &&
-    config_query CIFS_IDMAP "Enable cifs.idmap utility ?" n &&
-    config_query CIFS_ACL "Enable cifsacl utility ?" n
-fi
+if [ -n "$CIFS_CREDS" ]; then
+  if [ "$CIFS_CREDS" == y ]; then
+    local opt="--enable-cifscreds"
+  else
+    local opt="--disable-cifscreds"
+  fi
+
+  list_add CIFS_UTILS_OPTS "$opt" &&
+
+  persistent_remove CIFS_CREDS
+fi &&
+
+if [ -n "$CIFS_IDMAP" ]; then
+  if [ "$CIFS_IDMAP" == y ]; then
+    local opt="--enable-cifsidmap"
+  else
+    local opt="--disable-cifsidmap"
+  fi
+
+  list_add CIFS_UTILS_OPTS "$opt" &&
+
+  persistent_remove CIFS_IDMAP
+fi &&
+
+if [ -n "$CIFS_ACL" ]; then
+  if [ "$CIFS_ACL" == y ]; then
+    local opt="--enable-cifsacl"
+  else
+    local opt="--disable-cifsacl"
+  fi
+
+  list_add CIFS_UTILS_OPTS "$opt" &&
+
+  persistent_remove CIFS_ACL
+fi &&
+
+config_query_option CIFS_UTILS_OPTS "Enable cifs.upcall utility (requires ${SPELL_COLOR}krb5${QUERY_COLOR})?" y \
+                                    "--enable-cifsupcall" \
+                                    "--disable-cifsupcall" &&
+
+config_query_option CIFS_UTILS_OPTS "Enable cifscreds utility?" y \
+                                    "--enable-cifscreds" \
+                                    "--disable-cifscreds" &&
+
+config_query_option CIFS_UTILS_OPTS "Enable cifs.idmap utility?" y \
+                                    "--enable-cifsidmap" \
+                                    "--disable-cifsidmap" &&
+
+config_query_option CIFS_UTILS_OPTS "Enable cifsacl utility?" y \
+                                    "--enable-cifsacl" \
+                                    "--disable-cifsacl"
