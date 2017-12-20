@@ -1,0 +1,292 @@
+From ee4a6fe5c67503dbda7ae1afe7242ee495b2a3ec Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+Date: Wed, 20 Dec 2017 23:46:41 +0100
+Subject: [PATCH] fix compile error
+
+---
+ include/llvm/MC/MCObjectFileInfo.h | 2 +-
+ lib/MC/MCObjectFileInfo.cpp        | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/llvm/MC/MCObjectFileInfo.h b/include/llvm/MC/MCObjectFileInfo.h
+index 4d63444..a571f4a 100644
+--- a/include/llvm/MC/MCObjectFileInfo.h
++++ b/include/llvm/MC/MCObjectFileInfo.h
+@@ -191,7 +191,7 @@ protected:
+   MCSection *SXDataSection;
+ 
+ public:
+-  void InitMCObjectFileInfo(const Triple &TT, bool PIC, CodeModel::Model CM,
++  void InitMCObjectFileInfo(const Triple &TT, bool pic, CodeModel::Model CM,
+                             MCContext &ctx);
+ 
+   bool getSupportsWeakOmittedEHFrame() const {
+diff --git a/lib/MC/MCObjectFileInfo.cpp b/lib/MC/MCObjectFileInfo.cpp
+index 21c5516..0388986 100644
+--- a/lib/MC/MCObjectFileInfo.cpp
++++ b/lib/MC/MCObjectFileInfo.cpp
+@@ -848,10 +848,10 @@ void MCObjectFileInfo::initWasmMCObjectFileInfo(const Triple &T) {
+   // TODO: Define more sections.
+ }
+ 
+-void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
++void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool pic,
+                                             CodeModel::Model cm,
+                                             MCContext &ctx) {
+-  PositionIndependent = PIC;
++  PositionIndependent = pic;
+   CMModel = cm;
+   Ctx = &ctx;
+ 
+-- 
+2.15.1
+
+From e3e9b1405dcff106ca6547bdd33c605dc4d8ecb8 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+Date: Thu, 21 Dec 2017 00:35:48 +0100
+Subject: [PATCH] fix compile error
+
+---
+ lib/Transforms/Scalar/LICM.cpp         | 12 ++++++------
+ lib/Transforms/Utils/PredicateInfo.cpp | 12 ++++++------
+ tools/llvm-mc/llvm-mc.cpp              |  4 ++--
+ 3 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/lib/Transforms/Scalar/LICM.cpp b/lib/Transforms/Scalar/LICM.cpp
+index 37b9c4b..19742d2 100644
+--- a/lib/Transforms/Scalar/LICM.cpp
++++ b/lib/Transforms/Scalar/LICM.cpp
+@@ -287,14 +287,14 @@ bool LoopInvariantCodeMotion::runOnLoop(Loop *L, AliasAnalysis *AA,
+       for (BasicBlock *ExitBlock : ExitBlocks)
+         InsertPts.push_back(&*ExitBlock->getFirstInsertionPt());
+ 
+-      PredIteratorCache PIC;
++      PredIteratorCache pic;
+ 
+       bool Promoted = false;
+ 
+       // Loop over all of the alias sets in the tracker object.
+       for (AliasSet &AS : *CurAST)
+         Promoted |=
+-            promoteLoopAccessesToScalars(AS, ExitBlocks, InsertPts, PIC, LI, DT,
++            promoteLoopAccessesToScalars(AS, ExitBlocks, InsertPts, pic, LI, DT,
+                                          TLI, L, CurAST, &SafetyInfo, ORE);
+ 
+       // Once we have promoted values across the loop body we have to
+@@ -963,11 +963,11 @@ public:
+   LoopPromoter(Value *SP, ArrayRef<const Instruction *> Insts, SSAUpdater &S,
+                SmallPtrSetImpl<Value *> &PMA,
+                SmallVectorImpl<BasicBlock *> &LEB,
+-               SmallVectorImpl<Instruction *> &LIP, PredIteratorCache &PIC,
++               SmallVectorImpl<Instruction *> &LIP, PredIteratorCache &pic,
+                AliasSetTracker &ast, LoopInfo &li, DebugLoc dl, int alignment,
+                bool UnorderedAtomic, const AAMDNodes &AATags)
+       : LoadAndStorePromoter(Insts, S), SomePtr(SP), PointerMustAliases(PMA),
+-        LoopExitBlocks(LEB), LoopInsertPts(LIP), PredCache(PIC), AST(ast),
++        LoopExitBlocks(LEB), LoopInsertPts(LIP), PredCache(pic), AST(ast),
+         LI(li), DL(std::move(dl)), Alignment(alignment),
+         UnorderedAtomic(UnorderedAtomic),AATags(AATags) {}
+ 
+@@ -1017,7 +1017,7 @@ public:
+ ///
+ bool llvm::promoteLoopAccessesToScalars(
+     AliasSet &AS, SmallVectorImpl<BasicBlock *> &ExitBlocks,
+-    SmallVectorImpl<Instruction *> &InsertPts, PredIteratorCache &PIC,
++    SmallVectorImpl<Instruction *> &InsertPts, PredIteratorCache &pic,
+     LoopInfo *LI, DominatorTree *DT, const TargetLibraryInfo *TLI,
+     Loop *CurLoop, AliasSetTracker *CurAST, LoopSafetyInfo *SafetyInfo,
+     OptimizationRemarkEmitter *ORE) {
+@@ -1267,7 +1267,7 @@ bool llvm::promoteLoopAccessesToScalars(
+   SmallVector<PHINode *, 16> NewPHIs;
+   SSAUpdater SSA(&NewPHIs);
+   LoopPromoter Promoter(SomePtr, LoopUses, SSA, PointerMustAliases, ExitBlocks,
+-                        InsertPts, PIC, *CurAST, *LI, DL, Alignment,
++                        InsertPts, pic, *CurAST, *LI, DL, Alignment,
+                         SawUnorderedAtomic, AATags);
+ 
+   // Set up the preheader to have a definition of the value.  It is the live-out
+diff --git a/lib/Transforms/Utils/PredicateInfo.cpp b/lib/Transforms/Utils/PredicateInfo.cpp
+index d4cdaed..5fcd5dd 100644
+--- a/lib/Transforms/Utils/PredicateInfo.cpp
++++ b/lib/Transforms/Utils/PredicateInfo.cpp
+@@ -508,10 +508,10 @@ Value *PredicateInfo::materializeStack(unsigned int &Counter,
+       IRBuilder<> B(getBranchTerminator(ValInfo));
+       Function *IF = Intrinsic::getDeclaration(
+           F.getParent(), Intrinsic::ssa_copy, Op->getType());
+-      CallInst *PIC =
++      CallInst *pic =
+           B.CreateCall(IF, Op, Op->getName() + "." + Twine(Counter++));
+-      PredicateMap.insert({PIC, ValInfo});
+-      Result.Def = PIC;
++      PredicateMap.insert({pic, ValInfo});
++      Result.Def = pic;
+     } else {
+       auto *PAssume = dyn_cast<PredicateAssume>(ValInfo);
+       assert(PAssume &&
+@@ -519,9 +519,9 @@ Value *PredicateInfo::materializeStack(unsigned int &Counter,
+       IRBuilder<> B(PAssume->AssumeInst);
+       Function *IF = Intrinsic::getDeclaration(
+           F.getParent(), Intrinsic::ssa_copy, Op->getType());
+-      CallInst *PIC = B.CreateCall(IF, Op);
+-      PredicateMap.insert({PIC, ValInfo});
+-      Result.Def = PIC;
++      CallInst *pic = B.CreateCall(IF, Op);
++      PredicateMap.insert({pic, ValInfo});
++      Result.Def = pic;
+     }
+   }
+   return RenameStack.back().Def;
+diff --git a/tools/llvm-mc/llvm-mc.cpp b/tools/llvm-mc/llvm-mc.cpp
+index 8782588..c5900ce 100644
+--- a/tools/llvm-mc/llvm-mc.cpp
++++ b/tools/llvm-mc/llvm-mc.cpp
+@@ -128,7 +128,7 @@ MAttrs("mattr",
+   cl::desc("Target specific attributes (-mattr=help for details)"),
+   cl::value_desc("a1,+a2,-a3,..."));
+ 
+-static cl::opt<bool> PIC("position-independent",
++static cl::opt<bool> pic("position-independent",
+                          cl::desc("Position independent"), cl::init(false));
+ 
+ static cl::opt<llvm::CodeModel::Model>
+@@ -506,7 +506,7 @@ int main(int argc, char **argv) {
+   // MCObjectFileInfo needs a MCContext reference in order to initialize itself.
+   MCObjectFileInfo MOFI;
+   MCContext Ctx(MAI.get(), MRI.get(), &MOFI, &SrcMgr);
+-  MOFI.InitMCObjectFileInfo(TheTriple, PIC, CMModel, Ctx);
++  MOFI.InitMCObjectFileInfo(TheTriple, pic, CMModel, Ctx);
+ 
+   if (SaveTempLabels)
+     Ctx.setAllowTemporaryLabels(false);
+-- 
+2.15.1
+
+diff -Naupr llvm-5.0.1.src/tools/clang/lib/Driver/ToolChains/CommonArgs.cpp llvm-5.0.1.src.backup/tools/clang/lib/Driver/ToolChains/CommonArgs.cpp
+--- llvm-5.0.1.src/tools/clang/lib/Driver/ToolChains/CommonArgs.cpp	2017-07-04 21:55:56.000000000 +0200
++++ llvm-5.0.1.src.backup/tools/clang/lib/Driver/ToolChains/CommonArgs.cpp	2017-12-22 14:16:54.892562370 +0100
+@@ -751,11 +751,11 @@ tools::ParsePICArgs(const ToolChain &Too
+   const llvm::Triple &Triple = ToolChain.getTriple();
+ 
+   bool PIE = ToolChain.isPIEDefault();
+-  bool PIC = PIE || ToolChain.isPICDefault();
++  bool pic = PIE || ToolChain.isPICDefault();
+   // The Darwin/MachO default to use PIC does not apply when using -static.
+   if (Triple.isOSBinFormatMachO() && Args.hasArg(options::OPT_static))
+-    PIE = PIC = false;
+-  bool IsPICLevelTwo = PIC;
++    PIE = pic = false;
++  bool IsPICLevelTwo = pic;
+ 
+   bool KernelOrKext =
+       Args.hasArg(options::OPT_mkernel, options::OPT_fapple_kext);
+@@ -772,12 +772,12 @@ tools::ParsePICArgs(const ToolChain &Too
+     case llvm::Triple::mipsel:
+     case llvm::Triple::mips64:
+     case llvm::Triple::mips64el:
+-      PIC = true; // "-fpic"
++      pic = true; // "-fpic"
+       break;
+ 
+     case llvm::Triple::x86:
+     case llvm::Triple::x86_64:
+-      PIC = true; // "-fPIC"
++      pic = true; // "-fPIC"
+       IsPICLevelTwo = true;
+       break;
+ 
+@@ -837,17 +837,17 @@ tools::ParsePICArgs(const ToolChain &Too
+       if (O.matches(options::OPT_fPIC) || O.matches(options::OPT_fpic) ||
+           O.matches(options::OPT_fPIE) || O.matches(options::OPT_fpie)) {
+         PIE = O.matches(options::OPT_fPIE) || O.matches(options::OPT_fpie);
+-        PIC =
++        pic =
+             PIE || O.matches(options::OPT_fPIC) || O.matches(options::OPT_fpic);
+         IsPICLevelTwo =
+             O.matches(options::OPT_fPIE) || O.matches(options::OPT_fPIC);
+       } else {
+-        PIE = PIC = false;
++        PIE = pic = false;
+         if (EffectiveTriple.isPS4CPU()) {
+           Arg *ModelArg = Args.getLastArg(options::OPT_mcmodel_EQ);
+           StringRef Model = ModelArg ? ModelArg->getValue() : "";
+           if (Model != "kernel") {
+-            PIC = true;
++            pic = true;
+             ToolChain.getDriver().Diag(diag::warn_drv_ps4_force_pic)
+                 << LastPICArg->getSpelling();
+           }
+@@ -859,7 +859,7 @@ tools::ParsePICArgs(const ToolChain &Too
+   // Introduce a Darwin and PS4-specific hack. If the default is PIC, but the
+   // PIC level would've been set to level 1, force it back to level 2 PIC
+   // instead.
+-  if (PIC && (Triple.isOSDarwin() || EffectiveTriple.isPS4CPU()))
++  if (pic && (Triple.isOSDarwin() || EffectiveTriple.isPS4CPU()))
+     IsPICLevelTwo |= ToolChain.isPICDefault();
+ 
+   // This kernel flags are a trump-card: they will disable PIC/PIE
+@@ -867,7 +867,7 @@ tools::ParsePICArgs(const ToolChain &Too
+   if (KernelOrKext &&
+       ((!EffectiveTriple.isiOS() || EffectiveTriple.isOSVersionLT(6)) &&
+        !EffectiveTriple.isWatchOS()))
+-    PIC = PIE = false;
++    pic = PIE = false;
+ 
+   if (Arg *A = Args.getLastArg(options::OPT_mdynamic_no_pic)) {
+     // This is a very special mode. It trumps the other modes, almost no one
+@@ -881,9 +881,9 @@ tools::ParsePICArgs(const ToolChain &Too
+     // Only a forced PIC mode can cause the actual compile to have PIC defines
+     // etc., no flags are sufficient. This behavior was selected to closely
+     // match that of llvm-gcc and Apple GCC before that.
+-    PIC = ToolChain.isPICDefault() && ToolChain.isPICDefaultForced();
++    pic = ToolChain.isPICDefault() && ToolChain.isPICDefaultForced();
+ 
+-    return std::make_tuple(llvm::Reloc::DynamicNoPIC, PIC ? 2U : 0U, false);
++    return std::make_tuple(llvm::Reloc::DynamicNoPIC, pic ? 2U : 0U, false);
+   }
+ 
+   bool EmbeddedPISupported;
+@@ -916,7 +916,7 @@ tools::ParsePICArgs(const ToolChain &Too
+   }
+ 
+   // ROPI and RWPI are not comaptible with PIC or PIE.
+-  if ((ROPI || RWPI) && (PIC || PIE))
++  if ((ROPI || RWPI) && (pic || PIE))
+     ToolChain.getDriver().Diag(diag::err_drv_ropi_rwpi_incompatible_with_pic);
+ 
+   // When targettng MIPS64 with N64, the default is PIC, unless -mno-abicalls is
+@@ -926,7 +926,7 @@ tools::ParsePICArgs(const ToolChain &Too
+       Args.hasArg(options::OPT_mno_abicalls))
+     return std::make_tuple(llvm::Reloc::Static, 0U, false);
+ 
+-  if (PIC)
++  if (pic)
+     return std::make_tuple(llvm::Reloc::PIC_, IsPICLevelTwo ? 2U : 1U, PIE);
+ 
+   llvm::Reloc::Model RelocM = llvm::Reloc::Static;
+diff -Naupr llvm-5.0.1.src/tools/clang/tools/driver/cc1as_main.cpp llvm-5.0.1.src.backup/tools/clang/tools/driver/cc1as_main.cpp
+--- llvm-5.0.1.src/tools/clang/tools/driver/cc1as_main.cpp	2017-06-23 17:34:16.000000000 +0200
++++ llvm-5.0.1.src.backup/tools/clang/tools/driver/cc1as_main.cpp	2017-12-22 14:34:14.280013328 +0100
+@@ -345,18 +345,18 @@ static bool ExecuteAssembler(AssemblerIn
+ 
+   MCContext Ctx(MAI.get(), MRI.get(), MOFI.get(), &SrcMgr);
+ 
+-  bool PIC = false;
++  bool pic = false;
+   if (Opts.RelocationModel == "static") {
+-    PIC = false;
++    pic = false;
+   } else if (Opts.RelocationModel == "pic") {
+-    PIC = true;
++    pic = true;
+   } else {
+     assert(Opts.RelocationModel == "dynamic-no-pic" &&
+            "Invalid PIC model!");
+-    PIC = false;
++    pic = false;
+   }
+ 
+-  MOFI->InitMCObjectFileInfo(Triple(Opts.Triple), PIC, CodeModel::Default, Ctx);
++  MOFI->InitMCObjectFileInfo(Triple(Opts.Triple), pic, CodeModel::Default, Ctx);
+   if (Opts.SaveTemporaryLabels)
+     Ctx.setAllowTemporaryLabels(false);
+   if (Opts.GenDwarfForAssembly)
