@@ -1,1 +1,2 @@
-qt4_cmake_build
+cd "${SOURCE_DIRECTORY}/ImageLounge" &&
+qt5_cmake_build
