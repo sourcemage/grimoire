@@ -34,3 +34,897 @@
  	} else {
  		lines[itempos] = formatted_text[0];
  	}
+--- include/configparser.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/configparser.h	2017-12-27 08:24:56.790729071 -0500
+@@ -26,11 +26,11 @@
+ class configparser : public config_action_handler {
+ 	public:
+ 		configparser();
+-		~configparser() override;
++		~configparser();
+ 		void register_handler(const std::string& cmd, config_action_handler * handler);
+ 		void unregister_handler(const std::string& cmd);
+-		void handle_action(const std::string& action, const std::vector<std::string>& params) override;
+-		void dump_config(std::vector<std::string>& ) override {
++		void handle_action(const std::string& action, const std::vector<std::string>& params);
++		void dump_config(std::vector<std::string>& ) {
+ 			/* nothing because configparser itself only handles include */
+ 		}
+ 		bool parse(const std::string& filename, bool double_include = true);
+@@ -46,9 +46,9 @@
+ class null_config_action_handler : public config_action_handler {
+ 	public:
+ 		null_config_action_handler() { }
+-		~null_config_action_handler() override { }
+-		void handle_action(const std::string& , const std::vector<std::string>& ) override { }
+-		void dump_config(std::vector<std::string>& ) override { }
++		~null_config_action_handler() { }
++		void handle_action(const std::string& , const std::vector<std::string>& ) { }
++		void dump_config(std::vector<std::string>& ) { }
+ };
+ 
+ }
+--- include/configcontainer.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/configcontainer.h	2017-12-27 08:27:13.115640760 -0500
+@@ -35,10 +35,10 @@
+ class configcontainer : public config_action_handler {
+ 	public:
+ 		configcontainer();
+-		~configcontainer() override;
++		~configcontainer();
+ 		void register_commands(configparser& cfgparser);
+-		void handle_action(const std::string& action, const std::vector<std::string>& params) override;
+-		void dump_config(std::vector<std::string>& config_output) override;
++		void handle_action(const std::string& action, const std::vector<std::string>& params);
++		void dump_config(std::vector<std::string>& config_output);
+ 
+ 		bool get_configvalue_as_bool(const std::string& key);
+ 		int get_configvalue_as_int(const std::string& key);
+--- include/colormanager.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/colormanager.h	2017-12-27 08:28:02.012967766 -0500
+@@ -17,10 +17,10 @@
+ class colormanager : public config_action_handler {
+ 	public:
+ 		colormanager();
+-		~colormanager() override;
++		~colormanager();
+ 		void register_commands(configparser& cfgparser);
+-		void handle_action(const std::string& action, const std::vector<std::string>& params) override;
+-		void dump_config(std::vector<std::string>& config_output) override;
++		void handle_action(const std::string& action, const std::vector<std::string>& params);
++		void dump_config(std::vector<std::string>& config_output);
+ 		bool colors_loaded() {
+ 			return colors_loaded_;
+ 		}
+--- include/dialogs_formaction.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/dialogs_formaction.h	2017-12-27 08:30:26.755935752 -0500
+@@ -8,18 +8,18 @@
+ class dialogs_formaction : public formaction {
+ 	public:
+ 		dialogs_formaction(view *, std::string formstr);
+-		~dialogs_formaction() override;
+-		void prepare() override;
+-		void init() override;
+-		keymap_hint_entry * get_keymap_hint() override;
+-		std::string id() const override {
++		~dialogs_formaction();
++		void prepare();
++		void init();
++		keymap_hint_entry * get_keymap_hint();
++		std::string id() const {
+ 			return "dialogs";
+ 		}
+-		std::string title() override;
+-		void handle_cmdline(const std::string& cmd) override;
++		std::string title();
++		void handle_cmdline(const std::string& cmd);
+ 
+ 	private:
+-		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr) override;
++		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr);
+ 		bool update_list;
+ };
+ 
+--- include/exception.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/exception.h	2017-12-27 08:31:07.338207150 -0500
+@@ -8,8 +8,8 @@
+ class exception : public std::exception {
+ 	public:
+ 		explicit exception(unsigned int error_code = 0);
+-		~exception() throw() override;
+-		const char* what() const throw() override;
++		~exception() throw();
++		const char* what() const throw();
+ 	private:
+ 		unsigned int ecode;
+ };
+--- include/exceptions.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/exceptions.h	2017-12-27 08:32:20.502696446 -0500
+@@ -12,8 +12,8 @@
+ class xmlexception : public std::exception {
+ 	public:
+ 		explicit xmlexception(const std::string& errmsg) : msg(errmsg) { }
+-		~xmlexception() throw() override { }
+-		const char * what() const throw() override {
++		~xmlexception() throw() { }
++		const char * what() const throw() {
+ 			return msg.c_str();
+ 		}
+ 	private:
+@@ -23,8 +23,8 @@
+ class configexception : public std::exception {
+ 	public:
+ 		explicit configexception(const std::string& errmsg) : msg(errmsg) { }
+-		~configexception() throw() override { }
+-		const char * what() const throw() override {
++		~configexception() throw() { }
++		const char * what() const throw() {
+ 			return msg.c_str();
+ 		}
+ 	private:
+@@ -35,8 +35,8 @@
+ 	public:
+ 		explicit confighandlerexception(const std::string& emsg) : msg(emsg) { }
+ 		explicit confighandlerexception(action_handler_status e);
+-		~confighandlerexception() throw() override { }
+-		const char * what() const throw() override {
++		~confighandlerexception() throw() { }
++		const char * what() const throw() {
+ 			return msg.c_str();
+ 		}
+ 		int status() {
+@@ -50,8 +50,8 @@
+ class dbexception : public std::exception {
+ 	public:
+ 		explicit dbexception(sqlite3 * h) : msg(sqlite3_errmsg(h)) { }
+-		~dbexception() throw() override { }
+-		const char * what() const throw() override {
++		~dbexception() throw() { }
++		const char * what() const throw() {
+ 			return msg.c_str();
+ 		}
+ 	private:
+@@ -69,8 +69,8 @@
+ 		: type_(et), addinfo(info), addinfo2(info2)
+ 		{ }
+ 
+-		~matcherexception() throw() override { }
+-		const char * what() const throw() override;
++		~matcherexception() throw() { }
++		const char * what() const throw();
+ 	private:
+ 		type type_;
+ 		std::string addinfo;
+--- include/feedhq_api.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/feedhq_api.h	2017-12-27 08:33:24.873126930 -0500
+@@ -10,13 +10,13 @@
+ class feedhq_api : public remote_api {
+ 	public:
+ 		explicit feedhq_api(configcontainer * c);
+-		~feedhq_api() override;
+-		bool authenticate() override;
+-		std::vector<tagged_feedurl> get_subscribed_urls() override;
+-		void add_custom_headers(curl_slist** custom_headers) override;
+-		bool mark_all_read(const std::string& feedurl) override;
+-		bool mark_article_read(const std::string& guid, bool read) override;
+-		bool update_article_flags(const std::string& oldflags, const std::string& newflags, const std::string& guid) override;
++		~feedhq_api();
++		bool authenticate();
++		std::vector<tagged_feedurl> get_subscribed_urls();
++		void add_custom_headers(curl_slist** custom_headers);
++		bool mark_all_read(const std::string& feedurl);
++		bool mark_article_read(const std::string& guid, bool read);
++		bool update_article_flags(const std::string& oldflags, const std::string& newflags, const std::string& guid);
+ 	private:
+ 		std::vector<std::string> get_tags(xmlNode * node);
+ 		std::string get_new_token();
+@@ -32,10 +32,10 @@
+ class feedhq_urlreader : public urlreader {
+ 	public:
+ 		feedhq_urlreader(configcontainer * c, const std::string& url_file, remote_api * a);
+-		~feedhq_urlreader() override;
+-		void write_config() override;
+-		void reload() override;
+-		std::string get_source() override;
++		~feedhq_urlreader();
++		void write_config();
++		void reload();
++		std::string get_source();
+ 	private:
+ 		configcontainer * cfg;
+ 		std::string file;
+--- include/feedlist_formaction.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/feedlist_formaction.h	2017-12-27 08:34:35.116596692 -0500
+@@ -14,24 +14,24 @@
+ class feedlist_formaction : public list_formaction {
+ 	public:
+ 		feedlist_formaction(view *, std::string formstr);
+-		~feedlist_formaction() override;
+-		void prepare() override;
+-		void init() override;
++		~feedlist_formaction();
++		void prepare();
++		void init();
+ 		void set_feedlist(std::vector<std::shared_ptr<rss_feed>>& feeds);
+ 		void update_visible_feeds(std::vector<std::shared_ptr<rss_feed>>& feeds);
+ 		void set_tags(const std::vector<std::string>& t);
+-		keymap_hint_entry * get_keymap_hint() override;
++		keymap_hint_entry * get_keymap_hint();
+ 		std::shared_ptr<rss_feed> get_feed();
+ 
+-		void set_redraw(bool b) override {
++		void set_redraw(bool b) {
+ 			formaction::set_redraw(b);
+ 			apply_filter = !(v->get_cfg()->get_configvalue_as_bool("show-read-feeds"));
+ 		}
+ 
+-		std::string id() const override {
++		std::string id() const {
+ 			return "feedlist";
+ 		}
+-		std::string title() override;
++		std::string title();
+ 
+ 		bool jump_to_next_unread_feed(unsigned int& feedpos);
+ 		bool jump_to_previous_unread_feed(unsigned int& feedpos);
+@@ -39,9 +39,9 @@
+ 		bool jump_to_previous_feed(unsigned int& feedpos);
+ 		bool jump_to_random_unread_feed(unsigned int& feedpos);
+ 
+-		void handle_cmdline(const std::string& cmd) override;
++		void handle_cmdline(const std::string& cmd);
+ 
+-		void finished_qna(operation op) override;
++		void finished_qna(operation op);
+ 
+ 		void mark_pos_if_visible(unsigned int pos);
+ 
+@@ -50,7 +50,7 @@
+ 	private:
+ 
+ 		int get_pos(unsigned int realidx);
+-		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr) override;
++		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr);
+ 
+ 		void goto_feed(const std::string& str);
+ 
+--- include/filebrowser_formaction.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/filebrowser_formaction.h	2017-12-27 08:38:37.039214577 -0500
+@@ -8,10 +8,10 @@
+ class filebrowser_formaction : public formaction {
+ 	public:
+ 		filebrowser_formaction(view *, std::string formstr);
+-		~filebrowser_formaction() override;
+-		void prepare() override;
+-		void init() override;
+-		keymap_hint_entry * get_keymap_hint() override;
++		~filebrowser_formaction();
++		void prepare();
++		void init();
++		keymap_hint_entry * get_keymap_hint();
+ 
+ 		void set_dir(const std::string& d) {
+ 			dir = d;
+@@ -20,13 +20,13 @@
+ 			default_filename = fn;
+ 		}
+ 
+-		std::string id() const override {
++		std::string id() const {
+ 			return "filebrowser";
+ 		}
+-		std::string title() override;
++		std::string title();
+ 
+ 	private:
+-		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr) override;
++		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr);
+ 
+ 		std::string add_file(std::string filename);
+ 		std::string get_filename_suggestion(const std::string& s);
+--- include/filtercontainer.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/filtercontainer.h	2017-12-27 08:39:27.628552900 -0500
+@@ -10,9 +10,9 @@
+ class filtercontainer : public config_action_handler {
+ 	public:
+ 		filtercontainer() { }
+-		~filtercontainer() override;
+-		void handle_action(const std::string& action, const std::vector<std::string>& params) override;
+-		void dump_config(std::vector<std::string>& config_output) override;
++		~filtercontainer();
++		void handle_action(const std::string& action, const std::vector<std::string>& params);
++		void dump_config(std::vector<std::string>& config_output);
+ 		std::vector<filter_name_expr_pair>& get_filters() {
+ 			return filters;
+ 		}
+--- include/help_formaction.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/help_formaction.h	2017-12-27 08:40:20.533906710 -0500
+@@ -8,19 +8,19 @@
+ class help_formaction : public formaction {
+ 	public:
+ 		help_formaction(view *, std::string formstr);
+-		~help_formaction() override;
+-		void prepare() override;
+-		void init() override;
+-		keymap_hint_entry * get_keymap_hint() override;
+-		std::string id() const override {
++		~help_formaction();
++		void prepare();
++		void init();
++		keymap_hint_entry * get_keymap_hint();
++		std::string id() const {
+ 			return "help";
+ 		}
+-		std::string title() override;
++		std::string title();
+ 
+-		void finished_qna(operation op) override;
++		void finished_qna(operation op);
+ 		void set_context(const std::string& ctx);
+ 	private:
+-		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr) override;
++		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr);
+ 		std::string make_colorstring(const std::vector<std::string>& colors);
+ 		bool quit;
+ 		bool apply_search;
+--- include/itemlist_formaction.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/itemlist_formaction.h	2017-12-27 08:41:28.185359137 -0500
+@@ -17,11 +17,11 @@
+ class itemlist_formaction : public list_formaction {
+ 	public:
+ 		itemlist_formaction(view *, std::string formstr);
+-		~itemlist_formaction() override;
+-		void prepare() override;
+-		void init() override;
++		~itemlist_formaction();
++		void prepare();
++		void init();
+ 
+-		void set_redraw(bool b) override {
++		void set_redraw(bool b) {
+ 			formaction::set_redraw(b);
+ 			apply_filter = !(v->get_cfg()->get_configvalue_as_bool("show-read-articles"));
+ 			invalidate(InvalidationMode::COMPLETE);
+@@ -29,10 +29,10 @@
+ 
+ 		void set_feed(std::shared_ptr<rss_feed> fd);
+ 
+-		std::string id() const override {
++		std::string id() const {
+ 			return "articlelist";
+ 		}
+-		std::string title() override;
++		std::string title();
+ 
+ 		std::shared_ptr<rss_feed> get_feed() {
+ 			return feed;
+@@ -41,7 +41,7 @@
+ 			pos = p;
+ 		}
+ 		std::string get_guid();
+-		keymap_hint_entry * get_keymap_hint() override;
++		keymap_hint_entry * get_keymap_hint();
+ 
+ 		bool jump_to_next_unread_item(bool start_with_first);
+ 		bool jump_to_previous_unread_item(bool start_with_last);
+@@ -49,11 +49,11 @@
+ 		bool jump_to_previous_item(bool start_with_last);
+ 		bool jump_to_random_unread_item();
+ 
+-		void handle_cmdline(const std::string& cmd) override;
++		void handle_cmdline(const std::string& cmd);
+ 
+ 		void do_update_visible_items();
+ 
+-		void finished_qna(operation op) override;
++		void finished_qna(operation op);
+ 
+ 		void set_show_searchresult(bool b) {
+ 			show_searchresult = b;
+@@ -62,12 +62,12 @@
+ 			searchphrase = s;
+ 		}
+ 
+-		void recalculate_form() override;
++		void recalculate_form();
+ 
+ 		void set_regexmanager(regexmanager * r);
+ 
+ 	private:
+-		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr) override;
++		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr);
+ 		void set_head(const std::string& s, unsigned int unread, unsigned int total, const std::string &url);
+ 		int get_pos(unsigned int idx);
+ 
+--- include/itemview_formaction.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/itemview_formaction.h	2017-12-27 08:42:28.853764864 -0500
+@@ -14,9 +14,9 @@
+ class itemview_formaction : public formaction {
+ 	public:
+ 		itemview_formaction(view *, std::shared_ptr<itemlist_formaction> il, std::string formstr);
+-		~itemview_formaction() override;
+-		void prepare() override;
+-		void init() override;
++		~itemview_formaction();
++		void prepare();
++		void init();
+ 		void set_guid(const std::string& guid_) {
+ 			guid = guid_;
+ 		}
+@@ -24,15 +24,15 @@
+ 			feed = fd;
+ 		}
+ 		void set_highlightphrase(const std::string& text);
+-		keymap_hint_entry * get_keymap_hint() override;
+-		void handle_cmdline(const std::string& cmd) override;
++		keymap_hint_entry * get_keymap_hint();
++		void handle_cmdline(const std::string& cmd);
+ 
+-		std::string id() const override {
++		std::string id() const {
+ 			return "article";
+ 		}
+-		std::string title() override;
++		std::string title();
+ 
+-		void finished_qna(operation op) override;
++		void finished_qna(operation op);
+ 
+ 		std::vector<std::pair<LineType, std::string>>
+ 			render_html(
+@@ -45,7 +45,7 @@
+ 		void update_percent();
+ 
+ 	private:
+-		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr) override;
++		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr);
+ 		void set_head(const std::string& s, const std::string& feedtitle, unsigned int unread, unsigned int total);
+ 		void highlight_text(const std::string& searchphrase);
+ 
+--- include/keymap.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/keymap.h	2017-12-27 08:43:20.694111552 -0500
+@@ -155,7 +155,7 @@
+ class keymap : public config_action_handler {
+ 	public:
+ 		explicit keymap(unsigned int flags);
+-		~keymap() override;
++		~keymap();
+ 		void set_key(operation op, const std::string& key, const std::string& context);
+ 		void unset_key(const std::string& key, const std::string& context);
+ 		operation get_opcode(const std::string& opstr);
+@@ -163,8 +163,8 @@
+ 		std::vector<macrocmd> get_macro(const std::string& key);
+ 		char get_key(const std::string& keycode);
+ 		std::string getkey(operation op, const std::string& context);
+-		void handle_action(const std::string& action, const std::vector<std::string>& params) override;
+-		void dump_config(std::vector<std::string>& config_output) override;
++		void handle_action(const std::string& action, const std::vector<std::string>& params);
++		void dump_config(std::vector<std::string>& config_output);
+ 		void get_keymap_descriptions(std::vector<keymap_desc>& descs, unsigned short flags);
+ 		unsigned short get_flag_from_context(const std::string& context);
+ 	private:
+--- include/newsblur_api.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/newsblur_api.h	2017-12-27 08:44:21.990521479 -0500
+@@ -15,13 +15,13 @@
+ class newsblur_api : public remote_api {
+ 	public:
+ 		explicit newsblur_api(configcontainer * c);
+-		~newsblur_api() override;
+-		bool authenticate() override;
+-		std::vector<tagged_feedurl> get_subscribed_urls() override;
+-		void add_custom_headers(curl_slist** custom_headers) override;
+-		bool mark_all_read(const std::string& feedurl) override;
+-		bool mark_article_read(const std::string& guid, bool read) override;
+-		bool update_article_flags(const std::string& oldflags, const std::string& newflags, const std::string& guid) override;
++		~newsblur_api();
++		bool authenticate();
++		std::vector<tagged_feedurl> get_subscribed_urls();
++		void add_custom_headers(curl_slist** custom_headers);
++		bool mark_all_read(const std::string& feedurl);
++		bool mark_article_read(const std::string& guid, bool read);
++		bool update_article_flags(const std::string& oldflags, const std::string& newflags, const std::string& guid);
+ 		rsspp::feed fetch_feed(const std::string& id);
+ 		// TODO
+ 	private:
+@@ -37,10 +37,10 @@
+ class newsblur_urlreader : public urlreader {
+ 	public:
+ 		newsblur_urlreader(const std::string& url_file, remote_api * a);
+-		~newsblur_urlreader() override;
+-		void write_config() override;
+-		void reload() override;
+-		std::string get_source() override;
++		~newsblur_urlreader();
++		void write_config();
++		void reload();
++		std::string get_source();
+ 	private:
+ 		std::string file;
+ 		remote_api * api;
+--- include/ocnews_api.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/ocnews_api.h	2017-12-27 08:45:29.917975752 -0500
+@@ -14,13 +14,13 @@
+ class ocnews_api : public remote_api {
+ 	public:
+ 		explicit ocnews_api (configcontainer *cfg);
+-		~ocnews_api() override;
+-		bool authenticate() override;
+-		std::vector<tagged_feedurl> get_subscribed_urls() override;
+-		bool mark_all_read(const std::string& feedurl) override;
+-		bool mark_article_read(const std::string& guid, bool read) override;
+-		bool update_article_flags(const std::string& oldflags, const std::string& newflags, const std::string& guid) override;
+-		void add_custom_headers(curl_slist**) override;
++		~ocnews_api();
++		bool authenticate();
++		std::vector<tagged_feedurl> get_subscribed_urls();
++		bool mark_all_read(const std::string& feedurl);
++		bool mark_article_read(const std::string& guid, bool read);
++		bool update_article_flags(const std::string& oldflags, const std::string& newflags, const std::string& guid);
++		void add_custom_headers(curl_slist**);
+ 		rsspp::feed fetch_feed(const std::string& feed_id);
+ 	private:
+ 		typedef std::map<std::string, std::pair<rsspp::feed, long>> feedmap;
+@@ -35,10 +35,10 @@
+ class ocnews_urlreader : public urlreader {
+ 	public:
+ 		ocnews_urlreader(const std::string& url_file, remote_api * a);
+-		~ocnews_urlreader() override;
+-		void write_config() override;
+-		void reload() override;
+-		std::string get_source() override;
++		~ocnews_urlreader();
++		void write_config();
++		void reload();
++		std::string get_source();
+ 	private:
+ 		std::string file;
+ 		remote_api * api;
+--- include/oldreader_api.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/oldreader_api.h	2017-12-27 08:46:26.127351658 -0500
+@@ -10,13 +10,13 @@
+ class oldreader_api : public remote_api {
+ 	public:
+ 		explicit oldreader_api(configcontainer * c);
+-		~oldreader_api() override;
+-		bool authenticate() override;
+-		std::vector<tagged_feedurl> get_subscribed_urls() override;
+-		void add_custom_headers(curl_slist** custom_headers) override;
+-		bool mark_all_read(const std::string& feedurl) override;
+-		bool mark_article_read(const std::string& guid, bool read) override;
+-		bool update_article_flags(const std::string& oldflags, const std::string& newflags, const std::string& guid) override;
++		~oldreader_api();
++		bool authenticate();
++		std::vector<tagged_feedurl> get_subscribed_urls();
++		void add_custom_headers(curl_slist** custom_headers);
++		bool mark_all_read(const std::string& feedurl);
++		bool mark_article_read(const std::string& guid, bool read);
++		bool update_article_flags(const std::string& oldflags, const std::string& newflags, const std::string& guid);
+ 	private:
+ 		std::vector<std::string> get_tags(xmlNode * node);
+ 		std::string get_new_token();
+@@ -32,10 +32,10 @@
+ class oldreader_urlreader : public urlreader {
+ 	public:
+ 		oldreader_urlreader(configcontainer * c, const std::string& url_file, remote_api * a);
+-		~oldreader_urlreader() override;
+-		void write_config() override;
+-		void reload() override;
+-		std::string get_source() override;
++		~oldreader_urlreader();
++		void write_config();
++		void reload();
++		std::string get_source();
+ 	private:
+ 		configcontainer * cfg;
+ 		std::string file;
+--- include/regexmanager.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/regexmanager.h	2017-12-27 08:47:17.156692923 -0500
+@@ -14,9 +14,9 @@
+ class regexmanager : public config_action_handler {
+ 	public:
+ 		regexmanager();
+-		~regexmanager() override;
+-		void handle_action(const std::string& action, const std::vector<std::string>& params) override;
+-		void dump_config(std::vector<std::string>& config_output) override;
++		~regexmanager();
++		void handle_action(const std::string& action, const std::vector<std::string>& params);
++		void dump_config(std::vector<std::string>& config_output);
+ 		void quote_and_highlight(std::string& str, const std::string& location);
+ 		void remove_last_regex(const std::string& location);
+ 		int article_matches(matchable * item);
+--- include/rss.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/rss.h	2017-12-27 08:48:43.292268965 -0500
+@@ -24,7 +24,7 @@
+ class rss_item : public matchable {
+ 	public:
+ 		explicit rss_item(cache * c);
+-		~rss_item() override;
++		~rss_item();
+ 
+ 		std::string title() const;
+ 		std::string title_raw() const {
+@@ -116,8 +116,8 @@
+ 		void update_flags();
+ 		void sort_flags();
+ 
+-		bool has_attribute(const std::string& attribname) override;
+-		std::string get_attribute(const std::string& attribname) override;
++		bool has_attribute(const std::string& attribname);
++		std::string get_attribute(const std::string& attribname);
+ 
+ 		void set_feedptr(std::shared_ptr<rss_feed> ptr);
+ 		std::shared_ptr<rss_feed> get_feedptr() {
+@@ -183,7 +183,7 @@
+ 	public:
+ 		explicit rss_feed(cache * c);
+ 		rss_feed();
+-		~rss_feed() override;
++		~rss_feed();
+ 		std::string title_raw() const {
+ 			return title_;
+ 		}
+@@ -270,8 +270,8 @@
+ 		std::string get_tags();
+ 		std::string get_firsttag();
+ 
+-		bool has_attribute(const std::string& attribname) override;
+-		std::string get_attribute(const std::string& attribname) override;
++		bool has_attribute(const std::string& attribname);
++		std::string get_attribute(const std::string& attribname);
+ 
+ 		void update_items(std::vector<std::shared_ptr<rss_feed>> feeds);
+ 
+@@ -353,9 +353,9 @@
+ class rss_ignores : public config_action_handler {
+ 	public:
+ 		rss_ignores() { }
+-		~rss_ignores() override;
+-		void handle_action(const std::string& action, const std::vector<std::string>& params) override;
+-		void dump_config(std::vector<std::string>& config_output) override;
++		~rss_ignores();
++		void handle_action(const std::string& action, const std::vector<std::string>& params);
++		void dump_config(std::vector<std::string>& config_output);
+ 		bool matches(rss_item * item);
+ 		bool matches_lastmodified(const std::string& url);
+ 		bool matches_resetunread(const std::string& url);
+--- include/select_formaction.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/select_formaction.h	2017-12-27 08:49:32.838600312 -0500
+@@ -11,10 +11,10 @@
+ 		enum class selection_type { TAG, FILTER };
+ 
+ 		select_formaction(view *, std::string formstr);
+-		~select_formaction() override;
+-		void prepare() override;
+-		void init() override;
+-		keymap_hint_entry * get_keymap_hint() override;
++		~select_formaction();
++		void prepare();
++		void init();
++		keymap_hint_entry * get_keymap_hint();
+ 		std::string get_selected_value() {
+ 			return value;
+ 		}
+@@ -27,13 +27,13 @@
+ 		void set_type(selection_type t) {
+ 			type = t;
+ 		}
+-		void handle_cmdline(const std::string& cmd) override;
+-		std::string id() const override {
++		void handle_cmdline(const std::string& cmd);
++		std::string id() const {
+ 			return (type == selection_type::TAG) ? "tagselection" : "filterselection";
+ 		}
+-		std::string title() override;
++		std::string title();
+ 	private:
+-		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr) override;
++		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr);
+ 		bool quit;
+ 		selection_type type;
+ 		std::string value;
+--- include/ttrss_api.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/ttrss_api.h	2017-12-27 08:50:25.925955339 -0500
+@@ -11,15 +11,15 @@
+ class ttrss_api : public remote_api {
+ 	public:
+ 		explicit ttrss_api(configcontainer * c);
+-		~ttrss_api() override;
+-		bool authenticate() override;
++		~ttrss_api();
++		bool authenticate();
+ 		virtual struct json_object * run_op(const std::string& op, const std::map<std::string, std::string>& args,
+ 		                                    bool try_login = true);
+-		std::vector<tagged_feedurl> get_subscribed_urls() override;
+-		void add_custom_headers(curl_slist** custom_headers) override;
+-		bool mark_all_read(const std::string& feedurl) override;
+-		bool mark_article_read(const std::string& guid, bool read) override;
+-		bool update_article_flags(const std::string& oldflags, const std::string& newflags, const std::string& guid) override;
++		std::vector<tagged_feedurl> get_subscribed_urls();
++		void add_custom_headers(curl_slist** custom_headers);
++		bool mark_all_read(const std::string& feedurl);
++		bool mark_article_read(const std::string& guid, bool read);
++		bool update_article_flags(const std::string& oldflags, const std::string& newflags, const std::string& guid);
+ 		rsspp::feed fetch_feed(const std::string& id);
+ 		bool update_article(const std::string& guid, int mode, int field);
+ 	private:
+@@ -37,10 +37,10 @@
+ class ttrss_urlreader : public urlreader {
+ 	public:
+ 		ttrss_urlreader(const std::string& url_file, remote_api * a);
+-		~ttrss_urlreader() override;
+-		void write_config() override;
+-		void reload() override;
+-		std::string get_source() override;
++		~ttrss_urlreader();
++		void write_config();
++		void reload();
++		std::string get_source();
+ 	private:
+ 		std::string file;
+ 		remote_api * api;
+--- include/urlreader.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/urlreader.h	2017-12-27 08:51:18.249305258 -0500
+@@ -31,11 +31,11 @@
+ class file_urlreader : public urlreader {
+ 	public:
+ 		explicit file_urlreader(const std::string& file = "");
+-		~file_urlreader() override;
+-		void write_config() override;
+-		void reload() override;
++		~file_urlreader();
++		void write_config();
++		void reload();
+ 		void load_config(const std::string& file);
+-		std::string get_source() override;
++		std::string get_source();
+ 	private:
+ 		std::string filename;
+ };
+@@ -43,10 +43,10 @@
+ class opml_urlreader : public urlreader {
+ 	public:
+ 		explicit opml_urlreader(configcontainer * c);
+-		~opml_urlreader() override;
+-		void write_config() override;
+-		void reload() override;
+-		std::string get_source() override;
++		~opml_urlreader();
++		void write_config();
++		void reload();
++		std::string get_source();
+ 	protected:
+ 		virtual void handle_node(xmlNode * node, const std::string& tag);
+ 		configcontainer * cfg;
+--- include/urlview_formaction.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/urlview_formaction.h	2017-12-27 08:52:02.966604310 -0500
+@@ -9,20 +9,20 @@
+ class urlview_formaction : public formaction {
+ 	public:
+ 		urlview_formaction(view *, std::shared_ptr<rss_feed>& feed, std::string formstr);
+-		~urlview_formaction() override;
+-		void prepare() override;
+-		void init() override;
+-		keymap_hint_entry * get_keymap_hint() override;
++		~urlview_formaction();
++		void prepare();
++		void init();
++		keymap_hint_entry * get_keymap_hint();
+ 		void set_links(const std::vector<linkpair>& l) {
+ 			links = l;
+ 		}
+-		std::string id() const override {
++		std::string id() const {
+ 			return "urlview";
+ 		}
+-		std::string title() override;
+-		void handle_cmdline(const std::string& cmd) override;
++		std::string title();
++		void handle_cmdline(const std::string& cmd);
+ 	private:
+-		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr) override;
++		void process_operation(operation op, bool automatic = false, std::vector<std::string> * args = nullptr);
+ 		std::vector<linkpair> links;
+ 		bool quit;
+ 		std::shared_ptr<rss_feed> feed;
+--- include/fslock.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ include/fslock.h	2017-12-27 08:58:09.607056260 -0500
+@@ -14,7 +14,7 @@
+ 		bool try_lock(const std::string& lock_file, pid_t & pid);
+ 
+ 	private:
+-		bool locked = { false };
++		bool locked;
+ 		std::string lock_filepath;
+ };
+ 
+--- src/fslock.cpp.orig	2017-12-25 12:49:35.000000000 -0500
++++ src/fslock.cpp	2017-12-27 09:38:35.313278451 -0500
+@@ -15,6 +15,11 @@
+ 	LOG(level::DEBUG, "FSLock: removed lockfile %s", lock_filepath);
+ }
+ 
++FSLock::FSLock()
++{
++	locked = { false };
++}
++
+ FSLock::~FSLock()
+ {
+ 	if (locked) {
+--- rss/rsspp.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ rss/rsspp.h	2017-12-27 08:59:23.822552585 -0500
+@@ -66,8 +66,8 @@
+ class exception : public std::exception {
+ 	public:
+ 		explicit exception(const std::string& errmsg = "");
+-		~exception() throw() override;
+-		const char* what() const throw() override;
++		~exception() throw();
++		const char* what() const throw();
+ 	private:
+ 		std::string emsg;
+ };
+--- rss/rsspp_internal.h.orig	2017-12-25 12:49:35.000000000 -0500
++++ rss/rsspp_internal.h	2017-12-27 09:00:47.736113767 -0500
+@@ -36,9 +36,9 @@
+ };
+ 
+ struct rss_09x_parser : public rss_parser {
+-		void parse_feed(feed& f, xmlNode * rootNode) override;
++		void parse_feed(feed& f, xmlNode * rootNode);
+ 		explicit rss_09x_parser(xmlDocPtr doc) : rss_parser(doc), ns(nullptr) { }
+-		~rss_09x_parser() override;
++		~rss_09x_parser();
+ 	protected:
+ 		const char * ns;
+ 	private:
+@@ -47,21 +47,21 @@
+ 
+ struct rss_20_parser : public rss_09x_parser {
+ 	explicit rss_20_parser(xmlDocPtr doc) : rss_09x_parser(doc) { }
+-	void parse_feed(feed& f, xmlNode * rootNode) override;
+-	~rss_20_parser() override { }
++	void parse_feed(feed& f, xmlNode * rootNode);
++	~rss_20_parser() { }
+ };
+ 
+ struct rss_10_parser : public rss_parser {
+-	void parse_feed(feed& f, xmlNode * rootNode) override;
++	void parse_feed(feed& f, xmlNode * rootNode);
+ 	explicit rss_10_parser(xmlDocPtr doc) : rss_parser(doc) { }
+-	~rss_10_parser() override { }
++	~rss_10_parser() { }
+ };
+ 
+ 
+ struct atom_parser : public rss_parser {
+-		void parse_feed(feed& f, xmlNode * rootNode) override;
++		void parse_feed(feed& f, xmlNode * rootNode);
+ 		explicit atom_parser(xmlDocPtr doc) : rss_parser(doc), ns(0) { }
+-		~atom_parser() override { }
++		~atom_parser() { }
+ 	private:
+ 		item parse_entry(xmlNode * itemNode);
+ 		const char * ns;
+--- src/textformatter.cpp.orig	2017-12-25 12:49:35.000000000 -0500
++++ src/textformatter.cpp	2017-12-27 09:28:32.097244374 -0500
+@@ -58,7 +58,7 @@
+ 	if (iswhitespace(words[0])) {
+ 		prefix = utils::substr_with_width(words[0], width);
+ 		prefix_width = utils::strwidth_stfl(prefix);
+-		words.erase(words.cbegin());
++		words.erase(words.begin());
+ 	}
+ 
+ 	std::string curline = prefix;
+--- doc/gen-example-config.cpp.orig	2017-12-25 12:49:35.000000000 -0500
++++ doc/gen-example-config.cpp	2017-12-27 09:48:23.481211892 -0500
+@@ -5,7 +5,7 @@
+ std::string to80Columns(std::string input) {
+ 	std::istringstream s(input);
+ 	const std::string prefix  = "#";
+-	const int limit = 80;
++	const unsigned int limit = 80;
+ 	std::string result;
+ 	std::string curline = prefix;
+ 
