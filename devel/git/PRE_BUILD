@@ -1,10 +1,30 @@
-default_pre_build &&
-cd "$SOURCE_DIRECTORY" &&
+function new_unpack()
+{
+  local sourcefile="SOURCE${1}" &&
+
+  message "${MESSAGE_COLOR}unxz ${SOURCE_CACHE}/${!sourcefile}${DEFAULT_COLOR}" &&
+  unxz -k "${SOURCE_CACHE}/${!sourcefile}" &&
+  eval "SOURCE${1}=${!sourcefile%.xz}" &&
+  unpack_file "${1}" &&
+
+  message "${MESSAGE_COLOR}rm ${SOURCE_CACHE}/${!sourcefile}${DEFAULT_COLOR}" &&
+  rm "${SOURCE_CACHE}/${!sourcefile}" &&
+
+  eval "SOURCE${1}=${!sourcefile}.xz"
+}
+
+cd "${BUILD_DIRECTORY}" &&
+
+mk_source_dir "${SOURCE_DIRECTORY}" &&
+
+new_unpack "" &&
+
+cd "${SOURCE_DIRECTORY}" &&
 
 if [[ $GIT_DOC == manpages || $GIT_DOC == both ]]; then
-  unpack_file 3
+  new_unpack "3"
 fi &&
 
 if [[ $GIT_DOC == htmldocs || $GIT_DOC == both ]]; then
-  unpack_file 5
+  mew_unpack "5"
 fi
