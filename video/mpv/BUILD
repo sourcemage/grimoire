@@ -18,5 +18,5 @@ if is_depends_enabled $SPELL $(get_spell_provider $SPELL OPENGL); then
   fi
 fi &&
 
-OPTS+=" --confdir=$INSTALL_ROOT/etc/mpv" &&
+OPTS+=" --bindir=${INSTALL_ROOT}/usr/bin --confdir=${INSTALL_ROOT}/etc/mpv" &&
 waf_build
