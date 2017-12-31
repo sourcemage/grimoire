@@ -1,12 +1,20 @@
+. "$GRIMOIRE"/FUNCTIONS
+# Not using the normal depender check as there is indirect use
+# of the fake lib that enters libtool files.
 if spell_ok $SPELL; then
   local OLD_SPELL_VERSION="$(installed_version $SPELL)"
-  if [[ "${VERSION}" != "${OLD_SPELL_VERSION}" ]] &&
-     [[ "${OLD_SPELL_VERSION}" < 0.3 ]]; then
+  if is_version_less $OLD_SPELL_VERSION 0.4; then
     message "This is an ABI incompatible update of libpthread-stubs..."
     message "Determining which spells need to be recast, this may take a while."
 
+    # There are spells wich do not link to the .so, but still have the .la
+    # in dependencies in their .la file (giflib), inherited. So first check for
+    # that and also for actual linkage.
     for other_spell in $(gaze installed | cut -d: -f1); do
       if gaze install $other_spell \
+	 | grep '\.la$' \
+	 | xargs grep -q 'libpthread-stubs' ||
+	 gaze install $other_spell \
          | xargs file -e apptype -e ascii -e compress -e tar \
          | grep '\<ELF\>.*\<dynamically linked\>' \
          | cut -d: -f1 \
@@ -17,3 +25,4 @@ if spell_ok $SPELL; then
     done
   fi
 fi
+
