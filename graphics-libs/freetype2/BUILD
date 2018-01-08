@@ -9,19 +9,13 @@ disable_ftoption() {
 if [[ ${FT2_BYTECODE} == "n" ]]; then
   disable_ftoption TT_CONFIG_OPTION_BYTECODE_INTERPRETER
 else
-  case ${FT2_SUBPIXEL_HINTING} in
-      new)
-          true ;; # default
-      old)
-          enable_ftoption "TT_CONFIG_OPTION_SUBPIXEL_HINTING[ \t]+1" &&
-          disable_ftoption "TT_CONFIG_OPTION_SUBPIXEL_HINTING[ \t]+2" ;;
-     both)
-          disable_ftoption "TT_CONFIG_OPTION_SUBPIXEL_HINTING[ \t]+2" &&
-          enable_ftoption "TT_CONFIG_OPTION_SUBPIXEL_HINTING[ \t]+\( 1 \| 2 \)" ;;
-        *)
-          message "${PROBLEM_COLOR}Broken configuration, try cast -r ${SPELL}${DEFAULT_COLOR}" &&
-          return 1 ;;
-  esac
+  if [[ "${FT2_SUBPIXEL_HINTING}" == "old" ]]; then
+    enable_ftoption "TT_CONFIG_OPTION_SUBPIXEL_HINTING[ \t]+1" &&
+    disable_ftoption "TT_CONFIG_OPTION_SUBPIXEL_HINTING[ \t]+2"
+  elif [[ "${FT2_SUBPIXEL_HINTING}" == "both" ]]; then
+    disable_ftoption "TT_CONFIG_OPTION_SUBPIXEL_HINTING[ \t]+2" &&
+    enable_ftoption "TT_CONFIG_OPTION_SUBPIXEL_HINTING[ \t]+\( 1 \| 2 \)"
+  fi
 fi &&
 
 if [[ ${FT2_SUBPIXEL} == "y" ]]; then
