@@ -454,7 +454,7 @@
  class sinsp_bearer_token
 --- userspace/libsinsp/socket_handler.h.orig	2016-10-25 18:43:37.000000000 -0400
 +++ userspace/libsinsp/socket_handler.h	2016-10-26 15:25:11.790901756 -0400
-@@ -64,12 +64,32 @@
+@@ -85,12 +85,32 @@
  			m_url(url),
  			m_keep_alive(keep_alive ? std::string("Connection: keep-alive\r\n") : std::string()),
  			m_path(path.empty() ? m_url.get_path() : path),
@@ -487,7 +487,7 @@
  			m_data_limit(data_limit),
  			m_fetching_state(fetching_state)
  
-@@ -1514,11 +1534,13 @@
+@@ -1549,11 +1569,13 @@
  
  	struct http_parser_data
  	{
@@ -506,7 +506,18 @@
  	};
  
  	static int http_body_callback(http_parser* parser, const char* data, size_t len)
-@@ -1645,43 +1667,43 @@
+@@ -1672,8 +1694,8 @@
+	return http_reason::get(status);
+    }
+ 
+-	using gaicb_t = std::unique_ptr<struct gaicb* [], gaicb_free>;
+-	using dns_list_t = std::deque<gaicb_t>;
++	typedef std::unique_ptr<struct gaicb* [], gaicb_free> gaicb_t;
++	typedef std::deque<gaicb_t> dns_list_t;
+ 
+    gaicb_t make_gaicb(const std::string &host)
+    {
+@@ -1689,43 +1711,43 @@
  	std::string              m_keep_alive;
  	std::string              m_path;
  	std::string              m_address;
@@ -526,9 +537,9 @@
 +	bool                     m_blocking;
  	std::vector<char>        m_buf;
 -	int                      m_sock_err = 0;
--	struct gaicb**           m_dns_reqs = nullptr;
+-	gaicb_t m_dns_reqs = nullptr;
 +	int                      m_sock_err;
-+	struct gaicb**           m_dns_reqs;
++	gaicb_t                  m_dns_reqs;
  	static dns_list_t        m_pending_dns_reqs;
  	ssl_ptr_t                m_ssl;
  	bt_ptr_t                 m_bt;
@@ -573,7 +584,7 @@
  
  	// older versions of kubernetes send pretty-printed JSON by default;
  	// that creates a problem with JSON-newline-delimit-based detection logic,
-@@ -1692,7 +1714,7 @@
+@@ -1736,7 +1758,7 @@
  	// this flag is true by default and it remains true until the first state http
  	// request for this handler is completed, at which point all newlines are purged
  	// from the string and the purged buffer is posted for further processing
@@ -902,3 +913,16 @@
  	}
  
  	return it->second->tostring(evt, res);
+--- userspace/libsinsp/json_error_log.cpp.orig	2018-01-18 17:17:32.000000000 -0500
++++ userspace/libsinsp/json_error_log.cpp	2018-01-19 09:50:04.424016332 -0500
+@@ -89,8 +89,8 @@
+ 	if(it == m_buckets.end() ||
+ 	   it->first != uri)
+ 	{
+-		it = m_buckets.emplace_hint(it,
+-					    std::make_pair(uri, token_bucket()));
++		it = m_buckets.insert(it,
++				      std::move(std::make_pair(uri, token_bucket())));
+ 
+ 		it->second.init(m_events_rate, m_events_max_burst);
+ 	}
