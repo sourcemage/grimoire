@@ -1,0 +1,53 @@
+From 1b1ddba7caa751100f8500e1fa866e2d72a11d10 Mon Sep 17 00:00:00 2001
+From: eumagga0x2a <eumagga0x2a@users.noreply.github.com>
+Date: Mon, 22 Jan 2018 10:31:47 +0100
+Subject: [PATCH] [coreSocket/jobs] Initialize localPort, use printf macros
+ matching the data type
+
+---
+ avidemux/qt4/ADM_jobs/src/ADM_jobControl.cpp        | 5 +++--
+ avidemux_core/ADM_coreSocket/src/ADM_coreSocket.cpp | 4 ++--
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/avidemux/qt4/ADM_jobs/src/ADM_jobControl.cpp b/avidemux/qt4/ADM_jobs/src/ADM_jobControl.cpp
+index f441b0e10..95244bed5 100644
+--- a/avidemux/qt4/ADM_jobs/src/ADM_jobControl.cpp
++++ b/avidemux/qt4/ADM_jobs/src/ADM_jobControl.cpp
+@@ -165,12 +165,13 @@ jobWindow::jobWindow(void) : QDialog()
+    connect(ui.pushButtonCleanup,SIGNAL(pressed()),this,SLOT(cleanup()));
+ 
+     // Start our socket
+-   if(false==mySocket.createBindAndAccept(&localPort))
++    localPort=0;
++    if(false==mySocket.createBindAndAccept(&localPort))
+     {
+         popup("Cannot bind socket");
+         exit(-1);
+     }
+-    ADM_info("Socket bound to %d\n",(int)localPort);
++    ADM_info("Socket bound to %" PRIu32"\n",localPort);
+     //ADM_socket *n=mySocket.waitForConnect(5000);
+     refreshList();
+     dialog=NULL;
+diff --git a/avidemux_core/ADM_coreSocket/src/ADM_coreSocket.cpp b/avidemux_core/ADM_coreSocket/src/ADM_coreSocket.cpp
+index 8add543ed..db42a7e97 100644
+--- a/avidemux_core/ADM_coreSocket/src/ADM_coreSocket.cpp
++++ b/avidemux_core/ADM_coreSocket/src/ADM_coreSocket.cpp
+@@ -184,7 +184,7 @@ if (setsockopt(mySocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+     ADM_error("Oops : setsockopt(SO_REUSEADDR) failed\n");
+ #endif
+ 
+-  ADM_info("Binding on %s:%d\n",BIND_ADR,*port);
++  ADM_info("Binding on %s:%" PRIu32"\n",BIND_ADR,*port);
+   sockaddr_in service;
+   service.sin_family = AF_INET;
+   service.sin_addr.s_addr = inet_addr(BIND_ADR);
+@@ -209,7 +209,7 @@ if (setsockopt(mySocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+     *port= ntohs ( ((SADDR_IN *)&service)->sin_port ); 
+      
+    // Set high buffer + low delay
+-    ADM_info("Socket bound to port %u\n",(unsigned int)*port);
++    ADM_info("Socket bound to port %" PRIu32"\n",*port);
+ 
+     int er=listen(mySocket,1);
+ 	if(er)
