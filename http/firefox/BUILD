@@ -53,12 +53,5 @@ for option in $OPTS; do
   echo "ac_add_options $option" >> .mozconfig
 done &&
 
-local MAKE_TARGET &&
-if [[ $FIREFOX_PGO == y ]]; then
-  MAKE_TARGET=profiledbuild
-else
-  MAKE_TARGET=build
-fi &&
-
 echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
-make -f client.mk $MAKE_TARGET
+./mach build

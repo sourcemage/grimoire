@@ -4,51 +4,32 @@ Allow building against system-wide graphite2.
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=847568
 
-diff --git a/config/Makefile.in b/config/Makefile.in
---- a/config/Makefile.in
-+++ b/config/Makefile.in
-@@ -36,16 +36,17 @@ ifdef WRAP_SYSTEM_INCLUDES
- export-preqs = \
-   $(call mkdir_deps,system_wrappers) \
-   $(NULL)
+diff --git a/config/system-headers.mozbuild b/config/system-headers.mozbuild
+--- a/config/system-headers.mozbuild
++++ b/config/system-headers.mozbuild
+@@ -1235,16 +1235,22 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'andr
  
- export:: $(export-preqs)
- 	$(PYTHON) -m mozbuild.action.preprocessor $(DEFINES) $(ACDEFINES) \
- 		-DMOZ_TREE_CAIRO=$(MOZ_TREE_CAIRO) \
- 		-DMOZ_TREE_PIXMAN=$(MOZ_TREE_PIXMAN) \
-+		-DMOZ_SYSTEM_GRAPHITE2=$(MOZ_SYSTEM_GRAPHITE2) \
- 		-DMOZ_SYSTEM_HARFBUZZ=$(MOZ_SYSTEM_HARFBUZZ) \
- 		-DMOZ_SYSTEM_HUNSPELL=$(MOZ_SYSTEM_HUNSPELL) \
- 		-DMOZ_SYSTEM_BZ2=$(MOZ_SYSTEM_BZ2) \
- 		-DMOZ_SYSTEM_ZLIB=$(MOZ_SYSTEM_ZLIB) \
- 		-DMOZ_SYSTEM_PNG=$(MOZ_SYSTEM_PNG) \
- 		-DMOZ_SYSTEM_JPEG=$(MOZ_SYSTEM_JPEG) \
- 		-DMOZ_SYSTEM_LIBEVENT=$(MOZ_SYSTEM_LIBEVENT) \
- 		-DMOZ_SYSTEM_LIBVPX=$(MOZ_SYSTEM_LIBVPX) \
-diff --git a/config/system-headers b/config/system-headers
---- a/config/system-headers
-+++ b/config/system-headers
-@@ -1262,16 +1262,20 @@ zlib.h
- #ifdef MOZ_ENABLE_STARTUP_NOTIFICATION
- libsn/sn.h
- libsn/sn-common.h
- libsn/sn-launchee.h
- libsn/sn-launcher.h
- libsn/sn-monitor.h
- libsn/sn-util.h
- #endif
-+#if MOZ_SYSTEM_GRAPHITE2==1
-+graphite2/Font.h
-+graphite2/Segment.h
-+#endif
- #if MOZ_SYSTEM_HARFBUZZ==1
- harfbuzz/hb-glib.h
- harfbuzz/hb-ot.h
- harfbuzz/hb.h
- #endif
- #if MOZ_SYSTEM_HUNSPELL==1
- hunspell.hxx
- #endif
+ if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
+     system_headers += [
+ 	'harfbuzz/hb-glib.h',
+ 	'harfbuzz/hb-ot.h',
+ 	'harfbuzz/hb.h',
+     ]
+ 
++if CONFIG['MOZ_SYSTEM_GRAPHITE2']:
++    system_headers += [
++	'graphite2/Font.h',
++	'graphite2/Segment.h',
++    ]
++
+ if CONFIG['MOZ_JACK']:
+     system_headers += [
+         'jack/jack.h',
+         'jack/statistics.h',
+     ]
+ 
+ if CONFIG['MOZ_SYSTEM_JPEG']:
+     system_headers += [
 diff --git a/gfx/graphite2/moz-gr-update.sh b/gfx/graphite2/moz-gr-update.sh
 --- a/gfx/graphite2/moz-gr-update.sh
 +++ b/gfx/graphite2/moz-gr-update.sh
@@ -131,7 +112,7 @@ diff --git a/gfx/moz.build b/gfx/moz.build
 diff --git a/gfx/thebes/moz.build b/gfx/thebes/moz.build
 --- a/gfx/thebes/moz.build
 +++ b/gfx/thebes/moz.build
-@@ -266,16 +266,19 @@ CFLAGS += CONFIG['TK_CFLAGS']
+@@ -262,16 +262,19 @@ CFLAGS += CONFIG['TK_CFLAGS']
  if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('android'):
      CXXFLAGS += CONFIG['CAIRO_FT_CFLAGS']
  
@@ -155,7 +136,7 @@ diff --git a/gfx/thebes/moz.build b/gfx/thebes/moz.build
 diff --git a/old-configure.in b/old-configure.in
 --- a/old-configure.in
 +++ b/old-configure.in
-@@ -4378,16 +4378,37 @@ if test "$USE_FC_FREETYPE"; then
+@@ -4242,16 +4242,37 @@ if test "$USE_FC_FREETYPE"; then
          CPPFLAGS="$CPPFLAGS $FT2_CFLAGS $XCFLAGS"
          MOZ_CHECK_HEADERS([fontconfig/fcfreetype.h], ,
              [AC_MSG_ERROR(Can't find header fontconfig/fcfreetype.h.)], [#include <fontconfig/fontconfig.h>])
@@ -196,7 +177,7 @@ diff --git a/old-configure.in b/old-configure.in
 diff --git a/toolkit/library/moz.build b/toolkit/library/moz.build
 --- a/toolkit/library/moz.build
 +++ b/toolkit/library/moz.build
-@@ -207,16 +207,19 @@ if CONFIG['SERVO_TARGET_DIR']:
+@@ -226,16 +226,19 @@ if CONFIG['SERVO_TARGET_DIR']:
          OS_LIBS += ['-L%s' % CONFIG['SERVO_TARGET_DIR'], '-lgeckoservo']
  
  if CONFIG['MOZ_SYSTEM_JPEG']:
@@ -219,7 +200,7 @@ diff --git a/toolkit/library/moz.build b/toolkit/library/moz.build
 diff --git a/toolkit/moz.configure b/toolkit/moz.configure
 --- a/toolkit/moz.configure
 +++ b/toolkit/moz.configure
-@@ -309,16 +309,30 @@ def freetype2_combined_info(fontconfig_i
+@@ -312,16 +312,30 @@ def freetype2_combined_info(fontconfig_i
      return namespace(
          cflags=freetype2_info.cflags + fontconfig_info.cflags,
          libs=freetype2_info.libs + fontconfig_info.libs,
