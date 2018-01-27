@@ -1,0 +1,3 @@
+OPTS+=" -DCMAKE_CXX_STANDARD=14" &&
+OPTS+=" -DPACKAGERS_BUILD=OFF" &&
+default_build
