@@ -5,12 +5,10 @@ if [[ $UTF8 == y ]]; then
   OPTS="$OPTS  --enable-widec"
 fi  &&
 OPTS="$OPTS --with-shared --libdir=${TRACK_ROOT}/lib --enable-pc-files"  &&
-make_single &&
   ./configure --prefix=${TRACK_ROOT}/usr  \
           --sysconfdir=${TRACK_ROOT}/etc  \
        --localstatedir=${TRACK_ROOT}/var  \
               --mandir=${TRACK_ROOT}/usr/share/man   \
              --infodir=${TRACK_ROOT}/usr/share/info  \
                        $OPTS                 &&
-  make DESTDIR=$INSTALL_ROOT &&
-make_normal
+  make DESTDIR=$INSTALL_ROOT
