@@ -19,9 +19,19 @@ function default_build_haskell() {
   local setup_file &&
 
   setup_file=$(detect_setup_file) &&
-  runhaskell $setup_file configure --prefix=${INSTALL_ROOT}/usr $OPTS &&
+  runhaskell $setup_file configure -O2 --enable-shared --enable-executable-dynamic \
+    --disable-library-vanilla --prefix=${INSTALL_ROOT}/usr \
+    --docdir=${INSTALL_ROOT}/usr/share/doc/$SPELL --global $OPTS &&
   runhaskell $setup_file build -j${MAKE_NJOBS} ||
-  runhaskell $setup_file build
+  runhaskell $setup_file build &&
+  runhaskell $setup_file register --gen-script   &&
+  runhaskell $setup_file unregister --gen-script &&
+  if [[ -f register.sh ]]; then
+    sed -i -r -e "s|ghc-pkg.*update[^ ]* |&'--force' |" register.sh
+  fi &&
+  if [[ -f unregister.sh ]]; then
+    sed -i -r -e "s|ghc-pkg.*unregister[^ ]* |&'--force' |" unregister.sh
+  fi
 }
 
 #-------------------------------------------------------------------------
@@ -33,6 +43,12 @@ function default_install_haskell() {
   local share_dir  &&
 
   setup_file=$(detect_setup_file) &&
+
+  if [[ -f register.sh ]]; then
+    install -D -m744 register.sh   "$INSTALL_ROOT/usr/share/haskell/register/${SPELL}.sh"   &&
+    install -D -m744 unregister.sh "$INSTALL_ROOT/usr/share/haskell/unregister/${SPELL}.sh"
+  fi
+
   runhaskell $setup_file install  &&
   cabal_file=$(ls *.cabal)        &&
   share_dir=${INSTALL_ROOT}/usr/share/${SPELL} &&
