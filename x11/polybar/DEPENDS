@@ -1,0 +1,75 @@
+depends cmake &&
+depends pkgconfig &&
+# required for generating headers
+depends python &&
+
+optional_depends llvm \
+                 "-DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++" \
+                 "" \
+                 "to build polybar with clang++" &&
+
+if is_depends_enabled ${SPELL} llvm; then
+  depends libc++ "-DCXXLIB_CLANG=ON"
+else
+  depends -sub CXX gcc "-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCXXLIB_GCC=ON"
+fi &&
+
+depends freetype2 &&
+depends fontconfig &&
+depends cairo &&
+depends xcb-proto &&
+depends libxcb &&
+
+# TODO: split XCB sub-dependencies
+# depends -sub RANDR libxcb
+# depends -sub RENDER libxcb
+# depends -sub DAMAGE libxcb
+# depends -sub SYNC libxcb
+# depends -sub COMPOSITE libxcb
+# depends -sub XKB libxcb
+
+optional_depends ccache \
+                 "-DENABLE_CCACHE=ON" \
+                 "-DENABLE_CCACHE=OFF" \
+                 "to use ccache during build" &&
+
+optional_depends alsa-lib \
+                 "-DENABLE_ALSA=ON" \
+                 "-DENABLE_ALSA=OFF" \
+                 "for ALSA volume controls" &&
+
+optional_depends curl \
+                 "-DENABLE_CURL=ON" \
+                 "-DENABLE_CURL=OFF" \
+                 "for GitHub notifications" &&
+
+if list_find "${POLYBAR_OPTS}" "-DENABLE_I3=ON"; then
+  depends i3 &&
+  depends jsoncpp
+fi &&
+
+optional_depends libmpdclient \
+                 "-DENABLE_MPD=ON" \
+                 "-DENABLE_MPD=OFF" \
+                 "for MPD playback controls and status display" &&
+
+optional_depends wireless_tools \
+                 "-DENABLE_NETWORK=ON" \
+                 "-DENABLE_NETWORK=OFF" \
+                 "for network connection details" &&
+
+optional_depends xcb-util-cursor \
+                 "-DWITH_XCURSOR=ON" \
+                 "-DWITH_XCURSOR=OFF" \
+                 "for cursor properties support" &&
+
+optional_depends xcb-util-xrm \
+                 "-DWITH_XRM=ON" \
+                 "-DWITH_XRM=OFF" \
+                 "for X resources fetch support" &&
+
+optional_depends xcb-util-wm "" "" "for workspace and wm properties support" &&
+optional_depends xcb-util-image "" "" "for systray icons support" &&
+
+suggest_depends unifont "" "" "to use Unifont" &&
+suggest_depends siji "" "" "to use iconic font Siji"
