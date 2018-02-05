@@ -1,1 +1,1 @@
-default_build_make
+make PREFIX="${INSTALL_ROOT}/usr"
