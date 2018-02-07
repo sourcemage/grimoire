@@ -7,10 +7,10 @@ unset DBUS_SESSION_BUS_ADDRESS \
         SESSION_MANAGER \
         XDG_SESSION_COOKIE \
         XAUTHORITY &&
-export LIBGL_ALWAYS_INDIRECT=1
+export LIBGL_ALWAYS_INDIRECT=1 &&
 
 # System rustc has no debuginfo
-export RUSTFLAGS="-C debuginfo=0"
+export RUSTFLAGS="-C debuginfo=0" &&
 
 #
 # No fast optimization for Mozilla, bit us so many times...
