@@ -1,0 +1,77 @@
+From 9cf8d57f51738bcc570d042192cacb6a83039865 Mon Sep 17 00:00:00 2001
+From: Thomas Waldmann <tw@waldmann-edv.de>
+Date: Sat, 27 Jan 2018 19:49:42 +0100
+Subject: [PATCH] do .h file content checks in binary mode, fixes #3544
+
+we can't know the encoding header file authors will use,
+so using binary for our simple checks is the safest way.
+---
+ setup.py      | 4 ++--
+ setup_b2.py   | 4 ++--
+ setup_lz4.py  | 4 ++--
+ setup_zstd.py | 4 ++--
+ 4 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/setup.py b/setup.py
+index a81100df..e7dd05cc 100644
+--- a/setup.py
++++ b/setup.py
+@@ -149,8 +149,8 @@ def detect_openssl(prefixes):
+     for prefix in prefixes:
+         filename = os.path.join(prefix, 'include', 'openssl', 'evp.h')
+         if os.path.exists(filename):
+-            with open(filename, 'r') as fd:
+-                if 'PKCS5_PBKDF2_HMAC(' in fd.read():
++            with open(filename, 'rb') as fd:
++                if b'PKCS5_PBKDF2_HMAC(' in fd.read():
+                     return prefix
+ 
+ 
+diff --git a/setup_b2.py b/setup_b2.py
+index e69e0cdf..e775d9b7 100644
+--- a/setup_b2.py
++++ b/setup_b2.py
+@@ -24,8 +24,8 @@ def b2_system_prefix(prefixes):
+     for prefix in prefixes:
+         filename = os.path.join(prefix, 'include', 'blake2.h')
+         if os.path.exists(filename):
+-            with open(filename, 'r') as fd:
+-                if 'blake2b_init' in fd.read():
++            with open(filename, 'rb') as fd:
++                if b'blake2b_init' in fd.read():
+                     return prefix
+ 
+ 
+diff --git a/setup_lz4.py b/setup_lz4.py
+index 6e6c63f8..e6d0ddb4 100644
+--- a/setup_lz4.py
++++ b/setup_lz4.py
+@@ -24,8 +24,8 @@ def lz4_system_prefix(prefixes):
+     for prefix in prefixes:
+         filename = os.path.join(prefix, 'include', 'lz4.h')
+         if os.path.exists(filename):
+-            with open(filename, 'r') as fd:
+-                if 'LZ4_compress_default' in fd.read():  # requires lz4 >= 1.7.0 (r129)
++            with open(filename, 'rb') as fd:
++                if b'LZ4_compress_default' in fd.read():  # requires lz4 >= 1.7.0 (r129)
+                     return prefix
+ 
+ 
+diff --git a/setup_zstd.py b/setup_zstd.py
+index bf23cb58..f796c35f 100644
+--- a/setup_zstd.py
++++ b/setup_zstd.py
+@@ -66,8 +66,8 @@ def zstd_system_prefix(prefixes):
+     for prefix in prefixes:
+         filename = os.path.join(prefix, 'include', 'zstd.h')
+         if os.path.exists(filename):
+-            with open(filename, 'r') as fd:
+-                if 'ZSTD_getFrameContentSize' in fd.read():  # checks for zstd >= 1.3.0
++            with open(filename, 'rb') as fd:
++                if b'ZSTD_getFrameContentSize' in fd.read():  # checks for zstd >= 1.3.0
+                     return prefix
+ 
+ 
+-- 
+2.16.1
+
