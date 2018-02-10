@@ -1,0 +1,36 @@
+depends cmake &&
+depends pkgconfig &&
+depends libyaml &&
+
+optional_depends taglib \
+                 "-DWITH_TAGLIB=ON" \
+                 "-DWITHOUT_TAGLIB=ON" \
+                 "for TagLib backend support" &&
+
+optional_depends flac \
+                 "-DWITH_FLAC=ON" \
+                 "-DWITHOUT_FLAC=ON" \
+                 "for libFLAC backend support" &&
+
+optional_depends libvorbis \
+                 "-DWITH_OGGVORBIS=ON" \
+                 "-DWITHOUT_OGGVORBIS=ON" \
+                 "for libvorbis backend support" &&
+
+if is_depends_enabled ${SPELL} libvorbis; then
+  depends libogg
+fi &&
+
+optional_depends jansson \
+                 "-DWITH_JSON=ON" \
+                 "-DWITHOUT_JSON=ON" \
+                 "for JSON output format support" &&
+
+if ! is_depends_enabled ${SPELL} taglib && \
+   ! is_depends_enabled ${SPELL} flac && \
+   ! is_depends_enabled ${SPELL} libvorbis && \
+   ! list_find "${TAGUTIL_OPTS}" "-DWITH_ID3V1=ON"; then
+  message "${PROBLEM_COLOR}No backends selected, choose at least one.${DEFAULT_COLOR}" &&
+
+  return 1
+fi
