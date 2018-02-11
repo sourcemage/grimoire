@@ -4,4 +4,4 @@
             --unidir="$INSTALL_ROOT/usr/share/consoletrans" \
             --x11dir="$INSTALL_ROOT/usr/share/fonts/X11/misc" &&
 
-make psf txt pcf
+make pcf psf
