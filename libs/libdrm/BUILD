@@ -1,21 +1,11 @@
-if [[ $LIBDRM_AMD == y ]]; then
-  OPTS="--enable-amdgpu $OPTS"
-else
-  OPTS="--disable-amdgpu $OPTS"
-fi  &&
-if [[ $LIBDRM_NV == y ]]; then
-  OPTS="--enable-nouveau $OPTS"
-else
-  OPTS="--disable-nouveau $OPTS"
-fi  &&
-if [[ $LIBDRM_INTEL == n ]]; then
-  OPTS="--disable-intel $OPTS"
-else
-  OPTS="--enable-intel $OPTS"
-fi  &&
-if [[ $LIBDRM_RADEON == y ]]; then
-  OPTS="--enable-radeon $OPTS"
-else
-  OPTS="--disable-radeon $OPTS"
-fi  &&
+PREFIX=$INSTALL_ROOT/usr &&
+for API in $DRM_API;do
+  OPTS+=" $API=true"
+done &&
+# exclude all others
+for EXC in $DRM_ALL;do
+  if ! list_find "$DRM_API" $EXC;then
+     OPTS+=" $EXC=false"
+  fi
+done &&
 default_build
