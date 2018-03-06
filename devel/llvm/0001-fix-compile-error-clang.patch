@@ -1,0 +1,134 @@
+From ee4a6fe5c67503dbda7ae1afe7242ee495b2a3ec Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+Date: Wed, 20 Dec 2017 23:46:41 +0100
+Subject: [PATCH] fix compile error
+
+diff -Naupr llvm-5.0.1.src/tools/clang/lib/Driver/ToolChains/CommonArgs.cpp llvm-5.0.1.src.backup/tools/clang/lib/Driver/ToolChains/CommonArgs.cpp
+--- llvm-5.0.1.src/tools/clang/lib/Driver/ToolChains/CommonArgs.cpp	2017-07-04 21:55:56.000000000 +0200
++++ llvm-5.0.1.src.backup/tools/clang/lib/Driver/ToolChains/CommonArgs.cpp	2017-12-22 14:16:54.892562370 +0100
+@@ -751,11 +751,11 @@ tools::ParsePICArgs(const ToolChain &Too
+   const llvm::Triple &Triple = ToolChain.getTriple();
+ 
+   bool PIE = ToolChain.isPIEDefault();
+-  bool PIC = PIE || ToolChain.isPICDefault();
++  bool pic = PIE || ToolChain.isPICDefault();
+   // The Darwin/MachO default to use PIC does not apply when using -static.
+   if (Triple.isOSBinFormatMachO() && Args.hasArg(options::OPT_static))
+-    PIE = PIC = false;
+-  bool IsPICLevelTwo = PIC;
++    PIE = pic = false;
++  bool IsPICLevelTwo = pic;
+ 
+   bool KernelOrKext =
+       Args.hasArg(options::OPT_mkernel, options::OPT_fapple_kext);
+@@ -772,12 +772,12 @@ tools::ParsePICArgs(const ToolChain &Too
+     case llvm::Triple::mipsel:
+     case llvm::Triple::mips64:
+     case llvm::Triple::mips64el:
+-      PIC = true; // "-fpic"
++      pic = true; // "-fpic"
+       break;
+ 
+     case llvm::Triple::x86:
+     case llvm::Triple::x86_64:
+-      PIC = true; // "-fPIC"
++      pic = true; // "-fPIC"
+       IsPICLevelTwo = true;
+       break;
+ 
+@@ -837,17 +837,17 @@ tools::ParsePICArgs(const ToolChain &Too
+       if (O.matches(options::OPT_fPIC) || O.matches(options::OPT_fpic) ||
+           O.matches(options::OPT_fPIE) || O.matches(options::OPT_fpie)) {
+         PIE = O.matches(options::OPT_fPIE) || O.matches(options::OPT_fpie);
+-        PIC =
++        pic =
+             PIE || O.matches(options::OPT_fPIC) || O.matches(options::OPT_fpic);
+         IsPICLevelTwo =
+             O.matches(options::OPT_fPIE) || O.matches(options::OPT_fPIC);
+       } else {
+-        PIE = PIC = false;
++        PIE = pic = false;
+         if (EffectiveTriple.isPS4CPU()) {
+           Arg *ModelArg = Args.getLastArg(options::OPT_mcmodel_EQ);
+           StringRef Model = ModelArg ? ModelArg->getValue() : "";
+           if (Model != "kernel") {
+-            PIC = true;
++            pic = true;
+             ToolChain.getDriver().Diag(diag::warn_drv_ps4_force_pic)
+                 << LastPICArg->getSpelling();
+           }
+@@ -859,7 +859,7 @@ tools::ParsePICArgs(const ToolChain &Too
+   // Introduce a Darwin and PS4-specific hack. If the default is PIC, but the
+   // PIC level would've been set to level 1, force it back to level 2 PIC
+   // instead.
+-  if (PIC && (Triple.isOSDarwin() || EffectiveTriple.isPS4CPU()))
++  if (pic && (Triple.isOSDarwin() || EffectiveTriple.isPS4CPU()))
+     IsPICLevelTwo |= ToolChain.isPICDefault();
+ 
+   // This kernel flags are a trump-card: they will disable PIC/PIE
+@@ -867,7 +867,7 @@ tools::ParsePICArgs(const ToolChain &Too
+   if (KernelOrKext &&
+       ((!EffectiveTriple.isiOS() || EffectiveTriple.isOSVersionLT(6)) &&
+        !EffectiveTriple.isWatchOS()))
+-    PIC = PIE = false;
++    pic = PIE = false;
+ 
+   if (Arg *A = Args.getLastArg(options::OPT_mdynamic_no_pic)) {
+     // This is a very special mode. It trumps the other modes, almost no one
+@@ -881,9 +881,9 @@ tools::ParsePICArgs(const ToolChain &Too
+     // Only a forced PIC mode can cause the actual compile to have PIC defines
+     // etc., no flags are sufficient. This behavior was selected to closely
+     // match that of llvm-gcc and Apple GCC before that.
+-    PIC = ToolChain.isPICDefault() && ToolChain.isPICDefaultForced();
++    pic = ToolChain.isPICDefault() && ToolChain.isPICDefaultForced();
+ 
+-    return std::make_tuple(llvm::Reloc::DynamicNoPIC, PIC ? 2U : 0U, false);
++    return std::make_tuple(llvm::Reloc::DynamicNoPIC, pic ? 2U : 0U, false);
+   }
+ 
+   bool EmbeddedPISupported;
+@@ -916,7 +916,7 @@ tools::ParsePICArgs(const ToolChain &Too
+   }
+ 
+   // ROPI and RWPI are not comaptible with PIC or PIE.
+-  if ((ROPI || RWPI) && (PIC || PIE))
++  if ((ROPI || RWPI) && (pic || PIE))
+     ToolChain.getDriver().Diag(diag::err_drv_ropi_rwpi_incompatible_with_pic);
+ 
+   // When targettng MIPS64 with N64, the default is PIC, unless -mno-abicalls is
+@@ -926,7 +926,7 @@ tools::ParsePICArgs(const ToolChain &Too
+       Args.hasArg(options::OPT_mno_abicalls))
+     return std::make_tuple(llvm::Reloc::Static, 0U, false);
+ 
+-  if (PIC)
++  if (pic)
+     return std::make_tuple(llvm::Reloc::PIC_, IsPICLevelTwo ? 2U : 1U, PIE);
+ 
+   llvm::Reloc::Model RelocM = llvm::Reloc::Static;
+diff -Naupr llvm-5.0.1.src/tools/clang/tools/driver/cc1as_main.cpp llvm-5.0.1.src.backup/tools/clang/tools/driver/cc1as_main.cpp
+--- llvm-5.0.1.src/tools/clang/tools/driver/cc1as_main.cpp	2017-06-23 17:34:16.000000000 +0200
++++ llvm-5.0.1.src.backup/tools/clang/tools/driver/cc1as_main.cpp	2017-12-22 14:34:14.280013328 +0100
+@@ -345,18 +345,18 @@ static bool ExecuteAssembler(AssemblerIn
+ 
+   MCContext Ctx(MAI.get(), MRI.get(), MOFI.get(), &SrcMgr);
+ 
+-  bool PIC = false;
++  bool pic = false;
+   if (Opts.RelocationModel == "static") {
+-    PIC = false;
++    pic = false;
+   } else if (Opts.RelocationModel == "pic") {
+-    PIC = true;
++    pic = true;
+   } else {
+     assert(Opts.RelocationModel == "dynamic-no-pic" &&
+            "Invalid PIC model!");
+-    PIC = false;
++    pic = false;
+   }
+ 
+-  MOFI->InitMCObjectFileInfo(Triple(Opts.Triple), PIC, CodeModel::Default, Ctx);
++  MOFI->InitMCObjectFileInfo(Triple(Opts.Triple), pic, CodeModel::Default, Ctx);
+   if (Opts.SaveTemporaryLabels)
+     Ctx.setAllowTemporaryLabels(false);
+   if (Opts.GenDwarfForAssembly)
