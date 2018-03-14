@@ -9,4 +9,6 @@ OPTS+=" xorg=$XSERVER_XORG \
         os_vendor='SourceMage'"
 PREFIX=/opt/xorg &&
 #PREFIX=/usr &&
-default_build
+check_tmp_noexec /tmp &&
+default_build &&
+check_tmp_noexec /tmp
