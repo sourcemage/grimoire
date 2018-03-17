@@ -1,1 +1,1 @@
-PYTHON=python3 waf_build
+default_build_python3
