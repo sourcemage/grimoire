@@ -1,1 +1,1 @@
-waf_build
+default_build_python
