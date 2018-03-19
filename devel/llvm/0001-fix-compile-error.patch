@@ -12,32 +12,34 @@ diff --git a/include/llvm/MC/MCObjectFileInfo.h b/include/llvm/MC/MCObjectFileIn
 index 4d63444..a571f4a 100644
 --- a/include/llvm/MC/MCObjectFileInfo.h
 +++ b/include/llvm/MC/MCObjectFileInfo.h
-@@ -198,7 +198,7 @@ protected:
+@@ -191,7 +191,7 @@ protected:
    MCSection *SXDataSection;
-
+ 
  public:
--  void InitMCObjectFileInfo(const Triple &TT, bool PIC, MCContext &ctx,
-+  void InitMCObjectFileInfo(const Triple &TT, bool pic, MCContext &ctx,
-                             bool LargeCodeModel = false);
-
+-  void InitMCObjectFileInfo(const Triple &TT, bool PIC, CodeModel::Model CM,
++  void InitMCObjectFileInfo(const Triple &TT, bool pic, CodeModel::Model CM,
+                             MCContext &ctx);
+ 
    bool getSupportsWeakOmittedEHFrame() const {
 diff --git a/lib/MC/MCObjectFileInfo.cpp b/lib/MC/MCObjectFileInfo.cpp
 index 21c5516..0388986 100644
 --- a/lib/MC/MCObjectFileInfo.cpp
 +++ b/lib/MC/MCObjectFileInfo.cpp
-@@ -854,10 +854,10 @@ void MCObjectFileInfo::initWasmMCObjectF
+@@ -848,10 +848,10 @@ void MCObjectFileInfo::initWasmMCObjectFileInfo(const Triple &T) {
    // TODO: Define more sections.
  }
-
+ 
 -void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
 +void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool pic,
-                                             MCContext &ctx,
-                                             bool LargeCodeModel) {
+                                             CodeModel::Model cm,
+                                             MCContext &ctx) {
 -  PositionIndependent = PIC;
 +  PositionIndependent = pic;
+   CMModel = cm;
    Ctx = &ctx;
-
-   // Common.
+ 
+-- 
+2.15.1
 
 From e3e9b1405dcff106ca6547bdd33c605dc4d8ecb8 Mon Sep 17 00:00:00 2001
 From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
@@ -54,27 +56,26 @@ diff --git a/lib/Transforms/Scalar/LICM.cpp b/lib/Transforms/Scalar/LICM.cpp
 index 37b9c4b..19742d2 100644
 --- a/lib/Transforms/Scalar/LICM.cpp
 +++ b/lib/Transforms/Scalar/LICM.cpp
-@@ -299,7 +299,7 @@ bool LoopInvariantCodeMotion::runOnLoop(
+@@ -287,14 +287,14 @@ bool LoopInvariantCodeMotion::runOnLoop(Loop *L, AliasAnalysis *AA,
        for (BasicBlock *ExitBlock : ExitBlocks)
          InsertPts.push_back(&*ExitBlock->getFirstInsertionPt());
-
+ 
 -      PredIteratorCache PIC;
 +      PredIteratorCache pic;
-
+ 
        bool Promoted = false;
-
-@@ -321,7 +321,7 @@ bool LoopInvariantCodeMotion::runOnLoop(
-           PointerMustAliases.insert(ASI.getValue());
-
-         Promoted |= promoteLoopAccessesToScalars(PointerMustAliases, ExitBlocks,
--                                                 InsertPts, PIC, LI, DT, TLI, L,
-+                                                 InsertPts, pic, LI, DT, TLI, L,
-                                                  CurAST, &SafetyInfo, ORE);
-       }
-
-@@ -1145,11 +1145,11 @@ public:
+ 
+       // Loop over all of the alias sets in the tracker object.
+       for (AliasSet &AS : *CurAST)
+         Promoted |=
+-            promoteLoopAccessesToScalars(AS, ExitBlocks, InsertPts, PIC, LI, DT,
++            promoteLoopAccessesToScalars(AS, ExitBlocks, InsertPts, pic, LI, DT,
+                                          TLI, L, CurAST, &SafetyInfo, ORE);
+ 
+       // Once we have promoted values across the loop body we have to
+@@ -963,11 +963,11 @@ public:
    LoopPromoter(Value *SP, ArrayRef<const Instruction *> Insts, SSAUpdater &S,
-                const SmallSetVector<Value *, 8> &PMA,
+                SmallPtrSetImpl<Value *> &PMA,
                 SmallVectorImpl<BasicBlock *> &LEB,
 -               SmallVectorImpl<Instruction *> &LIP, PredIteratorCache &PIC,
 +               SmallVectorImpl<Instruction *> &LIP, PredIteratorCache &pic,
@@ -84,25 +85,25 @@ index 37b9c4b..19742d2 100644
 -        LoopExitBlocks(LEB), LoopInsertPts(LIP), PredCache(PIC), AST(ast),
 +        LoopExitBlocks(LEB), LoopInsertPts(LIP), PredCache(pic), AST(ast),
          LI(li), DL(std::move(dl)), Alignment(alignment),
-         UnorderedAtomic(UnorderedAtomic), AATags(AATags) {}
-
-@@ -1224,7 +1224,7 @@ bool isKnownNonEscaping(Value *Object, c
+         UnorderedAtomic(UnorderedAtomic),AATags(AATags) {}
+ 
+@@ -1017,7 +1017,7 @@ public:
+ ///
  bool llvm::promoteLoopAccessesToScalars(
-     const SmallSetVector<Value *, 8> &PointerMustAliases,
-     SmallVectorImpl<BasicBlock *> &ExitBlocks,
+     AliasSet &AS, SmallVectorImpl<BasicBlock *> &ExitBlocks,
 -    SmallVectorImpl<Instruction *> &InsertPts, PredIteratorCache &PIC,
 +    SmallVectorImpl<Instruction *> &InsertPts, PredIteratorCache &pic,
      LoopInfo *LI, DominatorTree *DT, const TargetLibraryInfo *TLI,
      Loop *CurLoop, AliasSetTracker *CurAST, LoopSafetyInfo *SafetyInfo,
      OptimizationRemarkEmitter *ORE) {
-@@ -1446,7 +1446,7 @@ bool llvm::promoteLoopAccessesToScalars(
+@@ -1267,7 +1267,7 @@ bool llvm::promoteLoopAccessesToScalars(
    SmallVector<PHINode *, 16> NewPHIs;
    SSAUpdater SSA(&NewPHIs);
    LoopPromoter Promoter(SomePtr, LoopUses, SSA, PointerMustAliases, ExitBlocks,
 -                        InsertPts, PIC, *CurAST, *LI, DL, Alignment,
 +                        InsertPts, pic, *CurAST, *LI, DL, Alignment,
                          SawUnorderedAtomic, AATags);
-
+ 
    // Set up the preheader to have a definition of the value.  It is the live-out
 diff --git a/lib/Transforms/Utils/PredicateInfo.cpp b/lib/Transforms/Utils/PredicateInfo.cpp
 index d4cdaed..5fcd5dd 100644
@@ -142,18 +143,20 @@ index 8782588..c5900ce 100644
 @@ -128,7 +128,7 @@ MAttrs("mattr",
    cl::desc("Target specific attributes (-mattr=help for details)"),
    cl::value_desc("a1,+a2,-a3,..."));
-
+ 
 -static cl::opt<bool> PIC("position-independent",
 +static cl::opt<bool> pic("position-independent",
                           cl::desc("Position independent"), cl::init(false));
-
- static cl::opt<bool>
-@@ -496,7 +496,7 @@ int main(int argc, char **argv) {
+ 
+ static cl::opt<llvm::CodeModel::Model>
+@@ -506,7 +506,7 @@ int main(int argc, char **argv) {
    // MCObjectFileInfo needs a MCContext reference in order to initialize itself.
    MCObjectFileInfo MOFI;
    MCContext Ctx(MAI.get(), MRI.get(), &MOFI, &SrcMgr);
--  MOFI.InitMCObjectFileInfo(TheTriple, PIC, Ctx, LargeCodeModel);
-+  MOFI.InitMCObjectFileInfo(TheTriple, pic, Ctx, LargeCodeModel);
-
+-  MOFI.InitMCObjectFileInfo(TheTriple, PIC, CMModel, Ctx);
++  MOFI.InitMCObjectFileInfo(TheTriple, pic, CMModel, Ctx);
+ 
    if (SaveTempLabels)
      Ctx.setAllowTemporaryLabels(false);
+-- 
+2.15.1
