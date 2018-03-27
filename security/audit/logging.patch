@@ -1,0 +1,54 @@
+From 623c4868441848ff81763dc9a73fe490d805bd14 Mon Sep 17 00:00:00 2001
+From: Steve Grubb <sgrubb@redhat.com>
+Date: Mon, 26 Mar 2018 16:44:20 -0400
+Subject: [PATCH] Fix log file check/creation when file logging is disabled
+ entirely. This is specifically useful when you have syslog logging module
+ enabled, and dont want to leave unnecessary cruft such as empty log files.
+ Reported by Vlad Glagolev
+
+---
+ src/auditd-config.c | 9 ++++-----
+ src/auditd-event.c  | 3 +++
+ 2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/auditd-config.c b/src/auditd-config.c
+index 921fdda..ccadcdd 100644
+--- a/src/auditd-config.c
++++ b/src/auditd-config.c
+@@ -619,11 +619,9 @@ static int log_file_parser(struct nv_pair *nv, int line,
+ 
+ 	fd = open(nv->value, mode);
+ 	if (fd < 0) {
+-		if (errno == ENOENT) {
+-			fd = create_log_file(nv->value);
+-			if (fd < 0) 
+-				return 1;
+-		} else {
++		if (errno == ENOENT)
++			goto finish_up;	// Will create the log later
++		else {
+ 			audit_msg(LOG_ERR, "Unable to open %s (%s)", nv->value, 
+ 					strerror(errno));
+ 			return 1;
+@@ -652,6 +650,7 @@ static int log_file_parser(struct nv_pair *nv, int line,
+ 		audit_msg(LOG_WARNING, "audit log is not writable by owner");
+ 	}
+ 
++finish_up:
+ 	free((void *)config->log_file);
+ 	config->log_file = strdup(nv->value);
+ 	if (config->log_file == NULL)
+diff --git a/src/auditd-event.c b/src/auditd-event.c
+index dab9bd8..5944123 100644
+--- a/src/auditd-event.c
++++ b/src/auditd-event.c
+@@ -1120,6 +1120,9 @@ static int open_audit_log(void)
+ {
+ 	int flags, lfd;
+ 
++	if (config->write_logs == 0)
++		return 0;
++
+ 	flags = O_WRONLY|O_APPEND|O_NOFOLLOW;
+ 	if (config->flush == FT_DATA)
+ 		flags |= O_DSYNC;
