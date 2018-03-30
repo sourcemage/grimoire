@@ -5,6 +5,8 @@ OPTS+=" xorg=$XSERVER_XORG \
         xvfb=$XSERVER_XVFB \
         xephyr=$XSERVER_XEPHYR \
         dmx=$XSERVER_DMX \
+        module_dir=lib/xorg/modules \
+        log_dir=${INSTALL_ROOT}/var/log \
         xkb_bin_dir=$INSTALL_ROOT/usr/bin \
         os_vendor='SourceMage'"
 PREFIX=/opt/xorg &&
