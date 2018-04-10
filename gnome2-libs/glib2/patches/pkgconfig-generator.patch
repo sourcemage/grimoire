@@ -1,0 +1,236 @@
+From 3c76114e73fb98a01403b2349a600161d362e5fe Mon Sep 17 00:00:00 2001
+From: Xavier Claessens <xavier.claessens@collabora.com>
+Date: Mon, 11 Dec 2017 14:47:04 -0500
+Subject: [PATCH] Meson: Use pkgconfig module to generate all pc files
+
+This requires improved pc file generator from meson 0.45.
+
+https://bugzilla.gnome.org/show_bug.cgi?id=788773
+---
+ gio/meson.build     | 39 +++++++++++++++++++++++++++++++++++++++
+ glib/meson.build    | 14 ++++++++++++++
+ gmodule/meson.build | 32 ++++++++++++++++++++++++++++++++
+ gobject/meson.build |  9 +++++++++
+ gthread/meson.build |  9 +++++++++
+ meson.build         | 31 ++++---------------------------
+ 6 files changed, 107 insertions(+), 27 deletions(-)
+
+diff --git a/gio/meson.build b/gio/meson.build
+index 7817a47..2807375 100644
+--- a/gio/meson.build
++++ b/gio/meson.build
+@@ -794,6 +794,45 @@ libgio = library('gio-2.0',
+   link_args : noseh_link_args,
+ )
+ 
++giomodulesdir = get_option('gio_module_dir')
++if giomodulesdir == ''
++  giomodulesdir = join_paths('${libdir}', 'gio', 'modules')
++endif
++
++pkg.generate(libraries : libgio,
++  requires : ['glib-2.0', 'gobject-2.0'],
++  variables : ['bindir=' + join_paths('${prefix}', get_option('bindir')),
++               'giomoduledir=' + giomodulesdir,
++               'glib_compile_schemas=' + join_paths('${bindir}', 'glib-compile-schemas'),
++               'glib_compile_resources=' + join_paths('${bindir}', 'glib-compile-resources'),
++               'gdbus_codegen=' + join_paths('${bindir}', 'gdbus-codegen')],
++  version : glib_version,
++  install_dir : glib_pkgconfigreldir,
++  filebase : 'gio-2.0',
++  name : 'GIO',
++  description : 'glib I/O library',
++)
++
++if host_system == 'windows'
++  pkg.generate(requires : ['gobject-2.0', 'gmodule-no-export-2.0', 'gio-2.0'],
++    subdirs : ['gio-win32-2.0'],
++    version : glib_version,
++    install_dir : glib_pkgconfigreldir,
++    filebase : 'gio-windows-2.0',
++    name : 'GIO Windows specific APIs',
++    description : 'Windows specific headers for glib I/O library',
++  )
++else
++  pkg.generate(requires : ['gobject-2.0', 'gio-2.0'],
++    subdirs : ['gio-unix-2.0'],
++    version : glib_version,
++    install_dir : glib_pkgconfigreldir,
++    filebase : 'gio-unix-2.0',
++    name : 'GIO unix specific APIs',
++    description : 'unix specific headers for glib I/O library',
++  )
++endif
++
+ libgio_dep = declare_dependency(link_with : libgio,
+   dependencies : [gioenumtypes_dep],
+   # We sadly need to export configinc here because everyone includes <gio/*.h>
+diff --git a/glib/meson.build b/glib/meson.build
+index 9df77b6..3b4caf8 100644
+--- a/glib/meson.build
++++ b/glib/meson.build
+@@ -249,6 +249,20 @@ libglib_dep = declare_dependency(
+   # We sadly need to export configinc here because everyone includes <glib/*.h>
+   include_directories : [configinc, glibinc])
+ 
++pkg.generate(libraries : libglib,
++  subdirs : ['glib-2.0'],
++  extra_cflags : ['-I${libdir}/glib-2.0/include'],
++  variables : ['bindir=' + join_paths('${prefix}', get_option('bindir')),
++               'glib_genmarshal=' + join_paths('${bindir}', 'glib-genmarshal'),
++               'gobject_query=' + join_paths('${bindir}', 'gobject-query'),
++               'glib_mkenums=' + join_paths('${bindir}', 'glib-mkenums')],
++  version : glib_version,
++  install_dir : glib_pkgconfigreldir,
++  filebase : 'glib-2.0',
++  name : 'GLib',
++  description : 'C Utility Library',
++)
++
+ # On Windows, glib needs a spawn helper for g_spawn* API
+ if host_system == 'windows'
+   if host_machine.cpu_family() == 'x86'
+diff --git a/gmodule/meson.build b/gmodule/meson.build
+index 03c689e..3b57fb4 100644
+--- a/gmodule/meson.build
++++ b/gmodule/meson.build
+@@ -104,5 +104,37 @@ libgmodule = library('gmodule-2.0',
+   dependencies : [libdl_dep, libglib_dep],
+   c_args : ['-DG_LOG_DOMAIN="GModule"', '-DG_DISABLE_DEPRECATED'] + glib_hidden_visibility_args)
+ 
++supported_var = 'gmodule_supported=@0@'.format(g_module_impl != '0')
++
++pkg.generate(libraries : [libgmodule, thread_dep],
++  requires : ['glib-2.0'],
++  version : glib_version,
++  variables : [supported_var],
++  install_dir : glib_pkgconfigreldir,
++  filebase : 'gmodule-no-export-2.0',
++  name : 'GModule',
++  description : 'Dynamic module loader for GLib',
++)
++
++pkg.generate(libraries : [libgmodule],
++  requires : ['glib-2.0'],
++  version : glib_version,
++  variables : [supported_var],
++  install_dir : glib_pkgconfigreldir,
++  filebase : 'gmodule-export-2.0',
++  name : 'GModule',
++  description : 'Dynamic module loader for GLib',
++)
++
++pkg.generate(libraries : [libgmodule],
++  requires : ['glib-2.0'],
++  version : glib_version,
++  variables : [supported_var],
++  install_dir : glib_pkgconfigreldir,
++  filebase : 'gmodule-2.0',
++  name : 'GModule',
++  description : 'Dynamic module loader for GLib',
++)
++
+ libgmodule_dep = declare_dependency(link_with : libgmodule,
+   include_directories : gmoduleinc)
+diff --git a/gobject/meson.build b/gobject/meson.build
+index f1ab8fd..98e306d 100644
+--- a/gobject/meson.build
++++ b/gobject/meson.build
+@@ -71,6 +71,15 @@ libgobject = library('gobject-2.0',
+   dependencies : [libintl, libffi_dep, libglib_dep],
+   c_args : ['-DG_LOG_DOMAIN="GLib-GObject"', '-DGOBJECT_COMPILATION'] + glib_hidden_visibility_args)
+ 
++pkg.generate(libraries : libgobject,
++  requires : ['glib-2.0'],
++  version : glib_version,
++  install_dir : glib_pkgconfigreldir,
++  filebase : 'gobject-2.0',
++  name : 'GObject',
++  description : 'GLib Type, Object, Parameter and Signal Library',
++)
++
+ libgobject_dep = declare_dependency(link_with : libgobject,
+   include_directories : gobjectinc)
+ 
+diff --git a/gthread/meson.build b/gthread/meson.build
+index 8d4696d..3787dba 100644
+--- a/gthread/meson.build
++++ b/gthread/meson.build
+@@ -19,3 +19,12 @@ libgthread = library('gthread-2.0',
+   install : true,
+   dependencies : [libglib_dep],
+   c_args : ['-DG_LOG_DOMAIN="GThread"' ] + glib_hidden_visibility_args)
++
++pkg.generate(libraries : [libgthread, thread_dep],
++  requires : ['glib-2.0'],
++  version : glib_version,
++  install_dir : glib_pkgconfigreldir,
++  filebase : 'gthread-2.0',
++  name : 'GThread',
++  description : 'Thread support for GLib',
++)
+diff --git a/meson.build b/meson.build
+index 26689a6..8e73a08 100644
+--- a/meson.build
++++ b/meson.build
+@@ -1,6 +1,6 @@
+ project('glib', 'c', 'cpp',
+   version : '2.56.0',
+-  meson_version : '>= 0.44.0',
++  meson_version : '>= 0.45.0',
+   default_options : [
+     'warning_level=1',
+     'c_std=gnu89'
+@@ -1734,8 +1734,8 @@ if libmount_dep.length() != 0
+ endif
+ glib_conf.set('GIO_MODULE_DIR', glib_giomodulesdir)
+ # FIXME: Missing:
+-# @G_MODULE_LIBS@ @COCOA_LIBS@ @CARBON_LIBS@ @G_LIBS_EXTRA@
+-# @PCRE_REQUIRES@ @GLIB_EXTRA_CFLAGS@ @G_THREAD_CFLAGS@
++# @COCOA_LIBS@ @CARBON_LIBS@ @G_LIBS_EXTRA@ @GLIB_EXTRA_CFLAGS@
++# @G_MODULE_LDFLAGS@
+ 
+ # Tracing: dtrace
+ want_dtrace = get_option('dtrace')
+@@ -1781,6 +1781,7 @@ if want_systemtap and enable_dtrace
+ endif
+ 
+ 
++pkg = import('pkgconfig')
+ windows = import('windows')
+ subdir('glib')
+ subdir('gobject')
+@@ -1792,30 +1793,6 @@ if xgettext.found()
+ endif
+ subdir('tests')
+ 
+-# Configure and install pkg-config files
+-pc_files = [
+-  'gobject-2.0.pc',
+-  'glib-2.0.pc',
+-  'gthread-2.0.pc',
+-  'gmodule-2.0.pc',
+-  'gmodule-export-2.0.pc',
+-  'gmodule-no-export-2.0.pc',
+-  'gio-2.0.pc',
+-]
+-if host_system == 'windows'
+-  pc_files += ['gio-windows-2.0.pc']
+-else
+-  pc_files += ['gio-unix-2.0.pc']
+-endif
+-
+-foreach pc : pc_files
+-  configure_file(input : pc + '.in',
+-    install : true,
+-    install_dir : glib_pkgconfigreldir,
+-    output : pc,
+-    configuration : glib_conf)
+-endforeach
+-
+ # NOTE: We skip glib-zip.in because the filenames it assumes don't match ours
+ 
+ # Install glib-gettextize executable, if a UNIX-style shell is found
+--
+libgit2 0.26.0
+
