@@ -22,12 +22,6 @@ if echo "$CFLAGS" | grep -q "\-Os"; then
   OPTS="--enable-small $OPTS"
 fi &&
 
-# license handling (nonfree/GPLv3)
-if is_depends_enabled $SPELL openssl || \
-   is_depends_enabled $SPELL faac; then
-    OPTS="--enable-nonfree $OPTS"
-fi &&
-
 if is_depends_enabled $SPELL opencore-amr; then
     OPTS="--enable-version3 $OPTS"
 fi &&
