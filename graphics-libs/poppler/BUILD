@@ -3,4 +3,5 @@ if is_depends_enabled $SPELL qtbase;then
 fi &&
 export CMAKE_PREFIX_PATH=$QTP &&
 OPTS+=" $XPDF_HEADERS -DBUILD_CPP_TESTS=0" &&
+sed -i "/SYSTEM/d" test/CMakeLists.txt glib/CMakeLists.txt &&
 default_build
