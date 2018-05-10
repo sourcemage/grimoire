@@ -6,7 +6,6 @@ OPTS+=" xorg=$XSERVER_XORG \
         xephyr=$XSERVER_XEPHYR \
         dmx=$XSERVER_DMX \
         glamor=$XSERVER_GLAMOR \
-        module_dir=lib/xorg/modules \
         log_dir=${INSTALL_ROOT}/var/log \
         xkb_bin_dir=$INSTALL_ROOT/usr/bin \
         os_vendor='SourceMage'"
