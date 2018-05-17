@@ -7,4 +7,10 @@
              --infodir=${TRACK_ROOT}/usr/share/info  \
              --mandir=${TRACK_ROOT}/usr/share/man    \
              $OPTS                         &&
-make DESTDIR=$INSTALL_ROOT
+make DESTDIR=$INSTALL_ROOT                 &&
+
+export LD_LIBRARY_PATH="${SOURCE_DIRECTORY}/shlib:${LD_LIBRARY_PATH}" &&
+
+for i in readline history; do
+  ln -sf lib${i}.so.${VERSION} shlib/lib${i}.so.${VERSION%.*}
+done
