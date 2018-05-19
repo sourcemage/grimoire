@@ -1,3 +1,5 @@
+. "${GRIMOIRE}/FUNCTIONS"                                        &&
+
 depends  autoconf-2.13                                           &&
 depends  -sub CXX gcc                                            &&
 depends  perl                                                    &&
@@ -6,7 +8,7 @@ depends  python                                                  &&
 depends  icu     "--with-system-icu"                             &&
 
 depends  glib2                                                   &&
-depends  "gtk+${FIREFOX_GTK_VERSION}"   "--enable-default-toolkit=cairo-gtk${FIREFOX_GTK_VERSION}" &&
+depends  gtk+3   "--enable-default-toolkit=cairo-gtk3" &&
 depends  atk                                                     &&
 depends  libx11                                                  &&
 depends  libxext                                                 &&
@@ -14,19 +16,25 @@ depends  libxrender                                              &&
 depends  libxt                                                   &&
 depends  libxcomposite                                           &&
 
-depends  pango  "--enable-pango"                                 &&
-depends  libxft "--enable-xft --disable-freetype2"               &&
-
+depends  pango                                                   &&
+depends  libxft                                                  &&
+depends  graphite2                                               &&
+depends  harfbuzz                                                &&
 
 #depends  -sub TEE cairo  '--enable-system-cairo' &&
 depends  gdk-pixbuf2                                             &&
 
 depends  libjpeg-turbo "--with-system-jpeg"                      &&
 depends -sub APNG libpng "--enable-system-png"                   &&
-depends  librsvg2 "--enable-svg"                                 &&
+depends  librsvg2                                                &&
 
 depends  nspr               "--with-system-nspr"                 &&
-depends  -sub "3.30.x" nss  "--with-system-nss"                  &&
+
+if spell_ok nss && is_version_less "$(installed_version nss)" "3.36.1"; then
+  depends  -sub "3.36.x" nss  "--with-system-nss"
+else
+  depends  nss  "--with-system-nss"
+fi                                                               &&
 
 depends  -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY ENABLE_DBSTAT_VTAB" sqlite "--enable-system-sqlite"    &&
 
@@ -37,15 +45,12 @@ depends  zlib               "--with-system-zlib"                 &&
 
 depends bzip2               "--with-system-bz2"                  &&
 depends libevent            "--with-system-libevent"             &&
-depends libvpx              "--with-system-vpx"                  &&
+depends libvpx                                                   &&
 depends libffi              "--enable-system-ffi"                &&
 depends hunspell            "--enable-system-hunspell"           &&
 depends pixman              "--enable-system-pixman"             &&
 
-#optional_depends  rust \
-#                  "--enable-rust" \
-#                  "--disable-rust" \
-#                  "build code that is implemented in the rust programming language" &&
+depends rust                                                     &&
 
 optional_depends  startup-notification  \
                   "--enable-startup-notification" \
@@ -109,39 +114,6 @@ optional_depends  LIBAVCODEC \
                   "--disable-ffmpeg" \
                   "for fragmented H264/AAC decoding" &&
 
-optional_depends  gstreamer \
-                  "--enable-gstreamer" \
-                  "--disable-gstreamer" \
-                  "for gstreamer 0.10 based AV support" &&
-if is_depends_enabled $SPELL gstreamer; then
-  depends gst-plugins-base
-else
-  optional_depends  gstreamer-1.0 \
-                    "--enable-gstreamer=1.0" \
-                    "" \
-                    "for gstreamer 1.0 based AV support" &&
-  if is_depends_enabled $SPELL gstreamer-1.0; then
-    depends gst-plugins-base-1.0 &&
-    # qtdemux
-    depends gst-plugins-good-1.0 &&
-    # h264parse
-    depends gst-plugins-bad-1.0 &&
-    # ffmpeg plugin for gstreamer
-    depends gst-libav-1.0
-  fi
-fi &&
-
-
-
 suggest_depends_2 firefox-smglwiki "" "" \
-  "to enable searching the SMGL Wiki from the Search Bar" &&
+  "to enable searching the SMGL Wiki from the Search Bar"
 
-optional_depends  graphite2 \
-                  "--with-system-graphite2" \
-                  "--without-system-graphite2" \
-                  "for system graphite2" &&
-
-optional_depends  harfbuzz \
-                  "--with-system-harfbuzz" \
-                  "--without-system-harfbuzz" \
-                  "for system harfbuzz"

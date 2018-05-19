@@ -7,7 +7,10 @@ unset DBUS_SESSION_BUS_ADDRESS \
         SESSION_MANAGER \
         XDG_SESSION_COOKIE \
         XAUTHORITY &&
-export LIBGL_ALWAYS_INDIRECT=1
+export LIBGL_ALWAYS_INDIRECT=1 &&
+
+# System rustc has no debuginfo
+export RUSTFLAGS="-C debuginfo=0" &&
 
 #
 # No fast optimization for Mozilla, bit us so many times...
@@ -46,20 +49,9 @@ if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
 
-OPTS+=" --disable-rust" &&
-
 for option in $OPTS; do
   echo "ac_add_options $option" >> .mozconfig
 done &&
 
-local MAKE_TARGET
-if [[ $FIREFOX_PGO == y ]]; then
-  MAKE_TARGET=profiledbuild
-else
-  MAKE_TARGET=build
-fi &&
-
 echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
-# For some weird reason, MP4Decoder.h is not found otherwise.
-CPPFLAGS="$CPPFLAGS -I$SOURCE_DIRECTORY/dom/media/fmp4/" &&
-make -f client.mk $MAKE_TARGET
+./mach build
