@@ -1,14 +1,15 @@
-From 74a56af2be876f4b7cb1236dc1a3e4e8302ed4bc Mon Sep 17 00:00:00 2001
+From 566aea5d1e5d1201bb6ee8a51c09f647f3675686 Mon Sep 17 00:00:00 2001
 From: Treeve Jelbert <treeve@sourcemage.org>
 Date: Sat, 21 Oct 2017 14:50:51 +0200
-Subject: [PATCH 1/2] libressl is not openssl-1.1
+Subject: [PATCH 2/2] libressl is not openssl-1.1
 
 ---
- config.tests/unix/openssl11/openssl.cpp        | 2 +-
- src/network/ssl/qsslkey_openssl.cpp            | 5 +++++
- src/network/ssl/qsslsocket_openssl_symbols.cpp | 9 +++++++++
- src/network/ssl/qsslsocket_openssl_symbols_p.h | 6 +++++-
- 4 files changed, 20 insertions(+), 2 deletions(-)
+ config.tests/unix/openssl11/openssl.cpp        |  2 +-
+ src/network/ssl/qsslcontext_openssl.cpp        |  2 +-
+ src/network/ssl/qsslkey_openssl.cpp            |  5 +++++
+ src/network/ssl/qsslsocket_openssl_symbols.cpp | 11 ++++++++++-
+ src/network/ssl/qsslsocket_openssl_symbols_p.h |  8 ++++++--
+ 5 files changed, 23 insertions(+), 5 deletions(-)
 
 diff --git a/config.tests/unix/openssl11/openssl.cpp b/config.tests/unix/openssl11/openssl.cpp
 index c20cc59deb..b31b008afb 100644
@@ -23,6 +24,19 @@ index c20cc59deb..b31b008afb 100644
  #  error "OpenSSL >= 1.1 is required"
  #endif
  
+diff --git a/src/network/ssl/qsslcontext_openssl.cpp b/src/network/ssl/qsslcontext_openssl.cpp
+index 41b759364b..4d05cb39c5 100644
+--- a/src/network/ssl/qsslcontext_openssl.cpp
++++ b/src/network/ssl/qsslcontext_openssl.cpp
+@@ -248,7 +248,7 @@ void QSslContext::applyBackendConfig(QSslContext *sslContext)
+     if (sslContext->sslConfiguration.backendConfiguration().isEmpty())
+         return;
+ 
+-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
++    #if OPENSSL_VERSION_NUMBER >= 0x10002000L && ! defined(LIBRESSL_VERSION_NUMBER)
+     if (QSslSocket::sslLibraryVersionNumber() >= 0x10002000L) {
+         QSharedPointer<SSL_CONF_CTX> cctx(q_SSL_CONF_CTX_new(), &q_SSL_CONF_CTX_free);
+         if (cctx) {
 diff --git a/src/network/ssl/qsslkey_openssl.cpp b/src/network/ssl/qsslkey_openssl.cpp
 index aa81b735b9..429154f237 100644
 --- a/src/network/ssl/qsslkey_openssl.cpp
@@ -42,7 +56,7 @@ index aa81b735b9..429154f237 100644
  
  #if QT_CONFIG(opensslv11)
 diff --git a/src/network/ssl/qsslsocket_openssl_symbols.cpp b/src/network/ssl/qsslsocket_openssl_symbols.cpp
-index 3a236a1300..6dc9edcb41 100644
+index 82ff5e9e3a..1df0d1c8c3 100644
 --- a/src/network/ssl/qsslsocket_openssl_symbols.cpp
 +++ b/src/network/ssl/qsslsocket_openssl_symbols.cpp
 @@ -321,7 +321,11 @@ DEFINEFUNC2(int, EVP_CIPHER_CTX_set_key_length, EVP_CIPHER_CTX *ctx, ctx, int ke
@@ -57,7 +71,16 @@ index 3a236a1300..6dc9edcb41 100644
  DEFINEFUNC(const EVP_CIPHER *, EVP_des_cbc, DUMMYARG, DUMMYARG, return 0, return)
  DEFINEFUNC(const EVP_CIPHER *, EVP_des_ede3_cbc, DUMMYARG, DUMMYARG, return 0, return)
  DEFINEFUNC(const EVP_CIPHER *, EVP_rc2_cbc, DUMMYARG, DUMMYARG, return 0, return)
-@@ -623,6 +627,7 @@ static QStringList libraryPathList()
+@@ -402,7 +406,7 @@ DEFINEFUNC2(int, SSL_CTX_use_PrivateKey, SSL_CTX *a, a, EVP_PKEY *b, b, return -
+ DEFINEFUNC2(int, SSL_CTX_use_RSAPrivateKey, SSL_CTX *a, a, RSA *b, b, return -1, return)
+ DEFINEFUNC3(int, SSL_CTX_use_PrivateKey_file, SSL_CTX *a, a, const char *b, b, int c, c, return -1, return)
+ DEFINEFUNC(X509_STORE *, SSL_CTX_get_cert_store, const SSL_CTX *a, a, return 0, return)
+-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
++#if OPENSSL_VERSION_NUMBER >= 0x10002000L && ! defined(LIBRESSL_VERSION_NUMBER)
+ DEFINEFUNC(SSL_CONF_CTX *, SSL_CONF_CTX_new, DUMMYARG, DUMMYARG, return 0, return);
+ DEFINEFUNC(void, SSL_CONF_CTX_free, SSL_CONF_CTX *a, a, return ,return);
+ DEFINEFUNC2(void, SSL_CONF_CTX_set_ssl_ctx, SSL_CONF_CTX *a, a, SSL_CTX *b, b, return, return);
+@@ -632,6 +636,7 @@ static QStringList libraryPathList()
      paths = QString::fromLatin1(qgetenv("LD_LIBRARY_PATH"))
              .split(QLatin1Char(':'), QString::SkipEmptyParts);
  #  endif
@@ -65,7 +88,7 @@ index 3a236a1300..6dc9edcb41 100644
      paths << QLatin1String("/lib") << QLatin1String("/usr/lib") << QLatin1String("/usr/local/lib");
      paths << QLatin1String("/lib64") << QLatin1String("/usr/lib64") << QLatin1String("/usr/local/lib64");
      paths << QLatin1String("/lib32") << QLatin1String("/usr/lib32") << QLatin1String("/usr/local/lib32");
-@@ -1032,7 +1037,11 @@ bool q_resolveOpenSslSymbols()
+@@ -1041,7 +1046,11 @@ bool q_resolveOpenSslSymbols()
      RESOLVEFUNC(EVP_CipherInit)
      RESOLVEFUNC(EVP_CipherInit_ex)
      RESOLVEFUNC(EVP_CipherUpdate)
@@ -78,19 +101,19 @@ index 3a236a1300..6dc9edcb41 100644
      RESOLVEFUNC(EVP_des_ede3_cbc)
      RESOLVEFUNC(EVP_rc2_cbc)
 diff --git a/src/network/ssl/qsslsocket_openssl_symbols_p.h b/src/network/ssl/qsslsocket_openssl_symbols_p.h
-index 796bf2d4f5..a7c513edfd 100644
+index 4fb8f26cf6..d0a594910c 100644
 --- a/src/network/ssl/qsslsocket_openssl_symbols_p.h
 +++ b/src/network/ssl/qsslsocket_openssl_symbols_p.h
-@@ -232,7 +232,7 @@ BIO *q_BIO_new_mem_buf(void *a, int b);
- int q_BIO_read(BIO *a, void *b, int c);
+@@ -233,7 +233,7 @@ int q_BIO_read(BIO *a, void *b, int c);
  Q_AUTOTEST_EXPORT int q_BIO_write(BIO *a, const void *b, int c);
  int q_BN_num_bits(const BIGNUM *a);
--#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+ 
+-#if QT_CONFIG(opensslv11)
 +#if OPENSSL_VERSION_NUMBER >= 0x10100000L  && ! defined(LIBRESSL_VERSION_NUMBER)
  int q_BN_is_word(BIGNUM *a, BN_ULONG w);
- #else
+ #else // opensslv11
  // BN_is_word is implemented purely as a
-@@ -263,7 +263,11 @@ int q_EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *x, int keylen);
+@@ -265,7 +265,11 @@ int q_EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *x, int keylen);
  int q_EVP_CipherInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type, const unsigned char *key, const unsigned char *iv, int enc);
  int q_EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher, ENGINE *impl, const unsigned char *key, const unsigned char *iv, int enc);
  int q_EVP_CipherUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl, const unsigned char *in, int inl);
@@ -102,6 +125,15 @@ index 796bf2d4f5..a7c513edfd 100644
  const EVP_CIPHER *q_EVP_des_cbc();
  const EVP_CIPHER *q_EVP_des_ede3_cbc();
  const EVP_CIPHER *q_EVP_rc2_cbc();
+@@ -352,7 +356,7 @@ int q_SSL_CTX_use_PrivateKey(SSL_CTX *a, EVP_PKEY *b);
+ int q_SSL_CTX_use_RSAPrivateKey(SSL_CTX *a, RSA *b);
+ int q_SSL_CTX_use_PrivateKey_file(SSL_CTX *a, const char *b, int c);
+ X509_STORE *q_SSL_CTX_get_cert_store(const SSL_CTX *a);
+-#if OPENSSL_VERSION_NUMBER >= 0x10002000L
++#if OPENSSL_VERSION_NUMBER >= 0x10002000L && ! defined(LIBRESSL_VERSION_NUMBER)
+ SSL_CONF_CTX *q_SSL_CONF_CTX_new();
+ void q_SSL_CONF_CTX_free(SSL_CONF_CTX *a);
+ void q_SSL_CONF_CTX_set_ssl_ctx(SSL_CONF_CTX *a, SSL_CTX *b);
 -- 
-2.16.1
+2.17.0
 
