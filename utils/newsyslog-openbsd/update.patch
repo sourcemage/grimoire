@@ -1,0 +1,2156 @@
+--- newsyslog.c.orig	2003-02-12 15:05:32.000000000 -0500
++++ newsyslog.c	2018-05-22 22:24:05.730051996 -0400
+@@ -1,30 +1,23 @@
+-/*	$OpenBSD: newsyslog.c,v 1.63 2003/02/12 19:17:36 millert Exp $	*/
++/*	$OpenBSD: newsyslog.c,v 1.108 2017/07/24 12:57:01 jca Exp $	*/
+ 
+ /*
+  * Copyright (c) 1999, 2002, 2003 Todd C. Miller <Todd.Miller@courtesan.com>
+- * All rights reserved.
+  *
+- * Redistribution and use in source and binary forms, with or without
+- * modification, are permitted provided that the following conditions
+- * are met:
+- * 1. Redistributions of source code must retain the above copyright
+- *    notice, this list of conditions and the following disclaimer.
+- * 2. Redistributions in binary form must reproduce the above copyright
+- *    notice, this list of conditions and the following disclaimer in the
+- *    documentation and/or other materials provided with the distribution.
+- * 3. The name of the author may not be used to endorse or promote products
+- *    derived from this software without specific prior written permission.
++ * Permission to use, copy, modify, and distribute this software for any
++ * purpose with or without fee is hereby granted, provided that the above
++ * copyright notice and this permission notice appear in all copies.
+  *
+- * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+- * AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
+- * THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
++ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
++ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
++ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
++ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
++ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
++ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
++ *
++ * Sponsored in part by the Defense Advanced Research Projects
++ * Agency (DARPA) and Air Force Research Laboratory, Air Force
++ * Materiel Command, USAF, under agreement number F39502-99-1-0512.
+  */
+ 
+ /*
+@@ -38,13 +31,6 @@
+  * 2. Redistributions in binary form must reproduce the above copyright
+  *    notice, this list of conditions and the following disclaimer in the
+  *    documentation and/or other materials provided with the distribution.
+- * 3. All advertising materials mentioning features or use of this software
+- *    must display the following acknowledgement:
+- *      This product includes software developed by Jason Downs for the
+- *      OpenBSD system.
+- * 4. Neither the name(s) of the author(s) nor the name OpenBSD
+- *    may be used to endorse or promote products derived from this software
+- *    without specific prior written permission.
+  *
+  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+@@ -81,15 +67,16 @@
+ 
+ /*
+  *      newsyslog - roll over selected logs at the appropriate time,
+- *              keeping the a specified number of backup files around.
++ *              keeping the specified number of backup files around.
+  *
+  */
+ 
+-#ifndef lint
+-static const char rcsid[] = "$OpenBSD: newsyslog.c,v 1.63 2003/02/12 19:17:36 millert Exp $";
+-#endif /* not lint */
++#ifdef __linux__
++#include <bsd/sys/queue.h>
++#endif
+ 
+-#include <sys/param.h>
++#include <sys/param.h>	/* DEV_BSIZE */
++#include <sys/queue.h>
+ #include <sys/stat.h>
+ #include <sys/time.h>
+ #include <sys/wait.h>
+@@ -100,31 +87,26 @@
+ #include <fcntl.h>
+ #include <grp.h>
+ #include <limits.h>
+-#include <netdb.h>
+ #include <pwd.h>
+ #include <signal.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <time.h>
+ #include <unistd.h>
+-#ifdef __linux
+-/* Older versions of Linux need this. */
+-#include <linux/types.h>
+-#include <linux/quota.h>
+-#endif
+ 
+ #include "config.h"
+ 
+ #define CE_ROTATED	0x01		/* Log file has been rotated */
+-#define CE_COMPACT	0x02		/* Compact the achived log files */
++#define CE_COMPACT	0x02		/* Compact the archived log files */
+ #define CE_BINARY	0x04		/* Logfile is in binary, don't add */
+ 					/* status messages */
+-#define CE_MONITOR	0x08		/* Monitory for changes */
++#define CE_MONITOR	0x08		/* Monitor for changes */
+ #define CE_FOLLOW	0x10		/* Follow symbolic links */
+-#define CE_TRIMAT	0x20		/* trim at a specific time */
++#define CE_TRIMAT	0x20		/* Trim at a specific time */
+ 
+-#define	MIN_PID		3		/* Don't touch pids lower than this */
+-#define	MIN_SIZE	256		/* Don't rotate if smaller than this */
++#define	MIN_PID		2		/* Don't touch pids lower than this */
++#define	MIN_SIZE	256		/* Don't rotate if smaller (in bytes) */
+ 
+ #define	DPRINTF(x)	do { if (verbose) printf x ; } while (0)
+ 
+@@ -138,14 +120,15 @@
+ 	off_t   size;		/* Size cutoff to trigger trimming the log */
+ 	int     hours;		/* Hours between log trimming */
+ 	time_t  trim_at;	/* Specific time at which to do trimming */
+-	int     permissions;	/* File permissions on the log */
++	mode_t  permissions;	/* File permissions on the log */
+ 	int	signal;		/* Signal to send (defaults to SIGHUP) */
+ 	int     flags;		/* Flags (CE_COMPACT & CE_BINARY)  */
+ 	char	*whom;		/* Whom to notify if logfile changes */
+-	char	*pidfile;	/* Path to file containg pid to signal */
++	char	*pidfile;	/* Path to file containing pid to signal */
+ 	char	*runcmd;	/* Command to run instead of sending a signal */
+-	struct conf_entry *next; /* Linked list pointer */
++	TAILQ_ENTRY(conf_entry) next;
+ };
++TAILQ_HEAD(entrylist, conf_entry);
+ 
+ struct pidinfo {
+ 	char	*file;
+@@ -159,59 +142,43 @@
+ int	force = 0;		/* Force the logs to be rotated */
+ char	*conf = CONF;		/* Configuration file to use */
+ time_t	timenow;
+-char	hostname[MAXHOSTNAMELEN]; /* hostname */
+-char	*daytime;		/* timenow in human readable form */
+-char	*arcdir;		/* dir to put archives in (if it exists) */
+-
+-#ifdef HAVE_PROGNAME
+-extern const char *__progname;
+-#else
+-const char *__progname;
+-#endif
+-
+-void do_entry(struct conf_entry *);
+-void parse_args(int, char **);
+-void usage(void);
+-struct conf_entry *parse_file(int *);
+-char *missing_field(char *, char *, int);
+-void dotrim(struct conf_entry *);
+-int log_trim(char *);
+-void compress_log(struct conf_entry *);
+-off_t sizefile(char *);
+-int age_old_log(struct conf_entry *);
+-char *sob(char *);
+-char *son(char *);
+-int isnumberstr(char *);
+-int domonitor(struct conf_entry *);
+-FILE *openmail(void);
+-void child_killer(int);
+-void run_command(char *);
+-void send_signal(char *, int);
+-int siglookup(char *);
+-char *lstat_log(char *, size_t, int);
+-int stat_suffix(char *, size_t, char *, struct stat *, int (*)());
+-time_t parse8601(char *);
+-time_t parseDWM(char *);
+-
+-#ifndef HAVE_DIFFTIME
+-#define	difftime(_t1, _t2) ((_t1) >= (_t2) ? (_t1) - (_t2) : (_t2) - (_t1))
+-#endif
++char	hostname[HOST_NAME_MAX+1]; /* Hostname */
++char	daytime[33];		/* timenow in human readable form */
++char	*arcdir;		/* Dir to put archives in (if it exists) */
++
++char   *lstat_log(char *, size_t, int);
++char   *missing_field(char *, char *, int);
++char   *sob(char *);
++char   *son(char *);
++int	age_old_log(struct conf_entry *);
++int	domonitor(struct conf_entry *);
++int	isnumberstr(char *);
++int	log_trim(char *);
++int	movefile(char *, char *, uid_t, gid_t, mode_t);
++int	stat_suffix(char *, size_t, char *, struct stat *,
++	    int (*)(const char *, struct stat *));
++off_t	sizefile(struct stat *);
++int	parse_file(struct entrylist *, int *);
++time_t	parse8601(char *);
++time_t	parseDWM(char *);
++void	child_killer(int);
++void	compress_log(struct conf_entry *);
++void	do_entry(struct conf_entry *);
++void	dotrim(struct conf_entry *);
++void	rotate(struct conf_entry *, const char *);
++void	parse_args(int, char **);
++void	run_command(char *);
++void	send_signal(char *, int);
++void	usage(void);
+ 
+ int
+ main(int argc, char **argv)
+ {
+-	struct conf_entry *p, *q, *x, *y;
++	struct entrylist config, runlist;
++	struct conf_entry *p, *q, *tmp;
+ 	struct pidinfo *pidlist, *pl;
++	int status, listlen, ret;
+ 	char **av;
+-	int status, listlen;
+-	extern int optind;
+-	
+-#ifndef	HAVE_PROGNAME
+-	if ((__progname = strrchr(argv[0], '/')) != NULL)
+-		__progname++;
+-	else
+-		__progname = argv[0];
+-#endif
+ 
+ 	parse_args(argc, argv);
+ 	argc -= optind;
+@@ -220,52 +187,51 @@
+ 	if (needroot && getuid() && geteuid())
+ 		errx(1, "You must be root.");
+ 
+-	p = parse_file(&listlen);
+-	if (argc > 0) {
++	TAILQ_INIT(&config);
++	TAILQ_INIT(&runlist);
++
++	ret = parse_file(&config, &listlen);
++	if (argc == 0)
++		TAILQ_CONCAT(&runlist, &config, next);
++	else {
+ 		/* Only rotate specified files. */
+-		x = y = NULL;
+ 		listlen = 0;
+ 		for (av = argv; *av; av++) {
+-			for (q = p; q; q = q->next)
++			TAILQ_FOREACH_SAFE(q, &config, next, tmp)
+ 				if (strcmp(*av, q->log) == 0) {
+-					if (x == NULL)
+-						x = y = q;
+-					else {
+-						y->next = q;
+-						y = q;
+-					}
++					TAILQ_REMOVE(&config, q, next);
++					TAILQ_INSERT_TAIL(&runlist, q, next);
+ 					listlen++;
+ 					break;
+ 				}
+ 			if (q == NULL)
+ 				warnx("%s: %s not found", conf, *av);
+ 		}
+-		if (x == NULL)
++		if (TAILQ_EMPTY(&runlist))
+ 			errx(1, "%s: no specified log files", conf);
+-		y->next = NULL;
+-		p = x;
+ 	}
+ 
+-	pidlist = (struct pidinfo *)calloc(listlen + 1, sizeof(struct pidinfo));
++	pidlist = calloc(listlen + 1, sizeof(struct pidinfo));
+ 	if (pidlist == NULL)
+-		err(1, "calloc");
++		err(1, NULL);
+ 
+ 	signal(SIGCHLD, child_killer);
+ 
+ 	/* Step 1, rotate all log files */
+-	for (q = p; q; q = q->next)
++	TAILQ_FOREACH(q, &runlist, next)
+ 		do_entry(q);
+ 
+ 	/* Step 2, make a list of unique pid files */
+-	for (q = p, pl = pidlist; q; ) {
++	pl = pidlist;
++	TAILQ_FOREACH(q, &runlist, next) {
+ 		if (q->flags & CE_ROTATED) {
+ 			struct pidinfo *pltmp;
+ 
+ 			for (pltmp = pidlist; pltmp < pl; pltmp++) {
+-				if ((q->pidfile &&
++				if ((q->pidfile && pltmp->file &&
+ 				    strcmp(pltmp->file, q->pidfile) == 0 &&
+ 				    pltmp->signal == q->signal) ||
+-				    (q->runcmd &&
++				    (q->runcmd && pltmp->file &&
+ 				    strcmp(q->runcmd, pltmp->file) == 0))
+ 					break;
+ 			}
+@@ -280,11 +246,10 @@
+ 				pl++;
+ 			}
+ 		}
+-		q = q->next;
+ 	}
+ 
+ 	/* Step 3, send a signal or run a command */
+-	for (pl = pidlist; pl->file; pl++) {
++	for (pl--; pl >= pidlist; pl--) {
+ 		if (pl->file != NULL) {
+ 			if (pl->signal == -1)
+ 				run_command(pl->file);
+@@ -296,26 +261,24 @@
+ 		sleep(5);
+ 
+ 	/* Step 4, compress the log.0 file if configured to do so and free */
+-	while (p) {
+-		if ((p->flags & CE_COMPACT) && (p->flags & CE_ROTATED))
++	TAILQ_FOREACH(p, &runlist, next) {
++		if ((p->flags & CE_COMPACT) && (p->flags & CE_ROTATED) &&
++		    p->numlogs > 0)
+ 			compress_log(p);
+-		q = p;
+-		p = p->next;
+-		free(q);
+ 	}
+ 
+ 	/* Wait for children to finish, then exit */
+ 	while (waitpid(-1, &status, 0) != -1)
+ 		;
+-	exit(0);
++	return (ret);
+ }
+ 
+ void
+ do_entry(struct conf_entry *ent)
+ {
+-	int modtime;
+-	off_t size;
+ 	struct stat sb;
++	int modhours;
++	off_t size;
+ 
+ 	if (lstat(ent->log, &sb) != 0)
+ 		return;
+@@ -324,52 +287,55 @@
+ 		DPRINTF(("--> not a regular file, skipping\n"));
+ 		return;
+ 	}
++	if (S_ISLNK(sb.st_mode) && stat(ent->log, &sb) != 0) {
++		DPRINTF(("--> link target does not exist, skipping\n"));
++		return;
++	}
++	if (ent->uid == (uid_t)-1)
++		ent->uid = sb.st_uid;
++	if (ent->gid == (gid_t)-1)
++		ent->gid = sb.st_gid;
+ 
+ 	DPRINTF(("%s <%d%s%s%s%s>: ", ent->log, ent->numlogs,
+ 	    (ent->flags & CE_COMPACT) ? "Z" : "",
+ 	    (ent->flags & CE_BINARY) ? "B" : "",
+ 	    (ent->flags & CE_FOLLOW) ? "F" : "",
+ 	    (ent->flags & CE_MONITOR) && monitormode ? "M" : ""));
+-
+-	size = sizefile(ent->log);
+-	modtime = age_old_log(ent);
+-	if (size < 0) {
+-		DPRINTF(("does not exist.\n"));
+-	} else {
+-		if (ent->flags & CE_TRIMAT && !force) {
+-			if (timenow < ent->trim_at ||
+-			    difftime(timenow, ent->trim_at) >= 60 * 60) {
+-				DPRINTF(("--> will trim at %s",
+-				    ctime(&ent->trim_at)));
+-				return;
+-			} else if (verbose && ent->hours <= 0) {
+-				DPRINTF(("--> time is up\n"));
+-			}
++	size = sizefile(&sb);
++	modhours = age_old_log(ent);
++	if (ent->flags & CE_TRIMAT && !force) {
++		if (timenow < ent->trim_at ||
++		    difftime(timenow, ent->trim_at) >= 60 * 60) {
++			DPRINTF(("--> will trim at %s",
++			    ctime(&ent->trim_at)));
++			return;
++		} else if (ent->hours <= 0) {
++			DPRINTF(("--> time is up\n"));
+ 		}
+-		if (ent->size > 0)
+-			DPRINTF(("size (KB): %.2f [%d] ", size / 1024.0,
+-			    (int)(ent->size / 1024)));
+-		if (ent->hours > 0)
+-			DPRINTF(("age (hr): %d [%d] ", modtime, ent->hours));
+-		if (monitormode && (ent->flags & CE_MONITOR) && domonitor(ent))
+-			DPRINTF(("--> monitored\n"));
+-		else if (!monitormode &&
+-		    (force || (ent->size > 0 && size >= ent->size) ||
+-		    (ent->hours <= 0 && (ent->flags & CE_TRIMAT)) ||
+-		    (ent->hours > 0 && (modtime >= ent->hours || modtime < 0)
+-		    && ((ent->flags & CE_BINARY) || size >= MIN_SIZE)))) {
+-			DPRINTF(("--> trimming log....\n"));
+-			if (noaction && !verbose)
+-				printf("%s <%d%s%s%s>\n", ent->log,
+-				    ent->numlogs,
+-				    (ent->flags & CE_COMPACT) ? "Z" : "",
+-				    (ent->flags & CE_BINARY) ? "B" : "",
+-				    (ent->flags & CE_FOLLOW) ? "F" : "");
+-			dotrim(ent);
+-			ent->flags |= CE_ROTATED;
+-		} else
+-			DPRINTF(("--> skipping\n"));
+ 	}
++	if (ent->size > 0)
++		DPRINTF(("size (KB): %.2f [%d] ", size / 1024.0,
++		    (int)(ent->size / 1024)));
++	if (ent->hours > 0)
++		DPRINTF(("age (hr): %d [%d] ", modhours, ent->hours));
++	if (monitormode && (ent->flags & CE_MONITOR) && domonitor(ent))
++		DPRINTF(("--> monitored\n"));
++	else if (!monitormode &&
++	    (force || (ent->size > 0 && size >= ent->size) ||
++	    (ent->hours <= 0 && (ent->flags & CE_TRIMAT)) ||
++	    (ent->hours > 0 && (modhours >= ent->hours || modhours < 0)
++	    && ((ent->flags & CE_BINARY) || size >= MIN_SIZE)))) {
++		DPRINTF(("--> trimming log....\n"));
++		if (noaction && !verbose)
++			printf("%s <%d%s%s%s>\n", ent->log,
++			    ent->numlogs,
++			    (ent->flags & CE_COMPACT) ? "Z" : "",
++			    (ent->flags & CE_BINARY) ? "B" : "",
++			    (ent->flags & CE_FOLLOW) ? "F" : "");
++		dotrim(ent);
++		ent->flags |= CE_ROTATED;
++	} else
++		DPRINTF(("--> skipping\n"));
+ }
+ 
+ /* Run the specified command */
+@@ -386,10 +352,10 @@
+ void
+ send_signal(char *pidfile, int signal)
+ {
+-	pid_t pid;
+-	FILE *f;
+ 	char line[BUFSIZ], *ep, *err;
++	pid_t pid;
+ 	long lval;
++	FILE *f;
+ 
+ 	if ((f = fopen(pidfile, "r")) == NULL) {
+ 		warn("can't open %s", pidfile);
+@@ -422,56 +388,65 @@
+ 	if (err)
+ 		warnx("%s pid file: %s", err, pidfile);
+ 	else if (noaction)
+-		(void)printf("kill -%d %ld\n", signal, (long)pid);
++#ifdef __linux__
++		(void)printf("kill -%s %ld\n", strsignal(signal), (long)pid);
++#else
++		(void)printf("kill -%s %ld\n", sys_signame[signal], (long)pid);
++#endif
+ 	else if (kill(pid, signal))
+-		warnx("warning - could not send signal %d to daemon",
+-		    signal);
++		warnx("warning - could not send SIG%s to PID from pid file %s",
++#ifdef __linux__
++		    strsignal(signal), pidfile);
++#else
++		    sys_signame[signal], pidfile);
++#endif
+ }
+ 
+ void
+ parse_args(int argc, char **argv)
+ {
+-	int ch;
++	struct timeval now;
++	struct tm *tm;
++	size_t l;
+ 	char *p;
+-	extern char *optarg;
++	int ch;
+ 
+-	timenow = time(NULL);
+-	daytime = ctime(&timenow) + 4;
+-	daytime[15] = '\0';
++	gettimeofday(&now, NULL);
++	timenow = now.tv_sec;
++	tm = gmtime(&now.tv_sec);
++	l = strftime(daytime, sizeof(daytime), "%FT%T", tm);
++	snprintf(daytime + l, sizeof(daytime) - l, ".%03ldZ",
++	    now.tv_usec / 1000);
+ 
+ 	/* Let's get our hostname */
+ 	(void)gethostname(hostname, sizeof(hostname));
+-	hostname[sizeof(hostname) - 1] = '\0';
+ 
+ 	/* Truncate domain */
+ 	if ((p = strchr(hostname, '.')) != NULL)
+ 		*p = '\0';
+ 
+-	while ((ch = getopt(argc, argv, "FmnrvVa:f:")) != -1) {
++	while ((ch = getopt(argc, argv, "Fmnrva:f:")) != -1) {
+ 		switch (ch) {
+ 		case 'a':
+ 			arcdir = optarg;
+ 			break;
+ 		case 'n':
+-			noaction++; /* This implies needroot as off */
++			noaction = 1;	/* This implies needroot as off */
+ 			/* fall through */
+ 		case 'r':
+ 			needroot = 0;
+ 			break;
+ 		case 'v':
+-			verbose++;
++			verbose = 1;
+ 			break;
+ 		case 'f':
+ 			conf = optarg;
+ 			break;
+ 		case 'm':
+-			monitormode++;
++			monitormode = 1;
+ 			break;
+-		case 'V':
+-			printf("%s version %s\n", __progname, NEWSYSLOG_VERSION);
+-			exit(0);
+ 		case 'F':
+-			force++;
++			force = 1;
+ 			break;
+ 		default:
+ 			usage();
+@@ -484,27 +459,29 @@
+ void
+ usage(void)
+ {
+-	(void)fprintf(stderr, "usage: %s [-FmnrvV] [-a directory] "
++	extern const char *__progname;
++
++	(void)fprintf(stderr, "usage: %s [-Fmnrv] [-a directory] "
+ 	    "[-f config_file] [log ...]\n", __progname);
+ 	exit(1);
+ }
+ 
+ /*
+- * Parse a configuration file and return a linked list of all the logs
++ * Parse a configuration file and build a linked list of all the logs
+  * to process
+  */
+-struct conf_entry *
+-parse_file(int *nentries)
++int
++parse_file(struct entrylist *list, int *nentries)
+ {
+-	FILE *f;
+ 	char line[BUFSIZ], *parse, *q, *errline, *group, *tmp, *ep;
+-	int lineno;
+-	long l;
+-	struct conf_entry *first = NULL;
+-	struct conf_entry *working = NULL;
++	struct conf_entry *working;
+ 	struct passwd *pwd;
+ 	struct group *grp;
+ 	struct stat sb;
++	int lineno = 0;
++	int ret = 0;
++	FILE *f;
++	long l;
+ 
+ 	if (strcmp(conf, "-") == 0)
+ 		f = stdin;
+@@ -512,31 +489,25 @@
+ 		err(1, "can't open %s", conf);
+ 
+ 	*nentries = 0;
+-	for (lineno = 0; fgets(line, sizeof(line), f); lineno++) {
++
++nextline:
++	while (fgets(line, sizeof(line), f) != NULL) {
++		lineno++;
+ 		tmp = sob(line);
+ 		if (*tmp == '\0' || *tmp == '#')
+ 			continue;
+ 		errline = strdup(tmp);
+ 		if (errline == NULL)
+-			err(1, "strdup");
+-		(*nentries)++;
+-		if (!first) {
+-			working = (struct conf_entry *) malloc(sizeof(struct conf_entry));
+-			if (working == NULL)
+-				err(1, "malloc");
+-			first = working;
+-		} else {
+-			working->next = (struct conf_entry *) malloc(sizeof(struct conf_entry));
+-			if (working->next == NULL)
+-				err(1, "malloc");
+-			working = working->next;
+-		}
++			err(1, NULL);
++		working = calloc(1, sizeof(*working));
++		if (working == NULL)
++			err(1, NULL);
+ 
+ 		q = parse = missing_field(sob(line), errline, lineno);
+ 		*(parse = son(line)) = '\0';
+ 		working->log = strdup(q);
+ 		if (working->log == NULL)
+-			err(1, "strdup");
++			err(1, NULL);
+ 
+ 		if ((working->logbase = strrchr(working->log, '/')) != NULL)
+ 			working->logbase++;
+@@ -548,28 +519,35 @@
+ 			*group++ = '\0';
+ 			if (*q) {
+ 				if (!(isnumberstr(q))) {
+-					if ((pwd = getpwnam(q)) == NULL)
+-						errx(1, "%s:%d: unknown user: %s",
++					if ((pwd = getpwnam(q)) == NULL) {
++						warnx("%s:%d: unknown user"
++						    " %s --> skipping",
+ 						    conf, lineno, q);
++						ret = 1;
++						goto nextline;
++					}
+ 					working->uid = pwd->pw_uid;
+ 				} else
+ 					working->uid = atoi(q);
+ 			} else
+ 				working->uid = (uid_t)-1;
+-			
++
+ 			q = group;
+ 			if (*q) {
+ 				if (!(isnumberstr(q))) {
+-					if ((grp = getgrnam(q)) == NULL)
+-
+-						errx(1, "%s:%d: unknown group: %s",
++					if ((grp = getgrnam(q)) == NULL) {
++						warnx("%s:%d: unknown group"
++						    " %s --> skipping",
+ 						    conf, lineno, q);
++						ret = 1;
++						goto nextline;
++					}
+ 					working->gid = grp->gr_gid;
+ 				} else
+ 					working->gid = atoi(q);
+ 			} else
+ 				working->gid = (gid_t)-1;
+-			
++
+ 			q = parse = missing_field(sob(++parse), errline, lineno);
+ 			*(parse = son(parse)) = '\0';
+ 		} else {
+@@ -577,42 +555,65 @@
+ 			working->gid = (gid_t)-1;
+ 		}
+ 
+-		if (!sscanf(q, "%o", &working->permissions))
+-			errx(1, "%s:%d: bad permissions: %s", conf, lineno, q);
++		l = strtol(q, &ep, 8);
++		if (*ep != '\0' || l < 0 || l > ALLPERMS) {
++			warnx("%s:%d: bad permissions: %s --> skipping", conf,
++			    lineno, q);
++			ret = 1;
++			goto nextline;
++		}
++		working->permissions = (mode_t)l;
+ 
+ 		q = parse = missing_field(sob(++parse), errline, lineno);
+ 		*(parse = son(parse)) = '\0';
+-		if (!sscanf(q, "%d", &working->numlogs) || working->numlogs < 0)
+-			errx(1, "%s:%d: bad number: %s", conf, lineno, q);
++		l = strtol(q, &ep, 10);
++		if (*ep != '\0' || l < 0 || l >= INT_MAX) {
++			warnx("%s:%d: bad number: %s --> skipping", conf,
++			    lineno, q);
++			ret = 1;
++			goto nextline;
++		}
++		working->numlogs = (int)l;
+ 
+ 		q = parse = missing_field(sob(++parse), errline, lineno);
+ 		*(parse = son(parse)) = '\0';
+-		if (isdigit(*q))
++		if (isdigit((unsigned char)*q))
+ 			working->size = atoi(q) * 1024;
+ 		else
+ 			working->size = -1;
+-		
++
+ 		working->flags = 0;
+ 		q = parse = missing_field(sob(++parse), errline, lineno);
+ 		*(parse = son(parse)) = '\0';
+ 		l = strtol(q, &ep, 10);
+-		if (l <= 0 && l >= INT_MAX)
+-			errx(1, "%s:%d: interval out of range: %s", conf,
+-			    lineno, q);
++		if (l < 0 || l >= INT_MAX) {
++			warnx("%s:%d: interval out of range: %s --> skipping",
++			    conf, lineno, q);
++			ret = 1;
++			goto nextline;
++		}
+ 		working->hours = (int)l;
+ 		switch (*ep) {
+ 		case '\0':
+ 			break;
+ 		case '@':
+ 			working->trim_at = parse8601(ep + 1);
+-			if (working->trim_at == (time_t) - 1)
+-				errx(1, "%s:%d: bad time: %s", conf, lineno, q);
++			if (working->trim_at == (time_t) - 1) {
++				warnx("%s:%d: bad time: %s --> skipping", conf,
++				    lineno, q);
++				ret = 1;
++				goto nextline;
++			}
+ 			working->flags |= CE_TRIMAT;
+ 			break;
+ 		case '$':
+ 			working->trim_at = parseDWM(ep + 1);
+-			if (working->trim_at == (time_t) - 1)
+-				errx(1, "%s:%d: bad time: %s", conf, lineno, q);
++			if (working->trim_at == (time_t) - 1) {
++				warnx("%s:%d: bad time: %s --> skipping", conf,
++				    lineno, q);
++				ret = 1;
++				goto nextline;
++			}
+ 			working->flags |= CE_TRIMAT;
+ 			break;
+ 		case '*':
+@@ -620,8 +621,10 @@
+ 				break;
+ 			/* FALLTHROUGH */
+ 		default:
+-			errx(1, "%s:%d: bad interval/at: %s", conf, lineno, q);
+-			break;
++			warnx("%s:%d: bad interval/at: %s --> skipping", conf,
++			    lineno, q);
++			ret = 1;
++			goto nextline;
+ 		}
+ 
+ 		q = sob(++parse);	/* Optional field */
+@@ -647,9 +650,11 @@
+ 					working->flags |= CE_FOLLOW;
+ 					break;
+ 				default:
+-					errx(1, "%s:%d: illegal flag: `%c'",
++					warnx("%s:%d: illegal flag: `%c'"
++					    " --> skipping",
+ 					    conf, lineno, *q);
+-					break;
++					ret = 1;
++					goto nextline;
+ 				}
+ 				q++;
+ 			}
+@@ -666,18 +671,22 @@
+ 				break;
+ 			if (*q == '/') {
+ 				*(parse = son(parse)) = '\0';
+-				if (strlen(q) >= MAXPATHLEN)
+-					errx(1, "%s:%d: pathname too long: %s",
++				if (strlen(q) >= PATH_MAX) {
++					warnx("%s:%d: pathname too long: %s"
++					    " --> skipping",
+ 					    conf, lineno, q);
++					ret = 1;
++					goto nextline;
++				}
+ 				working->pidfile = strdup(q);
+ 				if (working->pidfile == NULL)
+-					err(1, "strdup");
++					err(1, NULL);
+ 			} else if (*q == '"' && (tmp = strchr(q + 1, '"'))) {
+ 				*(parse = tmp) = '\0';
+ 				if (*++q != '\0') {
+ 					working->runcmd = strdup(q);
+ 					if (working->runcmd == NULL)
+-						err(1, "strdup");
++						err(1, NULL);
+ 				}
+ 				working->pidfile = NULL;
+ 				working->signal = -1;
+@@ -685,24 +694,45 @@
+ 				int i;
+ 
+ 				*(parse = son(parse)) = '\0';
+-				if ((i = siglookup(q + 3)) == -1)
+-					errx(1, "%s:%d: unknown signal: %s",
++				for (i = 1; i < NSIG; i++) {
++#ifdef __linux__
++					if (!strcmp(strsignal(i), q + 3)) {
++#else
++					if (!strcmp(sys_signame[i], q + 3)) {
++#endif
++						working->signal = i;
++						break;
++					}
++				}
++				if (i == NSIG) {
++					warnx("%s:%d: unknown signal: %s"
++					    " --> skipping",
+ 					    conf, lineno, q);
+-				working->signal = i;
++					ret = 1;
++					goto nextline;
++				}
+ 			} else if (working->flags & CE_MONITOR) {
+ 				*(parse = son(parse)) = '\0';
+ 				working->whom = strdup(q);
+ 				if (working->whom == NULL)
+-					err(1, "strdup");
+-			} else
+-				errx(1, "%s:%d: unrecognized field: %s",
++					err(1, NULL);
++			} else {
++				warnx("%s:%d: unrecognized field: %s"
++				    " --> skipping",
+ 				    conf, lineno, q);
++				ret = 1;
++				goto nextline;
++			}
+ 		}
+ 		free(errline);
+ 
+-		if ((working->flags & CE_MONITOR) && working->whom == NULL)
+-			errx(1, "%s:%d: missing monitor notification field",
++		if ((working->flags & CE_MONITOR) && working->whom == NULL) {
++			warnx("%s:%d: missing monitor notification field"
++			    " --> skipping",
+ 			    conf, lineno);
++			ret = 1;
++			goto nextline;
++		}
+ 
+ 		/* If there is an arcdir, set working->backdir. */
+ 		if (arcdir != NULL && working->logbase != NULL) {
+@@ -712,13 +742,9 @@
+ 			} else {
+ 				/* arcdir is relative to log's parent dir */
+ 				*(working->logbase - 1) = '\0';
+-				working->backdir =
+-				    (char *)malloc(strlen(working->log) +
+-				    strlen(arcdir) + 2);
+-				if (working->backdir == NULL)
+-					err(1, "malloc");
+-				sprintf(working->backdir, "%s/%s",
+-				    working->log, arcdir);
++				if ((asprintf(&working->backdir, "%s/%s",
++				    working->log, arcdir)) == -1)
++					err(1, NULL);
+ 				*(working->logbase - 1) = '/';
+ 			}
+ 			/* Ignore arcdir if it doesn't exist. */
+@@ -731,23 +757,32 @@
+ 		} else
+ 			working->backdir = NULL;
+ 
+-		/* Make sure we can't oflow MAXPATHLEN */
++		/* Make sure we can't oflow PATH_MAX */
+ 		if (working->backdir != NULL) {
+-			if (strlen(working->backdir) + strlen(working->logbase)
+-			    + sizeof(COMPRESS_POSTFIX) + 34 >= MAXPATHLEN)
+-				errx(1, "%s:%d: pathname too long: %s",
+-				    conf, lineno, q);
++			if (snprintf(line, sizeof(line), "%s/%s.%d%s",
++			    working->backdir, working->logbase,
++			    working->numlogs, COMPRESS_POSTFIX) >= PATH_MAX) {
++				warnx("%s:%d: pathname too long: %s"
++				    " --> skipping", conf, lineno, q);
++				ret = 1;
++				goto nextline;
++			}
+ 		} else {
+-			if (strlen(working->log) + sizeof(COMPRESS_POSTFIX) + 33
+-			    >= MAXPATHLEN)
+-				errx(1, "%s:%d: pathname too long: %s",
+-				    conf, lineno, working->log);
++			if (snprintf(line, sizeof(line), "%s.%d%s",
++			    working->log, working->numlogs, COMPRESS_POSTFIX)
++			    >= PATH_MAX) {
++				warnx("%s:%d: pathname too long: %s"
++				    " --> skipping", conf, lineno,
++				    working->log);
++				ret = 1;
++				goto nextline;
++			}
+ 		}
++		TAILQ_INSERT_TAIL(list, working, next);
++		(*nentries)++;
+ 	}
+-	if (working)
+-		working->next = NULL;
+ 	(void)fclose(f);
+-	return (first);
++	return (ret);
+ }
+ 
+ char *
+@@ -762,72 +797,82 @@
+ }
+ 
+ void
+-dotrim(struct conf_entry *ent)
++rotate(struct conf_entry *ent, const char *oldlog)
+ {
+-	char    file1[MAXPATHLEN], file2[MAXPATHLEN];
+-	char    oldlog[MAXPATHLEN], *suffix;
+-	int     fd;
+-	int     numdays = ent->numlogs;
+-
+-	/* Is there a separate backup dir? */
+-	if (ent->backdir != NULL)
+-		sprintf(oldlog, "%s/%s", ent->backdir, ent->logbase);
+-	else
+-		strcpy(oldlog, ent->log);
+-
+-	/* Remove oldest log (may not exist) */
+-	(void)sprintf(file1, "%s.%d", oldlog, numdays);
+-	(void)sprintf(file2, "%s.%d%s", oldlog, numdays, COMPRESS_POSTFIX);
+-
+-	if (noaction) {
+-		printf("\trm -f %s %s\n", file1, file2);
+-	} else {
+-		(void)unlink(file1);
+-		(void)unlink(file2);
+-	}
++	char file1[PATH_MAX], file2[PATH_MAX], *suffix;
++	int numdays = ent->numlogs - 1;
++	int done = 0;
++
++	/* Remove old logs */
++	do {
++		(void)snprintf(file1, sizeof(file1), "%s.%d", oldlog, numdays);
++		(void)snprintf(file2, sizeof(file2), "%s.%d%s", oldlog,
++		    numdays, COMPRESS_POSTFIX);
++		if (noaction) {
++			printf("\trm -f %s %s\n", file1, file2);
++			done = access(file1, 0) && access(file2, 0);
++		} else {
++			done = unlink(file1) && unlink(file2);
++		}
++		numdays++;
++	} while (done == 0);
+ 
+ 	/* Move down log files */
+-	while (numdays--) {
++	for (numdays = ent->numlogs - 2; numdays >= 0; numdays--) {
+ 		/*
+-		 * If both the compressed archive or the non-compressed archive
+-		 * exist, we one or the other based on the CE_COMPACT flag.
++		 * If both the compressed archive and the non-compressed archive
++		 * exist, we decide which to rotate based on the CE_COMPACT flag
+ 		 */
+-		(void)sprintf(file1, "%s.%d", oldlog, numdays);
++		(void)snprintf(file1, sizeof(file1), "%s.%d", oldlog, numdays);
+ 		suffix = lstat_log(file1, sizeof(file1), ent->flags);
+ 		if (suffix == NULL)
+ 			continue;
+-		(void)sprintf(file2, "%s.%d%s", oldlog, numdays + 1, suffix);
++		(void)snprintf(file2, sizeof(file2), "%s.%d%s", oldlog,
++		    numdays + 1, suffix);
+ 
+ 		if (noaction) {
+ 			printf("\tmv %s %s\n", file1, file2);
+ 			printf("\tchmod %o %s\n", ent->permissions, file2);
+-			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+-				printf("\tchown %u:%u %s\n",
+-				    ent->uid, ent->gid, file2);
++			printf("\tchown %u:%u %s\n", ent->uid, ent->gid, file2);
+ 		} else {
+ 			if (rename(file1, file2))
+ 				warn("can't mv %s to %s", file1, file2);
+ 			if (chmod(file2, ent->permissions))
+ 				warn("can't chmod %s", file2);
+-			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+-				if (chown(file2, ent->uid, ent->gid))
+-					warn("can't chown %s", file2);
++			if (chown(file2, ent->uid, ent->gid))
++				warn("can't chown %s", file2);
+ 		}
+ 	}
++}
++
++void
++dotrim(struct conf_entry *ent)
++{
++	char file1[PATH_MAX], file2[PATH_MAX], oldlog[PATH_MAX];
++	int fd;
++
++	/* Is there a separate backup dir? */
++	if (ent->backdir != NULL)
++		snprintf(oldlog, sizeof(oldlog), "%s/%s", ent->backdir,
++		    ent->logbase);
++	else
++		strlcpy(oldlog, ent->log, sizeof(oldlog));
++
++	if (ent->numlogs > 0)
++		rotate(ent, oldlog);
+ 	if (!noaction && !(ent->flags & CE_BINARY))
+-		(void)log_trim(ent->log);  /* Report the trimming to the old log */
++		(void)log_trim(ent->log);
+ 
+-	(void)sprintf(file2, "%s.XXXXXXXXXX", ent->log);
++	(void)snprintf(file2, sizeof(file2), "%s.XXXXXXXXXX", ent->log);
+ 	if (noaction)  {
+ 		printf("\tmktemp %s\n", file2);
+ 	} else {
+ 		if ((fd = mkstemp(file2)) < 0)
+ 			err(1, "can't start '%s' log", file2);
+-		if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+-			if (fchown(fd, ent->uid, ent->gid))
+-				err(1, "can't chown '%s' log file", file2);
+ 		if (fchmod(fd, ent->permissions))
+ 			err(1, "can't chmod '%s' log file", file2);
++		if (fchown(fd, ent->uid, ent->gid))
++			err(1, "can't chown '%s' log file", file2);
+ 		(void)close(fd);
+ 		/* Add status message */
+ 		if (!(ent->flags & CE_BINARY) && log_trim(file2))
+@@ -840,10 +885,13 @@
+ 		else if (unlink(ent->log))
+ 			warn("can't rm %s", ent->log);
+ 	} else {
+-		(void)sprintf(file1, "%s.0", oldlog);
+-		if (noaction)
++		(void)snprintf(file1, sizeof(file1), "%s.0", oldlog);
++		if (noaction) {
+ 			printf("\tmv %s to %s\n", ent->log, file1);
+-		else if (rename(ent->log, file1))
++			printf("\tchmod %o %s\n", ent->permissions, file1);
++			printf("\tchown %u:%u %s\n", ent->uid, ent->gid, file1);
++		} else if (movefile(ent->log, file1, ent->uid, ent->gid,
++		    ent->permissions))
+ 			warn("can't mv %s to %s", ent->log, file1);
+ 	}
+ 
+@@ -873,20 +921,21 @@
+ void
+ compress_log(struct conf_entry *ent)
+ {
++	char *base, tmp[PATH_MAX];
+ 	pid_t pid;
+-	char *base, tmp[MAXPATHLEN];
+-	
++
+ 	if (ent->backdir != NULL)
+-		sprintf(tmp, "%s/%s.0", ent->backdir, ent->logbase);
++		snprintf(tmp, sizeof(tmp), "%s/%s.0", ent->backdir,
++		    ent->logbase);
+ 	else
+-		sprintf(tmp, "%s.0", ent->log);
++		snprintf(tmp, sizeof(tmp), "%s.0", ent->log);
+ 
+ 	if ((base = strrchr(COMPRESS, '/')) == NULL)
+ 		base = COMPRESS;
+ 	else
+ 		base++;
+ 	if (noaction) {
+-		printf("%s %s\n", base, ent->log);
++		printf("%s %s\n", base, tmp);
+ 		return;
+ 	}
+ 	pid = fork();
+@@ -899,40 +948,29 @@
+ 	}
+ }
+ 
+-/* Return size in kilobytes of a file */
++/* Return size in bytes of a file */
+ off_t
+-sizefile(char *file)
++sizefile(struct stat *sb)
+ {
+-	struct stat sb;
+-
+-	if (stat(file, &sb) < 0)
+-		return (-1);
+-
+ 	/* For sparse files, return the size based on number of blocks used. */
+-	if (sb.st_size / DEV_BSIZE > sb.st_blocks)
+-		return (sb.st_blocks * DEV_BSIZE);
++	if (sb->st_size / DEV_BSIZE > sb->st_blocks)
++		return (sb->st_blocks * DEV_BSIZE);
+ 	else
+-		return (sb.st_size);
++		return (sb->st_size);
+ }
+ 
+ /* Return the age (in hours) of old log file (file.0), or -1 if none */
+ int
+ age_old_log(struct conf_entry *ent)
+ {
++	char file[PATH_MAX];
+ 	struct stat sb;
+-	char file[MAXPATHLEN];
+ 
+-	if (ent->backdir != NULL) {
+-		if (strlen(ent->backdir) + strlen(ent->logbase) +
+-		    strlen(COMPRESS_POSTFIX) + 3 >= MAXPATHLEN)
+-			errx(1, "%s: pathname too long", ent->log);
+-		(void)sprintf(file, "%s/%s.0", ent->backdir, ent->logbase);
+-	} else {
+-		if (strlen(ent->log) + strlen(COMPRESS_POSTFIX) + 2
+-		    >= MAXPATHLEN)
+-			errx(1, "%s: pathname too long", ent->log);
+-		(void)sprintf(file, "%s.0", ent->log);
+-	}
++	if (ent->backdir != NULL)
++		(void)snprintf(file, sizeof(file), "%s/%s.0", ent->backdir,
++		    ent->logbase);
++	else
++		(void)snprintf(file, sizeof(file), "%s.0", ent->log);
+ 	if (ent->flags & CE_COMPACT) {
+ 		if (stat_suffix(file, sizeof(file), COMPRESS_POSTFIX, &sb,
+ 		    stat) < 0 && stat(file, &sb) < 0)
+@@ -949,7 +987,9 @@
+ char *
+ sob(char *p)
+ {
+-	while (p && *p && isspace(*p))
++	if (p == NULL)
++		return(p);
++	while (isspace((unsigned char)*p))
+ 		p++;
+ 	return (p);
+ }
+@@ -958,7 +998,7 @@
+ char *
+ son(char *p)
+ {
+-	while (p && *p && !isspace(*p))
++	while (p && *p && !isspace((unsigned char)*p))
+ 		p++;
+ 	return (p);
+ }
+@@ -968,7 +1008,7 @@
+ isnumberstr(char *string)
+ {
+ 	while (*string) {
+-		if (!isdigit(*string++))
++		if (!isdigit((unsigned char)*string++))
+ 			return (0);
+ 	}
+ 	return (1);
+@@ -977,10 +1017,10 @@
+ int
+ domonitor(struct conf_entry *ent)
+ {
++	char fname[PATH_MAX], *flog, *p, *rb = NULL;
+ 	struct stat sb, tsb;
+-	char fname[MAXPATHLEN], *flog, *p, *rb = NULL;
+-	FILE *fp;
+ 	off_t osize;
++	FILE *fp;
+ 	int rd;
+ 
+ 	if (stat(ent->log, &sb) < 0)
+@@ -994,13 +1034,14 @@
+ 
+ 	flog = strdup(ent->log);
+ 	if (flog == NULL)
+-		err(1, "strdup");
++		err(1, NULL);
+ 
+ 	for (p = flog; *p != '\0'; p++) {
+ 		if (*p == '/')
+ 			*p = '_';
+ 	}
+-	sprintf(fname, "%s/newsyslog.%s.size", STATS_DIR, flog);
++	snprintf(fname, sizeof(fname), "%s/newsyslog.%s.size",
++	    STATS_DIR, flog);
+ 
+ 	/* ..if it doesn't exist, simply record the current size. */
+ 	if ((sb.st_size == 0) || stat(fname, &tsb) < 0)
+@@ -1011,11 +1052,7 @@
+ 		warn("%s", fname);
+ 		goto cleanup;
+ 	}
+-#ifdef QUAD_OFF_T
+ 	if (fscanf(fp, "%lld\n", &osize) != 1) {
+-#else
+-	if (fscanf(fp, "%ld\n", &osize) != 1) {
+-#endif	/* QUAD_OFF_T */
+ 		fclose(fp);
+ 		goto update;
+ 	}
+@@ -1028,9 +1065,9 @@
+ 
+ 	/* Now see if current size is larger. */
+ 	if (sb.st_size > osize) {
+-		rb = (char *) malloc(sb.st_size - osize);
++		rb = malloc(sb.st_size - osize);
+ 		if (rb == NULL)
+-			err(1, "malloc");
++			err(1, NULL);
+ 
+ 		/* Open logfile, seek. */
+ 		fp = fopen(ent->log, "r");
+@@ -1045,15 +1082,15 @@
+ 			fclose(fp);
+ 			goto cleanup;
+ 		}
+-		
+-		/* Send message. */
+ 		fclose(fp);
+ 
+-		fp = openmail();
++		/* Send message. */
++		fp = popen(SENDMAIL " -t", "w");
+ 		if (fp == NULL) {
+-			warn("openmail");
++			warn("popen");
+ 			goto cleanup;
+ 		}
++		fprintf(fp, "Auto-Submitted: auto-generated\n");
+ 		fprintf(fp, "To: %s\nSubject: LOGFILE NOTIFICATION: %s\n\n\n",
+ 		    ent->whom, ent->log);
+ 		fwrite(rb, 1, rd, fp);
+@@ -1068,37 +1105,16 @@
+ 		warn("%s", fname);
+ 		goto cleanup;
+ 	}
+-#ifdef QUAD_OFF_T
+ 	fprintf(fp, "%lld\n", (long long)sb.st_size);
+-#else
+-	fprintf(fp, "%ld\n", (long)sb.st_size);
+-#endif	/* QUAD_OFF_T */
+ 	fclose(fp);
+ 
+ cleanup:
+ 	free(flog);
+-	if (rb != NULL)
+-		free(rb);
++	free(rb);
+ 	return (1);
+ }
+ 
+-FILE *
+-openmail(void)
+-{
+-	FILE *ret;
+-	char *cmdbuf = NULL;
+-
+-	cmdbuf = (char *) malloc(sizeof(SENDMAIL) + 3);
+-	if (cmdbuf == NULL)
+-		return (NULL);
+-
+-	sprintf(cmdbuf, "%s -t", SENDMAIL);
+-	ret = popen(cmdbuf, "w");
+-
+-	free(cmdbuf);
+-	return (ret);
+-}
+-
++/* ARGSUSED */
+ void
+ child_killer(int signo)
+ {
+@@ -1111,22 +1127,20 @@
+ }
+ 
+ int
+-stat_suffix(char *file, size_t size, char *suffix, struct stat *sp, int (*func)())
++stat_suffix(char *file, size_t size, char *suffix, struct stat *sp,
++    int (*func)(const char *, struct stat *))
+ {
+-	size_t olen;
++	size_t n;
+ 
+-	olen = strlen(file);
+-	if (olen + strlen(suffix) >= size)
+-		return (-1);
+-	strcat(file, suffix);
+-	if (func(file, sp) == 0)
++	n = strlcat(file, suffix, size);
++	if (n < size && func(file, sp) == 0)
+ 		return (0);
+-	file[olen] = '\0';
++	file[n - strlen(suffix)] = '\0';
+ 	return (-1);
+ }
+ 
+ /*
+- * lstat() a log, possibily appending a suffix; order is based on flags.
++ * lstat() a log, possibly appending a suffix; order is based on flags.
+  * Returns the suffix appended (may be empty string) or NULL if no file.
+  */
+ char *
+@@ -1160,8 +1174,8 @@
+ time_t
+ parse8601(char *s)
+ {
+-	char *t;
+ 	struct tm tm, *tmp;
++	char *t;
+ 	long l;
+ 
+ 	tmp = localtime(&timenow);
+@@ -1170,7 +1184,7 @@
+ 	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
+ 
+ 	l = strtol(s, &t, 10);
+-	if (l < 0 || (*t != '\0' && *t != 'T'))
++	if (l < 0 || l >= INT_MAX || (*t != '\0' && *t != 'T'))
+ 		return (-1);
+ 
+ 	/*
+@@ -1198,14 +1212,15 @@
+ 	}
+ 
+ 	/* sanity check */
+-	if (tm.tm_year < 70 || tm.tm_mon < 0 || tm.tm_mon > 12
+-	    || tm.tm_mday < 1 || tm.tm_mday > 31)
++	if (tm.tm_year < 70 || tm.tm_mon < 0 || tm.tm_mon > 12 ||
++	    tm.tm_mday < 1 || tm.tm_mday > 31)
+ 		return (-1);
+ 
+ 	if (*t != '\0') {
+ 		s = ++t;
+ 		l = strtol(s, &t, 10);
+-		if (l < 0 || (*t != '\0' && !isspace(*t)))
++		if (l < 0 || l >= INT_MAX ||
++		    (*t != '\0' && !isspace((unsigned char)*t)))
+ 			return (-1);
+ 
+ 		switch (t - s) {
+@@ -1224,8 +1239,8 @@
+ 		}
+ 
+ 		/* sanity check */
+-		if (tm.tm_sec < 0 || tm.tm_sec > 60 || tm.tm_min < 0
+-		    || tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
++		if (tm.tm_sec < 0 || tm.tm_sec > 60 || tm.tm_min < 0 ||
++		    tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
+ 			return (-1);
+ 	}
+ 	return (mktime(&tm));
+@@ -1248,13 +1263,11 @@
+ time_t
+ parseDWM(char *s)
+ {
+-	char *t;
++	static int mtab[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
++	int WMseen = 0, Dseen = 0, nd;
+ 	struct tm tm, *tmp;
++	char *t;
+ 	long l;
+-	int nd;
+-	static int mtab[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+-	int WMseen = 0;
+-	int Dseen = 0;
+ 
+ 	tmp = localtime(&timenow);
+ 	tm = *tmp;
+@@ -1317,7 +1330,7 @@
+ 				return (-1);
+ 			WMseen++;
+ 			s++;
+-			if (tolower(*s) == 'l') {
++			if (tolower((unsigned char)*s) == 'l') {
+ 				tm.tm_mday = nd;
+ 				s++;
+ 				t = s;
+@@ -1328,6 +1341,8 @@
+ 
+ 				if (l > nd)
+ 					return (-1);
++				if (l < tm.tm_mday)
++					tm.tm_mon++;
+ 				tm.tm_mday = l;
+ 			}
+ 			break;
+@@ -1337,7 +1352,7 @@
+ 			break;
+ 		}
+ 
+-		if (*t == '\0' || isspace(*t))
++		if (*t == '\0' || isspace((unsigned char)*t))
+ 			break;
+ 		else
+ 			s = t;
+@@ -1345,23 +1360,48 @@
+ 	return (mktime(&tm));
+ }
+ 
++/*
++ * Move a file using rename(2) if possible and copying if not.
++ */
+ int
+-siglookup(char *name)
++movefile(char *from, char *to, uid_t owner_uid, gid_t group_gid, mode_t perm)
+ {
+-#define SIG_LOOKUP(s)  do {				\
+-	if (strcmp(name, #s)) return (SIG ## s);	\
+-} while (0)
+-
+-	SIG_LOOKUP(HUP);
+-#ifdef SIGUSR1
+-	SIG_LOOKUP(USR1);
+-	SIG_LOOKUP(USR2);
+-#endif
+-	SIG_LOOKUP(INT);
+-	SIG_LOOKUP(KILL);
+-	SIG_LOOKUP(TERM);
+-	SIG_LOOKUP(QUIT);
+-	SIG_LOOKUP(ABRT);
+-	SIG_LOOKUP(ALRM);
+-	return (-1);
++	FILE *src, *dst;
++	int i;
++
++	/* try rename(2) first */
++	if (rename(from, to) == 0) {
++		if (chmod(to, perm))
++			warn("can't chmod %s", to);
++		if (chown(to, owner_uid, group_gid))
++			warn("can't chown %s", to);
++		return (0);
++	} else if (errno != EXDEV)
++		return (-1);
++
++	/* different filesystem, have to copy the file */
++	if ((src = fopen(from, "r")) == NULL)
++		err(1, "can't fopen %s for reading", from);
++	if ((dst = fopen(to, "w")) == NULL)
++		err(1, "can't fopen %s for writing", to);
++	if (fchmod(fileno(dst), perm))
++		err(1, "can't fchmod %s", to);
++	if (fchown(fileno(dst), owner_uid, group_gid))
++		err(1, "can't fchown %s", to);
++
++	while ((i = getc(src)) != EOF) {
++		if ((putc(i, dst)) == EOF)
++			err(1, "error writing to %s", to);
++	}
++
++	if (ferror(src))
++		err(1, "error reading from %s", from);
++	if ((fclose(src)) != 0)
++		err(1, "can't fclose %s", from);
++	if ((fclose(dst)) != 0)
++		err(1, "can't fclose %s", to);
++	if ((unlink(from)) != 0)
++		err(1, "can't unlink %s", from);
++
++	return (0);
+ }
+--- Makefile.in.orig	2003-02-12 14:24:57.000000000 -0500
++++ Makefile.in	2018-05-22 22:19:37.735993373 -0400
+@@ -82,7 +82,7 @@
+ 
+ OBJS = newsyslog.$(OBJEXT) @LIBOBJS@
+ 
+-VERSION = 1.1
++VERSION = 1.108
+ 
+ DISTFILES = INSTALL INSTALL.configure LICENSE Makefile.in README RELEASE_NOTES \
+ 	    config.guess config.h.in config.sub configure configure.in err.c \
+--- newsyslog.man.orig	2003-02-12 14:16:58.000000000 -0500
++++ newsyslog.man	2018-05-22 22:29:31.725772592 -0400
+@@ -1,4 +1,4 @@
+-.\"	$OpenBSD: newsyslog.8,v 1.33 2003/02/12 19:17:36 millert Exp $
++.\"	$OpenBSD: newsyslog.8,v 1.54 2017/07/20 18:39:16 jca Exp $
+ .\"
+ .\" Copyright (c) 1997, Jason Downs.  All rights reserved.
+ .\"
+@@ -10,13 +10,6 @@
+ .\" 2. Redistributions in binary form must reproduce the above copyright
+ .\"    notice, this list of conditions and the following disclaimer in the
+ .\"    documentation and/or other materials provided with the distribution.
+-.\" 3. All advertising materials mentioning features or use of this software
+-.\"    must display the following acknowledgement:
+-.\"      This product includes software developed by Jason Downs for the
+-.\"      OpenBSD system.
+-.\" 4. Neither the name(s) of the author(s) nor the name OpenBSD
+-.\"    may be used to endorse or promote products derived from this software
+-.\"    without specific prior written permission.
+ .\"
+ .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+ .\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+@@ -48,360 +41,403 @@
+ .\" the suitability of this software for any purpose.  It is
+ .\" provided "as is" without express or implied warranty.
+ .\"
+-.TH NEWSYSLOG 8 "24 Jan 2003"
+-.SH NAME
+-\fBnewsyslog\fR \- maintain system log files to manageable sizes
+-.SH SYNOPSIS
+-\fBnewsyslog\fR [\fB\-FmnrvV\fR] [\fB\-a\fR \fIdirectory]\fR
+-[\fB\-f\fR \fIconfig_file]\fR [\fIlog\fR \fI...\fR]
+-.SH DESCRIPTION
+-.B newsyslog
+-is a program that should be scheduled to run periodically by
+-.BR cron (8).
+-When it is executed it archives log files if necessary.
+-If a log file is determined to require archiving,
+-.B newsyslog
+-rearranges the files so that
+-.I logfile
+-is empty,
+-.I logfile.0
+-has
+-the last period's logs in it,
+-.I logfile.1
+-has the next to last
+-period's logs in it, and so on, up to a user-specified number of
+-archived logs.
+-The archived logs may be optionally compressed to save space.
+-.LP
++.Dd $Mdocdate: July 20 2017 $
++.Dt NEWSYSLOG 8
++.Os
++.Sh NAME
++.Nm newsyslog ,
++.Nm newsyslog.conf
++.Nd rotate log files
++.Sh SYNOPSIS
++.Nm newsyslog
++.Op Fl Fmnrv
++.Op Fl a Ar directory
++.Op Fl f Ar config_file
++.Op Ar log ...
++.Sh DESCRIPTION
++The
++.Nm
++utility rotates log files when they exceed a configurable size or age.
++The
++.Ar log
++file is renamed to
++.Pa log.0
++and an empty file is created in its place.
++An archive of older logs may be kept:
++in order of increasing age, these files are named
++.Pa log.1 ,
++.Pa log.2 ,
++and so on.
++When their number exceeds a given limit, the oldest is removed.
++The archived logs may also be compressed.
++.Pp
+ The options are as follows:
+-.TP
+-.B \-F
++.Bl -tag -width Ds
++.It Fl a Ar directory
++Specify a
++.Ar directory
++into which archived log files will be written.
++If
++.Ar directory
++is a relative path, it is appended to the parent directory
++of each log and the archived log is stored in the result.
++If an absolute path is given, all archived logs are stored in the given
++.Ar directory .
++If
++.Ar directory
++does not exist for a specified log, it is ignored for that entry and
++the log is rotated as if the
++.Fl a
++option was not specified.
++.It Fl F
+ Force
+-.B newsyslog
++.Nm
+ to trim logs regardless of the size and/or age requirements specified in
+-.IR /etc/newsyslog.conf .
++.Pa /etc/newsyslog.conf .
+ This option may be combined with the
+-.B \-n
++.Fl n
+ or
+-.B \-v
++.Fl v
+ flags to aid in debugging problems with
+-.IR /etc/newsyslog.conf .
+-.TP
+-.B \-m
+-Monitoring mode; only entries marked with an `M'
++.Pa /etc/newsyslog.conf .
++.It Fl f Ar config_file
++Use
++.Ar config_file
++instead of
++.Pa /etc/newsyslog.conf
++for the configuration file.
++.It Fl m
++Monitoring mode; only entries marked with an
++.Sq M
+ in flags are processed.
+-For each log file being monitored, any log output since the last time 
+-.B newsyslog
++For each log file being monitored, any log output since the last time
++.Nm
+ was run with the
+-.B \-m
++.Fl m
+ flag is mailed to the user listed in the monitor notification section.
+-.TP
+-.B \-n
++.It Fl n
+ Do not trim the logs, but instead print out what would be done if this option
+ were not specified.
+-.TP
+-.B \-r
++.It Fl r
+ Removes the restriction that
+-.B newsyslog
++.Nm
+ must be running as root.
+-Of course,
+-.B newsyslog
++Note that in this mode
++.Nm
+ will not be able to send a
+-.I SIGHUP
++.Dv SIGHUP
+ signal to
+-.BR syslogd (8),
+-so this option should only be used in debugging.
+-.TP
+-.B \-v
++.Xr syslogd 8 .
++.It Fl v
+ Place
+-.B newsyslog
++.Nm newsyslog
+ in verbose mode.
+ In this mode it will print out each log and its
+ reasons for either trimming that log or skipping it.
+-.TP
+-.B \-V
+-Print version.
+-.TP
+-.BI \-a " directory"
+-Specify a
+-.I directory
+-into which archived log files will be written.
+-If
+-.I directory
+-is a relative path, it is appended to the parent directory
+-of each log and the archived log is stored in the result.
+-If an absolute path is given, all archived logs are stored in the given
+-.IR directory .
+-If
+-.I directory
+-does not exist for a specified log, it is ignored for that entry and
+-the log is rotated as if the
+-.B \-a
+-option was not specified.
+-.TP
+-.BI \-f " config_file"
+-Use
+-.I config_file
+-instead of
+-.I /etc/newsyslog.conf
+-for the configuration file.
+-.LP
++.El
++.Pp
++In the default system configuration,
++.Nm
++is run by
++.Xr cron 8 ,
++but it may also be run manually.
+ If one or more
+-.I log
+-files are specified on the command line, only the specified logs will
+-be rotated.
++.Ar log
++files are specified on the command line, only the specified files are
++rotated.
+ Note that each
+-.I log
++.Ar log
+ specified must have an entry in
+-.IR /etc/newsyslog.conf .
+-.LP
++.Pa /etc/newsyslog.conf .
++.Pp
+ A log can be archived because of two reasons:
+ The log file can have
+ grown bigger than a preset size in kilobytes, or a preset number of
+ hours may have elapsed since the last log archive.
+ The granularity of
+-.B newsyslog
++.Nm
+ is dependent on how often it is scheduled to run in
+-.BR cron (8).
++.Xr cron 8 .
+ Since the program is quite fast, it may be scheduled to run every hour
+ without any ill effects.
+-.LP
++.Pp
+ When starting up,
+-.B newsyslog
++.Nm
+ reads in a configuration file to determine which logs should be looked
+ at.
+ By default, this configuration file is
+-.IR /etc/newsyslog.conf .
++.Pa /etc/newsyslog.conf .
+ Each line of the file contains information about a particular log file
+ that should be handled by
+-.BR newsyslog .
+-Each line has five mandatory fields and up to three optional fields, with a
++.Nm newsyslog .
++Each line has five mandatory fields and up to three optional fields, with
+ whitespace separating each field.
+-Blank lines or lines beginning with a hash mark (`#') are ignored.
+-The fields of the configuration file are as follows:
+-.TP 1.5i
+-\fIlogfile_name\fP
++Blank lines or lines beginning with a hash mark
++.Pq Ql #
++are ignored.
++The fields of the configuration file are as
++follows:
++.Bl -tag -width XXXXXXXXXXXXXXXX
++.It Ar logfile_name
+ The full pathname of the system log file to be archived.
+-.TP
+-\fIowner:group\fP
++.It Ar owner:group
+ This optional field specifies the owner and group for the archive file.
+-The `\&:' is essential, even if the
+-.I owner
++The
++.Ql \&:
++is essential, even if the
++.Ar owner
+ or
+-.I group
++.Ar group
+ field is left blank.
+ The fields may be numeric, or a name which is looked up
+ in the system password and group databases.
+-For backwards compatibility, a `\&.' may be used instead of a `\&:'.
+-.TP
+-\fImode\fP
++For backwards compatibility, a
++.Ql \&.
++may be used instead of a
++.Ql \&: .
++If either
++.Ar owner
++or
++.Ar group
++is not specified, the owner and/or group of the existing log file is used.
++.It Ar mode
+ File mode (in octal) to use for created log files and archives.
+-.TP
+-\fIcount\fP
++.It Ar count
+ The number of archives to be kept besides the log file itself.
+-.TP
+-\fIsize\fP
++.It Ar size
+ When the size of the log file (in kilobytes) reaches this point, the log
+ file is trimmed as described above.
+-If this field is replaced by an `*', then the size of
++If this field is replaced by an
++.Ql * ,
++or set to
++.Ql 0 ,
++then the size of
+ the log file is not taken into account when determining when to trim the
+ log file.
+-By default, files smaller than 512 bytes are not rotated unless the
+-`B' (binary) flag is set.
++By default, files smaller than 256 bytes are not rotated unless the
++.Sq B
++(binary) flag is set or the
++.Fl F
++option is specified.
+ This prevents
+-.B newsyslog
++.Nm
+ from rotating files consisting solely of a message indicating
+ that the log file has been turned over.
+-.TP
+-\fIwhen\fP
++.It Ar when
+ The
+-.I when
++.Ar when
+ field can consist of an interval, a specific time, or both.
+ If the
+-.I when
+-field consists of an asterisk (`*'),
++.Ar when
++field consists of an asterisk
++.Pq Ql \&* ,
+ log rotation will depend only on the contents of the
+-.I size
++.Ar size
+ field.
+ Otherwise, the
+-.I when
++.Ar when
+ field consists of an optional interval in hours, possibly followed
+-by an `@'-sign and a time in a restricted ISO 8601 format or by a `$'-sign
++by an
++.So Li \&@ Sc Ns -sign
++and a time in a restricted
++.St -iso8601
++format or by a
++.So Li \&$ Sc Ns -sign
+ and a time specification for logfile rotation at a fixed time once
+ per day, per week or per month.
+-.sp
++.Pp
+ If a time is specified, the log file will only be trimmed if
+-.B newsyslog
++.Nm
+ is run within one hour of the specified time.
+ If an interval is specified, the log file will be trimmed if that
+ many hours have passed since the last rotation.
+ When both a time and an interval are specified, both conditions
+ must be satisfied for the rotation to take place.
+-.sp
+-There is no provision for the specification of a timezone.
++.Pp
++There is no provision for the specification of a time zone.
+ There is little point in specifying an explicit minutes or seconds
+ component in the current implementation, since the only comparison is
+-`within the hour'.
+-.sp
+-.I ISO 8601 restricted time format
+-.br
++.Sq within the hour .
++.Pp
++.Sy ISO 8601 restricted time format:
+ The lead-in character for a restricted
+-.SM ISO 8601
+-time is an `@'-sign.
++.St -iso8601
++time is an
++.So Li \&@ Sc Ns -sign .
+ The particular format of the time in restricted
+-.SM ISO 8601
+-is: [[[[[cc]yy]mm]dd][T[hh[mm[ss]]]]].
++.St -iso8601
++is:
++.Sm off
++.Oo Oo Oo Oo Oo
++.Va \&cc Oc
++.Va \&yy Oc
++.Va \&mm Oc
++.Va \&dd Oc
++.Oo Va \&T
++.Oo Va \&HH
++.Oo Va \&MM
++.Oo Va \&SS
++.Oc Oc Oc Oc Oc .
++.Sm on
+ Optional date fields default to the appropriate component of the
+-current date; optional time fields default to midnight
++current date; optional time fields default to midnight.
+ For example, if today is January 22, 1999, the following date specifications
+ are all equivalent:
+-.RS 2i
+-.TP
+-`19990122T000000'
+-.TP
+-`990122T000000'
+-.TP
+-`0122T000000'
+-.TP
+-`22T000000'
+-.TP
+-`T000000'
+-.TP
+-`T0000'
+-.TP
+-`T00'
+-.TP
+-`22T'
+-.TP
+-`T'
+-.TP
+-`'
+-.RE
+-.RS
+-.sp
+-.I Day, week and month time format
+-.br
+-The lead-in character for day, week and month specification is a `$'-sign.
++.Pp
++.Bl -item -compact -offset indent
++.It
++.Ql 19990122T000000
++.It
++.Ql 990122T000000
++.It
++.Ql 0122T000000
++.It
++.Ql 22T000000
++.It
++.Ql T000000
++.It
++.Ql T0000
++.It
++.Ql T00
++.It
++.Ql 22T
++.It
++.Ql \&T
++.It
++.Ql \&
++.El
++.Pp
++.Sy Day, week and month time format:
++The lead-in character for day, week and month specification is a
++dollar sign
++.Pq $ .
+ The particular format of day, week and month specification is:
+-[Dhh], [Ww[Dhh]] and [Mdd[Dhh]], respectively.
++.Op Li D Ns Ar HH ,
++.Op Li W Ns Ar w Ns Op Li D Ns Ar HH ,
++and
++.Op Li M Ns Ar dd Ns Op Li D Ns Ar HH ,
++respectively.
+ Optional time fields default to midnight.
+ The ranges for day and hour specifications are:
+-.RS
+-.TP
+-.I hh
++.Pp
++.Bl -tag -width Ds -compact -offset indent
++.It Ar HH
+ hours, range 0 ... 23
+-.TP
+-.I w
++.It Ar w
+ day of week, range 0 ... 6, 0 = Sunday
+-.TP
+-.I dd
++.It Ar dd
+ day of month, range 1 ... 31, or the letter
+-.I L
++.Em L
+ or
+-.I l
++.Em l
+ to specify the last day of the month.
+-.RE
+-.sp
+-.I Some examples:
+-.br
+-.RS
+-.TP
+-.I $D0
++.El
++.Pp
++.Sy Some examples:
++.Bl -tag -width Ds -compact -offset indent
++.It Li $D0
+ rotate every night at midnight
+ (same as
+-.IR @T00 )
+-.TP
+-.I $D23
++.Li @T00 )
++.It Li $D23
+ rotate every day at 23:00 hr
+ (same as
+-.IR @T23 )
+-.TP
+-.I $W0D23
++.Li @T23 )
++.It Li $W0D23
+ rotate every week on Sunday at 23:00 hr
+-.TP
+-.I $W5D16
++.It Li $W5D16
+ rotate every week on Friday at 16:00 hr
+-.TP
+-.I $M1D0
++.It Li $M1D0
+ rotate on the first day of every month at midnight
+ (i.e., the start of the day; same as
+-.IR @01T00 )
+-.TP
+-.I $M5D6
++.Li @01T00 )
++.It Li $M5D6
+ rotate on every 5th day of the month at 6:00 hr
+ (same as
+-.IR @05T06 )
+-.RE
+-.RE
+-.TP
+-\fIflags\fP
++.Li @05T06 )
++.El
++.It Ar flags
+ The optional
+-.I flags
++.Ar flags
+ field specifies if the archives should have any special processing
+ done to the archived log files.
+-The `Z' flag will make the archive
++The
++.Sq Z
++flag will make the archive
+ files compressed to save space using
+-.BR gzip (1)
++.Xr gzip 1
+ or
+-.BR compress (1),
++.Xr compress 1 ,
+ depending on compilation options.
+-The `B' flag means that the file is a
++The
++.Sq B
++flag means that the file is a
+ binary file, and so the ASCII message which
+-.B newsyslog
++.Nm
+ inserts to indicate the fact that the logs have been turned over
+ should not be included.
+-The `M' flag marks this entry as a monitored log file.
+-The `F' flag specifies that symbolic links should be followed.
+-.TP
+-\fImonitor\fP
++The
++.Sq M
++flag marks this entry as a monitored
++log file.
++The
++.Sq F
++flag specifies that symbolic links should be followed.
++.It Ar monitor
+ Specify the username (or email address) that should receive notification
+ messages if this is a monitored log file.
+ Notification messages are sent as email; the operator
+-deserves what they get if they mark the
+-.BR sendmail (8)
++deserves what they get if they mark the mail
+ log file as monitored.
+-This field is only valid when the `M' flag is set.
+-.TP
+-\fIpid_file\fP
++This field is only valid when the
++.Sq M
++flag is set.
++.It Ar pid_file
+ This optional field specifies a file containing the PID of a process to send a
+-.I SIGHUP
+ signal (usually
+-.IR SIGHUP )
++.Dv SIGHUP )
+ to instead of
+-.IR /var/run/syslog.pid .
+-.TP
+-\fIsignal\fP
++.Pa /var/run/syslog.pid .
++.It Ar signal
+ Specify the signal to send to the process instead of
+-.IR SIGHUP .
++.Dv SIGHUP .
+ Signal names
+-must start with ``SIG'' and be the signal name, not the number, e.g.,
+-.IR SIGUSR1 .
+-.TP
+-\fIcommand\fP
++must start with
++.Dq SIG
++and be the signal name, not the number, e.g.,
++.Dv SIGUSR1 .
++.It Ar command
+ This optional field specifies a command to run instead of sending a signal
+ to the process.
+-The command must be enclosed in double quotes (`\&"').
+-The empty string, `\&"\&"', can use used to prevent
+-.B newsyslog
++The command must be enclosed in double quotes
++.Pq Ql \&" .
++The empty string,
++.Ql \&"\&" ,
++can be used to prevent
++.Nm
+ from sending a signal or running a command.
+ You cannot specify both a command and a PID file.
+-.IR NOTE :
++.Em NOTE:
+ If you specify a command to be run,
+-.B newsyslog
++.Nm
+ will not send a
+-.IR SIGHUP to
+-.BR syslogd (8).
+-.SH FILES
+-.TP 24
+-.I /etc/newsyslog.conf
++.Dv SIGHUP to
++.Xr syslogd 8 .
++.El
++.Sh FILES
++.Bl -tag -width /etc/newsyslog.conf
++.It Pa /etc/newsyslog.conf
+ default configuration file
+-.SH SEE ALSO
+-.BR compress (1),
+-.BR gzip (1),
+-.BR syslog (3),
+-.BR syslogd (8)
+-.SH AUTHORS
+-.nf
+-Theodore Ts'o, MIT Project Athena
++.El
++.Sh EXIT STATUS
++.Ex -std
++.Sh SEE ALSO
++.Xr compress 1 ,
++.Xr gzip 1 ,
++.Xr syslog 3 ,
++.Xr syslogd 8
++.Sh AUTHORS
++.An Theodore Ts'o ,
++MIT Project Athena
++.br
+ Copyright 1987, Massachusetts Institute of Technology
+-.fi
+--- /dev/null	2018-05-20 12:52:01.315000042 -0400
++++ newsyslog.conf.sample	2018-05-23 08:08:00.336860185 -0400
+@@ -0,0 +1,17 @@
++#	$OpenBSD: newsyslog.conf,v 1.36 2016/12/27 09:17:52 jca Exp $
++#
++# configuration file for newsyslog
++#
++# logfile_name		owner:group     mode count size when  flags
++/var/cron/log		root:wheel	600  3     10   *     Z
++/var/log/authlog	root:wheel	640  7     *    168   Z
++/var/log/daemon				640  5     300  *     Z
++/var/log/lpd-errs			640  7     10   *     Z
++/var/log/maillog			640  7     *    24    Z
++/var/log/messages			644  5     300  *     Z
++/var/log/secure				600  7     *    168   Z
++/var/log/wtmp				644  7     *    $W6D4 B
++/var/log/xferlog			640  7     250  *     Z
++/var/log/pflog				600  3     250  *     ZB "pkill -HUP -u root -U root -t - -x pflogd"
++/var/www/logs/access.log		644  4     *    $W0   Z "pkill -USR1 -u root -U root -x httpd"
++/var/www/logs/error.log			644  7     250  *     Z "pkill -USR1 -u root -U root -x httpd"
