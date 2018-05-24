@@ -1,1 +1,1 @@
-make && make doc
+make CFLAGS="${CFLAGS}" && make doc
