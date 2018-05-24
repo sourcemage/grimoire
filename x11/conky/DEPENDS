@@ -27,11 +27,6 @@ optional_depends curl \
                  "--disable-curl" \
                  "for curl support" &&
 
-optional_depends mpd \
-                 "--enable-mpd" \
-                 "--disable-mpd" \
-                 "for Music Player Daemon support" &&
-
 optional_depends xmms2 \
                  "--enable-xmms2" \
                  "--disable-xmms2" \
@@ -57,10 +52,27 @@ optional_depends alsa-lib \
                  "--disable-alsa" \
                  "for ALSA support" &&
 
-optional_depends lua51 \
+optional_depends LUA \
                  "--enable-lua" \
                  "--disable-lua" \
                  "for Lua scripting support" &&
+
+config_query_option CONKY_OPTS "Enable Lua Imlib2 bindings for Conky?" n \
+                               "--enable-lua-imlib2" \
+                               "--disable-lua-imlib2" &&
+
+if ! is_depends_enabled ${SPELL} imlib2 && list_find "${CONKY_OPTS}" "--enable-lua-imlib2"; then
+  depends imlib2
+fi &&
+
+optional_depends cairo \
+                 "--enable-lua-cairo" \
+                 "--disable-lua-cairo" \
+                 "for Lua Cairo bindings for Conky" &&
+
+if list_find "${CONKY_OPTS}" "--enable-lua-imlib2" || is_depends_enabled ${SPELL} cairo; then
+  depends tolua++
+fi &&
 
 optional_depends wireless_tools \
                  "--enable-wlan" \
@@ -70,10 +82,4 @@ optional_depends wireless_tools \
 optional_depends ncurses \
                  "--enable-ncurses" \
                  "--disable-ncurses" \
-                 "for TUI support" &&
-
-optional_depends moc \
-                 "--enable-moc" \
-                 "--disable-moc" \
-                 "for moc player support"
-
+                 "for TUI support"
