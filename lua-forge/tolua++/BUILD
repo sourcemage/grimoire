@@ -1,1 +1,1 @@
-scons prefix="$INSTALL_ROOT/usr"
+cmake_build
