@@ -1,0 +1,147 @@
+From a519d07cfc699a3cb9cc129783e30b4eef4b1d77 Mon Sep 17 00:00:00 2001
+From: patrick96 <p.ziegler96@gmail.com>
+Date: Tue, 2 Jan 2018 13:52:34 +0100
+Subject: [PATCH 1/2] feat(script): Add %pid% token for tail commands
+
+Is replaced with the pid of the exec command
+---
+ include/modules/script.hpp |  2 ++
+ src/modules/script.cpp     | 27 ++++++++++++++++++++++++---
+ 2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/include/modules/script.hpp b/include/modules/script.hpp
+index c1ec50bc..d2db896e 100644
+--- a/include/modules/script.hpp
++++ b/include/modules/script.hpp
+@@ -29,6 +29,8 @@ namespace modules {
+ 
+     unique_ptr<command> m_command;
+ 
++    bool m_tail;
++
+     string m_exec;
+     string m_exec_if;
+ 
+diff --git a/src/modules/script.cpp b/src/modules/script.cpp
+index 8a334305..0f0dfa20 100644
+--- a/src/modules/script.cpp
++++ b/src/modules/script.cpp
+@@ -13,9 +13,11 @@ namespace modules {
+    */
+   script_module::script_module(const bar_settings& bar, string name_)
+       : module<script_module>(bar, move(name_)), m_handler([&]() -> function<chrono::duration<double>()> {
++
++        m_tail = m_conf.get(name(), "tail", false);
+         // Handler for continuous tail commands {{{
+ 
+-        if (m_conf.get(name(), "tail", false)) {
++        if (m_tail) {
+           return [&] {
+             if (!m_command || !m_command->is_running()) {
+               string exec{string_util::replace_all(m_exec, "%counter%", to_string(++m_counter))};
+@@ -174,19 +176,38 @@ namespace modules {
+ 
+     if (!m_actions[mousebtn::LEFT].empty()) {
+       m_builder->cmd(mousebtn::LEFT, string_util::replace_all(m_actions[mousebtn::LEFT], "%counter%", cnt));
++
++      if(m_tail && m_command && m_command->is_running()) {
++        m_builder->cmd(mousebtn::LEFT, string_util::replace_all(m_actions[mousebtn::LEFT], "%pid%", std::to_string(m_command->get_pid())));
++      }
+     }
+     if (!m_actions[mousebtn::MIDDLE].empty()) {
+       m_builder->cmd(mousebtn::MIDDLE, string_util::replace_all(m_actions[mousebtn::MIDDLE], "%counter%", cnt));
++
++      if(m_tail && m_command && m_command->is_running()) {
++        m_builder->cmd(mousebtn::MIDDLE, string_util::replace_all(m_actions[mousebtn::MIDDLE], "%pid%", std::to_string(m_command->get_pid())));
++      }
+     }
+     if (!m_actions[mousebtn::RIGHT].empty()) {
+       m_builder->cmd(mousebtn::RIGHT, string_util::replace_all(m_actions[mousebtn::RIGHT], "%counter%", cnt));
++
++      if(m_tail && m_command && m_command->is_running()) {
++        m_builder->cmd(mousebtn::RIGHT, string_util::replace_all(m_actions[mousebtn::RIGHT], "%pid%", std::to_string(m_command->get_pid())));
++      }
+     }
+     if (!m_actions[mousebtn::SCROLL_UP].empty()) {
+       m_builder->cmd(mousebtn::SCROLL_UP, string_util::replace_all(m_actions[mousebtn::SCROLL_UP], "%counter%", cnt));
++
++      if(m_tail && m_command && m_command->is_running()) {
++        m_builder->cmd(mousebtn::SCROLL_UP, string_util::replace_all(m_actions[mousebtn::SCROLL_UP], "%pid%", std::to_string(m_command->get_pid())));
++      }
+     }
+     if (!m_actions[mousebtn::SCROLL_DOWN].empty()) {
+-      m_builder->cmd(
+-          mousebtn::SCROLL_DOWN, string_util::replace_all(m_actions[mousebtn::SCROLL_DOWN], "%counter%", cnt));
++      m_builder->cmd( mousebtn::SCROLL_DOWN, string_util::replace_all(m_actions[mousebtn::SCROLL_DOWN], "%counter%", cnt));
++
++      if(m_tail && m_command && m_command->is_running()) {
++        m_builder->cmd(mousebtn::SCROLL_DOWN, string_util::replace_all(m_actions[mousebtn::SCROLL_DOWN], "%pid%", std::to_string(m_command->get_pid())));
++      }
+     }
+ 
+     m_builder->append(output);
+
+From e1f4d81784a1363de14ed0d79e58096579545b7a Mon Sep 17 00:00:00 2001
+From: patrick96 <p.ziegler96@gmail.com>
+Date: Tue, 2 Jan 2018 14:05:14 +0100
+Subject: [PATCH 2/2] refactor(script): Loop over buttons and replace tokens
+
+---
+ src/modules/script.cpp | 41 +++++++++++------------------------------
+ 1 file changed, 11 insertions(+), 30 deletions(-)
+
+diff --git a/src/modules/script.cpp b/src/modules/script.cpp
+index 0f0dfa20..669e9a8e 100644
+--- a/src/modules/script.cpp
++++ b/src/modules/script.cpp
+@@ -174,39 +174,20 @@ namespace modules {
+     string cnt{to_string(m_counter)};
+     string output{module::get_output()};
+ 
+-    if (!m_actions[mousebtn::LEFT].empty()) {
+-      m_builder->cmd(mousebtn::LEFT, string_util::replace_all(m_actions[mousebtn::LEFT], "%counter%", cnt));
++    for (auto btn : {mousebtn::LEFT, mousebtn::MIDDLE, mousebtn::RIGHT, mousebtn::SCROLL_UP, mousebtn::SCROLL_DOWN}) {
+ 
+-      if(m_tail && m_command && m_command->is_running()) {
+-        m_builder->cmd(mousebtn::LEFT, string_util::replace_all(m_actions[mousebtn::LEFT], "%pid%", std::to_string(m_command->get_pid())));
+-      }
+-    }
+-    if (!m_actions[mousebtn::MIDDLE].empty()) {
+-      m_builder->cmd(mousebtn::MIDDLE, string_util::replace_all(m_actions[mousebtn::MIDDLE], "%counter%", cnt));
++      auto action = m_actions[btn];
+ 
+-      if(m_tail && m_command && m_command->is_running()) {
+-        m_builder->cmd(mousebtn::MIDDLE, string_util::replace_all(m_actions[mousebtn::MIDDLE], "%pid%", std::to_string(m_command->get_pid())));
+-      }
+-    }
+-    if (!m_actions[mousebtn::RIGHT].empty()) {
+-      m_builder->cmd(mousebtn::RIGHT, string_util::replace_all(m_actions[mousebtn::RIGHT], "%counter%", cnt));
++      if (!action.empty()) {
++        m_builder->cmd(btn, string_util::replace_all(action, "%counter%", cnt));
+ 
+-      if(m_tail && m_command && m_command->is_running()) {
+-        m_builder->cmd(mousebtn::RIGHT, string_util::replace_all(m_actions[mousebtn::RIGHT], "%pid%", std::to_string(m_command->get_pid())));
+-      }
+-    }
+-    if (!m_actions[mousebtn::SCROLL_UP].empty()) {
+-      m_builder->cmd(mousebtn::SCROLL_UP, string_util::replace_all(m_actions[mousebtn::SCROLL_UP], "%counter%", cnt));
+-
+-      if(m_tail && m_command && m_command->is_running()) {
+-        m_builder->cmd(mousebtn::SCROLL_UP, string_util::replace_all(m_actions[mousebtn::SCROLL_UP], "%pid%", std::to_string(m_command->get_pid())));
+-      }
+-    }
+-    if (!m_actions[mousebtn::SCROLL_DOWN].empty()) {
+-      m_builder->cmd( mousebtn::SCROLL_DOWN, string_util::replace_all(m_actions[mousebtn::SCROLL_DOWN], "%counter%", cnt));
+-
+-      if(m_tail && m_command && m_command->is_running()) {
+-        m_builder->cmd(mousebtn::SCROLL_DOWN, string_util::replace_all(m_actions[mousebtn::SCROLL_DOWN], "%pid%", std::to_string(m_command->get_pid())));
++        /*
++         * The pid token is only for tailed commands.
++         * If the command is not specified or running, replacement is unnecessary as well
++         */
++        if(m_tail && m_command && m_command->is_running()) {
++          m_builder->cmd(btn, string_util::replace_all(action, "%pid%", to_string(m_command->get_pid())));
++        }
+       }
+     }
+ 
