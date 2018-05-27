@@ -6,5 +6,6 @@ OPTS+=' cgroup-controller=none' &&
 #if is_depends_enabled $SPELL simpleinit-msb;then
 #  OPTS+=' cgroup-controller=telinit'
 #fi &&
+OPTS+=' nobody-group=nogroup' &&
 default_build
 
