@@ -1,4 +1,5 @@
 CFLAGS="${CFLAGS/-Wunsafe-loop-optimizations}" &&
+CFLAGS="$CFLAGS -Wno-error=format-overflow"    &&
 cd generate/unix &&
 
 make_single  &&
