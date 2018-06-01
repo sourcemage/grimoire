@@ -9,8 +9,7 @@ OPTS+=" xorg=$XSERVER_XORG \
         log_dir=${INSTALL_ROOT}/var/log \
         xkb_bin_dir=$INSTALL_ROOT/usr/bin \
         os_vendor='SourceMage'"
-PREFIX=/opt/xorg &&
-#PREFIX=/usr &&
+PREFIX=/usr &&
 check_tmp_noexec /tmp &&
 default_build &&
 check_tmp_noexec /tmp
