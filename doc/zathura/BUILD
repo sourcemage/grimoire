@@ -1,3 +1,0 @@
-OPTS="COLOR=0 VERBOSE=1 $OPTS" &&
-
-make $OPTS
