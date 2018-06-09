@@ -5,10 +5,30 @@ depends gettext &&
 optional_depends python3 \
                  "--with-python3" \
                  "--without-python3" \
-                 "to prefer Python 3" &&
+                 "to prefer Python 3 as Python interpreter" &&
 
 if ! is_depends_enabled ${SPELL} python3; then
   depends python
+else
+  optional_depends python "" "" "for Python 2 support"
+fi &&
+
+if is_depends_enabled ${SPELL} python3; then
+  config_query_option SYSTEMTAP_OPTS "Enable building Python version 3 probe support?" y \
+                                     "--with-python3-probes" \
+                                     "--without-python3-probes"
+else
+  list_remove SYSTEMTAP_OPTS "--with-python3-probes" &&
+  list_add SYSTEMTAP_OPTS "--without-python3-probes"
+fi &&
+
+if is_depends_enabled ${SPELL} python; then
+  config_query_option SYSTEMTAP_OPTS "Enable building Python version 2 probe support?" y \
+                                     "--with-python2-probes" \
+                                     "--without-python2-probes"
+else
+  list_remove SYSTEMTAP_OPTS "--with-python2-probes" &&
+  list_add SYSTEMTAP_OPTS "--without-python2-probes"
 fi &&
 
 optional_depends sqlite \
