@@ -1,0 +1,62 @@
+From 19af4781301a4a4dd2c902bdfe7e08dff2f6cda9 Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Sun, 6 May 2018 17:59:47 +0200
+Subject: [PATCH] networkmanger optional
+
+---
+ CMakeLists.txt      | 2 +-
+ kded/CMakeLists.txt | 9 ++++++---
+ 2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 87f3cdd..61e1922 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -58,8 +58,8 @@ find_package (
+    KIO
+    Plasma
+    WidgetsAddons
+-   NetworkManagerQt
+    )
++find_package (KF5NetworkManagerQt QUIET)
+ find_package (KF5SysGuard REQUIRED)
+ 
+ include_directories (
+diff --git a/kded/CMakeLists.txt b/kded/CMakeLists.txt
+index 666100e..58e4729 100644
+--- a/kded/CMakeLists.txt
++++ b/kded/CMakeLists.txt
+@@ -5,7 +5,6 @@ include_directories (
+ 
+ set (
+    kded_plasmavault_SRCS
+-   service.cpp
+ 
+    engine/vault.cpp
+    engine/backend_p.cpp
+@@ -34,6 +33,9 @@ set (
+ 
+    ../common/vaultinfo.cpp
+    )
++if(KF5NetworkManagerQt_FOUND)
++  set( kded_plasmavault_SRCS service.cpp $(kded_plasmavault_SRCS))
++endif()
+ 
+ ki18n_wrap_ui (
+    kded_plasmavault_SRCS
+@@ -85,9 +87,10 @@ target_link_libraries (
+    KF5::SysGuard
+    KF5::WidgetsAddons
+    KF5::ProcessCore
+-   KF5::NetworkManagerQt
+    )
+-
++if(KF5NetworkManagerQt_FOUND)
++  target_link_libraries (kded_plasmavault KF5::NetworkManagerQt)
++endif()
+ 
+ install (
+     TARGETS kded_plasmavault DESTINATION ${PLUGIN_INSTALL_DIR}/kf5/kded)
+-- 
+2.17.0
+
