@@ -1,13 +1,18 @@
-config_query_option FFTW_THREADS "Compile FFTW SMP threads library?" n \
-                    "--enable-threads --with-combined-threads"         \
-                    "--disable-threads --without-combined-threads"    &&
-
-config_query FORTRAN "Compile in fortran bindings?" n &&
-if [[ "${SMGL_COMPAT_ARCHS[1]}" == "ia32" ]]; then
-  config_query_option FFTW_DOUBLEOPTS  "x86: enable SSE2 for doubles?" n --enable-sse2 --enable-sse2  &&
-  config_query_option FFTW_FLOATOPTS "x86: enable SSE for floats?" n --enable-sse --disable-sse
-fi &&
-if [[ "${SMGL_COMPAT_ARCHS[1]}" == "ppc" ]]; then
-  config_query_option FFTW_FLOATOPTS "ppc: enable AltiVec for floats?" n --enable-altivec --disable-altivec
-fi
-#config_query_option FFTW_OPTS "Enable opts for fused multiply-add (p.ex. ppc)?" n --enable-fma --disable-fma
+. $GRIMOIRE/config_query_multi.function                          &&
+config_query_multi  FFTW_PRECISION "Choose precisions to build:" \
+                    double single longdouble                     &&
+# There is more AVX, but not sure what I can test without CPU support.
+config_query_list FFTW_VECTOR \
+  "Enforce vector instruction level (compiler flags have to support this):" \
+                  none sse sse2 avx avx2                         &&
+config_query_option FFTW_OPTS_NEW "Parallel fftw using pthreads?" n \
+                    "--enable-threads"                              \
+                    "--disable-threads"                             &&
+config_query_option FFTW_OPTS_NEW  "Parallel fftw using OpenMP?" n \
+                    "--enable-openmp"                              \
+                    "--disable-openmp"                             &&
+# It was a long time ago that we had to be careful with enabling SSE or FMA.
+# Remove the options for that.
+persistent_remove FFTW_DOUBLEOPTS  &&
+persistent_remove FFTW_FLOATOPTS   &&
+persistent_remove FFTW_OPTS
