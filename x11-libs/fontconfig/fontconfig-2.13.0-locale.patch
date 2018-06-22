@@ -1,0 +1,42 @@
+Locale setup bugfix; leave the locale setting to applications
+
+Based on patches by Akira TAGOH <akira@tagoh.org>.
+
+https://bugs.freedesktop.org/show_bug.cgi?id=105492
+
+---
+ fc-conflist/fc-conflist.c |    1 +
+ src/fccfg.c               |   12 ------------
+ 2 files changed, 1 insertion(+), 12 deletions(-)
+
+--- a/fc-conflist/fc-conflist.c
++++ b/fc-conflist/fc-conflist.c
+@@ -102,6 +102,7 @@ main (int argc, char **argv)
+ #if HAVE_GETOPT_LONG || HAVE_GETOPT
+     int		c;
+
++    setlocale (LC_ALL, "");
+ #if HAVE_GETOPT_LONG
+     while ((c = getopt_long (argc, argv, "Vh", longopts, NULL)) != -1)
+ #else
+--- a/src/fccfg.c
++++ b/src/fccfg.c
+@@ -39,18 +39,6 @@ static FcConfig *
+ FcConfigEnsure (void)
+ {
+     FcConfig	*config;
+-    FcBool	is_locale_initialized;
+-    static void *static_is_locale_initialized;
+-retry_locale:
+-    is_locale_initialized = (intptr_t) fc_atomic_ptr_get (&static_is_locale_initialized);
+-    if (!is_locale_initialized)
+-    {
+-	is_locale_initialized = FcTrue;
+-	if (!fc_atomic_ptr_cmpexch (&static_is_locale_initialized, NULL,
+-				    (void *)(intptr_t) is_locale_initialized))
+-	    goto retry_locale;
+-	setlocale (LC_ALL, "");
+-    }
+ retry_config:
+     config = fc_atomic_ptr_get (&_fcConfig);
+     if (!config)
