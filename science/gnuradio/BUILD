@@ -1,4 +1,4 @@
-OPTS+="-DENABLE_GR_AUDIO=on" &&
-make_single                  &&
-qt4_cmake_build              &&
-make_normal
+OPTS+="-DENABLE_GR_AUDIO=on"  &&
+CFLAGS="$CFLAGS -pthread"     &&
+CXXFLAGS="$CXXFLAGS -pthread" &&
+qt5_cmake_build
