@@ -1,4 +1,5 @@
 OPTS+=' smack=false tests=unsafe split-usr=true' &&
+OPTS+=' split-bin=true' &&
 OPTS+=' rootlibdir=/lib' &&
 #OPTS+=' halt-path=/sbin reboot-path=/sbin' &&
 OPTS+=' default-hierarchy=hybrid' &&
