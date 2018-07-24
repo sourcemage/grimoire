@@ -116,10 +116,21 @@
  	};
  #endif
  
---- libi2pd/Signature.h.orig	2017-12-04 13:40:32.000000000 -0500
-+++ libi2pd/Signature.h	2017-12-05 09:28:01.793444774 -0500
-@@ -363,14 +363,14 @@
- 	// EdDSA
+--- libi2pd_client/HTTPProxy.h.orig	2017-12-04 13:40:32.000000000 -0500
++++ libi2pd_client/HTTPProxy.h	2017-12-07 13:14:26.956591634 -0500
+@@ -7,8 +7,6 @@
+ 	{
+ 		public:
+ 			HTTPProxy(const std::string& name, const std::string& address, int port, const std::string & outproxy, std::shared_ptr<i2p::client::ClientDestination> localDestination);
+-			HTTPProxy(const std::string& name, const std::string& address, int port, std::shared_ptr<i2p::client::ClientDestination> localDestination = nullptr) :
+-				HTTPProxy(name, address, port, "", localDestination) {} ;
+ 			~HTTPProxy() {};
+ 
+ 			std::string GetOutproxyURL() const { return m_OutproxyUrl; }
+--- libi2pd/Ed25519.h.orig	2018-06-26 10:46:01.000000000 -0700
++++ libi2pd/Ed25519.h	2018-06-27 16:24:25.365149870 -0700
+@@ -10,14 +10,14 @@
+ {
  	struct EDDSAPoint
  	{
 -		BIGNUM * x {nullptr};
@@ -135,19 +146,90 @@
 -		EDDSAPoint (const EDDSAPoint& other)   { *this = other; }
 -		EDDSAPoint (EDDSAPoint&& other)        { *this = std::move (other); }
 +		EDDSAPoint (): x(nullptr), y(nullptr), z(nullptr), t(nullptr) {}
-+		EDDSAPoint (const EDDSAPoint& other): x(nullptr), y(nullptr), z(nullptr), t(nullptr)   { *this = other; }
-+		EDDSAPoint (EDDSAPoint&& other): x(nullptr), y(nullptr), z(nullptr), t(nullptr)        { *this = std::move (other); }
++		EDDSAPoint (const EDDSAPoint& other): x(nullptr), y(nullptr), z(nullptr), t(nullptr) { *this = other; }
++		EDDSAPoint (EDDSAPoint&& other): x(nullptr), y(nullptr), z(nullptr), t(nullptr)      { *this = std::move (other); }
  		EDDSAPoint (BIGNUM * x1, BIGNUM * y1, BIGNUM * z1 = nullptr, BIGNUM * t1 = nullptr)
  			: x(x1)
  			, y(y1)
---- libi2pd_client/HTTPProxy.h.orig	2017-12-04 13:40:32.000000000 -0500
-+++ libi2pd_client/HTTPProxy.h	2017-12-07 13:14:26.956591634 -0500
-@@ -7,8 +7,6 @@
- 	{
- 		public:
- 			HTTPProxy(const std::string& name, const std::string& address, int port, const std::string & outproxy, std::shared_ptr<i2p::client::ClientDestination> localDestination);
--			HTTPProxy(const std::string& name, const std::string& address, int port, std::shared_ptr<i2p::client::ClientDestination> localDestination = nullptr) :
--				HTTPProxy(name, address, port, "", localDestination) {} ;
- 			~HTTPProxy() {};
+From f38891cace7c63e3d1ba990046b6d828472a1d75 Mon Sep 17 00:00:00 2001
+From: orignal <i2porignal@yandex.ru>
+Date: Wed, 18 Jul 2018 11:15:27 -0400
+Subject: [PATCH] fixed build for gcc < 4.8
+
+---
+ libi2pd/Poly1305.cpp | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/libi2pd/Poly1305.cpp b/libi2pd/Poly1305.cpp
+index 5378d3cba..fdfee5bc5 100644
+--- libi2pd/Poly1305.cpp.orig
++++ libi2pd/Poly1305.cpp
+@@ -133,9 +133,14 @@ namespace crypto
  
- 			std::string GetOutproxyURL() const { return m_OutproxyUrl; }
+ 	struct Poly1305
+ 	{
+-
++#if (__GNUC__ == 4) && (__GNUC_MINOR__ < 8) // older than gcc 4.8
++		Poly1305(const uint8_t * key) : m_Leftover(0), m_Final(0)
++		{
++			memset (m_H, 0, sizeof (m_H));
++#else 
+ 		Poly1305(const uint8_t * key) : m_Leftover(0), m_H{0}, m_Final(0)
+ 		{
++#endif
+ 			m_R.PutKey(key);
+ 			m_Pad.Put(key + 16);
+ 		}
+--- libi2pd/NTCPSession.cpp.orig	2018-06-26 10:46:01.000000000 -0700
++++ libi2pd/NTCPSession.cpp	2018-07-23 21:11:18.917335635 -0700
+@@ -183,7 +183,7 @@
+ 				}
+ 			}
+ 			// TODO: check for number of pending keys
+-			auto work = new NTCPWork{shared_from_this()};
++			auto work = new NTCPWork({{shared_from_this()}});
+ 			m_Server.Work(work->session, [work, this]() -> std::function<void(void)> {
+ 					if (!work->session->m_DHKeysPair)
+ 						work->session->m_DHKeysPair = transports.GetNextDHKeysPair ();
+@@ -249,7 +249,7 @@
+ 		}
+ 		else
+ 		{
+-			auto work = new NTCPWork{shared_from_this()};
++			auto work = new NTCPWork({{shared_from_this()}});
+ 			m_Server.Work(work->session, [work, this]() -> std::function<void(void)> {
+ 				work->session->CreateAESKey (work->session->m_Establisher->phase2.pubKey);
+ 				return std::bind(&NTCPSession::HandlePhase2, work->session, work);
+--- libi2pd_client/I2PService.h.orig	2018-06-26 10:46:01.000000000 -0700
++++ libi2pd_client/I2PService.h	2018-07-23 21:14:32.314300936 -0700
+@@ -70,7 +70,7 @@
+             bool m_ReadyTimerTriggered;
+ 			uint32_t m_ConnectTimeout;
+ 
+-            const size_t NEVER_TIMES_OUT = 0;
++            const size_t NEVER_TIMES_OUT;
+       
+ 		public:
+ 			bool isUpdated; // transient, used during reload only
+--- libi2pd_client/I2PService.cpp.orig	2018-06-26 10:46:01.000000000 -0700
++++ libi2pd_client/I2PService.cpp	2018-07-23 21:15:59.847520946 -0700
+@@ -16,7 +16,8 @@
+ 			m_ReadyTimer(m_LocalDestination->GetService()),
+ 			m_ReadyTimerTriggered(false),
+ 			m_ConnectTimeout(0),
+-			isUpdated (true)
++			isUpdated (true),
++			NEVER_TIMES_OUT(0)
+ 	{
+ 		m_LocalDestination->Acquire ();
+ 	}
+@@ -26,7 +26,8 @@
+ 		m_LocalDestination (i2p::client::context.CreateNewLocalDestination (false, kt)),
+ 		m_ReadyTimer(m_LocalDestination->GetService()),
+ 		m_ConnectTimeout(0),
+-		isUpdated (true)
++		isUpdated (true),
++		NEVER_TIMES_OUT(0)
+ 	{
+ 		m_LocalDestination->Acquire ();
+ 	}
