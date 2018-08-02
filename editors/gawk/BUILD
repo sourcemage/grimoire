@@ -7,6 +7,7 @@
 ./configure  --build=${BUILD}              \
              --prefix=${TRACK_ROOT}/usr  \
              --bindir=${TRACK_ROOT}/bin  \
+             --sysconfdir=${TRACK_ROOT}/etc  \
              --infodir=${TRACK_ROOT}/usr/share/info \
              --mandir=${TRACK_ROOT}/usr/share/man   \
              --without-mpfr --without-readline \
