@@ -1,0 +1,84 @@
+persistent_remove MESALIB_OPTS
+persistent_remove MESALIB_VULKAN
+persistent_remove MESALIB_BUILD
+persistent_remove MESALIB_GALLIUM
+persistent_remove MESALIB_DRIVERS
+
+. $GRIMOIRE/config_query_multi.function &&
+. $GRIMOIRE/MESON_CONFIGURE &&
+
+config_query_multi MESA_GLX "glx build types, recommend dri" dri xlib gallium-xlib &&
+config_query_multi MESA_EGL "window systems to support,recommend x11+drm" x11 drm surfaceless wayland &&
+config_query_multi MESA_OSMESA "Build OSmesa - not usually needed, except by swrast " none classic gallium
+
+
+config_query_multi MESA_DRM "which libdrm hardware" AMD INTEL NOUVEAU RADEON &&
+# only suggest drivers for specified hardware
+local AVAILABLE_DRIVERS="swrast"
+local AVAILABLE_GALLIUM="svga swrast virgl"
+local AVAILABLE_VULKAN=""
+if list_find "$MESA_DRM" AMD;then
+  AVAILABLE_VULKAN+=" amd"
+fi &&
+if list_find "$MESA_DRM" RADEON;then
+  AVAILABLE_DRIVERS+=" r100 r200"
+  AVAILABLE_GALLIUM+=" r300 r600 radeonsi"
+fi &&
+if list_find "$MESA_DRM" INTEL;then
+  AVAILABLE_DRIVERS+=" i915 i965"
+  AVAILABLE_GALLIUM+=" i915"
+  AVAILABLE_VULKAN+=" intel"
+fi &&
+if list_find "$MESA_DRM" NOUVEAU;then
+  AVAILABLE_DRIVERS+=" nouveau"
+  AVAILABLE_GALLIUM+=" nouveau"
+fi &&
+
+
+if list_find "$MESA_GLX" dri;then
+  config_query_multi MESA_DRI \
+                   "Which drivers would you like to build?" \
+                   all $AVAILABLE_DRIVERS &&
+
+  if list_find "$MESA_DRI" all; then
+    MESA_DRI="$AVAILABLE_DRIVERS"
+  fi
+fi &&
+# Gallium support
+
+config_query_multi MESA_GALLIUM \
+        "which gallium (accellerated) drivers" \
+        none all $AVAILABLE_GALLIUM &&
+if list_find "$MESA_GALLIUM" all;then
+  MESA_GALLIUM="$AVAILABLE_GALLIUM"
+fi &&
+if list_find "$MESA_GALLIUM" swrast;then
+  list_remove MESA_DRI swrast
+fi &&
+
+if list_find "$MESA_OSMESA" classic;then
+# force this option
+  list_add MESA_DRI swrast
+  list_remove MESA_DRI none
+  list_remove MESA_GALLIUM swrast
+fi &&
+
+if list_find "$MESA_OSMESA" gallium;then
+# force this option
+  list_add MESA_GALLIUM swrast
+  list_remove MESA_GALLIUM none
+  list_remove MESA_DRI swrast
+fi &&
+
+# Vulkan support
+config_query_multi MESA_VULKAN \
+     "which Vulkan drivers to build" \
+     none all $AVAILABLE_VULKAN &&
+if list_find "$MESA_VULKAN" all; then
+   MESA_VULKAN="$AVAILABLE_VULKAN"
+fi &&
+config_query_option MESA_GLES1 "support GLES1 - embedded systems" n gles1=true gles1=false &&
+config_query_option MESA_GLES2 "support GLES2/3 - embedded systems" n gles2=true gles2=false &&
+config_query_multi MESA_TOOLS  "which tools to build" glsl intel nir nouveau &&
+config_query_multi MESA_ARCH   "which arch" avx avx2 knl skx &&
+config_query_multi MESA_OMX    "OMax support" auto disabled tizonia bellagio
