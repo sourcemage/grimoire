@@ -1,0 +1,104 @@
+From 1e0bae4e0bacbb0570ac2181055ce628748d35ee Mon Sep 17 00:00:00 2001
+From: Johan Malm <jgm323@gmail.com>
+Date: Thu, 17 May 2018 18:28:36 +0100
+Subject: [PATCH] multi-monitor: launch correctly 'at-pointer' (issue #56)
+
+Update screen dimensions before launching when in at_pointer mode in
+order to use the correct x0, y0, width and height.
+---
+ geometry.c | 12 ++++++++----
+ geometry.h |  1 +
+ jgmenu.c   |  1 +
+ x11-ui.c   | 15 +++++++++++++++
+ 4 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/geometry.c b/geometry.c
+index 55aa737..541ac2e 100644
+--- a/geometry.c
++++ b/geometry.c
+@@ -133,6 +133,13 @@ static void geo_update(void)
+ 		update_sub_window();
+ }
+ 
++void geo_update_monitor_coords(void)
++{
++	ui_get_screen_res(&screen_x0, &screen_y0, &screen_width,
++			  &screen_height, config.monitor);
++	geo_update();
++}
++
+ void geo_init(void)
+ {
+ 	/*
+@@ -155,10 +162,7 @@ void geo_init(void)
+ 	item_margin_x = 4;
+ 	item_margin_y = 4;
+ 
+-	ui_get_screen_res(&screen_x0, &screen_y0, &screen_width,
+-			  &screen_height, config.monitor);
+-
+-	geo_update();
++	geo_update_monitor_coords();
+ }
+ 
+ int geo_get_item_coordinates(struct area *a)
+diff --git a/geometry.h b/geometry.h
+index f0647f9..ce57adf 100644
+--- a/geometry.h
++++ b/geometry.h
+@@ -47,6 +47,7 @@
+ #include "x11-ui.h"
+ #include "align.h"
+ 
++void geo_update_monitor_coords(void);
+ void geo_init(void);
+ int geo_get_item_coordinates(struct area *a);
+ struct point geo_get_max_itemarea_that_fits(void);
+diff --git a/jgmenu.c b/jgmenu.c
+index 7b75cec..9b41ea4 100644
+--- a/jgmenu.c
++++ b/jgmenu.c
+@@ -809,6 +809,7 @@ void launch_menu_at_pointer(void)
+ 	struct point pos;
+ 	struct area wa;
+ 
++	geo_update_monitor_coords();
+ 	XQueryPointer(ui->dpy, DefaultRootWindow(ui->dpy), &dw, &dw, &di, &di,
+ 		      &pos.x, &pos.y, &du);
+ 
+diff --git a/x11-ui.c b/x11-ui.c
+index edc6bde..3404f84 100644
+--- a/x11-ui.c
++++ b/x11-ui.c
+@@ -131,6 +131,17 @@ void ui_init(void)
+ 	ui->root = RootWindow(ui->dpy, ui->screen);
+ }
+ 
++static void print_screen_info(int n, XineramaScreenInfo *screen_info)
++{
++	int i;
++
++	info("%d monitor(s) detected", n);
++	for (i = 0; i < n; i++)
++		printf("        - monitor-%d: x0=%d; y0=%d; w=%d; h=%d\n",
++		       i + 1, screen_info[i].x_org, screen_info[i].y_org,
++		       screen_info[i].width, screen_info[i].height);
++}
++
+ #define INTERSECT(x, y, w, h, r)  (MAX(0, MIN((x) + (w), (r).x_org + (r).width)  - \
+ 				   MAX((x), (r).x_org)) &&\
+ 				   MAX(0, MIN((y) + (h), (r).y_org + (r).height) - \
+@@ -146,9 +157,13 @@ void ui_get_screen_res(int *x0, int *y0, int *width, int *height, int monitor)
+ 	screen_info = XineramaQueryScreens(ui->dpy, &n);
+ 	BUG_ON(!screen_info);
+ 	XQueryPointer(ui->dpy, ui->root, &dw, &dw, &x, &y, &di, &di, &du);
++	if (getenv("JGMENU_SCREEN_INFO"))
++		print_screen_info(n, screen_info);
+ 	for (i = 0; i < n; i++)
+ 		if (INTERSECT(x, y, 1, 1, screen_info[i]))
+ 			break;
++
++	/* handle user specified monitor (from config file) */
+ 	if (monitor) {
+ 		if (monitor > n)
+ 			die("cannot connect to monitor '%d' (max %d)", monitor, n);
