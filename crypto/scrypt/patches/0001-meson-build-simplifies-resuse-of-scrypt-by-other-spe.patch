@@ -1,0 +1,269 @@
+From 66844fb7fb9c7ebf9f257a05d9ba6436b04365f6 Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Sun, 12 Aug 2018 16:02:08 +0200
+Subject: [PATCH] meson build - simplifies resuse of scrypt by other spells
+
+---
+ config.h.meson |  99 ++++++++++++++++++++++++++++++++++
+ meson.build    | 143 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 242 insertions(+)
+ create mode 100644 config.h.meson
+ create mode 100644 meson.build
+
+diff --git a/config.h.meson b/config.h.meson
+new file mode 100644
+index 0000000..d68637d
+--- /dev/null
++++ b/config.h.meson
+@@ -0,0 +1,99 @@
++/* config.h.in.  Generated from configure.ac by autoheader.  */
++
++/* Define to 1 if you have the `clock_gettime' function. */
++#mesondefine HAVE_CLOCK_GETTIME
++
++/* Define to 1 if you have the <inttypes.h> header file. */
++#mesondefine HAVE_INTTYPES_H
++
++/* Define to 1 if you have the <memory.h> header file. */
++#mesondefine HAVE_MEMORY_H
++
++/* Define to 1 if you have the `mmap' function. */
++#mesondefine HAVE_MMAP
++
++/* Define to 1 if you have the <openssl/aes.h> header file. */
++#mesondefine HAVE_OPENSSL_AES_H
++
++/* Define to 1 if you have the `posix_memalign' function. */
++#mesondefine HAVE_POSIX_MEMALIGN
++
++/* Define to 1 if you have the <stdint.h> header file. */
++#mesondefine HAVE_STDINT_H
++
++/* Define to 1 if you have the <stdlib.h> header file. */
++#mesondefine HAVE_STDLIB_H
++
++/* Define to 1 if you have the <strings.h> header file. */
++#mesondefine HAVE_STRINGS_H
++
++/* Define to 1 if you have the <string.h> header file. */
++#mesondefine HAVE_STRING_H
++
++/* Define to 1 if the system has the type `struct sysinfo'. */
++#mesondefine HAVE_STRUCT_SYSINFO
++
++/* Define to 1 if `mem_unit' is a member of `struct sysinfo'. */
++#mesondefine HAVE_STRUCT_SYSINFO_MEM_UNIT
++
++/* Define to 1 if `totalram' is a member of `struct sysinfo'. */
++#mesondefine HAVE_STRUCT_SYSINFO_TOTALRAM
++
++/* Define to 1 if you have the `sysinfo' function. */
++#mesondefine HAVE_SYSINFO
++
++/* Define to 1 if you have the <sys/param.h> header file. */
++#mesondefine HAVE_SYS_PARAM_H
++
++/* Define to 1 if you have the <sys/stat.h> header file. */
++#mesondefine HAVE_SYS_STAT_H
++
++/* Define to 1 if you have the <sys/sysctl.h> header file. */
++#mesondefine HAVE_SYS_SYSCTL_H
++
++/* Define to 1 if you have the <sys/sysinfo.h> header file. */
++#mesondefine HAVE_SYS_SYSINFO_H
++
++/* Define to 1 if you have the <sys/types.h> header file. */
++#mesondefine HAVE_SYS_TYPES_H
++
++/* Define to 1 if you have the <unistd.h> header file. */
++#mesondefine HAVE_UNISTD_H
++
++/* Name of package */
++#mesondefine PACKAGE
++
++/* Define to the address where bug reports for this package should be sent. */
++#mesondefine PACKAGE_BUGREPORT
++
++/* Define to the full name of this package. */
++#mesondefine PACKAGE_NAME
++
++/* Define to the full name and version of this package. */
++#mesondefine PACKAGE_STRING
++
++/* Define to the one symbol short name of this package. */
++#mesondefine PACKAGE_TARNAME
++
++/* Define to the home page for this package. */
++#mesondefine PACKAGE_URL
++
++/* Define to the version of this package. */
++#mesondefine PACKAGE_VERSION
++
++/* Define to 1 if you have the ANSI C header files. */
++#mesondefine STDC_HEADERS
++
++/* Version number of package */
++#mesondefine VERSION
++
++/* Enable large inode numbers on Mac OS X 10.5.  */
++#ifndef _DARWIN_USE_64_BIT_INODE
++# define _DARWIN_USE_64_BIT_INODE 1
++#endif
++
++/* Number of bits in a file offset, on hosts where this is settable. */
++#mesondefine _FILE_OFFSET_BITS
++
++/* Define for large files, on AIX-style hosts. */
++#mesondefine _LARGE_FILES
+diff --git a/meson.build b/meson.build
+new file mode 100644
+index 0000000..7c77a48
+--- /dev/null
++++ b/meson.build
+@@ -0,0 +1,143 @@
++#kate: indent-width 2; tab-width 2;
++project(
++  'scrypt',
++  ['c'],
++  version : '1.2.1',
++  license : 'BSD',
++  meson_version : '>= 0.46',
++  default_options : ['buildtype=debugoptimized']
++)
++
++cc = meson.get_compiler('c')
++c_args = ['-DHAVE_CONFIG_H']
++
++#pre_args = ['-D__USE_POSIX']
++
++foreach a : c_args
++  add_project_arguments(a, language : ['c'])
++endforeach
++
++cdata = configuration_data()
++cdata.set_quoted('PACKAGE_VERSION', meson.project_version())
++
++check_headers = [
++  ['HAVE_INTTYPES_H', 'inttypes.h'],
++  ['HAVE_MEMORY_H', 'memory.h'],
++  ['HAVE_OPENSSL_AES_H', 'openssl/aes.h'],
++  ['HAVE_STDINT_H', 'stdint.h'],
++  ['HAVE_STDLIB_H', 'stdlib.h'],
++  ['HAVE_STRINGS_H', 'strings.h'],
++  ['HAVE_STRING_H', 'string.h'],
++  ['HAVE_SYS_PARAM_H', 'sys/param.h'],
++  ['HAVE_SYS_STAT_H', 'sys/stat.h'],
++  ['HAVE_SYS_SYSCTL_H', 'sys/sysctl.h'],
++  ['HAVE_SYS_SYSINFO_H', 'sys/sysinfo.h'],
++  ['HAVE_SYS_TYPES_H', 'sys/types.h'],
++  ['HAVE_UNISTD_H', 'unistd.h'],
++]
++
++foreach h : check_headers
++  if cc.has_header(h.get(1))
++    cdata.set(h.get(0), 1)
++  endif
++endforeach
++
++check_functions = [
++  ['HAVE_CLOCK_GETTIME', 'clock_gettime', '#include<time.h>'],
++  ['HAVE_MMAP', 'mmap', '#include<sys/mman.h>'],
++  ['HAVE_POSIX_MEMALIGN', 'posix_memalign', '#include<stdlib.h>'],
++# check token ('HAVE_STRUCT_SYSINFO',)
++# check token ('HAVE_STRUCT_SYSINFO_MEM_UNIT',)
++# check token ('HAVE_STRUCT_SYSINFO_TOTALRAM',)
++# check token ('HAVE_SYSINFO',)
++]
++
++foreach f : check_functions
++  if cc.has_function(f.get(1), prefix : f.get(2))
++    cdata.set(f.get(0), 1)
++  endif
++endforeach
++
++
++configure_file(input : 'config.h.meson',
++  output : 'config.h',
++  configuration : cdata)
++
++aes_dep = dependency('libcrypto')
++aes_lib = meson.get_compiler('c').find_library('libcrypto')
++
++
++#datadir = xorg_dep.get_pkgconfig_variable('sysconfigdir')
++#install_data('conf/10-radeon.conf',install_dir: datadir)
++libfiles=files(
++'lib/crypto/crypto_scrypt.c',
++'lib/crypto/crypto_scrypt_smix.c',
++'lib/crypto/crypto_scrypt_smix_sse2.c',
++
++'libcperciva/alg/sha256.c',
++'libcperciva/cpusupport/cpusupport_x86_aesni.c',
++'libcperciva/cpusupport/cpusupport_x86_sse2.c',
++'libcperciva/crypto/crypto_aes_aesni.c',
++'libcperciva/crypto/crypto_aes.c',
++'libcperciva/crypto/crypto_aesctr.c',
++'libcperciva/crypto/crypto_entropy.c',
++'libcperciva/util/entropy.c',
++'libcperciva/util/warnp.c',
++'libcperciva/util/insecure_memzero.c',
++)
++
++main_files = files(
++'main.c',
++'libcperciva/util/getopt.c',
++'libcperciva/util/readpass.c',
++'libcperciva/util/humansize.c',
++'libcperciva/util/asprintf.c',
++'lib/scryptenc/scryptenc.c',
++'lib/crypto/crypto_scrypt.c',
++'lib/scryptenc/scryptenc_cpuperf.c',
++'lib/util/memlimit.c',
++)
++
++inc_percy = include_directories(
++   'libcperciva/cpusupport' ,
++   'libcperciva/alg' ,
++   'libcperciva/util',
++ )
++ inc_main = include_directories(
++  'lib/scryptenc',
++  #'libcperciva/alg' ,
++  'libcperciva/crypto',
++  #'libcperciva/util',
++  'lib/crypto/',
++  'lib/util',
++)
++
++percival = shared_library(
++  'percival',
++  libfiles,
++  dependencies : [aes_dep,aes_lib],
++  include_directories : [inc_percy],
++  install : true,
++#  link_with : [aes_lib],
++#  name_prefix : '',
++# install_dir: libdir,
++)
++
++scrypt = executable('scrypt',main_files,
++  include_directories : [inc_main,inc_percy],
++  link_with : [percival],
++  install : true,
++)
++
++install_man('scrypt.1')
++
++pkgconfig = import('pkgconfig')
++pkgconfig.generate(
++        filebase : 'libpercival',
++        name : 'Libpercival',
++        description : 'helper library for scrypt',
++        version : meson.project_version(),
++        libraries : percival
++)
++
++install_headers('lib/crypto/crypto_scrypt.h', subdir : 'scrypto')
+-- 
+2.18.0
+
