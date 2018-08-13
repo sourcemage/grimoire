@@ -1,0 +1,109 @@
+From 55f4325bc62a81d04996c92b1bb717f2a8bb71cc Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Mon, 13 Aug 2018 20:20:20 +0200
+Subject: [PATCH 2/3] cmake improvements
+
+---
+ CMakeLists.txt               | 21 +++++----------------
+ src/CMakeLists.txt           | 10 ++++++++++
+ src/cryfs-cli/CMakeLists.txt |  3 ++-
+ utils.cmake                  | 11 ++---------
+ 4 files changed, 19 insertions(+), 26 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 04ac2aa..50b9287 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,29 +1,18 @@
+-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
++cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+ 
+ project(cryfs)
++set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
++set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+ 
+ include(utils.cmake)
+ 
+ require_gcc_version(4.8)
+ require_clang_version(3.7)
+ 
+-# Default value is not to build test cases
+-if(NOT BUILD_TESTING)
+-    set(BUILD_TESTING OFF CACHE BOOL "BUILD_TESTING")
+-endif(NOT BUILD_TESTING)
++option(BUILD_TESTING "build tests" OFF)
+ 
+-# Default vaule is to build in release mode
+-if(NOT CMAKE_BUILD_TYPE)
+-    set(CMAKE_BUILD_TYPE Release CACHE INTERNAL "CMAKE_BUILD_TYPE")
+-endif(NOT CMAKE_BUILD_TYPE)
++option (CRYFS_UPDATE_CHECKS "allow online update checks" OFF)
+ 
+-# Default value is to do update checks
+-if(NOT CRYFS_UPDATE_CHECKS)
+-    set(CRYFS_UPDATE_CHECKS ON CACHE BOOL "CRYFS_UPDATE_CHECKS")
+-endif(NOT CRYFS_UPDATE_CHECKS)
+-
+-add_subdirectory(vendor)
+ add_subdirectory(src)
+ add_subdirectory(doc)
+ add_subdirectory(test)
+-add_subdirectory(cpack)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index c74b486..37e0c54 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -1,4 +1,14 @@
+ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
++find_package(spdlog REQUIRED)
++find_package(fmt REQUIRED)
++add_definitions("-DSPDLOG_FMT_EXTERNAL=1")
++#include_directories(${FMT_INCLUDE_DIR})
++#include_directories(/usr/include)
++
++find_package(PkgConfig REQUIRED)
++find_library(SCRYPT NAMES libpercival percival)
++#pkg_search_module(scrypt)
++#find_package(scrypt REQUIRED)
+ 
+ add_subdirectory(gitversion)
+ add_subdirectory(cpp-utils)
+diff --git a/src/cryfs-cli/CMakeLists.txt b/src/cryfs-cli/CMakeLists.txt
+index 07a0ad5..21d7f18 100644
+--- a/src/cryfs-cli/CMakeLists.txt
++++ b/src/cryfs-cli/CMakeLists.txt
+@@ -15,7 +15,8 @@ add_library(${PROJECT_NAME} ${SOURCES})
+ target_link_libraries(${PROJECT_NAME} PUBLIC cryfs cpp-utils gitversion)
+ target_enable_style_warnings(${PROJECT_NAME})
+ target_activate_cpp14(${PROJECT_NAME})
+-
++#add_definitions('-D_FILE_OFFSET_BITS=64')
++target_compile_definitions(${PROJECT_NAME} PRIVATE -D_FILE_OFFSET_BITS=64)
+ if(NOT CRYFS_UPDATE_CHECKS)
+     target_compile_definitions(${PROJECT_NAME} PRIVATE -DCRYFS_NO_UPDATE_CHECKS)
+ endif(NOT CRYFS_UPDATE_CHECKS)
+diff --git a/utils.cmake b/utils.cmake
+index de03cdb..dd1d06a 100644
+--- a/utils.cmake
++++ b/utils.cmake
+@@ -49,15 +49,8 @@ endfunction(target_enable_style_warnings)
+ ##################################################
+ function(target_add_boost TARGET)
+     # Load boost libraries
+-    if(NOT DEFINED Boost_USE_STATIC_LIBS OR Boost_USE_STATIC_LIBS)
+-        # Many supported systems don't have boost >= 1.56. Better link it statically.
+-        message(STATUS "Boost will be statically linked")
+-        set(Boost_USE_STATIC_LIBS ON)
+-    else(NOT DEFINED Boost_USE_STATIC_LIBS OR Boost_USE_STATIC_LIBS)
+-        message(STATUS "Boost will be dynamically linked")
+-        set(Boost_USE_STATIC_LIBS OFF)
+-    endif(NOT DEFINED Boost_USE_STATIC_LIBS OR Boost_USE_STATIC_LIBS)
+-    find_package(Boost 1.56.0
++   option(Boost_USE_STATIC_LIBS "use static Boost libraries" OFF)
++   find_package(Boost 1.56.0
+             REQUIRED
+             COMPONENTS ${ARGN})
+     target_include_directories(${TARGET} SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
+-- 
+2.18.0
+

@@ -1,0 +1,40 @@
+From c02cce52f3fba393f103db49082736c4a668125a Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Mon, 13 Aug 2018 20:47:56 +0200
+Subject: [PATCH 3/3] fix logging
+
+---
+ src/cryfs-cli/Cli.cpp | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cryfs-cli/Cli.cpp b/src/cryfs-cli/Cli.cpp
+index 8a80a4d..cb56350 100644
+--- a/src/cryfs-cli/Cli.cpp
++++ b/src/cryfs-cli/Cli.cpp
+@@ -6,6 +6,9 @@
+ #include <cmath>
+ #include <cstdio>
+ #include <cstdlib>
++
++#include <spdlog/sinks/syslog_sink.h>
++#include <spdlog/sinks/basic_file_sink.h>
+ #include <cpp-utils/assert/backtrace.h>
+ 
+ #include <fspp/fuse/Fuse.h>
+@@ -282,11 +285,11 @@ namespace cryfs {
+         //TODO Test that --logfile parameter works. Should be: file if specified, otherwise stderr if foreground, else syslog.
+         if (options.logFile() != none) {
+             cpputils::logging::setLogger(
+-                spdlog::create<spdlog::sinks::simple_file_sink<std::mutex>>("cryfs", options.logFile()->native()));
++                spdlog::create<spdlog::sinks::basic_file_sink<std::mutex>>("cryfs", options.logFile()->native()));
+         } else if (options.foreground()) {
+             cpputils::logging::setLogger(spdlog::stderr_logger_mt("cryfs"));
+         } else {
+-            cpputils::logging::setLogger(spdlog::syslog_logger("cryfs", "cryfs", LOG_PID));
++            cpputils::logging::setLogger(spdlog::syslog_logger_mt("cryfs", "cryfs", LOG_PID));
+         }
+     }
+ 
+-- 
+2.18.0
+
