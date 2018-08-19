@@ -1,9 +1,5 @@
-if [[ $EXAMPLE == y ]]; then
-  OPTS="$OPTS --enable-imfexamples"
-fi &&
-
 if [[ $RESTEST == y ]]; then
-  OPTS="$OPTS --enable-imffuzztest"
+  OPTS="$OPTS -DOPENEXR_RUN_FUZZ_TESTS=on"
 fi &&
 
-CXXFLAGS="${CXXFLAGS} -fpermissive" LDFLAGS="${LDFLAGS} -lpthread" default_build
+CXXFLAGS="${CXXFLAGS} -fpermissive" LDFLAGS="${LDFLAGS} -lpthread" cmake_build
