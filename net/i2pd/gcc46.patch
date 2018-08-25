@@ -151,35 +151,6 @@
  		EDDSAPoint (BIGNUM * x1, BIGNUM * y1, BIGNUM * z1 = nullptr, BIGNUM * t1 = nullptr)
  			: x(x1)
  			, y(y1)
-From f38891cace7c63e3d1ba990046b6d828472a1d75 Mon Sep 17 00:00:00 2001
-From: orignal <i2porignal@yandex.ru>
-Date: Wed, 18 Jul 2018 11:15:27 -0400
-Subject: [PATCH] fixed build for gcc < 4.8
-
----
- libi2pd/Poly1305.cpp | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
-
-diff --git a/libi2pd/Poly1305.cpp b/libi2pd/Poly1305.cpp
-index 5378d3cba..fdfee5bc5 100644
---- libi2pd/Poly1305.cpp.orig
-+++ libi2pd/Poly1305.cpp
-@@ -133,9 +133,14 @@ namespace crypto
- 
- 	struct Poly1305
- 	{
--
-+#if (__GNUC__ == 4) && (__GNUC_MINOR__ < 8) // older than gcc 4.8
-+		Poly1305(const uint8_t * key) : m_Leftover(0), m_Final(0)
-+		{
-+			memset (m_H, 0, sizeof (m_H));
-+#else 
- 		Poly1305(const uint8_t * key) : m_Leftover(0), m_H{0}, m_Final(0)
- 		{
-+#endif
- 			m_R.PutKey(key);
- 			m_Pad.Put(key + 16);
- 		}
 --- libi2pd/NTCPSession.cpp.orig	2018-06-26 10:46:01.000000000 -0700
 +++ libi2pd/NTCPSession.cpp	2018-07-23 21:11:18.917335635 -0700
 @@ -183,7 +183,7 @@
