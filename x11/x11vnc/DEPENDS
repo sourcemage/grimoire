@@ -1,5 +1,5 @@
 depends libxtst &&
-depends xorg-server &&
+depends XSERVER &&
 
 depends libvncserver &&
 
@@ -72,16 +72,18 @@ optional_depends libxinerama \
                  "--without-xinerama" \
                  "for xinerama extension support" &&
 
-optional_depends -sub DPMS xorg-server \
-                 "--with-dpms" \
-                 "--without-dpms" \
-                 "for dpms extension support" &&
-
-persistent_read xorg-server XORG_SERVER_OPTS XORG_SERVER_OPTS &&
-
-if list_find "$XORG_SERVER_OPTS" "--enable-record"; then
-  config_query_option X11VNC_OPTS \
-                      "Enable xrecord extension support?" y \
-                      "--with-xrecord" \
-                      "--without-xrecord"
+if is_depends_enabled "$SPELL" xorg-server; then
+  optional_depends -sub DPMS xorg-server \
+                   "--with-dpms" \
+                   "--without-dpms" \
+                   "for dpms extension support" &&
+  persistent_read xorg-server XORG_SERVER_OPTS XORG_SERVER_OPTS &&
+  if list_find "$XORG_SERVER_OPTS" "--enable-record"; then
+    config_query_option X11VNC_OPTS \
+			"Enable xrecord extension support?" y \
+			"--with-xrecord" \
+			"--without-xrecord"
+  fi
+else
+  OPTS+=" --with-dpms --with-xrecord"
 fi
