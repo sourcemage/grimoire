@@ -30,11 +30,8 @@ echo "CFLAGS += $CFLAGS" >> .config
 
 make BINDIR=/sbin &&
 
-if is_depends_enabled $SPELL qt4; then
-  PATH=$QT4DIR/bin:$PATH make wpa_gui-qt4
-fi &&
-
-if is_depends_enabled $SPELL qt-x11; then
-  make wpa_gui
+if is_depends_enabled $SPELL qtbase; then
+  cd "$SOURCE_DIRECTORY/wpa_supplicant/wpa_gui-qt4" &&
+  qt5_build
 fi
 
