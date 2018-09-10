@@ -1,3 +1,5 @@
+OPTS="${PILLOW_OPTS} ${OPTS}" &&
+
 # fix build against system zlib
 LDFLAGS="-L$INSTALL_ROOT/lib $LDFLAGS" &&
 

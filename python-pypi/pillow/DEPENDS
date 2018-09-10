@@ -1,3 +1,5 @@
+. "${GRIMOIRE}/FUNCTIONS" &&
+
 depends unzip &&
 depends PYTHON &&
 depends SETUPTOOLS &&
@@ -7,10 +9,18 @@ optional_depends JPEG \
                  "--disable-jpeg" \
                  "for JPEG support" &&
 
-optional_depends openjpeg \
-                 "--enable-jpeg2000" \
-                 "--disable-jpeg2000" \
-                 "for JPEG 2000 support" &&
+persistent_add PILLOW_OPTS &&
+
+if spell_ok openjpeg && ! is_version_less $(gaze -q version openjpeg | awk -F'|' '$3 == "openjpeg" {print $4}') 2.0; then
+  list_remove PILLOW_OPTS "--disable-jpeg2000" &&
+
+  optional_depends openjpeg \
+                   "--enable-jpeg2000" \
+                   "--disable-jpeg2000" \
+                   "for JPEG 2000 support"
+else
+  list_add PILLOW_OPTS "--disable-jpeg2000"
+fi &&
 
 optional_depends zlib \
                  "--enable-zlib" \
