@@ -1,6 +1,6 @@
 OPTS="$MPV_OPTS $OPTS" &&
 
-if is_depends_enabled $SPELL $(get_spell_provider $SPELL OPENGL); then
+if is_depends_enabled "${SPELL}" "smgl-gl_select"; then
   local GLSELECT=n &&
 
   for provider in `gaze -q provides OPENGL`; do
@@ -9,7 +9,7 @@ if is_depends_enabled $SPELL $(get_spell_provider $SPELL OPENGL); then
     fi
   done &&
 
-  if [[ $GLSELECT == y ]] && spell_ok "smgl-gl_select"; then
+  if [[ $GLSELECT == y ]]; then
     message "${MESSAGE_COLOR}NOTICE: Other OPENGL provider than mesalib is installed;" &&
     message "$SPELL requires active mesalib headers - switching it now." &&
     message "Don't forget to switch back via smgl-gl_select script.${DEFAULT_COLOR}\n" &&
