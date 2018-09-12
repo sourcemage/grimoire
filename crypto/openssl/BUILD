@@ -23,7 +23,6 @@ fi &&
 sedit  "s/^CFLAG=/CFLAG=$CFLAGS /"  Makefile                &&
 sedit  "s/chmod 644\(.*pkgconfig\)/chmod 755\1/"  Makefile  &&
 
-make_single  &&
 make         && {
 
   local OLD_SPELL_VERSION=""
@@ -51,6 +50,4 @@ make         && {
     ldconfig
     )
 fi
-} &&
-
-make_normal
+}
