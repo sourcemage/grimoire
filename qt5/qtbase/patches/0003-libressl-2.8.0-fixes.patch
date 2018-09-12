@@ -1,0 +1,49 @@
+From 2b2bf3a5d6d0ab3876b04b0583abfe14ab72c4a5 Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Mon, 10 Sep 2018 20:53:25 +0200
+Subject: [PATCH 3/3] libressl-2.8.0 fixes
+
+---
+ src/network/ssl/qsslsocket_openssl_symbols.cpp      | 5 +++++
+ src/network/ssl/qsslsocket_opensslpre11_symbols_p.h | 5 +++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/src/network/ssl/qsslsocket_openssl_symbols.cpp b/src/network/ssl/qsslsocket_openssl_symbols.cpp
+index f5adc6b2e0..5f42cf5949 100644
+--- a/src/network/ssl/qsslsocket_openssl_symbols.cpp
++++ b/src/network/ssl/qsslsocket_openssl_symbols.cpp
+@@ -190,8 +190,13 @@ DEFINEFUNC3(void *, ASN1_dup, i2d_of_void *a, a, d2i_of_void *b, b, char *c, c,
+ #endif
+ DEFINEFUNC2(BIO *, BIO_new_file, const char *filename, filename, const char *mode, mode, return 0, return)
+ DEFINEFUNC(void, ERR_clear_error, DUMMYARG, DUMMYARG, return, DUMMYARG)
++#ifdef LIBRESSL_VERSION_NUMBER
++DEFINEFUNC(BIO *, BIO_new, const BIO_METHOD *a, a, return 0, return)
++DEFINEFUNC(const BIO_METHOD *, BIO_s_mem, void, DUMMYARG, return 0, return)
++#else
+ DEFINEFUNC(BIO *, BIO_new, BIO_METHOD *a, a, return 0, return)
+ DEFINEFUNC(BIO_METHOD *, BIO_s_mem, void, DUMMYARG, return 0, return)
++#endif //libressl
+ DEFINEFUNC(int, CRYPTO_num_locks, DUMMYARG, DUMMYARG, return 0, return)
+ DEFINEFUNC(void, CRYPTO_set_locking_callback, void (*a)(int, int, const char *, int), a, return, DUMMYARG)
+ DEFINEFUNC(void, CRYPTO_set_id_callback, unsigned long (*a)(), a, return, DUMMYARG)
+diff --git a/src/network/ssl/qsslsocket_opensslpre11_symbols_p.h b/src/network/ssl/qsslsocket_opensslpre11_symbols_p.h
+index 9686d22b98..92083382e0 100644
+--- a/src/network/ssl/qsslsocket_opensslpre11_symbols_p.h
++++ b/src/network/ssl/qsslsocket_opensslpre11_symbols_p.h
+@@ -78,8 +78,13 @@
+ unsigned char * q_ASN1_STRING_data(ASN1_STRING *a);
+ BIO *q_BIO_new_file(const char *filename, const char *mode);
+ void q_ERR_clear_error();
++#ifdef LIBRESSL_VERSION_NUMBER
++Q_AUTOTEST_EXPORT BIO *q_BIO_new(const BIO_METHOD *a);
++Q_AUTOTEST_EXPORT const BIO_METHOD *q_BIO_s_mem();
++#else
+ Q_AUTOTEST_EXPORT BIO *q_BIO_new(BIO_METHOD *a);
+ Q_AUTOTEST_EXPORT BIO_METHOD *q_BIO_s_mem();
++#endif
+ int q_CRYPTO_num_locks();
+ void q_CRYPTO_set_locking_callback(void (*a)(int, int, const char *, int));
+ void q_CRYPTO_set_id_callback(unsigned long (*a)());
+-- 
+2.18.0
+
