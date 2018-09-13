@@ -1,6 +1,3 @@
-patch -p1 < $SCRIPT_DIRECTORY/javafix.diff &&
-sedit 's|\(docdir\w*=\w*[^/]*\)/docs|\1/share/doc/db|' dist/Makefile.in &&
-
 OPTS="$OPTS $DB_JSUP $DB_TESTS"  &&
 
 if  [  "$DB_JSUP"  ==  "--enable-java"  ];  then
