@@ -3,7 +3,7 @@
 . /etc/sysconfig/boinc
 
 PIDFILE="/var/run/boinc.pid"
-PROGRAM="/usr/bin/boinc_client-svn"
+PROGRAM="/usr/bin/boinc_client"
 ARGS="-dir ${BOINC_HOME}"
 RUNLEVEL=3
 NEEDS="+network +remote_fs"
@@ -12,35 +12,41 @@ NEEDS="+network +remote_fs"
 
 function start()
 {
-   if [ -e ${PIDFILE} ]; then
-      echo "Boinc is already running"
-      exit 1
-   else
-      touch ${PIDFILE}
+   if [ -f ${PIDFILE} ]; then
+     echo "Boinc is already running"
+     exit 1
    fi
 
-   if ! [ -e ${BOINC_LOGDIR} ]; then
-      mkdir -p ${BOINC_LOGDIR}
-      chown boinc:boinc ${BOINC_LOGDIR}
+   if ! [ -d ${BOINC_LOGDIR} ]; then
+     mkdir -p ${BOINC_LOGDIR}
+     chown boinc:boinc ${BOINC_LOGDIR}
    fi
 
-   if ! [ -e ${BOINC_HOME} ]; then
-      mkdir -p ${BOINC_HOME}
-      chown boinc:boinc ${BOINC_HOME}
-      echo "Starting boinc..."
-      cd ${BOINC_HOME}
-      ${PROGRAM} ${ARGS} -attach_project ${BOINC_URL} ${BOINC_KEY} ${BOINC_PARMS} >> ${BOINC_LOG} 2>>${$BOINC_ERROR} &
-   else
-      echo "Starting boinc..."
-      cd ${BOINC_HOME}
-      ${PROGRAM} ${ARGS} ${BOINC_PARMS} >> ${BOINC_LOG} 2>>${BOINC_ERROR} &
+   if ! [ -d ${BOINC_HOME} ]; then
+     mkdir -p ${BOINC_HOME}
+     chown boinc:boinc ${BOINC_HOME}
    fi
+
+  if [ -z ${BOINC_URL} ]; then
+    echo "Setup BOINC_URL in /etc/sysconfig/boinc..."
+    exit 1
+  fi
+
+  if [ -z ${BOINC_KEY} ]; then
+    echo "Setup BOINC_KEY in /etc/sysconfig/boinc..."
+    exit 1
+  fi
+
+  echo "Starting boinc..."
+  cd ${BOINC_HOME}
+  ${PROGRAM} ${ARGS} -attach_project ${BOINC_URL} ${BOINC_KEY} ${BOINC_PARMS} >> ${BOINC_LOG} 2>>${BOINC_ERROR} &
+  pidof ${PROGRAM} > ${PIDFILE}
 }
 
 function stop() {
-   echo "Stopping boinc..."
-   killall -HUP ${PROGRAM}
-   rm -f ${PIDFILE}
+  echo "Stopping boinc..."
+  kill $(pidof ${PROGRAM}) 2>/dev/null
+  rm -f ${PIDFILE} 2>/dev/null
 }
 
 function restart() {
