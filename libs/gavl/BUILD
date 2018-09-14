@@ -1,2 +1,2 @@
 OPTS="$GAVL_OPTS $OPTS" &&
-default_build
+LIBS='-lm' default_build
