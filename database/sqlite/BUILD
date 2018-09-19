@@ -17,6 +17,10 @@ if [[ $SQLITE_ENABLE_DBSTAT_VTAB == y ]]; then
   CFLAGS="-DSQLITE_ENABLE_DBSTAT_VTAB $CFLAGS"
 fi &&
 
+if [[ "${SQLITE_ENABLE_FTS3}" == "y" ]];then
+  CFLAGS="-DSQLITE_ENABLE_FTS3 ${CFLAGS}"
+fi &&
+
 LDFLAGS="-ldl $LDFLAGS" &&
 CFLAGS="${CFLAGS//-ffast-math}" &&
 OPTS="--enable-dynamic-extensions $SQLITE_TSAFE $OPTS" &&
