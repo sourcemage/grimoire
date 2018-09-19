@@ -6,6 +6,7 @@ OPTS="$QT_DEBUG               \
       $QT_EXAMPLE examples    \
       $QT_TESTS tests         \
       $QT_ACCESS              \
+      ${QT_GOLD}-use-gold-linker \
       $OPTS"                  &&
 cd $SOURCE_DIRECTORY &&
 
