@@ -21,6 +21,4 @@ cd "$COMPILE_DIRECTORY" &&
                             --disable-static --enable-shared \
                             --with-banner-add="/Source Mage GNU/Linux" \
                             $OPTS &&
-make_single &&
-make &&
-make_normal
+make
