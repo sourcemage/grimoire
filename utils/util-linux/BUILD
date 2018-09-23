@@ -21,8 +21,8 @@ create_group tty &&
 disable_pic  &&
 
 ./configure --prefix=${TRACK_ROOT}/usr  \
-            --bindir=${TRACK_ROOT}/usr/bin \
-            --libdir=${TRACK_ROOT}/usr/lib \
+            --bindir=${TRACK_ROOT}/bin \
+            --libdir=${TRACK_ROOT}/lib \
         --sysconfdir=${TRACK_ROOT}/etc  \
      --localstatedir=${TRACK_ROOT}/var  \
             --mandir=${TRACK_ROOT}/usr/share/man   \
