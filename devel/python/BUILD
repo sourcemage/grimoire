@@ -9,14 +9,4 @@ if [[ -f $INSTALL_ROOT/usr/lib/python$PYTHON_VERSION/pydcop.py ]]; then
     "$SOURCE_DIRECTORY/spell-tmp"
 fi &&
 
-default_build &&
-
-# python -c 'print "(c)", "lynx"*3'
-# can only have one primary python, the others must be alt
-if [[ $PY2K == y ]]; then
-  make install DESTDIR="$SOURCE_DIRECTORY/anywhere/$INSTALL_ROOT"
-else
-  make altinstall DESTDIR="$SOURCE_DIRECTORY/anywhere/$INSTALL_ROOT"
-fi &&
-
-message "${MESSAGE_COLOR}Fake stage complete, installing to real path...${DEFAULT_COLOR}"
+default_build
