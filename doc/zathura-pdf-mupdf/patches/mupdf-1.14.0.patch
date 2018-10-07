@@ -1,0 +1,130 @@
+diff --git a/meson.build b/meson.build
+--- a/meson.build
++++ b/meson.build
+@@ -20,7 +20,7 @@
+ glib = dependency('glib-2.0')
+ cairo = dependency('cairo')
+ mupdf = cc.find_library('mupdf')
+-mupdfthird = cc.find_library('mupdfthird')
++mupdfthird = cc.find_library('mupdf-third')
+ 
+ build_dependencies = [zathura, girara, glib, cairo, mupdf, mupdfthird]
+ 
+diff --git a/zathura-pdf-mupdf/document.c b/zathura-pdf-mupdf/document.c
+--- a/zathura-pdf-mupdf/document.c
++++ b/zathura-pdf-mupdf/document.c
+@@ -138,7 +138,8 @@
+ 
+   fz_try (mupdf_document->ctx) {
+     pdf_obj* trailer = pdf_trailer(mupdf_document->ctx, (pdf_document*) mupdf_document->document);
+-    pdf_obj* info_dict = pdf_dict_get(mupdf_document->ctx, trailer, PDF_NAME_Info);
++    pdf_obj* info_dict = pdf_dict_get(mupdf_document->ctx, trailer,
++                                      pdf_dict_get_key(mupdf_document->ctx, trailer, PDF_ENUM_NAME_Info));
+ 
+     /* get string values */
+     typedef struct info_value_s {
+diff --git a/zathura-pdf-mupdf/page.c b/zathura-pdf-mupdf/page.c
+--- a/zathura-pdf-mupdf/page.c
++++ b/zathura-pdf-mupdf/page.c
+@@ -30,14 +30,13 @@
+     goto error_free;
+   }
+ 
+-  fz_bound_page(mupdf_document->ctx, (fz_page*) mupdf_page->page, &mupdf_page->bbox);
++  mupdf_page->bbox = fz_bound_page(mupdf_document->ctx, (fz_page*) mupdf_page->page);
+ 
+   /* setup text */
+   mupdf_page->extracted_text = false;
+ 
+-  fz_rect mediabox;
+-  mupdf_page->text = fz_new_stext_page(mupdf_page->ctx,
+-      fz_bound_page(mupdf_page->ctx, mupdf_page->page, &mediabox));
++  fz_rect mediabox = fz_bound_page(mupdf_page->ctx, mupdf_page->page);
++  mupdf_page->text = fz_new_stext_page(mupdf_page->ctx, mediabox);
+   if (mupdf_page->text == NULL) {
+     goto error_free;
+   }
+diff --git a/zathura-pdf-mupdf/render.c b/zathura-pdf-mupdf/render.c
+--- a/zathura-pdf-mupdf/render.c
++++ b/zathura-pdf-mupdf/render.c
+@@ -18,13 +18,15 @@
+     return ZATHURA_ERROR_UNKNOWN;
+   }
+ 
+-  fz_display_list* display_list = fz_new_display_list(mupdf_page->ctx, NULL);
++  fz_irect irect = { .x1 = page_width, .y1 = page_height };
++  fz_rect rect = { .x1 = page_width, .y1 = page_height };
++
++  fz_display_list* display_list = fz_new_display_list(mupdf_page->ctx, rect);
+   fz_device* device             = fz_new_list_device(mupdf_page->ctx, display_list);
+ 
+   fz_try (mupdf_document->ctx) {
+-    fz_matrix m;
+-    fz_scale(&m, scalex, scaley);
+-    fz_run_page(mupdf_document->ctx, mupdf_page->page, device, &m, NULL);
++    fz_matrix m = fz_scale(scalex, scaley);
++    fz_run_page(mupdf_document->ctx, mupdf_page->page, device, m, NULL);
+   } fz_catch (mupdf_document->ctx) {
+     return ZATHURA_ERROR_UNKNOWN;
+   }
+@@ -32,16 +34,14 @@
+   fz_close_device(mupdf_page->ctx, device);
+   fz_drop_device(mupdf_page->ctx, device);
+ 
+-  fz_irect irect = { .x1 = page_width, .y1 = page_height };
+-  fz_rect rect = { .x1 = page_width, .y1 = page_height };
+ 
+   fz_colorspace* colorspace = fz_device_bgr(mupdf_document->ctx);
+   fz_separations* seps= fz_page_separations(mupdf_page->ctx, mupdf_page->page);
+-  fz_pixmap* pixmap = fz_new_pixmap_with_bbox_and_data(mupdf_page->ctx, colorspace, &irect, seps, 1, image);
++  fz_pixmap* pixmap = fz_new_pixmap_with_bbox_and_data(mupdf_page->ctx, colorspace, irect, seps, 1, image);
+   fz_clear_pixmap_with_value(mupdf_page->ctx, pixmap, 0xFF);
+ 
+-  device = fz_new_draw_device(mupdf_page->ctx, NULL, pixmap);
+-  fz_run_display_list(mupdf_page->ctx, display_list, device, &fz_identity, &rect, NULL);
++  device = fz_new_draw_device(mupdf_page->ctx, fz_identity, pixmap);
++  fz_run_display_list(mupdf_page->ctx, display_list, device, fz_identity, rect, NULL);
+   fz_close_device(mupdf_page->ctx, device);
+   fz_drop_device(mupdf_page->ctx, device);
+ 
+diff --git a/zathura-pdf-mupdf/search.c b/zathura-pdf-mupdf/search.c
+--- a/zathura-pdf-mupdf/search.c
++++ b/zathura-pdf-mupdf/search.c
+@@ -39,17 +39,17 @@
+     mupdf_page_extract_text(mupdf_document, mupdf_page);
+   }
+ 
+-  fz_rect* hit_bbox = fz_malloc_array(mupdf_page->ctx, N_SEARCH_RESULTS, sizeof(fz_rect));
++  fz_quad* hit_bbox = fz_malloc_array(mupdf_page->ctx, N_SEARCH_RESULTS, sizeof(fz_quad));
+   int num_results = fz_search_stext_page(mupdf_page->ctx, mupdf_page->text,
+       text, hit_bbox, N_SEARCH_RESULTS);
+ 
+   for (int i = 0; i < num_results; i++) {
+     zathura_rectangle_t* rectangle = g_malloc0(sizeof(zathura_rectangle_t));
+ 
+-    rectangle->x1 = hit_bbox[i].x0;
+-    rectangle->x2 = hit_bbox[i].x1;
+-    rectangle->y1 = hit_bbox[i].y0;
+-    rectangle->y2 = hit_bbox[i].y1;
++    rectangle->x1 = hit_bbox[i].ul.x;
++    rectangle->x2 = hit_bbox[i].lr.x;
++    rectangle->y1 = hit_bbox[i].ul.y;
++    rectangle->y2 = hit_bbox[i].lr.y;
+ 
+     girara_list_append(list, rectangle);
+   }
+diff --git a/zathura-pdf-mupdf/utils.c b/zathura-pdf-mupdf/utils.c
+--- a/zathura-pdf-mupdf/utils.c
++++ b/zathura-pdf-mupdf/utils.c
+@@ -17,9 +17,8 @@
+     /* Disable FZ_DONT_INTERPOLATE_IMAGES to collect image blocks */
+     fz_disable_device_hints(mupdf_page->ctx, text_device, FZ_DONT_INTERPOLATE_IMAGES);
+ 
+-    fz_matrix ctm;
+-    fz_scale(&ctm, 1.0, 1.0);
+-    fz_run_page(mupdf_page->ctx, mupdf_page->page, text_device, &ctm, NULL);
++    fz_matrix ctm = fz_scale(1.0, 1.0);
++    fz_run_page(mupdf_page->ctx, mupdf_page->page, text_device, ctm, NULL);
+   } fz_always (mupdf_document->ctx) {
+     fz_close_device(mupdf_page->ctx, text_device);
+     fz_drop_device(mupdf_page->ctx, text_device);
