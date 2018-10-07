@@ -1,43 +1,40 @@
 diff --git a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -14,7 +14,7 @@
+@@ -20,8 +20,8 @@
  # Do not specify CFLAGS or LIBS on the make invocation line - specify
  # XCFLAGS or XLIBS instead. Make ignores any lines in the makefile that
  # set a variable that was set on the command line.
 -CFLAGS += $(XCFLAGS) -Iinclude
+-LIBS += $(XLIBS) -lm
 +CFLAGS += $(XCFLAGS) -Iinclude -fPIC
- LIBS += $(XLIBS) -lm
++LIBS += $(XLIBS) $(THIRD_LIBS) -lm
  
- LIBS += $(FREETYPE_LIBS)
-@@ -325,9 +325,9 @@
+ ifneq ($(threading),no)
+   ifeq ($(HAVE_PTHREAD),yes)
+@@ -190,17 +190,20 @@
  
  # --- Library ---
  
 -MUPDF_LIB = $(OUT)/libmupdf.a
--THIRD_LIB = $(OUT)/libmupdfthird.a
--THREAD_LIB = $(OUT)/libmuthreads.a
+-THIRD_LIB = $(OUT)/libmupdf-third.a
+-THREAD_LIB = $(OUT)/libmupdf-threads.a
 +MUPDF_LIB = $(OUT)/libmupdf.so
-+THIRD_LIB = $(OUT)/libmupdfthird.so
-+THREAD_LIB = $(OUT)/libmuthreads.so
- PKCS7_LIB = $(OUT)/libmupkcs7.a
- 
- MUPDF_OBJ := \
-@@ -355,12 +355,15 @@
- 	$(ZLIB_OBJ) \
- 	$(LCMS2_OBJ)
++THIRD_LIB = $(OUT)/libmupdf-third.so
++THREAD_LIB = $(OUT)/libmupdf-threads.so
+ PKCS7_LIB = $(OUT)/libmupdf-pkcs7.a
  
 -$(MUPDF_LIB) : $(MUPDF_OBJ)
 +$(MUPDF_LIB) : $(MUPDF_OBJ) $(THIRD_LIB)
 +	$(LINK_CMD) -shared -Wl,-soname -Wl,libmupdf.so -Wl,--no-undefined
  $(THIRD_LIB) : $(THIRD_OBJ)
-+	$(LINK_CMD) -shared -Wl,-soname -Wl,libmupdfthird.so -Wl,--no-undefined
++	$(LINK_CMD) -shared -Wl,-soname -Wl,libmupdf-third.so -Wl,--no-undefined
  $(THREAD_LIB) : $(THREAD_OBJ)
-+	$(LINK_CMD) -pthread -shared -Wl,-soname -Wl,libmuthreads.so -Wl,--no-undefined
++	$(LINK_CMD) -pthread -shared -Wl,-soname -Wl,libmupdf-threads.so -Wl,--no-undefined
  $(PKCS7_LIB) : $(PKCS7_OBJ)
  
 -INSTALL_LIBS := $(MUPDF_LIB) $(THIRD_LIB)
 +INSTALL_LIBS := $(MUPDF_LIB) $(THIRD_LIB) $(THREAD_LIB)
  
- # --- Tools and Apps ---
+ # --- Main tools and viewers ---
  
