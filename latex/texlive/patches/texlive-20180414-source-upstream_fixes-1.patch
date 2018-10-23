@@ -49,7 +49,21 @@ diff -Naur a/texk/dvipdfm-x/pngimage.c b/texk/dvipdfm-x/pngimage.c
 diff -Naur a/texk/web2c/luatexdir/image/pdftoepdf.w b/texk/web2c/luatexdir/image/pdftoepdf.w
 --- a/texk/web2c/luatexdir/image/pdftoepdf.w	2018-01-17 18:00:12.000000000 +0000
 +++ b/texk/web2c/luatexdir/image/pdftoepdf.w	2018-04-30 16:29:12.201899987 +0100
-@@ -472,10 +472,10 @@
+@@ -35,7 +35,7 @@
+ 
+ extern void md5(Guchar *msg, int msgLen, Guchar *digest);
+ 
+-static GBool isInit = gFalse;
++static bool isInit = false;
+ 
+ /* Maintain AVL tree of all PDF files for embedding */
+ 
+@@ -468,14 +468,14 @@
+         break;
+     /*
+     case objNum:
+-        GBool isNum() { return type == objInt || type == objReal; }
++        bool isNum() { return type == objInt || type == objReal; }
          break;
      */
      case objString:
@@ -62,9 +76,43 @@ diff -Naur a/texk/web2c/luatexdir/image/pdftoepdf.w b/texk/web2c/luatexdir/image
          break;
      case objNull:
          pdf_add_null(pdf);
+@@ -587,11 +587,11 @@
+     PDFRectangle *pagebox;
+     int pdf_major_version_found, pdf_minor_version_found;
+     float xsize, ysize, xorig, yorig;
+-    if (isInit == gFalse) {
++    if (isInit == false) {
+         if (!(globalParams))
+             globalParams = new GlobalParams();
+-        globalParams->setErrQuiet(gFalse);
+-        isInit = gTrue;
++        globalParams->setErrQuiet(false);
++        isInit = true;
+     }
+     if (img_type(idict) == IMG_TYPE_PDF)
+         pdf_doc = refPdfDocument(img_filepath(idict), FE_FAIL);
+@@ -966,7 +966,7 @@
+     if (PdfDocumentTree != NULL)
+         avl_destroy(PdfDocumentTree, destroyPdfDocument);
+     PdfDocumentTree = NULL;
+-    if (isInit == gTrue)
++    if (isInit == true)
+         delete globalParams;
+-    isInit = gFalse;
++    isInit = false;
+ }
 diff -Naur a/texk/web2c/luatexdir/lua/lepdflib.cc b/texk/web2c/luatexdir/lua/lepdflib.cc
 --- a/texk/web2c/luatexdir/lua/lepdflib.cc	2018-02-14 14:44:38.000000000 +0000
 +++ b/texk/web2c/luatexdir/lua/lepdflib.cc	2018-04-30 16:29:17.889917722 +0100
+@@ -439,7 +439,7 @@
+       break;
+     case 1:
+       if (lua_isboolean (L,1)) {
+-	uout->d = new Object(lua_toboolean(L, 1)? gTrue : gFalse);
++	uout->d = new Object(lua_toboolean(L, 1)? true : false);
+ 	uout->atype = ALLOC_LEPDF;
+ 	uout->pc = 0;
+ 	uout->pd = NULL;
 @@ -674,7 +674,7 @@
      uin = (udstruct *) luaL_checkudata(L, 1, M_##in);          \
      if (uin->pd != NULL && uin->pd->pc != uin->pc)             \
@@ -74,6 +122,27 @@ diff -Naur a/texk/web2c/luatexdir/lua/lepdflib.cc b/texk/web2c/luatexdir/lua/lep
      if (gs != NULL)                                            \
          lua_pushlstring(L, gs->getCString(), gs->getLength()); \
      else                                                       \
+@@ -1132,7 +1132,7 @@
+         pdfdoc_changed_error(L);
+     s = copyString(luaL_checkstring(L, 2));
+     uobj = (udstruct *) luaL_checkudata(L, 3, M_Object);
+-    ((Dict *) uin->d)->add(s, std::move(*((Object *) uobj->d)));
++    ((Dict *) uin->d)->add((const char *) s, std::move(*((Object *) uobj->d)));
+     return 0;
+ }
+ 
+@@ -1527,9 +1527,9 @@
+         pdfdoc_changed_error(L);
+     luaL_checktype(L, 2, LUA_TBOOLEAN);
+     if (lua_toboolean(L, 2) != 0)
+-        *((Object *) uin->d) = Object(gTrue);
++        *((Object *) uin->d) = Object(true);
+     else
+-        *((Object *) uin->d) = Object(gFalse);
++        *((Object *) uin->d) = Object(false);
+     return 0;
+ }
+ 
 @@ -1813,7 +1813,7 @@
      if (uin->pd != NULL && uin->pd->pc != uin->pc)
          pdfdoc_changed_error(L);
@@ -83,9 +152,85 @@ diff -Naur a/texk/web2c/luatexdir/lua/lepdflib.cc b/texk/web2c/luatexdir/lua/lep
          lua_pushlstring(L, gs->getCString(), gs->getLength());
      } else
          lua_pushnil(L);
+@@ -2051,7 +2051,7 @@
+         pdfdoc_changed_error(L);
+     if (!((Object *) uin->d)->isDict())
+         luaL_error(L, "Object is not a Dict");
+-    ((Object *) uin->d)->dictAdd(copyString(s), std::move(*((Object *) uobj->d)));
++    ((Object *) uin->d)->dictAdd((const char *) copyString(s), std::move(*((Object *) uobj->d)));
+     return 0;
+ }
+ 
+@@ -3038,12 +3038,12 @@
+ 
+ static int m_Attribute_setHidden(lua_State * L)
+ {
+-    GBool i;
++    bool i;
+     udstruct *uin;
+     uin = (udstruct *) luaL_checkudata(L, 1, M_Attribute);
+     if (uin->pd != NULL && uin->pd->pc != uin->pc)
+         pdfdoc_changed_error(L);
+-    i = (GBool) lua_toboolean(L, 2);
++    i = (bool) lua_toboolean(L, 2);
+     ((Attribute *) uin->d)->setHidden(i);
+     return 0;
+ }
+@@ -3180,7 +3180,7 @@
+ // Ref is false if the C++ functione return false
+ static int m_StructElement_getPageRef(lua_State * L)
+ {
+-    GBool b;
++    bool b;
+     Ref *r;
+     udstruct *uin, *uout;
+     uin = (udstruct *) luaL_checkudata(L, 1, M_StructElement);
+@@ -3226,13 +3226,13 @@
+ 
+ static int m_StructElement_getText(lua_State * L)
+ {
+-    GBool i;
++    bool i;
+     GooString *gs;
+     udstruct *uin;
+     uin = (udstruct *) luaL_checkudata(L, 1, M_StructElement);
+     if (uin->pd != NULL && uin->pd->pc != uin->pc)
+         pdfdoc_changed_error(L);
+-    i = (GBool) lua_toboolean(L, 2);
++    i = (bool) lua_toboolean(L, 2);
+     gs =  ((StructElement *) uin->d)->getText(i);
+     if (gs != NULL)
+         lua_pushlstring(L, gs->getCString(), gs->getLength());
+@@ -3321,7 +3321,7 @@
+ {
+     Attribute::Type t;
+     Attribute::Owner o;
+-    GBool g;
++    bool g;
+     udstruct *uin, *uout;
+     const Attribute *a;
+     uin = (udstruct *) luaL_checkudata(L, 1, M_StructElement);
+@@ -3329,7 +3329,7 @@
+         pdfdoc_changed_error(L);
+     t = (Attribute::Type) luaL_checkint(L,1);
+     o = (Attribute::Owner) luaL_checkint(L,2);
+-    g = (GBool) lua_toboolean(L, 3);
++    g = (bool) lua_toboolean(L, 3);
+     a = ((StructElement *) uin->d)->findAttribute(t,g,o);
+ 
+     if (a!=NULL){
 diff -Naur a/texk/web2c/pdftexdir/pdftoepdf-newpoppler.cc b/texk/web2c/pdftexdir/pdftoepdf-newpoppler.cc
 --- a/texk/web2c/pdftexdir/pdftoepdf-newpoppler.cc	2018-04-04 05:08:11.000000000 +0100
 +++ b/texk/web2c/pdftexdir/pdftoepdf-newpoppler.cc	2018-04-30 16:29:35.849907790 +0100
+@@ -120,7 +120,7 @@
+ 
+ static InObj *inObjList;
+ static UsedEncoding *encodingList;
+-static GBool isInit = gFalse;
++static bool isInit = false;
+ 
+ // --------------------------------------------------------------------
+ // Maintain list of open embedded PDF files
 @@ -290,7 +290,7 @@
  static void copyDictEntry(Object * obj, int i)
  {
@@ -149,6 +294,17 @@ diff -Naur a/texk/web2c/pdftexdir/pdftoepdf-newpoppler.cc b/texk/web2c/pdftexdir
      } else if (obj->isNull()) {
          pdf_puts("null");
      } else if (obj->isArray()) {
+@@ -724,8 +724,8 @@
+     // initialize
+     if (!isInit) {
+         globalParams = new GlobalParams();
+-        globalParams->setErrQuiet(gFalse);
+-        isInit = gTrue;
++        globalParams->setErrQuiet(false);
++        isInit = true;
+     }
+     // open PDF file
+     pdf_doc = find_add_document(image_name);
 @@ -977,7 +977,7 @@
              }
              l = dic1.getLength();
@@ -170,6 +326,18 @@ diff -Naur a/texk/web2c/pdftexdir/pdftosrc-newpoppler.cc b/texk/web2c/pdftexdir/
          // We cannot free srcName, as objname shares its string.
          // srcName.free();
      } else if (objnum > 0) {
+@@ -173,9 +173,9 @@
+ 
+                 // parse the header: object numbers and offsets
+                 objStr.streamReset();
+-                str = new EmbedStream(objStr.getStream(), Object(objNull), gTrue, first);
++                str = new EmbedStream(objStr.getStream(), Object(objNull), true, first);
+                 lexer = new Lexer(xref, str);
+-                parser = new Parser(xref, lexer, gFalse);
++                parser = new Parser(xref, lexer, false);
+                 for (n = 0; n < nObjects; ++n) {
+                     obj1 = parser->getObj();
+                     obj2 = parser->getObj();
 diff -Naur a/texk/web2c/ptexdir/ptex_version.h b/texk/web2c/ptexdir/ptex_version.h
 --- a/texk/web2c/ptexdir/ptex_version.h	2018-01-21 03:48:06.000000000 +0000
 +++ b/texk/web2c/ptexdir/ptex_version.h	2018-04-30 16:27:55.978626503 +0100
@@ -289,24 +457,3 @@ diff -Naur a/texk/web2c/ptexdir/tests/free_pena.tex b/texk/web2c/ptexdir/tests/f
 +  \ifnum\CNTB<\LIM
 +\repeat
 +\bye
-diff -Naur a/texk/web2c/luatexdir/lua/lepdflib.cc b/texk/web2c/luatexdir/lua/lepdflib.cc
---- a/texk/web2c/luatexdir/lua/lepdflib.cc
-+++ b/texk/web2c/luatexdir/lua/lepdflib.cc
-@@ -1132,7 +1132,7 @@
-         pdfdoc_changed_error(L);
-     s = copyString(luaL_checkstring(L, 2));
-     uobj = (udstruct *) luaL_checkudata(L, 3, M_Object);
--    ((Dict *) uin->d)->add(s, std::move(*((Object *) uobj->d)));
-+    ((Dict *) uin->d)->add((const char *) s, std::move(*((Object *) uobj->d)));
-     return 0;
- }
- 
-@@ -2051,7 +2051,7 @@
-         pdfdoc_changed_error(L);
-     if (!((Object *) uin->d)->isDict())
-         luaL_error(L, "Object is not a Dict");
--    ((Object *) uin->d)->dictAdd(copyString(s), std::move(*((Object *) uobj->d)));
-+    ((Object *) uin->d)->dictAdd((const char *) copyString(s), std::move(*((Object *) uobj->d)));
-     return 0;
- }
- 
