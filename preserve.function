@@ -1,0 +1,407 @@
+#-----------------------------------------------------------------------
+## @Synopsis Set of functions for creating preservation spells
+##
+## @Copyright Source Mage Team
+#-----------------------------------------------------------------------
+
+#-----------------------------------------------------------------------
+## Preserve all installed files from the named spell which match the
+## given pattern in a newly created preservation spell
+##
+## @param src_spell: spell to preserve files from
+## @param file_patterns: newline separated list of grep compatible
+##                       regex patterns
+#-----------------------------------------------------------------------
+function grimoire_preserve_matches() {
+  local src_spell=$1 &&
+  local file_patterns="$2" &&
+
+  local spell_tablet &&
+  if ! tablet_find_spell_dir $src_spell spell_tablet; then
+    error_message "${PROBLEM_COLOR}Unable to find tablet entry for ${SPELL_COLOR}${spell}${PROBLEM_COLOR}.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+  install_log="$(readlink -f "$spell_tablet"/logs/install)" &&
+  {
+    files_to_preserve="$(grep --file=<(echo "$file_patterns") "$install_log")"
+    (( $? < 2 ))
+  } &&
+
+  if [[ -n "$files_to_preserve" ]]; then
+    grimoire_preserve_spell_files $SPELL "$files_to_preserve"
+  fi
+}
+
+#-----------------------------------------------------------------------
+## Preserve the given list of installed files from the named source
+## spell in a newly created preservation spell
+##
+## @param src_spell: spell "owning" the listed files currently
+## @param spell_files: a list of files from the spell to be preserved
+#-----------------------------------------------------------------------
+function grimoire_preserve_spell_files() {
+  local src_spell=$1 &&
+  local spell_files="$2" &&
+
+  message "${MESSAGE_COLOR}Preserving the following files from ${SPELL_COLOR}${src_spell}${MESSAGE_COLOR}:" &&
+  message "${FILE_COLOR}${spell_files}${DEFAULT_COLOR}" &&
+
+  if ! spell_ok $src_spell; then
+    error_message "${PROBLEM_COLOR}Spell ${SPELL_COLOR}${src_spell}${PROBLEM_COLOR} is not installed.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+
+  local preserve_spell="smgl-preserve-${src_spell}-$(installed_version $src_spell)" &&
+  if ! spell_ok $preserve_spell; then
+    _grimoire_create_preserve_spell $src_spell $preserve_spell
+  fi &&
+
+  _grimoire_tablet_write_grimoire_file $preserve_spell "find_depends.function" 755 < "$GRIMOIRE/find_depends.function" &&
+
+  _grimoire_tablet_write_spell_file $preserve_spell "PRE_REMOVE" 755 <<'EOF' &&
+. "$GRIMOIRE/find_depends.function"
+. "$SCRIPT_DIRECTORY/DETAILS"
+
+message "${SPELL_COLOR}${SPELL}${MESSAGE_COLOR} is a spell that preserves the shared objects from dispelled or upgraded spell ${SPELL_COLOR}${DONOR}${MESSAGE_COLOR}."
+message "Dispelling this spell may lead to breakage of other spells that still depend on these shared objects." &&
+message "Determining which spells would break, this may take a while.${DEFAULT_COLOR}" &&
+
+local breakage_list &&
+local so_names="$(find_spell_shared_objects "$SPELL" | xargs readelf -d | sed -n -e '/SONAME/s/^.*\[\([^]]*\).*/\1/p')" &&
+
+find_shared_object_dependencies breakage_list "$so_names" "$SPELL" &&
+
+if [[ -n "${breakage_list}" ]]; then
+  message "" &&
+  message "${PROBLEM_COLOR}You are about to remove ${SPELL_COLOR}${SPELL}${PROBLEM_COLOR}." &&
+  message "This will lead to the following spells becoming broken:" &&
+  message "${SPELL_COLOR}$(fold -s -w 72 <<< "${breakage_list}")" &&
+  message "${MESSAGE_COLOR}To avoid breakage you need to recast these before removing ${SPELL_COLOR}${SPELL}${MESSAGE_COLOR}." &&
+  if ! query "${QUERY_COLOR}Do you wish to remove ${SPELL_COLOR}${SPELL}${QUERY_COLOR} now?" n; then
+    exit 1
+  fi
+else
+  message "${MESSAGE_COLOR}No spells could be found that will break, continuing spell removal.${DEFAULT_COLOR}"
+fi
+EOF
+
+  _grimoire_tablet_add_spell_files $preserve_spell "$spell_files" &&
+  _grimoire_tablet_remove_spell_files $src_spell "$spell_files"
+}
+
+#-----------------------------------------------------------------------
+## Create a preservation spell
+##
+## Creates a minimal, but complete spell based on the given source
+## spell consisting of the following parts:
+## - tablet entry
+## - cache file
+## - install and md5 logs
+## Updates the sorcery state:
+## - marks the spell installed
+## - adds the spell to the version cache
+## - copies the dependencies from the source spell
+##
+## @param src_spell: spell on which the preservation spell is based
+## @param preserve_spell: name of the new preservation spell
+#-----------------------------------------------------------------------
+function _grimoire_create_preserve_spell() {
+  local src_spell=$1 &&
+  local preserve_spell=$2 &&
+  local preserve_version=none &&
+
+  message "${MESSAGE_COLOR}Creating preservation spell ${SPELL_COLOR}${preserve_spell}${MESSAGE_COLOR}.${DEFAULT_COLOR}" &&
+
+  if ! spell_ok $src_spell; then
+    error_message "${PROBLEM_COLOR}Spell ${SPELL_COLOR}${src_spell}${PROBLEM_COLOR} is not installed.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+  local preserve_tablet &&
+  if ! preserve_tablet=$(_grimoire_tablet_clone_skeleton preserved $preserve_spell $preserve_version $src_spell); then
+    error_message "${PROBLEM_COLOR}Unable to create tablet for ${SPELL_COLOR}${preserve_spell}${PROBLEM_COLOR}.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+
+  local cache_file="$STATE_ROOT/var/cache/sorcery/$preserve_spell-$preserve_version-$HOST.tar$EXTENSION" &&
+  local compile_log="$STATE_ROOT/var/log/sorcery/compile/$preserve_spell-$preserve_version$EXTENSION" &&
+  local install_log="$STATE_ROOT/var/log/sorcery/install/$preserve_spell-$preserve_version" &&
+  local md5_log="$STATE_ROOT/var/log/sorcery/md5sum/$preserve_spell-$preserve_version" &&
+  echo | $COMPRESSBIN > "$compile_log" &&
+  touch "$md5_log" &&
+  echo "$compile_log" > "$install_log" &&
+  echo "$md5_log" >> "$install_log" &&
+  echo "$install_log" >> "$install_log" &&
+
+  add_spell $preserve_spell installed $preserve_version &&
+  add_version_cache "$STATE_ROOT/var/state/sorcery/versions" $preserve_spell $preserve_version 0 0 0 && 
+  while IFS=":" read depender dependee state type en_switch dis_switch; do
+    add_depends "$STATE_ROOT/var/state/sorcery/depends" $depender $dependee $state $type "$en_switch" "$dis_switch"
+  done < "$preserve_tablet/depends" &&
+  while IFS=":" read depender dependee sub_dependency; do
+    add_sub_depends "$STATE_ROOT/var/state/sorcery/sub_depends" $depender $dependee $sub_dependency
+  done < "$preserve_tablet/rsub_depends" &&
+
+  find -P "$preserve_tablet" >> "$install_log" &&
+  _grimoire_tablet_create_cache "$cache_file" "$install_log" &&
+  _grimoire_tablet_create_md5_log "$md5_log" "$install_log"
+}
+
+#-----------------------------------------------------------------------
+## Create a skeleton tablet entry cloned from an installed spell.
+##
+## Creates a new minimal tablet entry, and copies the following with the
+##necessary changes from the given source spell:
+## - dependencies
+## - grimoire subdirectory
+## - roots subdirectory
+## - rsub depends
+## - section name
+## The spell configuration is left empty.
+##
+## The new table entry does not have a spell backing it and hence should
+## not have the name of an existing spell, also the grimoire name should
+## be a non-existing grimoire.
+##
+## @param grimoire_name: grimoire name used in the skeleton tablet entry
+## @param spell_name: spell name for the skeleton tablet entry
+## @param version: spell version for the skeleton tablet entry
+## @param source_spell: source spell to copy tablet data from
+## @stdout tablet directory
+#-----------------------------------------------------------------------
+function _grimoire_tablet_clone_skeleton() {
+  local grimoire_name=$1 &&
+  local spell_name=$2 &&
+  local version=$3 &&
+  local source_spell=$4 &&
+
+  local source_tablet_entry &&
+  source_tablet_entry=$(_grimoire_tablet_get_spell_entry $source_spell) &&
+  local new_tablet_entry &&
+  if ! new_tablet_entry=$(tablet_get_path $spell_name); then
+    error_message "${PROBLEM_COLOR}Unable to create tablet entry for ${SPELL_COLOR}${spell_name}${PROBLEM_COLOR}.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+
+  echo 2 > "$new_tablet_entry/build_api" &&
+  ln -sf "$STATE_ROOT/var/cache/sorcery/$spell_name-$version-$HOST.tar$EXTENSION" "$new_tablet_entry/cache" &&
+  # The below matches using the length of the spell name to avoid parts of the spell name being interpreted as regular expression characters
+  sed -e "s/^.\{${#source_spell}\}/$spell_name/" "$source_tablet_entry/depends" > "$new_tablet_entry/depends" &&
+  cp -ax "$source_tablet_entry/grimoire" "$new_tablet_entry/grimoire" &&
+  echo $grimoire_name > "$new_tablet_entry/grimoire_name" &&
+  mkdir -p "$new_tablet_entry/logs" &&
+  ln -sf "$STATE_ROOT/var/log/sorcery/install/$spell_name-$version" "$new_tablet_entry/logs/install" &&
+  ln -sf "$STATE_ROOT/var/log/sorcery/md5sum/$spell_name-$version" "$new_tablet_entry/logs/md5sum" &&
+  echo 0 > "$new_tablet_entry/patchlevel" &&
+  cp -ax "$source_tablet_entry/roots" "$new_tablet_entry" &&
+  # The below matches using the length of the spell name to avoid parts of the spell name being interpreted as regular expression characters
+  sed -e "s/^.\{${#source_spell}\}/$spell_name/" "$source_tablet_entry/rsub_depends" > "$new_tablet_entry/rsub_depends" &&
+  cp -ax "$source_tablet_entry/section" "$new_tablet_entry/section" &&
+  cp -ax "$source_tablet_entry/section_name" "$new_tablet_entry/section_name" &&
+  echo 0 > "$new_tablet_entry/security_patch" &&
+  touch "$new_tablet_entry/sources" &&
+  mkdir -p "$new_tablet_entry/spell" &&
+  touch "$new_tablet_entry/spell_config" &&
+  touch "$new_tablet_entry/spell_config.p" &&
+  echo installed > "$new_tablet_entry/status" &&
+  touch "$new_tablet_entry/sub_depends" &&
+  echo 1 > "$new_tablet_entry/tb_version" &&
+  echo > "$new_tablet_entry/updated" &&
+  echo $version > "$new_tablet_entry/version" &&
+
+cat <<EOF > "$new_tablet_entry/spell/DETAILS" &&
+  SPELL=$spell_name
+VERSION=$version
+  DONOR=$source_spell
+EOF
+
+  echo "$new_tablet_entry"
+}
+
+#-----------------------------------------------------------------------
+## Add/overwrite a grimoire file to/in a spell tablet
+##
+## Adds a grimoire file, a file normally found in the top level
+## directory of a grimoire, to the grimoire directory of a tablet for an
+## installed spell
+##
+## If there already is a grimoire file in the tablet with the same name
+## it will be overwritten
+##
+## @param spell: spell whose tablet the file is added to
+## @param filename: name to give the file added to the tablet
+## @param mode: filemode to give the file added to the tablet
+## @stdin file contents
+#-----------------------------------------------------------------------
+function _grimoire_tablet_write_grimoire_file() {
+  local spell=$1 &&
+  local filename="$2" &&
+  local mode=$3 &&
+
+  local tablet_entry &&
+  tablet_entry=$(_grimoire_tablet_get_spell_entry $spell) &&
+  cat > "$tablet_entry/grimoire/$filename" &&
+  chmod $mode "$tablet_entry/grimoire/$filename" &&
+  _grimoire_tablet_add_spell_files $spell "$tablet_entry/grimoire/$filename"
+}
+
+#-----------------------------------------------------------------------
+## Add/overwrite a spell file to/in a spell tablet
+##
+## Adds a spell file, a file normally found in the spell directory in a
+## grimoire, to the spell directory of a tablet for an installed spell
+##
+## If there already is a spell file in the tablet with the same name it
+## will be overwritten
+##
+## @param spell: spell whose tablet the file is added to
+## @param filename: name to give the file added to the tablet
+## @param mode: filemode to give the file added to the tablet
+## @stdin file contents
+#-----------------------------------------------------------------------
+function _grimoire_tablet_write_spell_file() {
+  local spell=$1 &&
+  local filename="$2" &&
+  local mode=$3 &&
+
+  local tablet_entry &&
+  tablet_entry=$(_grimoire_tablet_get_spell_entry $spell) &&
+  cat > "$tablet_entry/spell/$filename" &&
+  chmod $mode "$tablet_entry/spell/$filename" &&
+  _grimoire_tablet_add_spell_files $spell "$tablet_entry/spell/$filename"
+}
+
+#-----------------------------------------------------------------------
+## Retrieve the tablet directory for an installed spell
+##
+## @param spell: spell for which to retrieve the tablet directory
+## @stdout tablet directory path for the given spell
+#-----------------------------------------------------------------------
+function _grimoire_tablet_get_spell_entry() {
+  local spell=$1 &&
+
+  local src_tablet &&
+  if ! tablet_find_spell_dir $spell src_tablet; then
+    error_message "${PROBLEM_COLOR}Unable to find tablet entry for ${SPELL_COLOR}${spell}${PROBLEM_COLOR}.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+  echo "$src_tablet"
+}
+
+#-----------------------------------------------------------------------
+## Create a spell cache file based on an install log
+##
+## @param cache_file: cache file to create
+## @param install_log: file listing the files to include in the cache 
+#-----------------------------------------------------------------------
+function _grimoire_tablet_create_cache() {
+  if [[ $ARCHIVE == off ]]; then
+    return;
+  fi &&
+  local cache_file="$1" &&
+  local install_log="$2" &&
+
+  rm -rf "$cache_file" &&
+  tar --create --directory / --no-recursion --null --files-from <(sed 's,^/,,' < "$install_log" | tr '\n' '\0') | $COMPRESSBIN > "$cache_file"
+}
+
+#-----------------------------------------------------------------------
+## Create an md5 log file based on an install log
+##
+## @param md5_log: md5 log file to create
+## @param install_log: file listing the files to include in the log
+#-----------------------------------------------------------------------
+function _grimoire_tablet_create_md5_log() {
+  local md5_log="$1" &&
+  local install_log="$2" &&
+
+  xargs stat --dereference --format='%F:%n' < "$install_log" | sed -n 's/^regular file://p' | xargs md5sum > "$md5_log"
+}
+
+#-----------------------------------------------------------------------
+## Add a set of files to a given spell
+##
+## @param spell: spell to add the given files to
+## @param file_names: newline separated list of files to add
+#-----------------------------------------------------------------------
+function _grimoire_tablet_add_spell_files() {
+  spell=$1 &&
+  file_names="$2" &&
+
+  message "${MESSAGE_COLOR}Adding files to ${SPELL_COLOR}${spell}${MESSAGE_COLOR}.${DEFAULT_COLOR}" &&
+
+  if ! spell_ok $spell; then
+    error_message "${PROBLEM_COLOR}Spell ${SPELL_COLOR}${spell}${PROBLEM_COLOR} is not installed.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+
+  local tablet_entry &&
+  tablet_entry=$(_grimoire_tablet_get_spell_entry $spell) &&
+
+  local cache_file="$(readlink -f "$tablet_entry/cache")" &&
+  local md5_log="$(readlink -f "$tablet_entry/logs/md5sum")" &&
+  local install_log="$(readlink -f "$tablet_entry/logs/install")" &&
+
+  new_files="$(grep --invert-match --fixed-strings --line-regexp --file="$install_log" <<< "$file_names")" &&
+
+  while read file_name; do
+    if [[ ! -e $file_name ]]; then
+      error_message "${PROBLEM_COLOR}File ${FILE_COLOR}${file_name}${PROBLEM_COLOR} is not found.${DEFAULT_COLOR}"
+      return 1
+    fi
+  done <<< "$new_files" &&
+
+  echo "$new_files" >> "$install_log" &&
+  xargs stat --dereference --format='%F:%n' <<< "$new_files" | sed -n 's/^regular file://p' | xargs md5sum >> "$md5_log" &&
+  $COMPRESSBIN -d "$cache_file" &&
+  tar --append --file "${cache_file%$EXTENSION}" --directory / --no-recursion --null --files-from <(sed 's,^/,,' <<< "$new_files" | tr '\n' '\0') &&
+  tar --update --file "${cache_file%$EXTENSION}" --directory / --no-recursion "${install_log#/}" "${md5_log#/}" &&
+  $COMPRESSBIN "${cache_file%$EXTENSION}"
+}
+
+#-----------------------------------------------------------------------
+## Remove a set of files from a given spell
+##
+## @param spell: spell to from the given files from
+## @param file_names: newline separated list of files to remove
+#-----------------------------------------------------------------------
+function _grimoire_tablet_remove_spell_files() {
+  local spell=$1 &&
+  local file_names="$2" &&
+
+  message "${MESSAGE_COLOR}Removing files from ${SPELL_COLOR}${spell}${MESSAGE_COLOR}.${DEFAULT_COLOR}" &&
+
+  if ! spell_ok $spell; then
+    error_message "${PROBLEM_COLOR}Spell ${SPELL_COLOR}${spell}${PROBLEM_COLOR} is not installed.${DEFAULT_COLOR}"
+    return 1
+  fi &&
+
+  local tablet_entry &&
+  tablet_entry=$(_grimoire_tablet_get_spell_entry $spell) &&
+
+  local cache_file="$(readlink -f "$tablet_entry/cache")" &&
+  local md5_log="$(readlink -f "$tablet_entry/logs/md5sum")" &&
+  local install_log="$(readlink -f "$tablet_entry/logs/install")" &&
+
+  {
+    missing_files="$(grep --invert-match --fixed-strings --line-regexp --file="$install_log" <<< "$file_names")"
+    (( $? < 2 ))
+  } &&
+  if [[ -n "$missing_files" ]]; then
+    error_message "${PROBLEM_COLOR}The following files are not part of ${SPELL_COLOR}${spell}${PROBLEM_COLOR}:"
+    error_message "${FILE_COLOR}${missing_files}${DEFAULT_COLOR}"
+    return 1
+  fi &&
+
+  local new_install_log &&
+  new_install_log=$(grep --invert-match --fixed-strings --line-regexp --file=<(echo "$file_names") "$install_log") &&
+  echo "$new_install_log" > "$install_log" &&
+  local new_md5_log &&
+  new_md5_log=$(grep --invert-match --basic-regexp --file=<(sed -e 's/[.[^$\*]/\\&/g' -e 's/.*/[[:space:]]&$/' <<< "$file_names") "$md5_log") &&
+  echo "$new_md5_log" > "$md5_log" &&
+  if [[ -e "$cache_file" ]]; then
+    $COMPRESSBIN -d "$cache_file" &&
+    tar --delete --file "${cache_file%$EXTENSION}" --directory / --no-recursion --null --files-from <(sed 's,^/,,' <<< "$file_names" | tr '\n' '\0') &&
+    tar --update --file "${cache_file%$EXTENSION}" --directory / --no-recursion "${install_log#/}" "${md5_log#/}" &&
+    $COMPRESSBIN "${cache_file%$EXTENSION}"
+  fi
+}
