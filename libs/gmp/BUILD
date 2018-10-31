@@ -1,7 +1,3 @@
-# For use in INSTALL for Bug #16031
-persistent_add gmp_old_version &&
-gmp_old_version=$(installed_version ${SPELL}) &&
-
 # needed by essential /bin/expr at least
 OPTS="--libdir=$INSTALL_ROOT/lib $OPTS" &&
 # gcc bug when running test?
