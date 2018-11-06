@@ -1,16 +1,13 @@
 #!/bin/bash
 if [ "$USER" != "root" ];then
-
 # setup KDE5 environment for SMGL
 export QTDIR=/opt/qt5
-export KF5=$QTDIR
-export PATH+=":$KF5/bin"
+export PATH+=":$QTDIR/bin"
 export XDG_CONFIG_DIRS=/etc/xdg
-export QT_PLUGIN_PATH+=:$KF5/plugins
+export QT_PLUGIN_PATH=$QTDIR/plugins
 
-export QML2_IMPORT_PATH=$KF5/qml
-export QML_IMPORT_PATH=$QML2_IMPORT_PATH
-export XCURSOR_PATH=$KF5/share/icons:~/.icons:/usr/share/icons:/usr/share/pixmaps
+export QML2_IMPORT_PATH=$QTDIR/qml
+export XCURSOR_PATH=$QTDIR/share/icons:~/.icons:/usr/share/icons:/usr/share/pixmaps
 
 # temporary runtime directories
 export XDG_RUNTIME_DIR=${TMPDIR-/tmp}/plasma-$USER
