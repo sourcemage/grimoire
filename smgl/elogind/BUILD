@@ -8,5 +8,6 @@ OPTS+=' cgroup-controller=none' &&
 #  OPTS+=' cgroup-controller=telinit'
 #fi &&
 OPTS+=' nobody-group=nogroup' &&
+OPTS+=' dbussystemservicedir=/etc/dbus-1/system.d'  &&
 default_build
 
