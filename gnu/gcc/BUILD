@@ -3,8 +3,6 @@
 CFLAGS=${CFLAGS/-pipe/}     &&
 CXXFLAGS=${CXXFLAGS/-pipe/} &&
 
-OPTS+=" --enable-plugin" &&
-
 if list_find "$GCC_COMPILER" "fortran"; then
   OPTS+=" --enable-libquadmath"
 else
@@ -56,7 +54,7 @@ fi  &&
 if list_find "$GCC_COMPILER" "ada" ; then
   # setup bootstrap ada compiler
   ADA_PATH=${SOURCE13/.tar.bz2/}  &&
-  PATH=$SOURCE_DIRECTORY/$ADA_PATH/usr/bin:$PATH  &&
+  PATH=$SOURCE_DIRECTORY/$ADA_PATH/bin:$PATH  &&
 
   export CC="$SOURCE_DIRECTORY/$ADA_PATH/bin/gcc" &&
 
@@ -85,6 +83,7 @@ OPTS="--enable-languages=${GCC_COMPILER// /,},lto $OPTS"     &&
 OPTS="--enable-shared $OPTS"                                       &&
 OPTS="--enable-threads=posix $OPTS"                                &&
 OPTS="--enable-__cxa_atexit $OPTS"                                 &&
+OPTS="--disable-libunwind-exceptions $OPTS"                        &&
 OPTS="--enable-clocale=gnu $OPTS"                                  &&
 OPTS="--disable-libstdcxx-pch $OPTS"                               &&
 OPTS="--enable-bootstrap $OPTS"                                    &&
@@ -97,9 +96,14 @@ else
   OPTS="--without-isl --without-cloog $OPTS"
 fi &&
 OPTS="--enable-lto $OPTS"                                          &&
+OPTS="--enable-plugin $OPTS"                                       &&
+OPTS="--enable-install-libiberty $OPTS"                            &&
 OPTS="--with-linker-hash-style=gnu $OPTS"                          &&
 OPTS="--disable-werror $OPTS"                                      &&
 OPTS="--enable-checking=release $OPTS"                             &&
+OPTS="--enable-default-pie $OPTS"                                  &&
+OPTS="--enable-default-ssp $OPTS"                                  &&
+OPTS="--enable-cet=auto $OPTS"                                     &&
 OPTS="$GCC_MULTILIB $OPTS"                                         &&
 
 # https://sourceware.org/bugzilla/show_bug.cgi?id=21930
