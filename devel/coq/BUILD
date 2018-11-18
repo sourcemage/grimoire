@@ -1,6 +1,6 @@
 ./configure -prefix ${INSTALL_ROOT}/usr \
             -mandir ${INSTALL_ROOT}/usr/share/man \
-            -coqrunbyteflags "-dllib -lcoqrun" \
+	    -camlp5dir ${INSTALL_ROOT}/usr/lib/ocaml/camlp5 \
             -libdir /usr/lib/coq \
             ${OPTS} &&
 make_single         &&
