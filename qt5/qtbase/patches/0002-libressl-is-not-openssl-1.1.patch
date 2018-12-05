@@ -1,7 +1,7 @@
-From e69f1bf55c221f7460f72d65b9aa2450ae270225 Mon Sep 17 00:00:00 2001
+From 39d75862ed782bcdead744a3888976d15a2bfb3f Mon Sep 17 00:00:00 2001
 From: Treeve Jelbert <treeve@sourcemage.org>
 Date: Sat, 21 Oct 2017 14:50:51 +0200
-Subject: [PATCH 2/2] libressl is not openssl-1.1
+Subject: [PATCH 2/3] libressl is not openssl-1.1
 
 fix qsslsocket_openssl_symbols
 ---
@@ -26,10 +26,10 @@ index c20cc59deb..b31b008afb 100644
  #endif
  
 diff --git a/src/network/ssl/qsslcontext_openssl.cpp b/src/network/ssl/qsslcontext_openssl.cpp
-index 41b759364b..4d05cb39c5 100644
+index 35cca9f01a..1c838f8e22 100644
 --- a/src/network/ssl/qsslcontext_openssl.cpp
 +++ b/src/network/ssl/qsslcontext_openssl.cpp
-@@ -248,7 +248,7 @@ void QSslContext::applyBackendConfig(QSslContext *sslContext)
+@@ -249,7 +249,7 @@ void QSslContext::applyBackendConfig(QSslContext *sslContext)
      if (sslContext->sslConfiguration.backendConfiguration().isEmpty())
          return;
  
@@ -39,7 +39,7 @@ index 41b759364b..4d05cb39c5 100644
          QSharedPointer<SSL_CONF_CTX> cctx(q_SSL_CONF_CTX_new(), &q_SSL_CONF_CTX_free);
          if (cctx) {
 diff --git a/src/network/ssl/qsslkey_openssl.cpp b/src/network/ssl/qsslkey_openssl.cpp
-index 58df544a0e..c7bd73f264 100644
+index 9a43e67772..ccc1a75d83 100644
 --- a/src/network/ssl/qsslkey_openssl.cpp
 +++ b/src/network/ssl/qsslkey_openssl.cpp
 @@ -335,8 +335,13 @@ static QByteArray doCrypt(QSslKeyPrivate::Cipher cipher, const QByteArray &data,
@@ -57,10 +57,10 @@ index 58df544a0e..c7bd73f264 100644
  
  #if QT_CONFIG(opensslv11)
 diff --git a/src/network/ssl/qsslsocket_openssl_symbols.cpp b/src/network/ssl/qsslsocket_openssl_symbols.cpp
-index 466eba0bd0..f5adc6b2e0 100644
+index fd58e9548e..11fe70e976 100644
 --- a/src/network/ssl/qsslsocket_openssl_symbols.cpp
 +++ b/src/network/ssl/qsslsocket_openssl_symbols.cpp
-@@ -321,7 +321,11 @@ DEFINEFUNC2(int, EVP_CIPHER_CTX_set_key_length, EVP_CIPHER_CTX *ctx, ctx, int ke
+@@ -356,7 +356,11 @@ DEFINEFUNC2(int, EVP_CIPHER_CTX_set_key_length, EVP_CIPHER_CTX *ctx, ctx, int ke
  DEFINEFUNC5(int, EVP_CipherInit, EVP_CIPHER_CTX *ctx, ctx, const EVP_CIPHER *type, type, const unsigned char *key, key, const unsigned char *iv, iv, int enc, enc, return 0, return)
  DEFINEFUNC6(int, EVP_CipherInit_ex, EVP_CIPHER_CTX *ctx, ctx, const EVP_CIPHER *cipher, cipher, ENGINE *impl, impl, const unsigned char *key, key, const unsigned char *iv, iv, int enc, enc, return 0, return)
  DEFINEFUNC5(int, EVP_CipherUpdate, EVP_CIPHER_CTX *ctx, ctx, unsigned char *out, out, int *outl, outl, const unsigned char *in, in, int inl, inl, return 0, return)
@@ -70,18 +70,18 @@ index 466eba0bd0..f5adc6b2e0 100644
  DEFINEFUNC3(int, EVP_CipherFinal, EVP_CIPHER_CTX *ctx, ctx, unsigned char *out, out, int *outl, outl, return 0, return)
 +#endif // LIBRESSL_VERSION_NUMBER
  #ifndef OPENSSL_NO_DES
- DEFINEFUNC(const EVP_CIPHER *, EVP_des_cbc, DUMMYARG, DUMMYARG, return 0, return)
- DEFINEFUNC(const EVP_CIPHER *, EVP_des_ede3_cbc, DUMMYARG, DUMMYARG, return 0, return)
-@@ -406,7 +410,7 @@ DEFINEFUNC2(int, SSL_CTX_use_PrivateKey, SSL_CTX *a, a, EVP_PKEY *b, b, return -
+ DEFINEFUNC(const EVP_CIPHER *, EVP_des_cbc, DUMMYARG, DUMMYARG, return nullptr, return)
+ DEFINEFUNC(const EVP_CIPHER *, EVP_des_ede3_cbc, DUMMYARG, DUMMYARG, return nullptr, return)
+@@ -443,7 +447,7 @@ DEFINEFUNC2(int, SSL_CTX_use_PrivateKey, SSL_CTX *a, a, EVP_PKEY *b, b, return -
  DEFINEFUNC2(int, SSL_CTX_use_RSAPrivateKey, SSL_CTX *a, a, RSA *b, b, return -1, return)
  DEFINEFUNC3(int, SSL_CTX_use_PrivateKey_file, SSL_CTX *a, a, const char *b, b, int c, c, return -1, return)
- DEFINEFUNC(X509_STORE *, SSL_CTX_get_cert_store, const SSL_CTX *a, a, return 0, return)
+ DEFINEFUNC(X509_STORE *, SSL_CTX_get_cert_store, const SSL_CTX *a, a, return nullptr, return)
 -#if OPENSSL_VERSION_NUMBER >= 0x10002000L
 +#if OPENSSL_VERSION_NUMBER >= 0x10002000L && ! defined(LIBRESSL_VERSION_NUMBER)
- DEFINEFUNC(SSL_CONF_CTX *, SSL_CONF_CTX_new, DUMMYARG, DUMMYARG, return 0, return);
+ DEFINEFUNC(SSL_CONF_CTX *, SSL_CONF_CTX_new, DUMMYARG, DUMMYARG, return nullptr, return);
  DEFINEFUNC(void, SSL_CONF_CTX_free, SSL_CONF_CTX *a, a, return ,return);
  DEFINEFUNC2(void, SSL_CONF_CTX_set_ssl_ctx, SSL_CONF_CTX *a, a, SSL_CTX *b, b, return, return);
-@@ -561,7 +565,7 @@ bool q_resolveOpenSslSymbols()
+@@ -614,7 +618,7 @@ bool q_resolveOpenSslSymbols()
                       "of libraries.");
      return false;
  }
@@ -90,7 +90,7 @@ index 466eba0bd0..f5adc6b2e0 100644
  
  # ifdef Q_OS_UNIX
  struct NumericallyLess
-@@ -1045,6 +1049,9 @@ bool q_resolveOpenSslSymbols()
+@@ -1158,6 +1162,9 @@ bool q_resolveOpenSslSymbols()
      RESOLVEFUNC(EVP_CipherInit)
      RESOLVEFUNC(EVP_CipherInit_ex)
      RESOLVEFUNC(EVP_CipherUpdate)
@@ -101,7 +101,7 @@ index 466eba0bd0..f5adc6b2e0 100644
  #ifndef OPENSSL_NO_DES
      RESOLVEFUNC(EVP_des_cbc)
 diff --git a/src/network/ssl/qsslsocket_openssl_symbols_p.h b/src/network/ssl/qsslsocket_openssl_symbols_p.h
-index 68b519d74e..b5efd83915 100644
+index bfdfbf0efc..b86bf00703 100644
 --- a/src/network/ssl/qsslsocket_openssl_symbols_p.h
 +++ b/src/network/ssl/qsslsocket_openssl_symbols_p.h
 @@ -233,7 +233,7 @@ int q_BIO_read(BIO *a, void *b, int c);
@@ -113,7 +113,7 @@ index 68b519d74e..b5efd83915 100644
  int q_BN_is_word(BIGNUM *a, BN_ULONG w);
  #else // opensslv11
  // BN_is_word is implemented purely as a
-@@ -265,6 +265,9 @@ int q_EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *x, int keylen);
+@@ -266,6 +266,9 @@ int q_EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *x, int keylen);
  int q_EVP_CipherInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type, const unsigned char *key, const unsigned char *iv, int enc);
  int q_EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher, ENGINE *impl, const unsigned char *key, const unsigned char *iv, int enc);
  int q_EVP_CipherUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl, const unsigned char *in, int inl);
@@ -123,7 +123,7 @@ index 68b519d74e..b5efd83915 100644
  int q_EVP_CipherFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl);
  #ifndef OPENSSL_NO_DES
  const EVP_CIPHER *q_EVP_des_cbc();
-@@ -356,7 +359,7 @@ int q_SSL_CTX_use_PrivateKey(SSL_CTX *a, EVP_PKEY *b);
+@@ -359,7 +362,7 @@ int q_SSL_CTX_use_PrivateKey(SSL_CTX *a, EVP_PKEY *b);
  int q_SSL_CTX_use_RSAPrivateKey(SSL_CTX *a, RSA *b);
  int q_SSL_CTX_use_PrivateKey_file(SSL_CTX *a, const char *b, int c);
  X509_STORE *q_SSL_CTX_get_cert_store(const SSL_CTX *a);
@@ -133,5 +133,5 @@ index 68b519d74e..b5efd83915 100644
  void q_SSL_CONF_CTX_free(SSL_CONF_CTX *a);
  void q_SSL_CONF_CTX_set_ssl_ctx(SSL_CONF_CTX *a, SSL_CTX *b);
 -- 
-2.17.1
+2.19.2
 
