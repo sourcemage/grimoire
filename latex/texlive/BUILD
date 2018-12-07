@@ -1,6 +1,9 @@
 # Flags to allow building against lua 5.3
 #CFLAGS+=" -DLUA_COMPAT_APIINTCASTS"
 
+# LuaTeX needs this
+CXXFLAGS+=" -fpermissive" &&
+
 # hide warnings about unable to find it's own config files
 export KPATHSEA_WARNING=0 &&
 # X seems to be only there for xdvi which we use external
