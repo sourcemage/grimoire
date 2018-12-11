@@ -54,4 +54,4 @@ for option in $OPTS; do
 done &&
 
 echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
-./mach build
+CC=gcc CXX=g++ ./mach build
