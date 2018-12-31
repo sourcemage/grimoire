@@ -1,1 +1,2 @@
-cmake_build
+OPTS+=" -DUSE_BUNDLED=OFF -DENABLE_JEMALLOC=OFF" &&
+default_build
