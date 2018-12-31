@@ -1,1 +1,6 @@
-make
+cd source &&
+
+PREFIX="$INSTALL_ROOT/usr" default_build_make &&
+
+cd ..
+
