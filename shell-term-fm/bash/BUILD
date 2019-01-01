@@ -7,7 +7,6 @@
              --enable-static-link          \
              --with-bash-malloc=no 	   \
              $OPTS                         &&
-make_single                                &&
 make  bash DESTDIR=$INSTALL_ROOT           &&
 mv    bash  bash.static                    &&
 make  clean                                &&
