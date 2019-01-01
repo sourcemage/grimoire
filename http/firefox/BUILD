@@ -22,11 +22,11 @@ CFLAGS="${CFLAGS//-O3/-O2}"      &&
 CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
 
 # harden
-LDFLAGS="$LDFLAGS -Wl,-z,now"
+LDFLAGS="$LDFLAGS -Wl,-z,now"    &&
 
 # for gcc 6
-CFLAGS="$CXXFLAGS -fno-delete-null-pointer-checks -fno-schedule-insns2"   &&
-CXXFLAGS="$CXXFLAGS -fno-delete-null-pointer-checks -fno-schedule-insns2" &&
+CFLAGS+=" -fno-delete-null-pointer-checks"   &&
+CXXFLAGS+=" -fno-delete-null-pointer-checks" &&
 
 #
 # fix symbol check in build scripts, firefox adds -s to LDFLAGS so we can
@@ -54,4 +54,4 @@ for option in $OPTS; do
 done &&
 
 echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
-CC=gcc CXX=g++ ./mach build
+./mach build
