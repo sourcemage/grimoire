@@ -1,0 +1,29 @@
+# some spells install their libraries to /lib and these are linked to by bash.
+# these libraries must be preserved while the spell is being upgraded
+# these functions should be called during the PRE_INSTALL of such spells
+# candidate spells for this would be glibc, ncurses, readline
+
+lock_resources "libgrimoire" "install"  &&
+PROTECT=$SOURCE_DIRECTORY/$SPELL.old.libs &&
+
+if [[ -z $INSTALL_ROOT ]]; then
+ protect_special_libs() {
+  mkdir -p $PROTECT  &&
+  local each  &&
+  for each in /lib{,64,32}/*; do
+    if test -f "$each"; then
+      cp -a "$each" $PROTECT
+    fi
+  done  &&
+  ldconfig $PROTECT
+ }
+fi
+
+# some spells, such as glibc may need some special processing between calls to
+# these two fucnctions
+
+do_dispel() {
+  if  spell_ok $SPELL;  then
+    dispel  --notriggers  --nosustain $SPELL
+  fi
+}
