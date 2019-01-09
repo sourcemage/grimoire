@@ -11,6 +11,4 @@ OPTS="$OPTS --with-shared --libdir=${TRACK_ROOT}/lib --enable-pc-files"  &&
               --mandir=${TRACK_ROOT}/usr/share/man   \
              --infodir=${TRACK_ROOT}/usr/share/info  \
                        $OPTS                 &&
-  make DESTDIR=$INSTALL_ROOT                 &&
-
-export LD_LIBRARY_PATH="${SOURCE_DIRECTORY}/lib:${LD_LIBRARY_PATH}"
+  make DESTDIR=$INSTALL_ROOT
