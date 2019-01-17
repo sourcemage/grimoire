@@ -1,2 +1,2 @@
 cd $SOURCE_DIRECTORY &&
-make libcryptopp.a libcryptopp.so
+make PREFIX=$INSTALL_ROOT/usr libcryptopp.a libcryptopp.so
