@@ -1,2 +1,2 @@
-cd $SOURCE_DIRECTORY/Codec &&
+cd $SOURCE_DIRECTORY/PGF/Codec &&
 default_build
