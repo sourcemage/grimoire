@@ -1,0 +1,95 @@
+From dcdde4d32c93d01df205bc06d7dfcbd356be031f Mon Sep 17 00:00:00 2001
+Date: Sat, 25 Jun 2016 22:25:48 +0200
+Subject: [PATCH] replace FbRootWindow::depth with maxDepth
+
+The depth member of FbWindow was abused to store the maximum depth
+but that gets overridden with geometry changes of the root window
+(screen layout changes) so we store and read the value explicitly while
+::depth() maintains the actual depth of the root window
+
+The result of this is that frames for ARGB windows were created with a
+wrong depth and failed to reparent the client window.
+
+BUG: 1102
+BUG: 1058
+---
+ src/FbRootWindow.cc | 7 ++++---
+ src/FbRootWindow.hh | 2 ++
+ src/FbWinFrame.cc   | 4 ++--
+ src/Screen.cc       | 2 +-
+ 4 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/FbRootWindow.cc b/src/FbRootWindow.cc
+index d17d56f1..91bd6957 100644
+--- a/src/FbRootWindow.cc
++++ b/src/FbRootWindow.cc
+@@ -30,7 +30,8 @@ FbRootWindow::FbRootWindow(int screen_num):
+     m_colormap(0),
+     m_decorationDepth(0),
+     m_decorationVisual(0),
+-    m_decorationColormap(0) {
++    m_decorationColormap(0),
++    m_maxDepth(depth()) {
+ 
+     Display *disp = FbTk::App::instance()->display();
+ 
+@@ -55,9 +56,9 @@ FbRootWindow::FbRootWindow(int screen_num):
+ 
+         for (int i = 0; i < vinfo_nitems; i++) {
+             if ((DefaultDepth(disp, screen_num) < vinfo_return[i].depth)
+-                    && (static_cast<int>(depth()) < vinfo_return[i].depth)){
++                    && (m_maxDepth < vinfo_return[i].depth)){
+                 m_visual = vinfo_return[i].visual;
+-                setDepth(vinfo_return[i].depth);
++                m_maxDepth = vinfo_return[i].depth;
+             }
+ 
+             if((m_decorationDepth < vinfo_return[i].depth)
+diff --git a/src/FbRootWindow.hh b/src/FbRootWindow.hh
+index 8e97cc39..739c9ef2 100644
+--- a/src/FbRootWindow.hh
++++ b/src/FbRootWindow.hh
+@@ -41,6 +41,7 @@ public:
+     int decorationDepth() const { return m_decorationDepth; }
+     Visual *decorationVisual() const { return m_decorationVisual; }
+     Colormap decorationColormap() const { return m_decorationColormap; }
++    int maxDepth() const { return m_maxDepth; }
+ 
+ private:
+     Visual *m_visual;
+@@ -49,6 +50,7 @@ private:
+     int m_decorationDepth;
+     Visual *m_decorationVisual;
+     Colormap m_decorationColormap;
++    int m_maxDepth;
+ };
+ 
+ #endif // FBROOTWINDOW_HH
+diff --git a/src/FbWinFrame.cc b/src/FbWinFrame.cc
+index 48d6e87e..42b81e77 100644
+--- a/src/FbWinFrame.cc
++++ b/src/FbWinFrame.cc
+@@ -115,8 +115,8 @@ FbWinFrame::FbWinFrame(BScreen &screen, unsigned int client_depth,
+     m_state(state),
+     m_window(theme->screenNum(), state.x, state.y, state.width, state.height, s_mask, true, false,
+         client_depth, InputOutput,
+-        ((client_depth == 32) && (screen.rootWindow().depth() == 32) ? screen.rootWindow().visual() : CopyFromParent),
+-        ((client_depth == 32) && (screen.rootWindow().depth() == 32) ? screen.rootWindow().colormap() : CopyFromParent)),
++        (client_depth == screen.rootWindow().maxDepth() ? screen.rootWindow().visual() : CopyFromParent),
++        (client_depth == screen.rootWindow().maxDepth() ? screen.rootWindow().colormap() : CopyFromParent)),
+     m_layeritem(window(), *screen.layerManager().getLayer(ResourceLayer::NORMAL)),
+     m_titlebar(m_window, 0, 0, 100, 16, s_mask, false, false, 
+         screen.rootWindow().decorationDepth(), InputOutput,
+diff --git a/src/Screen.cc b/src/Screen.cc
+index 2b5411de..94e42500 100644
+--- a/src/Screen.cc
++++ b/src/Screen.cc
+@@ -297,7 +297,7 @@ BScreen::BScreen(FbTk::ResourceManager &rm,
+                             "using visual 0x%lx, depth %d\n",
+                             "informational message saying screen number (%d), visual (%lx), and colour depth (%d)").c_str(),
+             screenNumber(), XVisualIDFromVisual(rootWindow().visual()),
+-            rootWindow().depth());
++            rootWindow().maxDepth());
+ #endif // DEBUG
+ 
+     FbTk::EventManager *evm = FbTk::EventManager::instance();
