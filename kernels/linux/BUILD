@@ -20,17 +20,11 @@ case "${KERNEL_ARCH}" in
 esac &&
 
 if [[ -z "$INTERNAL_ISO_VAR" ]] ; then
-  case "$VERSION" in
-    2.[024]*)
-      echo "making deps for a 2.4 kernel"  &&
-      make dep    
-    ;;
-  esac &&
   eval make $EXTRA_MAKE_OPTIONS $IMAGE_TARGET &&
   eval make $EXTRA_MAKE_OPTIONS modules &&
   LINUX_BRANCH=$(echo ${VERSION} | cut -d. -f1,2)
   case "$VERSION" in
-    3*|2*)
+    3*)
       if [[ ${LINUX_BRANCH//./} -le 310 ]] && ( grep -q CONFIG_BONDING=m ./.config || grep -q CONFIG_BONDING=y ./.config )
       then
         echo 'Building ifenslave for network bonding...'  &&

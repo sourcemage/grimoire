@@ -30,24 +30,6 @@ function arch_default()
 	fi
 }
 
-# convert the old variable names to new variable names
-# $1 pass a file name
-function old_var_compat()
-{
-	local old_var
-	old_var=( kernel_arch mode reconf kver patches selected_patches )
-	local new_var
-	new_var=( KERNEL_ARCH KMODE KLINUX_RECONFIGURE BASE_KVER CANONICAL_PATCHES SELECTED_PATCHES )
-	if [[ -f $1 ]] 
-	then
-		for(( i=0 ; $i < ${#old_var[*]} ; i++))
-		do
-			sedit "s/^${old_var[$i]}/${new_var[$i]}/g" $1 &&
-			persistent_remove ${old_var[$i]}
-		done
-	fi
-}
-
 # create the defaults file from scratch
 # do this with every command
 function create_defaults()
@@ -97,7 +79,6 @@ function create_defaults()
 	VERSION="`gaze version $SPELL | awk 'NR == 3 {print $4}'`"
 	if [ -f ${BUILD_DIRECTORY}/linux-${VERSION}/.spell-config.p ]
 	then
-		old_var_compat ${BUILD_DIRECTORY}/linux-$VERSION/.spell-config.p &&
 		cp ${BUILD_DIRECTORY}/linux-$VERSION/.spell-config.p \
 		   ${SPELL_CONFIG}.p
 		persistent_load
@@ -111,7 +92,6 @@ function create_defaults()
 	# so the update can be performed.
 	elif [ -f ${BUILD_DIRECTORY}/linux-$(installed_version $SPELL)/.spell-config.p ]
 	then
-		old_var_compat ${BUILD_DIRECTORY}/linux-$(installed_version $SPELL)/.spell-config.p &&
 		cp ${BUILD_DIRECTORY}/linux-$(installed_version $SPELL)/.spell-config.p ${SPELL_CONFIG}.p
 		persistent_load
 		KMODE="newktree"
@@ -122,8 +102,8 @@ function create_defaults()
 	# patches
 	else
 		[ -z "$KMODE" ] && KMODE="newktree"
-		[ -z "$BASE_KVER" ] && BASE_KVER="LATEST_2_6"
-		[ -z "$SELECTED_PATCHES" ] && SELECTED_PATCHES="LATEST_maintenance_patches"
+		[ -z "$BASE_KVER" ] && BASE_KVER="LATEST_4"
+		[ -z "$SELECTED_PATCHES" ] && SELECTED_PATCHES="LATEST_maintenance_patches_4"
 	fi
 
 	# check RECONFIGURE for cast -r linux and set KLINUX_RECONFIGURE appropriately
@@ -272,7 +252,8 @@ function options_menu()
 
 function custom_kernel()
 {
-	command=$("${dialog[@]}" --inputbox "Enter the kernel version for the source you want to build?\nExamples:\n2.4.31\n2.6.13.4-selinux1\n${LATEST_2_6}" 0 0 "")
+	command=$("${dialog[@]}" --inputbox "Enter the kernel version for the source 
+you want to build?\nExamples:\n2.6.13.4-selinux1\n${LATEST_4}" 0 0 "")
 	retval=$?
 	echo $command
 	if [[ "$?" == "0" ]] 
@@ -299,7 +280,7 @@ function new_tree_menu()
 	do
 		menu="${menu}${version} Linux_Kernel Select_one "
 	done
-	menu="$( awk -F= '$1 ~ /LATEST_2|LATEST_3|LATEST_4/ {print $1 " Linux_Kernel " $2 }' $LATEST_KDEFAULTS ) ${menu}"
+	menu="$( awk -F= '$1 ~ /LATEST_3|LATEST_4/ {print $1 " Linux_Kernel " $2 }' $LATEST_KDEFAULTS ) ${menu}"
 	command=$( "${dialog[@]}" --title "Select Kernel Version" \
 	--item-help --cancel-label "Exit" --default-item "$BASE_KVER" --menu \
 	"Select a kernel version to use" 0 0 0 \
@@ -308,7 +289,7 @@ function new_tree_menu()
 	if [ "$retval" == "0" ]
 	then
 		case "$command" in
-			4*|3*|2.[0-9].[0-9]*) 
+			4*|3*) 
 				BASE_KVER=$command
 				;;
 			LATEST*)
@@ -489,7 +470,6 @@ need updating" \
 			fi
 			if [[ "${old_src_tree}" != "${BUILD_DIRECTORY}/linux-`get_usr_src_kver ${old_src_tree}/.spell-config.p`" ]]
 			then
-				old_var_compat ${old_src_tree}/.spell-config.p
 				if dialog --yesno "${old_src_tree} will be updated to `get_usr_src_kver ${old_src_tree}/.spell-config.p`.\nDo you want to continue?" 0 0
 				then
 					load_old_src_tree
@@ -510,7 +490,6 @@ need updating" \
 function load_old_src_tree()
 {
 	local tmp
-	old_var_compat ${old_src_tree}/.spell-config.p
 	cp ${old_src_tree}/.spell-config.p ${SPELL_CONFIG}.p
 	tmp=$old_src_tree
 	persistent_load
