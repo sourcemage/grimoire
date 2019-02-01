@@ -1,30 +1,30 @@
-From 39d75862ed782bcdead744a3888976d15a2bfb3f Mon Sep 17 00:00:00 2001
+From 9a371a0fd08bfb147e73b768e6a270dc8ced2332 Mon Sep 17 00:00:00 2001
 From: Treeve Jelbert <treeve@sourcemage.org>
 Date: Sat, 21 Oct 2017 14:50:51 +0200
 Subject: [PATCH 2/3] libressl is not openssl-1.1
 
 fix qsslsocket_openssl_symbols
 ---
- config.tests/unix/openssl11/openssl.cpp        |  2 +-
+ src/network/configure.json                     |  2 +-
  src/network/ssl/qsslcontext_openssl.cpp        |  2 +-
  src/network/ssl/qsslkey_openssl.cpp            |  5 +++++
  src/network/ssl/qsslsocket_openssl_symbols.cpp | 11 +++++++++--
  src/network/ssl/qsslsocket_openssl_symbols_p.h |  7 +++++--
  5 files changed, 21 insertions(+), 6 deletions(-)
 
-diff --git a/config.tests/unix/openssl11/openssl.cpp b/config.tests/unix/openssl11/openssl.cpp
-index c20cc59deb..b31b008afb 100644
---- a/config.tests/unix/openssl11/openssl.cpp
-+++ b/config.tests/unix/openssl11/openssl.cpp
-@@ -39,7 +39,7 @@
- 
- #include <openssl/opensslv.h>
- 
--#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER-0 < 0x10100000L
-+#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER-0 < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
- #  error "OpenSSL >= 1.1 is required"
- #endif
- 
+diff --git a/src/network/configure.json b/src/network/configure.json
+index 10c4f87a2e..62d2ff4a56 100644
+--- a/src/network/configure.json
++++ b/src/network/configure.json
+@@ -165,7 +165,7 @@
+             "test": {
+                 "include": "openssl/opensslv.h",
+                 "tail": [
+-                    "#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER-0 < 0x10100000L",
++                    "#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER-0 < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)",
+                     "#  error OpenSSL >= 1.1 is required",
+                     "#endif"
+                 ]
 diff --git a/src/network/ssl/qsslcontext_openssl.cpp b/src/network/ssl/qsslcontext_openssl.cpp
 index 35cca9f01a..1c838f8e22 100644
 --- a/src/network/ssl/qsslcontext_openssl.cpp
@@ -57,7 +57,7 @@ index 9a43e67772..ccc1a75d83 100644
  
  #if QT_CONFIG(opensslv11)
 diff --git a/src/network/ssl/qsslsocket_openssl_symbols.cpp b/src/network/ssl/qsslsocket_openssl_symbols.cpp
-index fd58e9548e..11fe70e976 100644
+index 299df6b685..c89f60cbd8 100644
 --- a/src/network/ssl/qsslsocket_openssl_symbols.cpp
 +++ b/src/network/ssl/qsslsocket_openssl_symbols.cpp
 @@ -356,7 +356,11 @@ DEFINEFUNC2(int, EVP_CIPHER_CTX_set_key_length, EVP_CIPHER_CTX *ctx, ctx, int ke
@@ -90,7 +90,7 @@ index fd58e9548e..11fe70e976 100644
  
  # ifdef Q_OS_UNIX
  struct NumericallyLess
-@@ -1158,6 +1162,9 @@ bool q_resolveOpenSslSymbols()
+@@ -1167,6 +1171,9 @@ bool q_resolveOpenSslSymbols()
      RESOLVEFUNC(EVP_CipherInit)
      RESOLVEFUNC(EVP_CipherInit_ex)
      RESOLVEFUNC(EVP_CipherUpdate)
@@ -133,5 +133,5 @@ index bfdfbf0efc..b86bf00703 100644
  void q_SSL_CONF_CTX_free(SSL_CONF_CTX *a);
  void q_SSL_CONF_CTX_set_ssl_ctx(SSL_CONF_CTX *a, SSL_CTX *b);
 -- 
-2.19.2
+2.20.1
 
