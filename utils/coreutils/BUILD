@@ -7,6 +7,4 @@ FORCE_UNSAFE_CONFIGURE=1 ./configure       \
    $SELINUX                                \
    $OPTS                                   &&
 
-make_single                                &&
-make  $MAKEFLAG DESTDIR=$INSTALL_ROOT      &&
-make_normal
+make  $MAKEFLAG DESTDIR=$INSTALL_ROOT
