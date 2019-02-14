@@ -3,6 +3,8 @@ GHC_DIR=/usr/bin
 echo "BuildFlavour = perf"      >> "${SPELL}-${VERSION}/mk/build.mk" &&
 echo "V = 0"                    >> "${SPELL}-${VERSION}/mk/build.mk" &&
 echo "XSLTPROC_OPTS += --nonet" >> "${SPELL}-${VERSION}/mk/build.mk" &&
+echo "BUILD_SPHINX_HTML = NO"   >> "${SPELL}-${VERSION}/mk/build.mk" &&
+echo "BUILD_SPHINX_PDF = NO"    >> "${SPELL}-${VERSION}/mk/build.mk" &&
 
 if [[ -x ${INSTALL_ROOT}/usr/bin/ghc-pkg-7.2.1 ]]; then
   ghc-pkg-7.2.1 trust base
