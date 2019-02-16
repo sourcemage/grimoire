@@ -31,6 +31,6 @@ check_static_dev () {
   rmdir  /tmp/$$.bindmount
 }
 
-if  [[ "$DEVICES" != "devfs" ]] && [[ "$CREATE_DEV_TREE" == y ]]; then
+if [[ "$CREATE_DEV_TREE" == y ]]; then
   check_static_dev
 fi

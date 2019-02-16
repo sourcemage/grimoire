@@ -7,37 +7,8 @@ ESSENTIAL=yes
 . /etc/init.d/smgl_init
 . /etc/sysconfig/devices
 
-start_devfs()
-{
-  if ! [ -e /dev/.devfsd ]
-  then echo "Mounting devfs on /dev"
-       mount -n -t devfs devfs /dev
-       evaluate_retval
-  fi
-
-  echo "Telling init to reopen file descriptors"
-  kill -USR1 1
-
-  if [ ! -x "/sbin/devfsd" ] ; then
-    ln -sf /proc/self/fd /dev/fd
-    ln -sf /dev/fd/0 /dev/stdin
-    ln -sf /dev/fd/1 /dev/stdout
-    ln -sf /dev/fd/2 /dev/stderr
-  fi
-}
-
 udev_mknodes()
 {
-# eudev creates these; errors if they are already present
-UD=`/bin/udevadm --version`
-if [[ $UD < '220' ]];then
-  if [ ! -d $udev_root/fd ]; then
-    ln -fs /proc/self/fd $udev_root/fd
-  fi
-  ln -s /dev/fd/0 $udev_root/stdin
-  ln -s /dev/fd/1 $udev_root/stdout
-  ln -s /dev/fd/2 $udev_root/stderr
-fi
   mkdir $udev_root/shm
   mkdir $udev_root/pts
 }
@@ -55,41 +26,6 @@ start_udev()
   fi
   # create some needed stuff
   udev_mknodes
-
-  # kernel 2.6.15-rc1 and higher don't use hotplug
-  if [[ $(printf "%s\n%s\n" "$(uname -r)" "2.6.15" | sort -V | head -n 1) \
-        = 2.6.15 ]]; then
-    echo "don't need hotplug for this kernel"
-    builtin echo > /proc/sys/kernel/hotplug
-  else
-      # Now uses udevsend as the hotplug multiplexer
-    echo "Setting udevsend as hotplug agent"
-    sysctl -w kernel.hotplug="/sbin/udevsend" > /dev/null 2>&1
-    echo "Creating initial udev device nodes"
-    /sbin/udevstart
-  fi
-
-  if [ -f /etc/udev/udev.missing ]; then
-    echo "Processing /etc/udev/udev.missing"
-    cd /dev
-    while read line; do
-      if [ "${line:0:1}" == "#" ]; then continue; fi
-      for ((i=0; i<7; i++)); do
-        val[$i]=${line%%:*}
-        line=${line#*:}
-      done
-      if [ "${val[1]}" == "d" ]; then
-        mkdir ${val[0]}
-      else
-        mknod ${val[0]} ${val[1]} ${val[2]} ${val[3]}
-      fi
-      chmod ${val[4]} ${val[0]}
-      chown ${val[5]}:${val[6]} ${val[0]}
-    done < /etc/udev/udev.missing
-    cd /
-  fi
-  echo "Telling init to reopen file descriptors"
-  kill -USR1 1
 ) }
 
 start_static_udev()
@@ -98,38 +34,6 @@ start_static_udev()
   # create some needed stuff - and insist on it
   udev_mknodes
 
-  # kernel 2.6.15-rc1 and higher don't use hotplug
-  if [[ $(printf "%s\n%s\n" "$(uname -r)" "2.6.15" | sort -V | head -n 1) \
-        = 2.6.15 ]]; then
-    echo "don't need hotplug for this kernel"
-    builtin echo > /proc/sys/kernel/hotplug
-  else
-      # Now uses udevsend as the hotplug multiplexer
-    echo "Setting udevsend as hotplug agent"
-    sysctl -w kernel.hotplug="/sbin/udevsend" > /dev/null 2>&1
-    echo "Creating initial udev device nodes"
-    /sbin/udevstart
-  fi
-
-  if [ -f /etc/udev/udev.missing ]; then
-    echo "Processing /etc/udev/udev.missing"
-    cd /dev
-    while read line; do
-      if [ "${line:0:1}" == "#" ]; then continue; fi
-      for ((i=0; i<7; i++)); do
-        val[$i]=${line%%:*}
-        line=${line#*:}
-      done
-      if [ "${val[1]}" == "d" ]; then
-        mkdir -p ${val[0]}
-      else
-        mknod ${val[0]} ${val[1]} ${val[2]} ${val[3]}
-      fi
-      chmod ${val[4]} ${val[0]}
-      chown ${val[5]}:${val[6]} ${val[0]}
-    done < /etc/udev/udev.missing
-    cd /
-  fi
 ) }
 
 start_static()
