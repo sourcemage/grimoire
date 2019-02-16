@@ -1,5 +1,3 @@
-make_single  &&
-
 # Following flags make the build fail
 for flag in \
   -flto \
@@ -37,7 +35,7 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   fi  &&
 
   OPTS="$OPTS  --with-tls             \
-               --enable-kernel=2.6"
+               --enable-kernel=3.2.0"
 else
   ADDONS="linuxthreads"        &&
   OPTS="$OPTS  --without-__thread     \
