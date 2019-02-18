@@ -26,7 +26,6 @@ export  CCACHE_RECACHE=true  &&
 #
 
 local ADDONS
-if  [  "$GLIBC_NPTL"  =  "y"  ];  then
   #
   # Enable IDN?
   #
@@ -36,25 +35,12 @@ if  [  "$GLIBC_NPTL"  =  "y"  ];  then
 
   OPTS="$OPTS  --with-tls             \
                --enable-kernel=3.2.0"
-else
-  ADDONS="linuxthreads"        &&
-  OPTS="$OPTS  --without-__thread     \
-               --enable-kernel=2.4"
-fi  &&
 
 OPTS="$OPTS --enable-add-ons=${ADDONS/ /,}"  &&
 
-if [ "$GLIBC_NPTL" = "y" ]
-then
 # minimise optimisation level
   CFLAGS=$(echo ${CFLAGS} | sed -r "s;-O([0-9]|fast);;g") &&
   CFLAGS="-O2 ${CFLAGS//-Os/}"
-else
-  #
-  # Fixes Bug #8595
-  #
-  CFLAGS="-Os $CFLAGS"
-fi &&
 
 export  CFLAGS="${CFLAGS/-ffast-math/}"  &&
 export  CC=gcc                           &&
@@ -68,7 +54,6 @@ unset  LD_LIBRARY_PATH  &&
 # Setup sanitised glibc-kernel-headers for the glibc compile
 # ...as well as other arch-dependend specialties
 #
-if [[ ${GLIBC_NPTL} == y ]]; then
   cd ${GLIBC_HEADERS_DIR} &&
   GL_ARCH=${SMGL_COMPAT_ARCHS[1]}  &&
   if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]];then
@@ -81,7 +66,6 @@ if [[ ${GLIBC_NPTL} == y ]]; then
     fi
   fi &&
   make ARCH=$GL_ARCH INSTALL_HDR_PATH=usr headers_install
-fi
 
 if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 && ${SMGL_COMPAT_ARCHS[1]} == sparc ]]; then
   #
