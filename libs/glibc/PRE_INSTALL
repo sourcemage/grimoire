@@ -1,33 +1,32 @@
 lock_resources "libgrimoire" "install"  &&
-if [ -z $INSTALL_ROOT ]; then
+if [[ -z $INSTALL_ROOT ]]; then
   mkdir $SOURCE_DIRECTORY.bld/old.libs  &&
+  message "${MESSAGE_COLOR}copying old libraries${DEFAULT_COLOR}" &&
   local each  &&
   for each in /lib{,64,32}/*; do
     if test -f "$each"; then
       cp -a "$each" $SOURCE_DIRECTORY.bld/old.libs
     fi
   done  &&
+  message "${MESSAGE_COLOR}Runnning ldconfig${DEFAULT_COLOR}" &&
   ldconfig $SOURCE_DIRECTORY.bld/old.libs  &&
   local LD  &&
-  if [[ ${SMGL_COMPAT_ARCHS[1]} == ppc ]]; then
-    LD=$(readlink /lib/ld.so.1)  &&
-    ln -sf $SOURCE_DIRECTORY.bld/old.libs/$LD /lib/ld.so.1
-  elif [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]] && test  -f /lib/ld-linux-x86-64.so.2; then
-    LD=$(readlink /lib/ld-linux-x86-64.so.2)  &&
-    ln -sf $SOURCE_DIRECTORY.bld/old.libs/$LD /lib/ld-linux-x86-64.so.2
-  elif [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]] && test  -f /lib64/ld-linux-x86-64.so.2; then
-    LD=$(readlink /lib64/ld-linux-x86-64.so.2)  &&
-    ln -sf $SOURCE_DIRECTORY.bld/old.libs/$LD /lib64/ld-linux-x86-64.so.2
-  else
-    LD=$(readlink /lib/ld-linux.so.2)  &&
-    ln -sf $SOURCE_DIRECTORY.bld/old.libs/$LD /lib/ld-linux.so.2
-  fi
+  message "${MESSAGE_COLOR}changing ld-linux${DEFAULT_COLOR}" &&
+  for each in /lib{,64,32}/ld-linux*; do
+    if test -f "$each"; then
+      LD=$(readlink $each)
+      LDB=${LD##*/}
+      ln -sf $SOURCE_DIRECTORY.bld/old.libs/$LDB $each
+     fi
+  done
 fi  &&
 
+message "${MESSAGE_COLOR}Dispelling glibc${DEFAULT_COLOR}" &&
 if  spell_ok  glibc;  then
   dispel  --notriggers  --nosustain  glibc
 fi  &&
 
+message "${MESSAGE_COLOR}cleaning old symlinks${DEFAULT_COLOR}" &&
 # clean up symlinks that break stuff, we used to install those
 if [[ -h  $INSTALL_ROOT/usr/include/asm ]]; then
   rm -f $INSTALL_ROOT/usr/include/asm
@@ -37,4 +36,5 @@ if [[ -h  $INSTALL_ROOT/usr/include/asm-generic ]]; then
 fi  &&
 if [[ -h  $INSTALL_ROOT/usr/include/linux ]]; then
   rm -f $INSTALL_ROOT/usr/include/linux
-fi
+fi &&
+true
