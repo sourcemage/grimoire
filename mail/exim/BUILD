@@ -81,6 +81,10 @@ then
   echo  "HAVE_IPV6=yes"  >>  Local/Makefile
 fi  &&
 
+if [[ "$EXIM_CDB" == "y" ]]; then
+  echo "LOOKUP_CDB=yes" >> Local/Makefile
+fi &&
+
 if  [[  "$EXIM_MAILDIR"  ==  "y"  ]]
 then
   echo  "SUPPORT_MAILDIR=yes"  >>  Local/Makefile
@@ -161,7 +165,7 @@ then
 fi  &&
 
 if is_depends_enabled $SPELL libspf2; then
-  echo "EXPERIMENTAL_SPF=yes" >> Local/Makefile &&
+  echo "SUPPORT_SPF=yes" >> Local/Makefile &&
   EXTRALIBS="$EXTRALIBS -lspf2" &&
   CFLAGS="-DSPF $CFLAGS"
 fi &&
