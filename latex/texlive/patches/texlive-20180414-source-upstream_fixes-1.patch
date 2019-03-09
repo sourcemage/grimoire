@@ -70,6 +70,24 @@ diff -Naur a/texk/web2c/luatexdir/image/pdftoepdf.w b/texk/web2c/luatexdir/image
      l = (size_t) string->getLength();
      if (pdf->cave)
          pdf_out(pdf, ' ');
+@@ -412,7 +412,7 @@
+     Object obj1;
+     pdf_begin_array(pdf);
+     for (i = 0, l = array->getLength(); i < l; ++i) {
+-        obj1 = array->getNF(i);
++        obj1 = array->getNF(i).copy();
+         copyObject(pdf, pdf_doc, &obj1);
+     }
+     pdf_end_array(pdf);
+@@ -425,7 +425,7 @@
+     pdf_begin_dict(pdf);
+     for (i = 0, l = dict->getLength(); i < l; ++i) {
+         copyName(pdf, dict->getKey(i));
+-        obj1 = dict->getValNF(i);
++        obj1 = dict->getValNF(i).copy();
+         copyObject(pdf, pdf_doc, &obj1);
+     }
+     pdf_end_dict(pdf);
 @@ -468,14 +468,14 @@
          break;
      /*
@@ -103,6 +121,37 @@ diff -Naur a/texk/web2c/luatexdir/image/pdftoepdf.w b/texk/web2c/luatexdir/image
      }
      if (img_type(idict) == IMG_TYPE_PDF)
          pdf_doc = refPdfDocument(img_filepath(idict), FE_FAIL);
+@@ -788,12 +788,12 @@
+         Now all relevant parts of the Page dictionary are copied. Metadata validity
+         check is needed(as a stream it must be indirect).
+     */
+-    obj1 = pageDict->lookupNF("Metadata");
++    obj1 = pageDict->lookupNF("Metadata").copy();
+     if (!obj1.isNull() && !obj1.isRef())
+         formatted_warning("pdf inclusion","/Metadata must be indirect object");
+     /* copy selected items in Page dictionary */
+     for (i = 0; pagedictkeys[i] != NULL; i++) {
+-        obj1 = pageDict->lookupNF(pagedictkeys[i]);
++        obj1 = pageDict->lookupNF(pagedictkeys[i]).copy();
+         if (!obj1.isNull()) {
+             pdf_add_name(pdf, pagedictkeys[i]);
+             /* preserves indirection */
+@@ -806,13 +806,13 @@
+         PDF file, climbing up the tree until the Resources are found.
+         (This fixes a problem with Scribus 1.3.3.14.)
+     */
+-    obj1 = pageDict->lookupNF("Resources");
++    obj1 = pageDict->lookupNF("Resources").copy();
+     if (obj1.isNull()) {
+         op1 = &pagesobj1;
+         op2 = &pagesobj2;
+         *op1 = pageDict->lookup("Parent");
+         while (op1->isDict()) {
+-            obj1 = op1->dictLookupNF("Resources");
++            obj1 = op1->dictLookupNF("Resources").copy();
+             if (!obj1.isNull()) {
+                 pdf_add_name(pdf, "Resources");
+                 copyObject(pdf, pdf_doc, &obj1);
 @@ -966,7 +966,7 @@
      if (PdfDocumentTree != NULL)
          avl_destroy(PdfDocumentTree, destroyPdfDocument);
@@ -147,6 +196,15 @@ diff -Naur a/texk/web2c/luatexdir/lua/lepdflib.cc b/texk/web2c/luatexdir/lua/lep
  	uout->atype = ALLOC_LEPDF;
  	uout->pc = 0;
  	uout->pd = NULL;
+@@ -496,7 +494,7 @@
+ 	double numA = lua_tonumber(L,1);
+ 	double genA = lua_tonumber(L,2);
+ 	if ( ((numA)==(int)(numA)) && ((genA)==(int)(genA)) ){
+-	  uout->d = new Object((int)(numA), (int)(genA));
++	  uout->d = new Object((const Ref) {(int)(numA), (int)(genA)});
+ 	  uout->atype = ALLOC_LEPDF;
+ 	  uout->pc = 0;
+ 	  uout->pd = NULL;
 @@ -674,9 +672,9 @@
      uin = (udstruct *) luaL_checkudata(L, 1, M_##in);          \
      if (uin->pd != NULL && uin->pd->pc != uin->pc)             \
@@ -159,6 +217,15 @@ diff -Naur a/texk/web2c/luatexdir/lua/lepdflib.cc b/texk/web2c/luatexdir/lua/lep
      else                                                       \
          lua_pushnil(L);                                        \
      return 1;                                                  \
+@@ -889,7 +887,7 @@
+     if (i > 0 && i <= len) {
+         uout = new_Object_userdata(L);
+         uout->d = new Object();
+-        *((Object *) uout->d) = ((Array *) uin->d)->getNF(i - 1);
++        *((Object *) uout->d) = ((Array *) uin->d)->getNF(i - 1).copy();
+         uout->atype = ALLOC_LEPDF;
+         uout->pc = uin->pc;
+         uout->pd = uin->pd;
 @@ -911,7 +909,7 @@
      if (i > 0 && i <= len) {
          gs = new GooString();
@@ -186,6 +253,24 @@ diff -Naur a/texk/web2c/luatexdir/lua/lepdflib.cc b/texk/web2c/luatexdir/lua/lep
      return 0;
  }
  
+@@ -1190,7 +1188,7 @@
+     s = luaL_checkstring(L, 2);
+     uout = new_Object_userdata(L);
+     uout->d = new Object();
+-    *((Object *) uout->d) = ((Dict *) uin->d)->lookupNF(s);
++    *((Object *) uout->d) = ((Dict *) uin->d)->lookupNF(s).copy();
+     uout->atype = ALLOC_LEPDF;
+     uout->pc = uin->pc;
+     uout->pd = uin->pd;
+@@ -1263,7 +1261,7 @@
+     if (i > 0 && i <= len) {
+         uout = new_Object_userdata(L);
+         uout->d = new Object();
+-        *((Object *) uout->d) = ((Dict *) uin->d)->getValNF(i - 1);
++        *((Object *) uout->d) = ((Dict *) uin->d)->getValNF(i - 1).copy();
+         uout->atype = ALLOC_LEPDF;
+         uout->pc = uin->pc;
+         uout->pd = uin->pd;
 @@ -1378,7 +1376,7 @@
      uin = (udstruct *) luaL_checkudata(L, 1, M_GooString);
      if (uin->pd != NULL && uin->pd->pc != uin->pc)
@@ -207,6 +292,15 @@ diff -Naur a/texk/web2c/luatexdir/lua/lepdflib.cc b/texk/web2c/luatexdir/lua/lep
      return 0;
  }
  
+@@ -1653,7 +1651,7 @@
+         pdfdoc_changed_error(L);
+     num = luaL_checkint(L, 2);
+     gen = luaL_checkint(L, 3);
+-    *((Object *) uin->d) = Object(num, gen);
++    *((Object *) uin->d) = Object((const Ref) {num, gen});
+     return 0;
+ }
+ 
 @@ -1813,8 +1811,8 @@
      if (uin->pd != NULL && uin->pd->pc != uin->pc)
          pdfdoc_changed_error(L);
@@ -218,6 +312,15 @@ diff -Naur a/texk/web2c/luatexdir/lua/lepdflib.cc b/texk/web2c/luatexdir/lua/lep
      } else
          lua_pushnil(L);
      return 1;
+@@ -2011,7 +2009,7 @@
+         if (i > 0 && i <= len) {
+             uout = new_Object_userdata(L);
+             uout->d = new Object();
+-            *((Object *) uout->d) = ((Object *) uin->d)->arrayGetNF(i - 1);
++            *((Object *) uout->d) = ((Object *) uin->d)->arrayGetNF(i - 1).copy();
+             uout->atype = ALLOC_LEPDF;
+             uout->pc = uin->pc;
+             uout->pd = uin->pd;
 @@ -2051,7 +2049,7 @@
          pdfdoc_changed_error(L);
      if (!((Object *) uin->d)->isDict())
@@ -227,6 +330,24 @@ diff -Naur a/texk/web2c/luatexdir/lua/lepdflib.cc b/texk/web2c/luatexdir/lua/lep
      return 0;
  }
  
+@@ -2104,7 +2102,7 @@
+     if (((Object *) uin->d)->isDict()) {
+         uout = new_Object_userdata(L);
+         uout->d = new Object();
+-        *((Object *) uout->d) = ((Object *) uin->d)->dictLookupNF(s);
++        *((Object *) uout->d) = ((Object *) uin->d)->dictLookupNF(s).copy();
+         uout->atype = ALLOC_LEPDF;
+         uout->pc = uin->pc;
+         uout->pd = uin->pd;
+@@ -2169,7 +2167,7 @@
+         if (i > 0 && i <= len) {
+             uout = new_Object_userdata(L);
+             uout->d = new Object();
+-            *((Object *) uout->d) = ((Object *) uin->d)->dictGetValNF(i - 1);
++            *((Object *) uout->d) = ((Object *) uin->d)->dictGetValNF(i - 1).copy();
+             uout->atype = ALLOC_LEPDF;
+             uout->pc = uin->pc;
+             uout->pd = uin->pd;
 @@ -2472,7 +2470,7 @@
          pdfdoc_changed_error(L);
      gs = ((PdfDocument *) uin->d)->doc->getFileName();
