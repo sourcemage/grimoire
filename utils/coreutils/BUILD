@@ -1,3 +1,5 @@
+LDFLAGS+=" -z muldefs"                     &&
+
 FORCE_UNSAFE_CONFIGURE=1 ./configure       \
    --build=$BUILD                          \
    --bindir=${TRACK_ROOT}/bin              \
