@@ -1,0 +1,274 @@
+From 32a32744c1338970e3e06b64a396d12a6b2e651f Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Tue, 22 May 2018 16:19:02 +0200
+Subject: [PATCH 1/2] meson build
+
+---
+ config.h.meson  |  44 ++++++++++++++++++
+ meson.build     | 121 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/meson.build |  74 +++++++++++++++++++++++++++++
+ 3 files changed, 239 insertions(+)
+ create mode 100644 config.h.meson
+ create mode 100644 meson.build
+ create mode 100644 src/meson.build
+
+diff --git a/config.h.meson b/config.h.meson
+new file mode 100644
+index 00000000..f7688cc8
+--- /dev/null
++++ b/config.h.meson
+@@ -0,0 +1,44 @@
++#include "xorg-server.h"
++#define STDC_HEADERS 1
++#mesondefine GLAMOR
++
++#mesondefine HAVE_BYTESWAP_H
++#mesondefine HAVE_DRI3_H
++#mesondefine HAVE_FBGLYPHS
++#mesondefine HAVE_GBM_BO_USE_LINEAR
++#mesondefine HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
++#mesondefine HAVE_GLAMOR_FINISH
++#mesondefine HAVE_GLAMOR_GLYPHS_INIT
++#mesondefine HAVE_GLAMOR_H
++#mesondefine HAVE_INTTYPES_H
++#mesondefine HAVE_LIBUDEV
++#mesondefine HAVE_MEMORY_H
++#mesondefine HAVE_MISYNCSHM_H
++#mesondefine HAVE_PRESENT_H
++#mesondefine HAVE_REGIONDUPLICATE
++#mesondefine HAVE_STRING_H
++#mesondefine HAVE_SYS_STAT_H
++#mesondefine HAVE_SYS_TYPES_H
++#mesondefine HAVE_UNISTD_H
++
++#mesondefine HAVE_XEXTPROTO_71
++#mesondefine HAVE_XF86_CURSOR_RESET_CURSOR
++
++/* Name of package */
++#mesondefine PACKAGE
++#mesondefine PACKAGE_BUGREPORT
++#mesondefine PACKAGE_NAME
++#mesondefine PACKAGE_STRING
++#mesondefine PACKAGE_TARNAME
++#mesondefine PACKAGE_URL
++#mesondefine PACKAGE_VERSION
++#mesondefine PACKAGE_VERSION_MAJOR
++#mesondefine PACKAGE_VERSION_MINOR
++#mesondefine PACKAGE_VERSION_PATCHLEVEL
++
++#mesondefine USE_GLAMOR
++
++#mesondefine USE_SYS_ENDIAN_H
++
++#mesondefine VERSION
++
+diff --git a/meson.build b/meson.build
+new file mode 100644
+index 00000000..320679b6
+--- /dev/null
++++ b/meson.build
+@@ -0,0 +1,121 @@
++project(
++'xf86-video-ati',
++  ['c'],
++  version : '19.0.0',
++  license : 'MIT',
++  meson_version : '>= 0.46',
++  default_options : ['buildtype=debugoptimized']
++)
++vers_parts = meson.project_version().split('.')
++
++config = configuration_data()
++
++config.set_quoted('PACKAGE_NAME', meson.project_name())
++config.set_quoted('PACKAGE_VERSION', meson.project_version())
++config.set('PACKAGE_VERSION_MAJOR', vers_parts[0])
++config.set('PACKAGE_VERSION_MINOR', vers_parts[1])
++config.set('PACKAGE_VERSION_PATCHLEVEL', vers_parts[2])
++config.set_quoted('PACKAGE_STRING', '@0@-@1@'.format(meson.project_name(), 
++meson.project_version()))
++
++pkg = import('pkgconfig')
++c_args = ['-D_GNU_SOURCE', '-std=gnu99']
++foreach a : c_args
++  add_global_arguments(a, language : ['c'])
++endforeach
++
++#add_project_arguments( language : 'c')
++
++cc = meson.get_compiler('c')
++
++c_args = ['-DHAVE_CONFIG_H']
++
++#pre_args = ['-D__USE_POSIX']
++
++foreach a : c_args
++  add_project_arguments(a, language : ['c'])
++endforeach
++
++dri_dep      = dependency ('xf86driproto', required : true)
++drip_dep     = dependency ('xf86driproto')
++libdrm_dep      = dependency('libdrm_radeon', version: '>= 2.4.88', required : true)
++libxcb_dep      = dependency('xcb-dri3', required : true)
++pciaccess_dep   = dependency('pciaccess', version: '>= 0.12.901')
++udev_dep        = dependency('libudev', version: '>= 143')
++presentproto_dep = dependency ('presentproto')
++randrproto_dep  = dependency ('randrproto')
++renderproto_dep = dependency ('renderproto')
++videoproto_dep  = dependency ('videoproto')
++xextproto_dep   = dependency ('xextproto', required : true)
++xproto_dep      = dependency ('xproto')
++xorg_dep        = dependency('xorg-server')
++# _dep  = dependency ('')
++moddir = xorg_dep.get_pkgconfig_variable('moduledir') + '/drivers'
++
++inc_root = include_directories('.')
++dri_inc = include_directories(dri_dep.get_pkgconfig_variable('includedir'))
++drip_inc = include_directories(drip_dep.get_pkgconfig_variable('includedir'))
++xcb_inc = include_directories(libxcb_dep.get_pkgconfig_variable('includedir'))
++xorg_inc = include_directories(xorg_dep.get_pkgconfig_variable('sdkdir'))
++
++config.set10('HAVE_LIBUDEV', udev_dep.found())
++
++foreach header : ['byteswap.h','sys/endian.h','unistd.h','sys/types.h','sys/stat.h', 'string.h']
++  if cc.compiles('#include <@0@>'.format(header), name : '@0@ works'.format(header))
++    config.set10('HAVE_' + header.underscorify().to_upper(),true)
++  endif
++endforeach
++
++foreach header : ['dri3.h','present.h','xextproto_71','misyncshm.h','xorg-server.h']
++  config.set10('HAVE_' + header.underscorify().to_upper(),true)
++#    cc.compiles('#include <xorg/@0@>'.format(header), name : '@0@ works'.format(header)))
++endforeach
++
++
++# hdrinc is used for lots of subsequent tests
++hdrinc = '''
++#include <xorg/xorg-server.h>
++'''
++header = 'xorg/glamor.h'
++if cc.has_header(header)
++  config.set10('GLAMOR',true)
++  config.set10('USE_GLAMOR',true)
++  config.set10('GLAMOR_NO_DRI3',true)
++  foreach symbol : ['glamor_glyphs_init','glamor_egl_destroy_textured_pixmap','glamor_finish']
++    if cc.has_header_symbol(header,symbol,  prefix : hdrinc, dependencies : [xorg_dep])
++      config.set10('HAVE_' + symbol.underscorify(),true)
++    endif
++  endforeach
++endif
++
++header = 'xorg/regionstr.h'
++symbol = 'RegionDuplicate'
++if cc.has_header_symbol(header,symbol,  prefix : hdrinc, dependencies : [xorg_dep])
++  config.set10('HAVE_' + symbol.to_upper(),true)
++endif
++
++header = 'xorg/xf86Cursor.h'
++symbol = 'xf86CursorResetCursor'
++if cc.has_header_symbol(header,symbol,  prefix : hdrinc, dependencies : [xorg_dep])
++  config.set10('HAVE_XF86_CURSOR_RESET_CURSOR',true)
++endif
++
++
++
++# don't know how to check these yet
++foreach symbol : [ 'fbGlyphs']
++  config.set10('HAVE_' + symbol.to_upper(),true)
++endforeach
++
++
++config_file = configure_file(
++  input : 'config.h.meson',
++  output : 'config.h',
++  configuration : config,
++)
++
++subdir('src')
++install_man('man/ati.4','man/radeon.4')
++
++datadir = xorg_dep.get_pkgconfig_variable('sysconfigdir')
++install_data('conf/10-radeon.conf',install_dir: datadir)
+diff --git a/src/meson.build b/src/meson.build
+new file mode 100644
+index 00000000..70edb6fc
+--- /dev/null
++++ b/src/meson.build
+@@ -0,0 +1,74 @@
++#kate: indent-width 2; tab-width 2;
++ati_files = files(
++ 'ati.c' ,
++ 'atimodule.c' ,
++)
++radeon_files = files(
++ 'cayman_accel.c' ,
++ 'cayman_shader.c' ,
++ 'drmmode_display.c' ,
++ 'evergreen_accel.c' ,
++ 'evergreen_exa.c' ,
++ 'evergreen_shader.c' ,
++ 'evergreen_textured_videofuncs.c' ,
++ 'r600_exa.c' ,
++ 'r600_shader.c' ,
++ 'r600_textured_videofuncs.c' ,
++ 'r6xx_accel.c' ,
++ 'radeon_accel.c' ,
++ 'radeon_bo_helper.c' ,
++ 'radeon_dri2.c' ,
++ 'radeon_dri3.c' ,
++ 'radeon_drm_queue.c' ,
++ 'radeon_exa.c' ,
++# 'radeon_exa_funcs.c' ,
++# 'radeon_exa_render.c' ,
++# 'radeon_exa_shared.c' ,
++ 'radeon_kms.c' ,
++ 'radeon_misc.c' ,
++ 'radeon_present.c' ,
++ 'radeon_probe.c' ,
++ 'radeon_sync.c' ,
++ 'radeon_textured_video.c' ,
++# 'radeon_textured_videofuncs.c' ,
++ 'radeon_vbo.c' ,
++ 'radeon_video.c' ,
++ 'radeon_xvmc.c' ,
++ )
++
++if config.has('GLAMOR')
++  radeon_files += files(
++   'radeon_glamor.c' ,
++   'radeon_glamor_wrappers.c' ,
++  )
++endif
++
++common_ldflags = []
++common_ldflags += cc.get_supported_link_arguments([ '-Wl,-Bsymbolic-functions', '-Wl,-z,relro' ])
++
++ati = shared_module(
++ 'ati_drv',
++ ati_files,
++ dependencies : [pciaccess_dep,xorg_dep,libdrm_dep,presentproto_dep,xproto_dep],
++ include_directories : [inc_root,xcb_inc,xorg_inc,dri_inc] ,
++ #link_depends : [],
++ #link_with : [],
++ link_args: [common_ldflags],
++  install : true,
++ name_prefix : '',
++ install_dir: moddir,
++)
++
++radeon = shared_module(
++ 'radeon_drv',
++ radeon_files,
++ dependencies : [udev_dep, libdrm_dep,xorg_dep,xextproto_dep,drip_dep],
++ include_directories : [inc_root,xcb_inc,xorg_inc,dri_inc,drip_inc] ,
++ #link_depends : [],
++ #link_with : [],
++ link_args: [common_ldflags],
++  install : true,
++ name_prefix : '',
++ install_dir: moddir,
++)
++
+-- 
+2.21.0
+
