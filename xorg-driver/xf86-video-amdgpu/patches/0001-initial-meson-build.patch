@@ -1,0 +1,246 @@
+From d89537924f842b492e21d16f226983734fca5ed8 Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Mon, 21 May 2018 17:32:41 +0200
+Subject: [PATCH 1/2] initial meson build
+
+---
+ config.h.meson  |  43 ++++++++++++++++
+ meson.build     | 134 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/meson.build |  34 ++++++++++++
+ 3 files changed, 211 insertions(+)
+ create mode 100644 config.h.meson
+ create mode 100644 meson.build
+ create mode 100644 src/meson.build
+
+diff --git a/config.h.meson b/config.h.meson
+new file mode 100644
+index 0000000..ed36116
+--- /dev/null
++++ b/config.h.meson
+@@ -0,0 +1,43 @@
++#include "xorg-server.h"
++#define STDC_HEADERS 1
++
++#mesondefine HAVE_BYTESWAP_H
++#mesondefine HAVE_DRI3_H
++#mesondefine HAVE_FBGLYPHS
++#mesondefine HAVE_GBM_BO_USE_LINEAR
++#mesondefine HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
++#mesondefine HAVE_GLAMOR_FINISH
++#mesondefine HAVE_GLAMOR_GLYPHS_INIT
++#mesondefine HAVE_GLAMOR_H
++#mesondefine HAVE_INTTYPES_H
++#mesondefine HAVE_LIBUDEV
++#mesondefine HAVE_MEMORY_H
++#mesondefine HAVE_MISYNCSHM_H
++#mesondefine HAVE_PRESENT_H
++#mesondefine HAVE_REGIONDUPLICATE
++#mesondefine HAVE_STRING_H
++#mesondefine HAVE_SYS_STAT_H
++#mesondefine HAVE_SYS_TYPES_H
++#mesondefine HAVE_UNISTD_H
++
++#mesondefine HAVE_XEXTPROTO_71
++#mesondefine HAVE_XF86_CURSOR_RESET_CURSOR
++
++/* Name of package */
++#mesondefine PACKAGE
++#mesondefine PACKAGE_BUGREPORT
++#mesondefine PACKAGE_NAME
++#mesondefine PACKAGE_STRING
++#mesondefine PACKAGE_TARNAME
++#mesondefine PACKAGE_URL
++#mesondefine PACKAGE_VERSION
++#mesondefine PACKAGE_VERSION_MAJOR
++#mesondefine PACKAGE_VERSION_MINOR
++#mesondefine PACKAGE_VERSION_PATCHLEVEL
++
++#mesondefine USE_GLAMOR
++
++#mesondefine USE_SYS_ENDIAN_H
++
++#mesondefine VERSION
++
+diff --git a/meson.build b/meson.build
+new file mode 100644
+index 0000000..12f69bb
+--- /dev/null
++++ b/meson.build
+@@ -0,0 +1,134 @@
++#kate: indent-width 2; tab-width 2;
++
++project(
++'xf86-video-amdgpu',
++  ['c'],
++  version : '19.0.1',
++  license : 'MIT',
++  meson_version : '>= 0.46',
++  default_options : ['buildtype=debugoptimized'],
++)
++
++vers_parts = meson.project_version().split('.')
++
++config = configuration_data()
++
++config.set_quoted('PACKAGE_NAME', meson.project_name())
++config.set_quoted('PACKAGE_VERSION', meson.project_version())
++config.set('PACKAGE_VERSION_MAJOR', vers_parts[0])
++config.set('PACKAGE_VERSION_MINOR', vers_parts[1])
++config.set('PACKAGE_VERSION_PATCHLEVEL', vers_parts[2])
++config.set_quoted('PACKAGE_STRING', '@0@-@1@'.format(meson.project_name(), 
++meson.project_version()))
++
++pkg = import('pkgconfig')
++
++# these need to be global, otherwise the config tests fail
++add_global_arguments( '-D_GNU_SOURCE', '-std=gnu99',language : 'c')
++add_project_arguments( language : 'c')
++cc = meson.get_compiler('c')
++c_args = ['-DHAVE_CONFIG_H']
++
++
++foreach a : c_args
++  add_project_arguments(a, language : ['c'])
++endforeach
++
++
++libdrm_dep      = dependency('libdrm_amdgpu', version: '>= 2.4.91', required : true)
++pciaccess_dep   = dependency('pciaccess', version: '>= 0.12.901', required : true)
++udev_dep        = dependency('libudev', version: '>= 143')
++libxcb_dep      = dependency('xcb-dri3', required : true)
++presentproto_dep = dependency ('presentproto', required : true)
++randrproto_dep  = dependency ('randrproto', required : true)
++renderproto_dep = dependency ('renderproto', required : true)
++videoproto_dep  = dependency ('videoproto', required : true)
++xextproto_dep   = dependency ('xextproto', required : true)
++xproto_dep      = dependency ('xproto', required : true)
++damageproto_dep  = dependency ('damageproto', required : true)
++#_dep      = dependency ('')
++gbm_dep      = dependency ('gbm',version: '>= 18.0', required : true)
++gl_dep       = dependency ('gl',version: '>= 18.0', required : true)
++dri_dep      = dependency ('xf86driproto', required : true)
++xorg_dep        = dependency('xorg-server', version: '>= 1.20', required : true)
++
++if udev_dep.found()
++  config.set10('HAVE_LIBUDEV',true)
++endif
++
++inc_root = include_directories('.')
++dri_inc = include_directories(dri_dep.get_pkgconfig_variable('includedir'))
++xcb_inc = include_directories(libxcb_dep.get_pkgconfig_variable('includedir'))
++xorg_inc = include_directories(xorg_dep.get_pkgconfig_variable('sdkdir'))
++
++moddir = xorg_dep.get_pkgconfig_variable('moduledir') +'/drivers'
++
++foreach header : ['byteswap.h','sys/endian.h','unistd.h','sys/types.h','sys/stat.h', 'string.h']
++  if cc.compiles('#include <@0@>'.format(header), name : '@0@ works'.format(header))
++    config.set10('HAVE_' + header.underscorify().to_upper(),true)
++  endif
++endforeach
++
++foreach header : ['dri3.h','present.h','xextproto_71','misyncshm.h','xorg-server.h']
++  config.set10('HAVE_' + header.underscorify().to_upper(),true)
++#    cc.compiles('#include <xorg/@0@>'.format(header), name : '@0@ works'.format(header)))
++endforeach
++
++header = 'gbm.h'
++if cc.has_header(header)
++  foreach symbol : ['GBM_BO_USE_LINEAR']
++    if cc.has_header_symbol(header,symbol)
++      config.set10('HAVE_' + symbol.underscorify(),true)
++    endif
++  endforeach
++endif
++
++# hdrinc is used for lots of subsequent tests
++hdrinc = '''
++#include <xorg/xorg-server.h>
++'''
++header = 'xorg/glamor.h'
++if cc.has_header(header)
++  config.set10('USE_GLAMOR',true)
++  config.set10('GLAMOR_NO_DRI3',true)
++  foreach symbol : ['glamor_glyphs_init','glamor_egl_destroy_textured_pixmap','glamor_finish']
++    if cc.has_header_symbol(header,symbol,  prefix : hdrinc, dependencies : [xorg_dep])
++      config.set10('HAVE_' + symbol.underscorify(),true)
++    endif
++  endforeach
++endif
++
++header = 'xorg/regionstr.h'
++symbol = 'RegionDuplicate'
++if cc.has_header_symbol(header,symbol,  prefix : hdrinc, dependencies : [xorg_dep])
++  config.set10('HAVE_' + symbol.to_upper(),true)
++endif
++
++header = 'xorg/xf86Cursor.h'
++symbol = 'xf86CursorResetCursor'
++if cc.has_header_symbol(header,symbol,  prefix : hdrinc, dependencies : [xorg_dep])
++  config.set10('HAVE_' + symbol.to_upper(),true)
++endif
++
++
++
++# don't know how to check these yet
++foreach symbol : [ 'fbGlyphs']
++  config.set10('HAVE_' + symbol.to_upper(),true)
++endforeach
++
++
++config_file = configure_file(
++  input : 'config.h.meson',
++  output : 'config.h',
++  configuration : config,
++)
++
++subdir('src')
++
++# must symlink or rename the man pages, as the name must be *.4
++install_man('man/amdgpu.4')
++
++datadir = xorg_dep.get_pkgconfig_variable('sysconfigdir')
++install_data('conf/10-amdgpu.conf',install_dir: datadir)
++install_data('README.md','COPYING')
+diff --git a/src/meson.build b/src/meson.build
+new file mode 100644
+index 0000000..0c84476
+--- /dev/null
++++ b/src/meson.build
+@@ -0,0 +1,34 @@
++#kate: indent-width 2; tab-width 2;
++amdgpu_files = files(
++ 'amdgpu_glamor.c' ,
++  'amdgpu_glamor_wrappers.c' ,
++  'amdgpu_misc.c' ,
++  'amdgpu_pixmap.c' ,
++  'amdgpu_probe.c' ,
++  'amdgpu_video.c' ,
++  'amdgpu_bo_helper.c' ,
++  'amdgpu_dri2.c' ,
++  'amdgpu_dri3.c' ,
++  'amdgpu_drm_queue.c' ,
++  'amdgpu_kms.c' ,
++  'amdgpu_present.c' ,
++  'amdgpu_sync.c' ,
++  'drmmode_display.c' ,
++)
++
++common_ldflags = []
++common_ldflags += cc.get_supported_link_arguments([ '-Wl,-Bsymbolic-functions', '-Wl,-z,relro' ])
++
++amdgpu = shared_module(
++ 'amdgpu_drv',
++ amdgpu_files,
++ dependencies : [udev_dep, libdrm_dep,libxcb_dep,xorg_dep,damageproto_dep,dri_dep,gbm_dep,gl_dep],
++ include_directories : [inc_root,xcb_inc,xorg_inc,dri_inc] ,
++ #link_depends : [],
++ #link_with : [],
++ link_args: [common_ldflags],
++  install : true,
++ name_prefix : '',
++ install_dir: moddir,
++)
++
+-- 
+2.21.0
+
