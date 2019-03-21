@@ -54,55 +54,56 @@ diff --git a/lib/Transforms/Scalar/LICM.cpp b/lib/Transforms/Scalar/LICM.cpp
 index 37b9c4b..19742d2 100644
 --- a/lib/Transforms/Scalar/LICM.cpp
 +++ b/lib/Transforms/Scalar/LICM.cpp
-@@ -299,7 +299,7 @@ bool LoopInvariantCodeMotion::runOnLoop(
+@@ -348,7 +348,7 @@
        for (BasicBlock *ExitBlock : ExitBlocks)
          InsertPts.push_back(&*ExitBlock->getFirstInsertionPt());
-
+ 
 -      PredIteratorCache PIC;
 +      PredIteratorCache pic;
-
+ 
        bool Promoted = false;
-
-@@ -321,7 +321,7 @@ bool LoopInvariantCodeMotion::runOnLoop(
-           PointerMustAliases.insert(ASI.getValue());
-
-         Promoted |= promoteLoopAccessesToScalars(PointerMustAliases, ExitBlocks,
--                                                 InsertPts, PIC, LI, DT, TLI, L,
-+                                                 InsertPts, pic, LI, DT, TLI, L,
-                                                  CurAST, &SafetyInfo, ORE);
+ 
+@@ -371,7 +371,7 @@
+             PointerMustAliases.insert(ASI.getValue());
+ 
+           Promoted |= promoteLoopAccessesToScalars(
+-              PointerMustAliases, ExitBlocks, InsertPts, PIC, LI, DT, TLI, L,
++              PointerMustAliases, ExitBlocks, InsertPts, pic, LI, DT, TLI, L,
+               CurAST.get(), &SafetyInfo, ORE);
+         }
        }
-
-@@ -1145,11 +1145,11 @@ public:
+@@ -1639,12 +1639,12 @@
    LoopPromoter(Value *SP, ArrayRef<const Instruction *> Insts, SSAUpdater &S,
                 const SmallSetVector<Value *, 8> &PMA,
                 SmallVectorImpl<BasicBlock *> &LEB,
 -               SmallVectorImpl<Instruction *> &LIP, PredIteratorCache &PIC,
 +               SmallVectorImpl<Instruction *> &LIP, PredIteratorCache &pic,
                 AliasSetTracker &ast, LoopInfo &li, DebugLoc dl, int alignment,
-                bool UnorderedAtomic, const AAMDNodes &AATags)
+                bool UnorderedAtomic, const AAMDNodes &AATags,
+                ICFLoopSafetyInfo &SafetyInfo)
        : LoadAndStorePromoter(Insts, S), SomePtr(SP), PointerMustAliases(PMA),
 -        LoopExitBlocks(LEB), LoopInsertPts(LIP), PredCache(PIC), AST(ast),
 +        LoopExitBlocks(LEB), LoopInsertPts(LIP), PredCache(pic), AST(ast),
          LI(li), DL(std::move(dl)), Alignment(alignment),
-         UnorderedAtomic(UnorderedAtomic), AATags(AATags) {}
-
-@@ -1224,7 +1224,7 @@ bool isKnownNonEscaping(Value *Object, c
+         UnorderedAtomic(UnorderedAtomic), AATags(AATags), SafetyInfo(SafetyInfo)
+       {}
+@@ -1723,7 +1723,7 @@
  bool llvm::promoteLoopAccessesToScalars(
      const SmallSetVector<Value *, 8> &PointerMustAliases,
      SmallVectorImpl<BasicBlock *> &ExitBlocks,
 -    SmallVectorImpl<Instruction *> &InsertPts, PredIteratorCache &PIC,
 +    SmallVectorImpl<Instruction *> &InsertPts, PredIteratorCache &pic,
      LoopInfo *LI, DominatorTree *DT, const TargetLibraryInfo *TLI,
-     Loop *CurLoop, AliasSetTracker *CurAST, LoopSafetyInfo *SafetyInfo,
+     Loop *CurLoop, AliasSetTracker *CurAST, ICFLoopSafetyInfo *SafetyInfo,
      OptimizationRemarkEmitter *ORE) {
-@@ -1446,7 +1446,7 @@ bool llvm::promoteLoopAccessesToScalars(
+@@ -1943,7 +1943,7 @@
    SmallVector<PHINode *, 16> NewPHIs;
    SSAUpdater SSA(&NewPHIs);
    LoopPromoter Promoter(SomePtr, LoopUses, SSA, PointerMustAliases, ExitBlocks,
 -                        InsertPts, PIC, *CurAST, *LI, DL, Alignment,
 +                        InsertPts, pic, *CurAST, *LI, DL, Alignment,
-                         SawUnorderedAtomic, AATags);
-
+                         SawUnorderedAtomic, AATags, *SafetyInfo);
+ 
    // Set up the preheader to have a definition of the value.  It is the live-out
 diff --git a/lib/Transforms/Utils/PredicateInfo.cpp b/lib/Transforms/Utils/PredicateInfo.cpp
 index d4cdaed..5fcd5dd 100644
@@ -157,3 +158,162 @@ index 8782588..c5900ce 100644
 
    if (SaveTempLabels)
      Ctx.setAllowTemporaryLabels(false);
+diff --git a/include/llvm/IR/PassTimingInfo.h b/include/llvm/IR/PassTimingInfo.h
+--- a/include/llvm/IR/PassTimingInfo.h
++++ b/include/llvm/IR/PassTimingInfo.h
+@@ -83,7 +83,7 @@
+   TimePassesHandler(const TimePassesHandler &) = delete;
+   void operator=(const TimePassesHandler &) = delete;
+ 
+-  void registerCallbacks(PassInstrumentationCallbacks &PIC);
++  void registerCallbacks(PassInstrumentationCallbacks &pic);
+ 
+ private:
+   /// Dumps information for running/triggered timers, useful for debugging
+diff --git a/lib/IR/PassTimingInfo.cpp b/lib/IR/PassTimingInfo.cpp
+--- a/lib/IR/PassTimingInfo.cpp
++++ b/lib/IR/PassTimingInfo.cpp
+@@ -249,19 +249,19 @@
+   LLVM_DEBUG(dump());
+ }
+ 
+-void TimePassesHandler::registerCallbacks(PassInstrumentationCallbacks &PIC) {
++void TimePassesHandler::registerCallbacks(PassInstrumentationCallbacks &pic) {
+   if (!Enabled)
+     return;
+ 
+-  PIC.registerBeforePassCallback(
++  pic.registerBeforePassCallback(
+       [this](StringRef P, Any) { return this->runBeforePass(P); });
+-  PIC.registerAfterPassCallback(
++  pic.registerAfterPassCallback(
+       [this](StringRef P, Any) { this->runAfterPass(P); });
+-  PIC.registerAfterPassInvalidatedCallback(
++  pic.registerAfterPassInvalidatedCallback(
+       [this](StringRef P) { this->runAfterPass(P); });
+-  PIC.registerBeforeAnalysisCallback(
++  pic.registerBeforeAnalysisCallback(
+       [this](StringRef P, Any) { this->runBeforePass(P); });
+-  PIC.registerAfterAnalysisCallback(
++  pic.registerAfterAnalysisCallback(
+       [this](StringRef P, Any) { this->runAfterPass(P); });
+ }
+ 
+diff -git a/include/llvm/Passes/PassBuilder.h b/include/llvm/Passes/PassBuilder.h
+--- a/include/llvm/Passes/PassBuilder.h
++++ bc/include/llvm/Passes/PassBuilder.h
+@@ -63,7 +63,7 @@
+ class PassBuilder {
+   TargetMachine *TM;
+   Optional<PGOOptions> PGOOpt;
+-  PassInstrumentationCallbacks *PIC;
++  PassInstrumentationCallbacks *pic;
+ 
+ public:
+   /// A struct to capture parsed pass pipeline names.
+@@ -179,8 +179,8 @@
+ 
+   explicit PassBuilder(TargetMachine *TM = nullptr,
+                        Optional<PGOOptions> PGOOpt = None,
+-                       PassInstrumentationCallbacks *PIC = nullptr)
+-      : TM(TM), PGOOpt(PGOOpt), PIC(PIC) {}
++                       PassInstrumentationCallbacks *pic = nullptr)
++      : TM(TM), PGOOpt(PGOOpt), pic(pic) {}
+ 
+   /// Cross register the analysis managers through their proxies.
+   ///
+diff --git a/include/llvm/Passes/StandardInstrumentations.h b/include/llvm/Passes/StandardInstrumentations.h
+--- a/include/llvm/Passes/StandardInstrumentations.h
++++ b/include/llvm/Passes/StandardInstrumentations.h
+@@ -36,7 +36,7 @@
+   PrintIRInstrumentation() = default;
+   ~PrintIRInstrumentation();
+ 
+-  void registerCallbacks(PassInstrumentationCallbacks &PIC);
++  void registerCallbacks(PassInstrumentationCallbacks &pic);
+ 
+ private:
+   bool printBeforePass(StringRef PassID, Any IR);
+@@ -63,7 +63,7 @@
+ public:
+   StandardInstrumentations() = default;
+ 
+-  void registerCallbacks(PassInstrumentationCallbacks &PIC);
++  void registerCallbacks(PassInstrumentationCallbacks &pic);
+ };
+ } // namespace llvm
+ 
+diff --git a/lib/Passes/PassRegistry.def b/lib/Passes/PassRegistry.def
+--- a/lib/Passes/PassRegistry.def
++++ b/lib/Passes/PassRegistry.def
+@@ -27,7 +27,7 @@
+ MODULE_ANALYSIS("stack-safety", StackSafetyGlobalAnalysis())
+ MODULE_ANALYSIS("targetlibinfo", TargetLibraryAnalysis())
+ MODULE_ANALYSIS("verify", VerifierAnalysis())
+-MODULE_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
++MODULE_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(pic))
+ 
+ #ifndef MODULE_ALIAS_ANALYSIS
+ #define MODULE_ALIAS_ANALYSIS(NAME, CREATE_PASS)                               \
+@@ -89,7 +89,7 @@
+ #endif
+ CGSCC_ANALYSIS("no-op-cgscc", NoOpCGSCCAnalysis())
+ CGSCC_ANALYSIS("fam-proxy", FunctionAnalysisManagerCGSCCProxy())
+-CGSCC_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
++CGSCC_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(pic))
+ #undef CGSCC_ANALYSIS
+ 
+ #ifndef CGSCC_PASS
+@@ -128,7 +128,7 @@
+ FUNCTION_ANALYSIS("targetir",
+                   TM ? TM->getTargetIRAnalysis() : TargetIRAnalysis())
+ FUNCTION_ANALYSIS("verify", VerifierAnalysis())
+-FUNCTION_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
++FUNCTION_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(pic))
+ 
+ #ifndef FUNCTION_ALIAS_ANALYSIS
+ #define FUNCTION_ALIAS_ANALYSIS(NAME, CREATE_PASS)                             \
+@@ -249,7 +249,7 @@
+ LOOP_ANALYSIS("no-op-loop", NoOpLoopAnalysis())
+ LOOP_ANALYSIS("access-info", LoopAccessAnalysis())
+ LOOP_ANALYSIS("ivusers", IVUsersAnalysis())
+-LOOP_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
++LOOP_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(pic))
+ #undef LOOP_ANALYSIS
+ 
+ #ifndef LOOP_PASS
+diff --git a/lib/Passes/StandardInstrumentations.cpp b/lib/Passes/StandardInstrumentations.cpp
+--- a/lib/Passes/StandardInstrumentations.cpp
++++ b/lib/Passes/StandardInstrumentations.cpp
+@@ -220,24 +220,24 @@
+ }
+ 
+ void PrintIRInstrumentation::registerCallbacks(
+-    PassInstrumentationCallbacks &PIC) {
++    PassInstrumentationCallbacks &pic) {
+   // BeforePass callback is not just for printing, it also saves a Module
+   // for later use in AfterPassInvalidated.
+   StoreModuleDesc = llvm::forcePrintModuleIR() && llvm::shouldPrintAfterPass();
+   if (llvm::shouldPrintBeforePass() || StoreModuleDesc)
+-    PIC.registerBeforePassCallback(
++    pic.registerBeforePassCallback(
+         [this](StringRef P, Any IR) { return this->printBeforePass(P, IR); });
+ 
+   if (llvm::shouldPrintAfterPass()) {
+-    PIC.registerAfterPassCallback(
++    pic.registerAfterPassCallback(
+         [this](StringRef P, Any IR) { this->printAfterPass(P, IR); });
+-    PIC.registerAfterPassInvalidatedCallback(
++    pic.registerAfterPassInvalidatedCallback(
+         [this](StringRef P) { this->printAfterPassInvalidated(P); });
+   }
+ }
+ 
+ void StandardInstrumentations::registerCallbacks(
+-    PassInstrumentationCallbacks &PIC) {
+-  PrintIR.registerCallbacks(PIC);
+-  TimePasses.registerCallbacks(PIC);
++    PassInstrumentationCallbacks &pic) {
++  PrintIR.registerCallbacks(pic);
++  TimePasses.registerCallbacks(pic);
+ }
