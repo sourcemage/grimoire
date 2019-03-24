@@ -1,2 +1,2 @@
 cd "$SOURCE_DIRECTORY"/src/unetbootin &&
-qt4_build
+qt5_build

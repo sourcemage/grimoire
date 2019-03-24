@@ -1,3 +1,4 @@
+PATH+=":$QT5DIR/bin" &&
 default_pre_build                     &&
 cd "$SOURCE_DIRECTORY"/src/unetbootin &&
 
@@ -7,5 +8,12 @@ echo "CONFIG += silent" >> ${SPELL}.pro &&
 echo "DEFINES += NOSTATIC" >> ${SPELL}.pro &&
 echo "RESOURCES -= unetbootin.qrc" >> ${SPELL}.pro &&
 
-$QT4DIR/bin/lupdate ${SPELL}.pro &&
-$QT4DIR/bin/lrelease ${SPELL}.pro
+# convert to use qt5
+lupdate ${SPELL}.pro &&
+lrelease ${SPELL}.pro &&
+sed -i 's/core/core widgets ftp http/' ${SPELL}.pro &&
+sed -i 's/QtGui/QtWidgets/;/QtWidgets/ a\
+#include <QtFtp>\n\
+#include <QtHttp>
+' unetbootin.h &&
+sed -i 's/toAscii/toLatin1/' *.cpp
