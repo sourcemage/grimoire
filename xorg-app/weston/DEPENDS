@@ -1,5 +1,9 @@
+depends  meson     &&
+depends  ninja-build-system &&
+depends  python3   &&
 depends  pkgconfig &&
 depends  libpng    &&
+depends  libxkbcommon &&
 depends  MESA   &&
 depends  DEVICE-MANAGER &&
 depends  cairo     &&
@@ -11,27 +15,43 @@ depends  pixman    &&
 depends  glu       &&
 depends  wayland-protocols &&
 
-optional_depends dbus  '--enable-dbus' '--disable-dbus' 'DBus support' &&
-optional_depends libxkbcommon '' '--disable-xkbcommon' 'keyboard support'  &&
-optional_depends lcms2        '' '--disable-lcms' 'colour management' &&
-optional_depends colord       '' '' 'colour management daemon' &&
-optional_depends libunwind '' '--disable-libunwind' 'for backtraces'&&
-optional_depends libxcb '--enable-x11-compositor'  \
-                        '--disable-x11-compositor' \
-                        'Build the X11 compositor' &&
-optional_depends libwebp '' '' '' &&
+optional_depends lcms2 "color-management-lcms=true" \
+                       "color-management-lcms=false" \
+                       "colour management" &&
+optional_depends colord "color-management-colord=true" \
+                        "color-management-colord=false" \
+                        "colour management daemon" &&
+optional_depends libxcb "backend-x11=true" "backend-x11=false" \
+                        "Build the X11 compositor" &&
+optional_depends JPEG "image-jpeg=true" "image-jpeg=false" \
+                      "JPEG loading support" &&
+optional_depends libwebp "image-webp=true" "image-webp=false" \
+                         "WebP loading support" &&
 optional_depends libva   \
-                 '--enable-vaapi-recorder' \
-                 '--disable-vaapi-recorder' \
-                 'build vaapi recorder' &&
-optional_depends wayland '--enable-wayland-compositor' \
-                         '--disable-wayland-compositor'\
-                         'Build the Wayland (nested) compositor' &&
+                 "backend-drm-screencast-vaapi=true" \
+                 "backend-drm-screencast-vaapi=false" \
+                 "build vaapi recorder" &&
+optional_depends wayland "backend-wayland=true" \
+                         "backend-wayland=false" \
+                         "Build the Wayland (nested) compositor" &&
+optional_depends libdrm "backend-drm=true" "backend-drm=false" \
+                        "Build the DRM compositor" &&
+optional_depends linux-pam "weston-launch=true" "weston-launch=false" \
+                         "Build weston-launch"
+optional_depends pango "" "" "" &&
+optional_depends -sub "XWAYLAND" XSERVER \
+                "xwayland=true" \
+                "xwayland=false" \
+                "XWayland support" &&
+optional_depends systemd \
+                "systemd=true" \
+                "systemd=false" \
+                "systemd service plugin" &&
+optional_depends LOGIN-DAEMON "launcher-logind=true" "launcher-logind=false" \
+                 "logind protocol support" &&
+optional_depends freerdp "backend-rdp=true" "backend-rdp=false" "RDP compositor" &&
 
-optional_depends libdrm  '--enable-drm-compositor' \
-                         '--disable-drm-compositor'\
-                         'Build the DRM compositor' &&
-optional_depends linux-pam '--enable-weston-launch' \
-                         '--disable-weston-launch' \
-                         'Build weston-launch'
-optional_depends pango '' '' ''
+if is_depends_enabled "${SPELL}" "libdrm"; then
+  optional_depends gstreamer-1.0 "remoting=true" "remoting=false" "remote output"
+fi
+
