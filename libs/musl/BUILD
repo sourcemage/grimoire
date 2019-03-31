@@ -1,3 +1,4 @@
+CFLAGS="${CFLAGS//-ffast-math}"
  pfx="$INSTALL_ROOT"/usr
 conf="$INSTALL_ROOT"/etc
 slib="$INSTALL_ROOT"/lib
