@@ -3,18 +3,16 @@
       --localstatedir=${INSTALL_ROOT}/var             \
              --mandir=${INSTALL_ROOT}/usr/share/man   \
             --infodir=${INSTALL_ROOT}/usr/share/info  \
-            --without-libjson                         \
+	    --without-libjson                         \
                       $OPTS                           &&
 
 make_single  &&
 #
 # The order here is important
 #
-make -C lib/lwres    &&
-make -C lib/dns      &&
-make -C lib/isc      &&
-make -C lib/isccfg   &&
-make -C lib/bind9    &&
-cd bin/dig           &&
-make                 &&
+make -C lib          &&
+make -C bin/delv     &&
+make -C bin/dig      &&
+make -C bin/nsupdate &&
+make -C bin/dnssec   &&
 make_normal
