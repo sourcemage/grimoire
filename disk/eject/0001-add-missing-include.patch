@@ -1,0 +1,110 @@
+From a7cecee6dd797577f861b78513110eee03a339c6 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Thu, 4 Apr 2019 11:26:51 +0200
+Subject: [PATCH] add missing include
+
+---
+ eject.c | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/eject.c b/eject.c
+index b14d5f2..5fb9c97 100644
+--- a/eject.c
++++ b/eject.c
+@@ -54,13 +54,14 @@
+ #include <sys/wait.h>
+ #include <sys/mtio.h>
+ #include <sys/mount.h>
++#include <sys/sysmacros.h>
+ 
+ #if defined(__linux__)
+ #include <linux/version.h>
+ /* handy macro found in 2.1 kernels, but not in older ones */
+ #ifndef KERNEL_VERSION
+ #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
+-#endif 
++#endif
+ #include <linux/types.h>
+ #include <linux/cdrom.h>
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(2,1,0)
+@@ -418,7 +419,7 @@ static char *FindDevice(const char *name)
+ 	strcat(buf, name);
+ 	if (FileExists(buf, try, &found))
+ 		return buf;
+-	
++
+ 	strcpy(buf, "/mnt/");
+ 	strcat(buf, name);
+ 	if (FileExists(buf, try, &found))
+@@ -463,7 +464,7 @@ static void AutoEject(int fd, int onOff)
+ {
+ 	int status = -1;
+ 
+-#if defined(CDROM_SET_OPTIONS) && defined(CDROM_CLEAR_OPTIONS) 
++#if defined(CDROM_SET_OPTIONS) && defined(CDROM_CLEAR_OPTIONS)
+ 	if (onOff)
+ 		status = ioctl(fd, CDROM_SET_OPTIONS, CDO_AUTO_EJECT);
+ 	else
+@@ -548,7 +549,7 @@ static void ToggleTray(int fd)
+ 	 * seconds if the tray was already open, and at least 1.5 seconds
+ 	 * if it was closed.  */
+ 	gettimeofday(&time_start, NULL);
+-	
++
+ 	/* Send the CDROMEJECT command to the device. */
+ 	if (ioctl(fd, CDROMEJECT, 0) < 0) {
+ 		perror("ioctl");
+@@ -571,7 +572,7 @@ static void ToggleTray(int fd)
+ #else
+     fprintf(stderr, _("%s: CD-ROM tray toggle command not supported by this kernel\n"), programName);
+ #endif
+-	
++
+ }
+ 
+ /*
+@@ -603,12 +604,12 @@ static int ReadSpeedCdrom(const char *shortName)
+ 	char *str_speed, *str_name;
+ 	int drive_number = -1, i;
+ 	FILE *f = fopen("/proc/sys/dev/cdrom/info", "r");
+-	
++
+ 	if (f == NULL) {
+ 		fprintf(stderr, _("%s: unable to read the speed from /proc/sys/dev/cdrom/info\n"), programName);
+ 		exit(1);
+ 	}
+-	
++
+ 	while (!feof(f)) {
+ 		fgets(line, sizeof(line), f);
+ 
+@@ -656,7 +657,7 @@ static void ListSpeedCdrom(const char *fullName, int fd)
+ #ifdef CDROM_SELECT_SPEED
+ 	int max_speed, curr_speed = 0, prev_speed;
+ 	char *shortName = rindex(fullName, '/') + 1;
+-	
++
+ 	SelectSpeedCdrom(fd, 0);
+ 	max_speed = ReadSpeedCdrom(shortName);
+ 	while (curr_speed < max_speed) {
+@@ -1122,7 +1123,7 @@ int main(int argc, char **argv)
+ 	  /* figure out full device or mount point name */
+ 	  fullName = FindDevice(device);
+ 	  if (fullName == 0) {
+-	    fprintf(stderr, _("%s: unable to find or open device for: `%s'\n"), 
++	    fprintf(stderr, _("%s: unable to find or open device for: `%s'\n"),
+ 		    programName, device);
+ 	    exit(1);
+ 	  }
+@@ -1250,7 +1251,7 @@ int main(int argc, char **argv)
+ 		HandleXOption(deviceName);
+ 		exit(0);
+ 	}
+-	
++
+ 	/* handle -c option */
+ 	if (c_option) {
+ 		if (v_option)
+-- 
+2.21.0
+
