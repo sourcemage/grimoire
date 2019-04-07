@@ -1,2 +1,2 @@
-OPTS+=" --without-jni" &&
+OPTS+=" -DPROJ_TESTS=0"
 default_build
