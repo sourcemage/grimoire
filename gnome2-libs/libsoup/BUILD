@@ -1,4 +1,4 @@
 if [[ $LIBSOUP_GNOME == "n" ]]; then
-   OPTS="--without-gnome $OPTS"
+   OPTS+=" gnome=false"
 fi &&
 default_build
