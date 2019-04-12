@@ -1,1 +1,5 @@
-OPTS="$OPTS $GWC_OPTS" default_build
+OPTS="$OPTS $GWC_OPTS" &&
+
+make_single &&
+default_build &&
+make_normal
