@@ -1,0 +1,30 @@
+# Manual verification using sha512sum as we cannot be sure that gpg is
+# available. The code is mostly copied from sorcery's libunpack
+sha512_verify() {
+  local FILENAME="$( guess_filename   "$SOURCE_CACHE/$1" )"
+  local HASHSUM="$(   echo "$2" | cut -d: -f2  )"
+
+  local HASH="$(sha512sum "$FILENAME" | cut -d' ' -f1)"
+  local rc=$?
+
+  if [[ "$HASH" != "$HASHSUM" ]] || [[ $rc != 0 ]]
+  then
+    error_message "${PROBLEM_COLOR}$ALGORITHM check failed!" &&
+    error_message "$HASH (computed) != $HASHSUM (expected)!$DEFAULT_COLOR" &&
+    hash_user_query 1 "$SPELL" spell || return 1
+  else
+    is_allowed_hash "$ALGORITHM" "$HLEVEL"
+    rc=$?
+    hash_user_query $rc "$SPELL" spell || return 1
+  fi
+  return 0
+}
+
+mk_source_dir "$SOURCE_DIRECTORY" &&
+cd "$BUILD_DIRECTORY" &&
+sha512_verify "$SOURCE" "$SOURCE_HASH" &&
+
+# cheating and using internal function uncompress_unpack instead of unpack_file
+# so as not to trigger the gpg based verification, which we already did
+# ourselves before
+uncompress_unpack "$SOURCE"
