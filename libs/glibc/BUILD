@@ -1,5 +1,5 @@
-# clear all cflags
-export CFLAGS=''
+# clear cflags
+unset CFLAGS
 
 if [[ $GLIBC_DEBUG == "y" ]]; then
   LDFLAGS="${LDFLAGS/-s/}"
