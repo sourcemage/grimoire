@@ -1,1 +1,1 @@
-make CC="$CC"
+CC="$CC" default_build_make
