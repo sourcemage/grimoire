@@ -7,5 +7,5 @@ export GOROOT_BOOTSTRAP=${SOURCE_DIRECTORY}/go &&
 cd ${SOURCE_DIRECTORY}/src                     &&
 
 check_tmp_noexec /tmp &&
-./all.bash            &&
+./make.bash           &&
 check_tmp_noexec /tmp
