@@ -20,9 +20,7 @@ PERL_PATHS="-Dprefix=/usr \
 
 local CONFIG_OPTS="-Ui_db -Duseshrplib -Ulocincpth=" &&
 
-if glibc_is_nptl; then
-  LDFLAGS="$LDFLAGS -lpthread"
-fi &&
+CONFIG_OPTS+=" -Dusethreads"
 
 if [[ $OLD_CUSTOM == y ]]; then 
    CONFIG_OPTS="-S "
