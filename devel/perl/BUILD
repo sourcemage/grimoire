@@ -39,6 +39,7 @@ else
    rm -f config.sh
 fi  &&
 
+BUILD_ZLIB=False BUILD_BZIP2=0 \
 setarch ${HOST%%-*} ./Configure -Doptimize="$CFLAGS" $CONFIG_OPTS $PERL_PATHS &&
 
 make depend  &&
