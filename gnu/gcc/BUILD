@@ -1,3 +1,4 @@
+. "$GRIMOIRE/FUNCTIONS" &&
 # using -pipe causes spurious test-suite failures
 # http://gcc.gnu.org/bugzilla/show_bug.cgi?id=48565
 CFLAGS=${CFLAGS/-pipe/}     &&
@@ -112,4 +113,17 @@ export glibcxx_cv_c99_math_cxx98=yes glibcxx_cv_c99_math_cxx11=yes &&
 cd $SOURCE_DIRECTORY.bld                                              &&
 $SOURCE_DIRECTORY/configure $OPTS                                     &&
 
-make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET
+if is_version_less $(installed_version $SPELL) 4.9.0; then
+  if ! spell_ok gcc49; then
+    message "${PROBLEM_COLOR}" 1>&2 &&
+    message "This version of gcc needs gcc >= 4.9.0 to be able to compile. Spell" 1>&2 &&
+    message "gcc49 is available to support this, but is not found to be installed." 1>&2 &&
+    message "Please cast gcc49 first." 1>&2 &&
+    message "${DEFAULT_COLOR}" 1>&2
+    return 1
+  fi
+  make CC=/opt/gcc49/bin/gcc CXX=/opt/gcc49/bin/g++ CPP=/opt/gcc49/bin/cpp \
+       CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET
+else
+  make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET
+fi
