@@ -1,3 +1,4 @@
+export CFLAGS+=' -fPIC' 
 export LDFLAGS+=' -L/lib64 -lm'
 unset LANG
 
