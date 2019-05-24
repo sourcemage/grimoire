@@ -106,6 +106,7 @@ OPTS="--disable-werror $OPTS"                                      &&
 OPTS="--enable-checking=release $OPTS"                             &&
 OPTS="--enable-default-pie $OPTS"                                  &&
 OPTS="--enable-default-ssp $OPTS"                                  &&
+OPTS="--enable-__cxa_atexit $OPTS"                                 &&
 OPTS="--enable-cet=auto $OPTS"                                     &&
 OPTS="$GCC_MULTILIB $OPTS"                                         &&
 
