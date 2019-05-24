@@ -1,0 +1,56 @@
+depends cmake &&
+depends libjpeg-turbo &&
+
+optional_depends JAVA \
+                 "-DTVNC_BUILDNATIVE=ON" \
+                 "-DTVNC_BUILDNATIVE=OFF" \
+                 "to build Java/Native Hybrid TurboVNC Viewer" &&
+
+# requires JAVA sub-dependency in libjpeg-turbo which doesn't exist yet
+#optional_depends JDK
+#                 "-DTVNC_BUILDJAVA=ON" \
+#                 "-DTVNC_BUILDJAVA=OFF" \
+#                 "to build Java version of the TurboVNC Viewer" &&
+
+if list_find "${TURBOVNC_OPTS}" "-DTVNC_BUILDSERVER=ON"; then
+  depends libsm &&
+  depends libice &&
+  depends libx11 &&
+  depends libxext &&
+
+  case "${TURBOVNC_TLS}" in
+    SSL)
+      depends SSL "-DTVNC_USETLS=openssl"
+    ;;
+    gnutls)
+      depends gnutls "-DTVNC_USETLS=gnutls"
+    ;;
+    none)
+      list_add TURBOTLS_OPTS "-DTVNC_USETLS=none"
+    ;;
+  esac &&
+
+  if list_find "${TURBOVNC_OPTS}" "-DTVNC_SYSTEMLIBS=ON"; then
+    depends zlib &&
+    depends bzip2 &&
+    depends freetype2
+  fi &&
+
+  if list_find "${TURBOVNC_OPTS}" "-DTVNC_SYSTEMX11=ON"; then
+    depends libxau &&
+    depends libxdmcp &&
+    depends libxfont2 &&
+    depends libfontenc &&
+    depends pixman
+  fi &&
+
+  optional_depends OPENGL \
+                   "-DTVNC_GLX=ON" \
+                   "-DTVNC_GLX=OFF" \
+                   "to include GLX extension in Xvnc" &&
+
+  optional_depends linux-pam \
+                   "-DTVNC_USEPAM=ON" \
+                   "-DTVNC_USEPAM=OFF" \
+                   "to include PAM authentication support in the TurboVNC Server"
+fi
