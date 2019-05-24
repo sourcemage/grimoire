@@ -1,3 +1,6 @@
+# cc1 compilation fails if the file blocks limit is too low
+ulimit -f unlimited &&
+
 . "$GRIMOIRE/FUNCTIONS" &&
 # using -pipe causes spurious test-suite failures
 # http://gcc.gnu.org/bugzilla/show_bug.cgi?id=48565
@@ -96,7 +99,6 @@ if [[ "$GCC_CLOOG" == "y" ]]; then
 else
   OPTS="--without-isl --without-cloog $OPTS"
 fi &&
-OPTS="--enable-lto $OPTS"                                          &&
 OPTS="--enable-plugin $OPTS"                                       &&
 OPTS="--enable-install-libiberty $OPTS"                            &&
 OPTS="--with-linker-hash-style=gnu $OPTS"                          &&
@@ -106,6 +108,20 @@ OPTS="--enable-default-pie $OPTS"                                  &&
 OPTS="--enable-default-ssp $OPTS"                                  &&
 OPTS="--enable-cet=auto $OPTS"                                     &&
 OPTS="$GCC_MULTILIB $OPTS"                                         &&
+
+case "$HOST" in
+*-musl)
+  OPTS="--disable-libssp $OPTS" &&
+  OPTS="--disable-libmpx $OPTS" &&
+  OPTS="--disable-libmudflap $OPTS" &&
+  OPTS="--disable-libsanitizer $OPTS" &&
+  OPTS="--disable-symvers $OPTS" &&
+  OPTS="--disable-lto $OPTS"
+  ;;
+*)
+  OPTS="--enable-lto $OPTS"
+  ;;
+esac &&
 
 # https://sourceware.org/bugzilla/show_bug.cgi?id=21930
 export glibcxx_cv_c99_math_cxx98=yes glibcxx_cv_c99_math_cxx11=yes &&
