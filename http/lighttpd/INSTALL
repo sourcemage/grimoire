@@ -1,0 +1,26 @@
+default_install  &&
+
+create_group    lighttpd  &&
+create_account  lighttpd  &&
+
+# Install default config files
+install -m -o lighttpd -g lighttpd 0755 -d "${INSTALL_ROOT}"/etc/lighttpd/           &&
+install -m -o lighttpd -g lighttpd 0755 -d "${INSTALL_ROOT}"/etc/lighttpd/conf.d/    &&
+install -m -o lighttpd -g lighttpd 0755 -d "${INSTALL_ROOT}"/etc/lighttpd/vhosts.d/  &&
+
+install_config_file "${SOURCE_DIRECTORY}/doc/config/lighttpd.conf"             \
+                    "${INSTALL_ROOT}/etc/lighttpd/lighttpd.conf"               &&
+install_config_file "${SOURCE_DIRECTORY}/doc/config/modules.conf"              \
+                    "${INSTALL_ROOT}/etc/lighttpd/modules.conf"                &&
+install_config_file "${SOURCE_DIRECTORY}/doc/config/vhosts.d/vhosts.template"  \
+                    "${INSTALL_ROOT}/etc/lighttpd/vhosts.d/vhosts.template"    &&
+
+cd doc/config/conf.d  &&
+for config in *.conf; do
+  install_config_file "${config}" "${INSTALL_ROOT}/etc/lighttpd/conf.d/${config}"
+done  &&
+
+chown -R lighttpd:lighttpd "${INSTALL_ROOT}"/etc/lighttpd  &&
+
+# Setup log directory, init script doesn't make it first
+install -d -m 0755 -o lighttpd -g lighttpd "${INSTALL_ROOT}"/var/log/lighttpd
