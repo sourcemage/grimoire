@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Init file for Gerbera UPnP Media service
+#
+# processname: gerbera
+
+. /etc/init.d/smgl_init
+. /etc/sysconfig/gerbera
+
+PROGRAM='/usr/bin/gerbera'
+RUNLEVEL=3
+NEEDS="+network"
+
+ARGS=' '
+[[ -z "${INTERFACE}" ]] || ARGS+=" -e ${INTERFACE}"
+[[ -z "${PORT}" ]] || ARGS+=" -p ${PORT}"
+[[ -z "${IPADDR}" ]] || ARGS+=" -i ${IPADDR}"
+[[ -z "${CONFIG}" ]] || ARGS+=" -c ${CONFIG}"
+[[ -z "${HOME}" ]] || ARGS+=" -m ${HOME}"
+[[ -z "${CONFIGDIR}" ]] || ARGS+=" -f ${CONFIGDIR}"
+[[ -z "${LOGFILE}" ]] || ARGS+=" -l ${LOGFILE}"
+
+start()
+{
+	if [[ ! -x "${PROGRAM}" ]]; then
+		echo "${PROGRAM} not found"
+		exit 1
+	fi  &&
+	if [[ ! -f "${CONFIG}" ]]; then
+		echo "${CONFIG} not found"
+		exit 1
+	fi  &&
+	echo "Starting Gerbera service..."  &&
+	if [[ ! -z "${LOGFILE}" ]] ; then
+		touch "${LOGFILE}"  &&
+		chown "${USER}:${GROUP}" "${LOGFILE}"
+	fi  &&
+	echo  "$(date '+%Y-%m-%d %H:%M:%S') Starting ${PROGRAM} with \"${ARGS}\" as user ${USER}." >> ${LOGFILE}  &&
+	su "${USER}" -s /bin/bash -c "${PROGRAM} ${ARGS} &"
+	evaluate_retval
+}
+
