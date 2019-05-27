@@ -12,4 +12,4 @@ cd     buildit &&
               --enable-ld=default           \
               --enable-gold                 \
               $OPTS  &&
-make DESTDIR=$INSTALL_ROOT
+make tooldir=/usr DESTDIR="$INSTALL_ROOT"
