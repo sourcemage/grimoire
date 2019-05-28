@@ -3,4 +3,5 @@ case "$HOST" in
 *-musl) pfx="$INSTALL_ROOT/usr" ;;
 *)      pfx="$INSTALL_ROOT/opt/musl" ;;
 esac
-./configure --prefix="$pfx" --syslibdir="$INSTALL_ROOT/lib" $OPTS
+./configure --prefix="$pfx" --syslibdir="$INSTALL_ROOT/lib" $OPTS &&
+make
