@@ -1,9 +1,4 @@
-make  tcp  &&
+OPTS+=" tcp"
 
-if spell_ok mpich; then
-  make  mpi 
-fi  &&
 
-if spell_ok pvm;  then
-  make pvm
-fi
+make CC="$CC" CFLAGS="$CFLAGS" $OPTS
