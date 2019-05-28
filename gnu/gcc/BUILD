@@ -111,6 +111,7 @@ OPTS="$GCC_MULTILIB $OPTS"                                         &&
 
 case "$HOST" in
 *-musl)
+  OPTS="--disable-multilib $OPTS" &&
   OPTS="--disable-libssp $OPTS" &&
   OPTS="--disable-libmpx $OPTS" &&
   OPTS="--disable-libmudflap $OPTS" &&
