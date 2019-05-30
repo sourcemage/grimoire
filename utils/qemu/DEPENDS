@@ -5,7 +5,7 @@ if list_find "alsa" $QEMU_AUDIO; then
 fi &&
 
 if list_find "sdl" $QEMU_AUDIO; then
-  depends  sdl
+  depends  sdl2
 fi &&
 
 if list_find "pa" $QEMU_AUDIO; then
@@ -15,6 +15,14 @@ fi &&
 if list_find "esd" $QEMU_AUDIO; then
   depends  esound
 fi &&
+
+case "$QEMU_OPTS" in *--enable-docs*)
+  depends texinfo &&
+  depends python-sphinx &&
+  depends perl &&
+  depends podlators
+esac &&
+
 
 optional_depends gtk+3 \
 		 '--enable-gtk --with-gtkabi=3.0' \
@@ -35,15 +43,9 @@ else
 fi
 
 optional_depends sdl2                                  \
-		 '--enable-sdl --with-sdlabi=2.0'      \
-		 ''                                    \
+		 '--enable-sdl'                        \
+		 '--disable-sdl'                       \
 		 'for SDL 2.x UI (recommended)'  &&
-if ! is_depends_enabled $SPELL sdl2; then
-  optional_depends sdl                                 \
-                   "--enable-sdl --with-sdlabi=1.2"    \
-                   "--disable-sdl"                     \
-                   "for SDL 1.2 UI (recommended)"
-fi &&
 
 optional_depends ncurses                               \
                  "--enable-curses"                     \
@@ -69,11 +71,6 @@ optional_depends libcap-ng                             \
                 '--enable-cap-ng'                      \
                 '--disable-cap-ng'                     \
                 'for expanded Linux POSIX API capabilities' &&
-
-optional_depends texinfo                   \
-                 '--enable-docs'           \
-                 '--disable-docs'          \
-                 'to build documentation'  &&
 
 optional_depends libaio                                       \
                  '--enable-linux-aio'                         \
@@ -110,18 +107,18 @@ optional_depends bzip2 \
 		 '--disable-bzip2' \
 		 'for reading bzip2-compressed dmg images' &&
 
-if [[ "x$QEMU_VNC" == "x--enable-vnc" ]]; then
+case "$QEMU_OPTS" in *--enable-vnc*)
   suggest_depends  gnutls                               \
                    "--enable-gnutls"                    \
                    "--disable-gnutls"                   \
                    "to enable TLS encryption for VNC server" &&
 
-  if    [[ "x${QEMU_VNC_TLS}" == "xnettle" ]]; then
-    depends  nettle '--enable-nettle --disable-gcrypt'
-  elif  [[ "x${QEMU_VNC_TLS}" == "xgcrypt" ]]; then
-    depends  libgcrypt '--enable-gcrypt --disable-nettle'
-  fi  &&
-
+  case "$QEMU_VNC_TLS" in
+  nettle)
+    depends  nettle '--enable-nettle --disable-gcrypt' ;;
+  gcrypt)
+    depends  libgcrypt '--enable-gcrypt --disable-nettle' ;;
+  esac
   suggest_depends  LIBSASL                               \
                    "--enable-vnc-sasl"                   \
                    "--disable-vnc-sasl"                  \
@@ -136,7 +133,8 @@ if [[ "x$QEMU_VNC" == "x--enable-vnc" ]]; then
                    '--enable-vnc-png'                    \
                    '--disable-vnc-png'                   \
                    'for PNG compression for VNC server'
-fi  &&
+  ;;
+esac &&
 
 suggest_depends  bridge-utils                          \
                  ''                                    \

@@ -12,9 +12,7 @@ fi  &&
             --target-list="$QEMU_ARCHS"     \
             --audio-drv-list="$QEMU_AUDIO"  \
             --python=python2                \
-            $QEMU_KVM                       \
-            $QEMU_VNC                       \
-            $QEMU_TPM                       \
+            $QEMU_OPTS                      \
             $OPTS                           &&
 
 # Pass down ARFLAGS to workaround a bug in QEMU's build system
