@@ -1,0 +1,2 @@
+CFLAGS+=" -U_XOPEN_SOURCE -D_XOPEN_SOURCE=600" &&
+default_build
