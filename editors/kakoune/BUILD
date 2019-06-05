@@ -1,0 +1,3 @@
+OPTS="$OPTS PREFIX=${INSTALL_ROOT}/usr" &&
+cd ${SOURCE_DIRECTORY}/src &&
+make $OPTS
