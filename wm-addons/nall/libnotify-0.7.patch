@@ -1,0 +1,84 @@
+From b248989852e5ef2d83a0dee28b27695b0ae315ca Mon Sep 17 00:00:00 2001
+From: Ingo van Lil <inguin@gmx.de>
+Date: Tue, 13 Jul 2010 21:22:28 +0200
+Subject: [PATCH 1/2] Manage Scripts: Disable Delete button if no entry is
+ selected.
+
+---
+ src/manage.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/manage.c b/src/manage.c
+index 0cbf9b1..cc1b475 100644
+--- a/src/manage.c
++++ b/src/manage.c
+@@ -207,10 +207,10 @@ static void manage_dialog_on_enabled_toggled(GtkCellRendererToggle* cell, gchar*
+ 	gtk_tree_path_free(tree_path);
+ }
+ 
+-void manage_dialog_on_selection_changed(GtkTreeSelection* selection, gpointer editbutton)
++void manage_dialog_on_selection_changed(GtkTreeSelection* selection, gpointer button)
+ {
+ 	gboolean sensitive = (gtk_tree_selection_count_selected_rows(selection) > 0);
+-	gtk_widget_set_sensitive(GTK_WIDGET(editbutton), sensitive);
++	gtk_widget_set_sensitive(GTK_WIDGET(button), sensitive);
+ }
+ 
+ void manage_dialog_on_row_activated(GtkTreeView* tree_view, GtkTreePath* path, GtkTreeViewColumn* column, gpointer data)
+@@ -258,7 +258,9 @@ static GtkDialog* manage_dialog_create(void)
+ 	GtkTreeSelection* selection = gtk_tree_view_get_selection(tree_view);
+ 	gboolean sensitive = (gtk_tree_selection_count_selected_rows(selection) > 0);
+ 	gtk_widget_set_sensitive(GTK_WIDGET(button_edit), sensitive);
++	gtk_widget_set_sensitive(GTK_WIDGET(button_delete), sensitive);
+ 	g_signal_connect(selection, "changed", G_CALLBACK(manage_dialog_on_selection_changed), button_edit);
++	g_signal_connect(selection, "changed", G_CALLBACK(manage_dialog_on_selection_changed), button_delete);
+ 
+ 	g_signal_connect(button_add, "clicked", G_CALLBACK(manage_dialog_on_button_add), tree_view);
+ 	g_signal_connect(button_edit, "clicked", G_CALLBACK(manage_dialog_on_button_edit), tree_view);
+
+From ba55c03f10a5e3060b649e215a0ecdec19117cb5 Mon Sep 17 00:00:00 2001
+From: Ingo van Lil <inguin@gmx.de>
+Date: Sat, 13 Nov 2010 00:54:33 +0100
+Subject: [PATCH 2/2] Support for libnotify >= 0.7.0
+
+The most recent developer version of libnotify changed the signature for
+notify_notification_new(). Make the configure script detect the version
+of libnotify and use the according function signature.
+---
+ configure.ac | 6 ++++++
+ src/notify.c | 4 ++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/configure.ac b/configure.ac
+index a8cd6fe..93dd8e6 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -42,6 +42,12 @@ Use --disable-notifications to disable desktop notifications.]) ]
+ 	)
+ 	AC_SUBST(LIBNOTIFY_CFLAGS)
+ 	AC_SUBST(LIBNOTIFY_LIBS)
++	PKG_CHECK_MODULES(LIBNOTIFY_OLD, libnotify < 0.7.0,
++		[ AC_MSG_NOTICE([Using old libnotify API.])
++		  AC_DEFINE([HAVE_LIBNOTIFY_OLD], [1],
++			    [Define to 1 if libnotify version is below 0.7.0]) ],
++		[ AC_MSG_NOTICE([Using new libnotify API.]) ]
++	)
+ fi
+ 
+ # Checks for header files.
+diff --git a/src/notify.c b/src/notify.c
+index 3fbbae9..fcb8e91 100644
+--- a/src/notify.c
++++ b/src/notify.c
+@@ -12,7 +12,11 @@ void nall_notify_init(void)
+ 
+ void nall_notify(run_data_t* s)
+ {
++#ifdef HAVE_LIBNOTIFY_OLD
+ 	NotifyNotification* notification = notify_notification_new(s->name, s->buf, NULL, NULL);
++#else
++	NotifyNotification* notification = notify_notification_new(s->name, s->buf, NULL);
++#endif
+ 	if (s->status == 0)
+ 		notify_notification_set_urgency(notification, NOTIFY_URGENCY_NORMAL);
+ 	else
