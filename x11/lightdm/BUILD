@@ -1,5 +1,5 @@
 create_account lightdm                                               &&
-
+OPTS+=" --disable-dependency-tracking"                               &&
 OPTS+=" --disable-static"                                            &&
 OPTS+=" --disable-tests"                                             &&
 OPTS+=" --with-user-session=lightdm-xsession"                        &&
