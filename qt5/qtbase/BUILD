@@ -1,14 +1,11 @@
-
-OPTS="$QT_DEBUG               \
+OPTS+=" $QT_DEBUG             \
       $QT_DECL                \
       $QT_PCH                 \
       $QT_EXAMPLE examples    \
       $QT_TESTS tests         \
       $QT_ACCESS              \
-      ${QT_GOLD}-use-gold-linker \
-      $OPTS"                  &&
+      --linker=$QT_LINKER"    &&
 cd $SOURCE_DIRECTORY &&
-
 ./configure  -opensource -confirm-license \
              -prefix $QT5DIR  -platform  linux-g++  \
              -reduce-relocations -reduce-exports $OPTS -v &&
