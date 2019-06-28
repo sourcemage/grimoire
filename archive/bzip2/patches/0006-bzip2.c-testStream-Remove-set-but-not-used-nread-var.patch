@@ -1,0 +1,48 @@
+From 02fe3ca2349e45eee6dff6ca46bf9a9187f382c5 Mon Sep 17 00:00:00 2001
+From: Mark Wielaard <mark@klomp.org>
+Date: Sun, 23 Jun 2019 23:52:03 +0200
+Subject: [PATCH 06/14] bzip2.c (testStream): Remove set, but not used nread
+ variable.
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Modern GCC warns:
+
+bzip2.c: In function ‘testStream’:
+bzip2.c:557:37: warning: variable ‘nread’ set but not used
+[-Wunused-but-set-variable]
+    Int32   bzerr, bzerr_dummy, ret, nread, streamNo, i;
+                                     ^~~~~
+
+GCC is correct. In testStream we don't care about the number of bytes
+read by BZ2_bzRead. So just remove the variable and the assignment.
+---
+ bzip2.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/bzip2.c b/bzip2.c
+index 59f59ff..854a2bb 100644
+--- a/bzip2.c
++++ b/bzip2.c
+@@ -554,7 +554,7 @@ static
+ Bool testStream ( FILE *zStream )
+ {
+    BZFILE* bzf = NULL;
+-   Int32   bzerr, bzerr_dummy, ret, nread, streamNo, i;
++   Int32   bzerr, bzerr_dummy, ret, streamNo, i;
+    UChar   obuf[5000];
+    UChar   unused[BZ_MAX_UNUSED];
+    Int32   nUnused;
+@@ -577,7 +577,7 @@ Bool testStream ( FILE *zStream )
+       streamNo++;
+ 
+       while (bzerr == BZ_OK) {
+-         nread = BZ2_bzRead ( &bzerr, bzf, obuf, 5000 );
++         BZ2_bzRead ( &bzerr, bzf, obuf, 5000 );
+          if (bzerr == BZ_DATA_ERROR_MAGIC) goto errhandler;
+       }
+       if (bzerr != BZ_STREAM_END) goto errhandler;
+-- 
+2.22.0
+

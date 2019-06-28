@@ -1,0 +1,31 @@
+From c1cdd98db3238cb711c7d9cdc5671452ce2822cb Mon Sep 17 00:00:00 2001
+From: Mark Wielaard <mark@klomp.org>
+Date: Mon, 24 Jun 2019 00:45:32 +0200
+Subject: [PATCH 08/14] bzip2recover: Fix use after free issue with outFile.
+
+bzip2recover.c (main): Make sure to set outFile to NULL when done.
+
+This was reported as CVE-2016-3189 and found in multiple distributions.
+https://seclists.org/oss-sec/2016/q2/568
+
+Some more analysis can be found in:
+https://bugzilla.redhat.com/show_bug.cgi?id=1319648
+---
+ bzip2recover.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/bzip2recover.c b/bzip2recover.c
+index 1a70e04..a955d60 100644
+--- a/bzip2recover.c
++++ b/bzip2recover.c
+@@ -458,6 +458,7 @@ Int32 main ( Int32 argc, Char** argv )
+             bsPutUChar ( bsWr, 0x50 ); bsPutUChar ( bsWr, 0x90 );
+             bsPutUInt32 ( bsWr, blockCRC );
+             bsClose ( bsWr );
++            outFile = NULL;
+          }
+          if (wrBlock >= rbCtr) break;
+          wrBlock++;
+-- 
+2.22.0
+

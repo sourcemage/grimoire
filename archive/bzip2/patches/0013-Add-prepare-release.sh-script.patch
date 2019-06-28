@@ -1,0 +1,217 @@
+From f1e937776c5f331e24cc63a9d8e7ae9445a76761 Mon Sep 17 00:00:00 2001
+From: Mark Wielaard <mark@klomp.org>
+Date: Tue, 25 Jun 2019 19:22:37 +0200
+Subject: [PATCH 13/14] Add prepare-release.sh script.
+
+Script to run to prepare a new release.
+It will update the release number and tell you to update the
+CHANGES file and to double check everything looks before doing
+the release commit and tagging.
+
+Afterwards you probably want to run release-update.sh to upload
+the release and update the website at https://sourceware.org/bzip2/
+
+There are embedded version strings and dates in a couple of places.
+To keep the script simple remove some that aren't absolutely necessary.
+
+README now just points to CHANGES.
+README.COMPILATION.PROBLEMS only mentions the version once at the top.
+bzip2.c only mentions the version once when doing --version.
+manual.xml now doesn't have any embedded versions, just uses &bz-version;
+everywhere.
+---
+ README                      | 23 +----------
+ README.COMPILATION.PROBLEMS |  2 +-
+ bzip2.c                     |  2 +-
+ manual.xml                  |  4 +-
+ prepare-release.sh          | 80 +++++++++++++++++++++++++++++++++++++
+ release-update.sh           |  1 +
+ 6 files changed, 86 insertions(+), 26 deletions(-)
+ create mode 100755 prepare-release.sh
+
+diff --git a/README b/README
+index c3bcbeb..bf95ad7 100644
+--- a/README
++++ b/README
+@@ -161,31 +161,10 @@ WHAT'S NEW IN 0.9.5 ?
+    * Many small improvements in file and flag handling.
+    * A Y2K statement.
+ 
+-WHAT'S NEW IN 1.0.0 ?
++WHAT'S NEW IN 1.0.x ?
+ 
+    See the CHANGES file.
+ 
+-WHAT'S NEW IN 1.0.2 ?
+-
+-   See the CHANGES file.
+-
+-WHAT'S NEW IN 1.0.3 ?
+-
+-   See the CHANGES file.
+-
+-WHAT'S NEW IN 1.0.4 ?
+-
+-   See the CHANGES file.
+-
+-WHAT'S NEW IN 1.0.5 ?
+-
+-   See the CHANGES file.
+-
+-WHAT'S NEW IN 1.0.6 ?
+-
+-   See the CHANGES file.
+-
+-
+ I hope you find bzip2 useful.  Feel free to contact me at
+    jseward@acm.org
+ if you have any suggestions or queries.  Many people mailed me with
+diff --git a/README.COMPILATION.PROBLEMS b/README.COMPILATION.PROBLEMS
+index 14ddd1b..d420854 100644
+--- a/README.COMPILATION.PROBLEMS
++++ b/README.COMPILATION.PROBLEMS
+@@ -12,7 +12,7 @@ This program is released under the terms of the license contained
+ in the file LICENSE.
+ ------------------------------------------------------------------
+ 
+-bzip2-1.0.6 should compile without problems on the vast majority of
++bzip2 should compile without problems on the vast majority of
+ platforms.  Using the supplied Makefile, I've built and tested it
+ myself for x86-linux and amd64-linux.  With makefile.msc, Visual C++
+ 6.0 and nmake, you can build a native Win32 version too.  Large file
+diff --git a/bzip2.c b/bzip2.c
+index 63649f6..4804e80 100644
+--- a/bzip2.c
++++ b/bzip2.c
+@@ -1609,7 +1609,7 @@ void license ( void )
+     "   \n"
+     "   This program is free software; you can redistribute it and/or modify\n"
+     "   it under the terms set out in the LICENSE file, which is included\n"
+-    "   in the bzip2-1.0.6 source distribution.\n"
++    "   in the bzip2 source distribution.\n"
+     "   \n"
+     "   This program is distributed in the hope that it will be useful,\n"
+     "   but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+diff --git a/manual.xml b/manual.xml
+index a7fbcb3..b177bbf 100644
+--- a/manual.xml
++++ b/manual.xml
+@@ -9,7 +9,7 @@
+ <book lang="en" id="userman" xreflabel="bzip2 Manual">
+ 
+  <bookinfo>
+-  <title>bzip2 and libbzip2, version 1.0.6</title>
++  <title>bzip2 and libbzip2, version &bz-version;</title>
+   <subtitle>A program and library for data compression</subtitle>
+   <copyright>
+    <year>&bz-lifespan;</year>
+@@ -139,7 +139,7 @@ else.</para>
+ 
+  <listitem><para><computeroutput>bzip2</computeroutput>,
+   <computeroutput>bunzip2</computeroutput> - a block-sorting file
+-  compressor, v1.0.6</para></listitem>
++  compressor, v&bz-version;</para></listitem>
+ 
+  <listitem><para><computeroutput>bzcat</computeroutput> -
+    decompresses files to stdout</para></listitem>
+diff --git a/prepare-release.sh b/prepare-release.sh
+new file mode 100755
+index 0000000..db736b7
+--- /dev/null
++++ b/prepare-release.sh
+@@ -0,0 +1,80 @@
++#!/bin/bash
++
++# Script to run to prepare a new release.
++# It will update the release number and tell you to update the
++# CHANGES file and to double check everything looks before doing
++# the release commit and tagging.
++
++# Afterwards you probably want to run release-update.sh to upload
++# the release and update the website at https://sourceware.org/bzip2/
++
++# Any error is fatal
++set -e
++
++# We take one argument, the version (e.g. 1.0.7)
++if [ $# -ne 1 ]; then
++  echo "$0 <version> (e.g. 1.0.7)"
++  exit 1
++fi
++
++LANG=C
++VERSION="$1"
++DATE=$(date +"%d %B %Y")
++
++# Replace the version strings in the comments
++VER_PREFIX="bzip2/libbzip2 version "
++sed -i -e "s@${VER_PREFIX}[0-9].*@${VER_PREFIX}${VERSION} of ${DATE}@" \
++  CHANGES LICENSE README* *.c *.h *.pl *.sh
++
++# Add an entry to the README
++DAY=$(date +"%d")
++MONTH=$(date +"%B")
++SHORTMONTH=$(date +"%b")
++YEAR=$(date +"%Y")
++printf "%2s %8s %s\n" "$DAY" "$MONTH" "$YEAR (bzip2, version $VERSION)" \
++  >> README
++
++# Update manual
++sed -i -e "s@ENTITY bz-version \".*\"@ENTITY bz-version \"$VERSION\"@" \
++       -e "s@ENTITY bz-date \".*\"@ENTITY bz-date \"$DAY $MONTH $YEAR\"@" \
++  entities.xml
++
++# bzip2.1 should really be generated from the manual.xml, but currently
++# isn't, so explicitly change it here too.
++sed -i -e "s@This manual page pertains to version .* of@This manual page pertains to version $VERSION of@" \
++       -e "s@sorting file compressor, v.*@sorting file compressor, v$VERSION@" \
++  bzip2.1* bzip2.txt
++
++# Update sources. All sources, use bzlib_private.
++# Except bzip2recover, which embeds a version string...
++sed -i -e "s@^#define BZ_VERSION  \".*\"@#define BZ_VERSION  \"${VERSION}, ${DAY}-${SHORTMONTH}-${YEAR}\"@" \
++  bzlib_private.h
++sed -i -e "s@\"bzip2recover .*: extracts blocks from damaged@\"bzip2recover ${VERSION}: extracts blocks from damaged@" \
++  bzip2recover.c
++
++# And finally update the version/dist/so_name in the Makefiles.
++sed -i -e "s@^DISTNAME=bzip2-.*@DISTNAME=bzip2-${VERSION}@" \
++  Makefile
++sed -i -e "s@libbz2\.so\.[0-9]\.[0-9]\.[0-9]*@libbz2\.so\.${VERSION}@" \
++  Makefile-libbz2_so
++
++echo "Now make sure the diff looks correct:"
++echo "  git diff"
++echo
++echo "And make sure there is a $VERSION section in the CHANGES file."
++echo
++echo "Double check:"
++echo "  make clean && make dist && make clean && make -f Makefile-libbz2_so"
++echo
++echo "Does everything look fine?"
++echo
++echo "git commit -a -m \"Prepare for $VERSION release.\""
++echo "git push"
++echo
++echo "Wait for the buildbot to give the all green!"
++echo "Then..."
++echo
++echo "git tag -s -m \"bzip2 $VERSION release\" bzip2-$VERSION"
++echo "git push --tags"
++echo
++echo "./release-update.sh"
+diff --git a/release-update.sh b/release-update.sh
+index 2ad32ce..d641ca6 100755
+--- a/release-update.sh
++++ b/release-update.sh
+@@ -24,6 +24,7 @@ echo "Requires a sourceware account in the bzip2 group."
+ echo
+ echo "Make sure the git repo was tagged, signed and pushed"
+ echo "If not, please double check the source tree is release ready first"
++echo "You probably want to run ./prepare-release.sh $VERSION first."
+ echo "Then do:"
+ echo
+ echo "    git tag -s -m \"bzip2 $VERSION release\" bzip2-$VERSION"
+-- 
+2.22.0
+
