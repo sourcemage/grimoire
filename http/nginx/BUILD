@@ -13,10 +13,6 @@ if list_find "$NGINX_MODULES" "dav_ext"; then
   OPTS="--add-module=$SOURCE_DIRECTORY5 $OPTS"
 fi &&
 
-if [[ $NGINX_SYSLOG == y ]]; then
-  OPTS="--add-module=$SOURCE_DIRECTORY/syslog $OPTS"
-fi &&
-
 ./configure --prefix="$INSTALL_ROOT/etc/nginx" \
          --conf-path="$INSTALL_ROOT/etc/nginx/nginx.conf" \
          --sbin-path="$INSTALL_ROOT/usr/sbin/nginx" \

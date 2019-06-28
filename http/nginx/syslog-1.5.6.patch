@@ -16,9 +16,9 @@
  static char *ngx_log_set_levels(ngx_conf_t *cf, ngx_log_t *log);
  static void ngx_log_insert(ngx_log_t *log, ngx_log_t *new_log);
  
-@@ -23,6 +32,15 @@
-      0,
-      NULL},
+@@ -40,6 +49,15 @@
+       0,
+       NULL },
  
 +#if (NGX_ENABLE_SYSLOG)
 +    {ngx_string("syslog"),
@@ -29,19 +29,10 @@
 +     NULL},
 +#endif
 +
-     ngx_null_command
+       ngx_null_command
  };
  
-@@ -45,7 +63,7 @@
-     NULL,                                  /* init thread */
-     NULL,                                  /* exit thread */
-     NULL,                                  /* exit process */
--    NULL,                                  /* exit master */
-+    NULL,
-     NGX_MODULE_V1_PADDING
- };
- 
-@@ -54,6 +72,48 @@
+@@ -71,6 +89,48 @@
  static ngx_open_file_t  ngx_log_file;
  ngx_uint_t              ngx_use_stderr = 1;
  
@@ -90,7 +81,7 @@
  
  static ngx_str_t err_levels[] = {
      ngx_null_string,
-@@ -479,6 +539,33 @@
+@@ -552,6 +612,33 @@
  }
  
  
@@ -124,7 +115,7 @@
  char *
  ngx_log_set_log(ngx_conf_t *cf, ngx_log_t **head)
  {
-@@ -526,6 +613,57 @@
+@@ -675,6 +762,57 @@
      return NGX_CONF_OK;
  }
  
@@ -182,13 +173,6 @@
  
  static void
  ngx_log_insert(ngx_log_t *log, ngx_log_t *new_log)
-@@ -558,4 +696,4 @@
-     }
- 
-     log->next = new_log;
--}
-+}
-\ No newline at end of file
 --- nginx/src/http/modules/ngx_http_log_module.c	Tue Nov 19 20:33:48 2013
 +++ nginx/src/http/modules/ngx_http_log_module.c	Sun Nov 24 21:12:04 2013
 @@ -13,6 +13,11 @@
@@ -203,10 +187,10 @@
  
  typedef struct ngx_http_log_op_s  ngx_http_log_op_t;
  
-@@ -67,6 +72,11 @@
-     time_t                      disk_full_time;
-     time_t                      error_log_time;
+@@ -69,6 +74,11 @@
+     ngx_syslog_peer_t          *syslog_peer;
      ngx_http_log_fmt_t         *format;
+     ngx_http_complex_value_t   *filter;
 +
 +#if (NGX_ENABLE_SYSLOG)
 +    ngx_int_t                   priority;
@@ -215,7 +199,7 @@
  } ngx_http_log_t;
  
  
-@@ -348,13 +358,25 @@
+@@ -410,13 +420,25 @@
      time_t               now;
      ssize_t              n;
      ngx_err_t            err;
@@ -241,7 +225,7 @@
  #if (NGX_ZLIB)
          buffer = log->file->data;
  
-@@ -367,7 +389,11 @@
+@@ -429,7 +451,11 @@
  #else
          n = ngx_write_fd(log->file->fd, buf, len);
  #endif
@@ -254,20 +238,21 @@
      } else {
          name = NULL;
          n = ngx_http_log_script_write(r, log->script, &name, buf, len);
-@@ -1068,6 +1094,10 @@
-     log->script = NULL;
-     log->disk_full_time = 0;
-     log->error_log_time = 0;
+@@ -1223,6 +1249,11 @@
+         return NGX_CONF_ERROR;
+     }
+ 
 +#if (NGX_ENABLE_SYSLOG)
 +    log->priority = HTTP_SYSLOG_PRIORITY;
 +    log->syslog_on = 0;
 +#endif
- 
++ 
      lmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_log_module);
      fmt = lmcf->formats.elts;
-@@ -1096,6 +1126,14 @@
-     ngx_http_log_main_conf_t   *lmcf;
-     ngx_http_script_compile_t   sc;
+ 
+@@ -1252,6 +1283,14 @@
+     ngx_http_script_compile_t          sc;
+     ngx_http_compile_complex_value_t   ccv;
  
 +#if (NGX_ENABLE_SYSLOG)
 +    u_char                     *off;
@@ -280,7 +265,7 @@
      value = cf->args->elts;
  
      if (ngx_strcmp(value[1].data, "off") == 0) {
-@@ -1108,6 +1146,38 @@
+@@ -1264,6 +1303,38 @@
                             "invalid parameter \"%V\"", &value[2]);
          return NGX_CONF_ERROR;
      }
@@ -319,9 +304,9 @@
  
      if (llcf->logs == NULL) {
          llcf->logs = ngx_array_create(cf->pool, 2, sizeof(ngx_http_log_t));
-@@ -1125,6 +1195,52 @@
- 
-     ngx_memzero(log, sizeof(ngx_http_log_t));
+@@ -1298,6 +1369,52 @@
+         goto process_formats;
+     }
  
 +#if (NGX_ENABLE_SYSLOG)
 +    log->syslog_on = syslog_on;
@@ -372,14 +357,14 @@
      n = ngx_http_script_variables_count(&value[1]);
  
      if (n == 0) {
-@@ -1157,6 +1273,7 @@
+@@ -1330,6 +1447,7 @@
              return NGX_CONF_ERROR;
          }
      }
 +#endif
  
-     if (cf->args->nelts >= 3) {
-         name = value[2];
+ process_formats:
+ 
 --- nginx-orig/src/core/ngx_log.h	Thu Nov 21 21:39:37 2013
 +++ nginx/src/core/ngx_log.h	Sun Nov 24 21:42:16 2013
 @@ -12,6 +12,13 @@
