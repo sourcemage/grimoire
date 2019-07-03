@@ -8,5 +8,6 @@ if ! (is_depends_enabled $SPELL WEB-BROWSER); then
 else
   OPTS="--with-browser=$(get_spell_provider $SPELL WEB-BROWSER) $OPTS"
 fi &&
+OPTS="$XSCSV_ROOT $XSCSV_LOCK $XSCSV_SETCAP $OPTS"
 
 CFLAGS="$CFLAGS -std=c99" default_build
