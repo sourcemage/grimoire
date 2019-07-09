@@ -1,7 +1,8 @@
 MAKE_OPTS="BUILD_OPT=1 NSS_USE_SYSTEM_SQLITE=1 NSS_ENABLE_ECC=1 NSS_ENABLE_WERROR=0 NSS_DISABLE_GTESTS=1" &&
 
 persistent_add MAKE_OPTS &&
-if [[ ${SMGL_COMPAT_ARCHS[1]} == "x86_64" ]]; then
+if [[ ${SMGL_COMPAT_ARCHS[1]} == "x86_64" ||
+      ${SMGL_COMPAT_ARCHS[1]} == "em64t"      ]]; then
   MAKE_OPTS="$MAKE_OPTS USE_64=1"
 fi &&
 
