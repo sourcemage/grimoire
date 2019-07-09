@@ -1,5 +1,5 @@
 local FF PP TARGET UNIT              &&
-if  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64"  ]];  then
+if  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64" || "${SMGL_COMPAT_ARCHS[1]}" == "em64t" ]];  then
   TARGET=x86_64
 else
   TARGET=i386
