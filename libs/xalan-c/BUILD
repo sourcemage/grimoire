@@ -3,7 +3,7 @@ if [[ $XAL_VER == release ]];then
 fi &&
 export XALANCROOT=$PWD &&
 
-if  [[  "${SMGL_COMPAT_ARCHS[1]}"  ==  "x86_64"  ]];  then
+if  [[ "${SMGL_COMPAT_ARCHS[1]}" == "x86_64" || "${SMGL_COMPAT_ARCHS[1]}" == "em64t" ]];  then
   ARCH=64
 else
   ARCH=32
