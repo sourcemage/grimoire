@@ -1,0 +1,2 @@
+OPTS+=" -DACCOUNTWIZARD_NO_REGENERATE_MIME=1" &&
+default_build
