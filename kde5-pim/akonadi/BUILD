@@ -1,2 +1,3 @@
+OPTS+=" -DNO_REGENERATE_MIME=1" &&
 OPTS+=" -DDATABASE_BACKEND=$DEFAULT_DB" &&
 default_build
