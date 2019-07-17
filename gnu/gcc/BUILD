@@ -109,6 +109,7 @@ OPTS="--enable-checking=release $OPTS"                             &&
 OPTS="--enable-default-pie $OPTS"                                  &&
 OPTS="--enable-default-ssp $OPTS"                                  &&
 OPTS="--enable-cet=auto $OPTS"                                     &&
+OPTS="--enable-lto $OPTS"
 OPTS="$GCC_MULTILIB $OPTS"                                         &&
 
 case "$HOST" in
@@ -119,10 +120,6 @@ case "$HOST" in
   OPTS="--disable-libmudflap $OPTS" &&
   OPTS="--disable-libsanitizer $OPTS" &&
   OPTS="--disable-symvers $OPTS" &&
-  OPTS="--disable-lto $OPTS"
-  ;;
-*)
-  OPTS="--enable-lto $OPTS"
   ;;
 esac &&
 
