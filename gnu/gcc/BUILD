@@ -37,7 +37,9 @@ if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
 fi  &&
 
 # fixes seg-fault on libiberty/splay.c in v 4.3.2
-CFLAGS="-O1 $CFLAGS"  &&
+if is_version_less $(installed_version $SPELL) 5.0.0; then
+  CFLAGS="-O1 $CFLAGS"
+fi &&
 
 if [[ $CROSS_INSTALL == on ]]; then
   OPTS="--host=$HOST $OPTS"
