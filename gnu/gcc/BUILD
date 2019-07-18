@@ -78,14 +78,14 @@ if list_find "$GCC_COMPILER" "ada" ; then
 
 fi  &&
 
-OPTS="$GCJ_HOME $OPTS"                                               &&
+OPTS="$GCJ_HOME $OPTS"                                             &&
 OPTS="--prefix=${INSTALL_ROOT}/usr $OPTS"                          &&
 OPTS="--libdir=${INSTALL_ROOT}/usr/lib $OPTS"                      &&
 OPTS="--libexecdir=${INSTALL_ROOT}/usr/lib $OPTS"                  &&
 OPTS="--mandir=${INSTALL_ROOT}/usr/share/man $OPTS"                &&
 OPTS="--infodir=${INSTALL_ROOT}/usr/share/info $OPTS"              &&
 OPTS="--with-bugurl=http://bugs.sourcemage.org $OPTS"              &&
-OPTS="--enable-languages=${GCC_COMPILER// /,},lto $OPTS"     &&
+OPTS="--enable-languages=${GCC_COMPILER// /,},lto $OPTS"           &&
 OPTS="--enable-shared $OPTS"                                       &&
 OPTS="--enable-threads=posix $OPTS"                                &&
 OPTS="--enable-__cxa_atexit $OPTS"                                 &&
@@ -109,7 +109,7 @@ OPTS="--enable-checking=release $OPTS"                             &&
 OPTS="--enable-default-pie $OPTS"                                  &&
 OPTS="--enable-default-ssp $OPTS"                                  &&
 OPTS="--enable-cet=auto $OPTS"                                     &&
-OPTS="--enable-lto $OPTS"
+OPTS="--enable-lto $OPTS"                                          &&
 OPTS="$GCC_MULTILIB $OPTS"                                         &&
 
 case "$HOST" in
@@ -119,7 +119,7 @@ case "$HOST" in
   OPTS="--disable-libmpx $OPTS" &&
   OPTS="--disable-libmudflap $OPTS" &&
   OPTS="--disable-libsanitizer $OPTS" &&
-  OPTS="--disable-symvers $OPTS" &&
+  OPTS="--disable-symvers $OPTS"
   ;;
 esac &&
 
