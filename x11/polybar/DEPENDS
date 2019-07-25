@@ -55,17 +55,17 @@ optional_depends libmpdclient \
                  "-DENABLE_MPD=OFF" \
                  "for MPD playback controls and status display" &&
 
-optional_depends wireless_tools \
-                 "-DENABLE_NETWORK=ON" \
-                 "-DENABLE_NETWORK=OFF" \
-                 "for network connection details" &&
-
-if is_depends_enabled ${SPELL} wireless_tools; then
-  optional_depends libnl \
-                   "-WITH_LIBNL=ON" \
-                   "-WITH_LIBNL=OFF" \
-                   "to use netlink interface for wireless"
-fi &&
+case $POLYBAR_NETWORK in
+  none)
+    list_add POLYBAR_OPTS "-DENABLE_NETWORK=OFF"
+  ;;
+  libnl)
+    depends libnl "-DENABLE_NETWORK=ON -DWITH_LIBNL=ON"
+  ;;
+  wireless_tools)
+    depends wireless_tools "-DENABLE_NETWORK -DWITH_LIBNL=OFF"
+  ;;
+esac &&
 
 optional_depends xcb-util-cursor \
                  "-DWITH_XCURSOR=ON" \
@@ -85,5 +85,6 @@ optional_depends python-sphinx \
                  "-DBUILD_DOC=OFF" \
                  "to build documentation" &&
 
+suggest_depends font-misc-misc "" "" "to use Fixed font" &&
 suggest_depends unifont "" "" "to use Unifont" &&
 suggest_depends siji "" "" "to use iconic font Siji"
