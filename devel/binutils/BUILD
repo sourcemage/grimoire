@@ -1,3 +1,6 @@
+if [[ $BINUTILS_LTO == "y" ]];then
+  OPTS+=" --enable-lto"
+fi &&
 mkdir  buildit &&
 cd     buildit &&
 
@@ -9,7 +12,7 @@ cd     buildit &&
               --enable-shared               \
               --disable-static              \
               --disable-werror              \
-              --enable-ld=default           \
-              --enable-gold                 \
+              --enable-ld=yes               \
+              --enable-gold=yes             \
               $OPTS  &&
 make tooldir=/usr DESTDIR="$INSTALL_ROOT"
