@@ -1,3 +1,17 @@
+case "$HOST" in
+*-gnu) ;;
+*)
+  local unportable=(intel)
+  message "${PROBLEM_COLOR}WARNING:$DEFAULT_COLOR" \
+    "Disabling non-portable tools: ${unportable[*]}"
+  MESA_TOOLS=" ${MESA_TOOLS} "
+  for i in "${unportable[@]}"; do
+    MESA_TOOLS="${MESA_TOOLS// $i / }"
+  done
+  MESA_TOOLS="${MESA_TOOLS# }"
+  MESA_TOOLS="${MESA_TOOLS% }"
+  ;;
+esac
 #LDFLAGS=''  &&
 #CXXFLAGS='' &&
 local vulkan=${MESA_VULKAN//none} &&
