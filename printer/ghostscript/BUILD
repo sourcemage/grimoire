@@ -4,6 +4,10 @@ OPTS="--with-drivers=`echo ${GS_PRINTERS} | \
       sed "s/  */ /g;s/^ *//;s/ *$/ /;s/^NONE //;s/ /,/g"`JAPAN,FILES \
       --enable-dynamic  --without-luratech  ${OPTS}" &&
 
+# -s causes libgs.so to be fully stripped
+LDFLAGS+=' '
+LDFLAGS="${LDFLAGS//-s }"
+
 LIBS+=" -lz" default_build &&
 
 if [[ $GS_LIBGS == y ]]; then
