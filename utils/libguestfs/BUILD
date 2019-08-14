@@ -3,6 +3,7 @@
 OPTS="--disable-daemon     \
       --disable-appliance  \
       --disable-golang     \
+      --with-distro=SMGL   \
       $OPTS"               &&
 
 # Disable checking KVM features: It's broken
