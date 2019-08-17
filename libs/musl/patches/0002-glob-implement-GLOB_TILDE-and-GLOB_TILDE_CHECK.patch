@@ -1,0 +1,95 @@
+From e72a2cd45f82439a1664ee8c8181ca9c1e887543 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Thu, 25 Jul 2019 23:50:48 +0200
+Subject: [PATCH 2/6] glob: implement GLOB_TILDE and GLOB_TILDE_CHECK
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ include/glob.h   |  3 +++
+ src/regex/glob.c | 42 +++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/include/glob.h b/include/glob.h
+index 76f6c1c68a23..4a562a206d52 100644
+--- a/include/glob.h
++++ b/include/glob.h
+@@ -31,6 +31,9 @@ void globfree(glob_t *);
+ #define GLOB_NOESCAPE 0x40
+ #define	GLOB_PERIOD   0x80
+ 
++#define GLOB_TILDE       0x1000
++#define GLOB_TILDE_CHECK 0x4000
++
+ #define GLOB_NOSPACE 1
+ #define GLOB_ABORTED 2
+ #define GLOB_NOMATCH 3
+diff --git a/src/regex/glob.c b/src/regex/glob.c
+index aa1c6a4482ee..58248675c203 100644
+--- a/src/regex/glob.c
++++ b/src/regex/glob.c
+@@ -8,6 +8,8 @@
+ #include <stdlib.h>
+ #include <errno.h>
+ #include <stddef.h>
++#include <unistd.h>
++#include <pwd.h>
+ 
+ struct match
+ {
+@@ -182,6 +184,39 @@ static int sort(const void *a, const void *b)
+ 	return strcmp(*(const char **)a, *(const char **)b);
+ }
+ 
++static int expand_tilde(char **pat, char *buf, size_t *pos)
++{
++	char *p = *pat + 1;
++	size_t i = 0;
++
++	char delim, *name_end = __strchrnul(p, '/');
++	if ((delim = *name_end)) *name_end++ = 0;
++	*pat = name_end;
++
++	char *home = *p ? NULL : getenv("HOME");
++	if (!home) {
++		struct passwd pw, *res;
++		switch (*p ? getpwnam_r(p, &pw, buf, PATH_MAX, &res)
++			   : getpwuid_r(getuid(), &pw, buf, PATH_MAX, &res)) {
++		case ENOMEM:
++			return GLOB_NOSPACE;
++		case 0:
++			if (!res)
++		default:
++				return GLOB_NOMATCH;
++		}
++		home = pw.pw_dir;
++	}
++	while (i < PATH_MAX - 2 && *home)
++		buf[i++] = *home++;
++	if (*home)
++		return GLOB_NOMATCH;
++	if ((buf[i] = delim))
++		buf[++i] = 0;
++	*pos = i;
++	return 0;
++}
++
+ int glob(const char *restrict pat, int flags, int (*errfunc)(const char *path, int err), glob_t *restrict g)
+ {
+ 	struct match head = { .next = NULL }, *tail = &head;
+@@ -202,7 +237,12 @@ int glob(const char *restrict pat, int flags, int (*errfunc)(const char *path, i
+ 		char *p = strdup(pat);
+ 		if (!p) return GLOB_NOSPACE;
+ 		buf[0] = 0;
+-		error = do_glob(buf, 0, 0, p, flags, errfunc, &tail);
++		size_t pos = 0;
++		char *s = p;
++		if ((flags & (GLOB_TILDE | GLOB_TILDE_CHECK)) && *p == '~')
++			error = expand_tilde(&s, buf, &pos);
++		if (!error)
++			error = do_glob(buf, pos, 0, s, flags, errfunc, &tail);
+ 		free(p);
+ 	}
+ 
+-- 
+2.22.0
+
