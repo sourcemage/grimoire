@@ -1,0 +1,18 @@
+mk_source_dir "${SOURCE_DIRECTORY}" &&
+cd "${SOURCE_DIRECTORY}" &&
+
+if grep -q Werror ../linux/tools/lib/bpf/Makefile; then
+  sedit "s:-Werror::" ../linux/tools/lib/bpf/Makefile
+fi &&
+
+ln -s ../linux/tools/perf perf &&
+
+cd perf &&
+
+if ! grep -q libdir_relative Makefile.perf; then
+  sedit "s:install_plugins:install_plugins libdir_relative=lib:" Makefile.perf
+fi &&
+
+if ! grep -q "GELF_ST_VISIBILITY" util/symbol-elf.c; then
+  patch -p0 "${SPELL_DIRECTORY}/elf.patch"
+fi
