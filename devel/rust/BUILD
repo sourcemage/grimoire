@@ -22,6 +22,9 @@ fi &&
 	--enable-llvm-link-shared \
 	$OPTS &&
 
+# static doesn't work
+sed -i '/^#crt-static *= *false/s/#//' config.toml &&
+
 sed -i "/BOOTSTRAP.*doc/d" Makefile &&
 
 make
