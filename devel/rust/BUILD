@@ -17,7 +17,7 @@ fi &&
 	--local-rust-root="$_rust_root" \
 	--enable-locked-deps \
 	--enable-vendor \
-	--disable-extended \
+	--enable-extended \
 	--disable-docs \
 	--enable-llvm-link-shared \
 	$OPTS &&
