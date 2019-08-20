@@ -4,4 +4,4 @@
             -sitelib ${INSTALL_ROOT}/usr/lib/ocaml/site-lib  \
             $OPTS &&
 make_single  &&
-make all
+make all opt
