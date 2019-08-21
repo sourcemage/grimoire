@@ -10,6 +10,18 @@ if [[ -x ${INSTALL_ROOT}/usr/bin/ghc-pkg-7.2.1 ]]; then
   ghc-pkg-7.2.1 trust base
 fi &&
 
+# ld.gold and ld.lld are chosen first, but don't support -z{,no}separate-code
+if type ld.gold || type ld.lld; then
+  case "$LD" in
+  ld|ld.bfd)
+    ;;
+  *)
+    LDFLAGS="${LDFLAGS//-Wl,-znoseparate-code}"
+    LDFLAGS="${LDFLAGS//-Wl,-zseparate-code}"
+    ;;
+  esac
+fi > /dev/null
+
 if ! spell_ok "$SPELL"; then
   cd ghc-bin &&
   ./configure --prefix=${SOURCE_DIRECTORY}/ghc-bin-installed &&
