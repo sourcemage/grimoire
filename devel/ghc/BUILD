@@ -10,7 +10,7 @@ if [[ -x ${INSTALL_ROOT}/usr/bin/ghc-pkg-7.2.1 ]]; then
   ghc-pkg-7.2.1 trust base
 fi &&
 
-if [[ $SOURCE2 != "" ]] ; then
+if ! spell_ok "$SPELL"; then
   cd ghc-bin &&
   ./configure --prefix=${SOURCE_DIRECTORY}/ghc-bin-installed &&
   if [ "$(uname -m)" == x86_64 ]; then

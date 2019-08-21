@@ -4,17 +4,26 @@
 SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
    SOURCE_URL[0]=http://downloads.haskell.org/~$SPELL/$VERSION/$SOURCE
      SOURCE_HASH=sha512:c08a7480200cb99e1ffbe4ce7669f552b1054054966f7e7efcbc5f98af8032e1249fa391c4fc4c7d62cc8e0be5d17fa05845177f3cea3dbcf86e6c92d40fc0f9
-            ARCH="$(uname -m)"
-  if [[ "$ARCH" = i686 ]]; then
-            ARCH=i386
-  fi
-         SOURCE2=${SPELL}-${VERSION}-${ARCH}-deb9-linux.tar.xz
-  SOURCE2_URL[0]=http://downloads.haskell.org/~${SPELL}/${VERSION}/${SOURCE2}
-  if [ "$ARCH" = "x86_64" ]; then
+if ! spell_ok "$SPELL"; then
+	    ARCH="${BUILD%%-*}"; case "$ARCH" in i?86) ARCH=i386;; esac
+case "$BUILD" in
+*-linux-gnu)
+         SOURCE2="$SPELL-$VERSION-$ARCH-deb9-linux.tar.xz"
+     SOURCE2_URL=("http://downloads.haskell.org/~$SPELL/$VERSION/$SOURCE2")
+    ;&
+x86_64-*-linux-gnu)
     SOURCE2_HASH=sha512:6e1d17ea69d313d7023985759ac28c87b620ea6fac59b92f298467e0b8a501ca6a9ba6e0107d6b27d3976be1da724e7e8b1625e7b99be4045f319a916d0ab711
-  fi
+    ;;
+*-linux-musl)
+         SOURCE2="$SPELL-$VERSION-$ARCH-void-linux-musl.tar.xz"
+     SOURCE2_URL=("https://alpha.de.repo.voidlinux.org/distfiles/$SOURCE2")
+    ;&
+x86_64-*-linux-musl)
+    SOURCE2_HASH=sha512:5a9d2832ef5fe581316c2d858548a0b41592dd1b596ffe68ef9bf49e94b428d2771cf6b2c876f57e46893171d46f48c367ac13d75d9dde28072233d5f18dd96e
+    ;;
+esac
+fi
            TMPFS=off
-
       LICENSE[0]=BSD
         WEB_SITE=http://www.haskell.org/ghc/
          ENTERED=20041221
