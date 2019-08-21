@@ -7,6 +7,12 @@ if [[ "$LLVM_WITH_CLANG" == y ]]; then
   mv cfe-${VERSION}.src tools/clang &&
   unpack_file 9 &&
   mv clang-tools-extra-${VERSION}.src tools/clang/tools/extra &&
+  # disable sanitizers on musl
+  case "$HOST" in *-musl)
+    sedit '/^ *set(COMPILER_RT_HAS_SANITIZER_COMMON TRUE/s/TRUE/FALSE/' \
+        projects/compiler-rt/cmake/config-ix.cmake
+    ;;
+  esac &&
   patch -p1 < "${SPELL_DIRECTORY}/0001-fix-compile-error-clang.patch"
 #  cd ${SOURCE_DIRECTORY}/tools/clang &&
 #  patch -p1 < $SPELL_DIRECTORY/0001-fix-scan-view-s-module-search-path.patch &&
