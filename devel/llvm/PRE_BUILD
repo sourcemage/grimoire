@@ -1,16 +1,12 @@
 default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
 if [[ "$LLVM_WITH_CLANG" == y ]]; then
-  cd ${SOURCE_DIRECTORY}/projects &&
   unpack_file 5 &&
-  mv compiler-rt-${VERSION}.src compiler-rt &&
-
-  cd ${SOURCE_DIRECTORY}/tools &&
+  mv compiler-rt-${VERSION}.src projects/compiler-rt &&
   unpack_file 3 &&
-  mv cfe-${VERSION}.src clang &&
-  cd "${SOURCE_DIRECTORY}/tools/clang/tools" &&
+  mv cfe-${VERSION}.src tools/clang &&
   unpack_file 9 &&
-  mv clang-tools-extra-${VERSION}.src extra &&
-  cd "${SOURCE_DIRECTORY}" &&
+  mv clang-tools-extra-${VERSION}.src tools/clang/tools/extra &&
   patch -p1 < "${SPELL_DIRECTORY}/0001-fix-compile-error-clang.patch"
 #  cd ${SOURCE_DIRECTORY}/tools/clang &&
 #  patch -p1 < $SPELL_DIRECTORY/0001-fix-scan-view-s-module-search-path.patch &&
@@ -21,34 +17,29 @@ if [[ "$LLVM_WITH_CLANG" == y ]]; then
 fi &&
 
 if [[ "$LLVM_WITH_LLDB" == y ]]; then
-  cd ${SOURCE_DIRECTORY}/tools &&
   unpack_file 7                &&
-  mv lldb-${VERSION}.src lldb
+  mv lldb-${VERSION}.src tools/lldb
 fi &&
 
 if [[ "$LLVM_WITH_POLLY" == y ]]; then
-  cd ${SOURCE_DIRECTORY}/tools &&
   unpack_file 11                &&
-  mv polly-${VERSION}.src polly
+  mv polly-${VERSION}.src tools/polly
 fi &&
 
 if [[ "$LLVM_WITH_LLD" == y ]]; then
-  cd ${SOURCE_DIRECTORY}/tools &&
   unpack_file 13               &&
-  mv lld-${VERSION}.src lld
+  mv lld-${VERSION}.src tools/lld
 fi &&
 
 # small cmake related fix for libffi
-cd ${SOURCE_DIRECTORY} &&
 if spell_ok libffi;then
   FFI=`pkg-config --cflags-only-I libffi` &&
   FFI=${FFI//-I/} &&
   FFI=${FFI//\ */} &&
-  sed -i "/FFI_I/s|\"\"|\"$FFI\"|" "${SOURCE_DIRECTORY}/CMakeLists.txt"
+  sed -i "/FFI_I/s|\"\"|\"$FFI\"|" CMakeLists.txt
 fi  &&
 
 # do not build all backends
-sed -i "/^set.*all\"$/s/all//"  "${SOURCE_DIRECTORY}/CMakeLists.txt" &&
+sed -i "/^set.*all\"$/s/all//"  CMakeLists.txt &&
 
-cd "${SOURCE_DIRECTORY}" &&
 patch -p1 < "${SPELL_DIRECTORY}/0001-fix-compile-error.patch"
