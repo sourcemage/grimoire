@@ -1,3 +1,5 @@
+# Default target, not detected correctly
+OPTS+=" -DLLVM_DEFAULT_TARGET_TRIPLE=$HOST" &&
 # LLVM_TARGETS
 OPTS+=" -DLLVM_TARGETS_TO_BUILD=${LLVM_TARGETS// /;}" &&
 # recommended by mesa project
