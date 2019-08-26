@@ -1,0 +1,57 @@
+From b993907bf6f290235c8f196d9bb6ff4561ea5100 Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Mon, 22 Oct 2018 11:49:22 +0200
+Subject: [PATCH 1/2] fix BIO_get_init usage
+
+---
+ SWIG/_bio.i | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/SWIG/_bio.i b/SWIG/_bio.i
+index e85a275..f6eebbe 100644
+--- a/SWIG/_bio.i
++++ b/SWIG/_bio.i
+@@ -325,7 +325,9 @@ BIO_meth_free( BIO_METHOD *meth )
+ #define BIO_set_shutdown(b, x) (b)->shutdown = x
+ #define BIO_get_shutdown(b) (b)->shutdown
+ #define BIO_set_init(b, x)    b->init = x
++#ifndef LIBRESSL_VERSION_NUMBER
+ #define BIO_get_init(b) (b)->init
++#endif
+ #define BIO_set_data(b, x)    b->ptr = x
+ #define BIO_clear_flags(b, x)    b->flags &= ~(x)
+ #define BIO_get_data(b)    b->ptr
+@@ -442,9 +444,13 @@ static int pyfd_free(BIO* b) {
+     ctx = BIO_get_data(b);
+     if (ctx == NULL)
+         return 0;
+-
++#ifndef LIBRESSL_VERSION_NUMBER
+     if (BIO_get_shutdown(b) && BIO_get_init(b))
+         close(ctx->fd);
++#else
++    if (BIO_get_shutdown(b))
++        close(ctx->fd);
++#endif
+ 
+     BIO_set_data(b, NULL);
+     BIO_set_shutdown(b, 0);
+@@ -484,6 +490,7 @@ static long pyfd_ctrl(BIO *b, int cmd, long num, void *ptr) {
+             BIO_set_init(b, 1);
+             }
+         break;
++#ifndef LIBRESSL_VERSION_NUMBER
+     case BIO_C_GET_FD:
+         if (BIO_get_init(b)) {
+             ip = (int *)ptr;
+@@ -493,6 +500,7 @@ static long pyfd_ctrl(BIO *b, int cmd, long num, void *ptr) {
+         } else
+             ret = -1;
+         break;
++#endif
+     case BIO_CTRL_GET_CLOSE:
+         ret = BIO_get_shutdown(b);
+         break;
+-- 
+2.23.0
+
