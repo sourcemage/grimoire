@@ -16,10 +16,8 @@ export RUSTFLAGS="-C debuginfo=0" &&
 # No fast optimization for Mozilla, bit us so many times...
 # This used to default to -O2, but that produces crashing firefox for
 # sobukus with gcc-5.2.0; -Os seems more safe.
-CFLAGS="${CFLAGS//-Os/-O2}"      &&
-CXXFLAGS="${CXXFLAGS//-Os/-O2}"  &&
-CFLAGS="${CFLAGS//-O3/-O2}"      &&
-CXXFLAGS="${CXXFLAGS//-O3/-O2}"  &&
+CFLAGS="${CFLAGS//-O[3s]/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-O[3s]/-O2}"  &&
 
 # harden
 LDFLAGS="$LDFLAGS -Wl,-z,now"    &&
