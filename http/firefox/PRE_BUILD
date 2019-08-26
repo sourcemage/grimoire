@@ -35,4 +35,16 @@ if [[ $FIREFOX_WIDEVINE == y ]]; then
   echo "ac_add_options --enable-eme=widevine" >> .mozconfig
 else
   echo "ac_add_options --disable-eme" >> .mozconfig
-fi
+fi &&
+
+case "$HOST" in
+*-musl)
+  cat <<-!>>.mozconfig
+	ac_add_options --disable-elf-hack
+	# jemalloc depends on PTHREAD_MUTEX_ADAPTIVE_NP
+	ac_add_options --disable-jemalloc
+	# gold causes build failures
+	ac_add_options --disable-gold
+!
+  ;;
+esac
