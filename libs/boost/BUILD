@@ -33,7 +33,7 @@ OPTS="$OPTS $BLIST"                               &&
 CXXFLAGS="$CXXFLAGS"                              \
 EXPAT_INCLUDE=$EXPAT_INCLUDE                      \
 EXPAT_LIBPATH=$EXPAT_LIBPATH                      \
-./b2 -q                                           \
+./bjam -q                                           \
      ${BOOST_VARIANT}                             \
      runtime-link=shared                          \
      link=shared                                  \
