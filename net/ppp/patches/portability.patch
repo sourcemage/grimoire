@@ -1,0 +1,45 @@
+From: Ismael Luceno <ismael@sourcemage.org>
+Subject: [PATCH] Fix portability issues
+
+Enables building against musl libc.
+
+---
+ include/net/ppp_defs.h         |    2 ++
+ pppd/plugins/rp-pppoe/plugin.c |    2 ++
+ pppd/plugins/rp-pppoe/pppoe.h  |    2 +-
+ 3 files changed, 5 insertions(+), 1 deletion(-)
+
+--- a/include/net/ppp_defs.h
++++ b/include/net/ppp_defs.h
+@@ -38,6 +38,8 @@
+ #ifndef _PPP_DEFS_H_
+ #define _PPP_DEFS_H_
+
++#include <sys/time.h>
++
+ /*
+  * The basic PPP frame.
+  */
+--- a/pppd/plugins/rp-pppoe/pppoe.h
++++ b/pppd/plugins/rp-pppoe/pppoe.h
+@@ -92,7 +92,7 @@ typedef unsigned long UINT32_t;
+ #ifdef HAVE_SYS_SOCKET_H
+ #include <sys/socket.h>
+ #endif
+-#ifndef HAVE_SYS_DLPI_H
++#if !defined HAVE_SYS_DLPI_H && defined HAVE_NET_ETHERNET_H
+ #include <netinet/if_ether.h>
+ #endif
+ #endif
+--- a/pppd/plugins/rp-pppoe/plugin.c
++++ b/pppd/plugins/rp-pppoe/plugin.c
+@@ -46,7 +46,9 @@ static char const RCSID[] =
+ #include <unistd.h>
+ #include <fcntl.h>
+ #include <signal.h>
++#ifdef HAVE_NET_ETHERNET_H
+ #include <net/ethernet.h>
++#endif
+ #include <net/if_arp.h>
+ #include <linux/ppp_defs.h>
+ #include <linux/if_pppox.h>
