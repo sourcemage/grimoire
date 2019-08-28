@@ -11,8 +11,21 @@ sed -i -e '/(CC) -o [^.]* /s/ -o / $(LDFLAGS)&/' \
     pppd/plugins/rp-pppoe/Makefile.linux \
     pppdump/Makefile.linux &&
 
-sedit  's:net/bpf.h:pcap-bpf.h:'     pppd/demand.c       &&
-sedit  's:net/bpf.h:pcap-bpf.h:'     pppd/sys-linux.c    &&
+# Fix includes
+sed -i '/^#include/ {
+    s!<net/bpf!<pcap-bpf!
+    s!<sys/errno!<errno!
+    s!<linux/route!<net/route!
+}' \
+	pppd/demand.c \
+	pppd/sys-linux.c \
+	modules/if_ppp.c \
+	modules/ppp.c \
+	modules/ppp_ahdlc.c \
+	modules/ppp_comp.c \
+	pppd/sys-linux.c \
+&&
+
 sedit  's:/usr/man:/usr/share/man:'  linux/Makefile.top  &&
 
 if is_depends_enabled $SPELL linux-pam; then
