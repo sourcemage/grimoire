@@ -1,6 +1,15 @@
 default_pre_build &&
 cd "$SOURCE_DIRECTORY" &&
 
+# Respect custom build flags
+find -name Makefile.linux -exec \
+    sed -i -e '/FLAGS[\t ]*=/s/=/+=/' {} + &&
+
+sed -i -e '/(CC) -o [^.]* /s/ -o / $(LDFLAGS)&/' \
+    chat/Makefile.linux \
+    pppd/plugins/rp-pppoe/Makefile.linux \
+    pppdump/Makefile.linux &&
+
 # include mppe.h into build
 patch -p0 < "$SPELL_DIRECTORY/mppe-header.patch" &&
 
