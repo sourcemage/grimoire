@@ -1,4 +1,4 @@
-cd  ${SPELL}_${VERSION}_src       &&
-yes |  ./Configure -n linux       &&
-sedit 's/{MAKE} /&CC="${CC}" /' Makefile &&
-make CC="$CC" DEBUG="$CFLAGS"
+cd $SOURCE_DIRECTORY &&
+ln -sf Lsof.8 lsof.8 &&
+./Configure -n linux &&
+make
