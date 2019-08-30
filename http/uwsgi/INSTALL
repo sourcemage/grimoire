@@ -1,10 +1,28 @@
-install -m 0755 ${SPELL} ${INSTALL_ROOT}/usr/bin/${SPELL} &&
-PLUGIN_DIR=${INSTALL_ROOT}/usr/lib/${SPELL} &&
-mkdir -p ${PLUGIN_DIR} &&
-find ${SOURCE_DIRECTORY}/ -name \*plugin.so -exec install -m 0755 '{}' ${PLUGIN_DIR} \;
+if is_depends_enabled ${SPELL} python3; then
+  PYTHON=python3
+else
+  PYTHON=python2
+fi &&
+
+export PYTHON &&
+
+local PLUGIN_DIR="${INSTALL_ROOT}/usr/lib/uwsgi" &&
+
+install -vm 0755 uwsgi "${INSTALL_ROOT}/usr/bin/uwsgi" &&
+install -vm 0755 -d "${PLUGIN_DIR}" &&
+
+for plugin in ${OPTS}; do
+  ${PYTHON} uwsgiconfig.py --plugin plugins/${plugin} core
+done
+
 SITE_DIR=$(${PYTHON} -c "from distutils.sysconfig import get_python_lib;print(get_python_lib())") &&
-install -Dm644 uwsgidecorators.py ${SITE_DIR}/uwsgidecorators.py
+
+install -Dvm 0644 uwsgidecorators.py "${SITE_DIR}/uwsgidecorators.py" &&
 ${PYTHON} -m py_compile ${SITE_DIR}/uwsgidecorators.py &&
-if  [[  ${INIT_INSTALLED}  ]] ; then
-  mkdir -p ${INSTALL_ROOT}/etc/${SPELL}
+
+if [[ ${INIT_INSTALLED} ]]; then
+  install -vm 755 -d "${INSTALL_ROOT}/etc/${SPELL}" &&
+
+  install_config_file "${SPELL_DIRECTORY}/init.d/uwsgi-emperor.conf" \
+                      "${INSTALL_ROOT}/etc/sysconfig/uwsgi-emperor"
 fi
