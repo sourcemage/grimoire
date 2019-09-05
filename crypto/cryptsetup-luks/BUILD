@@ -1,5 +1,5 @@
 # Installs both dynamic and static binaries.
-OPTS="$OPTS --enable-static-cryptsetup" &&
+#OPTS="$OPTS --enable-static-cryptsetup" &&
 # Kindof a hotfix: Open question if rather libgcrypt or libgpg-error should
 # pull in libpthread. Really not sure, as it's not always needed.
 # Or is it a gcc issue?
