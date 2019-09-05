@@ -1,2 +1,2 @@
-LDFLAGS="${LDFLAGS/-Wl,--as-needed/}" &&
+OPTS+=" demo-agent=false" &&
 default_build
