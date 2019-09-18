@@ -1,10 +1,7 @@
 # remove all flags
 CFLAGS="" &&
-#
-# SysLinux is very picky about LDFLAGS...
-#
-LDFLAGS=${LDFLAGS/-Wl,-O1}   &&
-LDFLAGS=${LDFLAGS/-Wl,--hash-style=gnu}   &&
-LDFLAGS=${LDFLAGS/-Wl,--as-needed}   &&
+# syslinux misuses LDFLAGS; these are supposed to be passed to CC when
+# linking, not to LD. We try to workaround that here.
+LDFLAGS=${LDFLAGS//-Wl,} &&
 
 make
