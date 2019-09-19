@@ -1,7 +1,4 @@
-OPTS="$OPTS $COIN_OPTS --with-glu=$INSTALL_ROOT/usr"  &&
-OPTS="$OPTS --enable-optimization"                    &&
-OPTS="$OPTS --enable-exceptions"                      &&
-OPTS="$OPTS --enable-debug"                           &&
-OPTS="$OPTS --enable-shared"                          &&
+OPTS="$OPTS -DUSE_EXCEPTIONS=true"                    &&
+OPTS="$OPTS -DCOIN_BUILD_SHARED_LIBS=true"            &&
 
-default_build
+cmake_build
