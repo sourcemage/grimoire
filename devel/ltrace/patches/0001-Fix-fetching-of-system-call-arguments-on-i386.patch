@@ -1,0 +1,102 @@
+From 5069ef8f498e5189de0789d79485f39b76c621d4 Mon Sep 17 00:00:00 2001
+From: Petr Machata <pmachata@redhat.com>
+Date: Thu, 24 Oct 2013 14:45:30 +0200
+Subject: [PATCH] Fix fetching of system call arguments on i386
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ sysdeps/linux-gnu/x86/fetch.c                | 54 +++++++++++++++-----
+ 1 file changed, 43 insertions(+), 11 deletions(-)
+
+diff --git a/sysdeps/linux-gnu/x86/fetch.c b/sysdeps/linux-gnu/x86/fetch.c
+index a3b9eb7d5f1e..6868101ccea0 100644
+--- a/sysdeps/linux-gnu/x86/fetch.c
++++ b/sysdeps/linux-gnu/x86/fetch.c
+@@ -61,6 +61,7 @@ struct fetch_context
+	arch_addr_t stack_pointer;
+	size_t ireg;	/* Used-up integer registers.  */
+	size_t freg;	/* Used-up floating registers.  */
++	int machine;
+
+	union {
+		struct {
+@@ -238,21 +239,42 @@ allocate_integer(struct fetch_context *context, struct value *valuep,
+
+	case POOL_SYSCALL:
+ #ifdef __x86_64__
+-		switch (context->ireg) {
+-			HANDLE(0, rdi);
+-			HANDLE(1, rsi);
+-			HANDLE(2, rdx);
+-			HANDLE(3, r10);
+-			HANDLE(4, r8);
+-			HANDLE(5, r9);
+-		default:
+-			assert(!"More than six syscall arguments???");
+-			abort();
++		if (context->machine == EM_X86_64) {
++			switch (context->ireg) {
++				HANDLE(0, rdi);
++				HANDLE(1, rsi);
++				HANDLE(2, rdx);
++				HANDLE(3, r10);
++				HANDLE(4, r8);
++				HANDLE(5, r9);
++			default:
++				assert(!"More than six syscall arguments???");
++				abort();
++			}
+		}
++#endif
++		if (context->machine == EM_386) {
++
++#ifdef __x86_64__
++# define HANDLE32(NUM, WHICH) HANDLE(NUM, r##WHICH)
+ #else
+-		i386_unreachable();
++# define HANDLE32(NUM, WHICH) HANDLE(NUM, e##WHICH)
+ #endif
+
++			switch (context->ireg) {
++				HANDLE32(0, bx);
++				HANDLE32(1, cx);
++				HANDLE32(2, dx);
++				HANDLE32(3, si);
++				HANDLE32(4, di);
++				HANDLE32(5, bp);
++			default:
++				assert(!"More than six syscall arguments???");
++				abort();
++			}
++#undef HANDLE32
++		}
++
+	case POOL_RETVAL:
+		switch (context->ireg) {
+ #ifdef __x86_64__
+@@ -572,6 +594,15 @@ arch_fetch_arg_next_32(struct fetch_context *context, enum tof type,
+	size_t sz = type_sizeof(proc, info);
+	if (sz == (size_t)-1)
+		return -1;
++	if (value_reserve(valuep, sz) == NULL)
++		return -1;
++
++	if (type == LT_TOF_SYSCALL || type == LT_TOF_SYSCALLR) {
++		int cls = allocate_integer(context, valuep,
++					   sz, 0, POOL_SYSCALL);
++		assert(cls == CLASS_INTEGER);
++		return 0;
++	}
+
+	allocate_stack_slot(context, valuep, sz, 0, 4);
+
+@@ -704,6 +735,7 @@ arch_fetch_arg_init(enum tof type, struct process *proc,
+	struct fetch_context *ctx = malloc(sizeof(*ctx));
+	if (ctx == NULL)
+		return NULL;
++	ctx->machine = proc->e_machine;
+
+	assert(type != LT_TOF_FUNCTIONR
+	       && type != LT_TOF_SYSCALLR);
+--
+2.23.0

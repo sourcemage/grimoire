@@ -1,0 +1,39 @@
+From d8286ed3496bcd69cd4796f57a5b5c04859d2378 Mon Sep 17 00:00:00 2001
+From: Petr Machata <pmachata@redhat.com>
+Date: Mon, 4 Nov 2013 13:35:38 +0100
+Subject: [PATCH] Show "nil" also for void* values
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ lens_default.c                        |  7 ++++-
+ 1 file changed, 4 insertions(+), 1 deletions(-)
+
+diff --git a/lens_default.c b/lens_default.c
+index 84b74ea2dd67..f0bd616aca7d 100644
+--- a/lens_default.c
++++ b/lens_default.c
+@@ -255,11 +255,12 @@ format_struct(FILE *stream, struct value *value, struct value_dict *arguments)
+	return written;
+ }
+
++static const char null_message[] = "nil";
+ int
+ format_pointer(FILE *stream, struct value *value, struct value_dict *arguments)
+ {
+	if (value_is_zero(value, arguments))
+-		return fprintf(stream, "nil");
++		return fprintf(stream, null_message);
+
+	/* The following is for detecting recursion.  We keep track of
+	 * the values that were already displayed.  Each time a
+@@ -416,6 +417,8 @@ toplevel_format_lens(struct lens *lens, FILE *stream,
+		return format_struct(stream, value, arguments);
+
+	case ARGTYPE_POINTER:
++		if (value_is_zero(value, arguments))
++			return fprintf(stream, null_message);
+		if (value->type->u.array_info.elt_type->type != ARGTYPE_VOID)
+			return format_pointer(stream, value, arguments);
+		return format_integer(stream, value, INT_FMT_x, arguments);
+--
+2.23.0
