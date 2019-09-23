@@ -1,0 +1,29 @@
+From: Jory A. Pratt <anarchy@gentoo.org>
+
+set pthread name for non glibc systems
+
+diff --git a/js/src/threading/posix/Thread.cpp b/js/src/threading/posix/Thread.cpp
+--- a/js/src/threading/posix/Thread.cpp
++++ b/js/src/threading/posix/Thread.cpp
+@@ -155,18 +155,20 @@ void js::ThisThread::SetName(const char*
+   int rv;
+ #ifdef XP_DARWIN
+   rv = pthread_setname_np(name);
+ #elif defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+   pthread_set_name_np(pthread_self(), name);
+   rv = 0;
+ #elif defined(__NetBSD__)
+   rv = pthread_setname_np(pthread_self(), "%s", (void*)name);
++#elif defined(__GLIBC__)
++  rv = pthread_setname_np(pthread_self(), name);
+ #else
+-  rv = pthread_setname_np(pthread_self(), name);
++  rv = 0;
+ #endif
+   MOZ_RELEASE_ASSERT(!rv || mozilla::recordreplay::IsRecordingOrReplaying());
+ }
+ 
+ void js::ThisThread::GetName(char* nameBuffer, size_t len) {
+   MOZ_RELEASE_ASSERT(len >= 16);
+ 
+   int rv = -1;

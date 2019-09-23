@@ -1,0 +1,86 @@
+# HG changeset patch
+# Parent  3ff47ffc0d011be2a27c83f8a64fc71d5ed65d52
+Allow the usage of SYS_membarrier for musl-1.1.22
+
+diff --git a/security/sandbox/chromium/sandbox/linux/system_headers/arm_linux_syscalls.h b/security/sandbox/chromium/sandbox/linux/system_headers/arm_linux_syscalls.h
+--- a/security/sandbox/chromium/sandbox/linux/system_headers/arm_linux_syscalls.h
++++ b/security/sandbox/chromium/sandbox/linux/system_headers/arm_linux_syscalls.h
+@@ -1380,16 +1380,20 @@
+ #if !defined(__NR_getrandom)
+ #define __NR_getrandom (__NR_SYSCALL_BASE+384)
+ #endif
+ 
+ #if !defined(__NR_memfd_create)
+ #define __NR_memfd_create (__NR_SYSCALL_BASE+385)
+ #endif
+ 
++#if !defined(__NR_membarrier)
++#define __NR_membarrier (__NR_SYSCALL_BASE+389)
++#endif
++
+ // ARM private syscalls.
+ #if !defined(__ARM_NR_BASE)
+ #define __ARM_NR_BASE (__NR_SYSCALL_BASE + 0xF0000)
+ #endif
+ 
+ #if !defined(__ARM_NR_breakpoint)
+ #define __ARM_NR_breakpoint (__ARM_NR_BASE+1)
+ #endif
+diff --git a/security/sandbox/chromium/sandbox/linux/system_headers/x86_32_linux_syscalls.h b/security/sandbox/chromium/sandbox/linux/system_headers/x86_32_linux_syscalls.h
+--- a/security/sandbox/chromium/sandbox/linux/system_headers/x86_32_linux_syscalls.h
++++ b/security/sandbox/chromium/sandbox/linux/system_headers/x86_32_linux_syscalls.h
+@@ -1485,10 +1485,14 @@
+ #if !defined(__NR_recvmsg)
+ #define __NR_recvmsg 372
+ #endif
+ 
+ #if !defined(__NR_shutdown)
+ #define __NR_shutdown 373
+ #endif
+ 
++#if !defined(__NR_membarrier)
++#define __NR_membarrier 375
++#endif
++
+ #endif  // SANDBOX_LINUX_SYSTEM_HEADERS_X86_32_LINUX_SYSCALLS_H_
+ 
+diff --git a/security/sandbox/chromium/sandbox/linux/system_headers/x86_64_linux_syscalls.h b/security/sandbox/chromium/sandbox/linux/system_headers/x86_64_linux_syscalls.h
+--- a/security/sandbox/chromium/sandbox/linux/system_headers/x86_64_linux_syscalls.h
++++ b/security/sandbox/chromium/sandbox/linux/system_headers/x86_64_linux_syscalls.h
+@@ -1285,10 +1285,14 @@
+ #if !defined(__NR_getrandom)
+ #define __NR_getrandom 318
+ #endif
+ 
+ #if !defined(__NR_memfd_create)
+ #define __NR_memfd_create 319
+ #endif
+ 
++#if !defined(__NR_membarrier)
++#define __NR_membarrier 324
++#endif
++
+ #endif  // SANDBOX_LINUX_SYSTEM_HEADERS_X86_64_LINUX_SYSCALLS_H_
+ 
+diff --git a/security/sandbox/linux/SandboxFilter.cpp b/security/sandbox/linux/SandboxFilter.cpp
+--- a/security/sandbox/linux/SandboxFilter.cpp
++++ b/security/sandbox/linux/SandboxFilter.cpp
+@@ -569,16 +569,18 @@ class SandboxPolicyCommon : public Sandb
+ #ifdef __NR_set_robust_list
+       case __NR_set_robust_list:
+         return Allow();
+ #endif
+ #ifdef ANDROID
+       case __NR_set_tid_address:
+         return Allow();
+ #endif
++      case __NR_membarrier:
++        return Allow();
+ 
+         // prctl
+       case __NR_prctl: {
+         if (SandboxInfo::Get().Test(SandboxInfo::kHasSeccompTSync)) {
+           return PrctlPolicy();
+         }
+ 
+         Arg<int> option(0);
