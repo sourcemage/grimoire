@@ -54,55 +54,56 @@ diff --git a/lib/Transforms/Scalar/LICM.cpp b/lib/Transforms/Scalar/LICM.cpp
 index 37b9c4b..19742d2 100644
 --- a/lib/Transforms/Scalar/LICM.cpp
 +++ b/lib/Transforms/Scalar/LICM.cpp
-@@ -348,7 +348,7 @@
-       for (BasicBlock *ExitBlock : ExitBlocks)
-         InsertPts.push_back(&*ExitBlock->getFirstInsertionPt());
+@@ -416,7 +416,7 @@
+           MSSAInsertPts.push_back(nullptr);
+       }
  
 -      PredIteratorCache PIC;
 +      PredIteratorCache pic;
  
        bool Promoted = false;
  
-@@ -371,7 +371,7 @@
-             PointerMustAliases.insert(ASI.getValue());
+@@ -442,7 +442,7 @@
+           PointerMustAliases.insert(ASI.getValue());
  
-           Promoted |= promoteLoopAccessesToScalars(
--              PointerMustAliases, ExitBlocks, InsertPts, PIC, LI, DT, TLI, L,
-+              PointerMustAliases, ExitBlocks, InsertPts, pic, LI, DT, TLI, L,
-               CurAST.get(), &SafetyInfo, ORE);
-         }
+         Promoted |= promoteLoopAccessesToScalars(
+-            PointerMustAliases, ExitBlocks, InsertPts, MSSAInsertPts, PIC, LI,
++            PointerMustAliases, ExitBlocks, InsertPts, MSSAInsertPts, pic, LI,
+             DT, TLI, L, CurAST.get(), MSSAU.get(), &SafetyInfo, ORE);
        }
-@@ -1639,12 +1639,12 @@
-   LoopPromoter(Value *SP, ArrayRef<const Instruction *> Insts, SSAUpdater &S,
+ 
+@@ -1749,13 +1749,13 @@
                 const SmallSetVector<Value *, 8> &PMA,
                 SmallVectorImpl<BasicBlock *> &LEB,
--               SmallVectorImpl<Instruction *> &LIP, PredIteratorCache &PIC,
-+               SmallVectorImpl<Instruction *> &LIP, PredIteratorCache &pic,
-                AliasSetTracker &ast, LoopInfo &li, DebugLoc dl, int alignment,
-                bool UnorderedAtomic, const AAMDNodes &AATags,
-                ICFLoopSafetyInfo &SafetyInfo)
+                SmallVectorImpl<Instruction *> &LIP,
+-               SmallVectorImpl<MemoryAccess *> &MSSAIP, PredIteratorCache &PIC,
++               SmallVectorImpl<MemoryAccess *> &MSSAIP, PredIteratorCache &pic,
+                AliasSetTracker &ast, MemorySSAUpdater *MSSAU, LoopInfo &li,
+                DebugLoc dl, int alignment, bool UnorderedAtomic,
+                const AAMDNodes &AATags, ICFLoopSafetyInfo &SafetyInfo)
        : LoadAndStorePromoter(Insts, S), SomePtr(SP), PointerMustAliases(PMA),
--        LoopExitBlocks(LEB), LoopInsertPts(LIP), PredCache(PIC), AST(ast),
-+        LoopExitBlocks(LEB), LoopInsertPts(LIP), PredCache(pic), AST(ast),
-         LI(li), DL(std::move(dl)), Alignment(alignment),
-         UnorderedAtomic(UnorderedAtomic), AATags(AATags), SafetyInfo(SafetyInfo)
-       {}
-@@ -1723,7 +1723,7 @@
- bool llvm::promoteLoopAccessesToScalars(
+         LoopExitBlocks(LEB), LoopInsertPts(LIP), MSSAInsertPts(MSSAIP),
+-        PredCache(PIC), AST(ast), MSSAU(MSSAU), LI(li), DL(std::move(dl)),
++        PredCache(pic), AST(ast), MSSAU(MSSAU), LI(li), DL(std::move(dl)),
+         Alignment(alignment), UnorderedAtomic(UnorderedAtomic), AATags(AATags),
+         SafetyInfo(SafetyInfo) {}
+ 
+@@ -1851,7 +1851,7 @@
      const SmallSetVector<Value *, 8> &PointerMustAliases,
      SmallVectorImpl<BasicBlock *> &ExitBlocks,
--    SmallVectorImpl<Instruction *> &InsertPts, PredIteratorCache &PIC,
-+    SmallVectorImpl<Instruction *> &InsertPts, PredIteratorCache &pic,
+     SmallVectorImpl<Instruction *> &InsertPts,
+-    SmallVectorImpl<MemoryAccess *> &MSSAInsertPts, PredIteratorCache &PIC,
++    SmallVectorImpl<MemoryAccess *> &MSSAInsertPts, PredIteratorCache &pic,
      LoopInfo *LI, DominatorTree *DT, const TargetLibraryInfo *TLI,
-     Loop *CurLoop, AliasSetTracker *CurAST, ICFLoopSafetyInfo *SafetyInfo,
-     OptimizationRemarkEmitter *ORE) {
-@@ -1943,7 +1943,7 @@
+     Loop *CurLoop, AliasSetTracker *CurAST, MemorySSAUpdater *MSSAU,
+     ICFLoopSafetyInfo *SafetyInfo, OptimizationRemarkEmitter *ORE) {
+@@ -2091,7 +2091,7 @@
    SmallVector<PHINode *, 16> NewPHIs;
    SSAUpdater SSA(&NewPHIs);
    LoopPromoter Promoter(SomePtr, LoopUses, SSA, PointerMustAliases, ExitBlocks,
--                        InsertPts, PIC, *CurAST, *LI, DL, Alignment,
-+                        InsertPts, pic, *CurAST, *LI, DL, Alignment,
-                         SawUnorderedAtomic, AATags, *SafetyInfo);
+-                        InsertPts, MSSAInsertPts, PIC, *CurAST, MSSAU, *LI, DL,
++                        InsertPts, MSSAInsertPts, pic, *CurAST, MSSAU, *LI, DL,
+                         Alignment, SawUnorderedAtomic, AATags, *SafetyInfo);
  
    // Set up the preheader to have a definition of the value.  It is the live-out
 diff --git a/lib/Transforms/Utils/PredicateInfo.cpp b/lib/Transforms/Utils/PredicateInfo.cpp
@@ -202,30 +203,30 @@ diff --git a/lib/IR/PassTimingInfo.cpp b/lib/IR/PassTimingInfo.cpp
 diff -git a/include/llvm/Passes/PassBuilder.h b/include/llvm/Passes/PassBuilder.h
 --- a/include/llvm/Passes/PassBuilder.h
 +++ bc/include/llvm/Passes/PassBuilder.h
-@@ -63,7 +63,7 @@
- class PassBuilder {
+@@ -111,7 +111,7 @@
    TargetMachine *TM;
+   PipelineTuningOptions PTO;
    Optional<PGOOptions> PGOOpt;
 -  PassInstrumentationCallbacks *PIC;
 +  PassInstrumentationCallbacks *pic;
  
  public:
    /// A struct to capture parsed pass pipeline names.
-@@ -179,8 +179,8 @@
-
+@@ -228,8 +228,8 @@
    explicit PassBuilder(TargetMachine *TM = nullptr,
+                        PipelineTuningOptions PTO = PipelineTuningOptions(),
                         Optional<PGOOptions> PGOOpt = None,
 -                       PassInstrumentationCallbacks *PIC = nullptr)
--      : TM(TM), PGOOpt(PGOOpt), PIC(PIC) {}
+-      : TM(TM), PTO(PTO), PGOOpt(PGOOpt), PIC(PIC) {}
 +                       PassInstrumentationCallbacks *pic = nullptr)
-+      : TM(TM), PGOOpt(PGOOpt), pic(pic) {}
++      : TM(TM), PTO(PTO), PGOOpt(PGOOpt), pic(pic) {}
  
    /// Cross register the analysis managers through their proxies.
    ///
 diff --git a/include/llvm/Passes/StandardInstrumentations.h b/include/llvm/Passes/StandardInstrumentations.h
 --- a/include/llvm/Passes/StandardInstrumentations.h
 +++ b/include/llvm/Passes/StandardInstrumentations.h
-@@ -36,7 +36,7 @@
+@@ -35,7 +35,7 @@
    PrintIRInstrumentation() = default;
    ~PrintIRInstrumentation();
  
@@ -234,28 +235,28 @@ diff --git a/include/llvm/Passes/StandardInstrumentations.h b/include/llvm/Passe
  
  private:
    bool printBeforePass(StringRef PassID, Any IR);
-@@ -63,7 +63,7 @@
+@@ -62,7 +62,7 @@
  public:
    StandardInstrumentations() = default;
  
 -  void registerCallbacks(PassInstrumentationCallbacks &PIC);
 +  void registerCallbacks(PassInstrumentationCallbacks &pic);
+ 
+   TimePassesHandler &getTimePasses() { return TimePasses; }
  };
- } // namespace llvm
-
 diff --git a/lib/Passes/PassRegistry.def b/lib/Passes/PassRegistry.def
 --- a/lib/Passes/PassRegistry.def
 +++ b/lib/Passes/PassRegistry.def
-@@ -27,7 +27,7 @@
+@@ -26,7 +26,7 @@
  MODULE_ANALYSIS("stack-safety", StackSafetyGlobalAnalysis())
  MODULE_ANALYSIS("targetlibinfo", TargetLibraryAnalysis())
  MODULE_ANALYSIS("verify", VerifierAnalysis())
 -MODULE_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
 +MODULE_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(pic))
+ MODULE_ANALYSIS("asan-globals-md", ASanGlobalsMetadataAnalysis())
  
  #ifndef MODULE_ALIAS_ANALYSIS
- #define MODULE_ALIAS_ANALYSIS(NAME, CREATE_PASS)                               \
-@@ -89,7 +89,7 @@
+@@ -96,7 +96,7 @@
  #endif
  CGSCC_ANALYSIS("no-op-cgscc", NoOpCGSCCAnalysis())
  CGSCC_ANALYSIS("fam-proxy", FunctionAnalysisManagerCGSCCProxy())
@@ -264,7 +265,7 @@ diff --git a/lib/Passes/PassRegistry.def b/lib/Passes/PassRegistry.def
  #undef CGSCC_ANALYSIS
  
  #ifndef CGSCC_PASS
-@@ -128,7 +128,7 @@
+@@ -135,7 +135,7 @@
  FUNCTION_ANALYSIS("targetir",
                    TM ? TM->getTargetIRAnalysis() : TargetIRAnalysis())
  FUNCTION_ANALYSIS("verify", VerifierAnalysis())
@@ -273,7 +274,7 @@ diff --git a/lib/Passes/PassRegistry.def b/lib/Passes/PassRegistry.def
  
  #ifndef FUNCTION_ALIAS_ANALYSIS
  #define FUNCTION_ALIAS_ANALYSIS(NAME, CREATE_PASS)                             \
-@@ -249,7 +249,7 @@
+@@ -278,7 +278,7 @@
  LOOP_ANALYSIS("no-op-loop", NoOpLoopAnalysis())
  LOOP_ANALYSIS("access-info", LoopAccessAnalysis())
  LOOP_ANALYSIS("ivusers", IVUsersAnalysis())
@@ -320,18 +321,18 @@ diff --git a/lib/Passes/StandardInstrumentations.cpp b/lib/Passes/StandardInstru
 diff --git a/tools/opt/NewPMDriver.cpp b/tools/opt/NewPMDriver.cpp
 --- a/tools/opt/NewPMDriver.cpp
 +++ b/tools/opt/NewPMDriver.cpp
-@@ -245,11 +245,11 @@
-       else
-         P = None;
-   }
+@@ -257,11 +257,11 @@
+         P->CSAction = PGOOptions::CSIRUse;
+       }
+     }
 -  PassInstrumentationCallbacks PIC;
 +  PassInstrumentationCallbacks pic;
    StandardInstrumentations SI;
 -  SI.registerCallbacks(PIC);
 +  SI.registerCallbacks(pic);
  
--  PassBuilder PB(TM, P, &PIC);
-+  PassBuilder PB(TM, P, &pic);
+-  PassBuilder PB(TM, PipelineTuningOptions(), P, &PIC);
++  PassBuilder PB(TM, PipelineTuningOptions(), P, &pic);
    registerEPCallbacks(PB, VerifyEachPass, DebugPM);
  
    // Load requested pass plugins and let them register pass builder callbacks
