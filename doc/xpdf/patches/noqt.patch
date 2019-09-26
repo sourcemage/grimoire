@@ -1,0 +1,87 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -18,7 +18,6 @@
+ add_subdirectory(fofi)
+ add_subdirectory(splash)
+ add_subdirectory(xpdf)
+-add_subdirectory(xpdf-qt)
+ 
+ if (NOT HAVE_FREETYPE_H)
+   message(WARNING "Couldn't find FreeType -- will not build pdftoppm, pdftopng, pdftohtml, or xpdf.")
+@@ -28,10 +27,6 @@
+   message(WARNING "Couldn't find libpng -- will not build pdftopng or pdftohtml.")
+ endif ()
+ 
+-if (NOT QT4_FOUND AND NOT Qt5Widgets_FOUND)
+-  message(WARNING "Couldn't find Qt4 or Qt5 -- will not build xpdf.")
+-endif ()
+-
+ if (NOT MULTITHREADED)
+   message(WARNING "Multithreading is disabled -- will not build xpdf.")
+ endif ()
+diff --git a/cmake-config.txt b/cmake-config.txt
+--- a/cmake-config.txt
++++ b/cmake-config.txt
+@@ -188,61 +188,6 @@
+ 
+ 
+ 
+-#--- look for Qt
+-find_package(Qt5Widgets QUIET)
+-if (Qt5Widgets_FOUND)
+-  find_package(Qt5Network)
+-  find_package(Qt5PrintSupport)
+-else ()
+-  find_package(Qt4 COMPONENTS QtCore QtGui QtNetwork REQUIRED)
+-endif ()
+-if(Qt5Widgets_FOUND)
+-  message(STATUS "Qt5 found")
+-  if (XPDFWIDGET_PRINTING)
+-    set(QT_INCLUDES "${Qt5Widgets_INCLUDE_DIRS} ${Qt5Network_INCLUDE_DIRS} ${Qt5PrintSupport_INCLUDE_DIRS}")
+-    set(QT_DEFINITIONS "${Qt5Widgets_DEFINITIONS} ${Qt5Network_DEFINITIONS} ${Qt5PrintSupport_DEFINITIONS}")
+-    set(QT_LIBRARIES Qt5::Widgets Qt5::Network Qt5::PrintSupport)
+-  else ()
+-    set(QT_INCLUDES "${Qt5Widgets_INCLUDE_DIRS} ${Qt5Network_INCLUDE_DIRS}")
+-    set(QT_DEFINITIONS "${Qt5Widgets_DEFINITIONS} ${Qt5Network_DEFINITIONS}")
+-    set(QT_LIBRARIES Qt5::Widgets Qt5::Network)
+-  endif ()
+-  if (XPDFWIDGET_PRINTING)
+-    if (APPLE)
+-      set(EXTRA_QT_LIBRARIES "-framework ApplicationServices")
+-    elseif (UNIX)
+-      find_package(Cups)
+-      if (CUPS_FOUND)
+-        set(EXTRA_QT_LIBRARIES ${CUPS_LIBRARIES})
+-      else ()
+-        set (XPDFWIDGET_PRINTING OFF)
+-      endif ()
+-    else ()
+-      set(EXTRA_QT_LIBRARIES "")
+-    endif ()
+-  endif ()
+-  # remove "-fPIE" here because we added "-fPIC" above
+-  string(REPLACE "-fPIE" "" QT_CFLAGS "${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
+-elseif(QT4_FOUND)
+-  message(STATUS "Qt4 found")
+-  if (XPDFWIDGET_PRINTING)
+-    if (APPLE)
+-      set(EXTRA_QT_LIBRARIES "-framework ApplicationServices")
+-    elseif (UNIX)
+-      find_package(Cups)
+-      if (CUPS_FOUND)
+-        set(EXTRA_QT_LIBRARIES ${CUPS_LIBRARIES})
+-      else ()
+-        set (XPDFWIDGET_PRINTING OFF)
+-      endif ()
+-    else ()
+-      set(EXTRA_QT_LIBRARIES "")
+-    endif ()
+-  endif ()
+-else()
+-  message(STATUS "No Qt library found")
+-endif()
+-
+ #--- look for libpaper
+ find_library(PAPER_LIBRARY
+              NAMES paper libpaper
