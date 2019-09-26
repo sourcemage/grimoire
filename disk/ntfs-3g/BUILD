@@ -1,2 +1,3 @@
+OPTS+=" --libdir=$INSTALL_ROOT/lib" &&
 OPTS="$NTFS3G_ACL $NTFS3G_XATTR $NTFS3G_MTAB $NTFS3G_EXTRAS ${OPTS}" &&
 default_build
