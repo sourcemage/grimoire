@@ -1,2 +1,2 @@
-make config prefix=${INSTALL_ROOT}/usr &&
-make
+OPTS=" -DGKLIB_PATH=$SOURCE_DIRECTORY/GKlib" &&
+cmake_build
