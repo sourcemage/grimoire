@@ -5,4 +5,4 @@ fi &&
 OPTS+=" -DBUILD_SHARED_LIBS=on" &&
 OPTS+=" -DOPENEXR_NAMESPACE_VERSIONING=off" &&
 
-CXXFLAGS="${CXXFLAGS} -fpermissive" LDFLAGS="${LDFLAGS} -lpthread" cmake_build
+CXXFLAGS="${CXXFLAGS} -fpermissive" LDFLAGS="${LDFLAGS} -lpthread" default_build
