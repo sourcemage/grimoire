@@ -1,2 +1,4 @@
 OPTS+="-DBUILD_DEPRECATED=on  -DBUILD_SHARED_LIBS=on -DLAPACKE=on -DLAPACKE_WITH_TMG=on" &&
+CMAKE_GEN='Unix Makefiles' &&
+
 cmake_build
