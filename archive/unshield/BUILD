@@ -5,4 +5,4 @@ do
   CFLAGS="${CFLAGS/$flag}"
 done &&
 
-CFLAGS="$CFLAGS -D_DEFAULT_SOURCE" cmake_build
+CFLAGS="$CFLAGS -D_DEFAULT_SOURCE" default_build
