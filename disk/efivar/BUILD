@@ -1,2 +1,1 @@
-sed -i 's/lib64/lib/' Make.defaults &&
-make
+default_build_make
