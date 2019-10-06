@@ -1,1 +1,3 @@
-OPTS="-DWITH_LEDA=OFF $OPTS" cmake_build
+OPTS="-DWITH_LEDA=OFF $OPTS" &&
+
+default_build	
