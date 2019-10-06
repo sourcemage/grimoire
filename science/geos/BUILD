@@ -1,2 +1,3 @@
-cmake_build &&
-make test
+default_build &&
+
+ctest
