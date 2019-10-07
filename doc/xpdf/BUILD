@@ -7,4 +7,4 @@ if is_depends_enabled "$SPELL" qtbase; then
   LDFLAGS="$LDFLAGS -Wl,-rpath=$QT5DIR/lib"
 fi &&
 
-default_build
+cmake_build
