@@ -21,10 +21,15 @@ start()
   if [[ -z "$DAEMON_USER" ]]; then
     loadproc "${PROGRAM}" $OPTS
   else
+    SOPTS="-u $DAEMON_USER"
+    if [[ -n "$DAEMON_GROUP" ]]; then
+      SOPTS="$SOPTS -g $DAEMON_GROUP"
+    fi
     # This can succeed to start svnserve,
     # but that could quickly fail without us noticing.
     chown "$DAEMON_USER" $(dirname $PIDFILE) &&
-    su -c "$PROGRAM $OPTS" "$DAEMON_USER"
+    # Sudo does not need a working shell.
+    sudo $SOPTS "$PROGRAM" $OPTS
     # Kludge to detect failure (because of user permissions, normally).
     sleep 1
     test -e /proc/$(cat $PIDFILE)/exe
