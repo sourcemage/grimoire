@@ -1,0 +1,876 @@
+# HG changeset patch
+# Parent  531900878b92d74b9e9deb66409b7f298b33944e
+Unbreak assumptions for error handling
+
+diff --git a/third_party/rust/audio_thread_priority/.cargo-checksum.json b/third_party/rust/audio_thread_priority/.cargo-checksum.json
+--- a/third_party/rust/audio_thread_priority/.cargo-checksum.json
++++ b/third_party/rust/audio_thread_priority/.cargo-checksum.json
+@@ -1,1 +1,1 @@
+-{"files":{"Cargo.toml":"a18d74797e678c75ae36f85e15092ea4eca698f5e8a2580c3144e32f407164d4","README.md":"bcfa4948edf52fdacd485200a0c1c886a92232cc1931eeb4e1044050f46ec253","audio_thread_priority.h":"880889a154283a87cf84218cc4d6b2b9dd2c8fd09adc6d38f527b08ccd0c6168","generate_osx_bindings.sh":"06e4e03450f788ced18d31fff5660919e6f6ec1119ddace363ffeb82f0518a71","src/lib.rs":"25df84928756bc50fa908d65acace5259b59dfa5fc57a3f0f8b0e1f8a98ab512","src/mach_sys.rs":"352560fcb9b41d877cff92e5b3b04d6dc68b1f30508ce4b9aed78940120a883e","src/rt_linux.rs":"3da1550beacc8f8a0d86c07ed190ceef7d56398c675b99a145919f5c7231eed7","src/rt_mach.rs":"5fce324b9a64305ff221fdd185eaa4b1c7386b6e61edc32cf63e424f9f3d90ef","src/rt_win.rs":"f8f5b7af21cadd686cf7d8099d1972d3265c3889574020bd4ea088b832fbfa51"},"package":"4c1e4aab7f57d8334168073cd0d0f11c7d1f7f3aabef84a1733a42629d0da80c"}
+\ No newline at end of file
++{"files":{"Cargo.toml":"a18d74797e678c75ae36f85e15092ea4eca698f5e8a2580c3144e32f407164d4","README.md":"bcfa4948edf52fdacd485200a0c1c886a92232cc1931eeb4e1044050f46ec253","audio_thread_priority.h":"f0ecaf1b674f794cde0dc834028e074d4e4675d22ae96acf08b2ae1dceb3474e","generate_osx_bindings.sh":"06e4e03450f788ced18d31fff5660919e6f6ec1119ddace363ffeb82f0518a71","src/lib.rs":"516388cf4ccf55f23a6ccb248f56ab525b759a24819e67605cd12f640517ddd3","src/mach_sys.rs":"352560fcb9b41d877cff92e5b3b04d6dc68b1f30508ce4b9aed78940120a883e","src/rt_linux.rs":"b4db36baa754ab166b40f3801acc4f2046d226a2645f0e136dbbfa1bc771344e","src/rt_mach.rs":"5fce324b9a64305ff221fdd185eaa4b1c7386b6e61edc32cf63e424f9f3d90ef","src/rt_win.rs":"f8f5b7af21cadd686cf7d8099d1972d3265c3889574020bd4ea088b832fbfa51"},"package":"4c1e4aab7f57d8334168073cd0d0f11c7d1f7f3aabef84a1733a42629d0da80c"}
+diff --git a/third_party/rust/audio_thread_priority/audio_thread_priority.h b/third_party/rust/audio_thread_priority/audio_thread_priority.h
+--- a/third_party/rust/audio_thread_priority/audio_thread_priority.h
++++ b/third_party/rust/audio_thread_priority/audio_thread_priority.h
+@@ -8,16 +8,18 @@
+ #include <stdint.h>
+ #include <stdlib.h>
+ 
+ /**
+  * An opaque structure containing information about a thread that was promoted
+  * to real-time priority.
+  */
+ struct atp_handle;
++struct atp_thread_info;
++extern size_t ATP_THREAD_INFO_SIZE;
+ 
+ #ifdef __cplusplus
+ extern "C" {
+ #endif // __cplusplus
+ 
+ /**
+  * Promotes the current thread to real-time priority.
+  *
+@@ -26,16 +28,17 @@ extern "C" {
+  * or an upper bound.
+  * audio_samplerate_hz: sample-rate for this audio stream, in Hz
+  *
+  * Returns an opaque handle in case of success, NULL otherwise.
+  */
+ atp_handle *atp_promote_current_thread_to_real_time(uint32_t audio_buffer_frames,
+                                                     uint32_t audio_samplerate_hz);
+ 
++
+ /**
+  * Demotes the current thread promoted to real-time priority via
+  * `atp_demote_current_thread_from_real_time` to its previous priority.
+  *
+  * Returns 0 in case of success, non-zero otherwise.
+  */
+ int32_t atp_demote_current_thread_from_real_time(atp_handle *handle);
+ 
+@@ -44,13 +47,107 @@ int32_t atp_demote_current_thread_from_r
+  *`atp_demote_current_thread_from_real_time` on the right thread. Access to the
+  * handle must be synchronized externaly (or the related thread must have
+  * exited).
+  *
+  * Returns 0 in case of success, non-zero otherwise.
+  */
+ int32_t atp_free_handle(atp_handle *handle);
+ 
++/*
++ * Linux-only API.
++ *
++ * The Linux backend uses DBUS to promote a thread to real-time priority. In
++ * environment where this is not possible (due to sandboxing), this set of
++ * functions allow remoting the call to a process that can make DBUS calls.
++ *
++ * To do so:
++ * - Set the real-time limit from within the process where a
++ *   thread will be promoted. This is a `setrlimit` call, that can be done
++ *   before the sandbox lockdown.
++ * - Then, gather information on the thread that will be promoted.
++ * - Serialize this info.
++ * - Send over the serialized data via an IPC mechanism
++ * - Deserialize the inf
++ * - Call `atp_promote_thread_to_real_time`
++ */
++
++#ifdef __linux__
++/**
++ * Promotes a thread, possibly in another process, to real-time priority.
++ *
++ * thread_info: info on the thread to promote, gathered with
++ * `atp_get_current_thread_info()`, called on the thread itself.
++ * audio_buffer_frames: number of frames per audio buffer. If unknown, passing 0
++ * will choose an appropriate number, conservatively. If variable, either pass 0
++ * or an upper bound.
++ * audio_samplerate_hz: sample-rate for this audio stream, in Hz
++ *
++ * Returns an opaque handle in case of success, NULL otherwise.
++ *
++ * This call is useful on Linux desktop only, when the process is sandboxed and
++ * cannot promote itself directly.
++ */
++atp_handle *atp_promote_thread_to_real_time(atp_thread_info *thread_info);
++
++/**
++ * Demotes a thread promoted to real-time priority via
++ * `atp_demote_thread_from_real_time` to its previous priority.
++ *
++ * Returns 0 in case of success, non-zero otherwise.
++ *
++ * This call is useful on Linux desktop only, when the process is sandboxed and
++ * cannot promote itself directly.
++ */
++int32_t atp_demote_thread_from_real_time(atp_thread_info* thread_info);
++
++/**
++ * Gather informations from the calling thread, to be able to promote it from
++ * another thread and/or process.
++ *
++ * Returns a non-null pointer to an `atp_thread_info` structure in case of
++ * sucess, to be freed later with `atp_free_thread_info`, and NULL otherwise.
++ *
++ * This call is useful on Linux desktop only, when the process is sandboxed and
++ * cannot promote itself directly.
++ */
++atp_thread_info *atp_get_current_thread_info();
++
++/**
++ * Free an `atp_thread_info` structure.
++ *
++ * Returns 0 in case of success, non-zero in case of error (because thread_info
++ * was NULL).
++ */
++int32_t atp_free_thread_info(atp_thread_info *thread_info);
++
++/**
++ * Serialize an `atp_thread_info` to a byte buffer that is
++ * sizeof(atp_thread_info) long.
++ */
++void atp_serialize_thread_info(atp_thread_info *thread_info, uint8_t *bytes);
++
++/**
++ * Deserialize a byte buffer of sizeof(atp_thread_info) to an `atp_thread_info`
++ * pointer. It can be then freed using atp_free_thread_info.
++ * */
++atp_thread_info* atp_deserialize_thread_info(uint8_t *bytes);
++
++/**
++ * Set real-time limit for the calling process.
++ *
++ * This is useful only on Linux desktop, and allows remoting the rtkit DBUS call
++ * to a process that has access to DBUS. This function has to be called before
++ * attempting to promote threads from another process.
++ *
++ * This sets the real-time computation limit. For actually promoting the thread
++ * to a real-time scheduling class, see `atp_promote_thread_to_real_time`.
++ */
++int32_t atp_set_real_time_limit(uint32_t audio_buffer_frames,
++                                uint32_t audio_samplerate_hz);
++
++#endif // __linux__
++
+ #ifdef __cplusplus
+ } // extern "C"
+ #endif // __cplusplus
+ 
+ #endif // AUDIO_THREAD_PRIORITY_H
+diff --git a/third_party/rust/audio_thread_priority/src/lib.rs b/third_party/rust/audio_thread_priority/src/lib.rs
+--- a/third_party/rust/audio_thread_priority/src/lib.rs
++++ b/third_party/rust/audio_thread_priority/src/lib.rs
+@@ -1,19 +1,22 @@
+ /* This Source Code Form is subject to the terms of the Mozilla Public
+  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  * You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
++#[warn(missing_docs)]
++
+ #[macro_use]
+ extern crate cfg_if;
+ #[cfg(feature = "terminal-logging")]
+ extern crate simple_logger;
+ #[macro_use]
+ extern crate log;
+ 
++
+ cfg_if! {
+     if #[cfg(target_os = "macos")] {
+         mod rt_mach;
+ #[allow(unused, non_camel_case_types, non_snake_case, non_upper_case_globals)]
+         mod mach_sys;
+         extern crate mach;
+         extern crate libc;
+         use rt_mach::promote_current_thread_to_real_time_internal;
+@@ -24,38 +27,298 @@ cfg_if! {
+         mod rt_win;
+         use rt_win::promote_current_thread_to_real_time_internal;
+         use rt_win::demote_current_thread_from_real_time_internal;
+         use rt_win::RtPriorityHandleInternal;
+     } else if #[cfg(target_os = "linux")] {
+         mod rt_linux;
+         extern crate dbus;
+         extern crate libc;
++        use rt_linux::set_real_time_hard_limit_internal as set_real_time_hard_limit;
+         use rt_linux::promote_current_thread_to_real_time_internal;
+         use rt_linux::demote_current_thread_from_real_time_internal;
++        use rt_linux::get_current_thread_info_internal;
++        use rt_linux::promote_thread_to_real_time_internal;
++        use rt_linux::demote_thread_from_real_time_internal;
++        use rt_linux::RtPriorityThreadInfoInternal;
+         use rt_linux::RtPriorityHandleInternal;
++        #[no_mangle]
++        /// Size of a RtPriorityThreadInfo or atp_thread_info struct, for use in FFI.
++        pub static ATP_THREAD_INFO_SIZE: usize = std::mem::size_of::<RtPriorityThreadInfo>();
+     } else {
++        // blanket implementations for Android and other systems.
+         pub struct RtPriorityHandleInternal {}
+         pub fn promote_current_thread_to_real_time_internal(_: u32, audio_samplerate_hz: u32) -> Result<RtPriorityHandle, ()> {
+             if audio_samplerate_hz == 0 {
+                 return Err(());
+             }
+             // no-op
+-            return Ok(RtPriorityHandle{});
++            Ok(RtPriorityHandle{})
+         }
+         pub fn demote_current_thread_from_real_time_internal(_: RtPriorityHandle) -> Result<(), ()> {
+             // no-op
+-            return Ok(());
++            Ok(())
+         }
+     }
+ }
+ 
+ /// Opaque handle to a thread handle structure.
+ pub type RtPriorityHandle = RtPriorityHandleInternal;
+ 
++cfg_if! {
++    if #[cfg(target_os = "linux")] {
++/// Opaque handle to a thread info.
++///
++/// This can be serialized to raw bytes to be sent via IPC.
++///
++/// This call is useful on Linux desktop only, when the process is sandboxed and
++/// cannot promote itself directly.
++pub type RtPriorityThreadInfo = RtPriorityThreadInfoInternal;
++
++
++/// Get the calling thread's information, to be able to promote it to real-time from somewhere
++/// else, later.
++///
++/// This call is useful on Linux desktop only, when the process is sandboxed and
++/// cannot promote itself directly.
++///
++/// # Return value
++///
++/// Ok in case of success, with an opaque structure containing relevant info for the platform, Err
++/// otherwise.
++pub fn get_current_thread_info() -> Result<RtPriorityThreadInfo, ()> {
++    return get_current_thread_info_internal();
++}
++
++/// Return a byte buffer containing serialized information about a thread, to promote it to
++/// real-time from elsewhere.
++///
++/// This call is useful on Linux desktop only, when the process is sandboxed and
++/// cannot promote itself directly.
++pub fn thread_info_serialize(
++    thread_info: RtPriorityThreadInfo,
++) -> [u8; std::mem::size_of::<RtPriorityThreadInfo>()] {
++    return thread_info.serialize();
++}
++
++/// From a byte buffer, return a `RtPriorityThreadInfo`.
++///
++/// This call is useful on Linux desktop only, when the process is sandboxed and
++/// cannot promote itself directly.
++///
++/// # Arguments
++///
++/// A byte buffer containing a serializezd `RtPriorityThreadInfo`.
++pub fn thread_info_deserialize(
++    bytes: [u8; std::mem::size_of::<RtPriorityThreadInfo>()],
++) -> RtPriorityThreadInfo {
++    return RtPriorityThreadInfoInternal::deserialize(bytes);
++}
++
++/// Get the calling threads' information, to promote it from another process or thread, with a C
++/// API.
++///
++/// This is intended to call on the thread that will end up being promoted to real time priority,
++/// but that cannot do it itself (probably because of sandboxing reasons).
++///
++/// After use, it MUST be freed by calling `atp_free_thread_info`.
++///
++/// # Return value
++///
++/// A pointer to a struct that can be serialized and deserialized, and that can be passed to
++/// `atp_promote_thread_to_real_time`, even from another process.
++#[no_mangle]
++pub extern "C" fn atp_get_current_thread_info() -> *mut atp_thread_info {
++    match get_current_thread_info() {
++        Ok(thread_info) => Box::into_raw(Box::new(atp_thread_info(thread_info))),
++        _ => std::ptr::null_mut(),
++    }
++}
++
++/// Frees a thread info, with a c api.
++///
++/// # Arguments
++///
++/// thread_info: the `atp_thread_info` structure to free.
++///
++/// # Return value
++///
++/// 0 in case of success, 1 otherwise (if `thread_info` is NULL).
++#[no_mangle]
++pub extern "C" fn atp_free_thread_info(thread_info: *mut atp_thread_info) -> i32 {
++    if thread_info.is_null() {
++        return 1;
++    }
++    unsafe { Box::from_raw(thread_info) };
++    0
++}
++
++/// Return a byte buffer containing serialized information about a thread, to promote it to
++/// real-time from elsewhere, with a C API.
++///
++/// `bytes` MUST be `std::mem::size_of<RtPriorityThreadInfo>()` bytes long.
++///
++/// This is exposed in the C API as `ATP_THREAD_INFO_SIZE`.
++///
++/// This call is useful on Linux desktop only, when the process is sandboxed, cannot promote itself
++/// directly, and the `atp_thread_info` struct must be passed via IPC.
++#[no_mangle]
++pub extern "C" fn atp_serialize_thread_info(
++    thread_info: *mut atp_thread_info,
++    bytes: *mut libc::c_void,
++) {
++    let thread_info = unsafe { &mut *thread_info };
++    let source = thread_info.0.serialize();
++    unsafe {
++        std::ptr::copy(source.as_ptr(), bytes as *mut u8, source.len());
++    }
++}
++
++/// From a byte buffer, return a `RtPriorityThreadInfo`, with a C API.
++///
++/// This call is useful on Linux desktop only, when the process is sandboxed and
++/// cannot promote itself directly.
++///
++/// # Arguments
++///
++/// A byte buffer containing a serializezd `RtPriorityThreadInfo`.
++#[no_mangle]
++pub extern "C" fn atp_deserialize_thread_info(
++    in_bytes: *mut u8,
++) -> *mut atp_thread_info {
++    let bytes = unsafe { *(in_bytes as *mut [u8; std::mem::size_of::<RtPriorityThreadInfoInternal>()]) };
++    let thread_info = RtPriorityThreadInfoInternal::deserialize(bytes);
++    return Box::into_raw(Box::new(atp_thread_info(thread_info)));
++}
++
++/// Promote a particular thread thread to real-time priority.
++///
++/// This call is useful on Linux desktop only, when the process is sandboxed and
++/// cannot promote itself directly.
++///
++/// # Arguments
++///
++/// * `thread_info` - informations about the thread to promote, gathered using
++/// `get_current_thread_info`.
++/// * `audio_buffer_frames` - the exact or an upper limit on the number of frames that have to be
++/// rendered each callback, or 0 for a sensible default value.
++/// * `audio_samplerate_hz` - the sample-rate for this audio stream, in Hz.
++///
++/// # Return value
++///
++/// This function returns a `Result<RtPriorityHandle>`, which is an opaque struct to be passed to
++/// `demote_current_thread_from_real_time` to revert to the previous thread priority.
++pub fn promote_thread_to_real_time(
++    thread_info: RtPriorityThreadInfo,
++    audio_buffer_frames: u32,
++    audio_samplerate_hz: u32,
++) -> Result<RtPriorityHandle, ()> {
++    if audio_samplerate_hz == 0 {
++        return Err(());
++    }
++    return promote_thread_to_real_time_internal(
++        thread_info,
++        audio_buffer_frames,
++        audio_samplerate_hz,
++    );
++}
++
++/// Demotes a thread from real-time priority.
++///
++/// # Arguments
++///
++/// * `thread_info` - An opaque struct returned from a successful call to
++/// `get_current_thread_info`.
++///
++/// # Return value
++///
++/// `Ok` in case of success, `Err` otherwise.
++pub fn demote_thread_from_real_time(thread_info: RtPriorityThreadInfo) -> Result<(), ()> {
++    return demote_thread_from_real_time_internal(thread_info);
++}
++
++/// Opaque info to a particular thread.
++#[allow(non_camel_case_types)]
++pub struct atp_thread_info(RtPriorityThreadInfo);
++
++/// Promote a specific thread to real-time, with a C API.
++///
++/// This is useful when the thread to promote cannot make some system calls necessary to promote
++/// it.
++///
++/// # Arguments
++///
++/// `thread_info` - the information of the thread to promote to real-time, gather from calling
++/// `atp_get_current_thread_info` on the thread to promote.
++/// * `audio_buffer_frames` - the exact or an upper limit on the number of frames that have to be
++/// rendered each callback, or 0 for a sensible default value.
++/// * `audio_samplerate_hz` - the sample-rate for this audio stream, in Hz.
++///
++/// # Return value
++///
++/// A pointer to an `atp_handle` in case of success, NULL otherwise.
++#[no_mangle]
++pub extern "C" fn atp_promote_thread_to_real_time(
++    thread_info: *mut atp_thread_info,
++    audio_buffer_frames: u32,
++    audio_samplerate_hz: u32,
++) -> *mut atp_handle {
++    let thread_info = unsafe { &mut *thread_info };
++    match promote_thread_to_real_time(thread_info.0, audio_buffer_frames, audio_samplerate_hz) {
++        Ok(handle) => Box::into_raw(Box::new(atp_handle(handle))),
++        _ => std::ptr::null_mut(),
++    }
++}
++
++/// Demote a thread promoted to from real-time, with a C API.
++///
++/// # Arguments
++///
++/// `handle` -  an opaque struct received from a promoting function.
++///
++/// # Return value
++///
++/// 0 in case of success, non-zero otherwise.
++#[no_mangle]
++pub extern "C" fn atp_demote_thread_from_real_time(thread_info: *mut atp_thread_info) -> i32 {
++    if thread_info.is_null() {
++        return 1;
++    }
++    let thread_info = unsafe { (*thread_info).0 };
++
++    match demote_thread_from_real_time(thread_info) {
++        Ok(_) => 0,
++        _ => 1,
++    }
++}
++
++/// Set a real-time limit for the calling thread.
++///
++/// # Arguments
++///
++/// `audio_buffer_frames` - the number of frames the audio callback has to render each quantum. 0
++/// picks a rather high default value.
++/// `audio_samplerate_hz` - the sample-rate of the audio stream.
++///
++/// # Return value
++///
++/// 0 in case of success, 1 otherwise.
++#[no_mangle]
++pub extern "C" fn atp_set_real_time_limit(audio_buffer_frames: u32,
++                                          audio_samplerate_hz: u32) -> i32 {
++    let r = set_real_time_hard_limit(audio_buffer_frames, audio_samplerate_hz);
++    if r.is_err() {
++        return 1;
++    }
++    0
++}
++
++}
++}
++
+ /// Promote the calling thread thread to real-time priority.
+ ///
+ /// # Arguments
+ ///
+ /// * `audio_buffer_frames` - the exact or an upper limit on the number of frames that have to be
+ /// rendered each callback, or 0 for a sensible default value.
+ /// * `audio_samplerate_hz` - the sample-rate for this audio stream, in Hz.
+ ///
+@@ -200,9 +463,91 @@ mod tests {
+                 Ok(_) => {}
+                 Err(e) => {
+                     panic!(e);
+                 }
+             }
+             // automatically deallocated, but not demoted until the thread exits.
+         }
+     }
++    cfg_if! {
++        if #[cfg(target_os = "linux")] {
++            use nix::unistd::*;
++            use nix::sys::signal::*;
++
++            #[test]
++            fn test_linux_api() {
++                {
++                    let info = get_current_thread_info().unwrap();
++                    match promote_thread_to_real_time(info, 512, 44100) {
++                        Ok(_) => {
++                        }
++                        Err(e) => {
++                            panic!(e);
++                        }
++                    }
++                }
++                {
++                    let info = get_current_thread_info().unwrap();
++                    let bytes = info.serialize();
++                    let info2 = RtPriorityThreadInfo::deserialize(bytes);
++                    assert!(info == info2);
++                }
++                {
++                    let info = get_current_thread_info().unwrap();
++                    let bytes = thread_info_serialize(info);
++                    let info2 = thread_info_deserialize(bytes);
++                    assert!(info == info2);
++                }
++            }
++            #[test]
++            fn test_remote_promotion() {
++                let (rd, wr) = pipe().unwrap();
++
++                match fork().expect("fork failed") {
++                    ForkResult::Parent{ child } => {
++                        eprintln!("Parent PID: {}", getpid());
++                        let mut bytes = [0 as u8; std::mem::size_of::<RtPriorityThreadInfo>()];
++                        match read(rd, &mut bytes) {
++                            Ok(_) => {
++                                let info = RtPriorityThreadInfo::deserialize(bytes);
++                                match promote_thread_to_real_time(info, 0, 44100) {
++                                    Ok(_) => {
++                                        eprintln!("thread promotion in the child from the parent succeeded");
++                                        assert!(true);
++                                    }
++                                    Err(_) => {
++                                        eprintln!("promotion Err");
++                                        assert!(false);
++                                    }
++                                }
++                            }
++                            Err(e) => {
++                                eprintln!("could not read from the pipe: {}", e);
++                            }
++                        }
++                        kill(child, SIGKILL).expect("Could not kill the child?");
++                    }
++                    ForkResult::Child => {
++                        let r = set_real_time_hard_limit(0, 44100);
++                        if r.is_err() {
++                            eprintln!("Could not set RT limit, the test will fail.");
++                        }
++                        eprintln!("Child pid: {}", getpid());
++                        let info = get_current_thread_info().unwrap();
++                        let bytes = info.serialize();
++                        match write(wr, &bytes) {
++                            Ok(_) => {
++                                loop {
++                                    std::thread::sleep(std::time::Duration::from_millis(100));
++                                    eprintln!("child sleeping, waiting to be promoted...");
++                                }
++                            }
++                            Err(_) => {
++                                eprintln!("write error on the pipe.");
++                            }
++                        }
++                    }
++                }
++            }
++        }
++    }
+ }
+diff --git a/third_party/rust/audio_thread_priority/src/rt_linux.rs b/third_party/rust/audio_thread_priority/src/rt_linux.rs
+--- a/third_party/rust/audio_thread_priority/src/rt_linux.rs
++++ b/third_party/rust/audio_thread_priority/src/rt_linux.rs
+@@ -4,132 +4,239 @@
+ 
+ /* Widely copied from dbus-rs/dbus/examples/rtkit.rs */
+ 
+ extern crate dbus;
+ extern crate libc;
+ 
+ use std::cmp;
+ use std::error::Error;
++use std::io::Error as OSError;
+ 
+ use dbus::{Connection, BusType, Props, MessageItem, Message};
+ 
+ const DBUS_SOCKET_TIMEOUT: i32 = 10_000;
+ const RT_PRIO_DEFAULT: u32 = 10;
+ // This is different from libc::pid_t, which is 32 bits, and is defined in sys/types.h.
+ #[allow(non_camel_case_types)]
+ type kernel_pid_t = libc::c_long;
+ 
++#[repr(C)]
++#[derive(Clone, Copy)]
++pub struct RtPriorityThreadInfoInternal {
++    /// The PID of the process containing `thread_id` below.
++    pid: libc::pid_t,
++    /// System-wise thread id, use to promote the thread via dbus.
++    thread_id: kernel_pid_t,
++    /// Process-local thread id, used to restore scheduler characteristics. This information is not
++    /// useful in another process, but is useful tied to the `thread_id`, when back into the first
++    /// process.
++    pthread_id: libc::pthread_t,
++    /// ...
++    policy: libc::c_int,
++    /// ...
++    param: libc::sched_param,
++}
++
++impl RtPriorityThreadInfoInternal {
++    /// Serialize a RtPriorityThreadInfoInternal to a byte buffer.
++    pub fn serialize(&self) -> [u8; std::mem::size_of::<Self>()] {
++        unsafe { std::mem::transmute::<Self, [u8; std::mem::size_of::<Self>()]>(*self) }
++    }
++    /// Get an RtPriorityThreadInfoInternal from a byte buffer.
++    pub fn deserialize(bytes: [u8; std::mem::size_of::<Self>()]) -> Self {
++        unsafe { std::mem::transmute::<[u8; std::mem::size_of::<Self>()], Self>(bytes) }
++    }
++}
++
++impl PartialEq for RtPriorityThreadInfoInternal {
++    fn eq(&self, other: &Self) -> bool {
++        self.thread_id == other.thread_id &&
++            self.pthread_id == other.pthread_id
++    }
++}
++
+ /*#[derive(Debug)]*/
+ pub struct RtPriorityHandleInternal {
+-    /// Process-local thread id, used to restore scheduler characteristics.
+-    pthread_id: libc::pthread_t,
+-    /// The scheduler originaly associated with this thread (probably SCHED_OTHER).
+-    policy: libc::c_int,
+-    /// The initial priority for this thread.
+-    param: libc::sched_param,
++    thread_info: RtPriorityThreadInfoInternal,
+ }
+ 
+ fn item_as_i64(i: MessageItem) -> Result<i64, Box<dyn Error>> {
+     match i {
+         MessageItem::Int32(i) => Ok(i as i64),
+         MessageItem::Int64(i) => Ok(i),
+         _ => Err(Box::from(&*format!("Property is not integer ({:?})", i)))
+     }
+ }
+ 
+-fn rtkit_set_realtime(c: &Connection, thread: u64, prio: u32) -> Result<(), Box<dyn Error>> {
+-    let mut m = Message::new_method_call("org.freedesktop.RealtimeKit1",
+-                                         "/org/freedesktop/RealtimeKit1",
+-                                         "org.freedesktop.RealtimeKit1",
+-                                         "MakeThreadRealtime")?;
+-    m.append_items(&[thread.into(), prio.into()]);
++fn rtkit_set_realtime(thread: u64, pid: u64, prio: u32) -> Result<(), Box<dyn Error>> {
++    let m = if unsafe { libc::getpid() as u64 } == pid {
++        let mut m = Message::new_method_call("org.freedesktop.RealtimeKit1",
++                                             "/org/freedesktop/RealtimeKit1",
++                                             "org.freedesktop.RealtimeKit1",
++                                             "MakeThreadRealtime")?;
++        m.append_items(&[thread.into(), prio.into()]);
++        m
++    } else {
++        let mut m = Message::new_method_call("org.freedesktop.RealtimeKit1",
++                                             "/org/freedesktop/RealtimeKit1",
++                                             "org.freedesktop.RealtimeKit1",
++                                             "MakeThreadRealtimeWithPID")?;
++        m.append_items(&[pid.into(), thread.into(), prio.into()]);
++        m
++    };
++    let c = Connection::get_private(BusType::System)?;
+     c.send_with_reply_and_block(m, DBUS_SOCKET_TIMEOUT)?;
+     return Ok(());
+ }
+ 
+-fn make_realtime(tid: kernel_pid_t, requested_slice_us: u64, prio: u32) -> Result<u32, Box<dyn Error>> {
++/// Returns the maximum priority, maximum real-time time slice, and the current real-time time
++/// slice for this process.
++fn get_limits() -> Result<(i64, u64, libc::rlimit64), Box<dyn Error>> {
+     let c = Connection::get_private(BusType::System)?;
+ 
+     let p = Props::new(&c, "org.freedesktop.RealtimeKit1", "/org/freedesktop/RealtimeKit1",
+-        "org.freedesktop.RealtimeKit1", DBUS_SOCKET_TIMEOUT);
++                       "org.freedesktop.RealtimeKit1", DBUS_SOCKET_TIMEOUT);
++    let mut current_limit = libc::rlimit64 {
++        rlim_cur: 0,
++        rlim_max: 0
++    };
+ 
+-    // Make sure we don't fail by wanting too much
+     let max_prio = item_as_i64(p.get("MaxRealtimePriority")?)?;
+     if max_prio < 0 {
+         return Err(Box::from("invalid negative MaxRealtimePriority"));
+     }
+-    let prio = cmp::min(prio, max_prio as u32);
+ 
+-    // Enforce RLIMIT_RTPRIO, also a must before asking rtkit for rtprio
+     let max_rttime = item_as_i64(p.get("RTTimeUSecMax")?)?;
+     if max_rttime < 0 {
+         return Err(Box::from("invalid negative RTTimeUSecMax"));
+     }
+ 
+-    // Only take what we need, or cap at the system limit, no further.
+-    let rttime_request = cmp::min(requested_slice_us, max_rttime as u64);
+-
+-    // Set a soft limit to the limit requested, to be able to handle going over the limit using
+-    // SIXCPU. Set the hard limit to the maxium slice to prevent getting SIGKILL.
+-    let new_limit = libc::rlimit64 { rlim_cur: rttime_request,
+-                                     rlim_max: max_rttime as u64 };
+-    let mut old_limit = new_limit;
+-    if unsafe { libc::getrlimit64(libc::RLIMIT_RTTIME, &mut old_limit) } < 0 {
++    if unsafe { libc::getrlimit64(libc::RLIMIT_RTTIME, &mut current_limit) } < 0 {
++        error!("getrlimit64: {}", OSError::last_os_error().raw_os_error().unwrap());
+         return Err(Box::from("getrlimit failed"));
+     }
++
++    Ok((max_prio, (max_rttime as u64), current_limit))
++}
++
++fn set_limits(request: u64, max: u64) -> Result<(), Box<dyn Error>> {
++    // Set a soft limit to the limit requested, to be able to handle going over the limit using
++    // SIGXCPU. Set the hard limit to the maxium slice to prevent getting SIGKILL.
++    let new_limit = libc::rlimit64 { rlim_cur: request,
++        rlim_max: max };
+     if unsafe { libc::setrlimit64(libc::RLIMIT_RTTIME, &new_limit) } < 0 {
+         return Err(Box::from("setrlimit failed"));
+     }
+ 
+-    // Finally, let's ask rtkit to make us realtime
+-    let r = rtkit_set_realtime(&c, tid as u64, prio);
+-
+-    if r.is_err() {
+-        unsafe { libc::setrlimit64(libc::RLIMIT_RTTIME, &old_limit) };
+-        return Err(Box::from("could not set process as real-time."));
+-    }
+-
+-    Ok(prio)
++    Ok(())
+ }
+ 
+ pub fn promote_current_thread_to_real_time_internal(audio_buffer_frames: u32,
+-                                                    audio_samplerate_hz: u32) -> Result<RtPriorityHandleInternal, ()>
+-{
++                                                    audio_samplerate_hz: u32)
++                                           -> Result<RtPriorityHandleInternal, ()> {
++    let thread_info = get_current_thread_info_internal()?;
++    promote_thread_to_real_time_internal(thread_info, audio_buffer_frames, audio_samplerate_hz)
++}
++
++pub fn demote_current_thread_from_real_time_internal(rt_priority_handle: RtPriorityHandleInternal)
++                                            -> Result<(), ()> {
++    assert!(unsafe { libc::pthread_self() } == rt_priority_handle.thread_info.pthread_id);
++
++    if unsafe { libc::pthread_setschedparam(rt_priority_handle.thread_info.pthread_id,
++                                            rt_priority_handle.thread_info.policy,
++                                            &rt_priority_handle.thread_info.param) } < 0 {
++        error!("could not demote thread {}", OSError::last_os_error().raw_os_error().unwrap());
++        return Err(());
++    }
++    return Ok(());
++}
++
++/// This can be called by sandboxed code, it only restores priority to what they were.
++pub fn demote_thread_from_real_time_internal(thread_info: RtPriorityThreadInfoInternal)
++                                            -> Result<(), ()> {
++    let param = unsafe { std::mem::zeroed::<libc::sched_param>() };
++
++    // https://github.com/rust-lang/libc/issues/1511
++    const SCHED_RESET_ON_FORK: libc::c_int = 0x40000000;
++
++    if unsafe { libc::pthread_setschedparam(thread_info.pthread_id,
++                                            libc::SCHED_OTHER|SCHED_RESET_ON_FORK,
++                                            &param) } < 0 {
++        error!("could not demote thread {}", OSError::last_os_error().raw_os_error().unwrap());
++        return Err(());
++    }
++    return Ok(());
++}
++
++/// Get the current thread information, as an opaque struct, that can be serialized and sent
++/// accross processes. This is enough to capture the current state of the scheduling policy, and
++/// an identifier to have another thread promoted to real-time.
++pub fn get_current_thread_info_internal() -> Result<RtPriorityThreadInfoInternal, ()> {
+     let thread_id = unsafe { libc::syscall(libc::SYS_gettid) };
+     let pthread_id = unsafe { libc::pthread_self() };
+     let mut param = unsafe { std::mem::zeroed::<libc::sched_param>() };
+     let mut policy = 0;
+ 
+     if unsafe { libc::pthread_getschedparam(pthread_id, &mut policy, &mut param) } < 0 {
+-        error!("pthread_getschedparam error {}", pthread_id);
++        error!("pthread_getschedparam error {}", OSError::last_os_error().raw_os_error().unwrap());
+         return Err(());
+     }
+ 
++    let pid = unsafe { libc::getpid() };
++
++    Ok(RtPriorityThreadInfoInternal {
++        pid,
++        thread_id,
++        pthread_id,
++        policy,
++        param
++    })
++}
++
++/// This set the RLIMIT_RTTIME resource to something other than "unlimited". It's necessary for the
++/// rtkit request to succeed, and needs to hapen in the child. We can't get the real limit here,
++/// because we don't have access to DBUS, so it is hardcoded to 200ms, which is the default in the
++/// rtkit package.
++pub fn set_real_time_hard_limit_internal(audio_buffer_frames: u32,
++                                         audio_samplerate_hz: u32) -> Result<(), ()> {
+     let buffer_frames = if audio_buffer_frames > 0 {
+         audio_buffer_frames
+     } else {
+         // 50ms slice. This "ought to be enough for anybody".
+         audio_samplerate_hz / 20
+     };
+     let budget_us = (buffer_frames * 1_000_000 / audio_samplerate_hz) as u64;
+-    let handle = RtPriorityHandleInternal { pthread_id, policy, param};
+-    let r = make_realtime(thread_id, budget_us, RT_PRIO_DEFAULT);
+-    if r.is_err() {
+-        warn!("Could not make thread real-time.");
+-        return Err(());
+-    }
+-    return Ok(handle);
++
++    // It's only necessary to set RLIMIT_RTTIME to something when in the child, skip it if it's a
++    // remoting call.
++    let (_, max_rttime, _) = get_limits().map_err(|_| {})?;
++
++    // Only take what we need, or cap at the system limit, no further.
++    let rttime_request = cmp::min(budget_us, max_rttime as u64);
++    set_limits(rttime_request, max_rttime).map_err(|_| {})?;
++
++    Ok(())
+ }
+ 
+-pub fn demote_current_thread_from_real_time_internal(rt_priority_handle: RtPriorityHandleInternal)
+-                                            -> Result<(), ()> {
+-    assert!(unsafe { libc::pthread_self() } == rt_priority_handle.pthread_id);
++/// Promote a thread (possibly in another process) identified by its tid, to real-time.
++pub fn promote_thread_to_real_time_internal(thread_info: RtPriorityThreadInfoInternal,
++                                            audio_buffer_frames: u32,
++                                            audio_samplerate_hz: u32) -> Result<RtPriorityHandleInternal, ()>
++{
++    let RtPriorityThreadInfoInternal { pid, thread_id, .. } = thread_info;
++
++    let handle = RtPriorityHandleInternal { thread_info };
++
++    let (_, _, limits) = get_limits().map_err(|_| {})?;
++    set_real_time_hard_limit_internal(audio_buffer_frames, audio_samplerate_hz)?;
+ 
+-    if unsafe { libc::pthread_setschedparam(rt_priority_handle.pthread_id,
+-                                            rt_priority_handle.policy,
+-                                            &rt_priority_handle.param) } < 0 {
+-        warn!("could not demote thread {}", rt_priority_handle.pthread_id);
+-        return Err(());
++    let r = rtkit_set_realtime(thread_id as u64, pid as u64, RT_PRIO_DEFAULT);
++
++    if r.is_err() {
++        if unsafe { libc::setrlimit64(libc::RLIMIT_RTTIME, &limits) } < 0 {
++            error!("setrlimit64: {}", OSError::last_os_error().raw_os_error().unwrap());
++            return Err(());
++        }
+     }
+-    return Ok(());
++
++    return Ok(handle);
+ }
+-
