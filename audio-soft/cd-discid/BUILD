@@ -1,2 +1,1 @@
-cp "$SCRIPT_DIRECTORY"/Makefile . &&
-make
+make -f "$SCRIPT_DIRECTORY"/Makefile
