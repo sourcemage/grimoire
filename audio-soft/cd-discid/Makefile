@@ -1,23 +1,36 @@
-INSTALL = /usr/bin/install -c
+INSTALL = install
+install_bin_flags =
+install_bin = $(INSTALL) -m555 $(install_bin_flags)
+install_doc = $(INSTALL) -m444
+install_dir = $(INSTALL) -m755 -d
 
 # Installation directories
 DESTDIR =
-prefix = ${DESTDIR}/usr
-exec_prefix = ${prefix}
-mandir = ${prefix}/share/man/man1
-bindir = ${exec_prefix}/bin
-etcdir = ${DESTDIR}/etc
+prefix = /usr
+exec_prefix = $(prefix)
+mandir = $(prefix)/share/man/man1
+bindir = $(exec_prefix)/bin
+etcdir = /etc
 
-exec=cd-discid
-source=${exec}.c
-man=${exec}.1
+exec = cd-discid
+manpages = $(exec:=.1)
 
-all: ${source}
-	gcc ${CFLAGS} -o ${exec} ${source} 
+all: $(exec)
+install: install-bin install-man
 
-install:
-	$(INSTALL) -d -m 755 $(bindir)
-	$(INSTALL) -m 755 -o 0 -s ${exec} $(bindir)
-	$(INSTALL) -d -m 755 $(mandir)
-	$(INSTALL) -m 644 -o 0 ${man} $(mandir)
+$(exec): $(exec).o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $@.o
 
+install-bin: $(exec)
+	$(install_dir) $(DESTDIR)$(bindir)
+	$(install_bin) $(exec) $(DESTDIR)$(bindir)
+
+install-man: $(manpages)
+	$(install_dir) $(DESTDIR)$(mandir)
+	$(install_doc) $(manpages) $(DESTDIR)$(mandir)
+
+install-strip:
+	$(MAKE) install_bin_flags=-s install
+
+
+.PHONY: all install install-bin install-man install-strip
