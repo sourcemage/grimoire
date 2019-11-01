@@ -1,41 +1,61 @@
-From dba0c127bacf334b6255d51ef21564ff99fb66a7 Mon Sep 17 00:00:00 2001
+From 669baa8308c2043060c78878e08becc4a9b4515a Mon Sep 17 00:00:00 2001
 From: Florian Franzmann <bwlf@bandrate.org>
-Date: Mon, 23 Jul 2018 18:48:55 +0200
+Date: Fri, 1 Nov 2019 14:22:48 +0100
 Subject: [PATCH] use our CFLAGS, honour installation path
 
 ---
- Makefile.conf | 19 +++++++------------
- 1 file changed, 7 insertions(+), 12 deletions(-)
+ Makefile.conf | 45 ++++++++++-----------------------------------
+ 1 file changed, 10 insertions(+), 35 deletions(-)
 
 diff --git a/Makefile.conf b/Makefile.conf
-index a1cfb24..a7aea84 100644
+index 5e6d3db..62ab027 100644
 --- a/Makefile.conf
 +++ b/Makefile.conf
-@@ -45,11 +45,11 @@ endif
+@@ -44,21 +44,12 @@ endif
+ 
  # Installation locations (edit if required)
  
- ifneq ($(HOST),MINGW)
--prefix=/usr/local
+-ifneq ($(HOST),MINGW)
+-  prefix=/usr/local
+-  bindir=$(prefix)/bin
+-  incdir=$(prefix)/include
+-  libdir=$(prefix)/lib
+-  docdir=$(prefix)/doc/routino
+-  datadir=$(prefix)/share/routino
+-else
+-  prefix="c:/Program Files/Routino"
+-  bindir=$(prefix)/bin
+-  incdir=$(prefix)/include
+-  libdir=$(prefix)/lib
+-  docdir=$(prefix)/doc
+-  datadir=$(prefix)/xml
+-endif
 +prefix=/usr
- bindir=$(prefix)/bin
- incdir=$(prefix)/include
- libdir=$(prefix)/lib
--docdir=$(prefix)/doc/routino
++bindir=$(prefix)/bin
++incdir=$(prefix)/include
++libdir=$(prefix)/lib
 +docdir=$(prefix)/share/doc/routino
- datadir=$(prefix)/share/routino
- else
- prefix="c:/Program Files/Routino"
-@@ -69,23 +69,18 @@ LIBVERSION=$(SOVERSION).0.0
++datadir=$(prefix)/share/routino
+ 
+ 
+ # Library version for ABI compatibility
+@@ -69,9 +60,7 @@ LIBVERSION=$(SOVERSION).0.0
  
  
  # Compilation programs
 -CC=gcc
+-CXX=g++
 -LD=gcc
-+LD=$(CC)
++LD=$(CXX)
  
+ ifdef CLANG
+   ifeq ($(CLANG),1)
+@@ -82,10 +71,10 @@ ifdef CLANG
+ endif
  
  # Maths library
- LDFLAGS=-lm
+-LDFLAGS=-lm
++LDFLAGS+=-lm
  
  # Language dialect selection
 -CFLAGS=-std=c99
@@ -43,15 +63,31 @@ index a1cfb24..a7aea84 100644
  
  # Warning options
  CFLAGS+=-Wall -Wmissing-prototypes -Wextra -Wno-unused-parameter -pedantic
+@@ -96,23 +85,9 @@ ifdef CLANG
+   endif
+ endif
  
 -# Optimisation options
 -CFLAGS+=-O3
+-
+-# Fast maths option - makes test cases fail slightly
 -CFLAGS+=-ffast-math
+-ifdef FASTMATHS
+-  ifeq ($(FASTMATHS),0)
+-    CFLAGS+=-fno-fast-math
+-  endif
+-endif
 -
  # Optimisation option (only works if compilation and execution use exactly the same CPU architecture).
  #CFLAGS+=-march=native
  
-@@ -123,7 +118,7 @@ LDFLAGS_LDSO=-Wl,-R.
+-# Compile with debugging symbols
+-CFLAGS+=-g
+-
+ # Option for compiling with sanitizer for debugging memory addresses and undefined behaviour
+ ifdef SANITIZE
+   ifeq ($(SANITIZE),1)
+@@ -143,7 +118,7 @@ LDFLAGS_LDSO=-Wl,-R.
  
  # Required for multi-threaded support (comment these two lines out if not required)
  CFLAGS+=-pthread -DUSE_PTHREADS
@@ -59,18 +95,7 @@ index a1cfb24..a7aea84 100644
 +LDFLAGS+=-pthread
  
  
- ifneq ($(HOST),MINGW)
-@@ -139,8 +134,8 @@ LDFLAGS+=-lz
- 
- 
- # Required for xz support (uncomment these two lines if required)
--#CFLAGS+=-DUSE_XZ
--#LDFLAGS+=-llzma
-+CFLAGS+=-DUSE_XZ
-+LDFLAGS+=-llzma
- 
- 
- # Required to use stdio with files > 2GiB on 32-bit system.
+ # Required for bzip2 support (comment these two lines out if not required)
 -- 
-2.18.0
+2.23.0
 
