@@ -13,7 +13,7 @@ export XCURSOR_PATH=$QTDIR/share/icons:~/.icons:/usr/share/icons:/usr/share/pixm
 export XDG_RUNTIME_DIR=${TMPDIR-/tmp}/plasma-$USER
 
 # Ensure that they exist
-mkdir -p $XDG_RUNTIME_DIR
+mkdir -p $XDG_RUNTIME_DIR -m7700
 
 fi
 
