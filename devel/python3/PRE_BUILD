@@ -1,8 +1,17 @@
 default_pre_build      &&
 cd "$SOURCE_DIRECTORY" &&
-apply_patch_dir patches &&
-apply_patch_dir "patches-${VERSION%.*}" &&
-if is_depends_enabled ${SPELL} gcc && ! is_version_less $(installed_version gcc) 4.9; then
-  # Forcing GCC's builtin atomics
-  sed -i 's;defined(HAVE_STD_ATOMIC);!&;' Include/pyatomic.h
-fi
+if [[ "${PYTHON3_BRANCH}" != "devel" ]]; then
+  apply_patch_dir patches &&
+  if is_depends_enabled ${SPELL} gcc &&
+   ! is_version_less $(installed_version gcc) 4.9; then
+    # Forcing GCC's builtin atomics
+    sed -i 's;defined(HAVE_STD_ATOMIC);!&;' Include/pyatomic.h
+  fi
+else
+  if is_depends_enabled ${SPELL} gcc &&
+   ! is_version_less $(installed_version gcc) 4.9; then
+    # Forcing GCC's builtin atomics
+    sed -i 's;defined(HAVE_STD_ATOMIC);!&;' Include/internal/pycore_atomic.h
+  fi
+fi &&
+apply_patch_dir "patches-${VERSION%.*}"
