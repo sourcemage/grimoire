@@ -38,6 +38,12 @@ cd  $SOURCE_DIRECTORY.bld  &&
 #
 echo -e "slibdir=/lib" > configparms &&
 
+# security-related options
+OPTS+=" --enable-bind-now"                 &&
+OPTS+=" --enable-stack-protector=strong"   &&
+OPTS+=" --enable-stackguard-randomization" &&
+OPTS+=" $GLIBC_CET"                        &&
+
 #
 # Configure glibc to use the sanitised headers
 # http://bugs.sourcemage.org/show_bug.cgi?id=7560
@@ -56,4 +62,4 @@ $SOURCE_DIRECTORY/configure  --host=$HOST                       \
                           --disable-multi-arch                  \
                            --enable-obsolete-rpc                \
                                     $OPTS                       &&
-make
+default_build_make
