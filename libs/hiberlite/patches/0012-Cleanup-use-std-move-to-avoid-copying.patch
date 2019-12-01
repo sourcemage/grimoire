@@ -1,0 +1,64 @@
+From 03537358d0c57ef9e1b3806d493ec981a14384e4 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 17:54:36 +0100
+Subject: [PATCH 12/35] Cleanup: use std::move() to avoid copying
+
+---
+ src/Database.cpp | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/Database.cpp b/src/Database.cpp
+index 0dd0091..f85cedd 100644
+--- a/src/Database.cpp
++++ b/src/Database.cpp
+@@ -9,7 +9,7 @@ Database::Database() : mx(NULL)
+ 
+ Database::Database(std::string fname) : mx(NULL)
+ {
+-	open(fname);
++	open(std::move(fname));
+ }
+ 
+ Database::~Database()
+@@ -31,7 +31,7 @@ void Database::open(const std::string& fname)
+ 	}catch(std::runtime_error e){
+ 		if(db)
+ 			sqlite3_close(db);
+-		throw e;
++		throw std::move(e);
+ 	}
+ }
+ 
+@@ -116,11 +116,11 @@ void Database::dbExecQuery(shared_connection con, const std::string& query)
+ }
+ 
+ sqlid_t Database::allocId(std::string table){
+-	return allocId(con, table);
++	return allocId(con, std::move(table));
+ }
+ 
+ void Database::dbExecQuery(std::string query){
+-	return dbExecQuery(con, query);
++	return dbExecQuery(con, std::move(query));
+ }
+ 
+ std::vector<sqlid_t> Database::dbSelectIds(const shared_connection& con, const std::string& table, const std::string& condition, const std::string& orderBy)
+@@ -145,13 +145,13 @@ std::vector<sqlid_t> Database::dbSelectIds(const shared_connection& con, const s
+ 
+ std::vector<sqlid_t> Database::dbSelectChildIds(const shared_connection& con, std::string table, sqlid_t parent)
+ {
+-	return dbSelectIds(con, table, std::string(HIBERLITE_PARENTID_COLUMN)+"="+Transformer::toSQLiteValue(parent)
++	return dbSelectIds(con, std::move(table), std::string(HIBERLITE_PARENTID_COLUMN)+"="+Transformer::toSQLiteValue(parent)
+ 									, HIBERLITE_ENTRY_INDEX_COLUMN);
+ }
+ 
+ std::vector<sqlid_t> Database::dbSelectChildIds(std::string table, sqlid_t parent)
+ {
+-	return dbSelectChildIds(con,table,parent);
++	return dbSelectChildIds(con,std::move(table),parent);
+ }
+ 
+ 
+-- 
+2.24.0
+

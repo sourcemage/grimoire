@@ -1,0 +1,115 @@
+From b557a953993c9b519ea5adccbdddeeeb684c48a4 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 18:07:14 +0100
+Subject: [PATCH 31/35] Enable more compiler warnings
+
+---
+ CMakeLists.txt               |  1 +
+ cmake/compilerwarnings.cmake | 83 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+)
+ create mode 100644 cmake/compilerwarnings.cmake
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2a10e1f..a3134bc 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -18,6 +18,7 @@ include(GNUInstallDirs)
+ include(linker)
+ include(sqlite)
+ include(lto)
++include(compilerwarnings)
+ 
+ find_package(Threads REQUIRED)
+ 
+diff --git a/cmake/compilerwarnings.cmake b/cmake/compilerwarnings.cmake
+new file mode 100644
+index 0000000..d314294
+--- /dev/null
++++ b/cmake/compilerwarnings.cmake
+@@ -0,0 +1,83 @@
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wall" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wextra" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Werror" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -pedantic" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-error=cast-qual" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wcast-align" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wformat=2" )
++#set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wformat-truncation=2" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wfloat-equal" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Winit-self" )
++
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-error=missing-include-dirs" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wwrite-strings" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wpointer-arith" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wuninitialized" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wstrict-overflow=2" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wparentheses" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wdate-time" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wredundant-decls" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wswitch-enum" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wundef" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-unused-macros" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-error=unused-variable" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-unused-parameter" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-error=return-type" )
++option(DEPRECATION_WARNING "warn about use of deprecated features" OFF)
++if(NOT DEPRECATION_WARNING)
++  set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-deprecated-declarations" )
++endif()
++#set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wconversion" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-error=shadow" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wpacked" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-error=unreachable-code" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-error=unused-function" )
++set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-unused-command-line-argument" )
++
++if(CMAKE_COMPILER_IS_GNUCC AND NOT DEFINED CMAKE_CXX_CLANG_TIDY)
++  set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wlogical-op" )
++  set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wno-suggest-attribute=noreturn" )
++  set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Walloc-zero" )
++  set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wduplicated-branches" )
++  set( WARNINGS_COMMONFLAGS "${WARNINGS_COMMONFLAGS} -Wduplicated-cond" )
++endif()
++
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARNINGS_COMMONFLAGS}")
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes")
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wbad-function-cast")
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wold-style-definition")
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-prototypes")
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-declarations")
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wnested-externs")
++
++set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARNINGS_COMMONFLAGS}")
++set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=overloaded-virtual" )
++set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wextra-semi" )
++set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnon-virtual-dtor" )
++#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuseless-cast" )
++set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wzero-as-null-pointer-constant" )
++if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND NOT DEFINED CMAKE_CXX_CLANG_TIDY)
++  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wsuggest-override" )
++  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wcatch-value=2" )
++  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wplacement-new" )
++  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-terminate")
++endif()
++#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Weffc++" )
++#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wold-style-cast" )
++
++if(DEFINED CMAKE_CXX_CLANG_TIDY)
++  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error")
++  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error")
++endif()
++
++INCLUDE (CheckCXXSourceCompiles)
++
++CHECK_CXX_SOURCE_COMPILES("
++int main(void) {
++  return 0;
++}
++" COMPILE_TRIVIAL_CXX_PROGRAM)
++if(COMPILE_TRIVIAL_CXX_PROGRAM)
++else()
++  message(FATAL_ERROR "cannot compile a trivial C++ program")
++endif()
+-- 
+2.24.0
+

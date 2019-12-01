@@ -1,0 +1,214 @@
+From 517b440f6da6f0dda05441e4906b76fe765212ae Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 17:52:07 +0100
+Subject: [PATCH 09/35] Cleanup: use brackets around one-line conditional
+ statements
+
+---
+ src/BeanUpdater.cpp | 16 ++++++++++++----
+ src/CppModel.cpp    |  4 +++-
+ src/SQLiteStmt.cpp  | 42 +++++++++++++++++++++++++++++++-----------
+ tests.cpp           |  8 ++++++--
+ 4 files changed, 52 insertions(+), 18 deletions(-)
+
+diff --git a/src/BeanUpdater.cpp b/src/BeanUpdater.cpp
+index cc372ce..23d78e7 100644
+--- a/src/BeanUpdater.cpp
++++ b/src/BeanUpdater.cpp
+@@ -10,8 +10,10 @@ RowScope::~RowScope()
+ }
+ 
+ void RowScope::addSimpleAssign(const std::string& name, const std::string& value){
+-	if(needComma)
++	if(needComma) {
+ 		query+=", ";
++
++}
+ 	needComma=true;
+ 	query+=name+"="+value;
+ }
+@@ -39,8 +41,10 @@ void UpdateBean::commitRow(shared_connection con, sqlid_t rowid)
+ 		rowStack.pop();
+ 		return;
+ 	}
+-	if(rowid!=curRow()->id)
++	if(rowid!=curRow()->id) {
+ 		throw std::runtime_error("rowid mismatch");
++
++}
+ 	curRow()->query+=std::string(" WHERE ")+ HIBERLITE_PRIMARY_KEY_COLUMN + "="+ Transformer::toSQLiteValue(rowid) +";";
+ 
+ 	sqlite3_stmt* stmt_ptr=NULL;
+@@ -58,14 +62,18 @@ void UpdateBean::commitRow(shared_connection con, sqlid_t rowid)
+ 
+ 	{
+ 		int rc=sqlite3_step(statement->get_stmt());
+-		if(rc!=SQLITE_DONE)
++		if(rc!=SQLITE_DONE) {
+ 			database_error::database_assert(rc, con);
++
++}
+ 	}
+ 
+ 
+-	if(!rowStack.size())
++	if(rowStack.empty()) {
+ 		throw std::logic_error("UpdateVisitor: commit row, but no row started");
+ 
++}
++
+ 	rowStack.pop();
+ }
+ 
+diff --git a/src/CppModel.cpp b/src/CppModel.cpp
+index eda86b7..2118914 100644
+--- a/src/CppModel.cpp
++++ b/src/CppModel.cpp
+@@ -4,8 +4,10 @@ namespace hiberlite{
+ 
+ void Model::add(const Table& t)
+ {
+-	if( find(t.name)!=end() )
++	if( find(t.name)!=end() ) {
+ 		throw std::logic_error("table ["+t.name+"] already exists");
++
++}
+ 	HIBERLITE_HL_DBG_DO( std::cout << "model add table " << t.name << std::endl; )
+ 	insert( std::pair<std::string,Table>(t.name,t) );
+ }
+diff --git a/src/SQLiteStmt.cpp b/src/SQLiteStmt.cpp
+index 2f664e3..e95e85f 100644
+--- a/src/SQLiteStmt.cpp
++++ b/src/SQLiteStmt.cpp
+@@ -21,8 +21,10 @@ SQLiteSelect::~SQLiteSelect()
+ bool SQLiteSelect::step()
+ {
+ 	int rc=sqlite3_step(statement->get_stmt());
+-	if(rc==SQLITE_DONE)
++	if(rc==SQLITE_DONE) {
+ 		return false;
++
++}
+ 	if(rc==SQLITE_ROW){
+ 		active=true;
+ 		return true;
+@@ -32,60 +34,78 @@ bool SQLiteSelect::step()
+ }
+ 
+ const void* SQLiteSelect::get_blob(int iCol){
+-	if(!active)
++	if(!active) {
+ 		throw std::runtime_error("step() was not called before column access");
++
++}
+ 	return sqlite3_column_blob(statement->get_stmt(), iCol);
+ }
+ 
+ int SQLiteSelect::get_bytes(int iCol){
+-	if(!active)
++	if(!active) {
+ 		throw std::runtime_error("step() was not called before column access");
++
++}
+ 	return sqlite3_column_bytes(statement->get_stmt(), iCol);
+ }
+ 
+ double SQLiteSelect::get_double(int iCol){
+-	if(!active)
++	if(!active) {
+ 		throw std::runtime_error("step() was not called before column access");
++
++}
+ 	return sqlite3_column_double(statement->get_stmt(), iCol);
+ }
+ 
+ int SQLiteSelect::get_int(int iCol){
+-	if(!active)
++	if(!active) {
+ 		throw std::runtime_error("step() was not called before column access");
++
++}
+ 	return sqlite3_column_int(statement->get_stmt(), iCol);
+ }
+ 
+ sqlid_t SQLiteSelect::get_int64(int iCol){
+-	if(!active)
++	if(!active) {
+ 		throw std::runtime_error("step() was not called before column access");
++
++}
+ 	return sqlite3_column_int64(statement->get_stmt(), iCol);
+ }
+ 
+ const unsigned char *SQLiteSelect::get_text(int iCol){
+-	if(!active)
++	if(!active) {
+ 		throw std::runtime_error("step() was not called before column access");
++
++}
+ 	return sqlite3_column_text(statement->get_stmt(), iCol);
+ }
+ 
+ int SQLiteSelect::get_type(int iCol){
+-	if(!active)
++	if(!active) {
+ 		throw std::runtime_error("step() was not called before column access");
++
++}
+ 	return sqlite3_column_type(statement->get_stmt(), iCol);
+ }
+ 
+ std::string SQLiteSelect::get_name(int N){
+-	if(!active)
++	if(!active) {
+ 		throw std::runtime_error("step() was not called before column access");
++
++}
+ 	return sqlite3_column_name(statement->get_stmt(), N);
+ }
+ 
+ int SQLiteSelect::column_count(){
+-	if(!active)
++	if(!active) {
+ 		throw std::runtime_error("step() was not called before column access");
++
++}
+ 	return sqlite3_column_count(statement->get_stmt());
+ }
+ 
+ 
+-}
++}  // namespace hiberlite
+ 
+ //namespace hiberlite
+diff --git a/tests.cpp b/tests.cpp
+index 764214e..c42cd8b 100644
+--- a/tests.cpp
++++ b/tests.cpp
+@@ -182,8 +182,10 @@ struct Tester{
+ 			Database db("t3.db");
+ 			db.registerBeanClass<X>();
+ 			bean_ptr<X> xptr=db.loadBean<X>(1);
+-			if( !(*xptr==x) )
++			if( !(*xptr==x) ) {
+ 				throw std::runtime_error("load failed");
++
++}
+ 		}
+ 
+ 	}
+@@ -204,8 +206,10 @@ struct Tester{
+           Database db("t4.db");
+           db.registerBeanClass<WrappedBytes>();
+           bean_ptr<WrappedBytes> wb_ptr = db.loadBean<WrappedBytes>(1);
+-          if (!(*wb_ptr == wrappedBytes))
++          if (!(*wb_ptr == wrappedBytes)) {
+               throw std::runtime_error("BLOB load failed");
++
++}
+         }
+     }
+ };
+-- 
+2.24.0
+

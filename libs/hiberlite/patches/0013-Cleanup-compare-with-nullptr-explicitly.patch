@@ -1,0 +1,81 @@
+From 056f8d1215751844984201716562681e3f741dfb Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 17:56:16 +0100
+Subject: [PATCH 13/35] Cleanup: compare with nullptr explicitly
+
+---
+ src/Database.cpp | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/Database.cpp b/src/Database.cpp
+index f85cedd..87bbfb1 100644
+--- a/src/Database.cpp
++++ b/src/Database.cpp
+@@ -29,15 +29,17 @@ void Database::open(const std::string& fname)
+ 		con=shared_connection(new autoclosed_con(db));
+ 
+ 	}catch(std::runtime_error e){
+-		if(db)
++		if(db != nullptr) {
+ 			sqlite3_close(db);
++
++}
+ 		throw std::move(e);
+ 	}
+ }
+ 
+ void Database::close()
+ {
+-	if(mx) {
++	if(mx != nullptr) {
+ 		delete mx;
+ 		mx=NULL;
+ 	}
+@@ -52,8 +54,10 @@ std::vector<std::string> Database::checkModel()
+ 
+ void Database::dropModel()
+ {
+-	if(!mx)
++	if(mx == nullptr) {
+ 		throw std::logic_error("register bean classes first");
++
++}
+ 	Model mdl=mx->getModel();
+ 	for(auto & it : mdl){
+ 		Table& t=it.second;
+@@ -64,8 +68,10 @@ void Database::dropModel()
+ 
+ void Database::createModel()
+ {
+-	if(!mx)
++	if(mx == nullptr) {
+ 		throw std::logic_error("register bean classes first");
++
++}
+ 	Model mdl=mx->getModel();
+ 	for(auto & it : mdl){
+ 		Table& t=it.second;
+@@ -95,8 +101,10 @@ sqlid_t Database::allocId(shared_connection c, const std::string& table)
+ 	std::string query="INSERT INTO "+table+" ("+HIBERLITE_PRIMARY_KEY_COLUMN+") VALUES (NULL);";
+ 	HIBERLITE_HL_DBG_DO( std::cout << "exec: " << query << std::endl; )
+ 	int rc=sqlite3_exec(c->getSQLite3Ptr(),query.c_str(),NULL, NULL, &err_msg );
+-	if(err_msg)
++	if(err_msg != nullptr) {
+ 		throw database_error(err_msg);
++
++}
+ 	database_error::database_assert(rc, c);
+ 
+ 	return sqlite3_last_insert_rowid(c->getSQLite3Ptr());
+@@ -107,7 +115,7 @@ void Database::dbExecQuery(shared_connection con, const std::string& query)
+ 	char* err_msg=NULL;
+ 	HIBERLITE_HL_DBG_DO( std::cout << "exec: " << query << std::endl; )
+ 	int rc=sqlite3_exec(con->getSQLite3Ptr(),query.c_str(),NULL, NULL, &err_msg );
+-	if(err_msg){
++	if(err_msg != nullptr){
+ 		std::string msg=err_msg;
+ 		sqlite3_free(err_msg);
+ 		throw database_error(msg);
+-- 
+2.24.0
+

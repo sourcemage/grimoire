@@ -1,0 +1,92 @@
+From 979792a5d9d8976a72029835979453612a2e3989 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 20:19:52 +0100
+Subject: [PATCH 07/35] Cleanup: use range-based for loops
+
+---
+ src/BeanUpdater.cpp |  5 +++--
+ src/Database.cpp    | 15 ++++++++-------
+ tests.cpp           |  7 ++++---
+ 3 files changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/BeanUpdater.cpp b/src/BeanUpdater.cpp
+index 6f77b9f..cc372ce 100644
+--- a/src/BeanUpdater.cpp
++++ b/src/BeanUpdater.cpp
+@@ -4,8 +4,9 @@ namespace hiberlite{
+ 
+ RowScope::~RowScope()
+ {
+-	for(size_t i=0;i<atoms.size();i++)
+-		delete atoms[i];
++	for(auto & atom : atoms) {
++		delete atom;
++	}
+ }
+ 
+ void RowScope::addSimpleAssign(const std::string& name, const std::string& value){
+diff --git a/src/Database.cpp b/src/Database.cpp
+index dae217c..0dd0091 100644
+--- a/src/Database.cpp
++++ b/src/Database.cpp
+@@ -55,8 +55,8 @@ void Database::dropModel()
+ 	if(!mx)
+ 		throw std::logic_error("register bean classes first");
+ 	Model mdl=mx->getModel();
+-	for(Model::iterator it=mdl.begin();it!=mdl.end();it++){
+-		Table& t=it->second;
++	for(auto & it : mdl){
++		Table& t=it.second;
+ 		std::string query="DROP TABLE IF EXISTS "+t.name+";";
+ 		dbExecQuery(query);
+ 	}
+@@ -67,15 +67,16 @@ void Database::createModel()
+ 	if(!mx)
+ 		throw std::logic_error("register bean classes first");
+ 	Model mdl=mx->getModel();
+-	for(Model::iterator it=mdl.begin();it!=mdl.end();it++){
+-		Table& t=it->second;
++	for(auto & it : mdl){
++		Table& t=it.second;
+ 		std::string query="CREATE TABLE "+t.name+" (";
+ 		bool needComma=false;
+-		for(std::map<std::string,Column>::iterator c=t.columns.begin();c!=t.columns.end();c++){
+-			if(needComma)
++		for(auto & column : t.columns){
++			if(needComma) {
+ 				query+=", ";
++			}
+ 			needComma=true;
+-			Column& col=c->second;
++			Column& col=column.second;
+ 			query += col.name + " ";
+ 			if(col.name==HIBERLITE_PRIMARY_KEY_COLUMN)
+ 				query+="INTEGER PRIMARY KEY AUTOINCREMENT";
+diff --git a/tests.cpp b/tests.cpp
+index f8c6d8b..764214e 100644
+--- a/tests.cpp
++++ b/tests.cpp
+@@ -93,8 +93,9 @@ struct Tester{
+ 		db.registerBeanClass<B>();
+ 
+ 		vector<string> msg=db.checkModel();
+-		for(size_t ci=0;ci<msg.size();ci++)
+-			cout << "model check reported: " << msg[ci] << endl;
++		for(const auto & ci : msg) {
++			cout << "model check reported: " << ci << endl;
++		}
+ 
+ 		db.dropModel();
+ 		db.createModel();
+@@ -190,7 +191,7 @@ struct Tester{
+     void test4() {
+         WrappedBytes wrappedBytes;
+         wrappedBytes.bytes = {'a', 'b', 'c', 'd', 'e'};
+-        
++
+         {
+           Database db("t4.db");
+           db.registerBeanClass<WrappedBytes>();
+-- 
+2.24.0
+

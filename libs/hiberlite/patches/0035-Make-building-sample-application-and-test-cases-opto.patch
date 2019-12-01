@@ -1,0 +1,69 @@
+From d648aa253645dafccf9df7268066f18ef7e5ca1b Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 22:03:37 +0100
+Subject: [PATCH 35/35] Make building sample application and test cases optonal
+
+---
+ CMakeLists.txt | 38 +++++++++++++++++++++++---------------
+ 1 file changed, 23 insertions(+), 15 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b0e0288..9bc4c62 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.9)
+ 
+ project(hiberlite VERSION 0.1)
+ 
+-enable_testing()
+-
+ #find_package(Qt5 CONFIG REQUIRED Core Gui Widgets)
+ 
+ set(CMAKE_INCLUDE_CURRENT_DIR ON)
+@@ -105,20 +103,30 @@ install(TARGETS ${TARGET_NAME}_shared ${TARGET_NAME}_static
+   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hiberlite)
+ 
+-add_executable(sample
+-  sample.cpp
+-  )
++option(HIBERLITE_BUILD_SAMPLE "build example application" OFF)
+ 
+-target_link_libraries(sample
+-  ${TARGET_NAME}_shared
+-  )
++if(HIBERLITE_BUILD_SAMPLE)
++  add_executable(sample
++    sample.cpp
++    )
+ 
+-add_executable(tests
+-  tests.cpp
+-  )
++  target_link_libraries(sample
++    ${TARGET_NAME}_shared
++    )
++endif()
+ 
+-target_link_libraries(tests
+-  ${TARGET_NAME}_shared
+-)
++option(HIBERLITE_ENABLE_TESTS "build and enable test cases" OFF)
++
++if(HIBERLITE_ENABLE_TESTS)
++  enable_testing()
++
++  add_executable(tests
++    tests.cpp
++    )
++
++  target_link_libraries(tests
++    ${TARGET_NAME}_shared
++    )
+ 
+-add_test(NAME tests COMMAND ${CMAKE_CURRENT_BINARY_DIR}/tests)
++  add_test(NAME tests COMMAND ${CMAKE_CURRENT_BINARY_DIR}/tests)
++endif()
+-- 
+2.24.0
+

@@ -1,0 +1,43 @@
+From dd43b88a41b519f101163b0e17e2ced281c1847a Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 18:06:50 +0100
+Subject: [PATCH 22/35] Use lld and gold for faster linking
+
+---
+ CMakeLists.txt     |  1 +
+ cmake/linker.cmake | 11 +++++++++++
+ 2 files changed, 12 insertions(+)
+ create mode 100644 cmake/linker.cmake
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4f45972..30a1cbf 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -13,6 +13,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-terminate")
+ 
+ set(TARGET_NAME hiberlite)
+ 
++include(linker)
+ include(sqlite)
+ 
+ 
+diff --git a/cmake/linker.cmake b/cmake/linker.cmake
+new file mode 100644
+index 0000000..f991f3f
+--- /dev/null
++++ b/cmake/linker.cmake
+@@ -0,0 +1,11 @@
++if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
++  message(STATUS "using lld for linking")
++  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=lld")
++  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fuse-ld=lld")
++  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fuse-ld=lld")
++elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
++  message(STATUS "using gold for linking")
++  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=gold")
++  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fuse-ld=gold")
++  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fuse-ld=gold")
++endif()
+-- 
+2.24.0
+

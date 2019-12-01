@@ -1,0 +1,224 @@
+From e651ad502114b7600a21708f235e3e37455cc7d8 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 17:41:20 +0100
+Subject: [PATCH 03/35] Cleanup: pass objects by const reference instead of by
+ value
+
+---
+ include/BeanUpdater.h |  4 ++--
+ include/CppModel.h    |  6 +++---
+ include/Database.h    | 12 ++++++------
+ include/SQLiteStmt.h  |  2 +-
+ src/BeanUpdater.cpp   |  4 ++--
+ src/CppModel.cpp      |  6 +++---
+ src/Database.cpp      | 10 +++++-----
+ src/SQLiteStmt.cpp    |  2 +-
+ 8 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/include/BeanUpdater.h b/include/BeanUpdater.h
+index 5034b6e..9b6d3df 100644
+--- a/include/BeanUpdater.h
++++ b/include/BeanUpdater.h
+@@ -16,7 +16,7 @@ struct RowScope{
+ 	template<class C>
+ 	inline void addAssignment(const std::string name, db_atom<C>& atom);
+ 
+-	void addSimpleAssign(const std::string name, std::string value);
++	void addSimpleAssign(const std::string& name, const std::string& value);
+ 
+ 	~RowScope();
+ };
+@@ -134,7 +134,7 @@ class UpdateBean{
+ 		std::stack< shared_res<RowScope> > rowStack;
+ 		RowScope* curRow();
+ 
+-		void startRow(std::string table, sqlid_t rowid, sqlid_t parent_id, sqlid_t index);
++		void startRow(const std::string& table, sqlid_t rowid, sqlid_t parent_id, sqlid_t index);
+ 		void commitRow(shared_connection con, sqlid_t rowid);
+ };
+ 
+diff --git a/include/CppModel.h b/include/CppModel.h
+index 6ec15ae..9e6c06a 100644
+--- a/include/CppModel.h
++++ b/include/CppModel.h
+@@ -33,13 +33,13 @@ class Table{
+ 		Table();
+ 		std::string name;
+ 		std::map<std::string,Column> columns;
+-		void add(Column c);
+-		bool contains(std::string colname);
++		void add(const Column& c);
++		bool contains(const std::string& colname);
+ };
+ 
+ class Model : public std::map<std::string,Table> {
+ 	public:
+-		void add(Table t);
++		void add(const Table& t);
+ };
+ 
+ }//namespace hiberlite
+diff --git a/include/Database.h b/include/Database.h
+index ac69ca8..c06f4a7 100644
+--- a/include/Database.h
++++ b/include/Database.h
+@@ -27,16 +27,16 @@ class Database : noncopyable
+ 		template<class C>
+ 		static C* dbLoad(bean_key key);
+ 
+-		static sqlid_t allocId(shared_connection c, std::string table);
++		static sqlid_t allocId(shared_connection c, const std::string& table);
+ 		sqlid_t allocId(std::string table);
+ 
+-		static void dbExecQuery(shared_connection con, std::string query);
++		static void dbExecQuery(shared_connection con, const std::string& query);
+ 		void dbExecQuery(std::string query);
+ 
+-		static std::vector<sqlid_t> dbSelectIds(shared_connection con, const std::string table,
+-														const std::string condition, const std::string orderBy);
++		static std::vector<sqlid_t> dbSelectIds(const shared_connection& con, const std::string& table,
++														const std::string& condition, const std::string& orderBy);
+ 
+-		static std::vector<sqlid_t> dbSelectChildIds(shared_connection con, std::string table, sqlid_t parent);
++		static std::vector<sqlid_t> dbSelectChildIds(const shared_connection& con, std::string table, sqlid_t parent);
+ 		inline std::vector<sqlid_t> dbSelectChildIds(std::string table, sqlid_t parent);
+ 
+ 		shared_connection con;
+@@ -54,7 +54,7 @@ class Database : noncopyable
+ 		Database(std::string fname);
+ 		virtual ~Database();
+ 
+-		void open(std::string fname);
++		void open(const std::string& fname);
+ 		void close();
+ 
+ 		template<class C>
+diff --git a/include/SQLiteStmt.h b/include/SQLiteStmt.h
+index 90e9e79..e7cb10b 100644
+--- a/include/SQLiteStmt.h
++++ b/include/SQLiteStmt.h
+@@ -21,7 +21,7 @@ typedef shared_res<statement_ptr> shared_stmt;
+ class SQLiteSelect
+ {
+ 	public:
+-		SQLiteSelect(shared_connection con, std::string query);
++		SQLiteSelect(const shared_connection& con, const std::string& query);
+ 
+ 		bool step();
+ 
+diff --git a/src/BeanUpdater.cpp b/src/BeanUpdater.cpp
+index a6d4154..6f77b9f 100644
+--- a/src/BeanUpdater.cpp
++++ b/src/BeanUpdater.cpp
+@@ -8,7 +8,7 @@ RowScope::~RowScope()
+ 		delete atoms[i];
+ }
+ 
+-void RowScope::addSimpleAssign(const std::string name, std::string value){
++void RowScope::addSimpleAssign(const std::string& name, const std::string& value){
+ 	if(needComma)
+ 		query+=", ";
+ 	needComma=true;
+@@ -19,7 +19,7 @@ RowScope* UpdateBean::curRow(){
+ 	return rowStack.top().get_object();
+ }
+ 
+-void UpdateBean::startRow(std::string table, sqlid_t rowid, sqlid_t parent_id, sqlid_t index)
++void UpdateBean::startRow(const std::string& table, sqlid_t rowid, sqlid_t parent_id, sqlid_t index)
+ {
+ 	shared_res<RowScope> rs(new RowScope);
+ 	rowStack.push(rs);
+diff --git a/src/CppModel.cpp b/src/CppModel.cpp
+index 952c5e3..eda86b7 100644
+--- a/src/CppModel.cpp
++++ b/src/CppModel.cpp
+@@ -2,7 +2,7 @@
+ 
+ namespace hiberlite{
+ 
+-void Model::add(Table t)
++void Model::add(const Table& t)
+ {
+ 	if( find(t.name)!=end() )
+ 		throw std::logic_error("table ["+t.name+"] already exists");
+@@ -15,13 +15,13 @@ Table::Table()
+ 	add(Column(HIBERLITE_PRIMARY_KEY_COLUMN,HIBERLITE_PRIMARY_KEY_STORAGE_TYPE));
+ }
+ 
+-void Table::add(Column c)
++void Table::add(const Column& c)
+ {
+ 	HIBERLITE_HL_DBG_DO( std::cout << "table " << name << " add column " << c.name << " : " << c.storage_type << std::endl; )
+ 	columns[c.name]=c;
+ }
+ 
+-bool Table::contains(std::string colname)
++bool Table::contains(const std::string& colname)
+ {
+ 	return columns.find(colname)!=columns.end();
+ }
+diff --git a/src/Database.cpp b/src/Database.cpp
+index e876d25..dae217c 100644
+--- a/src/Database.cpp
++++ b/src/Database.cpp
+@@ -17,7 +17,7 @@ Database::~Database()
+ 	close();
+ }
+ 
+-void Database::open(std::string fname)
++void Database::open(const std::string& fname)
+ {
+ 	sqlite3* db=NULL;
+ 
+@@ -87,7 +87,7 @@ void Database::createModel()
+ 	}
+ }
+ 
+-sqlid_t Database::allocId(shared_connection c, std::string table)
++sqlid_t Database::allocId(shared_connection c, const std::string& table)
+ {
+ 	//THREAD critical call
+ 	char* err_msg=NULL;
+@@ -101,7 +101,7 @@ sqlid_t Database::allocId(shared_connection c, std::string table)
+ 	return sqlite3_last_insert_rowid(c->getSQLite3Ptr());
+ }
+ 
+-void Database::dbExecQuery(shared_connection con, std::string query)
++void Database::dbExecQuery(shared_connection con, const std::string& query)
+ {
+ 	char* err_msg=NULL;
+ 	HIBERLITE_HL_DBG_DO( std::cout << "exec: " << query << std::endl; )
+@@ -122,7 +122,7 @@ void Database::dbExecQuery(std::string query){
+ 	return dbExecQuery(con, query);
+ }
+ 
+-std::vector<sqlid_t> Database::dbSelectIds(shared_connection con, const std::string table, const std::string condition, const std::string orderBy)
++std::vector<sqlid_t> Database::dbSelectIds(const shared_connection& con, const std::string& table, const std::string& condition, const std::string& orderBy)
+ {
+ 	std::string where;
+ 	if(condition.size())
+@@ -142,7 +142,7 @@ std::vector<sqlid_t> Database::dbSelectIds(shared_connection con, const std::str
+ 	return ans;
+ }
+ 
+-std::vector<sqlid_t> Database::dbSelectChildIds(shared_connection con, std::string table, sqlid_t parent)
++std::vector<sqlid_t> Database::dbSelectChildIds(const shared_connection& con, std::string table, sqlid_t parent)
+ {
+ 	return dbSelectIds(con, table, std::string(HIBERLITE_PARENTID_COLUMN)+"="+Transformer::toSQLiteValue(parent)
+ 									, HIBERLITE_ENTRY_INDEX_COLUMN);
+diff --git a/src/SQLiteStmt.cpp b/src/SQLiteStmt.cpp
+index b856689..2f664e3 100644
+--- a/src/SQLiteStmt.cpp
++++ b/src/SQLiteStmt.cpp
+@@ -2,7 +2,7 @@
+ 
+ namespace hiberlite{
+ 
+-SQLiteSelect::SQLiteSelect(shared_connection _con, std::string query) : con(_con)
++SQLiteSelect::SQLiteSelect(const shared_connection& _con, const std::string& query) : con(_con)
+ {
+ 	HIBERLITE_HL_DBG_DO( std::cout << "query: " << query << std::endl; )
+ 	active=false;
+-- 
+2.24.0
+

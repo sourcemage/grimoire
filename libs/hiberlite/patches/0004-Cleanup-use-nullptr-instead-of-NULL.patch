@@ -1,0 +1,100 @@
+From e72e879ea0cc2cc3019a1b698287509f03e49819 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 17:43:40 +0100
+Subject: [PATCH 04/35] Cleanup: use nullptr instead of NULL
+
+---
+ include/Registry_impl.hpp |  4 ++--
+ include/bean_ptr_impl.hpp |  4 ++--
+ include/shared_res.h      | 10 +++++-----
+ 3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/include/Registry_impl.hpp b/include/Registry_impl.hpp
+index d84234f..7fcc8fa 100644
+--- a/include/Registry_impl.hpp
++++ b/include/Registry_impl.hpp
+@@ -21,7 +21,7 @@ template<class C>
+ bean_ptr<C> Registry<C>::createBeanPtr(bean_key key, C* obj)
+ {
+ 	if(key.id==Database::NULL_ID)
+-		return bean_ptr<C>(key,NULL);
++		return bean_ptr<C>(key,nullptr);
+ 
+ 	real_bean<C>* rb=new real_bean<C>(key,obj);
+ 	rb_pair<C>* para=new rb_pair<C>(rb);
+@@ -41,7 +41,7 @@ bean_ptr<C> Registry<C>::get(const bean_key key)
+ 	typename std::map<bean_key,rb_pair<C>* >::iterator it;
+ 	it=rbpairs.find(key);
+ 	if(it==rbpairs.end())
+-		return createBeanPtr(key,NULL);
++		return createBeanPtr(key,nullptr);
+ 	else
+ 		return bean_ptr<C>(key, it->second);
+ }
+diff --git a/include/bean_ptr_impl.hpp b/include/bean_ptr_impl.hpp
+index 1bd55aa..02bd438 100644
+--- a/include/bean_ptr_impl.hpp
++++ b/include/bean_ptr_impl.hpp
+@@ -18,7 +18,7 @@ void real_bean<C>::destroy() {
+ 	Database::dbDelete(key, *obj);
+ 	delete obj;
+ 	forgotten=true;
+-	obj=NULL;
++	obj=nullptr;
+ 	key.id=Database::NULL_ID;
+ }
+ 
+@@ -46,7 +46,7 @@ template<class C>
+ C* real_bean<C>::get()
+ {
+ 	if(forgotten)
+-		return NULL;
++		return nullptr;
+ 	loadLazy();
+ 	if(!obj)
+ 		throw std::runtime_error("NULL pointer exception!");
+diff --git a/include/shared_res.h b/include/shared_res.h
+index 2f6bc0b..b5d2b83 100644
+--- a/include/shared_res.h
++++ b/include/shared_res.h
+@@ -55,16 +55,16 @@ protected:
+ 	}
+ 
+ public:
+-	inline explicit shared_res(C* tg) : res(NULL) {
++	inline explicit shared_res(C* tg) : res(nullptr) {
+ 		if(!tg)
+ 			throw std::logic_error("no reason to manage NULL object");
+ 		shared_cnt_obj_pair<C>* share=new shared_cnt_obj_pair<C>(tg);
+ 		takeRes(share);
+ 	}
+ 
+-	inline shared_res() : res(NULL) {}
++	inline shared_res() : res(nullptr) {}
+ 
+-	inline shared_res(const shared_res<C>& x) : res(NULL) {
++	inline shared_res(const shared_res<C>& x) : res(nullptr) {
+ 		takeRes(x.res);
+ 	}
+ 
+@@ -82,7 +82,7 @@ public:
+ 
+ 	inline C* get_object(){
+ 		if(!res)
+-			return NULL;
++			return nullptr;
+ 		return res->getRes();
+ 	}
+ 
+@@ -103,7 +103,7 @@ public:
+ 		return res<x.res;
+ 	}
+ 	inline operator bool() const{
+-		return res!=NULL;
++		return res!=nullptr;
+ 	}
+ };
+ 
+-- 
+2.24.0
+

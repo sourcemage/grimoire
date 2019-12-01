@@ -1,0 +1,125 @@
+From 09daa1580aab96c3d1da4f3b0023f21ac0dcb4fe Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 18:39:30 +0100
+Subject: [PATCH 25/35] Add install target for shared and static library
+
+---
+ CMakeLists.txt | 59 +++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 41 insertions(+), 18 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d8f37ea..2a10e1f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,6 +1,6 @@
+ cmake_minimum_required(VERSION 3.9)
+ 
+-project(hiberlite)
++project(hiberlite VERSION 0.1)
+ 
+ #find_package(Qt5 CONFIG REQUIRED Core Gui Widgets)
+ 
+@@ -13,24 +13,15 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-terminate")
+ 
+ set(TARGET_NAME hiberlite)
+ 
++include(GNUInstallDirs)
++
+ include(linker)
+ include(sqlite)
+ include(lto)
+ 
+ find_package(Threads REQUIRED)
+ 
+-set(SOURCES
+-  src/BeanLoader.cpp
+-  src/BeanUpdater.cpp
+-  src/ChildKiller.cpp
+-  src/CppModel.cpp
+-  src/Database.cpp
+-  src/ModelExtractor.cpp
+-  src/Registry.cpp
+-  src/shared_res.cpp
+-  src/SQLiteStmt.cpp
+-  src/Visitor.cpp
+-
++set(HEADERS
+   include/BeanLoader.h
+   include/BeanLoader_impl.hpp
+   include/BeanUpdater.h
+@@ -59,28 +50,60 @@ set(SOURCES
+   include/some_types.h
+   )
+ 
+-add_library(${TARGET_NAME}
++set(SOURCES
++  src/BeanLoader.cpp
++  src/BeanUpdater.cpp
++  src/ChildKiller.cpp
++  src/CppModel.cpp
++  src/Database.cpp
++  src/ModelExtractor.cpp
++  src/Registry.cpp
++  src/shared_res.cpp
++  src/SQLiteStmt.cpp
++  src/Visitor.cpp
++  )
++
++add_library(${TARGET_NAME}_shared SHARED
++  ${SOURCES}
++)
++
++set_target_properties(${TARGET_NAME}_shared PROPERTIES VERSION ${PROJECT_VERSION})
++set_target_properties(${TARGET_NAME}_shared PROPERTIES PUBLIC_HEADER "${HEADERS}")
++
++add_library(${TARGET_NAME}_static STATIC
+   ${SOURCES}
+ )
++set_target_properties(${TARGET_NAME}_shared PROPERTIES OUTPUT_NAME ${TARGET_NAME})
++set_target_properties(${TARGET_NAME}_static PROPERTIES OUTPUT_NAME ${TARGET_NAME})
+ 
+-target_include_directories(${TARGET_NAME}
++target_include_directories(${TARGET_NAME}_shared
+   PUBLIC
+   include
+   ${SQLITE_INCLUDES}
+ )
+ 
+-target_link_libraries(${TARGET_NAME}
++target_link_libraries(${TARGET_NAME}_shared
+   Threads::Threads
+   dl
+   ${LIBSQLITE}
+   )
+ 
++target_link_libraries(${TARGET_NAME}_static
++  Threads::Threads
++  dl
++  ${LIBSQLITE}
++  )
++
++install(TARGETS ${TARGET_NAME}_shared ${TARGET_NAME}_static
++  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
++  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hiberlite)
++
+ add_executable(sample
+   sample.cpp
+   )
+ 
+ target_link_libraries(sample
+-  ${TARGET_NAME}
++  ${TARGET_NAME}_shared
+   )
+ 
+ add_executable(tests
+@@ -88,6 +111,6 @@ add_executable(tests
+   )
+ 
+ target_link_libraries(tests
+-  ${TARGET_NAME}
++  ${TARGET_NAME}_shared
+ )
+ 
+-- 
+2.24.0
+

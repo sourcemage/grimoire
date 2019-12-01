@@ -1,0 +1,101 @@
+From c8bd84356f6ba3f513b81d9ba95c7a5c9126534a Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 18:41:24 +0100
+Subject: [PATCH 27/35] Cleanup use nullptr instead of NULL
+
+---
+ src/BeanUpdater.cpp |  2 +-
+ src/Database.cpp    | 16 ++++++++--------
+ src/SQLiteStmt.cpp  |  2 +-
+ 3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/BeanUpdater.cpp b/src/BeanUpdater.cpp
+index 23d78e7..365686e 100644
+--- a/src/BeanUpdater.cpp
++++ b/src/BeanUpdater.cpp
+@@ -47,7 +47,7 @@ void UpdateBean::commitRow(shared_connection con, sqlid_t rowid)
+ }
+ 	curRow()->query+=std::string(" WHERE ")+ HIBERLITE_PRIMARY_KEY_COLUMN + "="+ Transformer::toSQLiteValue(rowid) +";";
+ 
+-	sqlite3_stmt* stmt_ptr=NULL;
++	sqlite3_stmt* stmt_ptr=nullptr;
+ 	{
+ 		sqlite3* db=con->getSQLite3Ptr();
+ 		const char* foob;
+diff --git a/src/Database.cpp b/src/Database.cpp
+index c55cfba..acb8965 100644
+--- a/src/Database.cpp
++++ b/src/Database.cpp
+@@ -7,11 +7,11 @@
+ 
+ namespace hiberlite{
+ 
+-Database::Database() : mx(NULL)
++Database::Database() : mx(nullptr)
+ {
+ }
+ 
+-Database::Database(std::string fname) : mx(NULL)
++Database::Database(std::string fname) : mx(nullptr)
+ {
+ 	open(std::move(fname));
+ }
+@@ -23,7 +23,7 @@ Database::~Database()
+ 
+ void Database::open(const std::string& fname)
+ {
+-	sqlite3* db=NULL;
++	sqlite3* db=nullptr;
+ 
+ 	try{
+ 		//TODO UTF-8 string
+@@ -47,7 +47,7 @@ void Database::close()
+ {
+ 	if(mx != nullptr) {
+ 		delete mx;
+-		mx=NULL;
++		mx=nullptr;
+ 	}
+ }
+ 
+@@ -105,10 +105,10 @@ void Database::createModel()
+ sqlid_t Database::allocId(shared_connection c, const std::string& table)
+ {
+ 	//THREAD critical call
+-	char* err_msg=NULL;
++	char* err_msg=nullptr;
+ 	std::string query="INSERT INTO "+table+" ("+HIBERLITE_PRIMARY_KEY_COLUMN+") VALUES (NULL);";
+ 	HIBERLITE_HL_DBG_DO( std::cout << "exec: " << query << std::endl; )
+-	int rc=sqlite3_exec(c->getSQLite3Ptr(),query.c_str(),NULL, NULL, &err_msg );
++	int rc=sqlite3_exec(c->getSQLite3Ptr(),query.c_str(),nullptr, nullptr, &err_msg );
+ 	if(err_msg != nullptr) {
+ 		throw database_error(err_msg);
+ 
+@@ -120,9 +120,9 @@ sqlid_t Database::allocId(shared_connection c, const std::string& table)
+ 
+ void Database::dbExecQuery(shared_connection con, const std::string& query)
+ {
+-	char* err_msg=NULL;
++	char* err_msg=nullptr;
+ 	HIBERLITE_HL_DBG_DO( std::cout << "exec: " << query << std::endl; )
+-	int rc=sqlite3_exec(con->getSQLite3Ptr(),query.c_str(),NULL, NULL, &err_msg );
++	int rc=sqlite3_exec(con->getSQLite3Ptr(),query.c_str(),nullptr, nullptr, &err_msg );
+ 	if(err_msg != nullptr){
+ 		std::string msg=err_msg;
+ 		sqlite3_free(err_msg);
+diff --git a/src/SQLiteStmt.cpp b/src/SQLiteStmt.cpp
+index 6aeeddd..38f4a47 100644
+--- a/src/SQLiteStmt.cpp
++++ b/src/SQLiteStmt.cpp
+@@ -6,7 +6,7 @@ SQLiteSelect::SQLiteSelect(const shared_connection& _con, const std::string& que
+ {
+ 	HIBERLITE_HL_DBG_DO( std::cout << "query: " << query << std::endl; )
+ 	active=false;
+-	sqlite3_stmt* stmt_ptr=NULL;
++	sqlite3_stmt* stmt_ptr=nullptr;
+ 	sqlite3* db=con->getSQLite3Ptr();
+ 	const char* foob;
+ 	int rc=sqlite3_prepare_v2(db,query.c_str(),-1,&stmt_ptr,&foob);
+-- 
+2.24.0
+

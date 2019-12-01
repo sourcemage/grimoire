@@ -1,0 +1,100 @@
+From 40e7b857cbe43a8e0c5d7c6c973197c4b461418d Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sun, 1 Dec 2019 17:58:05 +0100
+Subject: [PATCH 14/35] Cleanup: use brackets even for one liners
+
+---
+ src/Database.cpp | 14 ++++++++++----
+ tests.cpp        | 16 ++++++++++++----
+ 2 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/Database.cpp b/src/Database.cpp
+index 87bbfb1..112e5b7 100644
+--- a/src/Database.cpp
++++ b/src/Database.cpp
+@@ -24,8 +24,10 @@ void Database::open(const std::string& fname)
+ 	try{
+ 		//TODO UTF-8 string
+ 		int rc=sqlite3_open(fname.c_str(), &db);
+-		if(rc!=SQLITE_OK)
++		if(rc!=SQLITE_OK) {
+ 			throw database_error( std::string("database error: ")+sqlite3_errmsg(db) );
++
++}
+ 		con=shared_connection(new autoclosed_con(db));
+ 
+ 	}catch(std::runtime_error e){
+@@ -84,10 +86,12 @@ void Database::createModel()
+ 			needComma=true;
+ 			Column& col=column.second;
+ 			query += col.name + " ";
+-			if(col.name==HIBERLITE_PRIMARY_KEY_COLUMN)
++			if(col.name==HIBERLITE_PRIMARY_KEY_COLUMN) {
+ 				query+="INTEGER PRIMARY KEY AUTOINCREMENT";
+-			else
++			} else {
+ 				query+=col.storage_type;
++
++}
+ 		}
+ 		query +=");";
+ 		dbExecQuery(query);
+@@ -146,8 +150,10 @@ std::vector<sqlid_t> Database::dbSelectIds(const shared_connection& con, const s
+ 			+";";
+ 	SQLiteSelect sel(con, query);
+ 	std::vector<sqlid_t> ans;
+-	while(sel.step())
++	while(sel.step()) {
+ 		ans.push_back( sel.get_int64(0) );
++
++}
+ 	return ans;
+ }
+ 
+diff --git a/tests.cpp b/tests.cpp
+index 973ea2e..390c924 100644
+--- a/tests.cpp
++++ b/tests.cpp
+@@ -126,8 +126,10 @@ struct Tester{
+ 				obj.v.erase(obj.v.begin());
+ 			}
+ 			bean_ptr<A> a=db.copyBean(obj);
+-			if(a.get_id()%10==0)
++			if(a.get_id()%10==0) {
+ 				cout << "save obj with name " << (*a).s << endl;
++
++}
+ 		}
+ 	}
+ 	void test2(){
+@@ -156,18 +158,24 @@ struct Tester{
+ 		map< vector<string>, map<string,string> > mm;
+ 		vector<string> randstr;
+ 		unsigned int NS=30;
+-		for(unsigned int i=0;i<NS;i++)
++		for(unsigned int i=0;i<NS;i++) {
+ 			randstr.push_back(hiberlite::Transformer::toSQLiteValue(rand()%100+i));
+ 
++}
++
+ 		for(unsigned int i=0;i<100;i++){
+ 			x.seti.insert( make_pair(i*i,1.0/i+sqrt(i)) );
+ 			x.vvi[(i*i)%5].push_back(10003%(i+1));
+ 
+ 			vector<string> vs;
+-			for(unsigned int i=0;i<5;i++)
++			for(unsigned int i=0;i<5;i++) {
+ 				vs.push_back( randstr[(17+7*i)%NS] );
+-			for(unsigned int i=0;i<10;i++)
++
++}
++			for(unsigned int i=0;i<10;i++) {
+ 				x.mm[vs][ randstr[(19*i)%NS] ]=randstr[(23*i)%NS];
++
++}
+ 		}
+ 
+ 		{
+-- 
+2.24.0
+
