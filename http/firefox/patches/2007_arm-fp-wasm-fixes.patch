@@ -1,0 +1,34 @@
+# HG changeset patch
+# Parent  869216461f5985d028e679b86e0afd1642dd2b82
+
+diff --git a/js/src/wasm/WasmSignalHandlers.cpp b/js/src/wasm/WasmSignalHandlers.cpp
+--- a/js/src/wasm/WasmSignalHandlers.cpp
++++ b/js/src/wasm/WasmSignalHandlers.cpp
+@@ -243,17 +243,26 @@ using mozilla::DebugOnly;
+ // If you run into compile problems on a tier-3 platform, you can disable the
+ // emulation here.
+ 
+ #if defined(__linux__) && defined(__arm__)
+ #  define WASM_EMULATE_ARM_UNALIGNED_FP_ACCESS
+ #endif
+ 
+ #ifdef WASM_EMULATE_ARM_UNALIGNED_FP_ACCESS
+-#  include <sys/user.h>
++struct user_vfp {
++  unsigned long long fpregs[32];
++  unsigned long fpscr;
++};
++
++struct user_vfp_exc {
++  unsigned long fpexc;
++  unsigned long fpinst;
++  unsigned long fpinst2;
++};
+ #endif
+ 
+ #if defined(ANDROID)
+ // Not all versions of the Android NDK define ucontext_t or mcontext_t.
+ // Detect this and provide custom but compatible definitions. Note that these
+ // follow the GLibc naming convention to access register values from
+ // mcontext_t.
+ //
