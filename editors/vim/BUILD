@@ -14,7 +14,6 @@ OPTS="$GVIM_MULTIBYTE                 \
       --enable-gui=no                 \
       --disable-xim                   \
       --disable-fontset               \
-      $GVIM_HANGUL                    \
       $OPTS"                          &&
 
 sedit  '/shUntil\|link shRepeat/{
@@ -48,8 +47,6 @@ if  [  "$GVIM_GUI"  !=  "none"  ];  then
   #
   OPTS="--enable-gui=$GVIM_GUI  \
         $GVIM_MULTIBYTE         \
-        $GVIM_SUN               \
-        $GVIM_HANGUL            \
         $OLD_OPTS"              &&
 
   default_build
