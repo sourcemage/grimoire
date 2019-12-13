@@ -1,1 +1,1 @@
-default_build_python
+default_build_python3
