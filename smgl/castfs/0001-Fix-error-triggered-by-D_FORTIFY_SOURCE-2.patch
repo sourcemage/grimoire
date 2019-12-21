@@ -1,0 +1,27 @@
+From 556dc2c99043a35da0695bb7cfb70d25a2f0accf Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
+Date: Sat, 21 Dec 2019 15:43:45 +0100
+Subject: [PATCH] Fix error triggered by -D_FORTIFY_SOURCE=2
+
+open() should only be called in its three-parameter form if O_CREAT is
+used.
+---
+ src/utils.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/utils.c b/src/utils.c
+index 1e1af79..e678756 100644
+--- a/src/utils.c
++++ b/src/utils.c
+@@ -62,7 +62,7 @@ int cast_copy_reg_file(const char *from, const char *to)
+ 	ffd = open(from, O_RDONLY);
+ 	if (ffd < 0)
+ 		return -errno;
+-	tfd = open(to, O_WRONLY | O_TRUNC | O_CREAT);
++	tfd = open(to, S_IRUSR | S_IWUSR, O_WRONLY | O_TRUNC | O_CREAT);
+ 	if (tfd < 0)
+ 		return -errno;
+ 	while (rsize > 0) {
+-- 
+2.24.1
+
