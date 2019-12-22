@@ -1,2 +1,4 @@
 CXXFLAGS="${CXXFLAGS// -ffast-math}" &&
-default_build
+OPTS+=" -Dprotobuf_BUILD_TESTS=OFF"  &&
+cd "$SOURCE_DIRECTORY/cmake" &&
+cmake_build
