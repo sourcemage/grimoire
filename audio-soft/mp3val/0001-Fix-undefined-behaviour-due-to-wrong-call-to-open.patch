@@ -1,0 +1,26 @@
+From 47b610711e5baa8d95f73fe29cf0e1610f18e29b Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Mon, 30 Dec 2019 23:23:10 +0100
+Subject: [PATCH] Fix undefined behaviour due to wrong call to open()
+
+---
+ crossapi.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/crossapi.cpp b/crossapi.cpp
+index cd8011a..11cd33e 100755
+--- a/crossapi.cpp
++++ b/crossapi.cpp
+@@ -241,7 +241,8 @@ int CrossAPI_MoveFile(char *szNewName,char *szOldName) {
+ //Moving failed due to different logical drives of source and destination. Let's copy:
+ 	id=open(szOldName,O_RDONLY);
+ 	if(id==-1) return 0;
+-	od=open(szNewName,O_WRONLY|O_CREAT|O_TRUNC);
++	od = open(szNewName, O_WRONLY | O_CREAT | O_TRUNC,
++		  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+ 	if(od==-1) {
+ 		close(id);
+ 		return 0;
+-- 
+2.24.1
+
