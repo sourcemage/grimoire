@@ -3,5 +3,9 @@
        --localstatedir=${INSTALL_ROOT}/var  \
               --mandir=${INSTALL_ROOT}/usr/share/man   \
              --infodir=${INSTALL_ROOT}/usr/share/info  \
+                CFLAGS="${CFLAGS}" \
+              CXXFLAGS="${CXXFLAGS}" \
+              CPPFLAGS="${CPPFLAGS}" \
+               LDFLAGS="${LDFLAGS}"  \
                        $OPTS                 &&
-  make
+default_build_make
