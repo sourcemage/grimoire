@@ -1,2 +1,3 @@
-OPTS="--disable-gtk-player $OPTS"  &&
+OPTS="--disable-gtk-player $OPTS" &&
+CFLAGS+=" -Wno-narrowing"         &&
 default_build
