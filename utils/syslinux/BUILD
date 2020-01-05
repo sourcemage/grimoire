@@ -4,4 +4,4 @@ CFLAGS="" &&
 # linking, not to LD. We try to workaround that here.
 LDFLAGS=${LDFLAGS//-Wl,} &&
 
-make
+default_build_make
