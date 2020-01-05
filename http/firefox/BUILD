@@ -1,3 +1,5 @@
+disable_stack_clash_protection &&
+
 FIREFOX_HOME="$INSTALL_ROOT/usr/lib/firefox" &&
 export  MOZ_PHOENIX=1 &&
 
