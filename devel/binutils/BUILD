@@ -1,6 +1,9 @@
 if [[ $BINUTILS_LTO == "y" ]];then
   OPTS+=" --enable-lto"
 fi &&
+
+disable_fortify_source &&
+
 mkdir  buildit &&
 cd     buildit &&
 
