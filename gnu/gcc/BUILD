@@ -36,7 +36,8 @@ if  [[ "$ARCHITECTURE"  ==  "pentium4"  ||
   CXXFLAGS=${CXXFLAGS//-ffast-math/}
 fi  &&
 
-disable_fortify_source &&
+disable_fortify_source         &&
+disable_cf_protection          &&
 
 # fixes seg-fault on libiberty/splay.c in v 4.3.2
 if is_version_less $(installed_version $SPELL) 5.0.0; then
