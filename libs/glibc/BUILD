@@ -1,6 +1,9 @@
 # clear cflags
 unset CFLAGS
 
+disable_fortify_source &&
+disable_gc_sections    &&
+
 if [[ $GLIBC_DEBUG == "y" ]]; then
   LDFLAGS="${LDFLAGS/-s/}"
 fi &&
