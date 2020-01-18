@@ -1,3 +1,5 @@
 OPTS="-DWITH_LEDA=OFF $OPTS" &&
+OPTS="-DCGAL_INSTALL_LIB_DIR=lib $OPTS" &&
+OPTS="-DCGAL_INSTALL_CMAKE_DIR=lib/cmake/CGAL $OPTS" &&
 
 default_build	
