@@ -1,0 +1,53 @@
+From 8754b40ce3dcec160b6bdddb323a09fdb8967ffd Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Wed, 5 Feb 2020 19:36:48 +0100
+Subject: [PATCH] Fix build against binutils 2.34
+
+---
+ util/backtrace-symbols.c         | 4 ++--
+ util/cairo-trace/lookup-symbol.c | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/util/backtrace-symbols.c b/util/backtrace-symbols.c
+index 9931413..58bed54 100644
+--- a/util/backtrace-symbols.c
++++ b/util/backtrace-symbols.c
+@@ -130,11 +130,11 @@ static void find_address_in_section(bfd *abfd, asection *section, void *data __a
+ 	if ((bfd_get_section_flags(abfd, section) & SEC_ALLOC) == 0)
+ 		return;
+ 
+-	vma = bfd_get_section_vma(abfd, section);
++	vma = bfd_section_vma(section);
+ 	if (pc < vma)
+ 		return;
+ 
+-	size = bfd_section_size(abfd, section);
++	size = bfd_section_size(section);
+ 	if (pc >= vma + size)
+ 		return;
+ 
+diff --git a/util/cairo-trace/lookup-symbol.c b/util/cairo-trace/lookup-symbol.c
+index f9665b3..14abd8f 100644
+--- a/util/cairo-trace/lookup-symbol.c
++++ b/util/cairo-trace/lookup-symbol.c
+@@ -145,14 +145,14 @@ find_address_in_section (bfd *abfd,
+     if (symbol->found)
+ 	return;
+ 
+-    if ((bfd_get_section_flags (symtab->bfd, section) & SEC_ALLOC) == 0)
++    if ((bfd_section_flags (section) & SEC_ALLOC) == 0)
+ 	return;
+ 
+-    vma = bfd_get_section_vma (symtab->bfd, section);
++    vma = bfd_section_vma (section);
+     if (symbol->pc < vma)
+ 	return;
+ 
+-    size = bfd_section_size (symtab->bfd, section);
++    size = bfd_section_size (section);
+     if (symbol->pc >= vma + size)
+ 	return;
+ 
+-- 
+2.25.0
+
