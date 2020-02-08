@@ -27,4 +27,6 @@ sed -i '/^#crt-static *= *false/s/#//' config.toml &&
 
 sed -i "/BOOTSTRAP.*doc/d" Makefile &&
 
-make
+export CARGO_HOME="$SOURCE_DIRECTORY/cargo_home" &&
+
+default_build_make
