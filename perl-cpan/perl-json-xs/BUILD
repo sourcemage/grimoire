@@ -1,1 +1,1 @@
-default_build_perl
+PERL_CANARY_STABILITY_NOPROMPT=1 default_build_perl
