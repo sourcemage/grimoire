@@ -1,0 +1,56 @@
+Submitted By:            Douglas R. Reno <renodr at linuxfromscratch dot org>
+Date:                    2020-02-10
+Initial Package Version: 0.6.21
+Origin:                  Upstream (https://github.com/libexif/libexif/commit/75aa73267fdb1e0ebfbc00369e7312bac43d0566)
+Description:             Fixes CVE-2019-9278, an integer overflow caused by
+                         unsafe integer overflow checking constructs. Now, it
+                         checks for the actual sizes. This patch was rebased to
+                         allow it to apply cleanly to our version of libexif.
+
+diff -Naurp libexif-0.6.21.old/libexif/exif-data.c libexif-0.6.21/libexif/exif-data.c
+--- libexif-0.6.21.old/libexif/exif-data.c	2012-07-12 13:31:56.000000000 -0500
++++ libexif-0.6.21/libexif/exif-data.c	2020-02-10 16:02:02.212402636 -0600
+@@ -191,9 +191,15 @@ exif_data_load_data_entry (ExifData *dat
+ 		doff = offset + 8;
+ 
+ 	/* Sanity checks */
+-	if ((doff + s < doff) || (doff + s < s) || (doff + s > size)) {
++	if (doff >= size) {
+ 		exif_log (data->priv->log, EXIF_LOG_CODE_DEBUG, "ExifData",
+-				  "Tag data past end of buffer (%u > %u)", doff+s, size);	
++				  "Tag starts past end of buffer (%u > %u)", doff, size);
++      return 0;
++   }
++
++   if (s > size - doff) {
++      exif_log (data->priv->log, EXIF_LOG_CODE_DEBUG, "ExifData",
++                          "Tag data goes past end of buffer (%u > %u)", doff+s, size);
+ 		return 0;
+ 	}
+ 
+@@ -308,10 +314,12 @@ exif_data_load_data_thumbnail (ExifData
+ 			       unsigned int ds, ExifLong o, ExifLong s)
+ {
+ 	/* Sanity checks */
+-	if ((o + s < o) || (o + s < s) || (o + s > ds) || (o > ds)) {
+-		exif_log (data->priv->log, EXIF_LOG_CODE_DEBUG, "ExifData",
+-			  "Bogus thumbnail offset (%u) or size (%u).",
+-			  o, s);
++	if (o >= ds) {
++      exif_log (data->priv->log, EXIF_LOG_CODE_DEBUG, "ExifData", "Bogus thumbnail offset (%u).",o);
++      return;
++   }
++   if (s > ds - o) {
++      exif_log (data->priv->log, EXIF_LOG_CODE_DEBUG, "ExifData", "Bogus thumbnail size (%u), max would be %u.", s, ds-o);
+ 		return;
+ 	}
+ 
+@@ -921,7 +929,7 @@ exif_data_load_data (ExifData *data, con
+ 			  "IFD 1 at %i.", (int) offset);
+ 
+ 		/* Sanity check. */
+-		if (offset > ds || offset + 6 > ds) {
++		if (offset > ds - 6) {
+ 			exif_log (data->priv->log, EXIF_LOG_CODE_CORRUPT_DATA,
+ 				  "ExifData", "Bogus offset of IFD1.");
+ 		} else {
