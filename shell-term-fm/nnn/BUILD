@@ -1,1 +1,1 @@
-make
+make CFLAGS_OPTIMIZATION=
