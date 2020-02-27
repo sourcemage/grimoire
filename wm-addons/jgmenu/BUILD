@@ -1,3 +1,3 @@
-OPTS="VERBOSE=1 ${OPTS}" &&
+./configure --prefix="${INSTALL_ROOT}/usr" ${OPTS} &&
 
-make ${OPTS}
+make
