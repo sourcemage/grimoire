@@ -934,19 +934,31 @@ function check_tmp_noexec() {
 }
 
 #---
-## Simple version check with force depends
-## @params $1 - the spell to check the version of
-## @params $2 - the simple version to check against
-##              (if proper is 2.1.0 then this is 210)
-## @params $3 - how many digits to compare against from left to right
-##              defaults to 99 digits
+## Versioned dependency list from stdin.
+## Takes one dependency per line. Format:
+## <dependency> <comparison operator> <version> <flags>
 #---
-function simple_version_check_force_depends(){
-if spell_ok $1 &&
-   [[ $(installed_version $1|sed -e 's:^0\.::' -e 's:\.::g' | cut -c-${3:=99}) -lt $2 ]]
-  then
-    force_depends $1
-fi
+vdepends(){
+  while read dep op depver flags; do
+    case "$op" in
+      '>'|'>='|'<'|'<='|'='|'!=') ;;
+      *)
+	message "${PROBLEM_COLOR}Unsupported operator \"$op\".$DEFAULT_COLOR"
+	return 1
+	;;
+    esac
+    depends "$dep" "$flags" || return
+    spell_ok "$dep" || continue
+    local iver="$(installed_version "$dep")"
+    case "$op" in
+      '>')  ! is_version_less "$iver" "$depver" && [ "x$iver" != "x$depver" ] ;;
+      '>=') ! is_version_less "$iver" "$depver" ;;
+      '<')  is_version_less "$iver" "$depver" ;;
+      '<=') is_version_less "$iver" "$depver" || [ "x$iver" = "x$depver" ] ;;
+      '=')  [ "x$iver" = "x$depver" ] ;;
+      '!=') [ "x$iver" != "x$depver" ] ;;
+    esac || force_depends "$dep"
+  done
 }
 
 #---
