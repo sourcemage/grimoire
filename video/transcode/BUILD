@@ -3,7 +3,7 @@ if echo $OPTS | grep -q enable-lzo; then
   export CPPFLAGS="$CPPFLAGS -I/usr/include/lzo"
 fi &&
 OPTS="$OPTS --enable-v4l"  &&
-OPTS="$OPTS --disable-imagemagick" &&
+
 make_single                &&
 default_build              &&
 make_normal
