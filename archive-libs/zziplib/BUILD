@@ -1,3 +1,2 @@
-OPTS="--datadir=$INSTALL_ROOT/usr  \
-      $OPTS"                       &&
+OPTS+=" -DZZIPDOCS=off" &&
 default_build
