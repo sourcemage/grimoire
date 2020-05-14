@@ -1,11 +1,13 @@
-xc_prefix="$INSTALL_ROOT"/usr/bin &&
-
-if ! spell_ok sbcl; then
-  bindir="$BUILD_DIRECTORY/$SPELL-$BIN_VERSION-$SBCL_ARCH-linux" &&
-  xc_prefix="$bindir/src/runtime" &&
-  export SBCL_HOME="$bindir/output"
-fi &&
+xc=sbcl
+for i in ccl clisp gcl; do
+  if is_depends_enabled "$SPELL" "$i"; then
+    echo "Boostrapping with $i"
+    xc="$i"
+    break
+  fi
+done &&
 
 sh make.sh \
+  --with-sb-core-compression \
   --prefix="$INSTALL_ROOT"/usr \
-  --xc-host="$xc_prefix"/sbcl
+  --xc-host="$xc"
