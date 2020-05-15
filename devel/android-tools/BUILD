@@ -1,2 +1,1 @@
-cd ${SOURCE_DIRECTORY}/core-${XHASH} &&
-default_build_make
+cmake_build
