@@ -1,0 +1,41 @@
+From f2ad7b56075568f8962f6de99b80f04a52dc1a42 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Fri, 22 May 2020 12:45:45 +0200
+Subject: [PATCH] Fix kernel panic with gcc 10 and stack protector
+
+---
+ arch/x86/kernel/smpboot.c | 2 ++
+ arch/x86/xen/smp_pv.c     | 1 +
+ 2 files changed, 3 insertions(+)
+
+diff --git a/arch/x86/kernel/smpboot.c b/arch/x86/kernel/smpboot.c
+index 9674321ce..3d343d500 100644
+--- a/arch/x86/kernel/smpboot.c
++++ b/arch/x86/kernel/smpboot.c
+@@ -262,9 +262,11 @@ static void notrace start_secondary(void *unused)
+ 
+ 	wmb();
+ 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
++asm("");
+ 
+ 	/*
+ 	 * Prevent tail call to cpu_startup_entry() because the stack protector
++asm("");
+ 	 * guard has been changed a couple of function calls up, in
+ 	 * boot_init_stack_canary() and must not be checked before tail calling
+ 	 * another function.
+diff --git a/arch/x86/xen/smp_pv.c b/arch/x86/xen/smp_pv.c
+index 0cebe5db6..7e5b965af 100644
+--- a/arch/x86/xen/smp_pv.c
++++ b/arch/x86/xen/smp_pv.c
+@@ -92,6 +92,7 @@ asmlinkage __visible void cpu_bringup_and_idle(void)
+ 	cpu_bringup();
+ 	boot_init_stack_canary();
+ 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
++asm("");
+ 	prevent_tail_call_optimization();
+ }
+ 
+-- 
+2.26.2
+
