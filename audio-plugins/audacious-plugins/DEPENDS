@@ -2,6 +2,14 @@ depends glib2 &&
 depends libxml2 '--with-system-libxml2=yes' &&
 depends audacious &&
 
+optional_depends llvm "" "" "to build ${SPELL} with clang++" &&
+
+if is_depends_enabled ${SPELL} llvm; then
+  depends libc++
+else
+  depends -sub CXX gcc
+fi &&
+
 optional_depends gtk+2 \
                  "--enable-gtk" \
                  "--disable-gtk" \
@@ -25,6 +33,35 @@ if is_depends_enabled ${SPELL} gtk+2; then
                       "Enable global hotkey plugin?" y \
                       "--enable-hotkey" \
                       "--disable-hotkey"
+fi &&
+
+optional_depends qtbase \
+                 "--enable-qt" \
+                 "--disable-qt" \
+                 "for QT interface" &&
+
+if is_depends_enabled ${SPELL} qtbase; then
+  optional_depends qtmultimedia \
+                   "--enable-qtaudio" \
+                   "--disable-qtaudio" \
+                   "for QtMultimedia output" &&
+
+  config_query_option AUDACIOUS_OPTS \
+                      "Enable Ampache browser?" y \
+                      "--enable-ampache" \
+                      "--disable-ampache" &&
+
+  config_query_option AUDACIOUS_OPTS \
+                      "Enable Stream tuner?" y \
+                      "--enable-streamtuner" \
+                      "--disable-streamtuner" &&
+
+  if is_depends_enabled qtbase $(get_spell_provider qtbase OPENGL); then
+    optional_depends $(get_spell_provider qtbase OPENGL) \
+                     "--enable-qtglspectrum" \
+                     "--disable-qtglspectrum" \
+                     "for Qt OpenGL spectrum analyzer"
+  fi
 fi &&
 
 optional_depends GETTEXT \
@@ -53,6 +90,11 @@ optional_depends JACK-DRIVER \
                  "--enable-jack" \
                  "--disable-jack" \
                  "for JACK support" &&
+
+optional_depends sndio \
+                 "--enable-sndio" \
+                 "--disable-sndio" \
+                 "for Sndio support" &&
 
 # filetype plugins
 optional_depends zlib \

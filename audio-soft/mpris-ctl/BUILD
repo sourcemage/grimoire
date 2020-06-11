@@ -1,0 +1,1 @@
+make release VERSION="${VERSION}"

@@ -1,18 +1,134 @@
-depends cmake   &&
+depends cmake &&
 depends SSL &&
-depends zlib    &&
-optional_depends pcsc-lite  '-DWITH_PCSC=1' \
-                            '-DWITH_PCSC=0' \
-                            '' &&
-optional_depends cups       '-DWITH_CUPS=1' \
-                            '-DWITH_CUPS=0' \
-                            'printer support' &&
-optional_depends LIBAVCODEC '-DWITH_FFMPEG=1' \
-                            '-DWITH_FFMPEG=0' \
-                            'streaming io support' &&
-optional_depends pulseaudio '-DWITH_PULSEAUDIO=1' \
-                            '-DWITH_PULSEAUDIO=0' \
-                            'streaming io support'
-optional_depends alsa-lib   '-DWITH_ALSA=1' \
-                            '-DWITH_ALSA=0' \
-                            'ALSA sound support'
+depends zlib &&
+
+if list_find "${FREERDP_OPTS}" "-DWITH_SERVER=1"; then
+  optional_depends linux-pam \
+                   "-DWITH_PAM=1" \
+                   "-DWITH_PAM=0" \
+                   "for user authentication support"
+fi &&
+
+if list_find "${FREERDP_OPTS}" "-DWITH_SHADOW=1" || \
+   list_find "${FREERDP_OPTS}" "-DWITH_CLIENT=1"; then
+  depends libx11 '-DWITH_X11=1' &&
+
+  optional_depends libxinerama \
+                   "-DWITH_XINERAMA=1" \
+                   "-DWITH_XINERAMA=0" \
+                   "for Xinerama extension support" &&
+
+  optional_depends libxext \
+                   "-DWITH_XEXT=1" \
+                   "-DWITH_XEXT=0" \
+                   "for Xext extension support" &&
+
+  optional_depends libxfixes \
+                   "-DWITH_XFIXES=1" \
+                   "-DWITH_XFIXES=0" \
+                   "for Xfixes extension support" &&
+
+  if list_find "${FREERDP_OPTS}" "-DWITH_SHADOW=1"; then
+    optional_depends libxdamage \
+                     "-DWITH_XDAMAGE=1" \
+                     "-DWITH_XDAMAGE=0" \
+                     "for Xdamage extension support" &&
+
+    optional_depends libxtst \
+                     "-DWITH_XTEST=1" \
+                     "-DWITH_XTEST=0" \
+                     "for Xtest extension support" &&
+
+    if is_depends_enabled ${SPELL} libxext; then
+      config_query_option FREERDP_OPTS "Enable XShm extension support?" y \
+                                       "-DWITH_XSHM=1" \
+                                       "-DWITH_XSHM=0"
+    fi
+  fi &&
+
+  if list_find "${FREERDP_OPTS}" "-DWITH_CLIENT=1"; then
+    optional_depends libxcursor \
+                     "-DWITH_XCURSOR=1" \
+                     "-DWITH_XCURSOR=0" \
+                     "for Xcursor extension support" &&
+
+    optional_depends libxrandr \
+                     "-DWITH_XRANDR=1" \
+                     "-DWITH_XRANDR=0" \
+                     "for Xrandr extension support" &&
+
+    optional_depends libxv \
+                     "-DWITH_XV=1" \
+                     "-DWITH_XV=0" \
+                     "for XV extension support" &&
+
+    optional_depends libxi \
+                     "-DWITH_XI=1" \
+                     "-DWITH_XI=0" \
+                     "for Xi extension support" &&
+
+    optional_depends libxrender \
+                     "-DWITH_XRENDER=1" \
+                     "-DWITH_XRENDER=0" \
+                     "for Xrender extension support"
+  fi
+fi &&
+
+optional_depends JPEG \
+                 "-DWITH_JPEG=1" \
+                 "-DWITH_JPEG=0" \
+                 "for JPEG decoding support" &&
+
+optional_depends lame \
+                 "-DWITH_LAME=1" \
+                 "-DWITH_LAME=0" \
+                 "for MP3 support" &&
+
+optional_depends faad2 \
+                 "-DWITH_FAAD2=1" \
+                 "-DWITH_FAAD2=0" \
+                 "for FAAD2 AAC decoding support" &&
+
+optional_depends faac \
+                 "-DWITH_FAAC=1" \
+                 "-DWITH_FAAC=0" \
+                 "for FAAC encoding support" &&
+
+optional_depends krb5 \
+                 "-DWITH_GSSAPI=1" \
+                 "-DWITH_GSSAPI=0" \
+                 "for Kerberos authentication support (${PROBLEM_COLOR}EXPERIMENTAL${DEFAULT_COLOR})" &&
+
+optional_depends pcsc-lite \
+                 "-DWITH_PCSC=1" \
+                 "-DWITH_PCSC=0" \
+                 "for smart card device redirection support" &&
+
+optional_depends cups \
+                 "-DWITH_CUPS=1" \
+                 "-DWITH_CUPS=0" \
+                 "for printer support" &&
+
+optional_depends LIBAVCODEC \
+                 "-DWITH_FFMPEG=1" \
+                 "-DWITH_FFMPEG=0" \
+                 "for multimedia redirection support" &&
+
+optional_depends pulseaudio \
+                 "-DWITH_PULSE=1" \
+                 "-DWITH_PULSE=0" \
+                 "for PulseAudio support" &&
+
+optional_depends alsa-lib \
+                 "-DWITH_ALSA=1" \
+                 "-DWITH_ALSA=0" \
+                 "for ALSA support" &&
+
+optional_depends libxslt \
+                 "-DWITH_MANPAGES=1" \
+                 "-DWITH_MANPAGES=0" \
+                 "to build and install manual pages" &&
+
+if is_depends_enabled ${SPELL} libxslt; then
+  depends docbook-xsl
+fi

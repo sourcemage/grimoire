@@ -1,6 +1,6 @@
-From ee4a6fe5c67503dbda7ae1afe7242ee495b2a3ec Mon Sep 17 00:00:00 2001
+From 30e55f40b4511d3c19c1403cef03ffcb11251a0d Mon Sep 17 00:00:00 2001
 From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
-Date: Wed, 20 Dec 2017 23:46:41 +0100
+Date: Sat, 28 Mar 2020 22:15:01 +0100
 Subject: [PATCH] fix compile error
 
 ---
@@ -9,26 +9,26 @@ Subject: [PATCH] fix compile error
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/include/llvm/MC/MCObjectFileInfo.h b/include/llvm/MC/MCObjectFileInfo.h
-index 4d63444..a571f4a 100644
+index 2f7f5d64..9bca644e 100644
 --- a/include/llvm/MC/MCObjectFileInfo.h
 +++ b/include/llvm/MC/MCObjectFileInfo.h
-@@ -198,7 +198,7 @@ protected:
-   MCSection *SXDataSection;
-
+@@ -217,7 +217,7 @@ protected:
+   MCSection *GLJMPSection = nullptr;
+ 
  public:
 -  void InitMCObjectFileInfo(const Triple &TT, bool PIC, MCContext &ctx,
 +  void InitMCObjectFileInfo(const Triple &TT, bool pic, MCContext &ctx,
                              bool LargeCodeModel = false);
-
+ 
    bool getSupportsWeakOmittedEHFrame() const {
 diff --git a/lib/MC/MCObjectFileInfo.cpp b/lib/MC/MCObjectFileInfo.cpp
-index 21c5516..0388986 100644
+index d567cc14..a2e1b598 100644
 --- a/lib/MC/MCObjectFileInfo.cpp
 +++ b/lib/MC/MCObjectFileInfo.cpp
-@@ -854,10 +854,10 @@ void MCObjectFileInfo::initWasmMCObjectF
-   // TODO: Define more sections.
+@@ -797,10 +797,10 @@ void MCObjectFileInfo::initXCOFFMCObjectFileInfo(const Triple &T) {
+       XCOFF::C_HIDEXT, SectionKind::getReadOnly());
  }
-
+ 
 -void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
 +void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool pic,
                                              MCContext &ctx,
@@ -36,145 +36,81 @@ index 21c5516..0388986 100644
 -  PositionIndependent = PIC;
 +  PositionIndependent = pic;
    Ctx = &ctx;
-
+ 
    // Common.
-
-From e3e9b1405dcff106ca6547bdd33c605dc4d8ecb8 Mon Sep 17 00:00:00 2001
-From: Florian Franzmann <siflfran@hawo.stw.uni-erlangen.de>
-Date: Thu, 21 Dec 2017 00:35:48 +0100
-Subject: [PATCH] fix compile error
-
----
- lib/Transforms/Scalar/LICM.cpp         | 12 ++++++------
- lib/Transforms/Utils/PredicateInfo.cpp | 12 ++++++------
- tools/llvm-mc/llvm-mc.cpp              |  4 ++--
- 3 files changed, 14 insertions(+), 14 deletions(-)
-
-diff --git a/lib/Transforms/Scalar/LICM.cpp b/lib/Transforms/Scalar/LICM.cpp
-index 37b9c4b..19742d2 100644
---- a/lib/Transforms/Scalar/LICM.cpp
-+++ b/lib/Transforms/Scalar/LICM.cpp
-@@ -416,7 +416,7 @@
-           MSSAInsertPts.push_back(nullptr);
-       }
- 
--      PredIteratorCache PIC;
-+      PredIteratorCache pic;
- 
-       bool Promoted = false;
- 
-@@ -442,7 +442,7 @@
-           PointerMustAliases.insert(ASI.getValue());
- 
-         Promoted |= promoteLoopAccessesToScalars(
--            PointerMustAliases, ExitBlocks, InsertPts, MSSAInsertPts, PIC, LI,
-+            PointerMustAliases, ExitBlocks, InsertPts, MSSAInsertPts, pic, LI,
-             DT, TLI, L, CurAST.get(), MSSAU.get(), &SafetyInfo, ORE);
-       }
- 
-@@ -1749,13 +1749,13 @@
-                const SmallSetVector<Value *, 8> &PMA,
-                SmallVectorImpl<BasicBlock *> &LEB,
-                SmallVectorImpl<Instruction *> &LIP,
--               SmallVectorImpl<MemoryAccess *> &MSSAIP, PredIteratorCache &PIC,
-+               SmallVectorImpl<MemoryAccess *> &MSSAIP, PredIteratorCache &pic,
-                AliasSetTracker &ast, MemorySSAUpdater *MSSAU, LoopInfo &li,
-                DebugLoc dl, int alignment, bool UnorderedAtomic,
-                const AAMDNodes &AATags, ICFLoopSafetyInfo &SafetyInfo)
-       : LoadAndStorePromoter(Insts, S), SomePtr(SP), PointerMustAliases(PMA),
-         LoopExitBlocks(LEB), LoopInsertPts(LIP), MSSAInsertPts(MSSAIP),
--        PredCache(PIC), AST(ast), MSSAU(MSSAU), LI(li), DL(std::move(dl)),
-+        PredCache(pic), AST(ast), MSSAU(MSSAU), LI(li), DL(std::move(dl)),
-         Alignment(alignment), UnorderedAtomic(UnorderedAtomic), AATags(AATags),
-         SafetyInfo(SafetyInfo) {}
- 
-@@ -1851,7 +1851,7 @@
-     const SmallSetVector<Value *, 8> &PointerMustAliases,
-     SmallVectorImpl<BasicBlock *> &ExitBlocks,
-     SmallVectorImpl<Instruction *> &InsertPts,
--    SmallVectorImpl<MemoryAccess *> &MSSAInsertPts, PredIteratorCache &PIC,
-+    SmallVectorImpl<MemoryAccess *> &MSSAInsertPts, PredIteratorCache &pic,
-     LoopInfo *LI, DominatorTree *DT, const TargetLibraryInfo *TLI,
-     Loop *CurLoop, AliasSetTracker *CurAST, MemorySSAUpdater *MSSAU,
-     ICFLoopSafetyInfo *SafetyInfo, OptimizationRemarkEmitter *ORE) {
-@@ -2091,7 +2091,7 @@
-   SmallVector<PHINode *, 16> NewPHIs;
-   SSAUpdater SSA(&NewPHIs);
-   LoopPromoter Promoter(SomePtr, LoopUses, SSA, PointerMustAliases, ExitBlocks,
--                        InsertPts, MSSAInsertPts, PIC, *CurAST, MSSAU, *LI, DL,
-+                        InsertPts, MSSAInsertPts, pic, *CurAST, MSSAU, *LI, DL,
-                         Alignment, SawUnorderedAtomic, AATags, *SafetyInfo);
- 
-   // Set up the preheader to have a definition of the value.  It is the live-out
-diff --git a/lib/Transforms/Utils/PredicateInfo.cpp b/lib/Transforms/Utils/PredicateInfo.cpp
-index d4cdaed..5fcd5dd 100644
---- a/lib/Transforms/Utils/PredicateInfo.cpp
-+++ b/lib/Transforms/Utils/PredicateInfo.cpp
-@@ -525,10 +525,10 @@
-       Function *IF = getCopyDeclaration(F.getParent(), Op->getType());
-       if (IF->user_begin() == IF->user_end())
-         CreatedDeclarations.insert(IF);
--      CallInst *PIC =
-+      CallInst *pic =
-           B.CreateCall(IF, Op, Op->getName() + "." + Twine(Counter++));
--      PredicateMap.insert({PIC, ValInfo});
--      Result.Def = PIC;
-+      PredicateMap.insert({pic, ValInfo});
-+      Result.Def = pic;
-     } else {
-       auto *PAssume = dyn_cast<PredicateAssume>(ValInfo);
-       assert(PAssume &&
-@@ -537,9 +537,9 @@
-       Function *IF = getCopyDeclaration(F.getParent(), Op->getType());
-       if (IF->user_begin() == IF->user_end())
-         CreatedDeclarations.insert(IF);
--      CallInst *PIC = B.CreateCall(IF, Op);
--      PredicateMap.insert({PIC, ValInfo});
--      Result.Def = PIC;
-+      CallInst *pic = B.CreateCall(IF, Op);
-+      PredicateMap.insert({pic, ValInfo});
-+      Result.Def = pic;
-     }
-   }
-   return RenameStack.back().Def;
-diff --git a/tools/llvm-mc/llvm-mc.cpp b/tools/llvm-mc/llvm-mc.cpp
-index 8782588..c5900ce 100644
---- a/tools/llvm-mc/llvm-mc.cpp
-+++ b/tools/llvm-mc/llvm-mc.cpp
-@@ -128,7 +128,7 @@ MAttrs("mattr",
-   cl::desc("Target specific attributes (-mattr=help for details)"),
-   cl::value_desc("a1,+a2,-a3,..."));
-
--static cl::opt<bool> PIC("position-independent",
-+static cl::opt<bool> pic("position-independent",
-                          cl::desc("Position independent"), cl::init(false));
-
- static cl::opt<bool>
-@@ -496,7 +496,7 @@ int main(int argc, char **argv) {
-   // MCObjectFileInfo needs a MCContext reference in order to initialize itself.
-   MCObjectFileInfo MOFI;
-   MCContext Ctx(MAI.get(), MRI.get(), &MOFI, &SrcMgr);
--  MOFI.InitMCObjectFileInfo(TheTriple, PIC, Ctx, LargeCodeModel);
-+  MOFI.InitMCObjectFileInfo(TheTriple, pic, Ctx, LargeCodeModel);
-
-   if (SaveTempLabels)
-     Ctx.setAllowTemporaryLabels(false);
 diff --git a/include/llvm/IR/PassTimingInfo.h b/include/llvm/IR/PassTimingInfo.h
+index b8d8f117..a20ede69 100644
 --- a/include/llvm/IR/PassTimingInfo.h
 +++ b/include/llvm/IR/PassTimingInfo.h
-@@ -83,7 +83,7 @@
+@@ -84,7 +84,7 @@ public:
    TimePassesHandler(const TimePassesHandler &) = delete;
    void operator=(const TimePassesHandler &) = delete;
  
 -  void registerCallbacks(PassInstrumentationCallbacks &PIC);
 +  void registerCallbacks(PassInstrumentationCallbacks &pic);
  
+   /// Set a custom output stream for subsequent reporting.
+   void setOutStream(raw_ostream &OutStream);
+diff --git a/include/llvm/Passes/PassBuilder.h b/include/llvm/Passes/PassBuilder.h
+index e7db8fd4..1ecb569d 100644
+--- a/include/llvm/Passes/PassBuilder.h
++++ b/include/llvm/Passes/PassBuilder.h
+@@ -111,7 +111,7 @@ class PassBuilder {
+   TargetMachine *TM;
+   PipelineTuningOptions PTO;
+   Optional<PGOOptions> PGOOpt;
+-  PassInstrumentationCallbacks *PIC;
++  PassInstrumentationCallbacks *pic;
+ 
+ public:
+   /// A struct to capture parsed pass pipeline names.
+@@ -224,8 +224,8 @@ public:
+   explicit PassBuilder(TargetMachine *TM = nullptr,
+                        PipelineTuningOptions PTO = PipelineTuningOptions(),
+                        Optional<PGOOptions> PGOOpt = None,
+-                       PassInstrumentationCallbacks *PIC = nullptr)
+-      : TM(TM), PTO(PTO), PGOOpt(PGOOpt), PIC(PIC) {}
++                       PassInstrumentationCallbacks *pic = nullptr)
++      : TM(TM), PTO(PTO), PGOOpt(PGOOpt), pic(pic) {}
+ 
+   /// Cross register the analysis managers through their proxies.
+   ///
+@@ -635,7 +635,7 @@ public:
+   /// Returns PIC. External libraries can use this to register pass
+   /// instrumentation callbacks.
+   PassInstrumentationCallbacks *getPassInstrumentationCallbacks() const {
+-    return PIC;
++    return pic;
+   }
+ 
  private:
-   /// Dumps information for running/triggered timers, useful for debugging
+diff --git a/include/llvm/Passes/StandardInstrumentations.h b/include/llvm/Passes/StandardInstrumentations.h
+index 3d3002ee..eed17ffb 100644
+--- a/include/llvm/Passes/StandardInstrumentations.h
++++ b/include/llvm/Passes/StandardInstrumentations.h
+@@ -35,7 +35,7 @@ public:
+   PrintIRInstrumentation() = default;
+   ~PrintIRInstrumentation();
+ 
+-  void registerCallbacks(PassInstrumentationCallbacks &PIC);
++  void registerCallbacks(PassInstrumentationCallbacks &pic);
+ 
+ private:
+   bool printBeforePass(StringRef PassID, Any IR);
+@@ -62,7 +62,7 @@ class StandardInstrumentations {
+ public:
+   StandardInstrumentations() = default;
+ 
+-  void registerCallbacks(PassInstrumentationCallbacks &PIC);
++  void registerCallbacks(PassInstrumentationCallbacks &pic);
+ 
+   TimePassesHandler &getTimePasses() { return TimePasses; }
+ };
 diff --git a/lib/IR/PassTimingInfo.cpp b/lib/IR/PassTimingInfo.cpp
+index 9cc44ea0..adad789c 100644
 --- a/lib/IR/PassTimingInfo.cpp
 +++ b/lib/IR/PassTimingInfo.cpp
-@@ -249,19 +249,19 @@
+@@ -259,19 +259,19 @@ void TimePassesHandler::runAfterPass(StringRef PassID) {
    LLVM_DEBUG(dump());
  }
  
@@ -200,63 +136,38 @@ diff --git a/lib/IR/PassTimingInfo.cpp b/lib/IR/PassTimingInfo.cpp
        [this](StringRef P, Any) { this->runAfterPass(P); });
  }
  
-diff -git a/include/llvm/Passes/PassBuilder.h b/include/llvm/Passes/PassBuilder.h
---- a/include/llvm/Passes/PassBuilder.h
-+++ bc/include/llvm/Passes/PassBuilder.h
-@@ -111,7 +111,7 @@
-   TargetMachine *TM;
-   PipelineTuningOptions PTO;
-   Optional<PGOOptions> PGOOpt;
--  PassInstrumentationCallbacks *PIC;
-+  PassInstrumentationCallbacks *pic;
+diff --git a/lib/LTO/LTOBackend.cpp b/lib/LTO/LTOBackend.cpp
+index dcde7277..d2ecd661 100644
+--- a/lib/LTO/LTOBackend.cpp
++++ b/lib/LTO/LTOBackend.cpp
+@@ -169,10 +169,10 @@ static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
+                         PGOOptions::IRUse, PGOOptions::CSIRUse);
+   }
  
- public:
-   /// A struct to capture parsed pass pipeline names.
-@@ -228,8 +228,8 @@
-   explicit PassBuilder(TargetMachine *TM = nullptr,
-                        PipelineTuningOptions PTO = PipelineTuningOptions(),
-                        Optional<PGOOptions> PGOOpt = None,
--                       PassInstrumentationCallbacks *PIC = nullptr)
--      : TM(TM), PTO(PTO), PGOOpt(PGOOpt), PIC(PIC) {}
-+                       PassInstrumentationCallbacks *pic = nullptr)
-+      : TM(TM), PTO(PTO), PGOOpt(PGOOpt), pic(pic) {}
+-  PassInstrumentationCallbacks PIC;
++  PassInstrumentationCallbacks pic;
+   StandardInstrumentations SI;
+-  SI.registerCallbacks(PIC);
+-  PassBuilder PB(TM, Conf.PTO, PGOOpt, &PIC);
++  SI.registerCallbacks(pic);
++  PassBuilder PB(TM, Conf.PTO, PGOOpt, &pic);
+   AAManager AA;
  
-   /// Cross register the analysis managers through their proxies.
-   ///
-diff --git a/include/llvm/Passes/StandardInstrumentations.h b/include/llvm/Passes/StandardInstrumentations.h
---- a/include/llvm/Passes/StandardInstrumentations.h
-+++ b/include/llvm/Passes/StandardInstrumentations.h
-@@ -35,7 +35,7 @@
-   PrintIRInstrumentation() = default;
-   ~PrintIRInstrumentation();
- 
--  void registerCallbacks(PassInstrumentationCallbacks &PIC);
-+  void registerCallbacks(PassInstrumentationCallbacks &pic);
- 
- private:
-   bool printBeforePass(StringRef PassID, Any IR);
-@@ -62,7 +62,7 @@
- public:
-   StandardInstrumentations() = default;
- 
--  void registerCallbacks(PassInstrumentationCallbacks &PIC);
-+  void registerCallbacks(PassInstrumentationCallbacks &pic);
- 
-   TimePassesHandler &getTimePasses() { return TimePasses; }
- };
+   // Parse a custom AA pipeline if asked to.
 diff --git a/lib/Passes/PassRegistry.def b/lib/Passes/PassRegistry.def
+index 355dd6f9..a5e8e914 100644
 --- a/lib/Passes/PassRegistry.def
 +++ b/lib/Passes/PassRegistry.def
-@@ -26,7 +26,7 @@
+@@ -25,7 +25,7 @@ MODULE_ANALYSIS("no-op-module", NoOpModuleAnalysis())
+ MODULE_ANALYSIS("profile-summary", ProfileSummaryAnalysis())
  MODULE_ANALYSIS("stack-safety", StackSafetyGlobalAnalysis())
- MODULE_ANALYSIS("targetlibinfo", TargetLibraryAnalysis())
  MODULE_ANALYSIS("verify", VerifierAnalysis())
 -MODULE_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
 +MODULE_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(pic))
  MODULE_ANALYSIS("asan-globals-md", ASanGlobalsMetadataAnalysis())
  
  #ifndef MODULE_ALIAS_ANALYSIS
-@@ -96,7 +96,7 @@
+@@ -99,7 +99,7 @@ MODULE_PASS("poison-checking", PoisonCheckingPass())
  #endif
  CGSCC_ANALYSIS("no-op-cgscc", NoOpCGSCCAnalysis())
  CGSCC_ANALYSIS("fam-proxy", FunctionAnalysisManagerCGSCCProxy())
@@ -265,7 +176,7 @@ diff --git a/lib/Passes/PassRegistry.def b/lib/Passes/PassRegistry.def
  #undef CGSCC_ANALYSIS
  
  #ifndef CGSCC_PASS
-@@ -135,7 +135,7 @@
+@@ -138,7 +138,7 @@ FUNCTION_ANALYSIS("targetlibinfo", TargetLibraryAnalysis())
  FUNCTION_ANALYSIS("targetir",
                    TM ? TM->getTargetIRAnalysis() : TargetIRAnalysis())
  FUNCTION_ANALYSIS("verify", VerifierAnalysis())
@@ -274,9 +185,9 @@ diff --git a/lib/Passes/PassRegistry.def b/lib/Passes/PassRegistry.def
  
  #ifndef FUNCTION_ALIAS_ANALYSIS
  #define FUNCTION_ALIAS_ANALYSIS(NAME, CREATE_PASS)                             \
-@@ -278,7 +278,7 @@
- LOOP_ANALYSIS("no-op-loop", NoOpLoopAnalysis())
+@@ -291,7 +291,7 @@ LOOP_ANALYSIS("no-op-loop", NoOpLoopAnalysis())
  LOOP_ANALYSIS("access-info", LoopAccessAnalysis())
+ LOOP_ANALYSIS("ddg", DDGAnalysis())
  LOOP_ANALYSIS("ivusers", IVUsersAnalysis())
 -LOOP_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
 +LOOP_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(pic))
@@ -284,9 +195,10 @@ diff --git a/lib/Passes/PassRegistry.def b/lib/Passes/PassRegistry.def
  
  #ifndef LOOP_PASS
 diff --git a/lib/Passes/StandardInstrumentations.cpp b/lib/Passes/StandardInstrumentations.cpp
+index 5cf0ca8e..dffd8b3e 100644
 --- a/lib/Passes/StandardInstrumentations.cpp
 +++ b/lib/Passes/StandardInstrumentations.cpp
-@@ -220,24 +220,24 @@
+@@ -219,24 +219,24 @@ void PrintIRInstrumentation::printAfterPassInvalidated(StringRef PassID) {
  }
  
  void PrintIRInstrumentation::registerCallbacks(
@@ -318,10 +230,120 @@ diff --git a/lib/Passes/StandardInstrumentations.cpp b/lib/Passes/StandardInstru
 +  PrintIR.registerCallbacks(pic);
 +  TimePasses.registerCallbacks(pic);
  }
+diff --git a/lib/Transforms/Scalar/LICM.cpp b/lib/Transforms/Scalar/LICM.cpp
+index a1c012fd..91e69a79 100644
+--- a/lib/Transforms/Scalar/LICM.cpp
++++ b/lib/Transforms/Scalar/LICM.cpp
+@@ -426,7 +426,7 @@ bool LoopInvariantCodeMotion::runOnLoop(
+           MSSAInsertPts.push_back(nullptr);
+       }
+ 
+-      PredIteratorCache PIC;
++      PredIteratorCache pic;
+ 
+       bool Promoted = false;
+ 
+@@ -452,7 +452,7 @@ bool LoopInvariantCodeMotion::runOnLoop(
+           PointerMustAliases.insert(ASI.getValue());
+ 
+         Promoted |= promoteLoopAccessesToScalars(
+-            PointerMustAliases, ExitBlocks, InsertPts, MSSAInsertPts, PIC, LI,
++            PointerMustAliases, ExitBlocks, InsertPts, MSSAInsertPts, pic, LI,
+             DT, TLI, L, CurAST.get(), MSSAU.get(), &SafetyInfo, ORE);
+       }
+ 
+@@ -1779,13 +1779,13 @@ public:
+                const SmallSetVector<Value *, 8> &PMA,
+                SmallVectorImpl<BasicBlock *> &LEB,
+                SmallVectorImpl<Instruction *> &LIP,
+-               SmallVectorImpl<MemoryAccess *> &MSSAIP, PredIteratorCache &PIC,
++               SmallVectorImpl<MemoryAccess *> &MSSAIP, PredIteratorCache &pic,
+                AliasSetTracker &ast, MemorySSAUpdater *MSSAU, LoopInfo &li,
+                DebugLoc dl, int alignment, bool UnorderedAtomic,
+                const AAMDNodes &AATags, ICFLoopSafetyInfo &SafetyInfo)
+       : LoadAndStorePromoter(Insts, S), SomePtr(SP), PointerMustAliases(PMA),
+         LoopExitBlocks(LEB), LoopInsertPts(LIP), MSSAInsertPts(MSSAIP),
+-        PredCache(PIC), AST(ast), MSSAU(MSSAU), LI(li), DL(std::move(dl)),
++        PredCache(pic), AST(ast), MSSAU(MSSAU), LI(li), DL(std::move(dl)),
+         Alignment(alignment), UnorderedAtomic(UnorderedAtomic), AATags(AATags),
+         SafetyInfo(SafetyInfo) {}
+ 
+@@ -1881,7 +1881,7 @@ bool llvm::promoteLoopAccessesToScalars(
+     const SmallSetVector<Value *, 8> &PointerMustAliases,
+     SmallVectorImpl<BasicBlock *> &ExitBlocks,
+     SmallVectorImpl<Instruction *> &InsertPts,
+-    SmallVectorImpl<MemoryAccess *> &MSSAInsertPts, PredIteratorCache &PIC,
++    SmallVectorImpl<MemoryAccess *> &MSSAInsertPts, PredIteratorCache &pic,
+     LoopInfo *LI, DominatorTree *DT, const TargetLibraryInfo *TLI,
+     Loop *CurLoop, AliasSetTracker *CurAST, MemorySSAUpdater *MSSAU,
+     ICFLoopSafetyInfo *SafetyInfo, OptimizationRemarkEmitter *ORE) {
+@@ -2122,7 +2122,7 @@ bool llvm::promoteLoopAccessesToScalars(
+   SmallVector<PHINode *, 16> NewPHIs;
+   SSAUpdater SSA(&NewPHIs);
+   LoopPromoter Promoter(SomePtr, LoopUses, SSA, PointerMustAliases, ExitBlocks,
+-                        InsertPts, MSSAInsertPts, PIC, *CurAST, MSSAU, *LI, DL,
++                        InsertPts, MSSAInsertPts, pic, *CurAST, MSSAU, *LI, DL,
+                         Alignment, SawUnorderedAtomic, AATags, *SafetyInfo);
+ 
+   // Set up the preheader to have a definition of the value.  It is the live-out
+diff --git a/lib/Transforms/Utils/PredicateInfo.cpp b/lib/Transforms/Utils/PredicateInfo.cpp
+index dda2867f..3ee6d80c 100644
+--- a/lib/Transforms/Utils/PredicateInfo.cpp
++++ b/lib/Transforms/Utils/PredicateInfo.cpp
+@@ -559,10 +559,10 @@ Value *PredicateInfo::materializeStack(unsigned int &Counter,
+       Function *IF = getCopyDeclaration(F.getParent(), Op->getType());
+       if (IF->users().empty())
+         CreatedDeclarations.insert(IF);
+-      CallInst *PIC =
++      CallInst *pic =
+           B.CreateCall(IF, Op, Op->getName() + "." + Twine(Counter++));
+-      PredicateMap.insert({PIC, ValInfo});
+-      Result.Def = PIC;
++      PredicateMap.insert({pic, ValInfo});
++      Result.Def = pic;
+     } else {
+       auto *PAssume = dyn_cast<PredicateAssume>(ValInfo);
+       assert(PAssume &&
+@@ -571,9 +571,9 @@ Value *PredicateInfo::materializeStack(unsigned int &Counter,
+       Function *IF = getCopyDeclaration(F.getParent(), Op->getType());
+       if (IF->users().empty())
+         CreatedDeclarations.insert(IF);
+-      CallInst *PIC = B.CreateCall(IF, Op);
+-      PredicateMap.insert({PIC, ValInfo});
+-      Result.Def = PIC;
++      CallInst *pic = B.CreateCall(IF, Op);
++      PredicateMap.insert({pic, ValInfo});
++      Result.Def = pic;
+     }
+   }
+   return RenameStack.back().Def;
+diff --git a/tools/llvm-mc/llvm-mc.cpp b/tools/llvm-mc/llvm-mc.cpp
+index 6aa347d9..06e2f70a 100644
+--- a/tools/llvm-mc/llvm-mc.cpp
++++ b/tools/llvm-mc/llvm-mc.cpp
+@@ -131,7 +131,7 @@ MAttrs("mattr",
+   cl::desc("Target specific attributes (-mattr=help for details)"),
+   cl::value_desc("a1,+a2,-a3,..."));
+ 
+-static cl::opt<bool> PIC("position-independent",
++static cl::opt<bool> pic("position-independent",
+                          cl::desc("Position independent"), cl::init(false));
+ 
+ static cl::opt<bool>
+@@ -371,7 +371,7 @@ int main(int argc, char **argv) {
+   // MCObjectFileInfo needs a MCContext reference in order to initialize itself.
+   MCObjectFileInfo MOFI;
+   MCContext Ctx(MAI.get(), MRI.get(), &MOFI, &SrcMgr, &MCOptions);
+-  MOFI.InitMCObjectFileInfo(TheTriple, PIC, Ctx, LargeCodeModel);
++  MOFI.InitMCObjectFileInfo(TheTriple, pic, Ctx, LargeCodeModel);
+ 
+   if (SaveTempLabels)
+     Ctx.setAllowTemporaryLabels(false);
 diff --git a/tools/opt/NewPMDriver.cpp b/tools/opt/NewPMDriver.cpp
+index ac04a32d..1775b49d 100644
 --- a/tools/opt/NewPMDriver.cpp
 +++ b/tools/opt/NewPMDriver.cpp
-@@ -257,11 +257,11 @@
+@@ -255,11 +255,11 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
          P->CSAction = PGOOptions::CSIRUse;
        }
      }

@@ -11,6 +11,10 @@ else
   PLUGINS="${THREE_PROXY_PLUGINS}"
 fi &&
 
+if list_find "${PLUGINS}" "PCREPlugin"; then
+  LIBS="-lpcre ${LIBS}"
+fi &&
+
 if list_find "${PLUGINS}" "SSLPlugin"; then
   LIBS="-lcrypto -lssl ${LIBS}"
 fi &&

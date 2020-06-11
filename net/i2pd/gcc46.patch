@@ -6,9 +6,9 @@
  else ifeq ($(shell expr match ${CXXVER} "4\.6"),3) # = 4.6
 -	NEEDED_CXXFLAGS += -std=c++0x
 +	NEEDED_CXXFLAGS += -std=c++0x -D_GLIBCXX_USE_NANOSLEEP=1
- else ifeq ($(shell expr match ${CXXVER} "[5-7]\.[0-9]"),3) # gcc >= 5.0
+ else ifeq ($(shell expr match ${CXXVER} "[5-9]"),1) # gcc >= 5
  	NEEDED_CXXFLAGS += -std=c++11
- else # not supported
+ 	LDLIBS = -latomic
 --- libi2pd/Tunnel.cpp.orig	2016-10-17 00:37:40.000000000 -0400
 +++ libi2pd/Tunnel.cpp	2016-10-19 19:56:06.096526898 -0400
 @@ -406,7 +406,7 @@
@@ -121,9 +121,9 @@
 @@ -7,8 +7,6 @@
  	{
  		public:
- 			HTTPProxy(const std::string& name, const std::string& address, int port, const std::string & outproxy, std::shared_ptr<i2p::client::ClientDestination> localDestination);
+ 			HTTPProxy(const std::string& name, const std::string& address, int port, const std::string & outproxy, bool addresshelper, std::shared_ptr<i2p::client::ClientDestination> localDestination);
 -			HTTPProxy(const std::string& name, const std::string& address, int port, std::shared_ptr<i2p::client::ClientDestination> localDestination = nullptr) :
--				HTTPProxy(name, address, port, "", localDestination) {} ;
+-				HTTPProxy(name, address, port, "", true, localDestination) {} ;
  			~HTTPProxy() {};
  
  			std::string GetOutproxyURL() const { return m_OutproxyUrl; }
@@ -221,3 +221,171 @@
  			};
  
  			struct Address
+--- libi2pd/Blinding.h.orig	2020-02-25 09:08:50.000000000 -0800
++++ libi2pd/Blinding.h	2020-02-26 17:03:22.152844367 -0800
+@@ -39,7 +39,7 @@
+ 
+ 			std::vector<uint8_t> m_PublicKey;
+ 			i2p::data::SigningKeyType m_SigType, m_BlindedSigType;
+-			bool m_IsClientAuth = false;
++			bool m_IsClientAuth;
+ 	};
+ }
+ }
+--- libi2pd/LeaseSet.h.orig	2020-02-25 09:08:50.000000000 -0800
++++ libi2pd/LeaseSet.h	2020-02-26 17:21:50.775527499 -0800
+@@ -165,8 +165,8 @@
+ 		private:
+ 
+ 			uint8_t m_StoreType;  
+-			uint32_t m_PublishedTimestamp = 0;
+-			bool m_IsPublic = true, m_IsPublishedEncrypted = false;
++			uint32_t m_PublishedTimestamp;
++			bool m_IsPublic, m_IsPublishedEncrypted;
+ 			std::shared_ptr<i2p::crypto::Verifier> m_TransientVerifier;
+ 			CryptoKeyType m_EncryptionType;
+ 			std::shared_ptr<i2p::crypto::CryptoKeyEncryptor> m_Encryptor; // for standardLS2
+--- libi2pd/LeaseSet.cpp.orig	2020-02-25 09:08:50.000000000 -0800
++++ libi2pd/LeaseSet.cpp	2020-02-26 17:20:39.170099671 -0800
+@@ -252,7 +252,7 @@
+ 	}
+ 
+ 	LeaseSet2::LeaseSet2 (uint8_t storeType, const uint8_t * buf, size_t len, bool storeLeases, CryptoKeyType preferredCrypto):
+-		LeaseSet (storeLeases), m_StoreType (storeType), m_EncryptionType (preferredCrypto)
++		LeaseSet (storeLeases), m_StoreType (storeType), m_EncryptionType (preferredCrypto), m_PublishedTimestamp (0), m_IsPublic (true), m_IsPublishedEncrypted (false)
+ 	{	
+ 		SetBuffer (buf, len);	
+ 		if (storeType == NETDB_STORE_TYPE_ENCRYPTED_LEASESET2)
+@@ -263,7 +263,7 @@
+ 
+ 	LeaseSet2::LeaseSet2 (const uint8_t * buf, size_t len, std::shared_ptr<const BlindedPublicKey> key, 
+ 		const uint8_t * secret, CryptoKeyType preferredCrypto):
+-		LeaseSet (true), m_StoreType (NETDB_STORE_TYPE_ENCRYPTED_LEASESET2), m_EncryptionType (preferredCrypto)
++		LeaseSet (true), m_StoreType (NETDB_STORE_TYPE_ENCRYPTED_LEASESET2), m_EncryptionType (preferredCrypto), m_PublishedTimestamp (0), m_IsPublic (true), m_IsPublishedEncrypted (false)
+ 	{
+ 		ReadFromBufferEncrypted (buf, len, key, secret);
+ 	}
+--- libi2pd/RouterContext.h.orig	2020-02-25 09:08:50.000000000 -0800
++++ libi2pd/RouterContext.h	2020-02-26 17:25:18.440768256 -0800
+@@ -5,7 +5,7 @@
+ #include <string>
+ #include <memory>
+ #include <mutex>
+-#include <chrono>
++#include <boost/chrono.hpp>
+ #include <boost/asio.hpp>
+ #include "Identity.h"
+ #include "RouterInfo.h"
+@@ -142,7 +142,7 @@
+ 			std::shared_ptr<i2p::crypto::CryptoKeyDecryptor> m_Decryptor;
+ 			uint64_t m_LastUpdateTime; // in seconds
+ 			bool m_AcceptsTunnels, m_IsFloodfill;	
+-			std::chrono::time_point<std::chrono::steady_clock> m_StartupTime;
++			boost::chrono::time_point<boost::chrono::steady_clock> m_StartupTime;
+ 			uint64_t m_BandwidthLimit; // allowed bandwidth
+ 			int m_ShareRatio;
+ 			RouterStatus m_Status;
+--- libi2pd/RouterContext.cpp.orig	2020-02-25 09:08:50.000000000 -0800
++++ libi2pd/RouterContext.cpp	2020-02-26 17:26:07.070058807 -0800
+@@ -27,7 +27,7 @@
+ 	void RouterContext::Init ()
+ 	{
+ 		srand (i2p::util::GetMillisecondsSinceEpoch () % 1000);
+-		m_StartupTime = std::chrono::steady_clock::now();
++		m_StartupTime = boost::chrono::steady_clock::now();
+ 
+ 		if (!Load ())
+ 			CreateNewRouter ();
+@@ -717,7 +717,7 @@
+ 
+ 	uint32_t RouterContext::GetUptime () const
+ 	{
+-		return std::chrono::duration_cast<std::chrono::seconds> (std::chrono::steady_clock::now() - m_StartupTime).count ();
++		return boost::chrono::duration_cast<boost::chrono::seconds> (boost::chrono::steady_clock::now() - m_StartupTime).count ();
+ 	}
+ 
+ 	bool RouterContext::Decrypt (const uint8_t * encrypted, uint8_t * data, BN_CTX * ctx) const
+--- libi2pd/ECIESX25519AEADRatchetSession.h.orig	2020-02-25 09:08:50.000000000 -0800
++++ libi2pd/ECIESX25519AEADRatchetSession.h	2020-02-26 18:05:27.839321012 -0800
+@@ -115,10 +115,10 @@
+             uint8_t m_H[32], m_CK[64] /* [chainkey, key] */, m_RemoteStaticKey[32];
+ 			uint8_t m_Aepk[32]; // Alice's ephemeral keys TODO: for incoming only
+             i2p::crypto::X25519Keys m_EphemeralKeys;
+-            SessionState m_State = eSessionStateNew;
+-			uint64_t m_LastActivityTimestamp = 0; // incoming
++            SessionState m_State;
++			uint64_t m_LastActivityTimestamp; // incoming
+             RatchetTagSet m_SendTagset, m_ReceiveTagset;
+-			int m_NumReceiveTags = 0;
++			int m_NumReceiveTags;
+ 			std::unique_ptr<i2p::data::IdentHash> m_Destination;// TODO: might not need it 
+     };
+ }
+--- libi2pd/ECIESX25519AEADRatchetSession.cpp.orig	2020-02-25 09:08:50.000000000 -0800
++++ libi2pd/ECIESX25519AEADRatchetSession.cpp	2020-02-26 18:08:10.465397719 -0800
+@@ -61,7 +61,7 @@
+ 	}
+ 	
+     ECIESX25519AEADRatchetSession::ECIESX25519AEADRatchetSession (GarlicDestination * owner):
+-        GarlicRoutingSession (owner, true)
++        GarlicRoutingSession (owner, true), m_State(eSessionStateNew), m_LastActivityTimestamp(0), m_NumReceiveTags(0)
+     {
+     	ResetKeys ();
+     }
+--- libi2pd/Garlic.cpp.orig	2020-02-25 09:08:50.000000000 -0800
++++ libi2pd/Garlic.cpp	2020-02-26 18:22:34.385236705 -0800
+@@ -959,7 +959,7 @@
+ 
+     void GarlicDestination::AddECIESx25519SessionTag (int index, uint64_t tag, ECIESX25519AEADRatchetSessionPtr session)
+     {
+-        m_ECIESx25519Tags.emplace (tag, ECIESX25519AEADRatchetIndexSession{index, session, i2p::util::GetSecondsSinceEpoch ()});
++        m_ECIESx25519Tags.insert({tag, ECIESX25519AEADRatchetIndexSession{index, session, i2p::util::GetSecondsSinceEpoch ()}});
+     }
+ 
+ 	void GarlicDestination::AddECIESx25519Session (const uint8_t * staticKey, ECIESX25519AEADRatchetSessionPtr session)
+@@ -976,7 +976,7 @@
+ 				return;
+ 			}	
+ 		}
+-		m_ECIESx25519Sessions.emplace (staticKeyTag, session);
++		m_ECIESx25519Sessions.insert({staticKeyTag, session});
+ 	}
+ 
+ }
+--- libi2pd/Timestamp.cpp.orig	2020-02-25 09:08:50.000000000 -0800
++++ libi2pd/Timestamp.cpp	2020-02-26 18:38:19.787128311 -0800
+@@ -187,7 +187,7 @@
+ 
+ 	void GetDateString (uint64_t timestamp, char * date)
+ 	{
+-		using clock = std::chrono::system_clock;
++		typedef std::chrono::system_clock clock;
+ 		auto t = clock::to_time_t (clock::time_point (std::chrono::seconds(timestamp)));
+ 		struct tm tm;
+ #ifdef _WIN32
+--- libi2pd/Identity.h.orig	2020-02-25 09:08:50.000000000 -0800
++++ libi2pd/Identity.h	2020-02-27 14:45:08.012926508 -0800
+@@ -135,9 +135,9 @@
+ 	{
+ 		public:
+ 
+-			PrivateKeys () = default;
+-			PrivateKeys (const PrivateKeys& other) { *this = other; };
+-			PrivateKeys (const Keys& keys) { *this = keys; };
++			PrivateKeys (): m_TransientSignatureLen(0), m_TransientSigningPrivateKeyLen(0) {};
++			PrivateKeys (const PrivateKeys& other): m_TransientSignatureLen(0), m_TransientSigningPrivateKeyLen(0) { *this = other; };
++			PrivateKeys (const Keys& keys): m_TransientSignatureLen(0), m_TransientSigningPrivateKeyLen(0) { *this = keys; };
+ 			PrivateKeys& operator=(const Keys& keys);
+ 			PrivateKeys& operator=(const PrivateKeys& other);
+ 			~PrivateKeys () = default;
+@@ -182,8 +182,8 @@
+ 			uint8_t m_SigningPrivateKey[128]; // assume private key doesn't exceed 128 bytes
+ 			mutable std::unique_ptr<i2p::crypto::Signer> m_Signer;
+ 			std::vector<uint8_t> m_OfflineSignature; // non zero length, if applicable
+-			size_t m_TransientSignatureLen = 0;
+-			size_t m_TransientSigningPrivateKeyLen = 0;
++			size_t m_TransientSignatureLen;
++			size_t m_TransientSigningPrivateKeyLen;
+ 	};
+ 
+ 	// kademlia
