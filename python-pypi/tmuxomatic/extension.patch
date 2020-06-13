@@ -1,0 +1,27 @@
+From 0da8a6153e9fe8c4b3317566980b8f4ac67fcc76 Mon Sep 17 00:00:00 2001
+From: Henry Qin <root@hq6.me>
+Date: Thu, 28 Apr 2016 03:02:29 -0700
+Subject: [PATCH] Drop extensions on filenames periods when using filenames as
+ session names, since tmux 1.9 does not permit periods in session names
+
+---
+ tmuxomatic | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/tmuxomatic b/tmuxomatic
+index 6bcac4c..d7da37d 100755
+--- a/tmuxomatic
++++ b/tmuxomatic
+@@ -2331,6 +2331,12 @@ def main():
+     # Session name in tmux is always derived from the filename (pathname is dropped to avoid confusion)
+     filename_only = ARGS.filename[ARGS.filename.rfind('/')+1:] # Get the filename only (drop the pathname)
+     session_name = PROGRAM_THIS + "_" + filename_only # Session name with the executable name as a prefix
++    try:
++        # Session name cannot contain periods as of tmux 1.9a, but filenames
++        # commonly have extensions, so let's strip any extensions.
++        session_name = session_name[:session_name.index('.')]
++    except:
++        pass
+     session_name = re.sub(r'([/])', r'_', session_name) # In case of session path: replace '/' with '_'
+     session_name = re.sub(r'\_\_+', r'_', session_name) # Replace two or more consecutive underscores with one
+ 
