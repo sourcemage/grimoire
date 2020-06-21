@@ -1,1 +1,1 @@
-bdftopcf cozette.bdf | gzip -9 > cozette.pcf.gz
+bdftopcf "${SOURCE}" | gzip -9 > cozette.pcf.gz
