@@ -1,0 +1,39 @@
+From a8c2c6763ab7037e68a525305f0577845a797ae1 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Mon, 22 Jun 2020 21:32:14 +0200
+Subject: [PATCH] Fix build on non-glibc systems
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ libsys/systhread.c | 2 +-
+ libxvt/xvtcommon.h | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/libsys/systhread.c b/libsys/systhread.c
+index e33bc0dd319f..06bc127598c4 100644
+--- a/libsys/systhread.c
++++ b/libsys/systhread.c
+@@ -380,7 +380,7 @@ void sysmutex_init (THREAD_MUTEX *mp)
+ 				tm->initialized		= TRUE;
+ 				tm->depth			= 0;
+ 				pthread_mutexattr_init(&tm->cs.m_unix.attr);
+-#if defined(linux)
++#if defined(linux) && defined(__GLIBC__)
+ 				pthread_mutexattr_settype(&tm->cs.m_unix.attr,
+ 					PTHREAD_MUTEX_RECURSIVE_NP);
+ #else
+diff --git a/libxvt/xvtcommon.h b/libxvt/xvtcommon.h
+index 36e7bec60cbf..b8ef2b993122 100644
+--- a/libxvt/xvtcommon.h
++++ b/libxvt/xvtcommon.h
+@@ -31,6 +31,7 @@ typedef int		pid_t;
+ 
+ #  include <unistd.h>
+ #  include <termios.h>
++#  include <sys/ttydefaults.h>
+ #  include <sys/wait.h>
+ #  include <sys/time.h>
+ #  include <sys/socket.h>
+-- 
+2.27.0
+
