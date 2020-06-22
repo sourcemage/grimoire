@@ -7,4 +7,4 @@ if ! echo $OPTS | grep -q 'with-x'; then
   export USE_X11=no &&
   export LIBXVT=libxvt-dummy
 fi &&
-make
+make OPTS="$CFLAGS"
