@@ -3,12 +3,13 @@
 depends  autoconf-2.13                                           &&
 depends  -sub "CLANG" llvm                                       &&
 depends  perl                                                    &&
-depends  python                                                  &&
+depends  python3                                                 &&
 
-depends  icu     "--with-system-icu"                             &&
+#depends  icu     "--with-system-icu"                             &&
 
 depends  glib2                                                   &&
-depends  gtk+3   "--enable-default-toolkit=cairo-gtk3" &&
+depends  gtk+3   "--enable-default-toolkit=cairo-gtk3"           &&
+depends  gtk+2                                                   &&
 depends  atk                                                     &&
 depends  libx11                                                  &&
 depends  libxext                                                 &&
@@ -17,8 +18,13 @@ depends  libxt                                                   &&
 depends  libxcomposite                                           &&
 
 depends  pango                                                   &&
+depends  fontconfig                                              &&
+depends  freetype2                                               &&
 depends  libxft                                                  &&
 
+depends  tar   &&
+depends  unzip &&
+depends  zip   &&
 
 #depends  -sub TEE cairo  "--enable-system-cairo"                 &&
 depends  gdk-pixbuf2                                             &&
@@ -30,7 +36,7 @@ depends  libwebp       "--with-system-webp"                      &&
 
 depends  nspr               "--with-system-nspr"                 &&
 
-local NSS_BRANCH="3.51"                                          &&
+local NSS_BRANCH="3.54"                                          &&
 if spell_ok nss                                                  &&
    is_version_less "$(installed_version nss)" "${NSS_BRANCH}"; then
   depends  -sub "${NSS_BRANCH}" nss  "--with-system-nss"
@@ -46,9 +52,8 @@ depends  libidl                                                  &&
 depends  zip                                                     &&
 depends  zlib               "--with-system-zlib"                 &&
 
-depends bzip2               "--with-system-bz2"                  &&
 depends libevent            "--with-system-libevent"             &&
-#depends libvpx              "--with-system-libvpx"               &&
+depends libvpx              "--with-system-libvpx"               &&
 depends libffi              "--enable-system-ffi"                &&
 depends libnotify                                                &&
 depends pixman              "--enable-system-pixman"             &&
@@ -58,15 +63,8 @@ depends cbindgen                                                 &&
 
 depends nodejs                                                   &&
 
-optional_depends  startup-notification  \
-                  "--enable-startup-notification" \
-                  "--disable-startup-notification" \
-                  "for startup notifications"      &&
-
-optional_depends  gconf2  \
-                  "--enable-gconf" \
-                  "--disable-gconf" \
-                  "for gconf support"      &&
+depends startup-notification                                     &&
+depends gconf2                                                   &&
 
 optional_depends  wireless_tools \
                   "--enable-necko-wifi" \
@@ -87,6 +85,11 @@ depends alsa-lib "--enable-alsa" &&
 #                  '--disable-wave --disable-ogg --disable-webm --disable-dash' \
 #                  'for audio/video support' &&
 
+optional_depends JACK \
+	"--enable-jack" \
+	"--disable-jack" \
+	"use JACK for audio support" &&
+
 if is_depends_enabled $SPELL alsa-lib; then
   # Firefox tries to use ogg/ogg.h even with --disable-ogg given
   #optional_depends  libogg \
@@ -103,10 +106,7 @@ if is_depends_enabled $SPELL alsa-lib; then
   depends yasm
 fi &&
 
-optional_depends  dbus-glib \
-                  "--enable-dbus" \
-                  "--disable-dbus" \
-                  "for dbus support" &&
+depends dbus-glib "--enable-dbus" &&
 
 # Firefox is currently borked and does not compile without OpenGL headers
 #optional_depends  OPENGL \
@@ -133,7 +133,10 @@ suggest_depends_2 firefox-smglwiki "" "" \
 #                  "--without-system-harfbuzz" \
 #                  "for system harfbuzz" &&
 #
-#optional_depends  dav1d \
-#                  "--enable-av1 --with-system-av1" \
-#                  "--disable-av1" \
-#                  "for AV1 video support"
+optional_depends  dav1d \
+                  "--enable-av1" \
+                  "--disable-av1" \
+                  "for AV1 video support" &&
+if is_depends_enabled $SPELL dav1d; then
+  depends nasm
+fi

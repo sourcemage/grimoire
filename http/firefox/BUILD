@@ -24,10 +24,6 @@ CXXFLAGS="${CXXFLAGS//-O[3s]/-O2}"  &&
 # harden
 LDFLAGS="$LDFLAGS -Wl,-z,now"    &&
 
-# for gcc 6
-CFLAGS+=" -fno-delete-null-pointer-checks"   &&
-CXXFLAGS+=" -fno-delete-null-pointer-checks" &&
-
 #
 # fix symbol check in build scripts, firefox adds -s to LDFLAGS so we can
 # remove it here without changing anything...
@@ -45,7 +41,7 @@ local gccminor=${gccver#*.}      &&
 gccminor=${gccminor%.*}          &&
 
 if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
-  CFLAGS="${CFLAGS//-mavx} -mno-avx"
+  CFLAGS="${CFLAGS//-mavx} -mno-avx"     &&
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
 
