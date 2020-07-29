@@ -1,3 +1,5 @@
+# remove options not supported by ld.gold
+LDFLAGS="${LDFLAGS//-Wl,-znoseparate-code}" &&
 OPTS="$WEBKIT_OPTS $OPTS" &&
 sed -i '30i#include <unicode/utf8.h>' \
     Source/WebCore/platform/text/TextCodecUTF8.h \
