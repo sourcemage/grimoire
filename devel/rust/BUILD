@@ -1,4 +1,5 @@
 export CLANG_INSTALL_DIR=/usr &&
+CFLAGS="${CFLAGS//-DPIC}" &&
 CXXFLAGS="${CXXFLAGS//-DPIC}" &&
 if spell_ok "$SPELL"; then
   _rust_root="$INSTALL_ROOT/usr"

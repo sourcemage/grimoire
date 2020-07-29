@@ -6,7 +6,7 @@ OPTS="$EVINCE_THUMB \
       $EVINCE_MULTIMEDIA \
       $EVINCE_COMIC \
       browser_plugin=false \
-      gspell=false \
+      gspell=disabled \
       $OPTS" &&
 
 default_build
