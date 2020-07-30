@@ -1,1 +1,1 @@
-make all $OPTS
+make all $OPTS RPM_OPT_FLAGS="$CXXFLAGS"
