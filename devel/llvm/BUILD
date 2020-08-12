@@ -14,6 +14,12 @@ if ! is_depends_enabled $SPELL libedit;then
   OPTS+=" -DLLVM_ENABLE_TERMINFO=0" &&
   OPTS+=" -DLLVM_ENABLE_BACKTRACES=0"
 fi &&
+# Enable RTTI if requested, recommended, changing it breaks the ABI
+if [ y = "$LLVM_WITH_RTTI" ]; then
+  OPTS+=" -DLLVM_ENABLE_RTTI=1"
+else
+  OPTS+=" -DLLVM_ENABLE_RTTI=0"
+fi &&
 
 message opts=$OPTS &&
 cmake_build
