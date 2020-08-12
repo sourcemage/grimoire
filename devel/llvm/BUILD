@@ -1,3 +1,5 @@
+# Remove -DPIC from compiler flags, produces build errors
+CXXFLAGS="${CXXFLAGS//-DPIC}" &&
 # Default target, not detected correctly
 OPTS+=" -DLLVM_DEFAULT_TARGET_TRIPLE=$HOST" &&
 # LLVM_TARGETS
