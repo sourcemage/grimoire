@@ -11,6 +11,4 @@
             --with-bankinfos="${AQ_INFO}"              \
 	    --disable-tutorials			       \
             $OPTS                                      &&
-make_single  &&
-make &&
-make_normal
+make
