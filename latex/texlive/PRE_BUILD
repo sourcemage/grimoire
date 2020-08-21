@@ -74,34 +74,27 @@ sed '/utypes.h/i\
 
 mkdir "$COMPILE_DIRECTORY" &&
 
-# Poppler sources:
-# really old: keep things as-is
-# 0.59.x to 0.68.x: pdftoepdf-poppler0.68.0.cc, pdftosrc-newpoppler.cc
-# 0.69.x: pdftoepdf-poppler0.69.0.cc, pdftosrc-newpoppler.cc
-# 0.70.x: pdftoepdf-poppler0.70.0.cc, pdftosrc-newpoppler.cc
-# 0.71.x: pdftoepdf-poppler0.71.0.cc, pdftosrc-poppler0.71.0.cc
-# This is nuts.
 if spell_ok poppler; then
   cd "${SOURCE_DIRECTORY}/texk/web2c/pdftexdir" &&
   popplerver="$(installed_version poppler | cut -f 1,2 -d .)" &&
-  if is_version_between 0.59 "$popplerver" 0.68; then
-    cp pdftoepdf-poppler0.68.0.cc pdftoepdf.cc &&
-    cp pdftosrc-newpoppler.cc pdftosrc.cc
-  elif [[ "$popplerver" = 0.69 ]]; then
-    cp pdftoepdf-poppler0.69.0.cc pdftoepdf.cc &&
-    cp pdftosrc-newpoppler.cc pdftosrc.cc
-  elif [[ "$popplerver" = 0.70 ]]; then
-    cp pdftoepdf-poppler0.70.0.cc pdftoepdf.cc &&
-    cp pdftosrc-newpoppler.cc pdftosrc.cc
-  elif [[ "$popplerver" = 0.71 ]]; then
-    cp pdftoepdf-poppler0.71.0.cc pdftoepdf.cc &&
-    cp pdftosrc-poppler0.71.0.cc pdftosrc.cc
-  elif [[ "$popplerver" = 0.72 ]]; then
-    cp pdftoepdf-poppler0.72.0.cc pdftoepdf.cc &&
-    cp pdftosrc-poppler0.72.0.cc pdftosrc.cc
-  elif ! is_version_less "$popplerver" 0.73; then
-    cp pdftoepdf-poppler0.75.0.cc pdftoepdf.cc &&
-    cp pdftosrc-poppler0.72.0.cc pdftosrc.cc
-  fi &&
+  case "$popplerver" in
+    # really old: keep things as-is
+    (0.?|0.[0-4]?|0.5[0-8]) ;;
+    # special case for the non-versioned file
+    (0.59|0.6?|0.70)
+      ln -vsf pdftosrc{-newpoppler,}.cc
+      ;&
+    # symlink the best matches for the installed poppler version
+    (*)
+      {
+        echo ./pdftosrc-poppler$popplerver.z
+        echo ./pdftoepdf-poppler$popplerver.z
+        find -name 'pdfto*-poppler*.0.cc'
+      } | sort -V | awk -F- '
+	/z$/ { done[$1]; next }
+	!($1 in done) { latest[$1] = $0 }
+	END { for (i in latest) print latest[i], i ".cc" }
+      ' | xargs -n 2 ln -vsf
+  esac &&
   cd "${SOURCE_DIRECTORY}"
 fi
