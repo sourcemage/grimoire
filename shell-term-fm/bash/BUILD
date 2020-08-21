@@ -1,5 +1,6 @@
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
 
+OPTS+=" $BASH_OPTS" &&
 
 ./configure  --build=$BUILD                \
              --prefix=${TRACK_ROOT}/usr  \
