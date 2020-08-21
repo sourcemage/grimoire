@@ -1,5 +1,7 @@
 depends  e2fsprogs &&
+depends  gnutls    &&
 depends  libcap    &&
+depends  parse-yapp  &&
 depends  popt      &&
 depends  PYTHON    &&
 depends  tevent    &&
@@ -10,8 +12,14 @@ fi  &&
 depends  -sub 'SSL'  ${HTTP_DL_HANDLER}  &&
 
 if [[ "$SAMBA_ADDC" == "y" ]]; then
-  depends  acl     "--with-acl-support"
+  list_remove SAMBA4 '--without-ad-dc'   &&
+  list_remove SAMBA4 '--without-gpgme'   &&
+  depends  acl     "--with-acl-support"  &&
+  depends  gpgme  &&
+  depends  lmdb
 else
+  list_add SAMBA4 '--without-ad-dc'  &&
+  list_add SAMBA4 '--without-gpgme'  &&
   optional_depends acl                     \
                    "--with-acl-support"    \
                    "--without-acl-support" \
@@ -37,11 +45,6 @@ optional_depends  linux-pam                        \
                   "--with-pam"                     \
                   "--without-pam"                  \
                   "To enable PAM authentication"   &&
-
-optional_depends  gnutls                         \
-                  "--enable-gnutls"              \
-                  "--disable-gnutls"             \
-                  "for encrypted communication"  &&
 
 optional_depends  CUPS                         \
                   "--enable-cups"              \
@@ -79,6 +82,7 @@ optional_depends dmapi \
                  "--with-dmapi" \
                  "--without-dmapi" \
                  "for data management API for XFS Filesystem support" &&
+
 
 optional_depends libxslt "" "" "to build man pages and documentation" &&
 if is_depends_enabled $SPELL libxslt; then
