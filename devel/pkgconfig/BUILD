@@ -2,5 +2,5 @@
 # subsequently be built when pkg-config is also broken due to linking to
 # system glib2.
 OPTS="$OPTS --with-internal-glib" &&
-OPTS="$OPTS --with-pc-path=/usr/lib/pkgconfig:/usr/share/pkgconfig:/opt/qt4/lib/pkgconfig" &&
+OPTS="$OPTS --with-pc-path=/usr/lib/pkgconfig:/usr/share/pkgconfig:/lib/pkgconfig" &&
 default_build
