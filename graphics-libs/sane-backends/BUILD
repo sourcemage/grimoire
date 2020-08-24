@@ -14,5 +14,4 @@ fi &&
 #      --with-docdir=$INSTALL_ROOT/usr/share/doc/sane-backends \
 #      $OPTS" &&
 
-OPTS+=" --disable-translations" &&
 default_build
