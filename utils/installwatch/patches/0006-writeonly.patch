@@ -1,0 +1,308 @@
+--- installwatch/installwatch.c.orig	2020-08-31 17:39:50.800366075 +0200
++++ installwatch/installwatch.c	2020-08-31 17:40:57.441372237 +0200
+@@ -59,6 +59,11 @@
+ 
+ #define DEBUG 1  
+ 
++/* Intercept only operations that are (potentially) making changes
++   to the file system. This is to avoid interference and a resulting
++   deadlock with jemalloc, which calls readlink() on initialization. */
++#define INSTALLWATCH_WRITEONLY
++
+ #define LOGLEVEL (LOG_USER | LOG_INFO | LOG_PID)
+ #define BUFSIZE 1024
+ 
+@@ -273,7 +278,9 @@
+ static int make_path(const char *);
+ static int copy_path(const char *,const char *);
+ static inline int path_excluded(const char *);
++#ifndef INSTALLWATCH_WRITEONLY
+ static int unlink_recursive(const char *);
++#endif
+ 
+ int expand_path(string_t **,const char *,const char *);
+ int parse_suffix(char *,char *,const char *);
+@@ -283,12 +290,14 @@
+   /* single method used to minimize excessive returns */
+ #define finalize(code) {rcod=code;goto finalize;}
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ #if DEBUG
+ static int __instw_printdirent(struct dirent*);
+ #if(GLIBC_MINOR >= 1)
+ static int __instw_printdirent64(struct dirent64*);
+ #endif
+ #endif
++#endif
+ 
+ #ifdef DEBUG
+ static int instw_print(instw_t *);
+@@ -308,8 +317,10 @@
+ #endif
+ static int instw_getstatus(instw_t *,int *);
+ static int instw_apply(instw_t *);
++#ifndef INSTALLWATCH_WRITEONLY
+ static int instw_filldirls(instw_t *);
+ static int instw_makedirls(instw_t *);
++#endif
+ 
+ static int backup(const char *);
+ 
+@@ -843,6 +854,7 @@
+ 	return result;
+ }
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ /*
+  * procedure = / rc:=unlink_recursive(truepath) /
+  *
+@@ -914,6 +926,7 @@
+ 
+ 	return rcod;
+ }
++#endif
+ 
+ /* 
+  * procedure = / rc:=expand_path(&list,prefix,suffix) /
+@@ -1031,6 +1044,7 @@
+  * *****************************************************************************
+  */
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ static int __instw_printdirent(struct dirent *entry) {
+ 
+ 	if(entry!=NULL) {
+@@ -1054,7 +1068,9 @@
+ 
+ 	return 0;
+ }
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ static int __instw_printdirent64(struct dirent64 *entry) {
+ 
+ 	if(entry!=NULL) {
+@@ -1078,6 +1094,7 @@
+ 
+ 	return 0;
+ }
++#endif
+ 
+ /*
+  * *****************************************************************************
+@@ -1905,6 +1922,7 @@
+ 	return rcod;
+ }
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ /*
+  * procedure = / rc:=instw_filldirls(instw) /
+  *
+@@ -2105,7 +2123,9 @@
+ 
+ 	return rcod;
+ }
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ /*
+  * procedure = / rc:=instw_makedirls(instw) /
+  *
+@@ -2186,6 +2206,7 @@
+ 
+ 	return rcod;
+ }
++#endif
+ 
+ /* 
+  *
+@@ -2615,6 +2636,7 @@
+ 	return result;
+ }
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ char *getcwd(char *buffer,size_t size) {
+ 	char wpath[PATH_MAX+1];
+ 	char *result;
+@@ -2678,6 +2700,7 @@
+ 
+ 	return result;
+ }
++#endif
+ 
+ int lchown(const char *path, uid_t owner, gid_t group) {
+ /* Linux specific? */
+@@ -2894,6 +2917,7 @@
+ 	return result;
+ }
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ /*
+  *
+  */
+@@ -2929,7 +2953,9 @@
+ 
+ 	return result;
+ }
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ struct dirent *readdir(DIR *dir) {
+ 	struct dirent *result;
+ 
+@@ -2955,7 +2981,9 @@
+ 
+ 	return result;
+ }
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ ssize_t readlink(const char *path,char *buf,size_t bufsiz) {
+ 	ssize_t result;
+ 	instw_t instw;
+@@ -2992,7 +3020,9 @@
+ 
+ 	return result;	
+ }
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ char *realpath(const char *file_name,char *resolved_name) {
+ 	char *result;
+ 
+@@ -3010,6 +3040,7 @@
+ 
+ 	return result;
+ }
++#endif
+ 
+ int rename(const char *oldpath, const char *newpath) {
+ 	int result;
+@@ -3090,6 +3121,7 @@
+ 	return result;
+ }
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ int scandir(	const char *dir,struct dirent ***namelist,
+ 		int (*select)(const struct dirent *),
+ 		int (*compar)(const struct dirent **,const struct dirent **)	) {
+@@ -3113,7 +3145,9 @@
+ 
+ 	return result;
+ }		
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ int __xstat(int version,const char *pathname,struct stat *info) {
+ 	int result;
+ 	instw_t instw;
+@@ -3155,7 +3189,9 @@
+ 
+ 	return result;	
+ }
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ int __lxstat(int version,const char *pathname,struct stat *info) {
+ 	int result;
+ 	instw_t instw;
+@@ -3197,6 +3233,7 @@
+ 
+ 	return result;	
+ }
++#endif
+ 
+ int symlink(const char *pathname, const char *slink) {
+ 	int result;
+@@ -3676,6 +3713,7 @@
+ 	return result;
+ }
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ struct dirent64 *readdir64(DIR *dir) {
+ 	struct dirent64 *result;
+ 
+@@ -3701,7 +3739,9 @@
+ 
+ 	return result;
+ }
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ int scandir64(	const char *dir,struct dirent64 ***namelist,
+ 		int (*select)(const struct dirent64 *),
+ 		int (*compar)(const struct dirent64 **,const struct dirent64 **)	) {
+@@ -3725,7 +3765,9 @@
+ 
+ 	return result;
+ }		
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ int __xstat64(int version,const char *pathname,struct stat64 *info) {
+ 	int result;
+ 	instw_t instw;
+@@ -3764,7 +3806,9 @@
+ 
+ 	return result;	
+ }
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ int __lxstat64(int version,const char *pathname,struct stat64 *info) {
+ 	int result;
+ 	instw_t instw;
+@@ -3803,6 +3847,7 @@
+ 
+ 	return result;	
+ }
++#endif
+ 
+ int truncate64(const char *path, __off64_t length) {
+ 	int result;
+@@ -4026,7 +4071,7 @@
+ 	return result;
+ }
+ 
+-
++#ifndef INSTALLWATCH_WRITEONLY
+ int __fxstatat (int version, int dirfd, const char *path, struct stat *s, int flags) {
+  	
+  	int result;
+@@ -4099,7 +4144,9 @@
+  
+ 	return result;
+ }
++#endif
+ 
++#ifndef INSTALLWATCH_WRITEONLY
+ int __fxstatat64 (int version, int dirfd, const char *path, struct stat64 *s, int flags) {
+  	
+  	int result;
+@@ -4171,7 +4218,7 @@
+ 	return result;
+ 
+ }
+-
++#endif
+ 
+ int linkat (int olddirfd, const char *oldpath,
+                   int newdirfd, const char *newpath, int flags) {
+@@ -4277,7 +4324,7 @@
+ 	return result;
+ }
+ 
+-
++#ifndef INSTALLWATCH_WRITEONLY
+ READLINKAT_T readlinkat (int dirfd, const char *path,
+                       char *buf, size_t bufsiz) {
+  	
+@@ -4320,7 +4367,7 @@
+  
+ 	return result;
+ }
+-
++#endif
+ 
+ int __xmknodat (int version, int dirfd,const char *path,mode_t mode,dev_t *dev) {
+  	
