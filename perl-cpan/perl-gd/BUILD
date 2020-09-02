@@ -17,5 +17,5 @@ if is_depends_enabled gd libxpm && is_depends_enabled $SPELL libxpm; then
   GD_OPTIONS+=",XPM"
 fi &&
 
-perl Build.PL -options="$GD_OPTIONS" &&
-./Build
+perl Makefile.PL -options="$GD_OPTIONS" --lib_gd_path "${INSTALL_ROOT}/usr/lib"  &&
+make
