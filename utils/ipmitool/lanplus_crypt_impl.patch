@@ -1,0 +1,125 @@
+# From https://github.com/ipmitool/ipmitool/issues/161
+--- ipmitool-IPMITOOL_1_8_18-ori/src/plugins/lanplus/lanplus_crypt_impl.c	2016-10-08 16:17:55.000000000 +0800
++++ ipmitool-IPMITOOL_1_8_18-mod/src/plugins/lanplus/lanplus_crypt_impl.c	2020-02-22 17:35:09.526631700 +0800
+@@ -164,16 +164,19 @@
+ 							uint8_t       * output,
+ 							uint32_t        * bytes_written)
+ {
+-	EVP_CIPHER_CTX ctx;
+-	EVP_CIPHER_CTX_init(&ctx);
+-	EVP_EncryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL, key, iv);
+-	EVP_CIPHER_CTX_set_padding(&ctx, 0);
++	EVP_CIPHER_CTX *ctx;
++	ctx = EVP_CIPHER_CTX_new();
++	EVP_CIPHER_CTX_init(ctx);
++	EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv);
++	EVP_CIPHER_CTX_set_padding(ctx, 0);
+ 	
+ 
+ 	*bytes_written = 0;
+ 
+-	if (input_length == 0)
++	if (input_length == 0){
++		EVP_CIPHER_CTX_free(ctx);
+ 		return;
++	}
+ 
+ 	if (verbose >= 5)
+ 	{
+@@ -191,26 +194,28 @@
+ 	assert((input_length % IPMI_CRYPT_AES_CBC_128_BLOCK_SIZE) == 0);
+ 
+ 
+-	if(!EVP_EncryptUpdate(&ctx, output, (int *)bytes_written, input, input_length))
++	if(!EVP_EncryptUpdate(ctx, output, (int *)bytes_written, input, input_length))
+ 	{
+ 		/* Error */
+ 		*bytes_written = 0;
++		EVP_CIPHER_CTX_free(ctx);
+ 		return;
+ 	}
+ 	else
+ 	{
+ 		uint32_t tmplen;
+ 
+-		if(!EVP_EncryptFinal_ex(&ctx, output + *bytes_written, (int *)&tmplen))
++		if(!EVP_EncryptFinal_ex(ctx, output + *bytes_written, (int *)&tmplen))
+ 		{
+ 			*bytes_written = 0;
++			EVP_CIPHER_CTX_free(ctx);
+ 			return; /* Error */
+ 		}
+ 		else
+ 		{
+ 			/* Success */
+ 			*bytes_written += tmplen;
+-			EVP_CIPHER_CTX_cleanup(&ctx);
++			EVP_CIPHER_CTX_cleanup(ctx);
+ 		}
+ 	}
+ }
+@@ -239,10 +244,11 @@
+ 							uint8_t       * output,
+ 							uint32_t        * bytes_written)
+ {
+-	EVP_CIPHER_CTX ctx;
+-	EVP_CIPHER_CTX_init(&ctx);
+-	EVP_DecryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL, key, iv);
+-	EVP_CIPHER_CTX_set_padding(&ctx, 0);
++	EVP_CIPHER_CTX *ctx;
++	ctx = EVP_CIPHER_CTX_new();
++	EVP_CIPHER_CTX_init(ctx);
++	EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv);
++	EVP_CIPHER_CTX_set_padding(ctx, 0);
+ 
+ 
+ 	if (verbose >= 5)
+@@ -255,8 +261,10 @@
+ 
+ 	*bytes_written = 0;
+ 
+-	if (input_length == 0)
++	if (input_length == 0){
++		EVP_CIPHER_CTX_free(ctx);
+ 		return;
++	}
+ 
+ 	/*
+ 	 * The default implementation adds a whole block of padding if the input
+@@ -266,31 +274,33 @@
+ 	assert((input_length % IPMI_CRYPT_AES_CBC_128_BLOCK_SIZE) == 0);
+ 
+ 
+-	if (!EVP_DecryptUpdate(&ctx, output, (int *)bytes_written, input, input_length))
++	if (!EVP_DecryptUpdate(ctx, output, (int *)bytes_written, input, input_length))
+ 	{
+ 		/* Error */
+ 		lprintf(LOG_DEBUG, "ERROR: decrypt update failed");
+ 		*bytes_written = 0;
++		EVP_CIPHER_CTX_free(ctx);
+ 		return;
+ 	}
+ 	else
+ 	{
+ 		uint32_t tmplen;
+ 
+-		if (!EVP_DecryptFinal_ex(&ctx, output + *bytes_written, (int *)&tmplen))
++		if (!EVP_DecryptFinal_ex(ctx, output + *bytes_written, (int *)&tmplen))
+ 		{
+ 			char buffer[1000];
+ 			ERR_error_string(ERR_get_error(), buffer);
+ 			lprintf(LOG_DEBUG, "the ERR error %s", buffer);
+ 			lprintf(LOG_DEBUG, "ERROR: decrypt final failed");
+ 			*bytes_written = 0;
++			EVP_CIPHER_CTX_free(ctx);
+ 			return; /* Error */
+ 		}
+ 		else
+ 		{
+ 			/* Success */
+ 			*bytes_written += tmplen;
+-			EVP_CIPHER_CTX_cleanup(&ctx);
++			EVP_CIPHER_CTX_cleanup(ctx);
+ 		}
+ 	}
+ 
