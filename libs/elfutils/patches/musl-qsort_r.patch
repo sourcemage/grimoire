@@ -1,0 +1,34 @@
+Origin: Void-Linux; modified
+
+--- a/src/readelf.c
++++ b/src/readelf.c
+@@ -4773,10 +4773,12 @@ listptr_base (struct listptr *p)
+   return cudie_base (&cu);
+ }
+ 
++static const char *listptr_name;
++
+ static int
+-compare_listptr (const void *a, const void *b, void *arg)
++compare_listptr (const void *a, const void *b)
+ {
+-  const char *name = arg;
++  const char *name = listptr_name;
+   struct listptr *p1 = (void *) a;
+   struct listptr *p2 = (void *) b;
+ 
+@@ -4885,9 +4886,11 @@ notice_listptr (enum section_e section, struct listptr_table *table,
+ static void
+ sort_listptr (struct listptr_table *table, const char *name)
+ {
+-  if (table->n > 0)
+-    qsort_r (table->table, table->n, sizeof table->table[0],
+-	     &compare_listptr, (void *) name);
++  if (table->n > 0) {
++    listptr_name = name;
++    qsort (table->table, table->n, sizeof table->table[0],
++	     &compare_listptr);
++  }
+ }
+ 
+ static bool

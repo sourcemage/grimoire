@@ -1,8 +1,10 @@
 default_pre_build                                                   &&
 cd  ${SOURCE_DIRECTORY}                                             &&
-sed -i "s/-Werror//" */Makefile.in                                  &&
-sedit "/^addr/s/)/) \$(libelf)/" src/Makefile.am                    &&
-sedit "/^line2addr_LDADD/s/)/) \$(libelf)/" tests/Makefile.am       &&
-sedit "/^addrscopes/s/)/) \$(libelf)/" tests/Makefile.am            &&
-sedit "/ifndef/s/PACKAGE/PACKAGE_NAME/" libdwfl/libdwflP.h
-
+apply_patch_dir patches &&
+case "$HOST" in
+  *-musl)
+    ln -s "$SPELL_DIRECTORY"/error.h lib &&
+    ln -s "$SPELL_DIRECTORY"/error.h src ;;
+esac &&
+sed -i '/^libdw_so_LDLIBS =/s/$/ $(LIBS)/' libdw/Makefile.in &&
+sed -i "s/-Werror//" */Makefile.in

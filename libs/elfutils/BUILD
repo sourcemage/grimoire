@@ -1,3 +1,9 @@
+case "$HOST" in
+  *-musl)
+    LIBS+=" -lfts -lobstack" &&
+    export LIBS
+  ;;
+esac &&
 #If these switches are used, they stop distcc and ccache from working
 #  We could write wrappers for all of the possible binaries
 [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST} --build=${BUILD}"
@@ -8,6 +14,5 @@ OPTS="$OPTS --program-suffix=.elfutils" &&
 disable_pic force &&
 # Ensure at least some opts... buld fails with gcc-4.3 without opts.
 # When user does -O0, she has to know why...
-CFLAGS="-O $CFLAGS" &&
 OPTS+=" --disable-debuginfod" &&
 default_build
