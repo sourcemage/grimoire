@@ -1,0 +1,32 @@
+# HG changeset patch
+# Parent  19684dd9010f6e104af6997b67baef6c4c633337
+
+diff --git a/build/unix/mozconfig.unix b/build/unix/mozconfig.unix
+--- a/build/unix/mozconfig.unix
++++ b/build/unix/mozconfig.unix
+@@ -1,16 +1,25 @@
+ . "$topsrcdir/build/mozconfig.common"
+ 
+ TOOLTOOL_DIR=${TOOLTOOL_DIR:-$topsrcdir}
+ 
+ if [ -n "$FORCE_GCC" ]; then
+     CC="$MOZ_FETCHES_DIR/gcc/bin/gcc"
+     CXX="$MOZ_FETCHES_DIR/gcc/bin/g++"
+ 
++    if [ -n "$MOZ_PGO" ]; then
++        if [ -z "$USE_ARTIFACT" ]; then
++            ac_add_options --enable-lto
++        fi
++        export AR="$topsrcdir/gcc/bin/gcc-ar"
++        export NM="$topsrcdir/gcc/bin/gcc-nm"
++        export RANLIB="$topsrcdir/gcc/bin/gcc-ranlib"
++    fi
++
+     # We want to make sure we use binutils and other binaries in the tooltool
+     # package.
+     mk_add_options "export PATH=$MOZ_FETCHES_DIR/gcc/bin:$PATH"
+     ac_add_options --with-clang-path=$MOZ_FETCHES_DIR/clang/bin/clang
+ else
+     CC="$MOZ_FETCHES_DIR/clang/bin/clang"
+     CXX="$MOZ_FETCHES_DIR/clang/bin/clang++"
+     export ENABLE_CLANG_PLUGIN=1
