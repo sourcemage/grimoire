@@ -1,0 +1,1 @@
+[[ ! "$SMGL_TEST_BREAKPOINT" == BUILD ]]
