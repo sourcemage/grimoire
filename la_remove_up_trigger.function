@@ -1,0 +1,32 @@
+#---------------------------------------------------------------------
+## @param check all spells (1) or only direct dependees (0)
+##
+## Check any usage of .la files from this spell by others and
+## trigger re-cast to facilitate removal of libtool archives from
+## a spell.
+#---------------------------------------------------------------------
+
+la_remove_up_trigger()
+{
+  local force_all=$1
+  local la_match=$( gaze install "$SPELL" | grep '\.la$' \
+  | while read f; do printf " -e /%s" "$(basename "$f")"; done )
+
+  message "This is an upgrade which removes libtool archives."
+  message "Determining affected spells and triggering them ..."
+
+  local check_spells
+  if [[ $force_all -gt 0 ]]; then
+    check_spells=$(gaze installed | cut -d: -f1)
+  else
+    check_spells=$(show_up_depends $SPELL 1)
+  fi
+  for other_spell in $check_spells
+  do
+    [[ $SPELL != $other_spell ]] || continue
+    match_count=$( gaze install "$other_spell" | grep '\.la$' \
+      | xargs grep $la_match | wc -l )
+    [[ "$match_count" -gt 0 ]] &&  up_trigger "$other_spell" cast_self
+  done
+  true
+}

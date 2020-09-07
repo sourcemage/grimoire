@@ -1,0 +1,50 @@
+#!/bin/sh
+
+# This wraps over the actual libtool script (given as first argument)
+# and tries to remove any .la files that libtool script creates.
+# The expected call is
+#   libtool [options] --mode=install [options] <library files> <directory>
+# The script runs libtool with /bin/sh (assuming it's compatible to whatever
+# we have there) and then tries to clean up after it.
+
+set -e
+
+# Run the full libtool command.
+"$@"
+
+# Assumption: file list comes after --mode=install.
+# Let's ingore anything before that.
+
+installing=false
+for arg in "$@"
+do
+  case "$arg" in
+  --mode=install)
+    installing=true
+    shift
+  ;;
+  -*)
+    shift
+  ;;
+  *)
+    if $installing; then
+      break;
+    fi
+  ;;
+  esac
+done
+
+
+if $installing; then
+  for dir in "$@"; do :; done;
+  echo "$(basename $0): Cleaning up after libtool: no .la files, please."
+  for f in "$@"
+  do
+    case "$f" in
+    *.la)
+      rm -vf "$dir/$(basename "$f")"
+    ;;
+    esac
+  done
+fi
+
