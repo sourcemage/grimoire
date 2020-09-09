@@ -1,0 +1,29 @@
+Description: Only compile sysctl code if sysctl exists
+ The sysctl syscall is not present on arm64, so disable parts of the code which
+ require it if it's not present.
+Author: James Cowgill <jcowgill@debian.org>
+Bug-Debian: https://bugs.debian.org/770819
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/libexplain/buffer/enfile.c
++++ b/libexplain/buffer/enfile.c
+@@ -38,7 +38,7 @@ get_maxfile(void)
+ {
+     if (explain_option_dialect_specific())
+     {
+-#ifdef __linux__
++#if defined(__linux__) && defined(SYS__sysctl)
+         /*
+          * In the linux kernel, if get_empty_filp() returns NULL, the open
+          * system call (and others) will return ENFILE.
+--- a/libexplain/buffer/errno/listen.c
++++ b/libexplain/buffer/errno/listen.c
+@@ -72,7 +72,7 @@ append_getsockname(explain_string_buffer
+ static int
+ get_somaxconn(void)
+ {
+-#ifdef __linux__
++#if defined(__linux__) && defined(SYS__sysctl)
+     struct __sysctl_args args;
+     long somaxconn;
+     size_t somaxconn_size = sizeof(somaxconn);

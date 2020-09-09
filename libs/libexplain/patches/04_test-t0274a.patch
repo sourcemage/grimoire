@@ -1,0 +1,28 @@
+Description: Fix test t0274a.sh on recent kernels
+ As a result of fixing CVE-2015-8543, the behavior of creating a socket with an
+ invalid protocol changed on recent kernels. Protocol numbers above 255 now
+ return EINVAL. Fix the test by using a known illegal protocol and type
+ combination which will fail with EPROTONOSUPPORT.
+Author: James Cowgill <jcowgill@debian.org>
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/test/02/t0274a.sh
++++ b/test/02/t0274a.sh
+@@ -22,13 +22,13 @@ TEST_SUBJECT="socket EPROTONOSUPPORT"
+ . test_prelude
+ 
+ cat > test.ok << 'fubar'
+-socket(family = PF_INET, type = SOCK_STREAM, protocol = 32767) failed,
+-Protocol not supported (EPROTONOSUPPORT) because the protocol type or the
+-specified protocol is not supported within this address family
++socket(family = PF_INET, type = SOCK_STREAM, protocol = IPPROTO_RAW)
++failed, Protocol not supported (EPROTONOSUPPORT) because the protocol type
++or the specified protocol is not supported within this address family
+ fubar
+ test $? -eq 0 || no_result
+ 
+-test_socket af_inet SOCK_STREAM 32767 > test.out 2>&1
++test_socket af_inet SOCK_STREAM IPPROTO_RAW > test.out 2>&1
+ if test $? -ne 1
+ then
+     exho expected to fail

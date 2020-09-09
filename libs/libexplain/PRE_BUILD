@@ -1,0 +1,23 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+apply_patch_dir patches &&
+# Fixes for musl libc
+sedit 's!maybe_os in$!& linux-musl*|\\!' config.sub &&
+sedit '1i#define __NEED_struct__IO_FILE' libexplain/buffer/errno/vfprintf.c &&
+# HZ may be missing
+sedit '/^#ifdef ADJ_TICK/a#ifndef HZ\n#define HZ 100\n#endif' \
+      libexplain/buffer/errno/adjtimex.c &&
+# O_EXEC may be the same as O_SEARCH
+sedit '/^#if defined(O_SEARCH)/{s/$/ \&\& (O_SEARCH != O_EXEC)/}' \
+      libexplain/buffer/open_flags.c &&
+# Missing include, needed for struct ppp_idle
+sedit '1i#include <linux/ppp_defs.h>' libexplain/buffer/ppp_idle.c &&
+# Non-constants in musl
+case "$HOST" in
+  *-musl)
+    sedit '/^[ \t]*{ "/{
+      s/, SIGRTMIN/, 35/
+      s/, SIGRTMAX/, (_NSIG-1)/
+    }' libexplain/buffer/signal.c
+    ;;
+esac

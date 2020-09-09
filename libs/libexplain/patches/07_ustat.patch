@@ -1,0 +1,37 @@
+Description: Do not require fully defined struct ustat
+ Fixes ustat related FTBFS on adm64. Since explain_errno_ustat does not write to
+ the data argument, it's pointless to try and allocate any memory for it anyway.
+Author: James Cowgill <jcowgill@debian.org>
+Bug-Debian: https://bugs.debian.org/770819
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/explain/syscall/ustat.c
++++ b/explain/syscall/ustat.c
+@@ -30,26 +30,15 @@
+ #include <explain/syscall/ustat.h>
+ 
+ 
+-#ifndef HAVE_USTAT
+-
+-struct ustat
+-{
+-    int dummy;
+-};
+-
+-#endif
+-
+-
+ void
+ explain_syscall_ustat(int errnum, int argc, char **argv)
+ {
+     dev_t           dev;
+-    struct ustat    ubuf;
+     struct ustat    *ubuf_p;
+     struct stat     st;
+ 
+     dev = 0;
+-    ubuf_p = &ubuf;
++    ubuf_p = NULL;
+     switch (argc)
+     {
+     case 2:
