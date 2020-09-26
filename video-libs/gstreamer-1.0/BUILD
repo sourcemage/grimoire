@@ -1,2 +1,2 @@
-OPTS="$OPTS disable_examples=true disable_tests=true" &&
+OPTS="$OPTS examples=disabled tests=disabled" &&
 default_build
