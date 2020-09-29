@@ -1,6 +1,7 @@
-OPTS="$OPTS             \
-      --disable-gss     \
-      $NFS_UTILS_NFSV4" &&
+OPTS="$OPTS                   \
+      --disable-gss           \
+      --with-rpcgen=internal  \
+      $NFS_UTILS_NFSV4"       &&
 
 make_single &&
 default_build &&
