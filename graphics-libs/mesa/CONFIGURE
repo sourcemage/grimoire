@@ -4,18 +4,25 @@ persistent_remove MESALIB_BUILD
 persistent_remove MESALIB_GALLIUM
 persistent_remove MESALIB_DRIVERS
 
+# adjust some flags
+MESA_GLES1=${MESA_GLES1/true/enabled}
+MESA_GLES2=${MESA_GLES2/true/enabled}
+MESA_GLES1=${MESA_GLES1/false/disabled}
+MESA_GLES2=${MESA_GLES2/false/disabled}
+MESA_EGL=${MESA_EGL/drm/}
+
 . $GRIMOIRE/config_query_multi.function &&
 . $GRIMOIRE/MESON_CONFIGURE &&
 
 config_query_multi MESA_GLX "glx build types, recommend dri" dri xlib gallium-xlib &&
-config_query_multi MESA_EGL "window systems to support,recommend x11+drm" x11 drm surfaceless wayland &&
+config_query_multi MESA_EGL "window systems to support,recommend x11" x11 wayland &&
 config_query_multi MESA_OSMESA "Build OSmesa - not usually needed, except by swrast " none classic gallium
 
 
 config_query_multi MESA_DRM "which libdrm hardware" AMD INTEL NOUVEAU RADEON &&
 # only suggest drivers for specified hardware
 local AVAILABLE_DRIVERS="swrast"
-local AVAILABLE_GALLIUM="svga swrast virgl"
+local AVAILABLE_GALLIUM="svga swrast virgl zink"
 local AVAILABLE_VULKAN=""
 if list_find "$MESA_DRM" AMD;then
   AVAILABLE_VULKAN+=" amd"
@@ -79,13 +86,14 @@ config_query_multi MESA_VULKAN \
 if list_find "$MESA_VULKAN" all; then
    MESA_VULKAN="$AVAILABLE_VULKAN"
 fi &&
-config_query_option MESA_GLES1 "support GLES1 - embedded systems" n gles1=true gles1=false &&
-config_query_option MESA_GLES2 "support GLES2/3 - embedded systems" n gles2=true gles2=false &&
+config_query_option MESA_GLES1 "support GLES1 - embedded systems" n gles1=enabled gles1=disabled &&
+config_query_option MESA_GLES2 "support GLES2/3 - embedded systems" n gles2=enabled gles2=disabled &&
 config_query_multi MESA_TOOLS  "which tools to build" \
 	etnaviv \
 	freedreno \
 	glsl \
 	intel \
+	intel-ui \
 	nir \
 	nouveau \
 	xvmc &&
