@@ -7,5 +7,7 @@ if is_depends_enabled $SPELL qtbase; then
   PATH+=":$QT5DIR/bin"
 fi  &&
 
+OPTS+=" $V4L_BPF" &&
+
 default_build
 
