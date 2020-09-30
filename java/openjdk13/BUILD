@@ -1,3 +1,4 @@
+unset JAVA_HOME &&
 cd "$SOURCE_DIRECTORY" &&
 
 NOWARN="-Wno-error=stringop-truncation"    &&
