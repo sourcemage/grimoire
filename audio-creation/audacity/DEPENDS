@@ -1,87 +1,78 @@
-depends  zip    &&
-depends  WXWIDGET &&
-optional_depends  lame "--with-lame" \
-                       "--without-lame" \
-                       "for mp3 import/export support" &&
+depends cmake &&
+depends python3 &&
+depends WXWIDGET -Daudacity_use_wxwidgets=system &&
+# Dunno what for, but is checked explicitly.
+depends gtk+3 &&
+depends glib2 &&
+depends expat -Daudacity_use_expat=system &&
 
-optional_depends  libsndfile              \
-               "--with-libsndfile=system"  \
-               "--with-libsndfile=local"   \
-               "to use system libsndfile" &&
-if [[ "$AUDACITY_BRANCH" == "scm" ]]; then
-   depends CVS
-fi  &&
+optional_depends ffmpeg \
+  -Daudacity_use_ffmpeg={loaded,off} \
+  "for conversions" &&
 
-optional_depends flac "--with-flac" "--without-flac" "For flac support" &&
+optional_depends flac \
+  -Daudacity_use_flac={system,off} \
+  "for FLAC support" &&
 
-optional_depends twolame "--with-libtwolame"               \
-                         "--without-libtwolame"            \
-                         "For twolame MP2 export support"  &&
+optional_depends libmad \
+  -Daudacity_use_mad={system,off} \
+  "as mp3 decoder" &&
 
-optional_depends libvorbis "--with-vorbis"          \
-                           "--without-vorbis"       \
-                           "for ogg/vorbis support" &&
+optional_depends libid3tag \
+  -Daudacity_use_id3tag={system,off} \
+  "for ID3 tagging" &&
 
-optional_depends  libmad  "--with-libmad=system"  "--without-libmad"  \
-                  "for MP3 importing support"                         &&
+depends libsndfile -Daudacity_use_sndfile=system &&
 
-optional_depends  libid3tag                   \
-                  "--with-id3tag"             \
-                  "--without-id3tag"          \
-                  "for MP3 ID3 tag support"   &&
+optional_depends libvorbis \
+  -Daudacity_use_vorbis={system,off} &&
 
-optional_depends  expat                       \
-                  "--with-expat=system"       \
-                  "--with-expat=local"        \
-                  "to use system expat"       &&
+# Not strictly necessary, as the API is a shipped
+# header, but it helps to have the basic set of
+# example plugins present, and it's cheap.
 
-optional_depends  JACK-DRIVER                  \
-                  ""                           \
-                  ""                           \
-                  "to build with jack support" &&
+depends ladspa -Daudacity_use_ladspa=ON &&
 
-message "${PROBLEM_COLOR}Do not use libsamplerate in conjunction with VST plug-in support!${DEFAULT_COLOR}" &&
+# insists on using shipped copy of lame, strange
+# so no depends here
 
-optional_depends  libsamplerate                   \
-                  "--with-libsamplerate=system"   \
-                  "--with-libsamplerate=local"    \
-                  "to use external libsamplerate" &&
+optional_depends lv2 \
+  -Daudacity_use_lv2={system,off} \
+  "for LV2 plugins (triggers some more related deps)" &&
 
-optional_depends soundtouch    \
-                 "--with-soundtouch=system"  \
-                 "--with-soundtouch=no"      \
-                 "to use external soundtouch for editing" &&
+if is_depends_enabled "$SPELL" lv2; then
+  depends serd     &&
+  depends sord     &&
+  depends sratom-0 &&
+  depends lilv-0   &&
+  depends suil-0
+fi &&
 
-optional_depends  vamp-plugin-sdk "--with-libvamp=system"  "--with-libvamp=local" \
-                  "Compile with external vamp plug-in support?"
+# dunno about smbms, keep it local
 
-optional_depends  LIBAVCODEC                              \
-                  "--with-ffmpeg"                         \
-                  "--without-ffmpeg"                      \
-                  "for ffmpeg import and export support"  &&
+optional_depends soundtouch \
+  -Daudacity_use_soundtouch={system,off} \
+  "for effects" &&
 
-## no spell yet
-#optional_depends  libresample                   \
-#                  "--with-libresample"          \
-#                  "--without-libresample"       \
-#                  "for sample rate conversion"  &&
+depends soxr \
+  -Daudacity_use_soxr=system &&
 
-optional_depends  redland                 \
-                  "--with-redland"        \
-                  "--without-redland"     \
-                  "for reading RDF data"  &&
+optional_depends vamp-plugin-sdk \
+  -Daudacity_use_vamp={system,off} &&
 
-optional_depends  slv2                       \
-                  "--with-lv2=system"       \
-                  "--without-lv2"     \
-                  "for system LV2 loader"  &&
+optional_depends twolame \
+  -Daudacity_use_twolame={system,off} \
+  "for MP2 creation" &&
 
-optional_depends  liblrdf                                 \
-                  "--with-liblrdf"                        \
-                  "--without-liblrdf"                     \
-                  "for categorisation of LADSPA plugins"  &&
+# Not trying to force portaudio stuff,
+# that can be sensitive and is core to audacity.
 
-optional_depends  portaudio19                             \
-                  "--with-portaudio=system"               \
-                  "--with-portaudio=local"                \
-                  "to use external portaudio"
+optional_depends alsa-lib \
+  -Daudacity_use_pa_alsa={YES,NO} \
+  "for audio I/O" &&
+
+optional_depends JACK-DRIVER \
+  -Daudacity_use_pa_jack={loaded,off} \
+  "for audio I/O" &&
+
+true
