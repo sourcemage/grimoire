@@ -3,7 +3,18 @@ if [[ $FORTRAN == "n" ]]; then
 fi &&
 
 # Ensure we got shared libs. It is expected nowadays.
-COMMON_OPTS="$FFTW_OPTS_NEW $OPTS --enable-shared"  &&
+COMMON_OPTS="$OPTS --enable-shared"  &&
+
+if [[ "$FFTW_THREADS" == y ]]; then
+  COMMON_OPTS+=" --enable-threads"
+else
+  COMMON_OPTS+=" --disable-threads"
+fi &&
+if [[ "$FFTW_OPENMP" == y ]]; then
+  COMMON_OPTS+=" --enable-openmp"
+else
+  COMMON_OPTS+=" --disable-openmp"
+fi &&
 
 # There are others available via custom configure.
 # We just enable a runtime-chosen set of optimizations that should

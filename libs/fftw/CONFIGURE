@@ -5,14 +5,26 @@ config_query_multi  FFTW_PRECISION "Choose precisions to build:" \
 config_query_list FFTW_VECTOR \
   "Enforce vector instruction level (compiler flags have to support this):" \
                   none sse sse2 avx avx2                         &&
-config_query_option FFTW_OPTS_NEW "Parallel fftw using pthreads?" n \
-                    "--enable-threads"                              \
-                    "--disable-threads"                             &&
-config_query_option FFTW_OPTS_NEW  "Parallel fftw using OpenMP?" n \
-                    "--enable-openmp"                              \
-                    "--disable-openmp"                             &&
+# Transition from FFTW_OPTS_NEW for sub depends.
+threads=n &&
+openmp=n  &&
+for o in $FFTW_OPTS_NEW
+do
+  case "$o" in
+    --enable-threads)
+      threads=y
+    ;;
+    --enable-openmp)
+      openmp=y
+    ;;
+  esac
+done &&
+config_query FFTW_THREADS "Parallel fftw using pthreads?" $threads &&
+config_query FFTW_OPENMP  "Parallel fftw using OpenMP?"   $openmp  &&
 # It was a long time ago that we had to be careful with enabling SSE or FMA.
 # Remove the options for that.
+# Also outdated new opts.
+persistent_remove FFTW_OPTS_NEW    &&
 persistent_remove FFTW_DOUBLEOPTS  &&
 persistent_remove FFTW_FLOATOPTS   &&
 persistent_remove FFTW_OPTS
