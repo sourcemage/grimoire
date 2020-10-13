@@ -14,6 +14,8 @@ export LIBGL_ALWAYS_INDIRECT=1 &&
 # System rustc has no debuginfo
 export RUSTFLAGS="-C debuginfo=0" &&
 
+export MACH_USE_SYSTEM_PYTHON=yes &&
+
 #
 # No fast optimization for Mozilla, bit us so many times...
 # This used to default to -O2, but that produces crashing firefox for
