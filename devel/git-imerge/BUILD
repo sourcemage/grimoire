@@ -1,1 +1,1 @@
-make
+default_build_python3
