@@ -1,2 +1,2 @@
-  ./configure --with-ssl-dir=/usr --prefix=/usr $OPTS  &&
-  make
+OPTS+=" --includedir=$INSTALL_ROOT/usr/include/tcl" &&
+default_build
