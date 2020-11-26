@@ -1,2 +1,2 @@
-cd $SOURCE_DIRECTORY/Version\ 2.x &&
+cd $SOURCE_DIRECTORY/2.x &&
 default_build
