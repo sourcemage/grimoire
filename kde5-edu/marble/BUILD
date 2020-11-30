@@ -1,5 +1,3 @@
 OPTS+=" -DBUILD_MARBLE_TESTS=0"
-if [[ $MARBLE_KDE == y ]];then
-  OPTS+=" -DWITH_KDE=1"
-fi &&
+OPTS+=" -DBUILD_MARBLE_EXAMPLES=0"
 default_build
