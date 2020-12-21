@@ -1,4 +1,3 @@
-OPTS="$OPTS --disable-maintainer-mode" &&
-OPTS="$OPTS --disable-documentation"   &&
+OPTS="$OPTS maintainer-mode=false" &&
 
 default_build
