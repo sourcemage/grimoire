@@ -1,7 +1,7 @@
 case "$HOST" in
 *-gnu) ;;
 *)
-  local unportable=(intel)
+  local unportable=(intel intel-ui)
   message "${PROBLEM_COLOR}WARNING:$DEFAULT_COLOR" \
     "Disabling non-portable tools: ${unportable[*]}"
   MESA_TOOLS=" ${MESA_TOOLS} "
