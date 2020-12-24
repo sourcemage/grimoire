@@ -1,2 +1,2 @@
-./configure.py --prefix=/usr &&
+./configure.py --prefix=/usr $OPTS &&
 make
