@@ -11,7 +11,5 @@ esac &&
 # see
 # http://web.archiveorange.com/archive/v/hlgHmPOOA2S1Ez3KjzWJ
 disable_pic force &&
-# Ensure at least some opts... buld fails with gcc-4.3 without opts.
-# When user does -O0, she has to know why...
-OPTS+=" --disable-debuginfod" &&
+OPTS+=" --disable-debuginfod --disable-libdebuginfod" &&
 default_build
