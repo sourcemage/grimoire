@@ -1,5 +1,11 @@
-./configure --prefix=/usr --enable-shared            \
-            --enable-vp8 --enable-runtime-cpu-detect \
-            --enable-vp9 --disable-examples --enable-vp9-temporal-denoising\
-            --enable-postproc --enable-pic           &&
+./configure \
+  --prefix=/usr \
+  --enable-shared \
+  --enable-pic \
+  --enable-runtime-cpu-detect \
+  --disable-examples \
+  --enable-postproc \
+  --enable-vp8 \
+  --enable-vp9 \
+  --enable-vp9-temporal-denoising &&
 default_build_make
