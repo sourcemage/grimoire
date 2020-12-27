@@ -1,4 +1,5 @@
 ./configure \
+  --prefix="$INSTALL_ROOT"/usr \
   --prefix=/usr \
   --enable-shared \
   --enable-pic \
