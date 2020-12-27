@@ -3,6 +3,7 @@
   --prefix=/usr \
   --enable-shared \
   --enable-pic \
+  --disable-static \
   --enable-runtime-cpu-detect \
   --disable-examples \
   --enable-postproc \
