@@ -1,2 +1,3 @@
+OPTS+=" -DFLATBUFFERS_BUILD_TESTS=0"
 CMAKE_GEN="Make"
 cmake_build
