@@ -52,4 +52,5 @@ for option in $OPTS; do
 done &&
 
 echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
+MACH_USE_SYSTEM_PYTHON=1 \
 ./mach build
