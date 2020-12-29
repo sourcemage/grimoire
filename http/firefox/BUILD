@@ -34,12 +34,6 @@ LDFLAGS="${LDFLAGS// -s/}" &&
 LDFLAGS="${LDFLAGS//-s /}" &&
 LDFLAGS="${LDFLAGS//^-s$/}" &&
 
-export CC=clang           &&
-export CXX=clang++        &&
-export AR=llvm-ar         &&
-export NM=llvm-nm         &&
-export RANLIB=llvm-ranlib &&
-
 #
 # Avoid buggy GCC 4.6 AVX code generation, which breaks libxul
 #
