@@ -1,1 +1,2 @@
+OPTS+=" -DGIT_COMMIT_HASH=${GIT_COMMIT_HASH}" &&
 cmake_build
