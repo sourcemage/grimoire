@@ -22,28 +22,20 @@ function qt5_cmake_build() {
 ## This function automatically fixes any known bad paths
 #---------------------------------------------------------------------
 function default_grimoire_post_install () {
+  local rc=0
   real_default_sorcery_post_install && # currently a no-op
   if [[ $STAGED_INSTALL == off ]]; then
     return 0
   fi &&
   pushd TRANSL &> /dev/null &&
-  if [[ -d usr/man ]]; then
-    echo Fixing bad install path: /usr/man &&
-    mv -v usr/man usr/share
-  fi &&
-  if [[ -d usr/info ]]; then
-    echo Fixing bad install path: /usr/info &&
-    mv -v usr/info usr/share
-  fi &&
-  if [[ -d usr/local/man ]]; then
-    echo Fixing bad install path: /usr/local/man &&
-    mv -v usr/local/man usr/share
-  fi &&
-  if [[ -d usr/local/info ]]; then
-    echo Fixing bad install path: /usr/local/info &&
-    mv -v usr/local/info usr/share
-  fi &&
+  for i in usr{,/local}/{man,info}; do
+    if [[ -d "$i" ]]; then
+      echo "Fixing bad install path: /$i" &&
+      mv -v "$i" usr/share
+    fi || rc=1
+  done
   popd &> /dev/null
+  return $rc
 }
 
 #---------------------------------------------------------------------
