@@ -1,18 +1,19 @@
-From a640bce17d908a0691d53f22e5257353f694d9b6 Mon Sep 17 00:00:00 2001
+From abe43a02c59cc9bd9b296b24de7b30b01aa1f856 Mon Sep 17 00:00:00 2001
 From: q66 <daniel@octaforge.org>
 Date: Sun, 3 May 2020 17:55:50 +0200
-Subject: [PATCH 05/15] Prefer libgcc_eh over libunwind on musl
+Subject: [PATCH 04/10] Prefer libgcc_eh over libunwind on musl
 
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
 ---
- src/libunwind/build.rs | 16 ++--------------
- src/libunwind/lib.rs   |  2 +-
- 2 files changed, 3 insertions(+), 15 deletions(-)
+ library/unwind/build.rs   | 13 ++-----------
+ library/unwind/src/lib.rs |  2 +-
+ 2 files changed, 3 insertions(+), 12 deletions(-)
 
-diff --git a/src/libunwind/build.rs b/src/libunwind/build.rs
-index a24808b3..a1250889 100644
+diff --git a/library/unwind/build.rs b/library/unwind/build.rs
+index 24bcd40c3a8e..3196435865df 100644
 --- a/library/unwind/build.rs
 +++ b/library/unwind/build.rs
-@@ -5,17 +5,14 @@
+@@ -5,7 +5,7 @@ fn main() {
      let target = env::var("TARGET").expect("TARGET was not set");
  
      if cfg!(feature = "llvm-libunwind")
@@ -21,18 +22,16 @@ index a24808b3..a1250889 100644
      {
          // Build the unwinding from libunwind C/C++ source code.
          llvm_libunwind::compile();
-     } else if target.contains("x86_64-fortanix-unknown-sgx") {
-         llvm_libunwind::compile();
+@@ -14,7 +14,7 @@ fn main() {
      } else if target.contains("linux") {
--        if target.contains("musl") {
--            // linking for musl is handled in lib.rs
+         // linking for Linux is handled in lib.rs
+         if target.contains("musl") {
 -            llvm_libunwind::compile();
--        } else if !target.contains("android") {
-+        if !target.contains("android") {
-             println!("cargo:rustc-link-lib=gcc_s");
++            println!("cargo:rustc-link-lib=gcc_s");
          }
      } else if target.contains("freebsd") {
-@@ -145,15 +142,6 @@
+         println!("cargo:rustc-link-lib=gcc_s");
+@@ -143,15 +143,6 @@ mod llvm_libunwind {
              cfg.file(root.join("src").join(src));
          }
  
@@ -48,11 +47,11 @@ index a24808b3..a1250889 100644
          cfg.compile("unwind");
      }
  }
-diff --git a/src/libunwind/lib.rs b/src/libunwind/lib.rs
-index 18d41be7..17f73d69 100644
+diff --git a/library/unwind/src/lib.rs b/library/unwind/src/lib.rs
+index dbdefa471a9e..cb83404cbd8b 100644
 --- a/library/unwind/src/lib.rs
 +++ b/library/unwind/src/lib.rs
-@@ -19,7 +19,7 @@ cfg_if::cfg_if! {
+@@ -38,7 +38,7 @@ cfg_if::cfg_if! {
  }
  
  #[cfg(target_env = "musl")]
@@ -62,5 +61,5 @@ index 18d41be7..17f73d69 100644
  extern "C" {}
  
 -- 
-2.26.2
+2.30.0
 

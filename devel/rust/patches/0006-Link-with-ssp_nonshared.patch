@@ -1,0 +1,61 @@
+From 7002d81e5e161c4d43301ebfb1d535a7a5685587 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Thu, 7 Jan 2021 00:35:32 +0100
+Subject: [PATCH 06/10] Link with ssp_nonshared
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ library/std/build.rs        | 2 ++
+ library/unwind/build.rs     | 3 +++
+ vendor/libc/src/unix/mod.rs | 6 +++---
+ 3 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/library/std/build.rs b/library/std/build.rs
+index f2ed7552afb2..11e3ca242a81 100644
+--- a/library/std/build.rs
++++ b/library/std/build.rs
+@@ -8,6 +8,8 @@ fn main() {
+             println!("cargo:rustc-link-lib=dl");
+             println!("cargo:rustc-link-lib=log");
+             println!("cargo:rustc-link-lib=gcc");
++        } else if target.contains("musl") {
++            println!("cargo:rustc-link-lib=ssp_nonshared");
+         }
+     } else if target.contains("freebsd") {
+         println!("cargo:rustc-link-lib=execinfo");
+diff --git a/library/unwind/build.rs b/library/unwind/build.rs
+index 3196435865df..ba47a77bee15 100644
+--- a/library/unwind/build.rs
++++ b/library/unwind/build.rs
+@@ -15,6 +15,9 @@ fn main() {
+         // linking for Linux is handled in lib.rs
+         if target.contains("musl") {
+             println!("cargo:rustc-link-lib=gcc_s");
++            if target.contains("musl") {
++                println!("cargo:rustc-link-lib=ssp_nonshared");
++            }
+         }
+     } else if target.contains("freebsd") {
+         println!("cargo:rustc-link-lib=gcc_s");
+diff --git a/vendor/libc/src/unix/mod.rs b/vendor/libc/src/unix/mod.rs
+index 21439c8a49fc..69b048a2e640 100644
+--- a/vendor/libc/src/unix/mod.rs
++++ b/vendor/libc/src/unix/mod.rs
+@@ -325,11 +325,11 @@ cfg_if! {
+         #[link(name = "c", cfg(not(target_feature = "crt-static")))]
+         extern {}
+     } else if #[cfg(target_env = "musl")] {
++        #[link(name = "c")]
++        extern {}
+         #[cfg_attr(feature = "rustc-dep-of-std",
+-                   link(name = "c", kind = "static",
++                   link(name = "gcc", kind = "static-nobundle",
+                         cfg(target_feature = "crt-static")))]
+-        #[cfg_attr(feature = "rustc-dep-of-std",
+-                   link(name = "c", cfg(not(target_feature = "crt-static"))))]
+         extern {}
+     } else if #[cfg(target_os = "emscripten")] {
+         #[link(name = "c")]
+-- 
+2.30.0
+
