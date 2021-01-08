@@ -1,0 +1,44 @@
+Build and install the memenv static library and header.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -208,6 +208,16 @@ target_sources(leveldb
+     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+ )
+ 
++add_library(memenv STATIC
++  "${PROJECT_SOURCE_DIR}/helpers/memenv/memenv.cc"
++  "${PROJECT_SOURCE_DIR}/helpers/memenv/memenv.h"
++)
++target_include_directories(memenv
++  PUBLIC
++    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
++    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
++)
++
+ set_target_properties(leveldb
+   PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR}d)
+ 
+@@ -231,6 +249,12 @@ if (NOT HAVE_CXX17_HAS_INCLUDE)
+   )
+ endif(NOT HAVE_CXX17_HAS_INCLUDE)
+ 
++target_compile_definitions(memenv
++  PRIVATE
++    LEVELDB_COMPILE_LIBRARY
++    ${LEVELDB_PLATFORM_NAME}=1
++)
++
+ if(BUILD_SHARED_LIBS)
+   target_compile_definitions(leveldb
+     PUBLIC
+@@ -448,4 +476,9 @@ if(LEVELDB_INSTALL)
+       "${PROJECT_BINARY_DIR}/leveldbConfigVersion.cmake"
+     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/leveldb"
+   )
++  install(
++    FILES "${PROJECT_SOURCE_DIR}/helpers/memenv/memenv.h"
++    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/leveldb/helpers
++  )
++  install(TARGETS memenv ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+ endif(LEVELDB_INSTALL)
