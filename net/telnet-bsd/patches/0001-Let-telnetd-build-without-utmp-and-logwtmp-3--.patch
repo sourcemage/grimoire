@@ -1,0 +1,64 @@
+From c2fd39cb4de1012b51b4770b4a596d930c261ea1 Mon Sep 17 00:00:00 2001
+From: Ed Schouten <ed@FreeBSD.org>
+Date: Wed, 13 Jan 2010 18:37:42 +0000
+Subject: [PATCH] Let telnetd build without utmp and logwtmp(3).
+
+Just like rlogind, there is no need to change the ownership of the
+terminal during shutdown anymore. Also don't call logwtmp, because the
+login(1)/PAM is responsible for doing this. Also use SHUT_RDWR instead
+of 2.
+
+[ismael@sourcemage.org: modified for the telnet-bsd package]
+
+---
+ telnetd/sys_term.c | 19 +------------------
+ telnetd/telnetd.c  |  1 -
+ 2 files changed, 1 insertion(+), 19 deletions(-)
+
+diff --git a/telnetd/sys_term.c b/contrib/telnet/telnetd/sys_term.c
+index 498c3427b26d8..a7b0075f387d2 100644
+--- a/telnetd/sys_term.c
++++ b/telnetd/sys_term.c
+@@ -27,7 +27,6 @@
+  * SUCH DAMAGE.
+  */
+ 
+-#include <utmp.h>
+ #include <pty.h>
+ 
+ #include "telnetd.h"
+@@ -820,33 +819,8 @@ scrub_env(void)
+ void
+ cleanup (int sig)
+ {
+-  sigset_t sigset;
+-  char *p;
+   (void) sig;
+ 
+-  p = line + sizeof ("/dev/") - 1;
+-
+-  /* logout() is not thread safe, so make sure we don't
+-   * receive another signal while we're in that function. */
+-  sigfillset(&sigset);
+-  sigprocmask(SIG_SETMASK, &sigset, &sigset);
+-  if (logout (p))
+-    logwtmp (p, "", "");
+-  sigprocmask(SIG_SETMASK, &sigset, NULL);
+-#ifdef PARANOID_TTYS
+-  /*
+-   * dholland 16-Aug-96 chmod the tty when not in use
+-   * This will make it harder to attach unwanted stuff to it
+-   * (which is a security risk) but will break some programs.
+-   */
+-  chmod (line, 0600);
+-#else
+-  chmod (line, 0666);
+-#endif
+-  chown (line, 0, 0);
+-  *p = 'p';
+-  chmod (line, 0666);
+-  chown (line, 0, 0);
+-  shutdown (net, 2);
++  (void)shutdown(net, SHUT_RDWR);
+   exit (1);
+ }

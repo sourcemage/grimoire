@@ -1,0 +1,48 @@
+Portability fixes; required for musl libc.
+
+--- a/telnet/commands.c
++++ b/telnet/commands.c
+@@ -29,6 +29,7 @@
+ 
+ #include "telnet_locl.h"
+ #include <err.h>
++#include <unistd.h>
+ 
+ #if	defined(IPPROTO_IP) && defined(IP_TOS)
+ int tos = -1;
+--- a/telnet/ring.h
++++ b/telnet/ring.h
+@@ -28,7 +28,8 @@
+  *
+  */
+ 
+-#include <sys/cdefs.h>
++#include <sys/types.h>
++#define __P(x) x
+ #define P __P
+ 
+ /*
+--- a/telnet/misc-proto.h
++++ b/telnet/misc-proto.h
+@@ -63,7 +63,7 @@
+ #ifndef	__MISC_PROTO__
+ #define	__MISC_PROTO__
+ 
+-#include <sys/cdefs.h>
++#define __P(x) x
+ 
+ void auth_encrypt_init __P((char *, char *, char *, int));
+ void auth_encrypt_user __P((char *));
+--- a/telnetd/setproctitle.c
++++ b/telnetd/setproctitle.c
+@@ -72,6 +72,9 @@
+ static char **Argv = NULL;		/* pointer to argument vector */
+ static char *LastArgv = NULL;		/* end of argv */
+ static char Argv0[128];			/* program name */
++extern char **environ;
++#undef __environ
++#define __environ environ
+ 
+ void
+ initsetproctitle(int argc, char **argv, char **envp)
+
