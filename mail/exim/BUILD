@@ -81,6 +81,16 @@ then
   echo  "HAVE_IPV6=yes"  >>  Local/Makefile
 fi  &&
 
+if  [[  "$EXIM_SOCKS"  ==  "y"  ]]
+then
+  echo  "SUPPORT_SOCKS=yes"  >>  Local/Makefile
+fi  &&
+
+if  [[  "$EXIM_PROXY"  ==  "y"  ]]
+then
+  echo  "SUPPORT_PROXY=yes"  >>  Local/Makefile
+fi  &&
+
 if [[ "$EXIM_CDB" == "y" ]]; then
   echo "LOOKUP_CDB=yes" >> Local/Makefile
 fi &&
