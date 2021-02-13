@@ -934,34 +934,6 @@ function check_tmp_noexec() {
 }
 
 #---
-## Versioned dependency list from stdin.
-## Takes one dependency per line. Format:
-## <dependency> <comparison operator> <version> <flags>
-#---
-vdepends(){
-  while read dep op depver flags; do
-    case "$op" in
-      '>'|'>='|'<'|'<='|'='|'!='|'') ;;
-      *)
-	message "${PROBLEM_COLOR}Unsupported operator \"$op\".$DEFAULT_COLOR"
-	return 1
-	;;
-    esac
-    depends "$dep" "$flags" || return
-    spell_ok "$dep" || continue
-    local iver="$(installed_version "$dep")"
-    case "$op" in
-      '>')  ! is_version_less "$iver" "$depver" && [ "x$iver" != "x$depver" ] ;;
-      '>=') ! is_version_less "$iver" "$depver" ;;
-      '<')  is_version_less "$iver" "$depver" ;;
-      '<=') is_version_less "$iver" "$depver" || [ "x$iver" = "x$depver" ] ;;
-      '=')  [ "x$iver" = "x$depver" ] ;;
-      '!=') [ "x$iver" != "x$depver" ] ;;
-    esac || force_depends "$dep"
-  done
-}
-
-#---
 ## Find a file matching some pattern(s) as installed by the chosen
 ## provider, e.g. /usr/bin/python3 for python3 providing PYTHON.
 ## @params $1 - spell at hand
