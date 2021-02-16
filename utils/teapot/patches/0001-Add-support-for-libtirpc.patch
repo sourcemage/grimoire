@@ -1,0 +1,63 @@
+From 9e713c1c936f40b174fad6a542dbc75a05004530 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sun, 14 Feb 2021 03:27:56 +0100
+Subject: Add support for libtirpc
+
+Upstream-Status: Accepted
+--
+ CMakeLists.txt |   23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 7cf516af499a..5cfe41e52582 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -11,9 +11,16 @@ option(ENABLE_STATIC "Link FLTK statically" OFF)
+ 
+ add_library(teapotlib context.c csv.c eval.c func.c htmlio.c latex.c main.c misc.c parser.c sc.c scanner.c sheet.c utf8.c wk1.c xdr.c)
+ 
+-find_library(LIB_PORTABLEXDR portablexdr)
+-if (NOT LIB_PORTABLEXDR)
+-	set(LIB_PORTABLEXDR "")
++include(FindPkgConfig)
++pkg_search_module(LIBTIRPC libtirpc)
++if (LIBTIRPC_FOUND)
++  target_link_libraries(teapotlib PUBLIC ${LIBTIRPC_LIBRARIES})
++  include_directories(SYSTEM ${LIBTIRPC_INCLUDE_DIRS})
++else ()
++  find_library(LIB_PORTABLEXDR NAMES portablexdr)
++  if (LIB_PORTABLEXDR)
++    target_link_libraries(teapotlib PUBLIC ${LIB_PORTABLEXDR})
++  endif ()
+ endif ()
+ 
+ find_package(Curses)
+@@ -36,7 +42,7 @@ endif ()
+ if (CURSES_FOUND)
+ 	include_directories("${CURSES_INCLUDE_DIR}")
+ 	add_executable(teapot display.c complete.c)
+-	target_link_libraries(teapot teapotlib m ${CURSES_CURSES_LIBRARY} ${LIB_PORTABLEXDR})
++	target_link_libraries(teapot teapotlib m ${CURSES_CURSES_LIBRARY})
+ 	install(TARGETS teapot DESTINATION bin)
+ endif ()
+ 
+@@ -50,15 +56,15 @@ if (FLTK_FOUND)
+ 	if (ENABLE_HELP)
+ 		set(fteapot_DEB_DEPENDS "${fteapot_DEB_DEPENDS}, libfltk-images1.3")
+ 		if (ENABLE_STATIC)
+-			target_link_libraries(fteapot teapotlib fltk fltk_images ${LIB_PORTABLEXDR})
++			target_link_libraries(fteapot teapotlib fltk fltk_images)
+ 		else ()
+-			target_link_libraries(fteapot teapotlib fltk_SHARED fltk_images_SHARED ${LIB_PORTABLEXDR})
++			target_link_libraries(fteapot teapotlib fltk_SHARED fltk_images_SHARED)
+ 		endif ()
+ 	else ()
+ 		if (ENABLE_STATIC)
+-			target_link_libraries(fteapot teapotlib fltk fltk_images ${LIB_PORTABLEXDR})
++			target_link_libraries(fteapot teapotlib fltk fltk_images)
+ 		else ()
+-			target_link_libraries(fteapot teapotlib fltk_SHARED ${LIB_PORTABLEXDR})
++			target_link_libraries(fteapot teapotlib fltk_SHARED)
+ 		endif ()
+ 	endif ()
+ 	install(TARGETS fteapot DESTINATION bin)

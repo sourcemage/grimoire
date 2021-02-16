@@ -1,0 +1,75 @@
+# -*- mode: sh -*-
+# Parse a versioned dependency list from stdin.
+# Takes one dependency per line. Format:
+# spell[subdep...] version... flags:...
+#
+# Example:
+#   LANGS="ADA,FORTRAN" LANGFLAGS="--enable-ada --enable-fortran"
+#   vdepends << EOF
+#       gcc[$LANGS] >= 6.0 < 7.0    flags: $LANGFLAGS
+#       binutils[LIBERTY] >= 2.35   flags: --with-liberty
+#   EOF
+
+is_version_ge() {
+  local v="$2
+$1"
+  [ "$(sort -V <<< "$v")" = "$v" ]
+}
+
+vdepends_vercheck() {
+    case "$2" in
+      ('>')  ! is_version_ge "$3" "$1" ;;
+      ('>=') is_version_ge "$1" "$3" ;;
+      ('<')  ! is_version_ge "$1" "$3" ;;
+      ('<=') is_version_ge "$3" "$1" ;;
+      ('=')  [ "x$1" = "x$3" ] ;;
+      ('!=') [ "x$1" != "x$3" ] ;;
+      (*) message vdepends: \
+		  "${PROBLEM_COLOR}Unsupported operator \"$2\".$DEFAULT_COLOR"
+	  return 1
+	  ;;
+    esac
+}
+
+vdepends() {
+  local dep features flags rest
+  local op depver iver gver
+  while read dep rest; do
+    features=
+    case "$dep" in
+      (\#*) # comment line
+	continue
+	;;
+      (*\]) # subdependencies; split them
+	features="${dep#*[}"
+	dep="${dep%[*}"
+	features="${features%]}"
+	features="${features//,/ }"
+	;;
+    esac
+    # split configuration flags
+    rest=" $rest"
+    case "$rest" in
+      (*\ flags:*)
+	flags="${rest#* flags:}"
+	rest="${rest% flags:*}"
+	;;
+    esac
+    depends -sub "$features" "$dep" "$flags" || return
+    # remove whitespace
+    read rest <<< "$rest"
+    # parse and check versions
+    iver="$(spell_ok "$dep" && installed_version "$dep")"
+    gver="$(codex_set_current_spell "$dep" && echo "$VERSION")"
+    while [ -n "$rest" ] && read op depver rest <<< "$rest"; do
+      [ -n "$iver" ] && vdepends_vercheck "$iver" "$op" "$depver" && continue
+      if [ "$gver" = "$iver" ] || ! vdepends_vercheck "$gver" "$op" "$depver"
+      then
+	message "${PROBLEM_COLOR}Unsatisfied dependency:$DEFAULT_COLOR" \
+		"$dep $gver $op $depver"
+	return 1
+      fi
+      force_depends "$dep"
+    done
+  done
+}
