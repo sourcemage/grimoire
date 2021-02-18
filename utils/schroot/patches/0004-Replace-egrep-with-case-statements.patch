@@ -1,0 +1,55 @@
+From 635c1a4d4ebfca1ba53c63d181a389927a873077 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Thu, 18 Feb 2021 20:19:24 +0100
+Subject: [PATCH] Replace egrep with case statements
+
+This allows schroot to work on systems with limited implementations like the one
+in busybox.
+
+Upstream-Status: Pending
+---
+ etc/setup.d/20copyfiles    |   13 +++++--------
+ etc/setup.d/20nssdatabases |    6 +++---
+ 2 files changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/etc/setup.d/20copyfiles b/etc/setup.d/20copyfiles
+index cf3ca82f8581..951db72c5d38
+--- a/etc/setup.d/20copyfiles
++++ b/etc/setup.d/20copyfiles
+@@ -80,14 +80,11 @@ if [ $STAGE = "setup-start" ] || [ $STAGE = "setup-recover" ]; then
+     if [ -n "$SETUP_COPYFILES" ]; then
+         if [ -f "$SETUP_COPYFILES" ]; then
+             while read file; do
+-                if echo "$file" | egrep -q '^(#|$)' ; then
+-                    continue
+-                fi
+-                if echo "$file" | grep -q '^/'; then
+-                    copy_file "$file" "${CHROOT_PATH}$file"
+-                else
+-                    warn "Not copying file with relative path: $file"
+-                fi
++                case "$file" in
++                    (\#*|'') continue ;;
++                    (/*) copy_file "$file" "${CHROOT_PATH}$file" ;;
++                    (*)  warn "Not copying file with relative path: $file" ;;
++                esac
+             done < "$SETUP_COPYFILES"
+         else
+             fatal "copyfiles file '$SETUP_COPYFILES' does not exist"
+diff --git a/etc/setup.d/20nssdatabases b/etc/setup.d/20nssdatabases
+index 6f14c81..697bb1e 100755
+--- a/etc/setup.d/20nssdatabases
++++ b/etc/setup.d/20nssdatabases
+@@ -37,9 +37,9 @@
+     if [ -n "$SETUP_NSSDATABASES" ]; then
+         if [ -f "$SETUP_NSSDATABASES" ]; then
+             while read db; do
+-                if echo "$db" | egrep -q '^(#|$)' ; then
+-                    continue
+-                fi
++                case "$db" in
++                    (\#*|'') continue ;;
++                esac
+
+                 # Device and inode
+                 dr=$(/usr/bin/stat --format="%d %i" "/etc/$db")
