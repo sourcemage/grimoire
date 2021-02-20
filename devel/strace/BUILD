@@ -1,7 +1,2 @@
-case "$HOST" in
-*-musl)
-    # XXX required due to non-portable assumptions
-    OPTS+=' --enable-mpers=no'
-    ;;
-esac &&
+OPTS+=' --enable-mpers=no' &&
 default_build
