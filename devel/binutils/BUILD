@@ -19,3 +19,17 @@ cd     buildit &&
               --enable-gold=yes             \
               $OPTS  &&
 make tooldir=/usr DESTDIR="$INSTALL_ROOT"
+disable_fortify_source &&
+
+# Install into a staging area before messing with the installed
+# binutils. The install phase should not try to do anything
+# funky, like relinking something. Do not mess with binutils.
+make_single &&
+make tooldir=/usr DESTDIR="$PWD/INSTALL_ROOT" install &&
+if [[ "${BINUTILS_LIBIBERTY}" == "y" ]]; then
+  install ../include/libiberty.h "INSTALL_ROOT/usr/include/." &&
+  install ./libiberty/libiberty.a "INSTALL_ROOT/usr/lib/"
+fi &&
+make_normal &&
+# set default linker
+ln -sf ld.$BINUTILS_LINKER INSTALL_ROOT/usr/bin/ld
