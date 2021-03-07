@@ -1,0 +1,89 @@
+From bc8e31412f69594926ed909ce277687e28a332c5 Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Sun, 7 Mar 2021 13:09:34 +0100
+Subject: [PATCH 1/2] generalise glibc version check
+
+---
+ create-localdecls | 66 +++++++----------------------------------------
+ 1 file changed, 9 insertions(+), 57 deletions(-)
+
+diff --git a/create-localdecls b/create-localdecls
+index f7adf4d..336e242 100755
+--- a/create-localdecls
++++ b/create-localdecls
+@@ -55,63 +55,15 @@ if test "$VERSION" = 'libc.so.5' ; then
+ fi
+ 
+ if test "$VERSION" = 'libc.so.6' ; then
+-	echo -n 'Checking glibc subversion... '
+-	tmp="`ldd /bin/sh | grep libc.so 2> /dev/null`"
+-	LibcPath=`expr "$tmp" : '[^/]*\(/[^ ]*\)'`
+-	tmp="`strings $LibcPath | grep -i 'c library'`"
+-	OsLibcMajor=`expr "$tmp" : '.* \([0-9][0-9]*\)'`
+-	OsLibcMinor=`expr "$tmp" : '.* [0-9][0-9]*\.\([0-9][0-9]*\)'`
+-	case "$OsLibcMajor" in
+-	2)
+-		# 2 is the glibc version
+-		echo "JH OsLibcMinor is $OsLibcMinor"
+-		case "$OsLibcMinor" in
+-		0)
+-			echo '#define GLIBC_MINOR 0' >> $OUTFILE
+-			SUBVERSION='glibc-2.0' ;;
+-		1)
+-			echo '#define GLIBC_MINOR 1' >> $OUTFILE
+-			SUBVERSION='glibc-2.1' ;;
+-		2)
+-			echo '#define GLIBC_MINOR 2' >> $OUTFILE
+-			SUBVERSION='glibc-2.2' ;;
+-		3)
+-			echo '#define GLIBC_MINOR 3' >> $OUTFILE
+-			SUBVERSION='glibc-2.3' ;;
+-		4)
+-			echo '#define GLIBC_MINOR 4' >> $OUTFILE
+-			SUBVERSION='glibc-2.4' ;;
+-		5)
+-			echo '#define GLIBC_MINOR 5' >> $OUTFILE
+-			SUBVERSION='glibc-2.5' ;;
+-		6)
+-			echo '#define GLIBC_MINOR 6' >> $OUTFILE
+-			SUBVERSION='glibc-2.6' ;;
+-		7)
+-			echo '#define GLIBC_MINOR 7' >> $OUTFILE
+-			SUBVERSION='glibc-2.7' ;;
+-		8)
+-			echo '#define GLIBC_MINOR 8' >> $OUTFILE
+-			SUBVERSION='glibc-2.8' ;;
+-		9)
+-			echo '#define GLIBC_MINOR 9' >> $OUTFILE
+-			SUBVERSION='glibc-2.9' ;;
+-		10)
+-			echo '#define GLIBC_MINOR 10' >> $OUTFILE
+-			SUBVERSION='glibc-2.10' ;;
+-		11)
+-			echo '#define GLIBC_MINOR 11' >> $OUTFILE
+-			SUBVERSION='glibc-2.11' ;;
+-		12)
+-			echo '#define GLIBC_MINOR 12' >> $OUTFILE
+-			SUBVERSION='glibc-2.12' ;;
+-		*)
+-			echo 'Treated as glibc >= 2.1 (finger crossed)'
+-			echo '#define GLIBC_MINOR 1' >> $OUTFILE
+-			SUBVERSION='glibc-2.1' ;;
+-	        esac
+-		;;
+-	esac
++	echo 'Checking glibc subversion... '
++
++	tmp=`ls /lib | grep libc- |sed -e 's/.so//' | cut -d- -f2`
++
++	echo  'glibc version: ' $tmp 
++
++	OsLibcMajor=${tmp%.??}
++	OsLibcMinor=${tmp//?.}
++	echo '#define GLIBC_MINOR '  $OsLibcMinor  >> $OUTFILE
+ fi
+ 
+ echo >> $OUTFILE
+-- 
+2.30.1
+
