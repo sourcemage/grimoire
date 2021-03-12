@@ -63,6 +63,5 @@ $SOURCE_DIRECTORY/configure  --host=$HOST                       \
                           --disable-profile                     \
                      --with-headers=$GLIBC_HEADERS_DIR/usr/include  \
                           --disable-multi-arch                  \
-                           --enable-obsolete-rpc                \
                                     $OPTS                       &&
 default_build_make
