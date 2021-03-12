@@ -20,7 +20,6 @@ local dri=${MESA_DRI//none} &&
 OPTS+=" dri-drivers=${dri// /,} \
     gallium-drivers=${gallium// /,} \
      vulkan-drivers=${vulkan// /,} \
-             osmesa=${MESA_OSMESA// /,} \
           platforms=${MESA_EGL// /,} \
                 glx=${MESA_GLX// /,} \
               tools=${MESA_TOOLS// /,} \
