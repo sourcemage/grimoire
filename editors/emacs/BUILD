@@ -10,7 +10,9 @@ export  LDFLAGS="${LDFLAGS/-z combreloc/}"  &&
 export LDFLAGS="${LDFLAGS//-Wl,-O1/}"  &&
 
 # XXX Causes a segfault during the bootstrapping
-CFLAGS="${CFLAGS/-ftree-loop-if-convert-stores}" &&
+CFLAGS="${CFLAGS//-ftree-loop-if-convert-stores}" &&
+# XXX Emacs 27.1 fails to build if restricted to finite math
+CFLAGS="${CFLAGS//-ffast-math}" &&
 
 OPTS="${OPTS} --with-x-toolkit=${EMACS_XTOOLKIT} ${EMACS_OPTS}" &&
 
