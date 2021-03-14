@@ -1,0 +1,1038 @@
+From c333fdcd8406049b613df98d06a46763c8138f06 Mon Sep 17 00:00:00 2001
+From: Greg V <greg@unrelenting.technology>
+Date: Sun, 26 Jan 2020 16:03:21 +0300
+Subject: [PATCH] mapi: use global-dynamic TLS, kill asm stubs
+
+ref: https://gitlab.freedesktop.org/mesa/mesa/merge_requests/3559#note_394462
+ref: https://gitlab.freedesktop.org/mesa/mesa/issues/966
+---
+ src/egl/main/eglcurrent.c    |   3 +-
+ src/glx/glxclient.h          |   3 +-
+ src/glx/glxcurrent.c         |   3 +-
+ src/mapi/Makefile.sources    |   5 -
+ src/mapi/entry.c             |  18 ---
+ src/mapi/entry_ppc64le_tls.h | 152 -------------------------
+ src/mapi/entry_ppc64le_tsd.h | 210 -----------------------------------
+ src/mapi/entry_x86-64_tls.h  | 143 ------------------------
+ src/mapi/entry_x86_tls.h     | 156 --------------------------
+ src/mapi/entry_x86_tsd.h     | 155 --------------------------
+ src/mapi/glapi/glapi.h       |   6 +-
+ src/mapi/glapi/meson.build   |   5 -
+ src/mapi/u_current.c         |   4 +-
+ src/mapi/u_current.h         |   6 +-
+ 14 files changed, 8 insertions(+), 861 deletions(-)
+ delete mode 100644 src/mapi/entry_ppc64le_tls.h
+ delete mode 100644 src/mapi/entry_ppc64le_tsd.h
+ delete mode 100644 src/mapi/entry_x86-64_tls.h
+ delete mode 100644 src/mapi/entry_x86_tls.h
+ delete mode 100644 src/mapi/entry_x86_tsd.h
+
+diff --git a/src/egl/main/eglcurrent.c b/src/egl/main/eglcurrent.c
+index 29be4268025..c45a8e6060a 100644
+--- a/src/egl/main/eglcurrent.c
++++ b/src/egl/main/eglcurrent.c
+@@ -45,8 +45,7 @@ static tss_t _egl_TSD;
+ static void _eglDestroyThreadInfo(_EGLThreadInfo *t);
+ 
+ #ifdef USE_ELF_TLS
+-static __thread const _EGLThreadInfo *_egl_TLS
+-   __attribute__ ((tls_model("initial-exec")));
++static __thread const _EGLThreadInfo *_egl_TLS;
+ #endif
+ 
+ static inline void _eglSetTSD(const _EGLThreadInfo *t)
+diff --git a/src/glx/glxclient.h b/src/glx/glxclient.h
+index 1f199054410..75ee705b182 100644
+--- a/src/glx/glxclient.h
++++ b/src/glx/glxclient.h
+@@ -656,8 +656,7 @@ extern void __glXSetCurrentContext(struct glx_context * c);
+ 
+ # if defined( USE_ELF_TLS )
+ 
+-extern __thread void *__glX_tls_Context
+-   __attribute__ ((tls_model("initial-exec")));
++extern __thread void *__glX_tls_Context;
+ 
+ #  define __glXGetCurrentContext() __glX_tls_Context
+ 
+diff --git a/src/glx/glxcurrent.c b/src/glx/glxcurrent.c
+index a388df7a78d..4f45283e521 100644
+--- a/src/glx/glxcurrent.c
++++ b/src/glx/glxcurrent.c
+@@ -76,8 +76,7 @@ _X_HIDDEN pthread_mutex_t __glXmutex = PTHREAD_MUTEX_INITIALIZER;
+  * \b never be \c NULL.  This is important!  Because of this
+  * \c __glXGetCurrentContext can be implemented as trivial macro.
+  */
+-__thread void *__glX_tls_Context __attribute__ ((tls_model("initial-exec")))
+-   = &dummyContext;
++__thread void *__glX_tls_Context = &dummyContext;
+ 
+ _X_HIDDEN void
+ __glXSetCurrentContext(struct glx_context * c)
+diff --git a/src/mapi/Makefile.sources b/src/mapi/Makefile.sources
+index 4b83caa8ed2..93318ed19cf 100644
+--- a/src/mapi/Makefile.sources
++++ b/src/mapi/Makefile.sources
+@@ -20,11 +20,6 @@ MAPI_UTIL_FILES = \
+ MAPI_BRIDGE_FILES = \
+ 	entry.c \
+ 	entry.h \
+-	entry_x86-64_tls.h \
+-	entry_x86_tls.h \
+-	entry_x86_tsd.h \
+-	entry_ppc64le_tls.h \
+-	entry_ppc64le_tsd.h \
+ 	mapi_tmp.h
+ 
+ MAPI_GLAPI_FILES = \
+diff --git a/src/mapi/entry.c b/src/mapi/entry.c
+index 7ff3c8f8c8c..29e7bf91979 100644
+--- a/src/mapi/entry.c
++++ b/src/mapi/entry.c
+@@ -45,22 +45,6 @@
+ #define ENTRY_CURRENT_TABLE_GET U_STRINGIFY(u_current_get_table_internal)
+ #endif
+ 
+-#if defined(USE_X86_ASM) && defined(__GNUC__)
+-#   ifdef USE_ELF_TLS
+-#      include "entry_x86_tls.h"
+-#   else                 
+-#      include "entry_x86_tsd.h"
+-#   endif
+-#elif defined(USE_X86_64_ASM) && defined(__GNUC__) && defined(USE_ELF_TLS)
+-#   include "entry_x86-64_tls.h"
+-#elif defined(USE_PPC64LE_ASM) && defined(__GNUC__) && UTIL_ARCH_LITTLE_ENDIAN
+-#   ifdef USE_ELF_TLS
+-#      include "entry_ppc64le_tls.h"
+-#   else
+-#      include "entry_ppc64le_tsd.h"
+-#   endif
+-#else
+-
+ static inline const struct _glapi_table *
+ entry_current_get(void)
+ {
+@@ -103,5 +87,3 @@ entry_patch(mapi_func entry, int slot)
+ }
+ 
+ #endif /* MAPI_MODE_BRIDGE */
+-
+-#endif /* asm */
+diff --git a/src/mapi/entry_ppc64le_tls.h b/src/mapi/entry_ppc64le_tls.h
+deleted file mode 100644
+index e09a1178a06..00000000000
+--- a/src/mapi/entry_ppc64le_tls.h
++++ /dev/null
+@@ -1,152 +0,0 @@
+-/*
+- * Mesa 3-D graphics library
+- *
+- * Copyright (C) 2017 Red Hat
+- *
+- * Permission is hereby granted, free of charge, to any person obtaining a
+- * copy of this software and associated documentation files (the "Software"),
+- * to deal in the Software without restriction, including without limitation
+- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+- * and/or sell copies of the Software, and to permit persons to whom the
+- * Software is furnished to do so, subject to the following conditions:
+- *
+- * The above copyright notice and this permission notice shall be included
+- * in all copies or substantial portions of the Software.
+- *
+- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+- * DEALINGS IN THE SOFTWARE.
+- *
+- * Authors:
+- *    Ben Crocker <bcrocker@redhat.com>
+- */
+-
+-#ifdef HAVE_FUNC_ATTRIBUTE_VISIBILITY
+-#define HIDDEN __attribute__((visibility("hidden")))
+-#else
+-#define HIDDEN
+-#endif
+-
+-// NOTE: These must be powers of two:
+-#define PPC64LE_ENTRY_SIZE 64
+-#define PPC64LE_PAGE_ALIGN 65536
+-#if ((PPC64LE_ENTRY_SIZE & (PPC64LE_ENTRY_SIZE - 1)) != 0)
+-#error PPC64LE_ENTRY_SIZE must be a power of two!
+-#endif
+-#if ((PPC64LE_PAGE_ALIGN & (PPC64LE_PAGE_ALIGN - 1)) != 0)
+-#error PPC64LE_PAGE_ALIGN must be a power of two!
+-#endif
+-
+-__asm__(".text\n"
+-        ".balign " U_STRINGIFY(PPC64LE_ENTRY_SIZE) "\n"
+-        "ppc64le_entry_start:");
+-
+-#define STUB_ASM_ENTRY(func)                            \
+-   ".globl " func "\n"                                  \
+-   ".type " func ", @function\n"                        \
+-   ".balign " U_STRINGIFY(PPC64LE_ENTRY_SIZE) "\n"        \
+-   func ":\n\t"                                         \
+-   "  addis  2, 12, .TOC.-" func "@ha\n\t"              \
+-   "  addi   2, 2, .TOC.-" func "@l\n\t"                \
+-   "  .localentry  " func ", .-" func "\n\t"
+-
+-#define STUB_ASM_CODE(slot)                                     \
+-   "  addis  11, 2, " ENTRY_CURRENT_TABLE "@got@tprel@ha\n\t"   \
+-   "  ld     11, " ENTRY_CURRENT_TABLE "@got@tprel@l(11)\n\t"   \
+-   "  add    11, 11," ENTRY_CURRENT_TABLE "@tls\n\t"            \
+-   "  ld     11, 0(11)\n\t"                                     \
+-   "  ld     12, " slot "*8(11)\n\t"                            \
+-   "  mtctr  12\n\t"                                            \
+-   "  bctr\n"                                                   \
+-
+-#define MAPI_TMP_STUB_ASM_GCC
+-#include "mapi_tmp.h"
+-
+-#ifndef MAPI_MODE_BRIDGE
+-
+-#include <string.h>
+-#include "u_execmem.h"
+-
+-void
+-entry_patch_public(void)
+-{
+-}
+-
+-extern char
+-ppc64le_entry_start[] HIDDEN;
+-
+-mapi_func
+-entry_get_public(int slot)
+-{
+-   return (mapi_func) (ppc64le_entry_start + slot * PPC64LE_ENTRY_SIZE);
+-}
+-
+-__asm__(".text\n");
+-
+-__asm__("ppc64le_dispatch_tls:\n\t"
+-        "  addis  3, 2, " ENTRY_CURRENT_TABLE "@got@tprel@ha\n\t"
+-        "  ld     3, " ENTRY_CURRENT_TABLE "@got@tprel@l(3)\n\t"
+-        "  blr\n"
+-        );
+-
+-extern uint64_t ppc64le_dispatch_tls();
+-
+-static const uint32_t code_templ[] = {
+-   // This should be functionally the same code as would be generated from
+-   // the STUB_ASM_CODE macro, but defined as a buffer.
+-   // This is used to generate new dispatch stubs. Mesa will copy this
+-   // data to the dispatch stub, and then it will patch the slot number and
+-   // any addresses that it needs to.
+-   // NOTE!!!  NOTE!!!  NOTE!!!
+-   // This representation is correct for both little- and big-endian systems.
+-   // However, more work needs to be done for big-endian Linux because it
+-   // adheres to an older, AIX-compatible ABI that uses function descriptors.
+-   // 1000:
+-   0x7C0802A6,    // <ENTRY+00>:   mflr   0
+-   0xF8010010,    // <ENTRY+04>:   std    0, 16(1)
+-   0xE96C0028,    // <ENTRY+08>:   ld     11, 9000f-1000b+0(12)
+-   0x7D6B6A14,    // <ENTRY+12>:   add    11, 11, 13
+-   0xE96B0000,    // <ENTRY+16>:   ld     11, 0(11)
+-   0xE80C0030,    // <ENTRY+20>:   ld     0, 9000f-1000b+8(12)
+-   0x7D8B002A,    // <ENTRY+24>:   ldx    12, 11, 0
+-   0x7D8903A6,    // <ENTRY+28>:   mtctr  12
+-   0x4E800420,    // <ENTRY+32>:   bctr
+-   0x60000000,    // <ENTRY+36>:   nop
+-   // 9000:
+-   0, 0,          // <ENTRY+40>:    .quad _glapi_tls_Dispatch
+-   0, 0           // <ENTRY+48>:    .quad <slot>*8
+-};
+-static const uint64_t TEMPLATE_OFFSET_TLS_ADDR = sizeof(code_templ) - 2*8;
+-static const uint64_t TEMPLATE_OFFSET_SLOT = sizeof(code_templ) - 1*8;
+-
+-void
+-entry_patch(mapi_func entry, int slot)
+-{
+-   char *code = (char *) entry;
+-   *((uint64_t *) (code + TEMPLATE_OFFSET_TLS_ADDR)) = ppc64le_dispatch_tls();
+-   *((uint64_t *) (code + TEMPLATE_OFFSET_SLOT)) = slot * sizeof(mapi_func);
+-}
+-
+-mapi_func
+-entry_generate(int slot)
+-{
+-   char *code;
+-   mapi_func entry;
+-
+-   code = u_execmem_alloc(sizeof(code_templ));
+-   if (!code)
+-      return NULL;
+-
+-   memcpy(code, code_templ, sizeof(code_templ));
+-
+-   entry = (mapi_func) code;
+-   entry_patch(entry, slot);
+-
+-   return entry;
+-}
+-
+-#endif /* MAPI_MODE_BRIDGE */
+diff --git a/src/mapi/entry_ppc64le_tsd.h b/src/mapi/entry_ppc64le_tsd.h
+deleted file mode 100644
+index a583b93e5e2..00000000000
+--- a/src/mapi/entry_ppc64le_tsd.h
++++ /dev/null
+@@ -1,210 +0,0 @@
+-/*
+- * Mesa 3-D graphics library
+- *
+- * Copyright (C) 2017 Red Hat
+- *
+- * Permission is hereby granted, free of charge, to any person obtaining a
+- * copy of this software and associated documentation files (the "Software"),
+- * to deal in the Software without restriction, including without limitation
+- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+- * and/or sell copies of the Software, and to permit persons to whom the
+- * Software is furnished to do so, subject to the following conditions:
+- *
+- * The above copyright notice and this permission notice shall be included
+- * in all copies or substantial portions of the Software.
+- *
+- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+- * DEALINGS IN THE SOFTWARE.
+- *
+- * Authors:
+- *    Ben Crocker <bcrocker@redhat.com>
+- */
+-
+-#ifdef HAVE_FUNC_ATTRIBUTE_VISIBILITY
+-#define HIDDEN __attribute__((visibility("hidden")))
+-#else
+-#define HIDDEN
+-#endif
+-
+-// NOTE: These must be powers of two:
+-#define PPC64LE_ENTRY_SIZE 256
+-#define PPC64LE_PAGE_ALIGN 65536
+-#if ((PPC64LE_ENTRY_SIZE & (PPC64LE_ENTRY_SIZE - 1)) != 0)
+-#error PPC64LE_ENTRY_SIZE must be a power of two!
+-#endif
+-#if ((PPC64LE_PAGE_ALIGN & (PPC64LE_PAGE_ALIGN - 1)) != 0)
+-#error PPC64LE_PAGE_ALIGN must be a power of two!
+-#endif
+-
+-__asm__(".text\n"
+-        ".balign " U_STRINGIFY(PPC64LE_ENTRY_SIZE) "\n"
+-        "ppc64le_entry_start:");
+-
+-#define STUB_ASM_ENTRY(func)                            \
+-   ".globl " func "\n"                                  \
+-   ".type " func ", @function\n"                        \
+-   ".balign " U_STRINGIFY(PPC64LE_ENTRY_SIZE) "\n"        \
+-   func ":\n\t"                                         \
+-   "  addis  2, 12, .TOC.-" func "@ha\n\t"              \
+-   "  addi   2, 2, .TOC.-" func "@l\n\t"                \
+-   "  .localentry  " func ", .-" func "\n\t"
+-
+-#define STUB_ASM_CODE(slot)                                         \
+-   "  addis  11, 2, " ENTRY_CURRENT_TABLE "@got@ha\n\t"             \
+-   "  ld     11, " ENTRY_CURRENT_TABLE "@got@l(11)\n\t"             \
+-   "  ld     11, 0(11)\n\t"                                         \
+-   "  cmpldi 11, 0\n\t"                                             \
+-   "  beq    2000f\n"                                               \
+-   "1050:\n\t"                                                      \
+-   "  ld     12, " slot "*8(11)\n\t"                                \
+-   "  mtctr  12\n\t"                                                \
+-   "  bctr\n"                                                       \
+-   "2000:\n\t"                                                      \
+-   "  mflr   0\n\t"                                                 \
+-   "  std    0, 16(1)\n\t"                                          \
+-   "  std    2, 40(1)\n\t"                                          \
+-   "  stdu   1, -144(1)\n\t"                                        \
+-   "  std    3, 56(1)\n\t"                                          \
+-   "  std    4, 64(1)\n\t"                                          \
+-   "  std    5, 72(1)\n\t"                                          \
+-   "  std    6, 80(1)\n\t"                                          \
+-   "  std    7, 88(1)\n\t"                                          \
+-   "  std    8, 96(1)\n\t"                                          \
+-   "  std    9, 104(1)\n\t"                                         \
+-   "  std    10, 112(1)\n\t"                                        \
+-   "  std    12, 128(1)\n\t"                                        \
+-   "  addis  12, 2, " ENTRY_CURRENT_TABLE_GET "@got@ha\n\t"         \
+-   "  ld     12, " ENTRY_CURRENT_TABLE_GET "@got@l(12)\n\t"         \
+-   "  mtctr  12\n\t"                                                \
+-   "  bctrl\n\t"                                                    \
+-   "  ld     2, 144+40(1)\n\t"                                      \
+-   "  mr     11, 3\n\t"                                             \
+-   "  ld     3, 56(1)\n\t"                                          \
+-   "  ld     4, 64(1)\n\t"                                          \
+-   "  ld     5, 72(1)\n\t"                                          \
+-   "  ld     6, 80(1)\n\t"                                          \
+-   "  ld     7, 88(1)\n\t"                                          \
+-   "  ld     8, 96(1)\n\t"                                          \
+-   "  ld     9, 104(1)\n\t"                                         \
+-   "  ld     10, 112(1)\n\t"                                        \
+-   "  ld     12, 128(1)\n\t"                                        \
+-   "  addi   1, 1, 144\n\t"                                         \
+-   "  ld     0, 16(1)\n\t"                                          \
+-   "  mtlr   0\n\t"                                                 \
+-   "  b      1050b\n"
+-
+-#define MAPI_TMP_STUB_ASM_GCC
+-#include "mapi_tmp.h"
+-
+-#ifndef MAPI_MODE_BRIDGE
+-
+-#include <string.h>
+-#include "u_execmem.h"
+-
+-void
+-entry_patch_public(void)
+-{
+-}
+-
+-extern char
+-ppc64le_entry_start[] HIDDEN;
+-
+-mapi_func
+-entry_get_public(int slot)
+-{
+-   return (mapi_func) (ppc64le_entry_start + slot * PPC64LE_ENTRY_SIZE);
+-}
+-
+-static const uint32_t code_templ[] = {
+-   // This should be functionally the same code as would be generated from
+-   // the STUB_ASM_CODE macro, but defined as a buffer.
+-   // This is used to generate new dispatch stubs. Mesa will copy this
+-   // data to the dispatch stub, and then it will patch the slot number and
+-   // any addresses that it needs to.
+-   // NOTE!!!  NOTE!!!  NOTE!!!
+-   // This representation is correct for both little- and big-endian systems.
+-   // However, more work needs to be done for big-endian Linux because it
+-   // adheres to an older, AIX-compatible ABI that uses function descriptors.
+-   // 1000:
+-   0x7C0802A6,    // <ENTRY+000>:    mflr   0
+-   0xF8010010,    // <ENTRY+004>:    std    0, 16(1)
+-   0xE96C0098,    // <ENTRY+008>:    ld     11, 9000f-1000b+0(12)
+-   0xE96B0000,    // <ENTRY+012>:    ld     11, 0(11)
+-   0x282B0000,    // <ENTRY+016>:    cmpldi 11, 0
+-   0x41820014,    // <ENTRY+020>:    beq    2000f
+-   // 1050:
+-   0xE80C00A8,    // <ENTRY+024>:    ld     0, 9000f-1000b+16(12)
+-   0x7D8B002A,    // <ENTRY+028>:    ldx    12, 11, 0
+-   0x7D8903A6,    // <ENTRY+032>:    mtctr  12
+-   0x4E800420,    // <ENTRY+036>:    bctr
+-   // 2000:
+-   0xF8410028,    // <ENTRY+040>:    std    2, 40(1)
+-   0xF821FF71,    // <ENTRY+044>:    stdu   1, -144(1)
+-   0xF8610038,    // <ENTRY+048>:    std    3, 56(1)
+-   0xF8810040,    // <ENTRY+052>:    std    4, 64(1)
+-   0xF8A10048,    // <ENTRY+056>:    std    5, 72(1)
+-   0xF8C10050,    // <ENTRY+060>:    std    6, 80(1)
+-   0xF8E10058,    // <ENTRY+064>:    std    7, 88(1)
+-   0xF9010060,    // <ENTRY+068>:    std    8, 96(1)
+-   0xF9210068,    // <ENTRY+072>:    std    9, 104(1)
+-   0xF9410070,    // <ENTRY+076>:    std    10, 112(1)
+-   0xF9810080,    // <ENTRY+080>:    std    12, 128(1)
+-   0xE98C00A0,    // <ENTRY+084>:    ld     12, 9000f-1000b+8(12)
+-   0x7D8903A6,    // <ENTRY+088>:    mtctr  12
+-   0x4E800421,    // <ENTRY+092>:    bctrl
+-   0x7C6B1B78,    // <ENTRY+096>:    mr     11, 3
+-   0xE8610038,    // <ENTRY+100>:    ld     3, 56(1)
+-   0xE8810040,    // <ENTRY+104>:    ld     4, 64(1)
+-   0xE8A10048,    // <ENTRY+108>:    ld     5, 72(1)
+-   0xE8C10050,    // <ENTRY+112>:    ld     6, 80(1)
+-   0xE8E10058,    // <ENTRY+116>:    ld     7, 88(1)
+-   0xE9010060,    // <ENTRY+120>:    ld     8, 96(1)
+-   0xE9210068,    // <ENTRY+124>:    ld     9, 104(1)
+-   0xE9410070,    // <ENTRY+128>:    ld     10, 112(1)
+-   0xE9810080,    // <ENTRY+132>:    ld     12, 128(1)
+-   0x38210090,    // <ENTRY+136>:    addi   1, 1, 144
+-   0xE8010010,    // <ENTRY+140>:    ld     0, 16(1)
+-   0x7C0803A6,    // <ENTRY+144>:    mtlr   0
+-   0x4BFFFF84,    // <ENTRY+148>:    b      1050b
+-   // 9000:
+-   0, 0,          // <ENTRY+152>:    .quad ENTRY_CURRENT_TABLE
+-   0, 0,          // <ENTRY+160>:    .quad ENTRY_CURRENT_TABLE_GET
+-   0, 0           // <ENTRY+168>:    .quad <slot>*8
+-};
+-static const uint64_t TEMPLATE_OFFSET_CURRENT_TABLE = sizeof(code_templ) - 3*8;
+-static const uint64_t TEMPLATE_OFFSET_CURRENT_TABLE_GET = sizeof(code_templ) - 2*8;
+-static const uint64_t TEMPLATE_OFFSET_SLOT = sizeof(code_templ) - 1*8;
+-
+-void
+-entry_patch(mapi_func entry, int slot)
+-{
+-   char *code = (char *) entry;
+-   *((uint64_t *) (code + TEMPLATE_OFFSET_CURRENT_TABLE)) = (uint64_t) ENTRY_CURRENT_TABLE;
+-   *((uint64_t *) (code + TEMPLATE_OFFSET_CURRENT_TABLE_GET)) = (uint64_t) ENTRY_CURRENT_TABLE_GET;
+-   *((uint64_t *) (code + TEMPLATE_OFFSET_SLOT)) = slot * sizeof(mapi_func);
+-}
+-
+-mapi_func
+-entry_generate(int slot)
+-{
+-   char *code;
+-   mapi_func entry;
+-
+-   code = u_execmem_alloc(sizeof(code_templ));
+-   if (!code)
+-      return NULL;
+-
+-   memcpy(code, code_templ, sizeof(code_templ));
+-
+-   entry = (mapi_func) code;
+-   entry_patch(entry, slot);
+-
+-   return entry;
+-}
+-
+-#endif /* MAPI_MODE_BRIDGE */
+diff --git a/src/mapi/entry_x86-64_tls.h b/src/mapi/entry_x86-64_tls.h
+deleted file mode 100644
+index aebe4cf4a3f..00000000000
+--- a/src/mapi/entry_x86-64_tls.h
++++ /dev/null
+@@ -1,143 +0,0 @@
+-/*
+- * Mesa 3-D graphics library
+- *
+- * Copyright (C) 2010 LunarG Inc.
+- *
+- * Permission is hereby granted, free of charge, to any person obtaining a
+- * copy of this software and associated documentation files (the "Software"),
+- * to deal in the Software without restriction, including without limitation
+- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+- * and/or sell copies of the Software, and to permit persons to whom the
+- * Software is furnished to do so, subject to the following conditions:
+- *
+- * The above copyright notice and this permission notice shall be included
+- * in all copies or substantial portions of the Software.
+- *
+- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+- * DEALINGS IN THE SOFTWARE.
+- *
+- * Authors:
+- *    Chia-I Wu <olv@lunarg.com>
+- */
+-
+-#ifdef __CET__
+-#define ENDBR "endbr64\n\t"
+-#else
+-#define ENDBR
+-#endif
+-
+-#ifdef HAVE_FUNC_ATTRIBUTE_VISIBILITY
+-#define HIDDEN __attribute__((visibility("hidden")))
+-#else
+-#define HIDDEN
+-#endif
+-
+-__asm__(".text\n"
+-        ".balign 32\n"
+-        "x86_64_entry_start:");
+-
+-#define STUB_ASM_ENTRY(func)                             \
+-   ".globl " func "\n"                                   \
+-   ".type " func ", @function\n"                         \
+-   ".balign 32\n"                                        \
+-   func ":"
+-
+-#ifndef __ILP32__
+-
+-#define STUB_ASM_CODE(slot)                              \
+-   ENDBR                                                 \
+-   "movq " ENTRY_CURRENT_TABLE "@GOTTPOFF(%rip), %rax\n\t"  \
+-   "movq %fs:(%rax), %r11\n\t"                           \
+-   "jmp *(8 * " slot ")(%r11)"
+-
+-#else
+-
+-#define STUB_ASM_CODE(slot)                              \
+-   ENDBR                                                 \
+-   "movq " ENTRY_CURRENT_TABLE "@GOTTPOFF(%rip), %rax\n\t"  \
+-   "movl %fs:(%rax), %r11d\n\t"                          \
+-   "movl 4*" slot "(%r11d), %r11d\n\t"                   \
+-   "jmp *%r11"
+-
+-#endif
+-
+-#define MAPI_TMP_STUB_ASM_GCC
+-#include "mapi_tmp.h"
+-
+-#ifndef MAPI_MODE_BRIDGE
+-
+-#include <string.h>
+-#include "u_execmem.h"
+-
+-void
+-entry_patch_public(void)
+-{
+-}
+-
+-extern char
+-x86_64_entry_start[] HIDDEN;
+-
+-mapi_func
+-entry_get_public(int slot)
+-{
+-   return (mapi_func) (x86_64_entry_start + slot * 32);
+-}
+-
+-void
+-entry_patch(mapi_func entry, int slot)
+-{
+-   char *code = (char *) entry;
+-   int offset = 12;
+-#ifdef __ILP32__
+-   offset = 13;
+-#endif
+-   *((unsigned int *) (code + offset)) = slot * sizeof(mapi_func);
+-}
+-
+-mapi_func
+-entry_generate(int slot)
+-{
+-   const char code_templ[] = {
+-#ifndef __ILP32__
+-      /* movq %fs:0, %r11 */
+-      0x64, 0x4c, 0x8b, 0x1c, 0x25, 0x00, 0x00, 0x00, 0x00,
+-      /* jmp *0x1234(%r11) */
+-      0x41, 0xff, 0xa3, 0x34, 0x12, 0x00, 0x00,
+-#else
+-      /* movl %fs:0, %r11d */
+-      0x64, 0x44, 0x8b, 0x1c, 0x25, 0x00, 0x00, 0x00, 0x00,
+-      /* movl 0x1234(%r11d), %r11d */
+-      0x67, 0x45, 0x8b, 0x9b, 0x34, 0x12, 0x00, 0x00,
+-      /* jmp *%r11 */
+-      0x41, 0xff, 0xe3,
+-#endif
+-   };
+-   unsigned long long addr;
+-   char *code;
+-   mapi_func entry;
+-
+-   __asm__("movq " ENTRY_CURRENT_TABLE "@GOTTPOFF(%%rip), %0"
+-           : "=r" (addr));
+-   if ((addr >> 32) != 0xffffffff)
+-      return NULL;
+-   addr &= 0xffffffff;
+-
+-   code = u_execmem_alloc(sizeof(code_templ));
+-   if (!code)
+-      return NULL;
+-
+-   memcpy(code, code_templ, sizeof(code_templ));
+-
+-   *((unsigned int *) (code + 5)) = addr;
+-   entry = (mapi_func) code;
+-   entry_patch(entry, slot);
+-
+-   return entry;
+-}
+-
+-#endif /* MAPI_MODE_BRIDGE */
+diff --git a/src/mapi/entry_x86_tls.h b/src/mapi/entry_x86_tls.h
+deleted file mode 100644
+index bdaa97374ba..00000000000
+--- a/src/mapi/entry_x86_tls.h
++++ /dev/null
+@@ -1,156 +0,0 @@
+-/*
+- * Mesa 3-D graphics library
+- *
+- * Copyright (C) 2010 LunarG Inc.
+- *
+- * Permission is hereby granted, free of charge, to any person obtaining a
+- * copy of this software and associated documentation files (the "Software"),
+- * to deal in the Software without restriction, including without limitation
+- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+- * and/or sell copies of the Software, and to permit persons to whom the
+- * Software is furnished to do so, subject to the following conditions:
+- *
+- * The above copyright notice and this permission notice shall be included
+- * in all copies or substantial portions of the Software.
+- *
+- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+- * DEALINGS IN THE SOFTWARE.
+- *
+- * Authors:
+- *    Chia-I Wu <olv@lunarg.com>
+- */
+-
+-#include <string.h>
+-
+-#ifdef __CET__
+-#define ENDBR "endbr32\n\t"
+-#else
+-#define ENDBR
+-#endif
+-
+-#ifdef HAVE_FUNC_ATTRIBUTE_VISIBILITY
+-#define HIDDEN __attribute__((visibility("hidden")))
+-#else
+-#define HIDDEN
+-#endif
+-
+-#define X86_ENTRY_SIZE 32
+-
+-__asm__(".text");
+-
+-__asm__("x86_current_tls:\n\t"
+-	"call 1f\n"
+-        "1:\n\t"
+-        "popl %eax\n\t"
+-	"addl $_GLOBAL_OFFSET_TABLE_+[.-1b], %eax\n\t"
+-	"movl " ENTRY_CURRENT_TABLE "@GOTNTPOFF(%eax), %eax\n\t"
+-	"ret");
+-
+-#ifndef GLX_X86_READONLY_TEXT
+-__asm__(".section wtext, \"awx\", @progbits");
+-#endif /* GLX_X86_READONLY_TEXT */
+-
+-__asm__(".balign 16\n"
+-        "x86_entry_start:");
+-
+-#define STUB_ASM_ENTRY(func)     \
+-   ".globl " func "\n"           \
+-   ".type " func ", @function\n" \
+-   ".balign 16\n"                \
+-   func ":"
+-
+-#define STUB_ASM_CODE(slot)                                 \
+-   ENDBR                                                    \
+-   "call 1f\n"                                              \
+-   "1:\n\t"                                                 \
+-   "popl %eax\n\t"                                          \
+-   "addl $_GLOBAL_OFFSET_TABLE_+[.-1b], %eax\n\t"           \
+-   "movl " ENTRY_CURRENT_TABLE "@GOTNTPOFF(%eax), %eax\n\t" \
+-   "movl %gs:(%eax), %eax\n\t"                              \
+-   "jmp *(4 * " slot ")(%eax)"
+-
+-#define MAPI_TMP_STUB_ASM_GCC
+-#include "mapi_tmp.h"
+-
+-#ifndef GLX_X86_READONLY_TEXT
+-__asm__(".balign 16\n"
+-        "x86_entry_end:");
+-__asm__(".text");
+-#endif /* GLX_X86_READONLY_TEXT */
+-
+-#ifndef MAPI_MODE_BRIDGE
+-
+-#include "u_execmem.h"
+-
+-extern unsigned long
+-x86_current_tls();
+-
+-extern char x86_entry_start[] HIDDEN;
+-extern char x86_entry_end[] HIDDEN;
+-
+-static inline mapi_func
+-entry_generate_or_patch(int, char *, size_t);
+-
+-void
+-entry_patch_public(void)
+-{
+-#ifndef GLX_X86_READONLY_TEXT
+-   char *entry;
+-   int slot = 0;
+-   for (entry = x86_entry_start; entry < x86_entry_end;
+-        entry += X86_ENTRY_SIZE, ++slot)
+-      entry_generate_or_patch(slot, entry, X86_ENTRY_SIZE);
+-#endif
+-}
+-
+-mapi_func
+-entry_get_public(int slot)
+-{
+-   return (mapi_func) (x86_entry_start + slot * X86_ENTRY_SIZE);
+-}
+-
+-void
+-entry_patch(mapi_func entry, int slot)
+-{
+-   char *code = (char *) entry;
+-   *((unsigned long *) (code + 8)) = slot * sizeof(mapi_func);
+-}
+-
+-static inline mapi_func
+-entry_generate_or_patch(int slot, char *code, size_t size)
+-{
+-   const char code_templ[16] = {
+-      0x65, 0xa1, 0x00, 0x00, 0x00, 0x00, /* movl %gs:0x0, %eax */
+-      0xff, 0xa0, 0x34, 0x12, 0x00, 0x00, /* jmp *0x1234(%eax) */
+-      0x90, 0x90, 0x90, 0x90              /* nop's */
+-   };
+-   mapi_func entry;
+-
+-   if (code == NULL) {
+-      size = sizeof(code_templ);
+-      code = u_execmem_alloc(size);
+-   }
+-   if (!code || size < sizeof(code_templ))
+-      return NULL;
+-
+-   memcpy(code, code_templ, sizeof(code_templ));
+-
+-   *((unsigned long *) (code + 2)) = x86_current_tls();
+-   entry = (mapi_func) code;
+-   entry_patch(entry, slot);
+-
+-   return entry;
+-}
+-
+-mapi_func
+-entry_generate(int slot)
+-{
+-   return entry_generate_or_patch(slot, NULL, 0);
+-}
+-
+-#endif /* MAPI_MODE_BRIDGE */
+diff --git a/src/mapi/entry_x86_tsd.h b/src/mapi/entry_x86_tsd.h
+deleted file mode 100644
+index f5d9c41253f..00000000000
+--- a/src/mapi/entry_x86_tsd.h
++++ /dev/null
+@@ -1,155 +0,0 @@
+-/*
+- * Mesa 3-D graphics library
+- *
+- * Copyright (C) 2010 LunarG Inc.
+- *
+- * Permission is hereby granted, free of charge, to any person obtaining a
+- * copy of this software and associated documentation files (the "Software"),
+- * to deal in the Software without restriction, including without limitation
+- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+- * and/or sell copies of the Software, and to permit persons to whom the
+- * Software is furnished to do so, subject to the following conditions:
+- *
+- * The above copyright notice and this permission notice shall be included
+- * in all copies or substantial portions of the Software.
+- *
+- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+- * DEALINGS IN THE SOFTWARE.
+- *
+- * Authors:
+- *    Chia-I Wu <olv@lunarg.com>
+- */
+-
+-#ifdef __CET__
+-#define ENDBR "endbr32\n\t"
+-#else
+-#define ENDBR
+-#endif
+-
+-#ifdef HAVE_FUNC_ATTRIBUTE_VISIBILITY
+-#define HIDDEN __attribute__((visibility("hidden")))
+-#else
+-#define HIDDEN
+-#endif
+-
+-#define X86_ENTRY_SIZE 64
+-
+-__asm__(".text\n");
+-
+-__asm__("x86_got:\n\t"
+-        "call 1f\n"
+-        "1:\n\t"
+-        "popl %eax\n\t"
+-        "addl $_GLOBAL_OFFSET_TABLE_+[.-1b], %eax\n\t"
+-        "ret");
+-
+-__asm__(".balign 32\n"
+-        "x86_entry_start:");
+-
+-#define STUB_ASM_ENTRY(func)        \
+-   ".globl " func "\n"              \
+-   ".type " func ", @function\n"    \
+-   ".balign 32\n"                   \
+-   func ":"
+-
+-#define LOC_BEGIN_SET_ECX
+-#define LOC_END_SET_ECX
+-#define LOC_END_JMP
+-
+-#define STUB_ASM_CODE(slot)         \
+-   ENDBR                            \
+-   LOC_BEGIN_SET_ECX	            \
+-   "call 1f\n\t"                    \
+-   "1:\n\t"                         \
+-   "popl %ecx\n\t"                  \
+-   "addl $_GLOBAL_OFFSET_TABLE_+[.-1b], %ecx\n\t" \
+-   LOC_END_SET_ECX                                \
+-   "movl " ENTRY_CURRENT_TABLE "@GOT(%ecx), %eax\n\t" \
+-   "mov (%eax), %eax\n\t"           \
+-   "testl %eax, %eax\n\t"           \
+-   "jne 1f\n\t"                     \
+-   "push %ebx\n\t"                  \
+-   "movl %ecx, %ebx\n\t"            \
+-   "call " ENTRY_CURRENT_TABLE_GET "@PLT\n\t" \
+-   "popl %ebx\n\t"                  \
+-   "1:\n\t"                         \
+-   "jmp *(4 * " slot ")(%eax)\n\t" \
+-   LOC_END_JMP
+-
+-#define MAPI_TMP_STUB_ASM_GCC
+-#include "mapi_tmp.h"
+-
+-#ifndef MAPI_MODE_BRIDGE
+-
+-__asm__(".balign 32\n"
+-        "x86_entry_end:");
+-
+-#undef LOC_BEGIN_SET_ECX
+-#undef LOC_END_SET_ECX
+-#undef LOC_END_JMP
+-#define LOC_BEGIN_SET_ECX "jmp set_ecx\n\t"
+-#define LOC_END_SET_ECX "set_ecx:movl $0x12345678, %ecx\n\tloc_end_set_ecx:\n\t"
+-#define LOC_END_JMP "loc_end_jmp:"
+-
+-/* Any number big enough works. This is to make sure the final
+- * jmp is a long jmp */
+-__asm__(STUB_ASM_CODE("10000"));
+-
+-extern const char loc_end_set_ecx[] HIDDEN;
+-extern const char loc_end_jmp[] HIDDEN;
+-
+-#include <string.h>
+-#include "u_execmem.h"
+-
+-extern unsigned long
+-x86_got();
+-
+-extern const char x86_entry_start[] HIDDEN;
+-extern const char x86_entry_end[] HIDDEN;
+-
+-void
+-entry_patch_public(void)
+-{
+-}
+-
+-mapi_func
+-entry_get_public(int slot)
+-{
+-   return (mapi_func) (x86_entry_start + slot * X86_ENTRY_SIZE);
+-}
+-
+-void
+-entry_patch(mapi_func entry, int slot)
+-{
+-   char *code = (char *) entry;
+-   int offset = loc_end_jmp - x86_entry_end - sizeof(unsigned long);
+-   *((unsigned long *) (code + offset)) = slot * sizeof(mapi_func);
+-}
+-
+-mapi_func
+-entry_generate(int slot)
+-{
+-   const char *code_templ = x86_entry_end;
+-   char *code;
+-   mapi_func entry;
+-
+-   code = u_execmem_alloc(X86_ENTRY_SIZE);
+-   if (!code)
+-      return NULL;
+-
+-   memcpy(code, code_templ, X86_ENTRY_SIZE);
+-   entry = (mapi_func) code;
+-   int ecx_value_off = loc_end_set_ecx - x86_entry_end - sizeof(unsigned long);
+-   *((unsigned long *) (code + ecx_value_off)) = x86_got();
+-
+-   entry_patch(entry, slot);
+-
+-   return entry;
+-}
+-
+-#endif /* MAPI_MODE_BRIDGE */
+diff --git a/src/mapi/glapi/glapi.h b/src/mapi/glapi/glapi.h
+index b11fe46107b..4d9584ffddf 100644
+--- a/src/mapi/glapi/glapi.h
++++ b/src/mapi/glapi/glapi.h
+@@ -78,11 +78,9 @@ struct _glapi_table;
+ 
+ #if defined (USE_ELF_TLS)
+ 
+-_GLAPI_EXPORT extern __thread struct _glapi_table * _glapi_tls_Dispatch
+-    __attribute__((tls_model("initial-exec")));
++_GLAPI_EXPORT extern __thread struct _glapi_table * _glapi_tls_Dispatch;
+ 
+-_GLAPI_EXPORT extern __thread void * _glapi_tls_Context
+-    __attribute__((tls_model("initial-exec")));
++_GLAPI_EXPORT extern __thread void * _glapi_tls_Context;
+ 
+ _GLAPI_EXPORT extern const struct _glapi_table *_glapi_Dispatch;
+ _GLAPI_EXPORT extern const void *_glapi_Context;
+diff --git a/src/mapi/glapi/meson.build b/src/mapi/glapi/meson.build
+index 1b8b685f207..c6bd24bc458 100644
+--- a/src/mapi/glapi/meson.build
++++ b/src/mapi/glapi/meson.build
+@@ -33,11 +33,6 @@ if with_shared_glapi
+   static_glapi_files += files(
+     '../entry.c',
+     '../entry.h',
+-    '../entry_x86-64_tls.h',
+-    '../entry_x86_tls.h',
+-    '../entry_x86_tsd.h',
+-    '../entry_ppc64le_tls.h',
+-    '../entry_ppc64le_tsd.h',
+     '../mapi_tmp.h',
+   )
+   static_glapi_files += glapi_mapi_tmp_h
+diff --git a/src/mapi/u_current.c b/src/mapi/u_current.c
+index 0e133e0e419..6c50cd91709 100644
+--- a/src/mapi/u_current.c
++++ b/src/mapi/u_current.c
+@@ -100,11 +100,9 @@ extern void (*__glapi_noop_table[])(void);
+ #if defined(USE_ELF_TLS)
+ 
+ __thread struct _glapi_table *u_current_table
+-    __attribute__((tls_model("initial-exec")))
+     = (struct _glapi_table *) table_noop_array;
+ 
+-__thread void *u_current_context
+-    __attribute__((tls_model("initial-exec")));
++__thread void *u_current_context;
+ 
+ #else
+ 
+diff --git a/src/mapi/u_current.h b/src/mapi/u_current.h
+index e7faa878ed1..092e7fe0d7d 100644
+--- a/src/mapi/u_current.h
++++ b/src/mapi/u_current.h
+@@ -29,11 +29,9 @@ struct _glapi_table;
+ 
+ #ifdef USE_ELF_TLS
+ 
+-extern __thread struct _glapi_table *u_current_table
+-    __attribute__((tls_model("initial-exec")));
++extern __thread struct _glapi_table *u_current_table;
+ 
+-extern __thread void *u_current_context
+-    __attribute__((tls_model("initial-exec")));
++extern __thread void *u_current_context;
+ 
+ #else /* USE_ELF_TLS */
+ 
+-- 
+GitLab
+

@@ -1,3 +1,11 @@
+# XXX The use of the initial-exec TLS model requires non-standard arrangements
+#     by the loader, only implemented by glibc, and causes dlopen of libGL to
+#     fail under several circumstances.  By using the gnu2 TLS dialect, the
+#     global-dynamic model becomes as efficient as initial-exec in most
+#     circumstances, and works with reduced performance where initial-exec
+#     prevents loading altogether.  This is accompanied by a patch removing the
+#     use of initial-exec and the related asm stubs.
+CFLAGS+=" -mtls-dialect=gnu2" &&
 case "$HOST" in
 *-gnu) ;;
 *)
@@ -11,9 +19,7 @@ case "$HOST" in
   MESA_TOOLS="${MESA_TOOLS# }"
   MESA_TOOLS="${MESA_TOOLS% }"
   ;;
-esac
-#LDFLAGS=''  &&
-#CXXFLAGS='' &&
+esac &&
 local vulkan=${MESA_VULKAN//none} &&
 local gallium=${MESA_GALLIUM//none} &&
 local dri=${MESA_DRI//none} &&
@@ -26,7 +32,5 @@ OPTS+=" dri-drivers=${dri// /,} \
          swr-arches=${MESA_ARCH// /,} \
      $MESA_GLES1 $MESA_GLES2" &&
 echo "OPTS=$OPTS" &&
-
-#PREFIX=/opt/mesa &&
 PREFIX=/usr &&
 default_build
