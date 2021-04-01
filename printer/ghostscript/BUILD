@@ -2,7 +2,7 @@ CFLAGS+=" -Wno-unused-but-set-variable -Wno-unused-variable -Wno-maybe-uninitial
 # need a comma separated list
 OPTS="--with-drivers=`echo ${GS_PRINTERS} | \
       sed "s/  */ /g;s/^ *//;s/ *$/ /;s/^NONE //;s/ /,/g"`JAPAN,FILES \
-      --enable-dynamic  --without-luratech  ${OPTS}" &&
+      --enable-dynamic ${OPTS}" &&
 
 # -s causes libgs.so to be fully stripped
 LDFLAGS+=' '
