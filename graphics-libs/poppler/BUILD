@@ -1,3 +1,3 @@
+OPTS+=" -DBUILD_QT5_TESTS=0 -DBUILD_QT6_TESTS=0" &&
 OPTS+=" $XPDF_HEADERS -DBUILD_CPP_TESTS=0 ${POPPLER_OPTS}" &&
-sed -i "/SYSTEM/d" test/CMakeLists.txt glib/CMakeLists.txt &&
 default_build
