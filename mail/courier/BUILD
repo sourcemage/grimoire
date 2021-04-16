@@ -8,6 +8,7 @@ OPTS="${COURIER_OPTS}                             \
       --disable-root-check                        \
       --with-mailuser=courier                     \
       --with-mailgroup=courier                    \
+      --with-notice=unicode                       \
       ${OPTS}" &&
 
 default_build
