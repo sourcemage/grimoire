@@ -1,3 +1,4 @@
+CFLAGS+=' -fcommon' &&
 cd squashfs-tools &&
 if [[ "$SQUASHFS_LZMA" == "y" ]]; then
   sedit "s/#XZ_SUPPORT/XZ_SUPPORT/" Makefile
