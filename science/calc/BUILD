@@ -1,2 +1,4 @@
-export PAGER=""
-make -j1
+make -j1 $OPTS \
+     DEBUG= \
+     EXTRA_CFLAGS="$CFLAGS" \
+     EXTRA_LDFLAGS="$LDFLAGS"
