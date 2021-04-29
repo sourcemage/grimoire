@@ -39,19 +39,21 @@ esac &&
 
 # Build each precision by itself.
 for p in $FFTW_PRECISION; do
+  bdir="$SOURCE_DIRECTORY/build/$p" &&
+  mkdir -p "$bdir" &&
   case "$p" in
     double)
-      OPTS="$COMMON_OPTS $DOUBLE_OPTS" &&
-      cd "$SOURCE_DIRECTORY/double"
+      OPTS="$COMMON_OPTS $DOUBLE_OPTS"
     ;;
     single)
-      OPTS="$COMMON_OPTS $SINGLE_OPTS --enable-float" &&
-      cd "$SOURCE_DIRECTORY/$p"
+      OPTS="$COMMON_OPTS $SINGLE_OPTS --enable-float"
     ;;
     longdouble)
-      OPTS="$COMMON_OPTS --enable-long-double" &&
-      cd "$SOURCE_DIRECTORY/$p"
+      OPTS="$COMMON_OPTS --enable-long-double"
     ;;
   esac &&
+  cd $bdir &&
+  printf '#!/bin/sh\nexec ../../configure "$@"\n' > configure &&
+  chmod +x configure &&
   default_build || exit 1
 done
