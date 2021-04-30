@@ -16,26 +16,26 @@ else
   COMMON_OPTS+=" --disable-openmp"
 fi &&
 
-# There are others available via custom configure.
-# We just enable a runtime-chosen set of optimizations that should
-# benefit the masses.
-case $FFTW_VECTOR in
-  sse)
-    SINGLE_OPTS+=' --enable-sse'
-  ;;
-  sse2)
-    SINGLE_OPTS+=' --enable-sse'
-    DOUBLE_OPTS+=' --enable-sse2'
-  ;;
-  avx)
-    SINGLE_OPTS+=' --enable-sse --enable-avx'
-    DOUBLE_OPTS+=' --enable-sse2 --enable-avx'
-  ;;
-  avx2)
-    SINGLE_OPTS+=' --enable-sse --enable-avx2'
-    DOUBLE_OPTS+=' --enable-sse2 --enable-avx2'
-  ;;
-esac &&
+# Generic SIMD for all.
+# If you enable long double precision, that won't work with any SIMD.
+DOUBLE_OPTS="--enable-generic-simd128 --enable-generic-simd256" &&
+SINGLE_OPTS=$DOUBLE_OPTS &&
+
+# You can add PPC and ARM opts here. See:
+# http://www.fftw.org/fftw3_doc/Installation-on-Unix.html
+if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 ]]; then
+  MORE_DOUBLE_OPTS="--enable-sse2 --enable-avx" &&
+  if ! is_version_less "$(installed_version gcc)" 4.9; then
+    MORE_DOUBLE_OPTS+="--enable-avx2 --enable-avx512 --enable-avx-128-fma"
+  fi &&
+  MORE_SINGLE_OPTS="--enable-sse $MORE_DOUBLE_OPTS"
+elif [[ ${SMGL_COMPAT_ARCHS[1]} == ia32 ]]; then
+  MORE_DOUBLE_OPTS="--enable-sse2" &&
+  MORE_SINGLE_OPTS="--enable-sse --enable-sse2"
+fi &&
+
+DOUBLE_OPTS+=" $MORE_DOUBLE_OPTS" &&
+SINGLE_OPTS+=" $MORE_SINGLE_OPTS" &&
 
 # Build each precision by itself.
 for p in $FFTW_PRECISION; do
