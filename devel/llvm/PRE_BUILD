@@ -28,9 +28,16 @@ if [[ "$LLVM_WITH_POLLY" == y ]]; then
 fi &&
 
 if [[ "$LLVM_WITH_LLD" == y ]]; then
-  unpack_file 13               &&
-  mv lld-${VERSION}.src tools/lld
+  unpack_file 13                  &&
+  mv lld-${VERSION}.src tools/lld &&
+  unpack_file 15                  &&
+  mv libunwind-${VERSION}.src libunwind &&
+  unpack_file 17                  &&
+  mv libcxx-${VERSION}.src projects/libcxx &&
+  unpack_file 19                  &&
+  mv libcxxabi-${VERSION}.src projects/libcxxabi
 fi &&
+
 
 # small cmake related fix for libffi
 if spell_ok libffi;then
@@ -41,4 +48,9 @@ if spell_ok libffi;then
 fi  &&
 
 # do not build all backends
-sed -i "/^set.*all\"$/s/all//"  CMakeLists.txt
+sed -i "/^set.*all\"$/s/all//"  CMakeLists.txt &&
+
+# Bugfix for llvm 12.0.0, cf. https://groups.google.com/g/llvm-dev/c/gIY5COm6V5E
+# This will probably be fixed in llvm 12.0.1.
+cd "$SOURCE_DIRECTORY/tools" &&
+patch -p1 < "$SPELL_DIRECTORY/0001-Include-libunwind-from-source-directory.patch"
