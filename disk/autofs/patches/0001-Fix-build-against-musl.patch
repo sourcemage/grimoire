@@ -1,0 +1,56 @@
+Subject: [PATCH 1/3] Fix build against musl
+
+--- a/lib/nss_parse.y
++++ b/lib/nss_parse.y
+@@ -28,6 +28,10 @@
+ #include "nsswitch.h"
+ #include "nss_parse.tab.h"
+ 
++#ifndef _PATH_NSSWITCH_CONF
++#define _PATH_NSSWITCH_CONF     "/etc/nsswitch.conf"
++#endif
++
+ static pthread_mutex_t parse_mutex = PTHREAD_MUTEX_INITIALIZER;
+ 
+ static struct list_head *nss_list;
+--- a/daemon/automount.c
++++ b/daemon/automount.c
+@@ -40,6 +40,14 @@
+ #include <sys/vfs.h>
+ #include <sys/utsname.h>
+ 
++#ifndef __SWORD_TYPE
++# if __WORDSIZE == 32  /* System word size */
++#  define __SWORD_TYPE int
++# else /* __WORDSIZE == 64 */
++#  define __SWORD_TYPE long int
++# endif
++#endif
++
+ #include "automount.h"
+ #if defined(LIBXML2_WORKAROUND) || defined(TIRPC_WORKAROUND)
+ #include <dlfcn.h>
+--- a/include/log.h
++++ b/include/log.h
+@@ -16,6 +16,7 @@
+ 
+ #ifndef LOG_H
+ #define LOG_H
++#include <sys/types.h> /* for pid_t */
+ 
+ /* Define logging functions */
+ 
+--- a/include/hash.h
++++ b/include/hash.h
+@@ -5,6 +5,11 @@
+ 
+ #include <sys/types.h>
+ #include <stdint.h>
++#include <linux/stddef.h>
++
++#ifndef __GLIBC__
++#include <sys/reg.h>
++#endif
+ 
+ /*
+  * The "GOLDEN_RATIO_PRIME" is used in ifs/btrfs/brtfs_inode.h and
