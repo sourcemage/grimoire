@@ -8,6 +8,13 @@ OPTS="$OPTS
   --enable-unicode
   --enable-graphics_ctx
 " &&
+
+case "$HOST" in
+  (*-musl)
+    OPTS+=' --disable-xlocale'
+    ;;
+esac &&
+
 # wx project recommends building in a separate directory
 cd $SOURCE_DIRECTORY   &&
 mkdir -p bld-dir         &&
