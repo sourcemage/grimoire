@@ -1,3 +1,10 @@
+# XXX workaround for linking issue with GCC 11
+case "$HOST" in
+  (*-musl)
+    CXXFLAGS+=' -static-libstdc++'
+    ;;
+esac &&
+
 # Add the path to qmake here instead of DEPENDS.
 # This depends on our installation, not user choice.
 if echo "$OPTS" | grep -q -- -qt-gui; then
