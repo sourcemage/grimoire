@@ -5,4 +5,7 @@ else
   ./configure --prefix=$INSTALL_ROOT/usr $OPTS
 fi &&
 
+# necessary for linking:
+ulimit -n 65535 &&
+
 default_build_make
