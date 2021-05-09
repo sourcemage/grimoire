@@ -3,8 +3,6 @@ From: Greg V <greg@unrelenting.technology>
 Date: Sun, 26 Jan 2020 16:03:21 +0300
 Subject: [PATCH] mapi: use global-dynamic TLS, kill asm stubs
 
-ref: https://gitlab.freedesktop.org/mesa/mesa/merge_requests/3559#note_394462
-ref: https://gitlab.freedesktop.org/mesa/mesa/issues/966
 ---
  src/egl/main/eglcurrent.c    |   3 +-
  src/glx/glxclient.h          |   3 +-
@@ -27,36 +25,8 @@ ref: https://gitlab.freedesktop.org/mesa/mesa/issues/966
  delete mode 100644 src/mapi/entry_x86_tls.h
  delete mode 100644 src/mapi/entry_x86_tsd.h
 
-diff --git a/src/egl/main/eglcurrent.c b/src/egl/main/eglcurrent.c
-index 29be4268025..c45a8e6060a 100644
---- a/src/egl/main/eglcurrent.c
-+++ b/src/egl/main/eglcurrent.c
-@@ -45,8 +45,7 @@ static tss_t _egl_TSD;
- static void _eglDestroyThreadInfo(_EGLThreadInfo *t);
- 
- #ifdef USE_ELF_TLS
--static __thread const _EGLThreadInfo *_egl_TLS
--   __attribute__ ((tls_model("initial-exec")));
-+static __thread const _EGLThreadInfo *_egl_TLS;
- #endif
- 
- static inline void _eglSetTSD(const _EGLThreadInfo *t)
-diff --git a/src/glx/glxclient.h b/src/glx/glxclient.h
-index 1f199054410..75ee705b182 100644
---- a/src/glx/glxclient.h
-+++ b/src/glx/glxclient.h
-@@ -656,8 +656,7 @@ extern void __glXSetCurrentContext(struct glx_context * c);
- 
- # if defined( USE_ELF_TLS )
- 
--extern __thread void *__glX_tls_Context
--   __attribute__ ((tls_model("initial-exec")));
-+extern __thread void *__glX_tls_Context;
- 
- #  define __glXGetCurrentContext() __glX_tls_Context
- 
 diff --git a/src/glx/glxcurrent.c b/src/glx/glxcurrent.c
-index a388df7a78d..4f45283e521 100644
+index a388df7..4f45283 100644
 --- a/src/glx/glxcurrent.c
 +++ b/src/glx/glxcurrent.c
 @@ -76,8 +76,7 @@ _X_HIDDEN pthread_mutex_t __glXmutex = PTHREAD_MUTEX_INITIALIZER;
@@ -70,7 +40,7 @@ index a388df7a78d..4f45283e521 100644
  _X_HIDDEN void
  __glXSetCurrentContext(struct glx_context * c)
 diff --git a/src/mapi/Makefile.sources b/src/mapi/Makefile.sources
-index 4b83caa8ed2..93318ed19cf 100644
+index 4b83caa..93318ed 100644
 --- a/src/mapi/Makefile.sources
 +++ b/src/mapi/Makefile.sources
 @@ -20,11 +20,6 @@ MAPI_UTIL_FILES = \
@@ -86,7 +56,7 @@ index 4b83caa8ed2..93318ed19cf 100644
  
  MAPI_GLAPI_FILES = \
 diff --git a/src/mapi/entry.c b/src/mapi/entry.c
-index 7ff3c8f8c8c..29e7bf91979 100644
+index 7ff3c8f..29e7bf9 100644
 --- a/src/mapi/entry.c
 +++ b/src/mapi/entry.c
 @@ -45,22 +45,6 @@
@@ -120,7 +90,7 @@ index 7ff3c8f8c8c..29e7bf91979 100644
 -#endif /* asm */
 diff --git a/src/mapi/entry_ppc64le_tls.h b/src/mapi/entry_ppc64le_tls.h
 deleted file mode 100644
-index e09a1178a06..00000000000
+index e09a117..0000000
 --- a/src/mapi/entry_ppc64le_tls.h
 +++ /dev/null
 @@ -1,152 +0,0 @@
@@ -278,7 +248,7 @@ index e09a1178a06..00000000000
 -#endif /* MAPI_MODE_BRIDGE */
 diff --git a/src/mapi/entry_ppc64le_tsd.h b/src/mapi/entry_ppc64le_tsd.h
 deleted file mode 100644
-index a583b93e5e2..00000000000
+index a583b93..0000000
 --- a/src/mapi/entry_ppc64le_tsd.h
 +++ /dev/null
 @@ -1,210 +0,0 @@
@@ -494,7 +464,7 @@ index a583b93e5e2..00000000000
 -#endif /* MAPI_MODE_BRIDGE */
 diff --git a/src/mapi/entry_x86-64_tls.h b/src/mapi/entry_x86-64_tls.h
 deleted file mode 100644
-index aebe4cf4a3f..00000000000
+index aebe4cf..0000000
 --- a/src/mapi/entry_x86-64_tls.h
 +++ /dev/null
 @@ -1,143 +0,0 @@
@@ -643,7 +613,7 @@ index aebe4cf4a3f..00000000000
 -#endif /* MAPI_MODE_BRIDGE */
 diff --git a/src/mapi/entry_x86_tls.h b/src/mapi/entry_x86_tls.h
 deleted file mode 100644
-index bdaa97374ba..00000000000
+index bdaa973..0000000
 --- a/src/mapi/entry_x86_tls.h
 +++ /dev/null
 @@ -1,156 +0,0 @@
@@ -805,7 +775,7 @@ index bdaa97374ba..00000000000
 -#endif /* MAPI_MODE_BRIDGE */
 diff --git a/src/mapi/entry_x86_tsd.h b/src/mapi/entry_x86_tsd.h
 deleted file mode 100644
-index f5d9c41253f..00000000000
+index f5d9c41..0000000
 --- a/src/mapi/entry_x86_tsd.h
 +++ /dev/null
 @@ -1,155 +0,0 @@
@@ -965,13 +935,13 @@ index f5d9c41253f..00000000000
 -
 -#endif /* MAPI_MODE_BRIDGE */
 diff --git a/src/mapi/glapi/glapi.h b/src/mapi/glapi/glapi.h
-index b11fe46107b..4d9584ffddf 100644
+index d6a0ebf..c4739d6 100644
 --- a/src/mapi/glapi/glapi.h
 +++ b/src/mapi/glapi/glapi.h
-@@ -78,11 +78,9 @@ struct _glapi_table;
- 
- #if defined (USE_ELF_TLS)
- 
+@@ -82,11 +82,9 @@ struct _glapi_table;
+ extern __declspec(thread) struct _glapi_table * _glapi_tls_Dispatch;
+ extern __declspec(thread) void * _glapi_tls_Context;
+ #else
 -_GLAPI_EXPORT extern __thread struct _glapi_table * _glapi_tls_Dispatch
 -    __attribute__((tls_model("initial-exec")));
 +_GLAPI_EXPORT extern __thread struct _glapi_table * _glapi_tls_Dispatch;
@@ -979,11 +949,11 @@ index b11fe46107b..4d9584ffddf 100644
 -_GLAPI_EXPORT extern __thread void * _glapi_tls_Context
 -    __attribute__((tls_model("initial-exec")));
 +_GLAPI_EXPORT extern __thread void * _glapi_tls_Context;
+ #endif
  
  _GLAPI_EXPORT extern const struct _glapi_table *_glapi_Dispatch;
- _GLAPI_EXPORT extern const void *_glapi_Context;
 diff --git a/src/mapi/glapi/meson.build b/src/mapi/glapi/meson.build
-index 1b8b685f207..c6bd24bc458 100644
+index 1b8b685..c6bd24b 100644
 --- a/src/mapi/glapi/meson.build
 +++ b/src/mapi/glapi/meson.build
 @@ -33,11 +33,6 @@ if with_shared_glapi
@@ -999,12 +969,12 @@ index 1b8b685f207..c6bd24bc458 100644
    )
    static_glapi_files += glapi_mapi_tmp_h
 diff --git a/src/mapi/u_current.c b/src/mapi/u_current.c
-index 0e133e0e419..6c50cd91709 100644
+index 7a95e96..05fb5a0 100644
 --- a/src/mapi/u_current.c
 +++ b/src/mapi/u_current.c
-@@ -100,11 +100,9 @@ extern void (*__glapi_noop_table[])(void);
- #if defined(USE_ELF_TLS)
- 
+@@ -106,11 +106,9 @@ __declspec(thread) struct _glapi_table *u_current_table
+ __declspec(thread) void *u_current_context;
+ #else
  __thread struct _glapi_table *u_current_table
 -    __attribute__((tls_model("initial-exec")))
      = (struct _glapi_table *) table_noop_array;
@@ -1012,11 +982,11 @@ index 0e133e0e419..6c50cd91709 100644
 -__thread void *u_current_context
 -    __attribute__((tls_model("initial-exec")));
 +__thread void *u_current_context;
+ #endif
  
  #else
- 
 diff --git a/src/mapi/u_current.h b/src/mapi/u_current.h
-index e7faa878ed1..092e7fe0d7d 100644
+index e7faa87..092e7fe 100644
 --- a/src/mapi/u_current.h
 +++ b/src/mapi/u_current.h
 @@ -29,11 +29,9 @@ struct _glapi_table;
@@ -1034,5 +1004,5 @@ index e7faa878ed1..092e7fe0d7d 100644
  #else /* USE_ELF_TLS */
  
 -- 
-GitLab
+2.31.1
 

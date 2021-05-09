@@ -1,20 +1,20 @@
-From 98dcbe27df0636c5df2623be1c950a43f9f05a9d Mon Sep 17 00:00:00 2001
+From cbdb123158b7e115c9c767104bb2793a10d95151 Mon Sep 17 00:00:00 2001
 From: Florian Franzmann <bwlf@bandrate.org>
-Date: Sun, 5 Jan 2020 22:33:25 +0100
-Subject: [PATCH] install GL headers in .mesa install libGL to lib/.mesa
+Date: Sun, 9 May 2021 14:36:52 +0200
+Subject: [PATCH] Install GL headers in .mesa install libGL to lib/.mesa
 
 ---
- include/meson.build         | 6 +++---
+ include/meson.build         | 8 ++++----
  src/egl/meson.build         | 1 +
  src/glx/meson.build         | 1 +
  src/mapi/es2api/meson.build | 1 +
- 4 files changed, 6 insertions(+), 3 deletions(-)
+ 4 files changed, 7 insertions(+), 4 deletions(-)
 
 diff --git a/include/meson.build b/include/meson.build
-index a64d937..23751c7 100644
+index 4ee415f..7aa2487 100644
 --- a/include/meson.build
 +++ b/include/meson.build
-@@ -59,7 +59,7 @@ if not glvnd_has_headers_and_pc_files
+@@ -66,7 +66,7 @@ if not with_glvnd
        'GL/gl.h',
        'GL/glcorearb.h',
        'GL/glext.h',
@@ -23,7 +23,7 @@ index a64d937..23751c7 100644
      )
    endif
  
-@@ -67,7 +67,7 @@ if not glvnd_has_headers_and_pc_files
+@@ -74,7 +74,7 @@ if not with_glvnd
      install_headers(
        'GL/glx.h',
        'GL/glxext.h',
@@ -32,45 +32,49 @@ index a64d937..23751c7 100644
    endif
  
    if with_egl
-@@ -90,7 +90,7 @@ if with_egl
+@@ -97,11 +97,11 @@ if with_egl
  endif
  
- if with_osmesa != 'none'
+ if with_osmesa
 -  install_headers('GL/osmesa.h', subdir : 'GL')
 +  install_headers('GL/osmesa.h', subdir : 'GL/.mesa')
  endif
  
  if with_dri
+   install_headers('GL/internal/dri_interface.h', subdir : 'GL/internal')
+ endif
+ 
+ if with_gallium_st_nine
 diff --git a/src/egl/meson.build b/src/egl/meson.build
-index dfc78ac..6c2eb18 100644
+index 599a667..d482a33 100644
 --- a/src/egl/meson.build
 +++ b/src/egl/meson.build
-@@ -172,6 +172,7 @@ libegl = shared_library(
+@@ -174,6 +174,7 @@ libegl = shared_library(
    dependencies : [deps_for_egl, dep_dl, dep_libdrm, dep_clock, dep_thread, idep_mesautil],
    install : true,
    version : egl_lib_version,
 +  install_dir : 'lib/.mesa',
  )
  
- # If using glvnd the pkg-config header should not point to EGL_mesa, it should
+ if not with_glvnd
 diff --git a/src/glx/meson.build b/src/glx/meson.build
-index 85f2697..6f0ebab 100644
+index 58f9e1a..b282e5f 100644
 --- a/src/glx/meson.build
 +++ b/src/glx/meson.build
-@@ -167,6 +167,7 @@ libgl = shared_library(
-   ],
+@@ -159,6 +159,7 @@ libgl = shared_library(
    version : gl_lib_version,
+   darwin_versions : '4.0.0',
    install : true,
 +  install_dir : 'lib/.mesa',
  )
  
  if with_tests
 diff --git a/src/mapi/es2api/meson.build b/src/mapi/es2api/meson.build
-index cb7bd41..37525b1 100644
+index 356c576..04f3df6 100644
 --- a/src/mapi/es2api/meson.build
 +++ b/src/mapi/es2api/meson.build
-@@ -51,6 +51,7 @@ libgles2 = shared_library(
-   version : '2.0.0',
+@@ -52,6 +52,7 @@ libgles2 = shared_library(
+   darwin_versions : '3.0.0',
    name_prefix : 'lib',
    install : true,
 +  install_dir : 'lib/.mesa',
@@ -78,5 +82,5 @@ index cb7bd41..37525b1 100644
  
  pkg.generate(
 -- 
-2.24.1
+2.31.1
 
