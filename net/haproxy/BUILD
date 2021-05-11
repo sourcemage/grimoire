@@ -1,1 +1,1 @@
-make TARGET=linux2628 CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" ${OPTS}
+make TARGET=linux-glibc CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" ${OPTS}
