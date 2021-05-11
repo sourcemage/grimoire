@@ -73,7 +73,8 @@ if    [[  "$EXIM_TLS"  ==  "gnutls"  ]];  then
   echo  "TLS_LIBS=-lgnutls -ltasn1 -lgcrypt" >> Local/Makefile
 elif  [[  "$EXIM_TLS"  ==  "openssl"  ]];  then
   echo  "SUPPORT_TLS=yes"          >>  Local/Makefile  &&
-  echo  "TLS_LIBS=-lssl -lcrypto" >> Local/Makefile
+  echo  "USE_OPENSSL=yes"          >>  Local/Makefile  &&
+  echo  "TLS_LIBS=-lssl -lcrypto"  >> Local/Makefile
 fi  &&
 
 if  [[  "$EXIM_IPV6"  ==  "y"  ]]
