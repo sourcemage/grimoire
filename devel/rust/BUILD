@@ -11,6 +11,7 @@ else
         --destdir="$_rust_root" --prefix=/ --disable-ldconfig || break
   done
 fi &&
+message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
 ./configure \
 	--build="${BUILD/-pc-/-unknown-}" \
 	--prefix="$INSTALL_ROOT"/usr \
@@ -21,6 +22,7 @@ fi &&
 	--enable-extended \
 	--disable-docs \
 	--enable-llvm-link-shared \
+  --llvm-root=$INSTALL_ROOT/usr --disable-llvm-version-check --disable-codegen-tests \
 	$OPTS &&
 
 # static doesn't work
