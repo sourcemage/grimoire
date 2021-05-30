@@ -1,0 +1,49 @@
+#!/bin/bash
+
+PROGRAM=/bin/false    # To get auto_init functionality
+RUNLEVEL=3
+PROVIDES=network
+RECOMMENDED=yes
+
+[ "$USE_SYSLOG" = "yes" ] && NEEDS="+syslog"
+
+. /etc/init.d/smgl_init
+
+required_executable /sbin/ifup
+required_executable /sbin/ifdown
+
+start()
+{
+	# make sure all the interfaces really do come up
+	echo "Starting networking..."
+	/sbin/ifup --force -a
+	evaluate_retval
+}
+
+stop()
+{
+	echo "Stopping networking..."
+	/sbin/ifdown -a
+	evaluate_retval
+}
+
+restart()
+{
+	echo "Restarting ALL interfaces"
+	stop
+	# sleeping for some trickle time
+	sleep 3
+	start
+}
+
+status()
+{
+	exit 0
+}
+
+reload() { exit 3; }
+
+usage()
+{
+  echo "Usage: $0 {start|stop|restart|status} [DEVICE]"
+}
