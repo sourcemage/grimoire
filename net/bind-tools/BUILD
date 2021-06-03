@@ -4,7 +4,8 @@ disable_reject_underlinking &&
       --localstatedir=${INSTALL_ROOT}/var             \
              --mandir=${INSTALL_ROOT}/usr/share/man   \
             --infodir=${INSTALL_ROOT}/usr/share/info  \
-	    --without-libjson                         \
+            --without-libjson                         \
+            --disable-fuzzing                         \
                       $OPTS                           &&
 
 make_single  &&
@@ -16,4 +17,6 @@ make -C bin/delv     &&
 make -C bin/dig      &&
 make -C bin/nsupdate &&
 make -C bin/dnssec   &&
+make -C doc/man man  &&
+
 make_normal
