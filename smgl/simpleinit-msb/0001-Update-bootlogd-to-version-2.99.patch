@@ -1,0 +1,762 @@
+From 52d2ede2771e76f186526cf67a8b1454e88cc5b8 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Fri, 4 Jun 2021 15:05:44 +0200
+Subject: [PATCH] Update bootlogd to version 2.99
+
+---
+ sysvtools/bootlogd.c | 444 +++++++++++++++++++++++++++----------------
+ sysvtools/bootlogd.h |  12 ++
+ 2 files changed, 290 insertions(+), 166 deletions(-)
+ create mode 100644 sysvtools/bootlogd.h
+
+diff --git a/sysvtools/bootlogd.c b/sysvtools/bootlogd.c
+index e220349..787db87 100644
+--- a/sysvtools/bootlogd.c
++++ b/sysvtools/bootlogd.c
+@@ -8,18 +8,21 @@
+  * Bugs:	Uses openpty(), only available in glibc. Sorry.
+  *
+  *		This file is part of the sysvinit suite,
+- *		Copyright 1991-2004 Miquel van Smoorenburg.
++ *		Copyright (C) 1991-2004 Miquel van Smoorenburg.
+  *
+- *		This program is free software; you can redistribute it and/or
+- *		modify it under the terms of the GNU General Public License
+- *		as published by the Free Software Foundation; either version
+- *		2 of the License, or (at your option) any later version.
++ *		This program is free software; you can redistribute it and/or modify
++ *		it under the terms of the GNU General Public License as published by
++ *		the Free Software Foundation; either version 2 of the License, or
++ *		(at your option) any later version.
+  *
+- *				*NOTE* *NOTE* *NOTE*
+- *			This is a PROOF OF CONCEPT IMPLEMENTATION
++ *		This program is distributed in the hope that it will be useful,
++ *		but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *		GNU General Public License for more details.
+  *
+- *		I have bigger plans for Debian, but for now
+- *		this has to do ;)
++ *		You should have received a copy of the GNU General Public License
++ *		along with this program; if not, write to the Free Software
++ *		Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+  *
+  */
+ 
+@@ -31,7 +34,6 @@
+ #include <time.h>
+ #include <stdio.h>
+ #include <errno.h>
+-#include <malloc.h>
+ #include <stdlib.h>
+ #include <unistd.h>
+ #include <string.h>
+@@ -39,15 +41,23 @@
+ #include <getopt.h>
+ #include <dirent.h>
+ #include <fcntl.h>
++#ifdef __linux__
+ #include <pty.h>
++#endif
++
++#ifdef __FreeBSD__
++#include <termios.h>
++#include <libutil.h>
++#endif
++
+ #include <ctype.h>
+ #ifdef __linux__
+ #include <sys/mount.h>
+ #endif
++#include "bootlogd.h"
+ 
+-char *Version = "@(#) bootlogd 2.86 03-Jun-2004 miquels@cistron.nl";
+-
+-#define LOGFILE	"/var/log/boot"
++#define MAX_CONSOLES 16
++#define KERNEL_COMMAND_LENGTH 4096
+ 
+ char ringbuf[32768];
+ char *endptr = ringbuf + sizeof(ringbuf);
+@@ -56,11 +66,13 @@ char *outptr = ringbuf;
+ 
+ int got_signal = 0;
+ int didnl = 1;
++int createlogfile = 0;
++int syncalot = 0;
+ 
+-struct line {
+-	char buf[256];
+-	int pos;
+-} line;
++struct real_cons {
++	char name[1024];
++	int fd;
++};
+ 
+ /*
+  *	Console devices as listed on the kernel command line and
+@@ -71,6 +83,7 @@ struct consdev {
+ 	char	*dev1;
+ 	char	*dev2;
+ } consdev[] = {
++	{ "ttyB",	"/dev/ttyB%s",		NULL		},
+ 	{ "ttySC",	"/dev/ttySC%s",		"/dev/ttsc/%s"	},
+ 	{ "ttyS",	"/dev/ttyS%s",		"/dev/tts/%s"	},
+ 	{ "tty",	"/dev/tty%s",		"/dev/vc/%s"	},
+@@ -82,7 +95,7 @@ struct consdev {
+  *	Devices to try as console if not found on kernel command line.
+  *	Tried from left to right (as opposed to kernel cmdline).
+  */
+-char *defcons[] = { "tty0", "hvc0", "ttyS0", "ttySC0", NULL };
++char *defcons[] = { "tty0", "hvc0", "ttyS0", "ttySC0", "ttyB0", NULL };
+ 
+ /*
+  *	Catch signals.
+@@ -95,43 +108,69 @@ void handler(int sig)
+ 
+ /*
+  *	Scan /dev and find the device name.
+- *	Side-effect: directory is changed to /dev
+- *
+- *	FIXME: scan subdirectories for devfs support ?
+  */
+-int findtty(char *res, int rlen, dev_t dev)
++/*
++This function does not appear to be called anymore. Commenting it
++out for now, can probably be removed entirely in the future.
++
++static int findtty(char *res, const char *startdir, int rlen, dev_t dev)
+ {
+ 	DIR		*dir;
+ 	struct dirent	*ent;
+ 	struct stat	st;
+-	int		r = 0;
+-
+-	if (chdir("/dev") < 0 || (dir = opendir(".")) == NULL) {
+-		perror("bootlogd: /dev");
++	int		r = -1;
++	char *olddir = getcwd(NULL, 0);
++
++	if (chdir(startdir) < 0 || (dir = opendir(".")) == NULL) {
++		int msglen = strlen(startdir) + 11;
++		char *msg = malloc(msglen);
++		snprintf(msg, msglen, "bootlogd: %s", startdir);
++		perror(msg);
++		free(msg);
++		chdir(olddir);
+ 		return -1;
+ 	}
+ 	while ((ent = readdir(dir)) != NULL) {
+ 		if (lstat(ent->d_name, &st) != 0)
+ 			continue;
++		if (S_ISDIR(st.st_mode)
++		    && 0 != strcmp(".", ent->d_name)
++		    && 0 != strcmp("..", ent->d_name)) {
++			char *path = malloc(rlen);
++			snprintf(path, rlen, "%s/%s", startdir, ent->d_name);
++			r = findtty(res, path, rlen, dev);
++			free(path);
++			if (0 == r) { 
++				closedir(dir);
++				chdir(olddir);
++				return 0;
++			}
++			continue;
++		}
+ 		if (!S_ISCHR(st.st_mode))
+ 			continue;
+ 		if (st.st_rdev == dev) {
+-			break;
++			if ( (int) (strlen(ent->d_name) + strlen(startdir) + 1) >= rlen) {
++				fprintf(stderr, "bootlogd: console device name too long\n");
++				closedir(dir);
++				chdir(olddir);
++				return -1;
++			} else {
++				snprintf(res, rlen, "%s/%s", startdir, ent->d_name);
++				closedir(dir);
++				chdir(olddir);
++				return 0;
++			}
+ 		}
+ 	}
+-	if (ent == NULL) {
+-		fprintf(stderr, "bootlogd: cannot find console device "
+-			"%d:%d in /dev\n", major(dev), minor(dev));
+-		r = -1;
+-	} else if (strlen(ent->d_name) + 5 >= rlen) {
+-		fprintf(stderr, "bootlogd: console device name too long\n");
+-		r = -1;
+-	} else
+-		snprintf(res, rlen, "/dev/%s", ent->d_name);
+ 	closedir(dir);
+ 
++	chdir(olddir);
+ 	return r;
+ }
++*/
++
++
+ 
+ /*
+  *	For some reason, openpty() in glibc sometimes doesn't
+@@ -167,7 +206,7 @@ int findpty(int *master, int *slave, char *name)
+ 		}
+ 		if (found) break;
+ 	}
+-	if (found < 0) return -1;
++	if (!found) return -1;
+ 
+ 	if (name) strcpy(name, tty);
+ 
+@@ -204,34 +243,21 @@ int isconsole(char *s, char *res, int rlen)
+ }
+ 
+ /*
+- *	Find out the _real_ console. Assume that stdin is connected to
++ *	Find out the _real_ console(s). Assume that stdin is connected to
+  *	the console device (/dev/console).
+  */
+-int consolename(char *res, int rlen)
++int consolenames(struct real_cons *cons, int max_consoles)
+ {
+ #ifdef TIOCGDEV
+-	unsigned int	kdev;
++	/* This appears to be unused.  unsigned int	kdev; */
+ #endif
+ 	struct stat	st, st2;
+-	char		buf[256];
++	char		buf[KERNEL_COMMAND_LENGTH];
+ 	char		*p;
+ 	int		didmount = 0;
+-	int		n, r;
++	int		n;
+ 	int		fd;
+-
+-	fstat(0, &st);
+-	if (major(st.st_rdev) != 5 || minor(st.st_rdev) != 1) {
+-		/*
+-		 *	Old kernel, can find real device easily.
+-		 */
+-		return findtty(res, rlen, st.st_rdev);
+-	}
+-
+-#ifdef TIOCGDEV
+-	if (ioctl(0, TIOCGDEV, &kdev) == 0)
+-		return findtty(res, rlen, (dev_t)kdev);
+-	if (errno != ENOIOCTLCMD) return -1;
+-#endif
++	int		considx, num_consoles = 0;
+ 
+ #ifdef __linux__
+ 	/*
+@@ -240,7 +266,7 @@ int consolename(char *res, int rlen)
+ 	stat("/", &st);
+ 	if (stat("/proc", &st2) < 0) {
+ 		perror("bootlogd: /proc");
+-		return -1;
++		return 0;
+ 	}
+ 	if (st.st_dev == st2.st_dev) {
+ 		if (mount("proc", "/proc", "proc", 0, NULL) < 0) {
+@@ -250,45 +276,51 @@ int consolename(char *res, int rlen)
+ 		didmount = 1;
+ 	}
+ 
+-	n = 0;
+-	r = -1;
++	n = -1;
+ 	if ((fd = open("/proc/cmdline", O_RDONLY)) < 0) {
+ 		perror("bootlogd: /proc/cmdline");
+ 	} else {
+ 		buf[0] = 0;
+-		if ((n = read(fd, buf, sizeof(buf) - 1)) >= 0)
+-			r = 0;
+-		else
++		if ((n = read(fd, buf, KERNEL_COMMAND_LENGTH - 1)) < 0)
+ 			perror("bootlogd: /proc/cmdline");
+ 		close(fd);
+ 	}
+ 	if (didmount) umount("/proc");
+-
+-	if (r < 0) return r;
++                
++	if (n < 0) return 0;
+ 
+ 	/*
+ 	 *	OK, so find console= in /proc/cmdline.
+ 	 *	Parse in reverse, opening as we go.
+-	 *
+-	 *	Valid console devices: ttySC, ttyS, tty, hvc.
+ 	 */
+ 	p = buf + n;
+ 	*p-- = 0;
+-	r = -1;
+ 	while (p >= buf) {
+ 		if (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') {
+ 			*p-- = 0;
+ 			continue;
+ 		}
+ 		if (strncmp(p, "console=", 8) == 0 &&
+-		    isconsole(p + 8, res, rlen)) {
+-			r = 0;
+-			break;
++			isconsole(p + 8, cons[num_consoles].name, sizeof(cons[num_consoles].name))) {
++				/*
++				 *	Suppress duplicates
++				 */
++				for (considx = 0; considx < num_consoles; considx++) {
++					if (!strcmp(cons[num_consoles].name, cons[considx].name)) {
++						goto dontuse;
++					}
++				}
++			
++			num_consoles++;
++			if (num_consoles >= max_consoles) {
++				break;
++			}
+ 		}
++dontuse:
+ 		p--;
+ 	}
+ 
+-	if (r == 0) return r;
++	if (num_consoles > 0) return num_consoles;
+ #endif
+ 
+ 	/*
+@@ -296,83 +328,99 @@ int consolename(char *res, int rlen)
+ 	 *	guess the default console.
+ 	 */
+ 	for (n = 0; defcons[n]; n++)
+-		if (isconsole(defcons[n], res, rlen))
+-			return 0;
++		if (isconsole(defcons[n], cons[0].name, sizeof(cons[0].name))) 
++			return 1;
+ 
+ 	fprintf(stderr, "bootlogd: cannot deduce real console device\n");
+ 
+-	return -1;
++	return 0;
+ }
+ 
+ 
+ /*
+  *	Write data and make sure it's on disk.
+  */
+-void writelog(FILE *fp, unsigned char *ptr, int len)
++void writelog(FILE *fp, unsigned char *ptr, int len, int print_escape_characters)
+ {
+-	time_t		t;
+-	char		*s;
+-	char		tmp[8];
+-	int		olen = len;
+-	int		dosync = 0;
+-	int		tlen;
+-
+-	while (len > 0) {
+-		tmp[0] = 0;
+-		if (didnl) {
++	int dosync = 0;
++	int i;
++	static int first_run = 1;
++	static int inside_esc = 0;
++
++	for (i = 0; i < len; i++) {
++		int ignore = 0;
++
++		/* prepend date to every line */
++		if (*(ptr-1) == '\n' || first_run) {
++			time_t t;
++			char *s;
+ 			time(&t);
+ 			s = ctime(&t);
+ 			fprintf(fp, "%.24s: ", s);
+-			didnl = 0;
++			dosync = 1;
++			first_run = 0;
+ 		}
+-		switch (*ptr) {
+-			case 27: /* ESC */
+-				strcpy(tmp, "^[");
+-				break;
+-			case '\r':
+-				line.pos = 0;
+-				break;
+-			case 8: /* ^H */
+-				if (line.pos > 0) line.pos--;
+-				break;
+-			case '\n':
+-				didnl = 1;
+-				dosync = 1;
+-				break;
+-			case '\t':
+-				line.pos += (line.pos / 8 + 1) * 8;
+-				if (line.pos >= sizeof(line.buf))
+-					line.pos = sizeof(line.buf) - 1;
+-				break;
+-			case  32 ... 127:
+-			case 161 ... 255:
+-				tmp[0] = *ptr;
+-				tmp[1] = 0;
+-				break;
+-			default:
+-				sprintf(tmp, "\\%03o", *ptr);
+-				break;
+-		}
+-		ptr++;
+-		len--;
+ 
+-		tlen = strlen(tmp);
+-		if (tlen && (line.pos + tlen < sizeof(line.buf))) {
+-			memcpy(line.buf + line.pos, tmp, tlen);
+-			line.pos += tlen;
+-		}
+-		if (didnl) {
+-			fprintf(fp, "%s\n", line.buf);
+-			memset(&line, 0, sizeof(line));
++		/* remove escape sequences, but do it in a way that allows us to stop
++		 * in the middle in case the string was cut off */
++                if (! print_escape_characters)
++                {
++                    if (inside_esc == 1) {
++			/* first '[' is special because if we encounter it again, it should be considered the final byte */
++			if (*ptr == '[') {
++				/* multi char sequence */
++				ignore = 1;
++				inside_esc = 2;
++			} else {
++				/* single char sequence */
++				if (*ptr >= 64 && *ptr <= 95) {
++					ignore = 1;
++				}
++				inside_esc = 0;
++			}
++                    } else if (inside_esc == 2) {
++			switch (*ptr) {
++				case '0' ... '9': /* intermediate chars of escape sequence */
++				case ';':
++				case 32 ... 47:
++					if (inside_esc) {
++						ignore = 1;
++					}
++					break;
++				case 64 ... 126: /* final char of escape sequence */
++					if (inside_esc) {
++						ignore = 1;
++						inside_esc = 0;
++					}
++					break;
++                        }
++		     } else {
++			switch (*ptr) {
++				case '\r':
++					ignore = 1;
++					break;
++				case 27: /* ESC */
++					ignore = 1;
++					inside_esc = 1;
++					break;
++			}
++		     }
++                }     /* end of if we should filter escape characters */
++
++		if (!ignore) {
++			fwrite(ptr, sizeof(char), 1, fp);
+ 		}
+-	}
+ 
++		ptr++;
++	}
+ 	if (dosync) {
+ 		fflush(fp);
+-		fdatasync(fileno(fp));
++		if (syncalot) {
++			fdatasync(fileno(fp));
++		}
+ 	}
+ 
+-	outptr += olen;
++	outptr += len;
+ 	if (outptr >= endptr)
+ 		outptr = ringbuf;
+ 
+@@ -384,7 +432,7 @@ void writelog(FILE *fp, unsigned char *ptr, int len)
+  */
+ void usage(void)
+ {
+-	fprintf(stderr, "Usage: bootlogd [-v] [-r] [-d] [-p pidfile] [-l logfile]\n");
++	fprintf(stderr, "Usage: bootlogd [-v] [-r] [-d] [-e] [-s] [-c] [-p pidfile] [-l logfile]\n");
+ 	exit(1);
+ }
+ 
+@@ -429,24 +477,29 @@ int main(int argc, char **argv)
+ 	struct timeval	tv;
+ 	fd_set		fds;
+ 	char		buf[1024];
+-	char		realcons[1024];
+ 	char		*p;
+ 	char		*logfile;
+ 	char		*pidfile;
+ 	int		rotate;
+ 	int		dontfork;
+ 	int		ptm, pts;
+-	int		realfd;
++	/* int		realfd;   -- this is now unused */
+ 	int		n, m, i;
+ 	int		todo;
+-
++#ifndef __linux__	/* BSD-style ioctl needs an argument. */
++	int		on = 1;
++#endif
++	int		considx;
++	struct real_cons cons[MAX_CONSOLES];
++	int		num_consoles, consoles_left;
++        int             print_escape_sequence = 0;
+ 	fp = NULL;
+ 	logfile = LOGFILE;
+ 	pidfile = NULL;
+ 	rotate = 0;
+ 	dontfork = 0;
+ 
+-	while ((i = getopt(argc, argv, "dl:p:rv")) != EOF) switch(i) {
++	while ((i = getopt(argc, argv, "cdesl:p:rv")) != EOF) switch(i) {
+ 		case 'l':
+ 			logfile = optarg;
+ 			break;
+@@ -454,15 +507,24 @@ int main(int argc, char **argv)
+ 			rotate = 1;
+ 			break;
+ 		case 'v':
+-			printf("%s\n", Version);
++			printf("bootlogd - %s\n", "2.99");
+ 			exit(0);
+ 			break;
+ 		case 'p':
+ 			pidfile = optarg;
+ 			break;
++		case 'c':
++			createlogfile = 1;
++			break;
+ 		case 'd':
+ 			dontfork = 1;
+ 			break;
++                case 'e':
++                        print_escape_sequence = 1;
++                        break;
++		case 's':
++			syncalot = 1;
++			break;
+ 		default:
+ 			usage();
+ 			break;
+@@ -479,6 +541,7 @@ int main(int argc, char **argv)
+ 	/*
+ 	 *	Open console device directly.
+ 	 */
++        /*
+ 	if (consolename(realcons, sizeof(realcons)) < 0)
+ 		return 1;
+ 
+@@ -488,9 +551,28 @@ int main(int argc, char **argv)
+ 		strcpy(realcons, "/dev/vc/1");
+ 
+ 	if ((realfd = open_nb(realcons)) < 0) {
+-		fprintf(stderr, "bootlogd: %s: %s\n", buf, strerror(errno));
++		fprintf(stderr, "bootlogd: %s: %s\n", realcons, strerror(errno));
+ 		return 1;
+ 	}
++        */
++        if ((num_consoles = consolenames(cons, MAX_CONSOLES)) <= 0)
++                return 1;
++        consoles_left = num_consoles;
++        for (considx = 0; considx < num_consoles; considx++) {
++               if (strcmp(cons[considx].name, "/dev/tty0") == 0)
++                       strcpy(cons[considx].name, "/dev/tty1");
++               if (strcmp(cons[considx].name, "/dev/vc/0") == 0)
++                       strcpy(cons[considx].name, "/dev/vc/1");
++
++               if ((cons[considx].fd = open_nb(cons[considx].name)) < 0) {
++                       fprintf(stderr, "bootlogd: %s: %s\n", 
++                                cons[considx].name, strerror(errno));
++                       consoles_left--;
++               }
++        }
++        if (!consoles_left)
++               return 1;
++
+ 
+ 	/*
+ 	 *	Grab a pty, and redirect console messages to it.
+@@ -505,15 +587,20 @@ int main(int argc, char **argv)
+ 		return 1;
+ 	}
+ 
++#ifdef __linux__
+ 	(void)ioctl(0, TIOCCONS, NULL);
+-#if 1
+ 	/* Work around bug in 2.1/2.2 kernels. Fixed in 2.2.13 and 2.3.18 */
+ 	if ((n = open("/dev/tty0", O_RDWR)) >= 0) {
+ 		(void)ioctl(n, TIOCCONS, NULL);
+ 		close(n);
+ 	}
+ #endif
+-	if (ioctl(pts, TIOCCONS, NULL) < 0) {
++#ifdef __linux__
++	if (ioctl(pts, TIOCCONS, NULL) < 0)
++#else	/* BSD usage of ioctl TIOCCONS. */
++	if (ioctl(pts, TIOCCONS, &on) < 0)
++#endif
++	{
+ 		fprintf(stderr, "bootlogd: ioctl(%s, TIOCCONS): %s\n",
+ 			buf, strerror(errno));
+ 		return 1;
+@@ -523,8 +610,19 @@ int main(int argc, char **argv)
+ 	 *	Fork and write pidfile if needed.
+ 	 */
+ 	if (!dontfork) {
+-		if (fork())
++		pid_t child_pid = fork();
++		switch (child_pid) {
++		case -1: /* I am parent and the attempt to create a child failed */
++			fprintf(stderr, "bootlogd: fork failed: %s\n",
++				strerror(errno));
+ 			exit(1);
++			break;
++		case 0: /* I am the child */
++			break;
++		default: /* I am parent and got child's pid */
++			exit(0);
++			break;
++		}
+ 		setsid();
+ 	}
+ 	if (pidfile) {
+@@ -558,27 +656,35 @@ int main(int argc, char **argv)
+ 			if ((n = read(ptm, inptr, endptr - inptr)) >= 0) {
+ 				/*
+ 				 *	Write data (in chunks if needed)
+-				 *	to the real output device.
++				 *	to the real output devices.
+ 				 */
+-				m = n;
+-				p = inptr;
+-				while (m > 0) {
+-					i = write(realfd, p, m);
+-					if (i >= 0) {
+-						m -= i;
+-						p += i;
+-						continue;
+-					}
+-					/*
+-					 *	Handle EIO (somebody hung
+-					 *	up our filedescriptor)
+-					 */
+-					realfd = write_err(pts, realfd,
+-						realcons, errno);
+-					if (realfd >= 0) continue;
+-					got_signal = 1; /* Not really */
+-					break;
+-				}
++				for (considx = 0; considx < num_consoles; considx++) {
++					if (cons[considx].fd < 0) continue;
++					m = n;
++					p = inptr;
++					while (m > 0) {
++						i = write(cons[considx].fd, p, m);
++						if (i >= 0) {
++							m -= i;
++							p += i;
++							continue;
++						}
++						/*
++						 *	Handle EIO (somebody hung
++						 *	up our filedescriptor)
++						 */
++						cons[considx].fd = write_err(pts,
++							cons[considx].fd,
++							cons[considx].name, errno);
++						if (cons[considx].fd >= 0) continue;
++						/*	
++						 *	If this was the last console,
++						 *	generate a fake signal
++						 */
++						if (--consoles_left <= 0) got_signal = 1;
++						break;
++ 					}   /* end of while */
++				}     /* end of going through all consoles */
+ 
+ 				/*
+ 				 *	Increment buffer position. Handle
+@@ -592,25 +698,29 @@ int main(int argc, char **argv)
+ 					inptr = ringbuf;
+ 				if (outptr >= endptr)
+ 					outptr = ringbuf;
+-			}
+-		}
++			}       /* end of got data from read */
++		}      /* end of checking select for new data */
+ 
+ 		/*
+ 		 *	Perhaps we need to open the logfile.
+ 		 */
+-		if (fp == NULL && rotate && access(logfile, F_OK) == 0) {
+-			snprintf(buf, sizeof(buf), "%s~", logfile);
+-			rename(logfile, buf);
++		if (fp == NULL && access(logfile, F_OK) == 0) {
++			if (rotate) {
++				snprintf(buf, sizeof(buf), "%s~", logfile);
++				rename(logfile, buf);
++			}
++			fp = fopen(logfile, "a");
+ 		}
+-		if (fp == NULL)
++		if (fp == NULL && createlogfile)
+ 			fp = fopen(logfile, "a");
++
+ 		if (inptr >= outptr)
+ 			todo = inptr - outptr;
+ 		else
+ 			todo = endptr - outptr;
+ 		if (fp && todo)
+-			writelog(fp, outptr, todo);
+-	}
++			writelog(fp, (unsigned char *)outptr, todo, print_escape_sequence);
++	}    /* end of while waiting for signal */
+ 
+ 	if (fp) {
+ 		if (!didnl) fputc('\n', fp);
+@@ -619,7 +729,9 @@ int main(int argc, char **argv)
+ 
+ 	close(pts);
+ 	close(ptm);
+-	close(realfd);
++	for (considx = 0; considx < num_consoles; considx++) {
++		close(cons[considx].fd);
++	}
+ 
+ 	return 0;
+ }
+diff --git a/sysvtools/bootlogd.h b/sysvtools/bootlogd.h
+new file mode 100644
+index 0000000..b47bc9d
+--- /dev/null
++++ b/sysvtools/bootlogd.h
+@@ -0,0 +1,12 @@
++#ifndef LOGFILE
++#define LOGFILE "/var/log/boot"
++#endif
++
++#ifndef TRUE
++#define TRUE 1
++#endif
++
++#ifndef FALSE
++#define FALSE 0
++#endif
++
+-- 
+2.31.1
+
