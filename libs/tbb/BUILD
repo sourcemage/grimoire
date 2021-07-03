@@ -1,3 +1,3 @@
-CXXFLAGS+=" -Wno-error=deprecated-copy" &&
+OPTS+=" -DTBB_STRICT=off" &&
 
 default_build
