@@ -1,0 +1,1691 @@
+From 2ff38bfc4cd87f6588b946a3026523dfd6b27c2a Mon Sep 17 00:00:00 2001
+From: Thomas Deutschmann <whissi@gentoo.org>
+Date: Thu, 29 Apr 2021 18:31:05 +0200
+Subject: [PATCH 34/37] bmo#1580595: Wayland: Add support for pointer lock via
+ relative-pointer and pointer-constraints
+
+Signed-off-by: Thomas Deutschmann <whissi@gentoo.org>
+---
+ dom/events/EventStateManager.cpp              |   8 +
+ dom/ipc/BrowserParent.cpp                     |  40 +-
+ dom/ipc/BrowserParent.h                       |  12 +
+ dom/ipc/PBrowser.ipdl                         |   3 +
+ widget/PuppetWidget.cpp                       |  14 +
+ widget/PuppetWidget.h                         |   3 +
+ widget/gtk/mozgtk/mozgtk.c                    |   1 +
+ widget/gtk/mozwayland/mozwayland.c            |   1 +
+ widget/gtk/nsWaylandDisplay.cpp               |  25 +
+ widget/gtk/nsWaylandDisplay.h                 |  13 +
+ widget/gtk/nsWindow.cpp                       | 110 +++
+ widget/gtk/nsWindow.h                         |  10 +
+ widget/gtk/wayland/moz.build                  |   4 +
+ ...-constraints-unstable-v1-client-protocol.h | 650 ++++++++++++++++++
+ ...pointer-constraints-unstable-v1-protocol.c |  97 +++
+ ...tive-pointer-unstable-v1-client-protocol.h | 293 ++++++++
+ .../relative-pointer-unstable-v1-protocol.c   |  69 ++
+ widget/nsIWidget.h                            |  10 +
+ 18 files changed, 1362 insertions(+), 1 deletion(-)
+ create mode 100644 widget/gtk/wayland/pointer-constraints-unstable-v1-client-protocol.h
+ create mode 100644 widget/gtk/wayland/pointer-constraints-unstable-v1-protocol.c
+ create mode 100644 widget/gtk/wayland/relative-pointer-unstable-v1-client-protocol.h
+ create mode 100644 widget/gtk/wayland/relative-pointer-unstable-v1-protocol.c
+
+diff --git a/dom/events/EventStateManager.cpp b/dom/events/EventStateManager.cpp
+index 6bd7e2d822..20da36811d 100644
+--- a/dom/events/EventStateManager.cpp
++++ b/dom/events/EventStateManager.cpp
+@@ -4816,7 +4816,15 @@ void EventStateManager::SetPointerLock(nsIWidget* aWidget,
+     if (dragService) {
+       dragService->Suppress();
+     }
++
++    // Activate native pointer lock on platforms where it is required (Wayland)
++    aWidget->LockNativePointer();
+   } else {
++    if (aWidget) {
++      // Deactivate native pointer lock on platforms where it is required
++      aWidget->UnlockNativePointer();
++    }
++
+     // Unlocking, so return pointer to the original position by firing a
+     // synthetic mouse event. We first reset sLastRefPoint to its
+     // pre-pointerlock position, so that the synthetic mouse event reports
+diff --git a/dom/ipc/BrowserParent.cpp b/dom/ipc/BrowserParent.cpp
+index 9bb819f0ee..d7354c9cdd 100644
+--- a/dom/ipc/BrowserParent.cpp
++++ b/dom/ipc/BrowserParent.cpp
+@@ -229,7 +229,8 @@ BrowserParent::BrowserParent(ContentParent* aManager, const TabId& aTabId,
+       mHasLayers(false),
+       mHasPresented(false),
+       mIsReadyToHandleInputEvents(false),
+-      mIsMouseEnterIntoWidgetEventSuppressed(false) {
++      mIsMouseEnterIntoWidgetEventSuppressed(false),
++      mLockedNativePointer(false) {
+   MOZ_ASSERT(aManager);
+   // When the input event queue is disabled, we don't need to handle the case
+   // that some input events are dispatched before PBrowserConstructor.
+@@ -594,6 +595,7 @@ void BrowserParent::RemoveWindowListeners() {
+ }
+ 
+ void BrowserParent::Deactivated() {
++  UnlockNativePointer();
+   UnsetTopLevelWebFocus(this);
+   UnsetLastMouseRemoteTarget(this);
+   PointerLockManager::ReleaseLockedRemoteTarget(this);
+@@ -1078,6 +1080,7 @@ void BrowserParent::UpdateDimensions(const nsIntRect& rect,
+     mChromeOffset = chromeOffset;
+ 
+     Unused << SendUpdateDimensions(GetDimensionInfo());
++    UpdateNativePointerLockCenter(widget);
+   }
+ }
+ 
+@@ -1098,6 +1101,17 @@ DimensionInfo BrowserParent::GetDimensionInfo() {
+   return di;
+ }
+ 
++void BrowserParent::UpdateNativePointerLockCenter(nsIWidget* aWidget) {
++  if (!mLockedNativePointer) {
++    return;
++  }
++  LayoutDeviceIntRect dims(
++      {0, 0},
++      ViewAs<LayoutDevicePixel>(
++          mDimensions, PixelCastJustification::LayoutDeviceIsScreenForTabDims));
++  aWidget->SetNativePointerLockCenter((dims + mChromeOffset).Center());
++}
++
+ void BrowserParent::SizeModeChanged(const nsSizeMode& aSizeMode) {
+   if (!mIsDestroyed && aSizeMode != mSizeMode) {
+     mSizeMode = aSizeMode;
+@@ -1899,6 +1913,30 @@ mozilla::ipc::IPCResult BrowserParent::RecvSynthesizeNativeTouchpadDoubleTap(
+   return IPC_OK();
+ }
+ 
++mozilla::ipc::IPCResult BrowserParent::RecvLockNativePointer() {
++  if (nsCOMPtr<nsIWidget> widget = GetWidget()) {
++    mLockedNativePointer = true;  // do before updating the center
++    UpdateNativePointerLockCenter(widget);
++    widget->LockNativePointer();
++  }
++  return IPC_OK();
++}
++
++void BrowserParent::UnlockNativePointer() {
++  if (!mLockedNativePointer) {
++    return;
++  }
++  if (nsCOMPtr<nsIWidget> widget = GetWidget()) {
++    widget->UnlockNativePointer();
++    mLockedNativePointer = false;
++  }
++}
++
++mozilla::ipc::IPCResult BrowserParent::RecvUnlockNativePointer() {
++  UnlockNativePointer();
++  return IPC_OK();
++}
++
+ void BrowserParent::SendRealKeyEvent(WidgetKeyboardEvent& aEvent) {
+   if (mIsDestroyed || !mIsReadyToHandleInputEvents) {
+     return;
+diff --git a/dom/ipc/BrowserParent.h b/dom/ipc/BrowserParent.h
+index 5b53b13e27..2f92129d7e 100644
+--- a/dom/ipc/BrowserParent.h
++++ b/dom/ipc/BrowserParent.h
+@@ -547,6 +547,10 @@ class BrowserParent final : public PBrowserParent,
+   mozilla::ipc::IPCResult RecvSynthesizeNativeTouchpadDoubleTap(
+       const LayoutDeviceIntPoint& aPoint, const uint32_t& aModifierFlags);
+ 
++  mozilla::ipc::IPCResult RecvLockNativePointer();
++
++  mozilla::ipc::IPCResult RecvUnlockNativePointer();
++
+   void SendMouseEvent(const nsAString& aType, float aX, float aY,
+                       int32_t aButton, int32_t aClickCount, int32_t aModifiers);
+ 
+@@ -794,6 +798,10 @@ class BrowserParent final : public PBrowserParent,
+   // and have to ensure that the child did not modify links to be loaded.
+   bool QueryDropLinksForVerification();
+ 
++  void UnlockNativePointer();
++
++  void UpdateNativePointerLockCenter(nsIWidget* aWidget);
++
+  private:
+   // This is used when APZ needs to find the BrowserParent associated with a
+   // layer to dispatch events.
+@@ -977,6 +985,10 @@ class BrowserParent final : public PBrowserParent,
+   // BrowserChild was not ready to handle it. We will resend it when the next
+   // time we fire a mouse event and the BrowserChild is ready.
+   bool mIsMouseEnterIntoWidgetEventSuppressed : 1;
++
++  // True after RecvLockNativePointer has been called and until
++  // UnlockNativePointer has been called.
++  bool mLockedNativePointer : 1;
+ };
+ 
+ struct MOZ_STACK_CLASS BrowserParent::AutoUseNewTab final {
+diff --git a/dom/ipc/PBrowser.ipdl b/dom/ipc/PBrowser.ipdl
+index 4bbd6dcfdd..5447912941 100644
+--- a/dom/ipc/PBrowser.ipdl
++++ b/dom/ipc/PBrowser.ipdl
+@@ -538,6 +538,9 @@ parent:
+     async SynthesizeNativeTouchpadDoubleTap(LayoutDeviceIntPoint aPoint,
+                                             uint32_t aModifierFlags);
+ 
++    async LockNativePointer();
++    async UnlockNativePointer();
++
+     async AccessKeyNotHandled(WidgetKeyboardEvent event);
+ 
+     async RegisterProtocolHandler(nsString scheme, nsIURI handlerURI, nsString title,
+diff --git a/widget/PuppetWidget.cpp b/widget/PuppetWidget.cpp
+index 085fef6642..db71c13594 100644
+--- a/widget/PuppetWidget.cpp
++++ b/widget/PuppetWidget.cpp
+@@ -533,6 +533,20 @@ nsresult PuppetWidget::SynthesizeNativeTouchpadDoubleTap(
+   return NS_OK;
+ }
+ 
++void PuppetWidget::LockNativePointer() {
++  if (!mBrowserChild) {
++    return;
++  }
++  mBrowserChild->SendLockNativePointer();
++}
++
++void PuppetWidget::UnlockNativePointer() {
++  if (!mBrowserChild) {
++    return;
++  }
++  mBrowserChild->SendUnlockNativePointer();
++}
++
+ void PuppetWidget::SetConfirmedTargetAPZC(
+     uint64_t aInputBlockId,
+     const nsTArray<ScrollableLayerGuid>& aTargets) const {
+diff --git a/widget/PuppetWidget.h b/widget/PuppetWidget.h
+index c34f7f4b85..afbea5fe5d 100644
+--- a/widget/PuppetWidget.h
++++ b/widget/PuppetWidget.h
+@@ -281,6 +281,9 @@ class PuppetWidget : public nsBaseWidget,
+   virtual nsresult SynthesizeNativeTouchpadDoubleTap(
+       LayoutDeviceIntPoint aPoint, uint32_t aModifierFlags) override;
+ 
++  virtual void LockNativePointer() override;
++  virtual void UnlockNativePointer() override;
++
+   virtual void StartAsyncScrollbarDrag(
+       const AsyncDragMetrics& aDragMetrics) override;
+ 
+diff --git a/widget/gtk/mozgtk/mozgtk.c b/widget/gtk/mozgtk/mozgtk.c
+index 54f5d08efe..02e5db6e9e 100644
+--- a/widget/gtk/mozgtk/mozgtk.c
++++ b/widget/gtk/mozgtk/mozgtk.c
+@@ -647,6 +647,7 @@ STUB(gtk_color_chooser_get_type)
+ STUB(gtk_color_chooser_set_rgba)
+ STUB(gtk_color_chooser_get_rgba)
+ STUB(gtk_color_chooser_set_use_alpha)
++STUB(gdk_wayland_device_get_wl_pointer)
+ #endif
+ 
+ #ifdef GTK2_SYMBOLS
+diff --git a/widget/gtk/mozwayland/mozwayland.c b/widget/gtk/mozwayland/mozwayland.c
+index 8a79d87865..7a448e6321 100644
+--- a/widget/gtk/mozwayland/mozwayland.c
++++ b/widget/gtk/mozwayland/mozwayland.c
+@@ -23,6 +23,7 @@ const struct wl_interface wl_callback_interface;
+ const struct wl_interface wl_data_device_interface;
+ const struct wl_interface wl_data_device_manager_interface;
+ const struct wl_interface wl_keyboard_interface;
++const struct wl_interface wl_pointer_interface;
+ const struct wl_interface wl_region_interface;
+ const struct wl_interface wl_registry_interface;
+ const struct wl_interface wl_shm_interface;
+diff --git a/widget/gtk/nsWaylandDisplay.cpp b/widget/gtk/nsWaylandDisplay.cpp
+index 55ca07fc37..49addfeecc 100644
+--- a/widget/gtk/nsWaylandDisplay.cpp
++++ b/widget/gtk/nsWaylandDisplay.cpp
+@@ -119,6 +119,16 @@ void nsWaylandDisplay::SetViewporter(wp_viewporter* aViewporter) {
+   mViewporter = aViewporter;
+ }
+ 
++void nsWaylandDisplay::SetRelativePointerManager(
++    zwp_relative_pointer_manager_v1* aRelativePointerManager) {
++  mRelativePointerManager = aRelativePointerManager;
++}
++
++void nsWaylandDisplay::SetPointerConstraints(
++    zwp_pointer_constraints_v1* aPointerConstraints) {
++  mPointerConstraints = aPointerConstraints;
++}
++
+ static void global_registry_handler(void* data, wl_registry* registry,
+                                     uint32_t id, const char* interface,
+                                     uint32_t version) {
+@@ -167,6 +177,19 @@ static void global_registry_handler(void* data, wl_registry* registry,
+     wl_proxy_set_queue((struct wl_proxy*)idle_inhibit_manager,
+                        display->GetEventQueue());
+     display->SetIdleInhibitManager(idle_inhibit_manager);
++  } else if (strcmp(interface, "zwp_relative_pointer_manager_v1") == 0) {
++    auto* relative_pointer_manager =
++        WaylandRegistryBind<zwp_relative_pointer_manager_v1>(
++            registry, id, &zwp_relative_pointer_manager_v1_interface, 1);
++    wl_proxy_set_queue((struct wl_proxy*)relative_pointer_manager,
++                       display->GetEventQueue());
++    display->SetRelativePointerManager(relative_pointer_manager);
++  } else if (strcmp(interface, "zwp_pointer_constraints_v1") == 0) {
++    auto* pointer_constraints = WaylandRegistryBind<zwp_pointer_constraints_v1>(
++        registry, id, &zwp_pointer_constraints_v1_interface, 1);
++    wl_proxy_set_queue((struct wl_proxy*)pointer_constraints,
++                       display->GetEventQueue());
++    display->SetPointerConstraints(pointer_constraints);
+   } else if (strcmp(interface, "wl_compositor") == 0) {
+     // Requested wl_compositor version 4 as we need wl_surface_damage_buffer().
+     auto* compositor = WaylandRegistryBind<wl_compositor>(
+@@ -285,6 +308,8 @@ nsWaylandDisplay::nsWaylandDisplay(wl_display* aDisplay, bool aLighWrapper)
+       mPrimarySelectionDeviceManagerGtk(nullptr),
+       mPrimarySelectionDeviceManagerZwpV1(nullptr),
+       mIdleInhibitManager(nullptr),
++      mRelativePointerManager(nullptr),
++      mPointerConstraints(nullptr),
+       mRegistry(nullptr),
+       mViewporter(nullptr),
+       mExplicitSync(false) {
+diff --git a/widget/gtk/nsWaylandDisplay.h b/widget/gtk/nsWaylandDisplay.h
+index 0f94ae14f7..bc68b27b11 100644
+--- a/widget/gtk/nsWaylandDisplay.h
++++ b/widget/gtk/nsWaylandDisplay.h
+@@ -14,6 +14,8 @@
+ #include "mozilla/widget/gbm.h"
+ #include "mozilla/widget/gtk-primary-selection-client-protocol.h"
+ #include "mozilla/widget/idle-inhibit-unstable-v1-client-protocol.h"
++#include "mozilla/widget/relative-pointer-unstable-v1-client-protocol.h"
++#include "mozilla/widget/pointer-constraints-unstable-v1-client-protocol.h"
+ #include "mozilla/widget/linux-dmabuf-unstable-v1-client-protocol.h"
+ #include "mozilla/widget/primary-selection-unstable-v1-client-protocol.h"
+ #include "mozilla/widget/viewporter-client-protocol.h"
+@@ -62,6 +64,12 @@ class nsWaylandDisplay {
+   zwp_idle_inhibit_manager_v1* GetIdleInhibitManager(void) {
+     return mIdleInhibitManager;
+   }
++  zwp_relative_pointer_manager_v1* GetRelativePointerManager(void) {
++    return mRelativePointerManager;
++  }
++  zwp_pointer_constraints_v1* GetPointerConstraints(void) {
++    return mPointerConstraints;
++  }
+   wp_viewporter* GetViewporter(void) { return mViewporter; };
+ 
+   bool IsMainThreadDisplay() { return mEventQueue == nullptr; }
+@@ -78,6 +86,9 @@ class nsWaylandDisplay {
+   void SetIdleInhibitManager(zwp_idle_inhibit_manager_v1* aIdleInhibitManager);
+   void SetViewporter(wp_viewporter* aViewporter);
+ 
++  void SetRelativePointerManager(
++      zwp_relative_pointer_manager_v1* aRelativePointerManager);
++  void SetPointerConstraints(zwp_pointer_constraints_v1* aPointerConstraints);
+   bool IsExplicitSyncEnabled() { return mExplicitSync; }
+ 
+  private:
+@@ -95,6 +106,8 @@ class nsWaylandDisplay {
+   gtk_primary_selection_device_manager* mPrimarySelectionDeviceManagerGtk;
+   zwp_primary_selection_device_manager_v1* mPrimarySelectionDeviceManagerZwpV1;
+   zwp_idle_inhibit_manager_v1* mIdleInhibitManager;
++  zwp_relative_pointer_manager_v1* mRelativePointerManager;
++  zwp_pointer_constraints_v1* mPointerConstraints;
+   wl_registry* mRegistry;
+   wp_viewporter* mViewporter;
+   bool mExplicitSync;
+diff --git a/widget/gtk/nsWindow.cpp b/widget/gtk/nsWindow.cpp
+index a159f32456..8d06f91f89 100644
+--- a/widget/gtk/nsWindow.cpp
++++ b/widget/gtk/nsWindow.cpp
+@@ -506,6 +506,9 @@ nsWindow::nsWindow() {
+ #ifdef MOZ_WAYLAND
+   mNeedsCompositorResume = false;
+   mCompositorInitiallyPaused = false;
++  mNativePointerLockCenter = LayoutDeviceIntPoint();
++  mRelativePointer = nullptr;
++  mLockedPointer = nullptr;
+ #endif
+   mWaitingForMoveToRectCB = false;
+   mPendingSizeRect = LayoutDeviceIntRect(0, 0, 0, 0);
+@@ -8018,6 +8021,13 @@ nsresult nsWindow::SynthesizeNativeMouseEvent(
+       // all other cases we'll synthesize a motion event that will be emitted by
+       // gdk_display_warp_pointer().
+       // XXX How to activate native modifier for the other events?
++#ifdef MOZ_WAYLAND
++      // Impossible to warp the pointer on Wayland.
++      // For pointer lock, pointer-constraints and relative-pointer are used.
++      if (GdkIsWaylandDisplay()) {
++        return NS_OK;
++      }
++#endif
+       GdkScreen* screen = gdk_window_get_screen(mGdkWindow);
+       GdkPoint point = DevicePixelsToGdkPointRoundDown(aPoint);
+       gdk_display_warp_pointer(display, screen, point.x, point.y);
+@@ -8441,6 +8451,106 @@ already_AddRefed<nsIWidget> nsIWidget::CreateChildWindow() {
+ }
+ 
+ #ifdef MOZ_WAYLAND
++static void relative_pointer_handle_relative_motion(
++    void* data, struct zwp_relative_pointer_v1* pointer, uint32_t time_hi,
++    uint32_t time_lo, wl_fixed_t dx_w, wl_fixed_t dy_w, wl_fixed_t dx_unaccel_w,
++    wl_fixed_t dy_unaccel_w) {
++  RefPtr<nsWindow> window(reinterpret_cast<nsWindow*>(data));
++
++  WidgetMouseEvent event(true, eMouseMove, window, WidgetMouseEvent::eReal);
++
++  event.mRefPoint = window->GetNativePointerLockCenter();
++  event.mRefPoint.x += wl_fixed_to_double(dx_unaccel_w);
++  event.mRefPoint.y += wl_fixed_to_double(dy_unaccel_w);
++
++  event.AssignEventTime(window->GetWidgetEventTime(time_lo));
++  window->DispatchInputEvent(&event);
++}
++
++static const struct zwp_relative_pointer_v1_listener relative_pointer_listener =
++    {
++        relative_pointer_handle_relative_motion,
++};
++
++void nsWindow::SetNativePointerLockCenter(
++    const LayoutDeviceIntPoint& aLockCenter) {
++  mNativePointerLockCenter = aLockCenter;
++}
++
++void nsWindow::LockNativePointer() {
++  if (!GdkIsWaylandDisplay()) {
++    return;
++  }
++
++  auto waylandDisplay = WaylandDisplayGet();
++
++  auto* pointerConstraints = waylandDisplay->GetPointerConstraints();
++  if (!pointerConstraints) {
++    return;
++  }
++
++  auto* relativePointerMgr = waylandDisplay->GetRelativePointerManager();
++  if (!relativePointerMgr) {
++    return;
++  }
++
++  GdkDisplay* display = gdk_display_get_default();
++
++  GdkDeviceManager* manager = gdk_display_get_device_manager(display);
++  MOZ_ASSERT(manager);
++
++  GdkDevice* device = gdk_device_manager_get_client_pointer(manager);
++  if (!device) {
++    NS_WARNING("Could not find Wayland pointer to lock");
++    return;
++  }
++  wl_pointer* pointer = gdk_wayland_device_get_wl_pointer(device);
++  MOZ_ASSERT(pointer);
++
++  wl_surface* surface =
++      gdk_wayland_window_get_wl_surface(gtk_widget_get_window(GetGtkWidget()));
++  if (!surface) {
++    /* Can be null when the window is hidden.
++     * Though it's unlikely that a lock request comes in that case, be
++     * defensive. */
++    return;
++  }
++
++  mLockedPointer = zwp_pointer_constraints_v1_lock_pointer(
++      pointerConstraints, surface, pointer, nullptr,
++      ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT);
++  if (!mLockedPointer) {
++    NS_WARNING("Could not lock Wayland pointer");
++    return;
++  }
++
++  mRelativePointer = zwp_relative_pointer_manager_v1_get_relative_pointer(
++      relativePointerMgr, pointer);
++  if (!mRelativePointer) {
++    NS_WARNING("Could not create relative Wayland pointer");
++    zwp_locked_pointer_v1_destroy(mLockedPointer);
++    mLockedPointer = nullptr;
++    return;
++  }
++
++  zwp_relative_pointer_v1_add_listener(mRelativePointer,
++                                       &relative_pointer_listener, this);
++}
++
++void nsWindow::UnlockNativePointer() {
++  if (!GdkIsWaylandDisplay()) {
++    return;
++  }
++  if (mRelativePointer) {
++    zwp_relative_pointer_v1_destroy(mRelativePointer);
++    mRelativePointer = nullptr;
++  }
++  if (mLockedPointer) {
++    zwp_locked_pointer_v1_destroy(mLockedPointer);
++    mLockedPointer = nullptr;
++  }
++}
++
+ nsresult nsWindow::GetScreenRect(LayoutDeviceIntRect* aRect) {
+   typedef struct _GdkMonitor GdkMonitor;
+   static auto s_gdk_display_get_monitor_at_window =
+diff --git a/widget/gtk/nsWindow.h b/widget/gtk/nsWindow.h
+index e2721d0e5b..aa340f4ee0 100644
+--- a/widget/gtk/nsWindow.h
++++ b/widget/gtk/nsWindow.h
+@@ -423,6 +423,13 @@ class nsWindow final : public nsBaseWidget {
+   static bool GetTopLevelWindowActiveState(nsIFrame* aFrame);
+   static bool TitlebarUseShapeMask();
+ #ifdef MOZ_WAYLAND
++  LayoutDeviceIntPoint GetNativePointerLockCenter() {
++    return mNativePointerLockCenter;
++  }
++  virtual void SetNativePointerLockCenter(
++      const LayoutDeviceIntPoint& aLockCenter) override;
++  virtual void LockNativePointer() override;
++  virtual void UnlockNativePointer() override;
+   virtual nsresult GetScreenRect(LayoutDeviceIntRect* aRect) override;
+   virtual nsRect GetPreferredPopupRect() override {
+     return mPreferredPopupRect;
+@@ -480,6 +487,7 @@ class nsWindow final : public nsBaseWidget {
+ #ifdef MOZ_WAYLAND
+   bool mNeedsCompositorResume;
+   bool mCompositorInitiallyPaused;
++  LayoutDeviceIntPoint mNativePointerLockCenter;
+ #endif
+   bool mWindowScaleFactorChanged;
+   int mWindowScaleFactor;
+@@ -561,6 +569,8 @@ class nsWindow final : public nsBaseWidget {
+ #endif
+ #ifdef MOZ_WAYLAND
+   RefPtr<mozilla::gfx::VsyncSource> mWaylandVsyncSource;
++  zwp_locked_pointer_v1* mLockedPointer;
++  zwp_relative_pointer_v1* mRelativePointer;
+ #endif
+ 
+   // Upper bound on pending ConfigureNotify events to be dispatched to the
+diff --git a/widget/gtk/wayland/moz.build b/widget/gtk/wayland/moz.build
+index 21a5bee855..c3959760da 100644
+--- a/widget/gtk/wayland/moz.build
++++ b/widget/gtk/wayland/moz.build
+@@ -11,7 +11,9 @@ SOURCES += [
+     "gtk-primary-selection-protocol.c",
+     "idle-inhibit-unstable-v1-protocol.c",
+     "linux-dmabuf-unstable-v1-protocol.c",
++    "pointer-constraints-unstable-v1-protocol.c",
+     "primary-selection-unstable-v1-protocol.c",
++    "relative-pointer-unstable-v1-protocol.c",
+     "viewporter-protocol.c",
+     "xdg-output-unstable-v1-protocol.c",
+ ]
+@@ -21,7 +23,9 @@ EXPORTS.mozilla.widget += [
+     "gtk-primary-selection-client-protocol.h",
+     "idle-inhibit-unstable-v1-client-protocol.h",
+     "linux-dmabuf-unstable-v1-client-protocol.h",
++    "pointer-constraints-unstable-v1-client-protocol.h",
+     "primary-selection-unstable-v1-client-protocol.h",
++    "relative-pointer-unstable-v1-client-protocol.h",
+     "va_drmcommon.h",
+     "viewporter-client-protocol.h",
+     "xdg-output-unstable-v1-client-protocol.h",
+diff --git a/widget/gtk/wayland/pointer-constraints-unstable-v1-client-protocol.h b/widget/gtk/wayland/pointer-constraints-unstable-v1-client-protocol.h
+new file mode 100644
+index 0000000000..0f38dee226
+--- /dev/null
++++ b/widget/gtk/wayland/pointer-constraints-unstable-v1-client-protocol.h
+@@ -0,0 +1,650 @@
++/* Generated by wayland-scanner 1.18.0 */
++
++#ifndef POINTER_CONSTRAINTS_UNSTABLE_V1_CLIENT_PROTOCOL_H
++#define POINTER_CONSTRAINTS_UNSTABLE_V1_CLIENT_PROTOCOL_H
++
++#include <stdint.h>
++#include <stddef.h>
++#include "wayland-client.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/**
++ * @page page_pointer_constraints_unstable_v1 The
++ * pointer_constraints_unstable_v1 protocol protocol for constraining pointer
++ * motions
++ *
++ * @section page_desc_pointer_constraints_unstable_v1 Description
++ *
++ * This protocol specifies a set of interfaces used for adding constraints to
++ * the motion of a pointer. Possible constraints include confining pointer
++ * motions to a given region, or locking it to its current position.
++ *
++ * In order to constrain the pointer, a client must first bind the global
++ * interface "wp_pointer_constraints" which, if a compositor supports pointer
++ * constraints, is exposed by the registry. Using the bound global object, the
++ * client uses the request that corresponds to the type of constraint it wants
++ * to make. See wp_pointer_constraints for more details.
++ *
++ * Warning! The protocol described in this file is experimental and backward
++ * incompatible changes may be made. Backward compatible changes may be added
++ * together with the corresponding interface version bump. Backward
++ * incompatible changes are done by bumping the version number in the protocol
++ * and interface names and resetting the interface version. Once the protocol
++ * is to be declared stable, the 'z' prefix and the version number in the
++ * protocol and interface names are removed and the interface version number is
++ * reset.
++ *
++ * @section page_ifaces_pointer_constraints_unstable_v1 Interfaces
++ * - @subpage page_iface_zwp_pointer_constraints_v1 - constrain the movement of
++ * a pointer
++ * - @subpage page_iface_zwp_locked_pointer_v1 - receive relative pointer motion
++ * events
++ * - @subpage page_iface_zwp_confined_pointer_v1 - confined pointer object
++ * @section page_copyright_pointer_constraints_unstable_v1 Copyright
++ * <pre>
++ *
++ * Copyright © 2014      Jonas Ådahl
++ * Copyright © 2015      Red Hat Inc.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice (including the next
++ * paragraph) shall be included in all copies or substantial portions of the
++ * Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ * </pre>
++ */
++struct wl_pointer;
++struct wl_region;
++struct wl_surface;
++struct zwp_confined_pointer_v1;
++struct zwp_locked_pointer_v1;
++struct zwp_pointer_constraints_v1;
++
++/**
++ * @page page_iface_zwp_pointer_constraints_v1 zwp_pointer_constraints_v1
++ * @section page_iface_zwp_pointer_constraints_v1_desc Description
++ *
++ * The global interface exposing pointer constraining functionality. It
++ * exposes two requests: lock_pointer for locking the pointer to its
++ * position, and confine_pointer for locking the pointer to a region.
++ *
++ * The lock_pointer and confine_pointer requests create the objects
++ * wp_locked_pointer and wp_confined_pointer respectively, and the client can
++ * use these objects to interact with the lock.
++ *
++ * For any surface, only one lock or confinement may be active across all
++ * wl_pointer objects of the same seat. If a lock or confinement is requested
++ * when another lock or confinement is active or requested on the same surface
++ * and with any of the wl_pointer objects of the same seat, an
++ * 'already_constrained' error will be raised.
++ * @section page_iface_zwp_pointer_constraints_v1_api API
++ * See @ref iface_zwp_pointer_constraints_v1.
++ */
++/**
++ * @defgroup iface_zwp_pointer_constraints_v1 The zwp_pointer_constraints_v1
++ * interface
++ *
++ * The global interface exposing pointer constraining functionality. It
++ * exposes two requests: lock_pointer for locking the pointer to its
++ * position, and confine_pointer for locking the pointer to a region.
++ *
++ * The lock_pointer and confine_pointer requests create the objects
++ * wp_locked_pointer and wp_confined_pointer respectively, and the client can
++ * use these objects to interact with the lock.
++ *
++ * For any surface, only one lock or confinement may be active across all
++ * wl_pointer objects of the same seat. If a lock or confinement is requested
++ * when another lock or confinement is active or requested on the same surface
++ * and with any of the wl_pointer objects of the same seat, an
++ * 'already_constrained' error will be raised.
++ */
++extern const struct wl_interface zwp_pointer_constraints_v1_interface;
++/**
++ * @page page_iface_zwp_locked_pointer_v1 zwp_locked_pointer_v1
++ * @section page_iface_zwp_locked_pointer_v1_desc Description
++ *
++ * The wp_locked_pointer interface represents a locked pointer state.
++ *
++ * While the lock of this object is active, the wl_pointer objects of the
++ * associated seat will not emit any wl_pointer.motion events.
++ *
++ * This object will send the event 'locked' when the lock is activated.
++ * Whenever the lock is activated, it is guaranteed that the locked surface
++ * will already have received pointer focus and that the pointer will be
++ * within the region passed to the request creating this object.
++ *
++ * To unlock the pointer, send the destroy request. This will also destroy
++ * the wp_locked_pointer object.
++ *
++ * If the compositor decides to unlock the pointer the unlocked event is
++ * sent. See wp_locked_pointer.unlock for details.
++ *
++ * When unlocking, the compositor may warp the cursor position to the set
++ * cursor position hint. If it does, it will not result in any relative
++ * motion events emitted via wp_relative_pointer.
++ *
++ * If the surface the lock was requested on is destroyed and the lock is not
++ * yet activated, the wp_locked_pointer object is now defunct and must be
++ * destroyed.
++ * @section page_iface_zwp_locked_pointer_v1_api API
++ * See @ref iface_zwp_locked_pointer_v1.
++ */
++/**
++ * @defgroup iface_zwp_locked_pointer_v1 The zwp_locked_pointer_v1 interface
++ *
++ * The wp_locked_pointer interface represents a locked pointer state.
++ *
++ * While the lock of this object is active, the wl_pointer objects of the
++ * associated seat will not emit any wl_pointer.motion events.
++ *
++ * This object will send the event 'locked' when the lock is activated.
++ * Whenever the lock is activated, it is guaranteed that the locked surface
++ * will already have received pointer focus and that the pointer will be
++ * within the region passed to the request creating this object.
++ *
++ * To unlock the pointer, send the destroy request. This will also destroy
++ * the wp_locked_pointer object.
++ *
++ * If the compositor decides to unlock the pointer the unlocked event is
++ * sent. See wp_locked_pointer.unlock for details.
++ *
++ * When unlocking, the compositor may warp the cursor position to the set
++ * cursor position hint. If it does, it will not result in any relative
++ * motion events emitted via wp_relative_pointer.
++ *
++ * If the surface the lock was requested on is destroyed and the lock is not
++ * yet activated, the wp_locked_pointer object is now defunct and must be
++ * destroyed.
++ */
++extern const struct wl_interface zwp_locked_pointer_v1_interface;
++/**
++ * @page page_iface_zwp_confined_pointer_v1 zwp_confined_pointer_v1
++ * @section page_iface_zwp_confined_pointer_v1_desc Description
++ *
++ * The wp_confined_pointer interface represents a confined pointer state.
++ *
++ * This object will send the event 'confined' when the confinement is
++ * activated. Whenever the confinement is activated, it is guaranteed that
++ * the surface the pointer is confined to will already have received pointer
++ * focus and that the pointer will be within the region passed to the request
++ * creating this object. It is up to the compositor to decide whether this
++ * requires some user interaction and if the pointer will warp to within the
++ * passed region if outside.
++ *
++ * To unconfine the pointer, send the destroy request. This will also destroy
++ * the wp_confined_pointer object.
++ *
++ * If the compositor decides to unconfine the pointer the unconfined event is
++ * sent. The wp_confined_pointer object is at this point defunct and should
++ * be destroyed.
++ * @section page_iface_zwp_confined_pointer_v1_api API
++ * See @ref iface_zwp_confined_pointer_v1.
++ */
++/**
++ * @defgroup iface_zwp_confined_pointer_v1 The zwp_confined_pointer_v1 interface
++ *
++ * The wp_confined_pointer interface represents a confined pointer state.
++ *
++ * This object will send the event 'confined' when the confinement is
++ * activated. Whenever the confinement is activated, it is guaranteed that
++ * the surface the pointer is confined to will already have received pointer
++ * focus and that the pointer will be within the region passed to the request
++ * creating this object. It is up to the compositor to decide whether this
++ * requires some user interaction and if the pointer will warp to within the
++ * passed region if outside.
++ *
++ * To unconfine the pointer, send the destroy request. This will also destroy
++ * the wp_confined_pointer object.
++ *
++ * If the compositor decides to unconfine the pointer the unconfined event is
++ * sent. The wp_confined_pointer object is at this point defunct and should
++ * be destroyed.
++ */
++extern const struct wl_interface zwp_confined_pointer_v1_interface;
++
++#ifndef ZWP_POINTER_CONSTRAINTS_V1_ERROR_ENUM
++#  define ZWP_POINTER_CONSTRAINTS_V1_ERROR_ENUM
++/**
++ * @ingroup iface_zwp_pointer_constraints_v1
++ * wp_pointer_constraints error values
++ *
++ * These errors can be emitted in response to wp_pointer_constraints
++ * requests.
++ */
++enum zwp_pointer_constraints_v1_error {
++  /**
++   * pointer constraint already requested on that surface
++   */
++  ZWP_POINTER_CONSTRAINTS_V1_ERROR_ALREADY_CONSTRAINED = 1,
++};
++#endif /* ZWP_POINTER_CONSTRAINTS_V1_ERROR_ENUM */
++
++#ifndef ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ENUM
++#  define ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ENUM
++/**
++ * @ingroup iface_zwp_pointer_constraints_v1
++ * the pointer constraint may reactivate
++ *
++ * A persistent pointer constraint may again reactivate once it has
++ * been deactivated. See the corresponding deactivation event
++ * (wp_locked_pointer.unlocked and wp_confined_pointer.unconfined) for
++ * details.
++ */
++enum zwp_pointer_constraints_v1_lifetime {
++  ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT = 1,
++  ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT = 2,
++};
++#endif /* ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ENUM */
++
++#define ZWP_POINTER_CONSTRAINTS_V1_DESTROY 0
++#define ZWP_POINTER_CONSTRAINTS_V1_LOCK_POINTER 1
++#define ZWP_POINTER_CONSTRAINTS_V1_CONFINE_POINTER 2
++
++/**
++ * @ingroup iface_zwp_pointer_constraints_v1
++ */
++#define ZWP_POINTER_CONSTRAINTS_V1_DESTROY_SINCE_VERSION 1
++/**
++ * @ingroup iface_zwp_pointer_constraints_v1
++ */
++#define ZWP_POINTER_CONSTRAINTS_V1_LOCK_POINTER_SINCE_VERSION 1
++/**
++ * @ingroup iface_zwp_pointer_constraints_v1
++ */
++#define ZWP_POINTER_CONSTRAINTS_V1_CONFINE_POINTER_SINCE_VERSION 1
++
++/** @ingroup iface_zwp_pointer_constraints_v1 */
++static inline void zwp_pointer_constraints_v1_set_user_data(
++    struct zwp_pointer_constraints_v1* zwp_pointer_constraints_v1,
++    void* user_data) {
++  wl_proxy_set_user_data((struct wl_proxy*)zwp_pointer_constraints_v1,
++                         user_data);
++}
++
++/** @ingroup iface_zwp_pointer_constraints_v1 */
++static inline void* zwp_pointer_constraints_v1_get_user_data(
++    struct zwp_pointer_constraints_v1* zwp_pointer_constraints_v1) {
++  return wl_proxy_get_user_data((struct wl_proxy*)zwp_pointer_constraints_v1);
++}
++
++static inline uint32_t zwp_pointer_constraints_v1_get_version(
++    struct zwp_pointer_constraints_v1* zwp_pointer_constraints_v1) {
++  return wl_proxy_get_version((struct wl_proxy*)zwp_pointer_constraints_v1);
++}
++
++/**
++ * @ingroup iface_zwp_pointer_constraints_v1
++ *
++ * Used by the client to notify the server that it will no longer use this
++ * pointer constraints object.
++ */
++static inline void zwp_pointer_constraints_v1_destroy(
++    struct zwp_pointer_constraints_v1* zwp_pointer_constraints_v1) {
++  wl_proxy_marshal((struct wl_proxy*)zwp_pointer_constraints_v1,
++                   ZWP_POINTER_CONSTRAINTS_V1_DESTROY);
++
++  wl_proxy_destroy((struct wl_proxy*)zwp_pointer_constraints_v1);
++}
++
++/**
++ * @ingroup iface_zwp_pointer_constraints_v1
++ *
++ * The lock_pointer request lets the client request to disable movements of
++ * the virtual pointer (i.e. the cursor), effectively locking the pointer
++ * to a position. This request may not take effect immediately; in the
++ * future, when the compositor deems implementation-specific constraints
++ * are satisfied, the pointer lock will be activated and the compositor
++ * sends a locked event.
++ *
++ * The protocol provides no guarantee that the constraints are ever
++ * satisfied, and does not require the compositor to send an error if the
++ * constraints cannot ever be satisfied. It is thus possible to request a
++ * lock that will never activate.
++ *
++ * There may not be another pointer constraint of any kind requested or
++ * active on the surface for any of the wl_pointer objects of the seat of
++ * the passed pointer when requesting a lock. If there is, an error will be
++ * raised. See general pointer lock documentation for more details.
++ *
++ * The intersection of the region passed with this request and the input
++ * region of the surface is used to determine where the pointer must be
++ * in order for the lock to activate. It is up to the compositor whether to
++ * warp the pointer or require some kind of user interaction for the lock
++ * to activate. If the region is null the surface input region is used.
++ *
++ * A surface may receive pointer focus without the lock being activated.
++ *
++ * The request creates a new object wp_locked_pointer which is used to
++ * interact with the lock as well as receive updates about its state. See
++ * the the description of wp_locked_pointer for further information.
++ *
++ * Note that while a pointer is locked, the wl_pointer objects of the
++ * corresponding seat will not emit any wl_pointer.motion events, but
++ * relative motion events will still be emitted via wp_relative_pointer
++ * objects of the same seat. wl_pointer.axis and wl_pointer.button events
++ * are unaffected.
++ */
++static inline struct zwp_locked_pointer_v1*
++zwp_pointer_constraints_v1_lock_pointer(
++    struct zwp_pointer_constraints_v1* zwp_pointer_constraints_v1,
++    struct wl_surface* surface, struct wl_pointer* pointer,
++    struct wl_region* region, uint32_t lifetime) {
++  struct wl_proxy* id;
++
++  id = wl_proxy_marshal_constructor(
++      (struct wl_proxy*)zwp_pointer_constraints_v1,
++      ZWP_POINTER_CONSTRAINTS_V1_LOCK_POINTER, &zwp_locked_pointer_v1_interface,
++      NULL, surface, pointer, region, lifetime);
++
++  return (struct zwp_locked_pointer_v1*)id;
++}
++
++/**
++ * @ingroup iface_zwp_pointer_constraints_v1
++ *
++ * The confine_pointer request lets the client request to confine the
++ * pointer cursor to a given region. This request may not take effect
++ * immediately; in the future, when the compositor deems implementation-
++ * specific constraints are satisfied, the pointer confinement will be
++ * activated and the compositor sends a confined event.
++ *
++ * The intersection of the region passed with this request and the input
++ * region of the surface is used to determine where the pointer must be
++ * in order for the confinement to activate. It is up to the compositor
++ * whether to warp the pointer or require some kind of user interaction for
++ * the confinement to activate. If the region is null the surface input
++ * region is used.
++ *
++ * The request will create a new object wp_confined_pointer which is used
++ * to interact with the confinement as well as receive updates about its
++ * state. See the the description of wp_confined_pointer for further
++ * information.
++ */
++static inline struct zwp_confined_pointer_v1*
++zwp_pointer_constraints_v1_confine_pointer(
++    struct zwp_pointer_constraints_v1* zwp_pointer_constraints_v1,
++    struct wl_surface* surface, struct wl_pointer* pointer,
++    struct wl_region* region, uint32_t lifetime) {
++  struct wl_proxy* id;
++
++  id =
++      wl_proxy_marshal_constructor((struct wl_proxy*)zwp_pointer_constraints_v1,
++                                   ZWP_POINTER_CONSTRAINTS_V1_CONFINE_POINTER,
++                                   &zwp_confined_pointer_v1_interface, NULL,
++                                   surface, pointer, region, lifetime);
++
++  return (struct zwp_confined_pointer_v1*)id;
++}
++
++/**
++ * @ingroup iface_zwp_locked_pointer_v1
++ * @struct zwp_locked_pointer_v1_listener
++ */
++struct zwp_locked_pointer_v1_listener {
++  /**
++   * lock activation event
++   *
++   * Notification that the pointer lock of the seat's pointer is
++   * activated.
++   */
++  void (*locked)(void* data,
++                 struct zwp_locked_pointer_v1* zwp_locked_pointer_v1);
++  /**
++   * lock deactivation event
++   *
++   * Notification that the pointer lock of the seat's pointer is no
++   * longer active. If this is a oneshot pointer lock (see
++   * wp_pointer_constraints.lifetime) this object is now defunct and
++   * should be destroyed. If this is a persistent pointer lock (see
++   * wp_pointer_constraints.lifetime) this pointer lock may again
++   * reactivate in the future.
++   */
++  void (*unlocked)(void* data,
++                   struct zwp_locked_pointer_v1* zwp_locked_pointer_v1);
++};
++
++/**
++ * @ingroup iface_zwp_locked_pointer_v1
++ */
++static inline int zwp_locked_pointer_v1_add_listener(
++    struct zwp_locked_pointer_v1* zwp_locked_pointer_v1,
++    const struct zwp_locked_pointer_v1_listener* listener, void* data) {
++  return wl_proxy_add_listener((struct wl_proxy*)zwp_locked_pointer_v1,
++                               (void (**)(void))listener, data);
++}
++
++#define ZWP_LOCKED_POINTER_V1_DESTROY 0
++#define ZWP_LOCKED_POINTER_V1_SET_CURSOR_POSITION_HINT 1
++#define ZWP_LOCKED_POINTER_V1_SET_REGION 2
++
++/**
++ * @ingroup iface_zwp_locked_pointer_v1
++ */
++#define ZWP_LOCKED_POINTER_V1_LOCKED_SINCE_VERSION 1
++/**
++ * @ingroup iface_zwp_locked_pointer_v1
++ */
++#define ZWP_LOCKED_POINTER_V1_UNLOCKED_SINCE_VERSION 1
++
++/**
++ * @ingroup iface_zwp_locked_pointer_v1
++ */
++#define ZWP_LOCKED_POINTER_V1_DESTROY_SINCE_VERSION 1
++/**
++ * @ingroup iface_zwp_locked_pointer_v1
++ */
++#define ZWP_LOCKED_POINTER_V1_SET_CURSOR_POSITION_HINT_SINCE_VERSION 1
++/**
++ * @ingroup iface_zwp_locked_pointer_v1
++ */
++#define ZWP_LOCKED_POINTER_V1_SET_REGION_SINCE_VERSION 1
++
++/** @ingroup iface_zwp_locked_pointer_v1 */
++static inline void zwp_locked_pointer_v1_set_user_data(
++    struct zwp_locked_pointer_v1* zwp_locked_pointer_v1, void* user_data) {
++  wl_proxy_set_user_data((struct wl_proxy*)zwp_locked_pointer_v1, user_data);
++}
++
++/** @ingroup iface_zwp_locked_pointer_v1 */
++static inline void* zwp_locked_pointer_v1_get_user_data(
++    struct zwp_locked_pointer_v1* zwp_locked_pointer_v1) {
++  return wl_proxy_get_user_data((struct wl_proxy*)zwp_locked_pointer_v1);
++}
++
++static inline uint32_t zwp_locked_pointer_v1_get_version(
++    struct zwp_locked_pointer_v1* zwp_locked_pointer_v1) {
++  return wl_proxy_get_version((struct wl_proxy*)zwp_locked_pointer_v1);
++}
++
++/**
++ * @ingroup iface_zwp_locked_pointer_v1
++ *
++ * Destroy the locked pointer object. If applicable, the compositor will
++ * unlock the pointer.
++ */
++static inline void zwp_locked_pointer_v1_destroy(
++    struct zwp_locked_pointer_v1* zwp_locked_pointer_v1) {
++  wl_proxy_marshal((struct wl_proxy*)zwp_locked_pointer_v1,
++                   ZWP_LOCKED_POINTER_V1_DESTROY);
++
++  wl_proxy_destroy((struct wl_proxy*)zwp_locked_pointer_v1);
++}
++
++/**
++ * @ingroup iface_zwp_locked_pointer_v1
++ *
++ * Set the cursor position hint relative to the top left corner of the
++ * surface.
++ *
++ * If the client is drawing its own cursor, it should update the position
++ * hint to the position of its own cursor. A compositor may use this
++ * information to warp the pointer upon unlock in order to avoid pointer
++ * jumps.
++ *
++ * The cursor position hint is double buffered. The new hint will only take
++ * effect when the associated surface gets it pending state applied. See
++ * wl_surface.commit for details.
++ */
++static inline void zwp_locked_pointer_v1_set_cursor_position_hint(
++    struct zwp_locked_pointer_v1* zwp_locked_pointer_v1, wl_fixed_t surface_x,
++    wl_fixed_t surface_y) {
++  wl_proxy_marshal((struct wl_proxy*)zwp_locked_pointer_v1,
++                   ZWP_LOCKED_POINTER_V1_SET_CURSOR_POSITION_HINT, surface_x,
++                   surface_y);
++}
++
++/**
++ * @ingroup iface_zwp_locked_pointer_v1
++ *
++ * Set a new region used to lock the pointer.
++ *
++ * The new lock region is double-buffered. The new lock region will
++ * only take effect when the associated surface gets its pending state
++ * applied. See wl_surface.commit for details.
++ *
++ * For details about the lock region, see wp_locked_pointer.
++ */
++static inline void zwp_locked_pointer_v1_set_region(
++    struct zwp_locked_pointer_v1* zwp_locked_pointer_v1,
++    struct wl_region* region) {
++  wl_proxy_marshal((struct wl_proxy*)zwp_locked_pointer_v1,
++                   ZWP_LOCKED_POINTER_V1_SET_REGION, region);
++}
++
++/**
++ * @ingroup iface_zwp_confined_pointer_v1
++ * @struct zwp_confined_pointer_v1_listener
++ */
++struct zwp_confined_pointer_v1_listener {
++  /**
++   * pointer confined
++   *
++   * Notification that the pointer confinement of the seat's
++   * pointer is activated.
++   */
++  void (*confined)(void* data,
++                   struct zwp_confined_pointer_v1* zwp_confined_pointer_v1);
++  /**
++   * pointer unconfined
++   *
++   * Notification that the pointer confinement of the seat's
++   * pointer is no longer active. If this is a oneshot pointer
++   * confinement (see wp_pointer_constraints.lifetime) this object is
++   * now defunct and should be destroyed. If this is a persistent
++   * pointer confinement (see wp_pointer_constraints.lifetime) this
++   * pointer confinement may again reactivate in the future.
++   */
++  void (*unconfined)(void* data,
++                     struct zwp_confined_pointer_v1* zwp_confined_pointer_v1);
++};
++
++/**
++ * @ingroup iface_zwp_confined_pointer_v1
++ */
++static inline int zwp_confined_pointer_v1_add_listener(
++    struct zwp_confined_pointer_v1* zwp_confined_pointer_v1,
++    const struct zwp_confined_pointer_v1_listener* listener, void* data) {
++  return wl_proxy_add_listener((struct wl_proxy*)zwp_confined_pointer_v1,
++                               (void (**)(void))listener, data);
++}
++
++#define ZWP_CONFINED_POINTER_V1_DESTROY 0
++#define ZWP_CONFINED_POINTER_V1_SET_REGION 1
++
++/**
++ * @ingroup iface_zwp_confined_pointer_v1
++ */
++#define ZWP_CONFINED_POINTER_V1_CONFINED_SINCE_VERSION 1
++/**
++ * @ingroup iface_zwp_confined_pointer_v1
++ */
++#define ZWP_CONFINED_POINTER_V1_UNCONFINED_SINCE_VERSION 1
++
++/**
++ * @ingroup iface_zwp_confined_pointer_v1
++ */
++#define ZWP_CONFINED_POINTER_V1_DESTROY_SINCE_VERSION 1
++/**
++ * @ingroup iface_zwp_confined_pointer_v1
++ */
++#define ZWP_CONFINED_POINTER_V1_SET_REGION_SINCE_VERSION 1
++
++/** @ingroup iface_zwp_confined_pointer_v1 */
++static inline void zwp_confined_pointer_v1_set_user_data(
++    struct zwp_confined_pointer_v1* zwp_confined_pointer_v1, void* user_data) {
++  wl_proxy_set_user_data((struct wl_proxy*)zwp_confined_pointer_v1, user_data);
++}
++
++/** @ingroup iface_zwp_confined_pointer_v1 */
++static inline void* zwp_confined_pointer_v1_get_user_data(
++    struct zwp_confined_pointer_v1* zwp_confined_pointer_v1) {
++  return wl_proxy_get_user_data((struct wl_proxy*)zwp_confined_pointer_v1);
++}
++
++static inline uint32_t zwp_confined_pointer_v1_get_version(
++    struct zwp_confined_pointer_v1* zwp_confined_pointer_v1) {
++  return wl_proxy_get_version((struct wl_proxy*)zwp_confined_pointer_v1);
++}
++
++/**
++ * @ingroup iface_zwp_confined_pointer_v1
++ *
++ * Destroy the confined pointer object. If applicable, the compositor will
++ * unconfine the pointer.
++ */
++static inline void zwp_confined_pointer_v1_destroy(
++    struct zwp_confined_pointer_v1* zwp_confined_pointer_v1) {
++  wl_proxy_marshal((struct wl_proxy*)zwp_confined_pointer_v1,
++                   ZWP_CONFINED_POINTER_V1_DESTROY);
++
++  wl_proxy_destroy((struct wl_proxy*)zwp_confined_pointer_v1);
++}
++
++/**
++ * @ingroup iface_zwp_confined_pointer_v1
++ *
++ * Set a new region used to confine the pointer.
++ *
++ * The new confine region is double-buffered. The new confine region will
++ * only take effect when the associated surface gets its pending state
++ * applied. See wl_surface.commit for details.
++ *
++ * If the confinement is active when the new confinement region is applied
++ * and the pointer ends up outside of newly applied region, the pointer may
++ * warped to a position within the new confinement region. If warped, a
++ * wl_pointer.motion event will be emitted, but no
++ * wp_relative_pointer.relative_motion event.
++ *
++ * The compositor may also, instead of using the new region, unconfine the
++ * pointer.
++ *
++ * For details about the confine region, see wp_confined_pointer.
++ */
++static inline void zwp_confined_pointer_v1_set_region(
++    struct zwp_confined_pointer_v1* zwp_confined_pointer_v1,
++    struct wl_region* region) {
++  wl_proxy_marshal((struct wl_proxy*)zwp_confined_pointer_v1,
++                   ZWP_CONFINED_POINTER_V1_SET_REGION, region);
++}
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/widget/gtk/wayland/pointer-constraints-unstable-v1-protocol.c b/widget/gtk/wayland/pointer-constraints-unstable-v1-protocol.c
+new file mode 100644
+index 0000000000..c28ddf6918
+--- /dev/null
++++ b/widget/gtk/wayland/pointer-constraints-unstable-v1-protocol.c
+@@ -0,0 +1,97 @@
++/* Generated by wayland-scanner 1.18.0 */
++
++/*
++ * Copyright © 2014      Jonas Ådahl
++ * Copyright © 2015      Red Hat Inc.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice (including the next
++ * paragraph) shall be included in all copies or substantial portions of the
++ * Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++#include <stdlib.h>
++#include <stdint.h>
++#include "wayland-util.h"
++
++#pragma GCC visibility push(default)
++extern const struct wl_interface wl_pointer_interface;
++extern const struct wl_interface wl_region_interface;
++extern const struct wl_interface wl_surface_interface;
++extern const struct wl_interface zwp_confined_pointer_v1_interface;
++extern const struct wl_interface zwp_locked_pointer_v1_interface;
++#pragma GCC visibility pop
++
++static const struct wl_interface* pointer_constraints_unstable_v1_types[] = {
++    NULL,
++    NULL,
++    &zwp_locked_pointer_v1_interface,
++    &wl_surface_interface,
++    &wl_pointer_interface,
++    &wl_region_interface,
++    NULL,
++    &zwp_confined_pointer_v1_interface,
++    &wl_surface_interface,
++    &wl_pointer_interface,
++    &wl_region_interface,
++    NULL,
++    &wl_region_interface,
++    &wl_region_interface,
++};
++
++static const struct wl_message zwp_pointer_constraints_v1_requests[] = {
++    {"destroy", "", pointer_constraints_unstable_v1_types + 0},
++    {"lock_pointer", "noo?ou", pointer_constraints_unstable_v1_types + 2},
++    {"confine_pointer", "noo?ou", pointer_constraints_unstable_v1_types + 7},
++};
++
++WL_EXPORT const struct wl_interface zwp_pointer_constraints_v1_interface = {
++    "zwp_pointer_constraints_v1",        1, 3,
++    zwp_pointer_constraints_v1_requests, 0, NULL,
++};
++
++static const struct wl_message zwp_locked_pointer_v1_requests[] = {
++    {"destroy", "", pointer_constraints_unstable_v1_types + 0},
++    {"set_cursor_position_hint", "ff",
++     pointer_constraints_unstable_v1_types + 0},
++    {"set_region", "?o", pointer_constraints_unstable_v1_types + 12},
++};
++
++static const struct wl_message zwp_locked_pointer_v1_events[] = {
++    {"locked", "", pointer_constraints_unstable_v1_types + 0},
++    {"unlocked", "", pointer_constraints_unstable_v1_types + 0},
++};
++
++WL_EXPORT const struct wl_interface zwp_locked_pointer_v1_interface = {
++    "zwp_locked_pointer_v1",        1, 3,
++    zwp_locked_pointer_v1_requests, 2, zwp_locked_pointer_v1_events,
++};
++
++static const struct wl_message zwp_confined_pointer_v1_requests[] = {
++    {"destroy", "", pointer_constraints_unstable_v1_types + 0},
++    {"set_region", "?o", pointer_constraints_unstable_v1_types + 13},
++};
++
++static const struct wl_message zwp_confined_pointer_v1_events[] = {
++    {"confined", "", pointer_constraints_unstable_v1_types + 0},
++    {"unconfined", "", pointer_constraints_unstable_v1_types + 0},
++};
++
++WL_EXPORT const struct wl_interface zwp_confined_pointer_v1_interface = {
++    "zwp_confined_pointer_v1",        1, 2,
++    zwp_confined_pointer_v1_requests, 2, zwp_confined_pointer_v1_events,
++};
+diff --git a/widget/gtk/wayland/relative-pointer-unstable-v1-client-protocol.h b/widget/gtk/wayland/relative-pointer-unstable-v1-client-protocol.h
+new file mode 100644
+index 0000000000..dbae8081f4
+--- /dev/null
++++ b/widget/gtk/wayland/relative-pointer-unstable-v1-client-protocol.h
+@@ -0,0 +1,293 @@
++/* Generated by wayland-scanner 1.18.0 */
++
++#ifndef RELATIVE_POINTER_UNSTABLE_V1_CLIENT_PROTOCOL_H
++#define RELATIVE_POINTER_UNSTABLE_V1_CLIENT_PROTOCOL_H
++
++#include <stdint.h>
++#include <stddef.h>
++#include "wayland-client.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/**
++ * @page page_relative_pointer_unstable_v1 The relative_pointer_unstable_v1
++ * protocol protocol for relative pointer motion events
++ *
++ * @section page_desc_relative_pointer_unstable_v1 Description
++ *
++ * This protocol specifies a set of interfaces used for making clients able to
++ * receive relative pointer events not obstructed by barriers (such as the
++ * monitor edge or other pointer barriers).
++ *
++ * To start receiving relative pointer events, a client must first bind the
++ * global interface "wp_relative_pointer_manager" which, if a compositor
++ * supports relative pointer motion events, is exposed by the registry. After
++ * having created the relative pointer manager proxy object, the client uses
++ * it to create the actual relative pointer object using the
++ * "get_relative_pointer" request given a wl_pointer. The relative pointer
++ * motion events will then, when applicable, be transmitted via the proxy of
++ * the newly created relative pointer object. See the documentation of the
++ * relative pointer interface for more details.
++ *
++ * Warning! The protocol described in this file is experimental and backward
++ * incompatible changes may be made. Backward compatible changes may be added
++ * together with the corresponding interface version bump. Backward
++ * incompatible changes are done by bumping the version number in the protocol
++ * and interface names and resetting the interface version. Once the protocol
++ * is to be declared stable, the 'z' prefix and the version number in the
++ * protocol and interface names are removed and the interface version number is
++ * reset.
++ *
++ * @section page_ifaces_relative_pointer_unstable_v1 Interfaces
++ * - @subpage page_iface_zwp_relative_pointer_manager_v1 - get relative pointer
++ * objects
++ * - @subpage page_iface_zwp_relative_pointer_v1 - relative pointer object
++ * @section page_copyright_relative_pointer_unstable_v1 Copyright
++ * <pre>
++ *
++ * Copyright © 2014      Jonas Ådahl
++ * Copyright © 2015      Red Hat Inc.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice (including the next
++ * paragraph) shall be included in all copies or substantial portions of the
++ * Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ * </pre>
++ */
++struct wl_pointer;
++struct zwp_relative_pointer_manager_v1;
++struct zwp_relative_pointer_v1;
++
++/**
++ * @page page_iface_zwp_relative_pointer_manager_v1
++ * zwp_relative_pointer_manager_v1
++ * @section page_iface_zwp_relative_pointer_manager_v1_desc Description
++ *
++ * A global interface used for getting the relative pointer object for a
++ * given pointer.
++ * @section page_iface_zwp_relative_pointer_manager_v1_api API
++ * See @ref iface_zwp_relative_pointer_manager_v1.
++ */
++/**
++ * @defgroup iface_zwp_relative_pointer_manager_v1 The
++ * zwp_relative_pointer_manager_v1 interface
++ *
++ * A global interface used for getting the relative pointer object for a
++ * given pointer.
++ */
++extern const struct wl_interface zwp_relative_pointer_manager_v1_interface;
++/**
++ * @page page_iface_zwp_relative_pointer_v1 zwp_relative_pointer_v1
++ * @section page_iface_zwp_relative_pointer_v1_desc Description
++ *
++ * A wp_relative_pointer object is an extension to the wl_pointer interface
++ * used for emitting relative pointer events. It shares the same focus as
++ * wl_pointer objects of the same seat and will only emit events when it has
++ * focus.
++ * @section page_iface_zwp_relative_pointer_v1_api API
++ * See @ref iface_zwp_relative_pointer_v1.
++ */
++/**
++ * @defgroup iface_zwp_relative_pointer_v1 The zwp_relative_pointer_v1 interface
++ *
++ * A wp_relative_pointer object is an extension to the wl_pointer interface
++ * used for emitting relative pointer events. It shares the same focus as
++ * wl_pointer objects of the same seat and will only emit events when it has
++ * focus.
++ */
++extern const struct wl_interface zwp_relative_pointer_v1_interface;
++
++#define ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY 0
++#define ZWP_RELATIVE_POINTER_MANAGER_V1_GET_RELATIVE_POINTER 1
++
++/**
++ * @ingroup iface_zwp_relative_pointer_manager_v1
++ */
++#define ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY_SINCE_VERSION 1
++/**
++ * @ingroup iface_zwp_relative_pointer_manager_v1
++ */
++#define ZWP_RELATIVE_POINTER_MANAGER_V1_GET_RELATIVE_POINTER_SINCE_VERSION 1
++
++/** @ingroup iface_zwp_relative_pointer_manager_v1 */
++static inline void zwp_relative_pointer_manager_v1_set_user_data(
++    struct zwp_relative_pointer_manager_v1* zwp_relative_pointer_manager_v1,
++    void* user_data) {
++  wl_proxy_set_user_data((struct wl_proxy*)zwp_relative_pointer_manager_v1,
++                         user_data);
++}
++
++/** @ingroup iface_zwp_relative_pointer_manager_v1 */
++static inline void* zwp_relative_pointer_manager_v1_get_user_data(
++    struct zwp_relative_pointer_manager_v1* zwp_relative_pointer_manager_v1) {
++  return wl_proxy_get_user_data(
++      (struct wl_proxy*)zwp_relative_pointer_manager_v1);
++}
++
++static inline uint32_t zwp_relative_pointer_manager_v1_get_version(
++    struct zwp_relative_pointer_manager_v1* zwp_relative_pointer_manager_v1) {
++  return wl_proxy_get_version(
++      (struct wl_proxy*)zwp_relative_pointer_manager_v1);
++}
++
++/**
++ * @ingroup iface_zwp_relative_pointer_manager_v1
++ *
++ * Used by the client to notify the server that it will no longer use this
++ * relative pointer manager object.
++ */
++static inline void zwp_relative_pointer_manager_v1_destroy(
++    struct zwp_relative_pointer_manager_v1* zwp_relative_pointer_manager_v1) {
++  wl_proxy_marshal((struct wl_proxy*)zwp_relative_pointer_manager_v1,
++                   ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY);
++
++  wl_proxy_destroy((struct wl_proxy*)zwp_relative_pointer_manager_v1);
++}
++
++/**
++ * @ingroup iface_zwp_relative_pointer_manager_v1
++ *
++ * Create a relative pointer interface given a wl_pointer object. See the
++ * wp_relative_pointer interface for more details.
++ */
++static inline struct zwp_relative_pointer_v1*
++zwp_relative_pointer_manager_v1_get_relative_pointer(
++    struct zwp_relative_pointer_manager_v1* zwp_relative_pointer_manager_v1,
++    struct wl_pointer* pointer) {
++  struct wl_proxy* id;
++
++  id = wl_proxy_marshal_constructor(
++      (struct wl_proxy*)zwp_relative_pointer_manager_v1,
++      ZWP_RELATIVE_POINTER_MANAGER_V1_GET_RELATIVE_POINTER,
++      &zwp_relative_pointer_v1_interface, NULL, pointer);
++
++  return (struct zwp_relative_pointer_v1*)id;
++}
++
++/**
++ * @ingroup iface_zwp_relative_pointer_v1
++ * @struct zwp_relative_pointer_v1_listener
++ */
++struct zwp_relative_pointer_v1_listener {
++  /**
++   * relative pointer motion
++   *
++   * Relative x/y pointer motion from the pointer of the seat
++   * associated with this object.
++   *
++   * A relative motion is in the same dimension as regular wl_pointer
++   * motion events, except they do not represent an absolute
++   * position. For example, moving a pointer from (x, y) to (x', y')
++   * would have the equivalent relative motion (x' - x, y' - y). If a
++   * pointer motion caused the absolute pointer position to be
++   * clipped by for example the edge of the monitor, the relative
++   * motion is unaffected by the clipping and will represent the
++   * unclipped motion.
++   *
++   * This event also contains non-accelerated motion deltas. The
++   * non-accelerated delta is, when applicable, the regular pointer
++   * motion delta as it was before having applied motion acceleration
++   * and other transformations such as normalization.
++   *
++   * Note that the non-accelerated delta does not represent 'raw'
++   * events as they were read from some device. Pointer motion
++   * acceleration is device- and configuration-specific and
++   * non-accelerated deltas and accelerated deltas may have the same
++   * value on some devices.
++   *
++   * Relative motions are not coupled to wl_pointer.motion events,
++   * and can be sent in combination with such events, but also
++   * independently. There may also be scenarios where
++   * wl_pointer.motion is sent, but there is no relative motion. The
++   * order of an absolute and relative motion event originating from
++   * the same physical motion is not guaranteed.
++   *
++   * If the client needs button events or focus state, it can receive
++   * them from a wl_pointer object of the same seat that the
++   * wp_relative_pointer object is associated with.
++   * @param utime_hi high 32 bits of a 64 bit timestamp with microsecond
++   * granularity
++   * @param utime_lo low 32 bits of a 64 bit timestamp with microsecond
++   * granularity
++   * @param dx the x component of the motion vector
++   * @param dy the y component of the motion vector
++   * @param dx_unaccel the x component of the unaccelerated motion vector
++   * @param dy_unaccel the y component of the unaccelerated motion vector
++   */
++  void (*relative_motion)(
++      void* data, struct zwp_relative_pointer_v1* zwp_relative_pointer_v1,
++      uint32_t utime_hi, uint32_t utime_lo, wl_fixed_t dx, wl_fixed_t dy,
++      wl_fixed_t dx_unaccel, wl_fixed_t dy_unaccel);
++};
++
++/**
++ * @ingroup iface_zwp_relative_pointer_v1
++ */
++static inline int zwp_relative_pointer_v1_add_listener(
++    struct zwp_relative_pointer_v1* zwp_relative_pointer_v1,
++    const struct zwp_relative_pointer_v1_listener* listener, void* data) {
++  return wl_proxy_add_listener((struct wl_proxy*)zwp_relative_pointer_v1,
++                               (void (**)(void))listener, data);
++}
++
++#define ZWP_RELATIVE_POINTER_V1_DESTROY 0
++
++/**
++ * @ingroup iface_zwp_relative_pointer_v1
++ */
++#define ZWP_RELATIVE_POINTER_V1_RELATIVE_MOTION_SINCE_VERSION 1
++
++/**
++ * @ingroup iface_zwp_relative_pointer_v1
++ */
++#define ZWP_RELATIVE_POINTER_V1_DESTROY_SINCE_VERSION 1
++
++/** @ingroup iface_zwp_relative_pointer_v1 */
++static inline void zwp_relative_pointer_v1_set_user_data(
++    struct zwp_relative_pointer_v1* zwp_relative_pointer_v1, void* user_data) {
++  wl_proxy_set_user_data((struct wl_proxy*)zwp_relative_pointer_v1, user_data);
++}
++
++/** @ingroup iface_zwp_relative_pointer_v1 */
++static inline void* zwp_relative_pointer_v1_get_user_data(
++    struct zwp_relative_pointer_v1* zwp_relative_pointer_v1) {
++  return wl_proxy_get_user_data((struct wl_proxy*)zwp_relative_pointer_v1);
++}
++
++static inline uint32_t zwp_relative_pointer_v1_get_version(
++    struct zwp_relative_pointer_v1* zwp_relative_pointer_v1) {
++  return wl_proxy_get_version((struct wl_proxy*)zwp_relative_pointer_v1);
++}
++
++/**
++ * @ingroup iface_zwp_relative_pointer_v1
++ */
++static inline void zwp_relative_pointer_v1_destroy(
++    struct zwp_relative_pointer_v1* zwp_relative_pointer_v1) {
++  wl_proxy_marshal((struct wl_proxy*)zwp_relative_pointer_v1,
++                   ZWP_RELATIVE_POINTER_V1_DESTROY);
++
++  wl_proxy_destroy((struct wl_proxy*)zwp_relative_pointer_v1);
++}
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/widget/gtk/wayland/relative-pointer-unstable-v1-protocol.c b/widget/gtk/wayland/relative-pointer-unstable-v1-protocol.c
+new file mode 100644
+index 0000000000..3534686a3d
+--- /dev/null
++++ b/widget/gtk/wayland/relative-pointer-unstable-v1-protocol.c
+@@ -0,0 +1,69 @@
++/* Generated by wayland-scanner 1.18.0 */
++
++/*
++ * Copyright © 2014      Jonas Ådahl
++ * Copyright © 2015      Red Hat Inc.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice (including the next
++ * paragraph) shall be included in all copies or substantial portions of the
++ * Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++#include <stdlib.h>
++#include <stdint.h>
++#include "wayland-util.h"
++
++#pragma GCC visibility push(default)
++extern const struct wl_interface wl_pointer_interface;
++extern const struct wl_interface zwp_relative_pointer_v1_interface;
++#pragma GCC visibility pop
++
++static const struct wl_interface* relative_pointer_unstable_v1_types[] = {
++    NULL,
++    NULL,
++    NULL,
++    NULL,
++    NULL,
++    NULL,
++    &zwp_relative_pointer_v1_interface,
++    &wl_pointer_interface,
++};
++
++static const struct wl_message zwp_relative_pointer_manager_v1_requests[] = {
++    {"destroy", "", relative_pointer_unstable_v1_types + 0},
++    {"get_relative_pointer", "no", relative_pointer_unstable_v1_types + 6},
++};
++
++WL_EXPORT const struct wl_interface zwp_relative_pointer_manager_v1_interface =
++    {
++        "zwp_relative_pointer_manager_v1",        1, 2,
++        zwp_relative_pointer_manager_v1_requests, 0, NULL,
++};
++
++static const struct wl_message zwp_relative_pointer_v1_requests[] = {
++    {"destroy", "", relative_pointer_unstable_v1_types + 0},
++};
++
++static const struct wl_message zwp_relative_pointer_v1_events[] = {
++    {"relative_motion", "uuffff", relative_pointer_unstable_v1_types + 0},
++};
++
++WL_EXPORT const struct wl_interface zwp_relative_pointer_v1_interface = {
++    "zwp_relative_pointer_v1",        1, 1,
++    zwp_relative_pointer_v1_requests, 1, zwp_relative_pointer_v1_events,
++};
+diff --git a/widget/nsIWidget.h b/widget/nsIWidget.h
+index efe3b625bd..c261e17b56 100644
+--- a/widget/nsIWidget.h
++++ b/widget/nsIWidget.h
+@@ -1834,6 +1834,16 @@ class nsIWidget : public nsISupports {
+ 
+ #endif
+ 
++  /**
++   * If this widget uses native pointer lock instead of warp-to-center
++   * (currently only GTK on Wayland), these methods provide access to that
++   * functionality.
++   */
++  virtual void SetNativePointerLockCenter(
++      const LayoutDeviceIntPoint& aLockCenter) {}
++  virtual void LockNativePointer() {}
++  virtual void UnlockNativePointer() {}
++
+   /*
+    * Get safe area insets except to cutout.
+    * See https://drafts.csswg.org/css-env-1/#safe-area-insets.
+-- 
+2.31.1
+

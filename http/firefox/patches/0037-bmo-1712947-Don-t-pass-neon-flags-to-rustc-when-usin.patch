@@ -1,0 +1,34 @@
+From a7629ff76a565413a22699fdbd173af803f0f5fa Mon Sep 17 00:00:00 2001
+From: Thomas Deutschmann <whissi@gentoo.org>
+Date: Tue, 1 Jun 2021 09:35:57 +0200
+Subject: [PATCH 37/37] bmo#1712947: Don't pass neon flags to rustc when using
+ thumbv7neon targets
+
+Bug: https://bugs.gentoo.org/792621
+Signed-off-by: Thomas Deutschmann <whissi@gentoo.org>
+---
+ config/makefiles/rust.mk | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/config/makefiles/rust.mk b/config/makefiles/rust.mk
+index e683f5ec7e..838716175a 100644
+--- a/config/makefiles/rust.mk
++++ b/config/makefiles/rust.mk
+@@ -86,10 +86,13 @@ endif
+ 
+ rustflags_neon =
+ ifeq (neon,$(MOZ_FPU))
+-# Enable neon and disable restriction to 16 FPU registers
++ifneq (,$(filter thumbv7neon-,$(RUST_TARGET)))
++# Enable neon and disable restriction to 16 FPU registers when neon is enabled
++# but we're not using a thumbv7neon target, where it's already the default.
+ # (CPUs with neon have 32 FPU registers available)
+ rustflags_neon += -C target_feature=+neon,-d16
+ endif
++endif
+ 
+ rustflags_sancov =
+ ifdef LIBFUZZER
+-- 
+2.31.1
+
