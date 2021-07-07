@@ -12,7 +12,6 @@ OPTS="--with-included-glib $OPTS" &&
         --sysconfdir=${TRACK_ROOT}/etc                \
            --infodir=${TRACK_ROOT}/usr/share/info     \
             --mandir=${TRACK_ROOT}/usr/share/man      \
-             --with-included-gettext                  \
         --includedir=${TRACK_ROOT}/usr/local/include  \
              $OPTS                                    &&
 
