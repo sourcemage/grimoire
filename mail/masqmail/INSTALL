@@ -9,14 +9,15 @@ ln -vsf "$TRACK_ROOT/usr/sbin/masqmail" "$INSTALL_ROOT/usr/sbin/mailq" &&
 ln -vsf "$TRACK_ROOT/usr/sbin/masqmail" "$INSTALL_ROOT/usr/sbin/runq" &&
 ln -vsf "$TRACK_ROOT/usr/sbin/masqmail" "$INSTALL_ROOT/usr/sbin/mailrm" &&
 
-install -vm 2775 -d -o masqmail -g mail "$INSTALL_ROOT/var/spool/mail" &&
+local spool_dir="${INSTALL_ROOT}/var/spool/masqmail" &&
 
-if [[ -e $INSTALL_ROOT/var/spool/mail/input ]]; then
-  chown -R masqmail:masqmail "$INSTALL_ROOT/var/spool/mail/input"
-fi &&
-if [[ -e $INSTALL_ROOT/var/spool/mail/lock ]]; then
-  chown -R masqmail:masqmail "$INSTALL_ROOT/var/spool/mail/lock"
-fi &&
+install -vm 2775 -d -o masqmail -g masqmail "${spool_dir}" &&
+
+for d in input lock; do
+  if [[ -e "${spool_dir}/${d}" ]]; then
+    chown -R masqmail:masqmail "${spool_dir}/${d}" || return 1
+  fi
+done &&
 
 if [[ $INIT_INSTALLED ]]; then
   install_config_file "$SPELL_DIRECTORY/init.d/masqmail.conf" \
