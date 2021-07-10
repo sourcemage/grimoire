@@ -1,0 +1,21 @@
+make install sendmail-link mailq-link DESTDIR="${INSTALL_ROOT}" PREFIX="/usr" LIBEXEC="/usr/libexec" &&
+
+local config_dir="${INSTALL_ROOT}/etc/dma" &&
+
+install -vm 755 -d "${config_dir}" &&
+
+for cf in dma.conf auth.conf; do
+  install_config_file ${cf} "${config_dir}/${cf}"
+done &&
+
+chown root:mail "${config_dir}"/*.conf &&
+chmod 0640 "${config_dir}/auth.conf" &&
+
+local spool_dir="${INSTALL_ROOT}/var/spool/dma" &&
+local mail_dir="${INSTALL_ROOT}/var/spool/mail" &&
+
+for d in "$spool_dir" "$mail_dir"; do
+  if [ ! -d "${d}" ]; then
+    install -vm 2775 -d -o root -g mail -d "${d}" || return 1
+  fi
+done
