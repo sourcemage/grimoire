@@ -1,2 +1,2 @@
-OPTS="${CLAWSMAIL_OPTS} ${SYLPHEED_OPTS} ${OPTS}" &&
+OPTS+=" $CLAWSMAIL_OPTS" &&
 default_build
