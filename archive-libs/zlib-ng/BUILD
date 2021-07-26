@@ -1,0 +1,4 @@
+OPTS+=" -DWITH_NATIVE_INSTRUCTIONS=1"
+#OPTS+=" $ZL_COMPAT" 
+cmake_build
+
