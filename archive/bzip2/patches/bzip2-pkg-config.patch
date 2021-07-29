@@ -1,0 +1,120 @@
+diff --git a/Makefile b/Makefile
+index 11bc446..1b8f964 100644
+--- a/Makefile
++++ b/Makefile
+@@ -12,6 +12,8 @@
+ # in the file LICENSE.
+ # ------------------------------------------------------------------
+ 
++VERSION=1.0.8
++
+ SHELL=/bin/sh
+ 
+ # To assist in cross-compiling
+@@ -107,6 +109,9 @@
+ 	echo ".so man1/bzgrep.1" > $(PREFIX)/man/man1/bzfgrep.1
+ 	echo ".so man1/bzmore.1" > $(PREFIX)/man/man1/bzless.1
+ 	echo ".so man1/bzdiff.1" > $(PREFIX)/man/man1/bzcmp.1
++	if ( test ! -d $(PREFIX)/lib/pkgconfig ) ; then mkdir -p $(PREFIX)/lib/pkgconfig ; fi
++	sed -e "s/@@VERSION@@/$(VERSION)/g;s#@@PREFIX@@#$(PREFIX)#g" bzip2.pc.in > $(PREFIX)/lib/pkgconfig/bzip2.pc
++	sed -e "s/@@VERSION@@/$(VERSION)/g;s#@@PREFIX@@#$(PREFIX)#g" libbz2.pc.in > $(PREFIX)/lib/pkgconfig/libbz2.pc
+ 
+ clean: 
+ 	rm -f *.o libbz2.a bzip2 bzip2recover \
+@@ -137,7 +142,7 @@
+ distclean: clean
+ 	rm -f manual.ps manual.html manual.pdf
+ 
+-DISTNAME=bzip2-1.0.8
++DISTNAME=bzip2-$(VERSION)
+ dist: check manual
+ 	rm -f $(DISTNAME)
+ 	ln -s -f . $(DISTNAME)
+diff --git a/Makefile-libbz2_so b/Makefile-libbz2_so
+index 1f0739b..0c94517 100644
+--- a/Makefile-libbz2_so
++++ b/Makefile-libbz2_so
+@@ -20,6 +20,9 @@
+ # in the file LICENSE.
+ # ------------------------------------------------------------------
+ 
++MAJOR_VERSION=1
++MAJOR_MINOR_VERSION=$(MAJOR_VERSION).0
++VERSION=$(MAJOR_MINOR_VERSION).8
+ 
+ SHELL=/bin/sh
+ CC=gcc
+@@ -34,14 +37,29 @@
+       decompress.o \
+       bzlib.o
+ 
+-all: $(OBJS)
+-	$(CC) -shared -Wl,-soname -Wl,libbz2.so.1.0 -o libbz2.so.1.0.8 $(OBJS)
+-	$(CC) $(CFLAGS) -o bzip2-shared bzip2.c libbz2.so.1.0.8
+-	rm -f libbz2.so.1.0
+-	ln -s libbz2.so.1.0.8 libbz2.so.1.0
++all: $(OBJS)
++	$(CC) -shared -Wl,-soname -Wl,libbz2.so.$(MAJOR_MINOR_VERSION) -o libbz2.so.$(VERSION) $(OBJS)
++	$(CC) $(CFLAGS) -o bzip2-shared bzip2.c libbz2.so.$(VERSION)
++	rm -f libbz2.so.$(MAJOR_MINOR_VERSION)
++	ln -s libbz2.so.$(VERSION) libbz2.so.$(MAJOR_MINOR_VERSION)
++	rm -f libbz2.so.$(MAJOR_VERSION)
++	ln -s libbz2.so.$(VERSION) libbz2.so.$(MAJOR_VERSION)
++	rm -f libbz2.so
++	ln -s libbz2.so.$(VERSION) libbz2.so
++
++install:
++	if ( test ! -d $(PREFIX)/lib ) ; then mkdir -p $(PREFIX)/lib ; fi
++	cp -f libbz2.so.$(VERSION)              $(PREFIX)/lib
++	chmod a+r                               $(PREFIX)/lib/libbz2.so.$(VERSION)
++	cp -f libbz2.so.$(MAJOR_MINOR_VERSION)  $(PREFIX)/lib
++	cp -f libbz2.so.$(MAJOR_VERSION)        $(PREFIX)/lib
++	cp -f libbz2.so                         $(PREFIX)/lib
++	if ( test ! -d $(PREFIX)/lib/pkgconfig ) ; then mkdir -p $(PREFIX)/lib/pkgconfig ; fi
++	sed -e "s/@@VERSION@@/$(VERSION)/g;s#@@PREFIX@@#$(PREFIX)#g" bzip2.pc.in  > $(PREFIX)/lib/pkgconfig/bzip2.pc
++	sed -e "s/@@VERSION@@/$(VERSION)/g;s#@@PREFIX@@#$(PREFIX)#g" libbz2.pc.in > $(PREFIX)/lib/pkgconfig/libbz2.pc
+ 
+ clean: 
+-	rm -f $(OBJS) bzip2.o libbz2.so.1.0.8 libbz2.so.1.0 bzip2-shared
++	rm -f $(OBJS) bzip2.o libbz2.so.$(VERSION) libbz2.so.$(MAJOR_MINOR_VERSION) libbz2.so.$(MAJOR_VERSION) libbz.so bzip2-shared
+ 
+ blocksort.o: blocksort.c
+ 	$(CC) $(CFLAGS) -c blocksort.c
+diff --git a/bzip2.pc.in b/bzip2.pc.in
+new file mode 100644
+index 0000000..74a527c
+--- /dev/null
++++ b/bzip2.pc.in
+@@ -0,0 +1,13 @@
++prefix=@@PREFIX@@
++exec_prefix=\${prefix}/bin
++libdir=\${prefix}/lib
++sharedlibdir=\${prefix}/lib
++includedir=\${prefix}/include
++
++Name: bzip2
++Description: BZip2 compression library
++Version: @@VERSION@@
++
++Requires:
++Libs: -L\${prefix}/lib -lbz2
++Cflags: -I\${prefix}/include
+diff --git a/libbz2.pc.in b/libbz2.pc.in
+new file mode 100644
+index 0000000..ed08e7f
+--- /dev/null
++++ b/libbz2.pc.in
+@@ -0,0 +1,13 @@
++prefix=@@PREFIX@@
++exec_prefix=\${prefix}/bin
++libdir=\${prefix}/lib
++sharedlibdir=\${prefix}/lib
++includedir=\${prefix}/include
++
++Name: libbz2
++Description: BZip2 compression library
++Version: @@VERSION@@
++
++Requires:
++Libs: -L\${prefix}/lib -lbz2
++Cflags: -I\${prefix}/include
