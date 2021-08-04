@@ -1,7 +1,14 @@
 export CLANG_INSTALL_DIR=/usr &&
 CFLAGS="${CFLAGS//-DPIC}" &&
 CXXFLAGS="${CXXFLAGS//-DPIC}" &&
-if spell_ok "$SPELL"; then
+# NEVER use the rust in /usr.
+# 1. It will be too old in the general case. We'd need to ensure taking
+#    each release step.
+# 2. It will be broken right now, anyway, as we just updated LLVM and
+#    /usr/bin/rustc will be missing its soversion. You cannot win.
+#    Maybe we need our own bootstrap packages. Or a chain build starting
+#    with the latest available cache.
+if false && spell_ok "$SPELL"; then
   _rust_root="$INSTALL_ROOT/usr"
 else
   _rust_root="$SOURCE_DIRECTORY/stage0-bootstrap" &&
