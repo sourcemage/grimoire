@@ -22,34 +22,34 @@ config_query_multi MESA_EGL "window systems to support,recommend x11" x11 waylan
 
 config_query_multi MESA_DRM "which libdrm hardware" AMD INTEL NOUVEAU RADEON &&
 # only suggest drivers for specified hardware
-local AVAILABLE_DRIVERS=""
+local AVAILABLE_DRI=""
 local AVAILABLE_GALLIUM="svga swrast virgl zink"
 local AVAILABLE_VULKAN="swrast"
 if list_find "$MESA_DRM" AMD;then
   AVAILABLE_VULKAN+=" amd"
 fi &&
 if list_find "$MESA_DRM" RADEON;then
-  AVAILABLE_DRIVERS+=" r100 r200"
+  AVAILABLE_DRI+=" r100 r200"
   AVAILABLE_GALLIUM+=" r300 r600 radeonsi"
 fi &&
 if list_find "$MESA_DRM" INTEL;then
-  AVAILABLE_DRIVERS+=" i915 i965"
+  AVAILABLE_DRI+=" i915 i965"
   AVAILABLE_GALLIUM+=" i915 iris"
   AVAILABLE_VULKAN+=" intel"
 fi &&
 if list_find "$MESA_DRM" NOUVEAU;then
-  AVAILABLE_DRIVERS+=" nouveau"
+  AVAILABLE_DRI+=" nouveau"
   AVAILABLE_GALLIUM+=" nouveau"
 fi &&
 
 
 if list_find "$MESA_GLX" dri;then
   config_query_multi MESA_DRI \
-                   "Which drivers would you like to build?" \
-                   all $AVAILABLE_DRIVERS &&
+                   "which DRI drivers to build?" \
+                   all $AVAILABLE_DRI &&
 
   if list_find "$MESA_DRI" all; then
-    MESA_DRI="$AVAILABLE_DRIVERS"
+    MESA_DRI="$AVAILABLE_DRI"
   fi
 fi &&
 # Gallium support
@@ -57,7 +57,7 @@ fi &&
 message "${MESSAGE_COLOR}If you want to enable VDPAU you have to select at least one of the r300, r600,$DEFAULT_COLOR" &&
 message "${MESSAGE_COLOR}radeonsi or nouveau gallium drivers:${DEFAULT_COLOR}"                                         &&
 config_query_multi MESA_GALLIUM \
-        "which gallium (accellerated) drivers" \
+        "which gallium (accellerated) drivers to build" \
         none all $AVAILABLE_GALLIUM &&
 if list_find "$MESA_GALLIUM" all;then
   MESA_GALLIUM="$AVAILABLE_GALLIUM"
@@ -83,3 +83,8 @@ config_query_multi MESA_TOOLS  "which tools to build" \
 	xvmc &&
 config_query_multi MESA_ARCH   "which arch" avx avx2 knl skx &&
 config_query_multi MESA_OMX    "OMax support" auto disabled tizonia bellagio
+
+# strip any leading spaces from the driver lists
+MESA_DRI="${MESA_DRI# }"
+MESA_GALLIUM="${MESA_GALLIUM# }"
+MESA_VULKAN="${MESA_VULKAN# }"
