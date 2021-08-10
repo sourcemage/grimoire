@@ -30,6 +30,7 @@ OPTS+=" dri-drivers=${dri// /,} \
                 glx=${MESA_GLX// /,} \
               tools=${MESA_TOOLS// /,} \
          swr-arches=${MESA_ARCH// /,} \
+        use-elf-tls=false \
      $MESA_GLES1 $MESA_GLES2" &&
 echo "OPTS=$OPTS" &&
 PREFIX=/usr &&
