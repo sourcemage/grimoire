@@ -1,2 +1,2 @@
-OPTS="$OPTS --enable-gpl --enable-gpl3 --disable-debug $MLT_KDEN $MLT_KINO $MLT_SCALE"  &&        
+OPTS+=" $MLT_KDEN" &&
 default_build
