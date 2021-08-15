@@ -1,9 +1,7 @@
-# Since 0.92.2, cmake build is the new default, but autotools still available.
-# We need to switch the spell to cmake some time.
 default_pre_build &&
 cd "$SOURCE_DIRECTORY" &&
-# Fix for poppler since 0.76.
-sed -e 's|new Lexer(xref, obj)|obj|g' -i \
-  src/extension/internal/pdfinput/pdf-parser.cpp &&
-apply_patch_dir patches &&
-./autogen.sh
+# XXX Inkscape wrongly uses NULL as a sentinel, which fails with musl
+#     the C++ definition is generally problematic, so replace it with nullptr.
+#     See <https://ewontfix.com/11/> for more information.
+echo 'Replacing NULL with nullptr in C++ code:' &&
+find -name '*.[ch]pp' -print -exec sed -E -i 's/\<NULL\>/nullptr/g' {} +

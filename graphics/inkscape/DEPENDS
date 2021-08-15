@@ -1,10 +1,8 @@
-# A kind of bug: inkscape's text font selection freaks out unless this font is present.
-# Valid as of 0.48.1, also see https://bugs.launchpad.net/inkscape/+bug/273961 .
-depends ttf-bitstream-vera &&
+. "$GRIMOIRE"/CMAKE_DEPENDS &&
 depends -sub CXX gcc &&
 depends gsl &&
 depends -sub IOSTREAMS boost &&
-depends gtkmm2 &&
+depends gtkmm3 &&
 depends libxml2 &&
 depends libxslt &&
 depends libart_lgpl &&
@@ -13,38 +11,58 @@ depends libgc &&
 depends popt &&
 depends xml-parser-expat &&
 
-optional_depends gtkspell "" "" "for GtkSpell support" &&
-
-suggest_depends pyxml "" "" "to enable Export GIMP palette extension" &&
-suggest_depends numpy "" "" "to enable Perspective extension" &&
-
-if is_depends_enabled poppler cairo; then
+optional_depends readline \
+		 -DWITH_GNU_READLINE={ON,OFF} \
+		 "for shell mode auto-completion" &&
+optional_depends dbus \
+		 -DWITH_DBUS={ON,OFF} \
+		 'for DBus interface support' &&
+optional_depends imagemagick \
+		 -DWITH_IMAGE_MAGICK={ON,OFF} \
+		 'use ImageMagick for raster extensions and image import' &&
+if ! is_depends_enabled "$SPELL" imagemagick; then
+  optional_depends graphicsmagick \
+		   -DWITH_GRAPHICS_MAGICK={ON,OFF} \
+		   'use GraphicsMagick for raster extensions and image import'
+fi &&
+optional_depends libcdr \
+		 -DWITH_LIBCDR={ON,OFF} \
+		 'for CorelDRAW file format support' &&
+optional_depends libvisio \
+		 -DWITH_LIBVISIO={ON,OFF} \
+		 'for Microsoft Visio file format support' &&
+optional_depends libwpg \
+		 -DWITH_LIBWPG={ON,OFF} \
+		 'for WordPerfect Graphics file format support' &&
+optional_depends gspell \
+		 -DWITH_GSPELL={ON,OFF} \
+		 'for spell-checking support' &&
+optional_depends poppler \
+		 -DENABLE_POPPLER={ON,OFF} \
+		 'for poppler support' &&
+if is_depends_enabled "$SPELL" poppler &&
+    is_depends_enabled poppler cairo; then
   optional_depends -sub XPDF_HEADERS poppler \
-                   "--enable-poppler-cairo" \
-                   "--disable-poppler-cairo" \
+		   -DENABLE_POPPLER_CAIRO={ON,OFF} \
                    "for rendering PDF preview"
 fi &&
-
-optional_depends gnome-vfs2 \
-                 "--with-gnome-vfs" \
-                 "--without-gnome-vfs" \
-                 "use gnome vfs for loading files?" &&
-
+optional_depends gettext \
+		 -DWITH_NLS={ON,OFF} \
+		 'for Native Language Support' &&
+optional_depends jemalloc \
+		 -DWITH_JEMALLOC={ON,OFF} \
+		 'for jemalloc support' &&
+optional_depends lib2geom \
+		 -DWITH_INTERNAL_2GEOM={OFF,ON} \
+		 'use external lib2geom (recommended)' &&
 optional_depends lcms \
-                 "--enable-lcms" \
-                 "--disable-lcms" \
+		 -DENABLE_LCMS={ON,OFF} \
                  "for optimized color management engine" &&
-
-optional_depends perl \
-                 "--with-perl" \
-                 "--without-perl" \
-                 "use Perl for embedded scripting?" &&
-
-optional_depends python \
-                 "--with-python" \
-                 "--without-python" \
+optional_depends python3 \
+		 '' '' \
                  "use Python for embedded scripting?" &&
-
-if is_depends_enabled $SPELL python; then
+if is_depends_enabled $SPELL python3; then
+  suggest_depends pyxml "" "" "to enable Export GIMP palette extension" &&
+  suggest_depends numpy "" "" "to enable Perspective extension" &&
   runtime_depends lxml
 fi
