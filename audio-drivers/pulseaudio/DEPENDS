@@ -1,20 +1,20 @@
+depends meson &&
+depends cmake &&
+depends check &&
+
 if [[ "$PULSE_DB" == 'gdbm' ]]; then
-   depends gdbm
+   depends gdbm "database=gdbm"
 elif [[ "$PULSE_DB" == 'tdb' ]]; then
-   depends tdb
+   depends tdb "database=tdb"
 else
    message "using configuration database $PULSE_DB"
 fi &&
 
 # gettext is needed in order to build the desktop files
 depends GETTEXT   &&
-#optional_depends GETTEXT                        \
-#                 "--enable-nls"                 \
-#                 "--disable-nls"                \
-#                 "for Native Language Support"  &&
 optional_depends libx11                           \
-                 "--enable-x11"                   \
-                 "--disable-x11"                  \
+                 "x11=enabled"                   \
+                 "x11=disabled"                  \
                  "Enable X11 support?"            &&
 
 if is_depends_enabled $SPELL libx11; then
@@ -23,17 +23,21 @@ if is_depends_enabled $SPELL libx11; then
   depends  libxext  &&
   depends  libxtst
 fi  &&
-optional_depends alsa-lib                         \
-                 "--enable-alsa"                  \
-                 "--disable-alsa"                 \
+optional_depends alsa-lib                     \
+                 "alsa=enabled"                  \
+                 "alsa=disabled"                 \
                  "Enable Advanced Linux Sound Architecture support? (RECOMMENDED)"  &&
-optional_depends glib2                            \
-                 "--enable-glib2"                 \
-                 "--disable-glib2"                \
-                 "Enable glib2 support?"          &&
+optional_depends elogind                       \
+                 "elogind=enabled"                 \
+                 "elogind=disabled"                \
+                 "Enable elogind support?"     &&
+optional_depends glib2                       \
+                 "glib=enabled"                 \
+                 "glib=disabled"                \
+                 "Enable glib2 support?"     &&
 optional_depends gtk+3 \
-                 "--enable-gtk3" \
-                 "--disable-gtk3" \
+                 "gtk=enabled" \
+                 "gtk=disabled" \
                  "for GTK+3 support" &&
 
 if is_depends_enabled $SPELL gtk+3; then
@@ -41,88 +45,94 @@ if is_depends_enabled $SPELL gtk+3; then
 fi  &&
 
 optional_depends gconf2 \
-                 "--enable-gconf" \
-                 "--disable-gconf" \
-                 "for gconf support" &&
-optional_depends avahi                                \
-                 "--enable-avahi"                     \
-                 "--disable-avahi"                    \
+                 "gsettings=enabled" \
+                 "gsettings=disabled" \
+                 "for gsettings support" &&
+optional_depends avahi                            \
+                 "avahi=enabled"                     \
+                 "avahi=disabled"                    \
                  "for ZerConf configuration support"  &&
 optional_depends JACK-DRIVER                      \
-                 "--enable-jack"                  \
-                 "--disable-jack"                 \
+                 "jack=enabled"                  \
+                 "jack=disabled"                 \
                  "for low-latency sound server support?"  &&
 optional_depends libasyncns                       \
-                 "--enable-asyncns"               \
-                 "--disable-asyncns"              \
+                 "asyncns=enabled"               \
+                 "asyncns=disabled"              \
                  "for asynchronous service queries?"  &&
 optional_depends tcp_wrappers                     \
-                 "--enable-tcpwrap"               \
-                 "--disable-tcpwrap"              \
+                 "tcpwrap=enabled"               \
+                 "tcpwrap=disabled"              \
                  "Enable TCP network filtering?"  &&
 optional_depends lirc                             \
-                 "--enable-lirc"                  \
-                 "--disable-lirc"                 \
+                 "lirc=enabled"                  \
+                 "lirc=disabled"                 \
                  "Enable infra-red remote control support?"  &&
 optional_depends DEVICE-MANAGER                \
-                 "--enable-udev --disable-hal-compat" \
-                 "--disable-udev"              \
+                 "udev=enabled hal-compat=false" \
+                 "udev=disabled"              \
                  "for device hotplug support"  &&
 optional_depends bluez5 \
-                 "--enable-bluez5" \
-                 "--disable-bluez5" \
+                 "bluez5=enabled" \
+                 "bluez5=disabled" \
                  "for BlueZ-5 support" &&
 optional_depends gstreamer-1.0 \
-                 "--enable-gstreamer" \
-                 "--disable-gstreamer" \
+                 "gstreamer=enabled" \
+                 "gstreamer=disabled" \
                  "for GStreamer-based RTP support" &&
+if is_depends_enabled $SPELL bluez5 && \
+    is_depends_enabled $SPELL gstreamer-1.0; then
+  OPTS+=" bluez5-gstreamer=enabled"
+fi &&
 
 if is_depends_enabled $SPELL bluez ||
    is_depends_enabled $SPELL bluez5; then
   depends sbc &&
-  depends dbus "--enable-dbus"
+  depends dbus "dbus=enabled"
 else
-  optional_depends dbus                        \
-                   "--enable-dbus"             \
-                   "--disable-dbus"            \
+  optional_depends dbus                    \
+                   "dbus=enabled"             \
+                   "dbus=disabled"            \
                    "for D-BUS system messaging" 
 fi &&
 
 optional_depends SSL \
-                 "--enable-openssl" \
-                 "--disable-openssl" \
+                 "openssl=enabled" \
+                 "openssl=disabled" \
                  "for SSL support (Airtunes/RAOP)" &&
 optional_depends doxygen \
-                 "--enable-manpages" \
-                 "--disable-manpages" \
-                 "for manpage generation" &&
-optional_depends libcap                           \
-                 "--with-caps"                    \
-                 "--without-caps"                 \
-                 "Enable POSIX capability support?"          &&
+                 "doxygen=true man=true" \
+                 "doxygen=false man=false" \
+                 "for doxygen-generated documentation" &&
 
 optional_depends fftw \
-                '--with-fftw' \
-                '--without-fftw' \
+                'fftw=enabled' \
+                'fftw=disabled' \
                 'build equalizer' &&
 
 optional_depends orc \
-                 '--enable-orc' \
-                 '--disable-orc' \
+                 'orc=enabled' \
+                 'orc=disabled' \
                  'improve code' &&
-#optional_depends policykit                        \
-#                 "--enable-polkit"                \
-#                 "--disable-polkit"               \
-#                 "for PolicyKit authentication support"  &&
 
 optional_depends speexdsp \
-                 "--with-speex" \
-                 "--without-speex" \
-                 "for resampling support" &&
+                 "speex=enabled" \
+                 "speex=disabled" \
+                 "for speex resampling support" &&
+
+optional_depends soxr \
+                 "soxr=enabled" \
+                 "soxr=disabled" \
+                 "for SoXR resampling support" &&
+
+optional_depends systemd \
+                 "systemd=enabled" \
+                 "systemd=disabled" \
+                 "for systemd support" &&
 
 optional_depends webrtc-audio-processing \
-                 "--enable-webrtc-aec" \
-                 "--disable-webrtc-aec" \
+                 "webrtc-aec=enabled" \
+                 "webrtc-aec=disabled" \
                  "for WebRTC-based echo canceller" &&
 
 if is_depends_enabled ${SPELL} webrtc-audio-processing; then
@@ -130,7 +140,8 @@ if is_depends_enabled ${SPELL} webrtc-audio-processing; then
 fi &&
 
 suggest_depends  pasystray     ''  ''  'for Preferences tool & System Tray' &&
-suggest_depends  paprefs       ''  ''  'for Preferences tool'     &&
-suggest_depends  pavucontrol   ''  ''  'for Volume Control tool'  &&
-suggest_depends  pavumeter     ''  ''  'for Volume Meter tool'    &&
+suggest_depends  paprefs       ''  ''  'for Preferences tool'               &&
+suggest_depends  pavucontrol   ''  ''  'for Volume Control tool'            &&
+suggest_depends  ncpamixer     ''  ''  'for TUI Volume Control tool'        &&
+suggest_depends  pavumeter     ''  ''  'for Volume Meter tool'              &&
 suggest_depends  paman         ''  ''  'for Manager tool'
