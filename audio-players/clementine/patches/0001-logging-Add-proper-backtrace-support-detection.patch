@@ -1,0 +1,66 @@
+From 284cd5e33b5a2ccc19a9c33296b24bcfdb67a126 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sun, 22 Aug 2021 21:49:25 +0200
+Subject: [PATCH] logging: Add proper backtrace support detection
+
+The Q_OS_UNIX macro is inappropriate because many UNIX-like platforms may
+lack backtrace support in the libc. E.g.: Darwin / Mac OS X, Musl libc,
+OpenBSD, OpenIndiana.
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+Upstream-Status: Submitted [https://github.com/clementine-player/Clementine/pull/7076]
+---
+ ext/libclementine-common/CMakeLists.txt           | 3 +++
+ ext/libclementine-common/core/conf_backtrace.h.in | 4 ++++
+ ext/libclementine-common/core/logging.cpp         | 6 ++----
+ 3 files changed, 9 insertions(+), 4 deletions(-)
+ create mode 100644 ext/libclementine-common/core/conf_backtrace.h.in
+
+diff --git a/ext/libclementine-common/CMakeLists.txt b/ext/libclementine-common/CMakeLists.txt
+index dda4dd5f7963..ad35a515c28c 100644
+--- a/ext/libclementine-common/CMakeLists.txt
++++ b/ext/libclementine-common/CMakeLists.txt
+@@ -39,3 +39,6 @@ target_link_libraries(libclementine-common
+   ${TAGLIB_LIBRARIES}
+   ${CMAKE_THREAD_LIBS_INIT}
+ )
++
++find_package(Backtrace)
++configure_file(core/conf_backtrace.h.in conf_backtrace.h)
+diff --git a/ext/libclementine-common/core/conf_backtrace.h.in b/ext/libclementine-common/core/conf_backtrace.h.in
+new file mode 100644
+index 000000000000..af5eb19347ec
+--- /dev/null
++++ b/ext/libclementine-common/core/conf_backtrace.h.in
+@@ -0,0 +1,4 @@
++#cmakedefine Backtrace_FOUND
++#ifdef Backtrace_FOUND
++#include <@Backtrace_HEADER@>
++#endif
+diff --git a/ext/libclementine-common/core/logging.cpp b/ext/libclementine-common/core/logging.cpp
+index 737208493275..fbe26932bdf2 100644
+--- a/ext/libclementine-common/core/logging.cpp
++++ b/ext/libclementine-common/core/logging.cpp
+@@ -21,9 +21,7 @@
+ #include <cxxabi.h>
+ 
+ #include <QtGlobal>
+-#ifdef Q_OS_UNIX
+-#include <execinfo.h>
+-#endif
++#include "conf_backtrace.h"
+ 
+ #include <glib.h>
+ 
+@@ -325,7 +323,7 @@ QString DemangleSymbol(const QString& symbol) {
+ }
+ 
+ void DumpStackTrace() {
+-#ifdef Q_OS_UNIX
++#ifdef Backtrace_FOUND
+   void* callstack[128];
+   int callstack_size =
+       backtrace(reinterpret_cast<void**>(&callstack), sizeof(callstack));
+-- 
+2.33.0
+

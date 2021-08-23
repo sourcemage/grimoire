@@ -1,0 +1,70 @@
+From 544540a72ae0008cab4c6eab0fe4bfe4fc1ac178 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Mon, 23 Aug 2021 16:44:04 +0200
+Subject: [PATCH] Fix sentinels in variadic function calls
+
+Replace sentinel NULL with nullptr, guaranteed to be correctly expanded.
+
+NULL may be defined as plain 0 in C++; which may lead to undefined upper
+bits passed in variadic function arguments, causing crashes.
+
+See: https://ewontfix.com/11/
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+Upstream-Status: Submitted [https://github.com/clementine-player/Clementine/pull/7077]
+---
+ src/devices/cddasongloader.cpp    | 4 ++--
+ src/engines/gstenginepipeline.cpp | 2 +-
+ src/musicbrainz/chromaprinter.cpp | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/devices/cddasongloader.cpp b/src/devices/cddasongloader.cpp
+index b26dfb564aeb..edbb303052c5 100644
+--- a/src/devices/cddasongloader.cpp
++++ b/src/devices/cddasongloader.cpp
+@@ -79,7 +79,7 @@ void CddaSongLoader::LoadSongsFromCdda() {
+   }
+   if (g_object_class_find_property(G_OBJECT_GET_CLASS(cdda_),
+                                    "paranoia-mode")) {
+-    g_object_set(cdda_, "paranoia-mode", 0, NULL);
++    g_object_set(cdda_, "paranoia-mode", 0, nullptr);
+   }
+ 
+   // Change the element's state to ready and paused, to be able to query it
+@@ -121,7 +121,7 @@ void CddaSongLoader::LoadSongsFromCdda() {
+ 
+   GstElement* pipeline = gst_pipeline_new("pipeline");
+   GstElement* sink = gst_element_factory_make("fakesink", NULL);
+-  gst_bin_add_many(GST_BIN(pipeline), cdda_, sink, NULL);
++  gst_bin_add_many(GST_BIN(pipeline), cdda_, sink, nullptr);
+   gst_element_link(cdda_, sink);
+   gst_element_set_state(pipeline, GST_STATE_READY);
+   gst_element_set_state(pipeline, GST_STATE_PAUSED);
+diff --git a/src/engines/gstenginepipeline.cpp b/src/engines/gstenginepipeline.cpp
+index c5986f9b93f1..cacb287d7fda 100644
+--- a/src/engines/gstenginepipeline.cpp
++++ b/src/engines/gstenginepipeline.cpp
+@@ -440,7 +440,7 @@ bool GstEnginePipeline::InitAudioBin() {
+   gst_element_link(queue_, audioconvert_);
+ 
+   GstCaps* caps16 = gst_caps_new_simple("audio/x-raw", "format", G_TYPE_STRING,
+-                                        "S16LE", NULL);
++                                        "S16LE", nullptr);
+   gst_element_link_filtered(probe_converter, probe_sink, caps16);
+   gst_caps_unref(caps16);
+ 
+diff --git a/src/musicbrainz/chromaprinter.cpp b/src/musicbrainz/chromaprinter.cpp
+index 499c323eedff..b8dae85cd17e 100644
+--- a/src/musicbrainz/chromaprinter.cpp
++++ b/src/musicbrainz/chromaprinter.cpp
+@@ -82,7 +82,7 @@ QString Chromaprinter::CreateFingerprint() {
+   // Chromaprint expects mono 16-bit ints at a sample rate of 11025Hz.
+   GstCaps* caps = gst_caps_new_simple(
+       "audio/x-raw", "format", G_TYPE_STRING, "S16LE", "channels", G_TYPE_INT,
+-      kDecodeChannels, "rate", G_TYPE_INT, kDecodeRate, NULL);
++      kDecodeChannels, "rate", G_TYPE_INT, kDecodeRate, nullptr);
+   gst_element_link_filtered(resample, sink, caps);
+   gst_caps_unref(caps);
+ 
+-- 
+2.33.0
+
