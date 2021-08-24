@@ -1,2 +1,2 @@
-OPTS="$OPTS --enable-thread PYTHON=/usr/bin/python2"  &&
+OPTS+=' --enable-thread' &&
 default_build
