@@ -1,0 +1,54 @@
+Subject: Fix build system
+
+- unbundle libjpeg
+- unbundle libpng
+- unbundle zlib
+- remove dependency on libXp
+- don't override CFLAGS
+- remove MOTIFI/MOTIFL and /opt/X11 from flags
+
+diff --git a/GUI/xephem/Makefile b/GUI/xephem/Makefile
+index 07bb55e348a7..0c62de0bec28 100644
+--- a/GUI/xephem/Makefile
++++ b/GUI/xephem/Makefile
+@@ -10,9 +10,9 @@
+ # one executable, xephem.
+ 
+ # These -I and -L flags point to the supporting XEphem libraries
+-LIBINC = -I../../libastro -I../../libip -I../../liblilxml -I../../libjpegd -I../../libpng -I../../libz
+-LIBLNK = -L../../libastro -L../../libip -L../../liblilxml -L../../libjpegd -L../../libpng -L../../libz
+-LIBLIB = -lastro -lip -llilxml -ljpegd -lpng -lz
++LIBINC = -I../../libastro -I../../libip -I../../liblilxml
++LIBLNK = -L../../libastro -L../../libip -L../../liblilxml
++LIBLIB = -lastro -lip -llilxml -ljpeg -lpng -lz
+ 
+ # MOTIFI is the directory containing the Xm directory of include files.
+ # MOTIFL is the directory containing the libXm.a library.
+@@ -32,8 +32,8 @@ endif
+ # for linux and Apple OS X
+ CC = gcc
+ CLDFLAGS = -g
+-CFLAGS = $(LIBINC) $(CLDFLAGS) -O2 -Wall -I$(MOTIFI) -I/opt/X11/include
+-LDFLAGS = $(LIBLNK) $(CLDFLAGS) -L$(MOTIFL) -L/opt/X11/lib
++CFLAGS += $(LIBINC) $(CLDFLAGS) -Wall
++LDFLAGS = $(LIBLNK) $(CLDFLAGS)
+-XLIBS = -lXm -lXp -lXt -lXext -lXmu -lX11
++XLIBS = -lXm -lXt -lXext -lXmu -lX11
+ LIBS = $(XLIBS) $(LIBLIB) -lm
+ 
+@@ -195,12 +195,9 @@ xephem.1: xephem.man
+ 	nroff -man $? > $@
+ 
+ libs:
+-	cd ../../libastro; make
+-	cd ../../libip; make
+-	cd ../../libjpegd; make
+-	cd ../../liblilxml; make
+-	cd ../../libpng; make
+-	cd ../../libz; make
++	${MAKE} -C ../../libastro
++	${MAKE} -C ../../libip
++	${MAKE} -C ../../liblilxml
+ 
+ clean:
+ 	rm -fr *.o ../../lib*/*.[ao]
