@@ -1,0 +1,88 @@
+From: Ismael Luceno <ismael@iodev.co.uk>
+
+--- a/Makefile
++++ b/Makefile
+@@ -43,4 +43,69 @@
+ #stacktraverse.c: gen.py
+ #	./gen.py > stacktraverse.c
+ 
+-.include <bsd.lib.mk>
++DEST =
++prefix = /usr
++exec_prefix = ${prefix}
++includedir = ${prefix}/include
++libdir = ${exec_prefix}/lib
++
++SED = sed
++CFLAGS += -D_BSD_SOURCE
++CC += -std=c99
++
++all: config.mk
++-include config.mk
++config.mk:
++	@echo "GEN $@"
++	@echo disable-static="${disable-static}" > $@
++	@echo disable-shared="${disable-shared}" >> $@
++	@echo prefix="${prefix}" >> $@
++	@echo exec_prefix="${exec_prefix}" >> $@
++	@echo includedir="${includedir}" >> $@
++	@echo libdir="${libdir}" >> $@
++
++lib-shared := lib${LIB}.so.${SHLIB_MAJOR}
++lib-static := lib${LIB}.a
++lib-pc := lib${LIB}.pc
++
++all${disable-static}: ${lib-static}
++all${disable-shared}: ${lib-shared}
++all: ${lib-pc}
++OBJS = stacktraverse.o execinfo.o
++
++${lib-shared}: ${OBJS}
++	${CC} -shared -Wl,-soname,$@ -o $@ ${OBJS}
++
++${lib-static}: ${OBJS}
++	${AR} rcs $@ ${OBJS}
++
++${lib-pc}: ${lib-pc}.in
++	${SED} -e 's|@prefix@|${prefix}|g' \
++	       -e 's|@exec_prefix@|${exec_prefix}|g' \
++	       -e 's|@includedir@|${includedir}|g' \
++	       -e 's|@libdir@|${libdir}|g' \
++	       -e 's|@VERSION@|${SHLIB_MAJOR}.${SHLIB_MINOR}|g' \
++	       ${lib-pc}.in > ${lib-pc}.tmp
++	mv ${lib-pc}.tmp ${lib-pc}
++
++install-headers:
++	install -d ${DEST}${includedir}
++	install -m644 execinfo.h stacktraverse.h ${DEST}${includedir}/
++
++install-static: ${lib-static}
++	install -d ${DEST}${libdir}
++	install -m444 ${lib-static} ${DEST}${libdir}/
++
++install-shared: ${lib-shared}
++	install -d ${DEST}${libdir}
++	install -m555 ${lib-shared} ${DEST}${libdir}/
++	ln -sf ${lib-shared} ${DEST}${libdir}/${lib-shared:.${SHLIB_MAJOR}=}
++
++install-pc: ${lib-pc}
++	install -d ${DEST}${libdir}/pkgconfig
++	install -m444 ${lib-pc} ${DEST}${libdir}/pkgconfig/
++
++.PHONY: all install install-shared install-static install-headers install-pc
++install${disable-static}: install-static
++install${disable-shared}: install-shared
++install-static install-shared: install-headers install-pc
+--- /dev/null
++++ b/libexecinfo.pc.in
+@@ -0,0 +1,10 @@
++prefix=@prefix@
++exec_prefix=@exec_prefix@
++includedir=@includedir@
++libdir=@libdir@
++
++Name: libexecinfo
++Description: libexecinfo library
++Version: @VERSION@
++CFlags: -I${includedir}
++Libs: -L${libdir} -lexecinfo
