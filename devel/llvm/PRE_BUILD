@@ -1,5 +1,6 @@
 default_pre_build &&
 cd "$SOURCE_DIRECTORY" &&
+apply_patch_dir patches-llvm &&
 if [[ "$LLVM_WITH_CLANG" == y ]]; then
   unpack_file 5 &&
   mv compiler-rt-${VERSION}.src projects/compiler-rt &&
@@ -7,6 +8,7 @@ if [[ "$LLVM_WITH_CLANG" == y ]]; then
   mv clang-${VERSION}.src tools/clang &&
   unpack_file 9 &&
   mv clang-tools-extra-${VERSION}.src tools/clang/tools/extra &&
+  apply_patch_dir patches-clang &&
   sedit '/^[\t ]*set(model_compiler /{s@[.][.]/clang-tools-@tools/clang/tools/@}' \
       tools/clang/tools/extra/clangd/quality/CompletionModel.cmake &&
   # disable sanitizers on musl
@@ -19,7 +21,8 @@ fi &&
 
 if [[ "$LLVM_WITH_LLDB" == y ]]; then
   unpack_file 7                &&
-  mv lldb-${VERSION}.src tools/lldb
+  mv lldb-${VERSION}.src tools/lldb &&
+  apply_patch_dir patches-lldb
 fi &&
 
 if [[ "$LLVM_WITH_POLLY" == y ]]; then
@@ -36,6 +39,7 @@ if [[ "$LLVM_WITH_LLD" == y ]]; then
   mv libcxx-${VERSION}.src projects/libcxx &&
   unpack_file 19                  &&
   mv libcxxabi-${VERSION}.src projects/libcxxabi &&
+  apply_patch_dir patches-libcxx &&
 
   # Bugfix for llvm 12.0.0, cf. https://groups.google.com/g/llvm-dev/c/gIY5COm6V5E
   # This will probably be fixed in llvm 12.0.1.
