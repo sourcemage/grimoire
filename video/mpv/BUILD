@@ -18,5 +18,9 @@ if is_depends_enabled "${SPELL}" "smgl-gl_select"; then
   fi
 fi &&
 
+if [[ $(get_spell_provider $SPELL LIBAVCODEC) == "ffmpeg-svn" ]]; then
+  OPTS+=" --enable-ffmpeg-strict-abi"
+fi &&
+
 OPTS+=" --bindir=${INSTALL_ROOT}/usr/bin --confdir=${INSTALL_ROOT}/etc/mpv" &&
 waf_build
