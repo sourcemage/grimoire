@@ -1,18 +1,23 @@
 default_pre_build &&
-cd "${SOURCE_DIRECTORY}/Source" &&
-rm -rf LibPNG LibMNG LibOpenJPEG ZLib OpenEXR LibRawLite LibTIFF4 LibJPEG &&
-cd "${SOURCE_DIRECTORY}" &&
-sed -i 's/\r$//m' Makefile.{gnu,fip,srcs} fipMakefile.srcs */*.h */*/*.cpp &&
-sed -i \
-      -e "/LibJPEG/d" \
-      -e "/LibPNG/d" \
-      -e "/LibTIFF/d" \
-      -e "/Source\/ZLib/d" \
-      -e "/LibOpenJPEG/d" \
-      -e "/OpenEXR/d" \
-      -e "/LibRawLite/d" \
-      -e "/LibMNG/d" \
-      Makefile.srcs fipMakefile.srcs &&
-
-patch -p1 < "$SPELL_DIRECTORY/Fix-CVE-2015-0852.patch" &&
-patch -p1 < "$SPELL_DIRECTORY/Fix-CVE-2016-5684.patch"
+cd "$SOURCE_DIRECTORY" &&
+# Remove bundled libraries
+rm -rf \
+   Source/LibJPEG \
+   Source/LibMNG \
+   Source/LibOpenJPEG \
+   Source/LibPNG \
+   Source/LibRawLite \
+   Source/LibTIFF4 \
+   Source/LibWebP \
+   Source/OpenEXR \
+   Source/ZLib &&
+sed -E -i '
+  /^SRCS =/ {
+    s@ ([.]/)?Source/(OpenEXR|Z?Lib)[^ ]*@@g
+    s@ [.]/Source/FreeImageToolkit/JPEGTransform[.]cpp@@
+  }
+  /^INCLUDE =/ {
+    s@ -I([.]/)?Source/(OpenEXR|Z?Lib)[^ ]*@@g
+  }
+' {,fip}Makefile.srcs &&
+apply_patch_dir patches
