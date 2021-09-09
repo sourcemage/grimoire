@@ -1,8 +1,6 @@
 . "$GRIMOIRE/FUNCTIONS" &&
 
-local QEMU_ARCH_FILE=archs
-
-local QEMU_ARCH_LIST=`cat $SPELL_DIRECTORY/$QEMU_ARCH_FILE` &&
+local QEMU_ARCH_FILE="$SPELL_DIRECTORY/archs"
 persistent_add QEMU_ARCHS &&
 
 # deliberately uses query, see locale CONFIGURE note
@@ -16,11 +14,22 @@ if query "Handpick architectures to emulate (y/n)?" n; then
                      --stdout                   \
                      --checklist  "$HELP"       \
                      0 0 0                      \
-                     $QEMU_ARCH_LIST`
+                     $(<"$QEMU_ARCH_FILE")`
 fi &&
 
 if [[ -z $QEMU_ARCHS ]]; then
-  QEMU_ARCHS=$(cut -f 1 $SPELL_DIRECTORY/$QEMU_ARCH_FILE | sed -e 's/^/"/' -e 's/\s*$/"/' | tr '\n' ' ')
+  QEMU_ARCHS=$(awk -vORS=' ' '{print $1}' "$QEMU_ARCH_FILE")
+else
+  # sanitize QEMU_ARCHS
+  QEMU_ARCHS=$(awk -F'[ "]+' -vORS=' ' -vtmp="$QEMU_ARCHS" '
+	BEGIN {
+		$0 = tmp
+		for (i = 1; i <= NF; i++) selected[$i]
+		FS = " "
+	}
+	$1 in selected {print $1; next}
+	{printf "WARN: %s architecture removed\n", $1 >"/dev/stderr"}
+  ' "$QEMU_ARCH_FILE")
 fi
 
 . $GRIMOIRE/config_query_multi.function                              &&
