@@ -1,0 +1,49 @@
+From a2257bf717fd96796d2ec3747b2a0837dca4c9b6 Mon Sep 17 00:00:00 2001
+From: Lemon Boy <thatlemon@gmail.com>
+Date: Mon, 23 Aug 2021 20:23:37 -0600
+Subject: [PATCH] [SROA] Avoid splitting loads/stores with irregular type
+
+Upon encountering loads/stores on types whose size is not a multiple of 8 bits the SROA pass would either trip an assertion or use logic that was not meant to work with such irregularly-sized types.
+
+Reviewed By: aeubanks
+
+Differential Revision: https://reviews.llvm.org/D99435
+
+Marler: This fixes an error I got while building for x86_64-windows-gnu with gcc 9.2.0 on NixOS.
+
+Origin: Zig
+Upstream-Status: Accepted
+---
+ lib/Transforms/Scalar/SROA.cpp | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/lib/Transforms/Scalar/SROA.cpp b/lib/Transforms/Scalar/SROA.cpp
+index af510f1a84..6b8368d50a 100644
+--- a/lib/Transforms/Scalar/SROA.cpp
++++ b/lib/Transforms/Scalar/SROA.cpp
+@@ -768,7 +768,8 @@ class AllocaSlices::SliceBuilder : public PtrUseVisitor<SliceBuilder> {
+     // We allow splitting of non-volatile loads and stores where the type is an
+     // integer type. These may be used to implement 'memcpy' or other "transfer
+     // of bits" patterns.
+-    bool IsSplittable = Ty->isIntegerTy() && !IsVolatile;
++    bool IsSplittable =
++        Ty->isIntegerTy() && !IsVolatile && DL.typeSizeEqualsStoreSize(Ty);
+ 
+     insertUse(I, Offset, Size, IsSplittable);
+   }
+@@ -3980,6 +3981,7 @@ bool SROA::presplitLoadsAndStores(AllocaInst &AI, AllocaSlices &AS) {
+     SplitLoads.clear();
+ 
+     IntegerType *Ty = cast<IntegerType>(LI->getType());
++    assert(Ty->getBitWidth() % 8 == 0);
+     uint64_t LoadSize = Ty->getBitWidth() / 8;
+     assert(LoadSize > 0 && "Cannot have a zero-sized integer load!");
+ 
+@@ -4104,6 +4106,7 @@ bool SROA::presplitLoadsAndStores(AllocaInst &AI, AllocaSlices &AS) {
+   for (StoreInst *SI : Stores) {
+     auto *LI = cast<LoadInst>(SI->getValueOperand());
+     IntegerType *Ty = cast<IntegerType>(LI->getType());
++    assert(Ty->getBitWidth() % 8 == 0);
+     uint64_t StoreSize = Ty->getBitWidth() / 8;
+     assert(StoreSize > 0 && "Cannot have a zero-sized integer store!");
+ 
