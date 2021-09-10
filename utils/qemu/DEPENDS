@@ -1,4 +1,20 @@
-depends python3 "--python=python3" &&
+. "$GRIMOIRE"/VDEPENDS &&
+vdepends <<! &&
+	meson
+	ninja-build-system
+	python3               flags: --python=python3
+!
+
+case "$HOST" in
+  (*-musl)
+    vdepends <<< 'musl >= 1.2.2'
+    ;;
+  (*)
+    optional_depends fuse3 \
+		     --{enable,disable}-fuse \
+		     'for FUSE block device export'
+    ;;
+esac &&
 
 if list_find "alsa" $QEMU_AUDIO; then
   depends  alsa-lib
@@ -37,6 +53,11 @@ optional_depends sdl2                                  \
 		 '--enable-sdl'                        \
 		 '--disable-sdl'                       \
 		 'for SDL 2.x UI (recommended)'  &&
+if is_depends_enabled "$SPELL" sdl2; then
+ optional_depends sdl2_image \
+		  --{enable,disable}-sdl-image \
+		  'for SDL Image support for icons'
+fi &&
 
 optional_depends ncurses                               \
                  "--enable-curses"                     \
@@ -84,32 +105,46 @@ optional_depends libcacard                    \
                  'for SmartCard support'  &&
 
 optional_depends lzo \
-		 '--enable-lzo' \
-		 '--disable-lzo' \
-		 'for lzo compression support' &&
+		 --{enable,disable}-lzo \
+		 'for LZO compression support' &&
 
 optional_depends snappy \
-		 '--enable-lzo' \
-		 '--disable-lzo' \
-		 'for snappy compression support' &&
+		 --{enable,disable}-snappy \
+		 'for Snappy compression support' &&
 
 optional_depends bzip2 \
-		 '--enable-bzip2' \
-		 '--disable-bzip2' \
-		 'for reading bzip2-compressed dmg images' &&
+		 --{enable,disable}-bzip2 \
+		 'for reading bzip2-compressed DMG images' &&
+
+optional_depends lzfse \
+		 --{enable,disable}-lzfse \
+		 'for reading lzfse-compressed DMG images' &&
+
+optional_depends zstd \
+		 --{enable,disable}-zstd \
+		 'for migration and qcow2 cluster compression' &&
+
+optional_depends libxml2 \
+		 '--enable-libxml2 --enable-parallels' \
+		 '--disable-libxml2' \
+		 'for Parallels image format support' &&
 
 case "$QEMU_OPTS" in *--enable-vnc*)
-  suggest_depends  gnutls                               \
-                   "--enable-gnutls"                    \
-                   "--disable-gnutls"                   \
-                   "to enable TLS encryption for VNC server" &&
+  # In QEMU's order of preference
+  optional_depends gnutls \
+                   --{enable,disable}-gnutls \
+                   'to enable TLS encryption for VNC server using GnuTLS' &&
+  if ! is_depends_enabled "$SPELL" gnutls; then
+    optional_depends libgcrypt \
+		     --{enable,disable}-gcrypt \
+                     'to enable TLS encryption for VNC server using libgcrypt' &&
+    if ! is_depends_enabled "$SPELL" libgcrypt; then
+      optional_depends nettle \
+		       --{enable,disable}-nettle \
+                       'to enable TLS encryption for VNC server using Nettle'
+    fi
+  fi &&
 
-  case "$QEMU_VNC_TLS" in
-  nettle)
-    depends  nettle '--enable-nettle --disable-gcrypt' ;;
-  gcrypt)
-    depends  libgcrypt '--enable-gcrypt --disable-nettle' ;;
-  esac
   suggest_depends  LIBSASL                               \
                    "--enable-vnc-sasl"                   \
                    "--disable-vnc-sasl"                  \
@@ -126,6 +161,22 @@ case "$QEMU_OPTS" in *--enable-vnc*)
                    'for PNG compression for VNC server'
   ;;
 esac &&
+
+optional_depends capstone \
+		 --{enable,disable}-capstone \
+		 'for capstone disassembler support' &&
+
+optional_depends jemalloc \
+		 --{enable,disable}-jemalloc \
+		 'for jemalloc support' &&
+
+optional_depends libssh2 \
+		 --{enable,disable}-libssh \
+		 'for SSH block device support' &&
+
+optional_depends DEVICE-MANAGER \
+		 --{enable,disable}-libudev \
+		 'to enumerate host devices with libudev' &&
 
 suggest_depends  bridge-utils                          \
                  ''                                    \
