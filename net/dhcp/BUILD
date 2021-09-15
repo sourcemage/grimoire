@@ -1,3 +1,4 @@
+CFLAGS+=' -fcommon' &&
 OPTS="$DHCP_OPTS $OPTS" &&
 
 make_single &&
