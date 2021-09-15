@@ -20,7 +20,6 @@ esac &&
             --localstatedir="$INSTALL_ROOT/var" \
             --target-list="$QEMU_ARCHS"     \
             --audio-drv-list="$QEMU_AUDIO"  \
-            --python=python2                \
             $QEMU_OPTS                      \
             $OPTS                           &&
 
