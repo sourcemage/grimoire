@@ -3,6 +3,6 @@ case "$HOST" in
   OPTS+=" --disable-backtrace"
   ;;
 esac
-OPTS+=" --exec-prefix=${INSTALL_ROOT}" &&
+OPTS+=" --exec-prefix=${INSTALL_ROOT} --with-pkgconfigdir=${INSTALL_ROOT}/usr/lib/pkgconfig" &&
 
 default_build
