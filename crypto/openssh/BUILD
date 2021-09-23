@@ -1,3 +1,4 @@
+CFLAGS+=" -Wno-deprecated-declarations"
 create_account sshd  &&
 
 ./configure  --prefix=${INSTALL_ROOT}/usr            \
