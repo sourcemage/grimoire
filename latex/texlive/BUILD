@@ -1,3 +1,10 @@
+if ! is_version_less $(installed_version binutils) 2.35; then
+  LDFLAGS+=" -Wl,--allow-multiple-definition"
+fi &&
+
+# Flags to allow building against lua 5.3
+#CFLAGS+=" -DLUA_COMPAT_APIINTCASTS"
+
 # LuaTeX needs this
 CXXFLAGS+=" -fpermissive" &&
 
