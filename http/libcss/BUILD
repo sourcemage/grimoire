@@ -1,1 +1,2 @@
-make PREFIX=${INSTALL_ROOT}/usr COMPONENT_TYPE=lib-shared
+CFLAGS+=' -Wno-error' &&
+default_build
