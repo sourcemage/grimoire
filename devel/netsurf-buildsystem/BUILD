@@ -1,0 +1,1 @@
+make -j"$MAKE_NJOBS" COMPONENT_TYPE=lib-shared PREFIX="$INSTALL_ROOT"/usr
