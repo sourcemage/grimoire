@@ -1,1 +1,1 @@
-make
+make ${OPTS} XCFLAGS="${CFLAGS}" XLDFLAGS="${LDFLAGS}" OPT=
