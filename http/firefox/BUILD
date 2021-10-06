@@ -14,7 +14,7 @@ export LIBGL_ALWAYS_INDIRECT=1 &&
 # System rustc has no debuginfo
 export RUSTFLAGS="-C debuginfo=0" &&
 
-export MACH_USE_SYSTEM_PYTHON=yes &&
+export MOZBUILD_STATE_PATH="${SOURCE_DIRECTORY}/mozbuild" &&
 
 #
 # No fast optimization for Mozilla, bit us so many times...
