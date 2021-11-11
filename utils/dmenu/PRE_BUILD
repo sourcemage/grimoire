@@ -61,12 +61,9 @@ if is_version_less $(installed_version fontconfig) 2.11.91; then
   echo '#define FC_COLOR "color"' >> drw.h
 fi &&
 
-#right install paths
-sedit "s/\/usr\/local/${INSTALL_ROOT}\/usr/"     config.mk &&
-sedit "s/\${PREFIX}\/etc/${INSTALL_ROOT}\/etc/"  config.mk &&
-
-sedit "s:^CXXFLAGS \+=:CXXFLAGS = ${CXXFLAGS} :" config.mk &&
-sedit "s:^CFLAGS \+=:CFLAGS = ${CFLAGS} :"       config.mk &&
-sedit "s:^LDFLAGS \+=:LDFLAGS = ${LDFLAGS} :"    config.mk &&
-
-sedit "s:/X11R6::" config.mk
+# Fix flags and system paths
+sedit '
+	/^PREFIX *=/{s@=.*@= '"$INSTALL_ROOT"'/usr@}
+	/^\(C\|LD\)FLAGS *=/{s@=@+=@}
+	s@= *-[IL][$](X11...)@=@
+'     config.mk
