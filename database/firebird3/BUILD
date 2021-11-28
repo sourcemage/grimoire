@@ -8,7 +8,7 @@ persistent_add FB_PREFIX               &&
 FB_PREFIX=${INSTALL_ROOT}/opt &&
 cmake_build $FB_PREFIX &&
 
-cd $SOURCE_DIRECTORY/builddir &&
+cd $SOURCE_DIRECTORY/build &&
 if is_depends_enabled $SPELL ninja-build-system; then
   ninja copy_files
 else
