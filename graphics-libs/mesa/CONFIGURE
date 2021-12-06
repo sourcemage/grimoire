@@ -16,42 +16,60 @@ MESA_DRI=${MESA_DRI/swrast/}
 . $GRIMOIRE/config_query_multi.function &&
 . $GRIMOIRE/MESON_CONFIGURE &&
 
-config_query_multi MESA_GLX "glx build types, recommend dri" dri xlib gallium-xlib &&
 config_query_multi MESA_EGL "window systems to support,recommend x11" x11 wayland &&
-
 
 config_query_multi MESA_DRM "which libdrm hardware" AMD INTEL NOUVEAU RADEON &&
 # only suggest drivers for specified hardware
-local AVAILABLE_DRI=""
 local AVAILABLE_GALLIUM="svga swrast virgl zink"
 local AVAILABLE_VULKAN="swrast"
 if list_find "$MESA_DRM" AMD;then
   AVAILABLE_VULKAN+=" amd"
 fi &&
 if list_find "$MESA_DRM" RADEON;then
-  AVAILABLE_DRI+=" r100 r200"
   AVAILABLE_GALLIUM+=" r300 r600 radeonsi"
 fi &&
 if list_find "$MESA_DRM" INTEL;then
-  AVAILABLE_DRI+=" i915 i965"
   AVAILABLE_GALLIUM+=" i915 iris"
   AVAILABLE_VULKAN+=" intel"
 fi &&
 if list_find "$MESA_DRM" NOUVEAU;then
-  AVAILABLE_DRI+=" nouveau"
   AVAILABLE_GALLIUM+=" nouveau"
 fi &&
 
+# Mesa has dropped DRI drivers. The code below (except in the else clause)
+# should be deleted when stable release with no DRI drivers will be out.
+if [[ "${MESA_BRANCH}" == "stable" ]]; then
+  local AVAILABLE_DRI="" &&
 
-if list_find "$MESA_GLX" dri;then
-  config_query_multi MESA_DRI \
-                   "which DRI drivers to build?" \
-                   all $AVAILABLE_DRI &&
+  config_query_multi MESA_GLX "glx build types, recommend dri" dri xlib gallium-xlib &&
 
-  if list_find "$MESA_DRI" all; then
-    MESA_DRI="$AVAILABLE_DRI"
-  fi
+  if list_find "$MESA_DRM" RADEON;then
+    AVAILABLE_DRI+=" r100 r200"
+  fi &&
+  if list_find "$MESA_DRM" INTEL;then
+    AVAILABLE_DRI+=" i915 i965"
+  fi &&
+  if list_find "$MESA_DRM" NOUVEAU;then
+    AVAILABLE_DRI+=" nouveau"
+  fi &&
+
+  if list_find "$MESA_GLX" dri;then
+    config_query_multi MESA_DRI \
+                     "which DRI drivers to build?" \
+                     all $AVAILABLE_DRI &&
+
+    if list_find "$MESA_DRI" all; then
+      MESA_DRI="$AVAILABLE_DRI"
+    fi
+  fi &&
+  MESA_DRI="${MESA_DRI# }"
+else
+  list_remove MESA_GLX "gallium-xlib" &&
+  config_query_multi MESA_GLX "glx build types, recommend dri" dri xlib &&
+
+  persistent_remove MESA_DRI
 fi &&
+
 # Gallium support
 
 message "${MESSAGE_COLOR}If you want to enable VDPAU you have to select at least one of the r300, r600,$DEFAULT_COLOR" &&
@@ -85,6 +103,5 @@ config_query_multi MESA_ARCH   "which arch" avx avx2 knl skx &&
 config_query_multi MESA_OMX    "OMax support" auto disabled tizonia bellagio
 
 # strip any leading spaces from the driver lists
-MESA_DRI="${MESA_DRI# }"
 MESA_GALLIUM="${MESA_GALLIUM# }"
 MESA_VULKAN="${MESA_VULKAN# }"

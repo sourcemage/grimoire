@@ -23,8 +23,12 @@ esac &&
 local vulkan=${MESA_VULKAN//none} &&
 local gallium=${MESA_GALLIUM//none} &&
 local dri=${MESA_DRI//none} &&
-OPTS+=" dri-drivers=${dri// /,} \
-    gallium-drivers=${gallium// /,} \
+
+if [[ "${MESA_BRANCH}" == "stable" ]]; then
+  OPTS+=" dri-drivers=${dri// /,}"
+fi &&
+
+OPTS+=" gallium-drivers=${gallium// /,} \
      vulkan-drivers=${vulkan// /,} \
           platforms=${MESA_EGL// /,} \
                 glx=${MESA_GLX// /,} \
@@ -32,6 +36,5 @@ OPTS+=" dri-drivers=${dri// /,} \
          swr-arches=${MESA_ARCH// /,} \
         use-elf-tls=false \
      $MESA_GLES1 $MESA_GLES2" &&
-echo "OPTS=$OPTS" &&
-PREFIX=/usr &&
+
 default_build
