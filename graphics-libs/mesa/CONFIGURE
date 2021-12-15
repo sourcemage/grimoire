@@ -11,7 +11,6 @@ MESA_GLES2=${MESA_GLES2/true/enabled}
 MESA_GLES1=${MESA_GLES1/false/disabled}
 MESA_GLES2=${MESA_GLES2/false/disabled}
 MESA_EGL=${MESA_EGL/drm/}
-MESA_DRI=${MESA_DRI/swrast/}
 
 . $GRIMOIRE/config_query_multi.function &&
 . $GRIMOIRE/MESON_CONFIGURE &&
@@ -40,6 +39,7 @@ fi &&
 # should be deleted when stable release with no DRI drivers will be out.
 if [[ "${MESA_BRANCH}" == "stable" ]]; then
   local AVAILABLE_DRI="" &&
+  MESA_DRI=${MESA_DRI/swrast/} &&
 
   config_query_multi MESA_GLX "glx build types, recommend dri" dri xlib gallium-xlib &&
 
@@ -62,12 +62,14 @@ if [[ "${MESA_BRANCH}" == "stable" ]]; then
       MESA_DRI="$AVAILABLE_DRI"
     fi
   fi &&
-  MESA_DRI="${MESA_DRI# }"
+  MESA_DRI="${MESA_DRI# }" &&
+  config_query_multi MESA_ARCH   "which arch" avx avx2 knl skx
 else
   list_remove MESA_GLX "gallium-xlib" &&
   config_query_multi MESA_GLX "glx build types, recommend dri" dri xlib &&
 
-  persistent_remove MESA_DRI
+  persistent_remove MESA_DRI &&
+  persistent_remove MESA_ARCH
 fi &&
 
 # Gallium support
@@ -99,7 +101,6 @@ config_query_multi MESA_TOOLS  "which tools to build" \
 	nir \
 	nouveau \
 	xvmc &&
-config_query_multi MESA_ARCH   "which arch" avx avx2 knl skx &&
 config_query_multi MESA_OMX    "OMax support" auto disabled tizonia bellagio
 
 # strip any leading spaces from the driver lists

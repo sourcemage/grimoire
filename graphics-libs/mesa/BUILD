@@ -25,7 +25,7 @@ local gallium=${MESA_GALLIUM//none} &&
 local dri=${MESA_DRI//none} &&
 
 if [[ "${MESA_BRANCH}" == "stable" ]]; then
-  OPTS+=" dri-drivers=${dri// /,}"
+  OPTS+=" dri-drivers=${dri// /,} swr-arches=${MESA_ARCH// /,}"
 fi &&
 
 OPTS+=" gallium-drivers=${gallium// /,} \
@@ -33,7 +33,6 @@ OPTS+=" gallium-drivers=${gallium// /,} \
           platforms=${MESA_EGL// /,} \
                 glx=${MESA_GLX// /,} \
               tools=${MESA_TOOLS// /,} \
-         swr-arches=${MESA_ARCH// /,} \
         use-elf-tls=false \
      $MESA_GLES1 $MESA_GLES2" &&
 
