@@ -1,1 +1,0 @@
-qt4_cmake_build
