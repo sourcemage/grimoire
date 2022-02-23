@@ -1,1 +1,1 @@
-make V=1 OPTLEVEL=
+make V=1 OPTLEVEL= PAWK=awk
