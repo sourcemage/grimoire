@@ -1,0 +1,42 @@
+prefix="$INSTALL_ROOT"/usr &&
+etcdir="$INSTALL_ROOT/etc/refind.d" &&
+datarootdir="$prefix/share" &&
+datadir="$datarootdir/$SPELL" &&
+docdir="$datarootdir"/doc/"$SPELL" &&
+mandir="$datarootdir"/man &&
+sbindir="$prefix"/sbin &&
+
+install -v -d \
+	"$datadir"/{icons/svg,images,fonts,banners} \
+	"$docdir"/{Styles,refind} \
+	"$etcdir"/keys \
+	"$mandir"/man8 \
+	"$sbindir" &&
+
+install -v -m444 docs/man/*.8 "$mandir"/man8/ &&
+install -v -m444 *.txt "$docdir"/ &&
+install -v -m444 docs/refind/* "$docdir"/refind/ &&
+install -v -m444 docs/Styles/*.css "$docdir"/Styles/ &&
+
+install -v -m555 mkrlconf mvrefind refind-mkdefault "$sbindir" &&
+install -v -m555 refind-install  "$datadir"/ &&
+ln -v -r -s "$datadir"/refind-install "$sbindir"/ &&
+
+install -v -m444 icons/*.png icons/README "$datadir"/icons/ &&
+install -v -m444 icons/svg/*.svg "$datadir"/icons/svg/ &&
+install -v -m444 images/* "$datadir"/images/ &&
+install -v -m444 fonts/* "$datadir"/fonts/ &&
+install -v -m444 banners/* "$datadir"/banners/ &&
+
+install_drv() {
+  local d=drivers_"$1" &&
+  if [ -d "$d" ]; then
+    install -v -d "$datadir/$d" &&
+    install -v -m444 "$d"/*.efi "$datadir/$d/"
+  fi
+} &&
+install_drv x64 &&
+install_drv ia32 &&
+install -v -m444 refind/*.efi gptsync/*.efi refind.conf-sample "$datadir"/ &&
+
+install -v -m444 keys/* "$etcdir"/keys/
