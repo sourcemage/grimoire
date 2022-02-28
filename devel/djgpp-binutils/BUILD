@@ -1,4 +1,4 @@
-if [[ $BINUTILS_DJGPP_LTO == "y" ]];then
+if [ "$DJGPP_BINUTILS_LTO" = y ];then
   OPTS+=" --enable-lto"
 fi &&
 
