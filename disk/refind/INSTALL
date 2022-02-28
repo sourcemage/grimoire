@@ -7,7 +7,8 @@ mandir="$datarootdir"/man &&
 sbindir="$prefix"/sbin &&
 
 install -v -d \
-	"$datadir"/{icons/svg,images,fonts,banners} \
+	"$datadir"/refind/icons \
+	"$datadir"/{images,fonts,banners} \
 	"$docdir"/{Styles,refind} \
 	"$etcdir"/keys \
 	"$mandir"/man8 \
@@ -22,21 +23,14 @@ install -v -m555 mkrlconf mvrefind refind-mkdefault "$sbindir" &&
 install -v -m555 refind-install  "$datadir"/ &&
 ln -v -r -s "$datadir"/refind-install "$sbindir"/ &&
 
-install -v -m444 icons/*.png icons/README "$datadir"/icons/ &&
-install -v -m444 icons/svg/*.svg "$datadir"/icons/svg/ &&
+install -v -m444 icons/*.png icons/README "$datadir"/refind/icons/ &&
 install -v -m444 images/* "$datadir"/images/ &&
 install -v -m444 fonts/* "$datadir"/fonts/ &&
 install -v -m444 banners/* "$datadir"/banners/ &&
-
-install_drv() {
-  local d=drivers_"$1" &&
-  if [ -d "$d" ]; then
-    install -v -d "$datadir/$d" &&
-    install -v -m444 "$d"/*.efi "$datadir/$d/"
-  fi
-} &&
-install_drv x64 &&
-install_drv ia32 &&
-install -v -m444 refind/*.efi gptsync/*.efi refind.conf-sample "$datadir"/ &&
-
+for d in refind/tools_{x64,ia32} drivers_{x64,ia32}; do
+  [ -d "$d" ] || continue
+  install -v -d "$datadir/refind/${d#refind/}" &&
+  install -v -m444 "$d"/* "$datadir/refind/${d#refind/}/" || exit 1
+done &&
+install -v -m444 refind/*.efi refind.conf-sample "$datadir"/refind/ &&
 install -v -m444 keys/* "$etcdir"/keys/
