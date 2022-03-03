@@ -1,6 +1,11 @@
 export CLANG_INSTALL_DIR=/usr &&
 CFLAGS="${CFLAGS//-DPIC}" &&
 CXXFLAGS="${CXXFLAGS//-DPIC}" &&
+
+# for libressl >= 3.5.x
+CFLAGS+=" -DHAVE_OPAQUE_STRUCTS=1" &&
+CXXFLAGS+=" -DHAVE_OPAQUE_STRUCTS=1" &&
+
 # NEVER use the rust in /usr.
 # 1. It will be too old in the general case. We'd need to ensure taking
 #    each release step.
