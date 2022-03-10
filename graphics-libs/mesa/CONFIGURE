@@ -4,6 +4,9 @@ persistent_remove MESALIB_BUILD
 persistent_remove MESALIB_GALLIUM
 persistent_remove MESALIB_DRIVERS
 persistent_remove MESA_OSMESA
+persistent_remove MESA_DRI &&
+persistent_remove MESA_ARCH &&
+list_remove MESA_GLX "gallium-xlib" &&
 
 # adjust some flags
 MESA_GLES1=${MESA_GLES1/true/enabled}
@@ -35,42 +38,8 @@ if list_find "$MESA_DRM" NOUVEAU;then
   AVAILABLE_GALLIUM+=" nouveau"
 fi &&
 
-# Mesa has dropped DRI drivers. The code below (except in the else clause)
-# should be deleted when stable release with no DRI drivers will be out.
-if [[ "${MESA_BRANCH}" == "stable" ]]; then
-  local AVAILABLE_DRI="" &&
-  MESA_DRI=${MESA_DRI/swrast/} &&
+config_query_multi MESA_GLX "glx build types, recommend dri" dri xlib &&
 
-  config_query_multi MESA_GLX "glx build types, recommend dri" dri xlib gallium-xlib &&
-
-  if list_find "$MESA_DRM" RADEON;then
-    AVAILABLE_DRI+=" r100 r200"
-  fi &&
-  if list_find "$MESA_DRM" INTEL;then
-    AVAILABLE_DRI+=" i915 i965"
-  fi &&
-  if list_find "$MESA_DRM" NOUVEAU;then
-    AVAILABLE_DRI+=" nouveau"
-  fi &&
-
-  if list_find "$MESA_GLX" dri;then
-    config_query_multi MESA_DRI \
-                     "which DRI drivers to build?" \
-                     all $AVAILABLE_DRI &&
-
-    if list_find "$MESA_DRI" all; then
-      MESA_DRI="$AVAILABLE_DRI"
-    fi
-  fi &&
-  MESA_DRI="${MESA_DRI# }" &&
-  config_query_multi MESA_ARCH   "which arch" avx avx2 knl skx
-else
-  list_remove MESA_GLX "gallium-xlib" &&
-  config_query_multi MESA_GLX "glx build types, recommend dri" dri xlib &&
-
-  persistent_remove MESA_DRI &&
-  persistent_remove MESA_ARCH
-fi &&
 
 # Gallium support
 

@@ -24,10 +24,6 @@ local vulkan=${MESA_VULKAN//none} &&
 local gallium=${MESA_GALLIUM//none} &&
 local dri=${MESA_DRI//none} &&
 
-if [[ "${MESA_BRANCH}" == "stable" ]]; then
-  OPTS+=" dri-drivers=${dri// /,} swr-arches=${MESA_ARCH// /,}"
-fi &&
-
 OPTS+=" gallium-drivers=${gallium// /,} \
      vulkan-drivers=${vulkan// /,} \
           platforms=${MESA_EGL// /,} \
