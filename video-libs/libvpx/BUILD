@@ -1,6 +1,5 @@
 ./configure \
   --prefix="$INSTALL_ROOT"/usr \
-  --prefix=/usr \
   --enable-shared \
   --enable-pic \
   --disable-static \
@@ -9,5 +8,6 @@
   --enable-postproc \
   --enable-vp8 \
   --enable-vp9 \
-  --enable-vp9-temporal-denoising &&
+  --enable-vp9-temporal-denoising \
+  $OPTS &&
 default_build_make
