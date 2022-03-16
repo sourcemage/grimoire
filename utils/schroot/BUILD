@@ -1,3 +1,5 @@
 OPTS+=' --enable-shared --disable--static' &&
-LDFLAGS+=" -lintl" &&
+case "$HOST" in
+  (*-gnu) LDFLAGS+=" -lintl" ;;
+esac &&
 default_build
