@@ -10,4 +10,14 @@ fi &&
 
 default_pre_build    &&
 cd $SOURCE_DIRECTORY &&
+# Add musl mkspecs if not provided
+for i in linux-g++ linux-clang linux-clang-libc++; do
+  if ! [ -d mkspecs/"$i"-musl ]; then
+    message "Adding mkspec for: $i-musl"
+    cp -r mkspecs/"$i" mkspecs/"$i"-musl &&
+    sedit '/\/linux\.conf)$/{
+		aQMAKE_LIBS_EXECINFO = -lexecinfo
+	}' mkspecs/"$i"-musl/qmake.conf || exit 1
+  fi
+done &&
 apply_patch_dir patches

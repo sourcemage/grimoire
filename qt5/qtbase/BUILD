@@ -15,8 +15,12 @@ sizeopt= &&
 if list_find "$CXXFLAGS" -Os; then
   sizeopt=-optimize-size
 fi &&
+platform=linux-g++ &&
+case "$HOST" in
+  (*-musl) platform+=-musl ;;
+esac &&
 ./configure  -opensource -confirm-license \
-             -prefix $QT5DIR  -platform  linux-g++  \
+             -prefix $QT5DIR  -platform $platform \
              -reduce-relocations -reduce-exports $sizeopt \
              $OPTS -v &&
 make
