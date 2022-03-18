@@ -1,12 +1,18 @@
 default_pre_build &&
 cd ${SOURCE_DIRECTORY} &&
 
-for i in "$SPELL_DIRECTORY"/patches/*; do
-  desc="$(sed -r '/^Subject: /!d;s@[^ ]* *(\[[^\]]*\] *)*@ (@;s@$@)@;q' "$i")" &&
-  if query "Apply ${i##*/}$desc?" n; then
-    patch -sp1 -i "$i" || break
+# Apply optional patches
+i=2
+while src=$(eval 'echo "$SOURCE'"$i"\")
+      [[ -n "$src" ]]
+do
+  desc=$(sed -r '/^Subject: /!d;s@^[^ ]+ (\[[^]]+\] *)*@@;q' \
+	     "$SOURCE_CACHE/$src")
+  if query "Apply $src ($desc)?" n; then
+    patch -fp1 -i "$SOURCE_CACHE/$src" || exit 1
   fi
-done &&
+  let i++
+done
 
 if [[ "${ST_CONFIG}" == "y" ]]; then
   if [[ -e ${INSTALL_ROOT}/usr/share/doc/st/config.def.h ]]; then
