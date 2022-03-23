@@ -24,5 +24,6 @@ else
   OPTS+=" -DLLVM_ENABLE_RTTI=0"
 fi &&
 
-message opts=$OPTS &&
+OPTS+=" -DLLVM_BUILD_BENCHMARKS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF" &&
+
 cmake_build
