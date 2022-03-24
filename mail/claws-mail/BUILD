@@ -1,2 +1,2 @@
-OPTS+=" $CLAWSMAIL_OPTS" &&
+OPTS+=" $CLAWSMAIL_OPTS --disable-static" &&
 default_build
