@@ -1,7 +1,10 @@
 OPTS="--eprefix=$INSTALL_ROOT $OPTS" &&
 
 CFLAGS="$CFLAGS -DPIC -fPIC"    &&
-CFLAGS="${CFLAGS/-O?/-O3} -fno-tree-vectorize -mstackrealign -DUNALIGNED_OK" &&
+CFLAGS="${CFLAGS//-O[gs0-9]/-O3}" &&
+CFLAGS="${CFLAGS//-Ofast/-O3}" &&
+CFLAGS="${CFLAGS//-O /-O3 }" &&
+CFLAGS+=" -fno-tree-vectorize -mstackrealign -DUNALIGNED_OK" &&
 
 sedit  "s/-O/$CFLAGS/"  Makefile                   &&
 
