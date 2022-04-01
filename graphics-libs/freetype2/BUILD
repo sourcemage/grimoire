@@ -22,5 +22,9 @@ if [[ ${FT2_SUBPIXEL} == "y" ]]; then
   enable_ftoption FT_CONFIG_OPTION_SUBPIXEL_RENDERING
 fi &&
 
+if [[ ${FT2_SVG} == "y" ]]; then
+  enable_ftoption FT_CONFIG_OPTION_SVG
+fi &&
+
 OPTS+=" $FREETYPE_OPTS --disable-static --enable-freetype-config" &&
 default_build
