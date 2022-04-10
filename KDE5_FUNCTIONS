@@ -1,36 +1,28 @@
-KF5DIR="$INSTALL_ROOT/usr"
-export XDG_DATA_DIRS=/usr/share
-
-#---------------------------------------------------------------------
 default_build() {
   CXXFLAGS+=' -Wno-deprecated-declarations'
-  OPTS+=" -DLIB_INSTALL_DIR=lib"
-  OPTS+=" -Wno-dev $CM_TESTS"
+#  OPTS+=" -Wno-dev"
+  OPTS+=" $CM_TESTS"
   OPTS+=" -DKDE_SKIP_UNINSTALL_TARGET=1"
   if is_depends_enabled $SPELL qt6base;then
-    OPTS+=" -DBUILD_WITH_QT6=1"
-    OPTS+=" -DCMAKE_INSTALL_PREFIX=${QT6DIR}"
-    cmake_build $QT6DIR
-  else
-    cmake_build
+    OPTS+=" -DCMAKE_PREFIX_PATH=/opt/qt6"
+    OPTS+=" -DBUILD_WITH_QT6=ON"
   fi
+cmake_build
 }
-
 
 function default_install() {
  cmake_install
 }
 
-
 # we need a default_final, default_post_remove
 # so that the mime and desktop databases get updated
 update_databases() {
 local DD
-  DD=$KF5DIR
-#  update-mime-database takes a long time, so only do it when needed
+  DD=$INSTALL_ROOT/usr
   if is_depends_enabled $SPELL shared-mime-info;then
     update-mime-database $DD/share/mime/
   fi
+
   if [[ -e $DD/share/desktop-directories ]]; then
     update-desktop-database $DD/share/desktop-directories
   fi
