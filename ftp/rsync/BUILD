@@ -1,5 +1,3 @@
-make_single &&
-
 # LDFLAGS containing "-s" calls gcc and/or ld with "-s" which means --strip-all
 # with current (2.36) binutils and perhaps earlier versions this causes
 # relocation entries in the .rela.plt section of type R_X86_64_IRELATIV to be
@@ -14,5 +12,4 @@ make_single &&
 
 LDFLAGS=${LDFLAGS//-s /-Wl,--strip-debug } &&
 LDFLAGS=${LDFLAGS/%-s/-Wl,--strip-debug} &&
-default_build &&
-make_normal
+default_build
