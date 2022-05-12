@@ -61,6 +61,7 @@ $SOURCE_DIRECTORY/configure  --host=$HOST                       \
                              --with-elf                         \
                            --enable-shared                      \
                           --disable-profile                     \
+			  --disable-werror                      \
                      --with-headers=$GLIBC_HEADERS_DIR/usr/include  \
                           --disable-multi-arch                  \
                                     $OPTS                       &&
