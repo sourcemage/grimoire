@@ -1,0 +1,64 @@
+
+# HG changeset patch
+# User Mitchell Hentges <mhentges@mozilla.com>
+# Date 1650979968 0
+# Node ID f05729424f4d67217eac2909844debd4b7e1dc27
+# Parent  339a9e0b4903ccc822974d2e8d04212ae1ecfe77
+Bug 1765361: Only resolve objdir from virtualenv if mozinfo not ancestor r=glandium
+
+Virtualenv-based objdir detection doesn't work for instrumented builds,
+as instrumentation-specific objdirs aren't created.
+
+Resolve this by:
+* Removing redundant cwd-based topsrcdir resolution - the
+  `__file__`-based code path below covers this case.
+* Only using virtualenv-based resolving if topsrcdir isn't resolved.
+* Documenting that virtualenv-based resolution is problematic for
+  instrumented builds.
+
+Differential Revision: https://phabricator.services.mozilla.com/D144030
+
+diff --git a/python/mozbuild/mozbuild/base.py b/python/mozbuild/mozbuild/base.py
+--- a/python/mozbuild/mozbuild/base.py
++++ b/python/mozbuild/mozbuild/base.py
+@@ -181,29 +181,26 @@ class MozbuildObject(ProcessExecutionMix
+ 
+         for dir_path in ancestors(cwd):
+             # If we find a mozinfo.json, we are in the objdir.
+             mozinfo_path = os.path.join(dir_path, "mozinfo.json")
+             if os.path.isfile(mozinfo_path):
+                 topsrcdir, topobjdir, mozconfig = load_mozinfo(mozinfo_path)
+                 break
+ 
+-            # We choose an arbitrary file as an indicator that this is a
+-            # srcdir. We go with ourself because why not!
+-            our_path = os.path.join(
+-                dir_path, "python", "mozbuild", "mozbuild", "base.py"
+-            )
+-            if os.path.isfile(our_path):
+-                topsrcdir = dir_path
+-                break
+-
+-        # See if we're running from a Python virtualenv that's inside an objdir.
+-        mozinfo_path = os.path.join(os.path.dirname(sys.prefix), "../mozinfo.json")
+-        if detect_virtualenv_mozinfo and os.path.isfile(mozinfo_path):
+-            topsrcdir, topobjdir, mozconfig = load_mozinfo(mozinfo_path)
++        if not topsrcdir:
++            # See if we're running from a Python virtualenv that's inside an objdir.
++            # sys.prefix would look like "$objdir/_virtualenvs/$virtualenv/".
++            # Note that virtualenv-based objdir detection work for instrumented builds,
++            # because they aren't created in the scoped "instrumentated" objdir.
++            # However, working-directory-ancestor-based objdir resolution should fully
++            # cover that case.
++            mozinfo_path = os.path.join(sys.prefix, "..", "..", "mozinfo.json")
++            if detect_virtualenv_mozinfo and os.path.isfile(mozinfo_path):
++                topsrcdir, topobjdir, mozconfig = load_mozinfo(mozinfo_path)
+ 
+         if not topsrcdir:
+             topsrcdir = os.path.abspath(
+                 os.path.join(os.path.dirname(__file__), "..", "..", "..")
+             )
+ 
+         topsrcdir = mozpath.normsep(topsrcdir)
+         if topobjdir:
+
