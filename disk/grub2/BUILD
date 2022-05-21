@@ -10,5 +10,12 @@ LDFLAGS=${LDFLAGS%-s} &&
 LDFLAGS=${LDFLAGS//-Wl,-fuse-ld=gold/} &&
 LDFLAGS+=" -Wl,-fuse-ld=bfd" &&
 
-disable_pic force &&
+# let the build system handle stack protector
+OPTS+=" --enable-stack-protector" &&
+disable_stack_protector           &&
+
+disable_fortify_source            &&
+disable_cf_protection             &&
+disable_pic force                 &&
+
 default_build
