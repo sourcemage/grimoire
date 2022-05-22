@@ -1,5 +1,10 @@
 default_pre_build          &&
 # the next instruction checks the file but doesn't decompress it
 unpack_file 2 &&
+# Fix cracklib not finding python 3.10, instead thinking it's 3.1
+if [[ "$(installed_version python3 | cut -d. -f2)" -gt '9' ]]; then
+  message "${MESSAGE_COLOR}Fixing detection of Python 3 version if it's more than 3 characters...${DEFAULT_COLOR}" &&
+  sedit 's:PYTHON -c "import sys; sys.stdout.write(sys.version\[\:3\]):PYTHON -c "import sys; sys.stdout.write(sys.version\[\:4\]):' "${SOURCE_DIRECTORY}"/configure
+fi &&
 # decompress cracklib's own wordlist file
 gzip -cd "$SOURCE_CACHE/$SOURCE2" > "$SOURCE_DIRECTORY/${SOURCE2%.gz}"
