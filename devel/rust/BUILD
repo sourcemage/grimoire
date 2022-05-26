@@ -32,6 +32,7 @@ message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
 	--enable-locked-deps \
 	--enable-vendor \
 	--enable-extended \
+	--enable-missing-tools \
 	--disable-docs \
 	--enable-llvm-link-shared \
   --llvm-root=$INSTALL_ROOT/usr --disable-llvm-version-check --disable-codegen-tests \

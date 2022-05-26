@@ -23,7 +23,9 @@ fi &&
 sedit  "s/^CFLAG=/CFLAG=$CFLAGS /"  Makefile                &&
 sedit  "s/chmod 644\(.*pkgconfig\)/chmod 755\1/"  Makefile  &&
 
-make         && {
+make                &&
+make build_man_docs &&
+{
 
   local OLD_SPELL_VERSION=""
   spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)"

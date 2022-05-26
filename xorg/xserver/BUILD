@@ -1,4 +1,5 @@
 #message CFLAGS=$CFLAGS
+CFLAGS+=" -Wno-error=array-bounds" &&
 OPTS+=" xorg=$XSERVER_XORG \
         xnest=$XSERVER_XNEST \
         xvfb=$XSERVER_XVFB \
