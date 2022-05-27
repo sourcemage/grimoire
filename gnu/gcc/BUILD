@@ -13,6 +13,10 @@ else
   OPTS+=" --disable-libquadmath"
 fi &&
 
+if list_find "$GCC_COMPILER" "jit"; then
+  OPTS+=" --enable-host-shared"
+fi &&
+
 persistent_read gmp GMP_BUILD_ARCH GMP_BUILD_ARCH         &&
 persistent_read mpfr MPFR_BUILD_ARCH MPFR_BUILD_ARCH      &&
 
