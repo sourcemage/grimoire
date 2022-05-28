@@ -1,0 +1,41 @@
+From 395ecc0c3103209d144847f982bfb5e029caca84 Mon Sep 17 00:00:00 2001
+From: Florian Franzmann <bwlf@bandrate.org>
+Date: Sat, 28 May 2022 18:01:30 +0200
+Subject: [PATCH] Respect our environment variables
+
+---
+ Makefile | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index ac2988a..41d2f1e 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,19 +1,17 @@
+ obj-m += nct6687.o
+ 
+-curpwd := $(shell pwd)
+-kver   := $(shell uname -r)
++.PHONY: build install clean
+ 
+ build:
+ 	rm -rf ${curpwd}/${kver}
+ 	mkdir -p ${curpwd}/${kver}
+ 	cp ${curpwd}/Makefile ${curpwd}/nct6687.c ${curpwd}/${kver}
+ 	cd ${curpwd}/${kver}
+-	make -C /lib/modules/${kver}/build M=${curpwd}/${kver} modules
++	make -C $(DESTDIR)/lib/modules/${kver}/build M=${curpwd}/${kver} modules
+ 
+-install: build
+-	sudo cp ${curpwd}/${kver}/nct6687.ko /lib/modules/${kver}/kernel/drivers/hwmon/
+-	sudo depmod
+-	sudo modprobe nct6687
++install:
++	install -v -m 644 -o root -g root ${curpwd}/${kver}/nct6687.ko $(DESTDIR)/lib/modules/${kver}/kernel/drivers/hwmon/
++	depmod ${kver}
+ 
+ clean:
+ 	[ -d "${curpwd}/${kver}" ] && make -C /lib/modules/${kver}/build M=${curpwd}/${kver} clean
+-- 
+2.36.0
+
