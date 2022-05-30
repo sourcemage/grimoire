@@ -1,14 +1,22 @@
 default_pre_build &&
 cd $SOURCE_DIRECTORY &&
 if [[ $ALSA_UTILS_BRANCH == scm ]]; then
-  aclocal -I m4 &&
+  if test -d ../alsa-lib/utils && ! test -r `aclocal --print-ac-dir`/alsa.m4; then
+    alsa_m4_flags="-I ../alsa-lib/utils"
+  fi  &&
+  aclocal $alsa_m4_flags $ACLOCAL_FLAGS  &&
+  # save original files to avoid stupid modifications by gettextize
   cp Makefile.am Makefile.am.ok &&
   cp configure.ac configure.ac.ok &&
-  gettextize -f --no-changelog &&
+  gettextize -c -f --no-changelog &&
   echo "EXTRA_DIST = gettext.m4" > m4/Makefile.am &&
   cp Makefile.am.ok Makefile.am &&
   cp configure.ac.ok configure.ac &&
+  touch ltconfig &&
+  libtoolize --force --copy --automake &&
+  aclocal $ACLOCAL_FLAGS &&
   autoheader &&
   automake --foreign --copy --add-missing &&
+  touch depcomp &&
   autoconf
 fi
