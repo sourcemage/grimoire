@@ -1,0 +1,116 @@
+From f313773d9087298a3f0ab45602791946debff8b7 Mon Sep 17 00:00:00 2001
+From: Sergei Trofimovich <slyfox@gentoo.org>
+Date: Mon, 05 Jul 2021 18:15:44 +0000
+Subject: [PATCH] musl: always use 'lib' directory for all x86_64 ABIs [PR90077]
+Message-ID: <20210705181544.1519647-1-slyfox@gentoo.org>
+
+From: Sergei Trofimovich <siarheit@google.com>
+
+musl library intentionally does not support glibc-style multilib layout
+and usually assumes --libdir=lib (Gentoo and Alpine Linux both use it).
+
+Before the change --disable-multilib x86_64-gentoo-linux-musl returned:
+
+    $ gcc -print-multi-os-directory
+    ../lib64
+    $ gcc -print-multi-os-directory -m32
+    ../lib32
+    $ gcc -print-multi-os-directory -mx32
+    ../libx32
+
+After the change the layout is always the same:
+
+    $ gcc -print-multi-os-directory
+    ../lib
+    $ gcc -print-multi-os-directory -m32
+    ../lib
+    $ gcc -print-multi-os-directory -mx32
+    ../lib
+
+The discrepancy was noticed in meson build system which uses
+-print-multi-os-directory to find out target directory.
+
+Debian's multi-arch setup should not change.
+
+	PR target/90077
+
+gcc/ChangeLog
+
+	* gcc/config.gcc: Specal case musl to t-linux64-musl.
+
+	* gcc/config/i386/t-linux64-musl: New file based on t-linux64
+	that pins MULTILIB_OSDIRNAMES to lib.
+
+Origin: Gentoo
+Upstream-Status: Submitted [https://gcc.gnu.org/pipermail/gcc-patches/2021-July/574482.html]
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ gcc/config.gcc                 | 10 ++++++++--
+ gcc/config/i386/t-linux64-musl | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 2 deletions(-)
+ create mode 100644 gcc/config/i386/t-linux64-musl
+
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index 0230bb88861..a87a59c9403 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -1923,7 +1923,10 @@ i[34567]86-*-linux* | i[34567]86-*-kfreebsd*-gnu | i[34567]86-*-gnu* | i[34567]8
+ 		if test x$enable_targets = xall; then
+ 			tm_file="${tm_file} i386/x86-64.h i386/gnu-user-common.h i386/gnu-user64.h i386/linux-common.h i386/linux64.h"
+ 			tm_defines="${tm_defines} TARGET_BI_ARCH=1"
+-			tmake_file="${tmake_file} i386/t-linux64"
++			case $target in
++				*-*-*musl*) tmake_file="${tmake_file} i386/t-linux64-musl";;
++				*) tmake_file="${tmake_file} i386/t-linux64";;
++			esac
+ 			x86_multilibs="${with_multilib_list}"
+ 			if test "$x86_multilibs" = "default"; then
+ 				x86_multilibs="m64,m32"
+@@ -1983,7 +1986,10 @@ x86_64-*-linux* | x86_64-*-kfreebsd*-gnu)
+ 		tm_file="${tm_file} kfreebsd-gnu.h i386/kfreebsd-gnu64.h"
+ 		;;
+ 	esac
+-	tmake_file="${tmake_file} i386/t-linux64"
++	case $target in
++		*-*-*musl*) tmake_file="${tmake_file} i386/t-linux64-musl";;
++		*) tmake_file="${tmake_file} i386/t-linux64";;
++	esac
+ 	x86_multilibs="${with_multilib_list}"
+ 	if test "$x86_multilibs" = "default"; then
+ 		case ${with_abi} in
+diff --git a/gcc/config/i386/t-linux64-musl b/gcc/config/i386/t-linux64-musl
+new file mode 100644
+index 00000000000..58e23c3c7dc
+--- /dev/null
++++ b/gcc/config/i386/t-linux64-musl
+@@ -0,0 +1,28 @@
++# Copyright (C) 2002-2021 Free Software Foundation, Inc.
++#
++# This file is part of GCC.
++#
++# GCC is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# GCC is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with GCC; see the file COPYING3.  If not see
++# &lt;<a href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.
++
++# musl explicitly does not support lib/lib32/lib64 layouts and always
++# uses lib layout. On debian full arch suffix is used. Thus we populate
++# all the m32/m64/mx32 with the same lib and apply multiarch suffix.
++
++comma=,
++MULTILIB_OPTIONS    = $(subst $(comma),/,$(TM_MULTILIB_CONFIG))
++MULTILIB_DIRNAMES   = $(patsubst m%, %, $(subst /, ,$(MULTILIB_OPTIONS)))
++MULTILIB_OSDIRNAMES = m64=../lib$(call if_multiarch,:x86_64-linux-gnu)
++MULTILIB_OSDIRNAMES+= m32=../lib$(call if_multiarch,:i386-linux-gnu)
++MULTILIB_OSDIRNAMES+= mx32=../lib$(call if_multiarch,:x86_64-linux-gnux32)
+-- 
+2.32.0
