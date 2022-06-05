@@ -1,2 +1,1 @@
-  ./config_unix.py          &&
-  ./setup.py build
+default_build_python3
