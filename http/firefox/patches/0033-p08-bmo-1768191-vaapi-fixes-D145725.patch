@@ -1,0 +1,132 @@
+diff --git a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h
+--- a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h
++++ b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h
+@@ -106,10 +106,11 @@
+   bool IsHardwareAccelerated(nsACString& aFailureReason) const override;
+   bool IsHardwareAccelerated() const {
+     nsAutoCString dummy;
+     return IsHardwareAccelerated(dummy);
+   }
++  void UpdateDecodeTimes(TimeStamp aDecodeStart);
+ 
+ #if LIBAVCODEC_VERSION_MAJOR >= 57 && LIBAVUTIL_VERSION_MAJOR >= 56
+   layers::TextureClient* AllocateTextureClientForImage(
+       struct AVCodecContext* aCodecContext, layers::PlanarYCbCrImage* aImage);
+ 
+@@ -142,10 +143,15 @@
+   static nsTArray<AVCodecID> mAcceleratedFormats;
+ #endif
+   RefPtr<KnowsCompositor> mImageAllocator;
+   RefPtr<ImageContainer> mImageContainer;
+   VideoInfo mInfo;
++  int mDecodedFrames;
++#if LIBAVCODEC_VERSION_MAJOR >= 58
++  int mDecodedFramesLate;
++#endif
++  float mAverangeDecodeTime;
+ 
+   class PtsCorrectionContext {
+    public:
+     PtsCorrectionContext();
+     int64_t GuessCorrectPts(int64_t aPts, int64_t aDts);
+diff --git a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
+--- a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
++++ b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
+@@ -383,10 +383,15 @@
+       mDisplay(nullptr),
+ #endif
+       mImageAllocator(aAllocator),
+       mImageContainer(aImageContainer),
+       mInfo(aConfig),
++      mDecodedFrames(0),
++#if LIBAVCODEC_VERSION_MAJOR >= 58
++      mDecodedFramesLate(0),
++#endif
++      mAverangeDecodeTime(0),
+       mLowLatency(aLowLatency) {
+   FFMPEG_LOG("FFmpegVideoDecoder::FFmpegVideoDecoder MIME %s Codec ID %d",
+              aConfig.mMimeType.get(), mCodecID);
+   // Use a new MediaByteBuffer as the object will be modified during
+   // initialization.
+@@ -769,17 +774,41 @@
+ #else
+   return aFrame->pkt_pts;
+ #endif
+ }
+ 
++void FFmpegVideoDecoder<LIBAV_VER>::UpdateDecodeTimes(TimeStamp aDecodeStart) {
++  mDecodedFrames++;
++  float decodeTime = (TimeStamp::Now() - aDecodeStart).ToMilliseconds();
++  mAverangeDecodeTime =
++      (mAverangeDecodeTime * (mDecodedFrames - 1) + decodeTime) /
++      mDecodedFrames;
++  FFMPEG_LOG("  averange frame decode time %.2f ms decoded frames %d\n",
++             mAverangeDecodeTime, mDecodedFrames);
++#if LIBAVCODEC_VERSION_MAJOR >= 58
++  int frameDuration = mFrame->pkt_duration;
++  if (frameDuration > 0 && frameDuration / 1000.0 < decodeTime) {
++    mDecodedFramesLate++;
++    FFMPEG_LOG(
++        "  slow decode: failed to decode in time, frame duration %.2f ms, "
++        "decode time %.2f\n",
++        frameDuration / 1000.0, decodeTime);
++    FFMPEG_LOG("  all decoded frames / late decoded frames %d/%d\n",
++               mDecodedFrames, mDecodedFramesLate);
++  }
++#endif
++}
++
+ MediaResult FFmpegVideoDecoder<LIBAV_VER>::DoDecode(
+     MediaRawData* aSample, uint8_t* aData, int aSize, bool* aGotFrame,
+     MediaDataDecoder::DecodedData& aResults) {
+   MOZ_ASSERT(mTaskQueue->IsOnCurrentThread());
+   AVPacket packet;
+   mLib->av_init_packet(&packet);
+ 
++  TimeStamp decodeStart = TimeStamp::Now();
++
+   packet.data = aData;
+   packet.size = aSize;
+   packet.dts = aSample->mTimecode.ToMicroseconds();
+   packet.pts = aSample->mTime.ToMicroseconds();
+   packet.flags = aSample->mKeyframe ? AV_PKT_FLAG_KEY : 0;
+@@ -794,11 +823,10 @@
+     // at a time, and we immediately call avcodec_receive_frame right after.
+     FFMPEG_LOG("avcodec_send_packet error: %d", res);
+     return MediaResult(NS_ERROR_DOM_MEDIA_DECODE_ERR,
+                        RESULT_DETAIL("avcodec_send_packet error: %d", res));
+   }
+-
+   if (aGotFrame) {
+     *aGotFrame = false;
+   }
+   do {
+     if (!PrepareFrame()) {
+@@ -831,10 +859,13 @@
+       FFMPEG_LOG("  avcodec_receive_frame error: %d", res);
+       return MediaResult(NS_ERROR_DOM_MEDIA_DECODE_ERR,
+                          RESULT_DETAIL("avcodec_receive_frame error: %d", res));
+     }
+ 
++    UpdateDecodeTimes(decodeStart);
++    decodeStart = TimeStamp::Now();
++
+     MediaResult rv;
+ #  ifdef MOZ_WAYLAND_USE_VAAPI
+     if (IsHardwareAccelerated()) {
+       rv = CreateImageVAAPI(mFrame->pkt_pos, GetFramePts(mFrame),
+                             mFrame->pkt_duration, aResults);
+@@ -898,10 +929,12 @@
+       *aGotFrame = false;
+     }
+     return NS_OK;
+   }
+ 
++  UpdateDecodeTimes(decodeStart);
++
+   // If we've decoded a frame then we need to output it
+   int64_t pts =
+       mPtsContext.GuessCorrectPts(GetFramePts(mFrame), mFrame->pkt_dts);
+   // Retrieve duration from dts.
+   // We use the first entry found matching this dts (this is done to
+

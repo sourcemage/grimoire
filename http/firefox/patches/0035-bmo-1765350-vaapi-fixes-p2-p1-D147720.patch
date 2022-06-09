@@ -1,0 +1,73 @@
+diff --git a/widget/gtk/DMABufSurface.h b/widget/gtk/DMABufSurface.h
+--- a/widget/gtk/DMABufSurface.h
++++ b/widget/gtk/DMABufSurface.h
+@@ -146,11 +146,16 @@
+   DMABufSurface(SurfaceType aSurfaceType);
+ 
+  protected:
+   virtual bool Create(const mozilla::layers::SurfaceDescriptor& aDesc) = 0;
+ 
++  // Import global ref count from IPC by file descriptor.
+   void GlobalRefCountImport(int aFd);
++  // Export global ref count by file descriptor. This adds global ref count
++  // reference to the surface.
++  // It's used when dmabuf surface is shared with another process via. IPC.
++  int GlobalRefCountExport();
+   void GlobalRefCountDelete();
+ 
+   void ReleaseDMABuf();
+ 
+   void* MapInternal(uint32_t aX, uint32_t aY, uint32_t aWidth, uint32_t aHeight,
+diff --git a/widget/gtk/DMABufSurface.cpp b/widget/gtk/DMABufSurface.cpp
+--- a/widget/gtk/DMABufSurface.cpp
++++ b/widget/gtk/DMABufSurface.cpp
+@@ -105,11 +105,21 @@
+ }
+ 
+ void DMABufSurface::GlobalRefCountImport(int aFd) {
+   MOZ_ASSERT(!mGlobalRefCountFd);
+   mGlobalRefCountFd = aFd;
+-  GlobalRefAdd();
++  MOZ_DIAGNOSTIC_ASSERT(IsGlobalRefSet(),
++                        "We're importing unreferenced surface!");
++}
++
++int DMABufSurface::GlobalRefCountExport() {
++  if (mGlobalRefCountFd) {
++    MOZ_DIAGNOSTIC_ASSERT(IsGlobalRefSet(),
++                          "We're exporting unreferenced surface!");
++    GlobalRefAdd();
++  }
++  return mGlobalRefCountFd;
+ }
+ 
+ void DMABufSurface::GlobalRefCountDelete() {
+   if (mGlobalRefCountFd) {
+     GlobalRefRelease();
+@@ -475,11 +485,11 @@
+   if (mSync) {
+     fenceFDs.AppendElement(ipc::FileDescriptor(mSyncFd));
+   }
+ 
+   if (mGlobalRefCountFd) {
+-    refCountFDs.AppendElement(ipc::FileDescriptor(mGlobalRefCountFd));
++    refCountFDs.AppendElement(ipc::FileDescriptor(GlobalRefCountExport()));
+   }
+ 
+   aOutDescriptor = SurfaceDescriptorDMABuf(
+       mSurfaceType, modifiers, mGbmBufferFlags, fds, width, height, width,
+       height, format, strides, offsets, GetYUVColorSpace(), mColorRange,
+@@ -1118,11 +1128,11 @@
+   if (mSync) {
+     fenceFDs.AppendElement(ipc::FileDescriptor(mSyncFd));
+   }
+ 
+   if (mGlobalRefCountFd) {
+-    refCountFDs.AppendElement(ipc::FileDescriptor(mGlobalRefCountFd));
++    refCountFDs.AppendElement(ipc::FileDescriptor(GlobalRefCountExport()));
+   }
+ 
+   aOutDescriptor = SurfaceDescriptorDMABuf(
+       mSurfaceType, modifiers, 0, fds, width, height, widthBytes, heightBytes,
+       format, strides, offsets, GetYUVColorSpace(), mColorRange, fenceFDs, mUID,
+
