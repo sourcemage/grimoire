@@ -11,7 +11,9 @@ LDFLAGS=${LDFLAGS//-Wl,-fuse-ld=gold/} &&
 LDFLAGS+=" -Wl,-fuse-ld=bfd" &&
 
 # let the build system handle stack protector
-OPTS+=" --enable-stack-protector" &&
+if [[ "${GRUB2_PLATFORM}" == "efi/x86_64" ]]; then
+  OPTS+=" --enable-stack-protector"
+fi &&
 disable_stack_protector           &&
 
 disable_fortify_source            &&
