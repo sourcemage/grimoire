@@ -23,4 +23,4 @@ esac &&
              -prefix $QT5DIR  -platform $platform \
              -reduce-relocations -reduce-exports $sizeopt \
              $OPTS -v &&
-make
+default_build_make
