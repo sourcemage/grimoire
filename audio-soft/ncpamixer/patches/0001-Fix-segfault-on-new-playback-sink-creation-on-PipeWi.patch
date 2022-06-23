@@ -1,0 +1,40 @@
+From 30aa766ef7ee85b65196ed48ce7637b9db2fb945 Mon Sep 17 00:00:00 2001
+From: Tyler Kaminski <durcor@disroot.org>
+Date: Tue, 16 Feb 2021 16:06:14 -0500
+Subject: [PATCH] Fix segfault on new playback sink creation on PipeWire Before
+ this commit, ncpamixer segfaults when running under pipewire-pulse when a new
+ playback sink is created while ncpamixer is running.
+
+---
+ src/pa.cpp | 15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)
+
+diff --git a/src/pa.cpp b/src/pa.cpp
+index bdec684..384287d 100644
+--- a/src/pa.cpp
++++ b/src/pa.cpp
+@@ -582,19 +582,8 @@ void Pa::create_monitor_stream_for_paobject(PaObject *po)
+         po->monitor_stream = nullptr;
+     }
+ 
+-    if (po->type == pa_object_t::INPUT) {
+-        PaInput *input = reinterpret_cast<PaInput *>(po);
+-        input->monitor_stream = create_monitor_stream_for_source(
+-                                    PA_SINKS[input->sink]->monitor_index,
+-                                    input->index
+-                                );
+-    } else {
+-        po->monitor_stream = create_monitor_stream_for_source(
+-                                 po->monitor_index,
+-                                 -1
+-                             );
+-
+-    }
++	po->monitor_stream = create_monitor_stream_for_source
++		(po->monitor_index, po->type == pa_object_t::INPUT ? po->index : -1);
+ }
+ 
+ void Pa::set_notify_update_cb(const notify_update_callback &cb)
+-- 
+2.36.0
+

@@ -8,7 +8,6 @@ disable_reject_underlinking &&
             --disable-fuzzing                         \
                       $OPTS                           &&
 
-make_single  &&
 #
 # The order here is important
 #
@@ -17,6 +16,4 @@ make -C bin/delv     &&
 make -C bin/dig      &&
 make -C bin/nsupdate &&
 make -C bin/dnssec   &&
-make -C doc/man man  &&
-
-make_normal
+make -C doc/man man

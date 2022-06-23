@@ -1,0 +1,205 @@
+diff --git a/widget/gtk/DMABufSurface.h b/widget/gtk/DMABufSurface.h
+--- a/widget/gtk/DMABufSurface.h
++++ b/widget/gtk/DMABufSurface.h
+@@ -275,11 +275,11 @@
+   static already_AddRefed<DMABufSurfaceYUV> CreateYUVSurface(
+       int aWidth, int aHeight, void** aPixelData = nullptr,
+       int* aLineSizes = nullptr);
+ 
+   static already_AddRefed<DMABufSurfaceYUV> CreateYUVSurface(
+-      const VADRMPRIMESurfaceDescriptor& aDesc);
++      const VADRMPRIMESurfaceDescriptor& aDesc, int aWidth, int aHeight);
+ 
+   bool Serialize(mozilla::layers::SurfaceDescriptor& aOutDescriptor);
+ 
+   DMABufSurfaceYUV* GetAsDMABufSurfaceYUV() { return this; };
+ 
+@@ -304,11 +304,12 @@
+   mozilla::gfx::YUVColorSpace GetYUVColorSpace() { return mColorSpace; }
+ 
+   DMABufSurfaceYUV();
+ 
+   bool UpdateYUVData(void** aPixelData, int* aLineSizes);
+-  bool UpdateYUVData(const VADRMPRIMESurfaceDescriptor& aDesc);
++  bool UpdateYUVData(const VADRMPRIMESurfaceDescriptor& aDesc, int aWidth,
++                     int aHeight);
+ 
+   bool VerifyTextureCreation();
+ 
+  private:
+   ~DMABufSurfaceYUV();
+@@ -329,10 +330,15 @@
+   bool CreateEGLImage(mozilla::gl::GLContext* aGLContext, int aPlane);
+   void ReleaseEGLImages(mozilla::gl::GLContext* aGLContext);
+ 
+   int mWidth[DMABUF_BUFFER_PLANES];
+   int mHeight[DMABUF_BUFFER_PLANES];
++  // Aligned size of the surface imported from VADRMPRIMESurfaceDescriptor.
++  // It's used only internally to create EGLImage as some GL drivers
++  // needs that (Bug 1724385).
++  int mWidthAligned[DMABUF_BUFFER_PLANES];
++  int mHeightAligned[DMABUF_BUFFER_PLANES];
+   EGLImageKHR mEGLImage[DMABUF_BUFFER_PLANES];
+   GLuint mTexture[DMABUF_BUFFER_PLANES];
+   mozilla::gfx::YUVColorSpace mColorSpace =
+       mozilla::gfx::YUVColorSpace::Default;
+ };
+diff --git a/widget/gtk/DMABufSurface.cpp b/widget/gtk/DMABufSurface.cpp
+--- a/widget/gtk/DMABufSurface.cpp
++++ b/widget/gtk/DMABufSurface.cpp
+@@ -479,13 +479,13 @@
+   if (mGlobalRefCountFd) {
+     refCountFDs.AppendElement(ipc::FileDescriptor(mGlobalRefCountFd));
+   }
+ 
+   aOutDescriptor = SurfaceDescriptorDMABuf(
+-      mSurfaceType, modifiers, mGbmBufferFlags, fds, width, height, format,
+-      strides, offsets, GetYUVColorSpace(), mColorRange, fenceFDs, mUID,
+-      refCountFDs);
++      mSurfaceType, modifiers, mGbmBufferFlags, fds, width, height, width,
++      height, format, strides, offsets, GetYUVColorSpace(), mColorRange,
++      fenceFDs, mUID, refCountFDs);
+   return true;
+ }
+ 
+ bool DMABufSurfaceRGBA::CreateTexture(GLContext* aGLContext, int aPlane) {
+   MOZ_ASSERT(!mEGLImage && !mTexture, "EGLImage is already created!");
+@@ -807,15 +807,15 @@
+   }
+   return surf.forget();
+ }
+ 
+ already_AddRefed<DMABufSurfaceYUV> DMABufSurfaceYUV::CreateYUVSurface(
+-    const VADRMPRIMESurfaceDescriptor& aDesc) {
++    const VADRMPRIMESurfaceDescriptor& aDesc, int aWidth, int aHeight) {
+   RefPtr<DMABufSurfaceYUV> surf = new DMABufSurfaceYUV();
+   LOGDMABUF(("DMABufSurfaceYUV::CreateYUVSurface() UID %d from desc\n",
+              surf->GetUID()));
+-  if (!surf->UpdateYUVData(aDesc)) {
++  if (!surf->UpdateYUVData(aDesc, aWidth, aHeight)) {
+     return nullptr;
+   }
+   return surf.forget();
+ }
+ 
+@@ -829,11 +829,16 @@
+   }
+   return surf.forget();
+ }
+ 
+ DMABufSurfaceYUV::DMABufSurfaceYUV()
+-    : DMABufSurface(SURFACE_NV12), mWidth(), mHeight(), mTexture() {
++    : DMABufSurface(SURFACE_NV12),
++      mWidth(),
++      mHeight(),
++      mWidthAligned(),
++      mHeightAligned(),
++      mTexture() {
+   for (int i = 0; i < DMABUF_BUFFER_PLANES; i++) {
+     mEGLImage[i] = LOCAL_EGL_NO_IMAGE;
+   }
+ }
+ 
+@@ -870,11 +875,12 @@
+     close(mDmabufFds[aPlane]);
+     mDmabufFds[aPlane] = -1;
+   }
+ }
+ 
+-bool DMABufSurfaceYUV::UpdateYUVData(const VADRMPRIMESurfaceDescriptor& aDesc) {
++bool DMABufSurfaceYUV::UpdateYUVData(const VADRMPRIMESurfaceDescriptor& aDesc,
++                                     int aWidth, int aHeight) {
+   if (aDesc.num_layers > DMABUF_BUFFER_PLANES ||
+       aDesc.num_objects > DMABUF_BUFFER_PLANES) {
+     return false;
+   }
+ 
+@@ -907,12 +913,14 @@
+ 
+     mBufferModifiers[i] = aDesc.objects[object].drm_format_modifier;
+     mDrmFormats[i] = aDesc.layers[i].drm_format;
+     mOffsets[i] = aDesc.layers[i].offset[0];
+     mStrides[i] = aDesc.layers[i].pitch[0];
+-    mWidth[i] = aDesc.width >> i;
+-    mHeight[i] = aDesc.height >> i;
++    mWidthAligned[i] = aDesc.width >> i;
++    mHeightAligned[i] = aDesc.height >> i;
++    mWidth[i] = aWidth >> i;
++    mHeight[i] = aHeight >> i;
+ 
+     LOGDMABUF(("    plane %d size %d x %d format %x", i, mWidth[i], mHeight[i],
+                mDrmFormats[i]));
+   }
+ 
+@@ -1044,10 +1052,12 @@
+                  strerror(errno)));
+       return false;
+     }
+     mWidth[i] = aDesc.width()[i];
+     mHeight[i] = aDesc.height()[i];
++    mWidthAligned[i] = aDesc.widthAligned()[i];
++    mHeightAligned[i] = aDesc.heightAligned()[i];
+     mDrmFormats[i] = aDesc.format()[i];
+     mStrides[i] = aDesc.strides()[i];
+     mOffsets[i] = aDesc.offsets()[i];
+     mBufferModifiers[i] = aDesc.modifier()[i];
+     LOGDMABUF(("    plane %d fd %d size %d x %d format %x", i, mDmabufFds[i],
+@@ -1072,10 +1082,12 @@
+ 
+ bool DMABufSurfaceYUV::Serialize(
+     mozilla::layers::SurfaceDescriptor& aOutDescriptor) {
+   AutoTArray<uint32_t, DMABUF_BUFFER_PLANES> width;
+   AutoTArray<uint32_t, DMABUF_BUFFER_PLANES> height;
++  AutoTArray<uint32_t, DMABUF_BUFFER_PLANES> widthBytes;
++  AutoTArray<uint32_t, DMABUF_BUFFER_PLANES> heightBytes;
+   AutoTArray<uint32_t, DMABUF_BUFFER_PLANES> format;
+   AutoTArray<ipc::FileDescriptor, DMABUF_BUFFER_PLANES> fds;
+   AutoTArray<uint32_t, DMABUF_BUFFER_PLANES> strides;
+   AutoTArray<uint32_t, DMABUF_BUFFER_PLANES> offsets;
+   AutoTArray<uint64_t, DMABUF_BUFFER_PLANES> modifiers;
+@@ -1090,10 +1102,12 @@
+   }
+ 
+   for (int i = 0; i < mBufferPlaneCount; i++) {
+     width.AppendElement(mWidth[i]);
+     height.AppendElement(mHeight[i]);
++    widthBytes.AppendElement(mWidthAligned[i]);
++    heightBytes.AppendElement(mHeightAligned[i]);
+     format.AppendElement(mDrmFormats[i]);
+     fds.AppendElement(ipc::FileDescriptor(mDmabufFds[i]));
+     strides.AppendElement(mStrides[i]);
+     offsets.AppendElement(mOffsets[i]);
+     modifiers.AppendElement(mBufferModifiers[i]);
+@@ -1108,12 +1122,13 @@
+   if (mGlobalRefCountFd) {
+     refCountFDs.AppendElement(ipc::FileDescriptor(mGlobalRefCountFd));
+   }
+ 
+   aOutDescriptor = SurfaceDescriptorDMABuf(
+-      mSurfaceType, modifiers, 0, fds, width, height, format, strides, offsets,
+-      GetYUVColorSpace(), mColorRange, fenceFDs, mUID, refCountFDs);
++      mSurfaceType, modifiers, 0, fds, width, height, widthBytes, heightBytes,
++      format, strides, offsets, GetYUVColorSpace(), mColorRange, fenceFDs, mUID,
++      refCountFDs);
+   return true;
+ }
+ 
+ bool DMABufSurfaceYUV::CreateEGLImage(GLContext* aGLContext, int aPlane) {
+   LOGDMABUF(
+@@ -1131,13 +1146,13 @@
+     return false;
+   }
+ 
+   nsTArray<EGLint> attribs;
+   attribs.AppendElement(LOCAL_EGL_WIDTH);
+-  attribs.AppendElement(mWidth[aPlane]);
++  attribs.AppendElement(mWidthAligned[aPlane]);
+   attribs.AppendElement(LOCAL_EGL_HEIGHT);
+-  attribs.AppendElement(mHeight[aPlane]);
++  attribs.AppendElement(mHeightAligned[aPlane]);
+   attribs.AppendElement(LOCAL_EGL_LINUX_DRM_FOURCC_EXT);
+   attribs.AppendElement(mDrmFormats[aPlane]);
+ #define ADD_PLANE_ATTRIBS_NV12(plane_idx)                                 \
+   attribs.AppendElement(LOCAL_EGL_DMA_BUF_PLANE##plane_idx##_FD_EXT);     \
+   attribs.AppendElement(mDmabufFds[aPlane]);                              \
+

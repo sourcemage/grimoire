@@ -13,6 +13,10 @@ else
   OPTS+=" --disable-libquadmath"
 fi &&
 
+if list_find "$GCC_COMPILER" "jit"; then
+  OPTS+=" --enable-host-shared"
+fi &&
+
 persistent_read gmp GMP_BUILD_ARCH GMP_BUILD_ARCH         &&
 persistent_read mpfr MPFR_BUILD_ARCH MPFR_BUILD_ARCH      &&
 
@@ -65,14 +69,14 @@ if list_find "$GCC_COMPILER" "ada" ; then
   ADA_PATH=${SOURCE13/.tar.bz2/}  &&
   PATH=$SOURCE_DIRECTORY/$ADA_PATH/bin:$PATH  &&
 
-  export CC="$SOURCE_DIRECTORY/$ADA_PATH/bin/gcc" &&
+  export CC="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin/gcc" &&
 
-  export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/lib/gcc/$HOST/${VERSION13}/include"  &&
-  export LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/lib/gcc/$HOST/${VERSION13}/"  &&
+  export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gcc/$HOST/${VERSION13}/include"  &&
+  export LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gcc/$HOST/${VERSION13}/"  &&
   export LDFLAGS="-L${LIB_DIR}"  &&
   export LIBRARY_PATH="$LIB_DIR"  &&
   export LD_LIBRARY_PATH="$LIB_DIR"  &&
-  export COMPILER_PATH="$SOURCE_DIRECTORY/$ADA_PATH/bin"  &&
+  export COMPILER_PATH="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin"  &&
 
   export ADA_OBJECTS_PATH="$LIB_DIR/adalib"  &&
   export ADA_INCLUDE_PATH="$LIB_DIR/adainclude"  &&
@@ -118,7 +122,6 @@ OPTS="$GCC_MULTILIB $OPTS"                                         &&
 case "$HOST" in
 *-musl)
   OPTS="--disable-multilib $OPTS" &&
-  OPTS="--disable-libssp $OPTS" &&
   OPTS="--disable-libmpx $OPTS" &&
   OPTS="--disable-libmudflap $OPTS" &&
   OPTS="--disable-libsanitizer $OPTS" &&

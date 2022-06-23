@@ -3,4 +3,5 @@ if is_depends_enabled ${SPELL} llvm; then
   LDFLAGS="-lc++ -lc++abi ${LDFLAGS}"
 fi &&
 
+cd "$SOURCE_DIRECTORY"/src &&
 cmake_build

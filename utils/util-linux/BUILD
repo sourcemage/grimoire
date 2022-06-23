@@ -5,6 +5,8 @@ if [[ $CROSS_INSTALL == on ]]; then
   OPTS="--host=$HOST $OPTS"
 fi &&
 
+OPTS+=" $UL_SULOGIN" &&
+
 OPTS="--disable-eject \
       --disable-kill \
       --disable-last \
@@ -12,9 +14,8 @@ OPTS="--disable-eject \
       --disable-mesg \
       --disable-nologin \
       --disable-su \
-      --disable-sulogin \
       --disable-utmpdump \
-      $OPTS"
+      $OPTS" &&
 
 create_group tty &&
 
