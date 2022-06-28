@@ -1,17 +1,33 @@
+diff --git a/widget/gtk/mozgtk/moz.build b/widget/gtk/mozgtk/moz.build
+--- a/widget/gtk/mozgtk/moz.build
++++ b/widget/gtk/mozgtk/moz.build
+@@ -9,10 +9,11 @@
+ SOURCES += [
+     "mozgtk.c",
+ ]
+ 
+ CFLAGS += CONFIG["MOZ_X11_CFLAGS"]
++CFLAGS += CONFIG["MOZ_GTK3_CFLAGS"]
+ 
+ # If LDFLAGS contains -Wl,--as-needed or if it's the default for the toolchain,
+ # we need to add -Wl,--no-as-needed before the gtk libraries, otherwise the
+ # linker will drop those dependencies because no symbols are used from them.
+ # But those dependencies need to be kept for things to work properly.
 diff --git a/widget/gtk/mozgtk/mozgtk.c b/widget/gtk/mozgtk/mozgtk.c
 --- a/widget/gtk/mozgtk/mozgtk.c
 +++ b/widget/gtk/mozgtk/mozgtk.c
-@@ -4,10 +4,16 @@
+@@ -4,10 +4,17 @@
   * License, v. 2.0. If a copy of the MPL was not distributed with this
   * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
  
  #include "mozilla/Types.h"
  
++#include <gdk/gdk.h>
++
 +// Dummy call to gtk3 library to prevent the linker from removing
 +// the gtk3 dependency with --as-needed.
 +// see toolkit/library/moz.build for details.
-+MOZ_EXPORT void gdk_display_get_default();
-+MOZ_EXPORT void mozgtk_linker_holder(void) { gdk_display_get_default(); }
++MOZ_EXPORT void mozgtk_linker_holder() { gdk_display_get_default(); }
 +
  #ifdef MOZ_X11
  #  include <X11/Xlib.h>
@@ -27,15 +43,15 @@ diff --git a/widget/gtk/nsWindow.cpp b/widget/gtk/nsWindow.cpp
  
  bool nsWindow::sTransparentMainWindow = false;
  
-+/* forward declare from mozgtk */
-+MOZ_EXPORT extern "C" void mozgtk_linker_holder(void);
++// forward declare from mozgtk
++extern "C" MOZ_EXPORT void mozgtk_linker_holder();
 +
  namespace mozilla {
  
  #ifdef MOZ_X11
  class CurrentX11TimeGetter {
   public:
-@@ -424,10 +427,14 @@
+@@ -426,10 +429,14 @@
            do_GetService("@mozilla.org/widget/clipboard;1");
        NS_ASSERTION(clipboard, "Failed to init clipboard!");
      }
@@ -50,7 +66,7 @@ diff --git a/widget/gtk/nsWindow.cpp b/widget/gtk/nsWindow.cpp
  nsWindow::~nsWindow() {
    LOG("nsWindow::~nsWindow()");
  
-@@ -5342,14 +5349,10 @@
+@@ -5332,14 +5339,10 @@
      //
      // If the window were to get unredirected, there could be visible
      // tearing because Gecko does not align its framebuffer updates with

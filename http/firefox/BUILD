@@ -11,6 +11,9 @@ unset DBUS_SESSION_BUS_ADDRESS \
         XAUTHORITY &&
 export LIBGL_ALWAYS_INDIRECT=1 &&
 
+# disable end of build notification
+export MOZ_NOSPAM=1 &&
+
 # System rustc has no debuginfo
 export RUSTFLAGS="-C debuginfo=0" &&
 
@@ -52,5 +55,5 @@ for option in $OPTS; do
 done &&
 
 echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
-export MACH_USE_SYSTEM_PYTHON=1 &&
+export MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE=system &&
 ./mach build
