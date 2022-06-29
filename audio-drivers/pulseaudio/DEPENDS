@@ -132,10 +132,17 @@ optional_depends systemd \
                  "systemd=disabled" \
                  "for systemd support" &&
 
-optional_depends webrtc-audio-processing \
-                 "webrtc-aec=enabled" \
-                 "webrtc-aec=disabled" \
-                 "for WebRTC-based echo canceller" &&
+# not optional, build barks out without
+if ! list_find "$PULSEAUDIO_OPTS" adrian-aec=true; then
+  message "${MESSAGE_COLOR}Some processor is required, forcing the external one.${DEFAULT_COLOR}" &&
+  depends webrtc-audio-processing \
+                 "webrtc-aec=enabled"
+else
+  optional_depends webrtc-audio-processing \
+                   "webrtc-aec=enabled" \
+                   "webrtc-aec=disabled" \
+                   "for WebRTC-based echo canceller"
+fi &&
 
 if is_depends_enabled ${SPELL} webrtc-audio-processing; then
   depends -sub CXX gcc
