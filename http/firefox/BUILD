@@ -50,6 +50,12 @@ if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
 
+if test -z "$FIREFOX_AUDIO"; then
+  OPTS+=" --disable-audio-backends"
+else
+  OPTS+=" --enable-audio-backends=${FIREFOX_AUDIO// /,}"
+fi &&
+
 for option in $OPTS; do
   echo "ac_add_options $option" >> .mozconfig
 done &&
