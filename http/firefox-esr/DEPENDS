@@ -5,11 +5,10 @@ depends  -sub "CLANG" llvm                                       &&
 depends  perl                                                    &&
 depends  python3                                                 &&
 
-#depends  icu     "--with-system-icu"                             &&
+depends  icu     "--with-system-icu"                             &&
 
 depends  glib2                                                   &&
 depends  gtk+3   "--enable-default-toolkit=cairo-gtk3"           &&
-depends  gtk+2                                                   &&
 depends  atk                                                     &&
 depends  libx11                                                  &&
 depends  libxext                                                 &&
@@ -21,7 +20,7 @@ depends  pango                                                   &&
 depends  fontconfig                                              &&
 depends  freetype2                                               &&
 depends  libxft                                                  &&
- 
+
 depends  tar   &&
 depends  unzip &&
 depends  zip   &&
@@ -36,7 +35,7 @@ depends  libwebp       "--with-system-webp"                      &&
 
 depends  nspr               "--with-system-nspr"                 &&
 
-local NSS_BRANCH="3.56"                                          &&
+local NSS_BRANCH="3.79"                                          &&
 if spell_ok nss                                                  &&
    is_version_less "$(installed_version nss)" "${NSS_BRANCH}"; then
   depends  -sub "${NSS_BRANCH}" nss  "--with-system-nss"
@@ -44,8 +43,8 @@ else
   depends  nss  "--with-system-nss"
 fi                                                               &&
 
-#depends -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY ENABLE_DBSTAT_VTAB
-#SQLITE_ENABLE_FTS3" sqlite "--enable-system-sqlite"              &&
+depends -sub "TSAFE SECURE_DELETE ENABLE_UNLOCK_NOTIFY ENABLE_DBSTAT_VTAB
+SQLITE_ENABLE_FTS3" sqlite                                       &&
 
 depends  libidl                                                  &&
 
@@ -71,24 +70,24 @@ optional_depends  wireless_tools \
                   "--disable-necko-wifi" \
                   "for Necko WiFi scanning" &&
 
-optional_depends  pulseaudio \
-                  "--enable-pulseaudio" \
-                  "--disable-pulseaudio" \
-                  "use pulseaudio for audio support" &&
-
-# Firefox is currently borked and does not compile without alsa-lib headers,
-# this should have been fixed when Firefox started using Mozilla core 23, but it
-# wasn't see https://bugzilla.mozilla.org/show_bug.cgi?id=875268
-depends alsa-lib "--enable-alsa" &&
-#optional_depends  alsa-lib \
-#                  '--enable-wave' \
-#                  '--disable-wave --disable-ogg --disable-webm --disable-dash' \
-#                  'for audio/video support' &&
-
-optional_depends JACK-DRIVER \
-	"--enable-jack" \
-	"--disable-jack" \
-	"use JACK for audio support" &&
+for b in $FIREFOX_AUDIO
+do
+  case $b in
+    alsa)
+      depends alsa-lib
+    ;;
+    pulse)
+      depends pulseaudio
+    ;;
+    jack)
+      depends JACK-DRIVER
+    ;;
+    *)
+      message "${MESSAGE_COLOR}Bad audio choice: $b${DEFAULT_COLOR}"
+      exit 1
+    ;;
+  esac
+done &&
 
 if is_depends_enabled $SPELL alsa-lib; then
   # Firefox tries to use ogg/ogg.h even with --disable-ogg given
@@ -115,28 +114,27 @@ depends dbus-glib "--enable-dbus" &&
 #                  'for WebGL support' &&
 depends OPENGL &&
 
-optional_depends  LIBAVCODEC \
-                  "--enable-ffmpeg" \
-                  "--disable-ffmpeg" \
-                  "for fragmented H264/AAC decoding" &&
+depends LIBAVCODEC &&
 
 suggest_depends_2 firefox-smglwiki "" "" \
   "to enable searching the SMGL Wiki from the Search Bar"
 
-#optional_depends  graphite2 \
-#                  "--with-system-graphite2" \
-#                  "--without-system-graphite2" \
-#                  "for system graphite2" &&
-#
-#optional_depends  harfbuzz \
-#                  "--with-system-harfbuzz" \
-#                  "--without-system-harfbuzz" \
-#                  "for system harfbuzz" &&
-#
-optional_depends  dav1d \
-                  "--enable-av1" \
-                  "--disable-av1" \
-                  "for AV1 video support" &&
+optional_depends  graphite2 \
+                  "--with-system-graphite2" \
+                  "--without-system-graphite2" \
+                  "for system graphite2" &&
+
+optional_depends  harfbuzz \
+                  "--with-system-harfbuzz" \
+                  "--without-system-harfbuzz" \
+                  "for system harfbuzz" &&
+
+# Seems FF wants libaom along with this. Package that, too,
+# or just roll with the vendored copy.
+#optional_depends  dav1d \
+#                  "--with-system-av1" \
+#                  "--without-system-av1" \
+#                  "for AV1 video support" &&
 if is_depends_enabled $SPELL dav1d; then
   depends nasm
 fi

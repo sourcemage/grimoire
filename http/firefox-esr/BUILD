@@ -11,8 +11,20 @@ unset DBUS_SESSION_BUS_ADDRESS \
         XAUTHORITY &&
 export LIBGL_ALWAYS_INDIRECT=1 &&
 
+# disable end of build notification
+export MOZ_NOSPAM=1 &&
+
 # System rustc has no debuginfo
 export RUSTFLAGS="-C debuginfo=0" &&
+
+export MOZBUILD_STATE_PATH="${SOURCE_DIRECTORY}/mozbuild" &&
+
+#
+# No fast optimization for Mozilla, bit us so many times...
+# This used to default to -O2, but that produces crashing firefox for
+# sobukus with gcc-5.2.0; -Os seems more safe.
+CFLAGS="${CFLAGS//-O[3s]/-O2}"      &&
+CXXFLAGS="${CXXFLAGS//-O[3s]/-O2}"  &&
 
 # harden
 LDFLAGS="$LDFLAGS -Wl,-z,now"    &&
@@ -38,9 +50,15 @@ if [[ $gccmajor == "4" ]] && [[ $gccminor -ge "6" ]]; then
   CXXFLAGS="${CXXFLAGS//-mavx} -mno-avx"
 fi
 
+if test -z "$FIREFOX_AUDIO"; then
+  OPTS+=" --disable-audio-backends"
+else
+  OPTS+=" --enable-audio-backends=${FIREFOX_AUDIO// /,}"
+fi &&
+
 for option in $OPTS; do
   echo "ac_add_options $option" >> .mozconfig
 done &&
 
 echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
-./mach build
+MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE=none ./mach build
