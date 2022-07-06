@@ -1,5 +1,5 @@
-OPTS="$OPTS --enable-compat-rules" &&
-OPTS="$OPTS --with-xkb-base=$INSTALL_ROOT/usr/share/X11/xkb" &&
-OPTS="$OPTS --with-xkb-rules-symlink=xorg,xfree86" &&
+OPTS="$OPTS compat-rules=true"                        &&
+OPTS="$OPTS xkb-base=$INSTALL_ROOT/usr/share/X11/xkb" &&
+OPTS="$OPTS xorg-rules-symlinks=true"                 &&
 
 default_build
