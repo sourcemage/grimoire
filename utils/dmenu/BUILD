@@ -1,1 +1,1 @@
-make CC="$CC" $OPTS
+make $OPTS
