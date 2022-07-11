@@ -1,37 +1,24 @@
+depends meson      &&
+depends python3    &&
+depends ninja-build-system &&
 depends pkgconfig  &&
 depends dbus       &&
 depends dbus-glib  &&
 depends expat      &&
-depends shadow     &&
-depends mozjs      &&
-
-if [[ "$POLICYKIT_AFW" != "none" ]]; then
-    depends $POLICYKIT_AFW
-fi  &&
-
-if [[ "$POLICYKIT_AFW" == "shadow" ]]; then
-#  depends automake &&
-  runtime_depends CONSOLE-MANAGER
-fi &&
-
-optional_depends intltool '--enable-nls' '--disable-nls' 'NLS support' &&
-optional_depends gobject-introspection \
-                 "--enable-introspection" \
-                 "--disable-introspection" \
-                 "Enable GObject introspection?" &&
-
-optional_depends gtk-doc                    \
-                 "--enable-gtk-doc"         \
-                 "--disable-gtk-doc"        \
-                 "Build Devhelp files?"     &&
-
-optional_depends docbook-xsl              \
-                 '--enable-man-pages'     \
-                 '--disable-man-pages'    \
-                 'to build manual pages'  &&
+optional_depends gobject-introspection introspection={true,false} 'Enable GObject introspection?' &&
+optional_depends gtk-doc      gtk_doc={true,false} 'Build Devhelp files?' &&
+optional_depends docbook-xsl  man={true,false}     'build manual pages'   &&
 if is_depends_enabled $SPELL docbook-xsl; then
   depends libxslt
 fi &&
 
 depends glib2 &&
-optional_depends elogind '--enable-libelogind' '--disable-libelogind' 'Elogind support'
+case $POLKIT_AFW in
+  pam)    depends linux-pam auth='pam';;
+  shadow) depends shadow    auth='shadow';;
+esac &&
+depends $POLKIT_JS js_engine=$POLKIT_JS &&
+case $POLKIT_SES in
+  elogind)    depends elogind     session_tracking='libelogind' ;;
+  consolekit) depends consolekit2 session_tracking='ConsoleKit' ;;
+esac
