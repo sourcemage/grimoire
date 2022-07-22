@@ -1,1 +1,1 @@
-${MAKE:-make} CC="$CC"
+${MAKE:-make} CC="${CC:-cc}"
