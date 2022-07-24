@@ -1,44 +1,63 @@
-# remove obsolete options from HEXCHAT_OPTS
-list_remove HEXCHAT_OPTS '--enable-threads=pth' &&
-list_remove HEXCHAT_OPTS '--disable-theads' &&
-list_remove HEXCHAT_OPTS '--enable-xft' &&
-list_remove HEXCHAT_OPTS '--disable-xft' &&
-list_remove HEXCHAT_OPTS '--enable-shm' &&
-list_remove HEXCHAT_OPTS '--disable-shm' &&
-list_remove HEXCHAT_OPTS '--enable-mmx' &&
-list_remove HEXCHAT_OPTS '--disable-mmx' &&
-list_remove HEXCHAT_OPTS '--enable-sasl' &&
-list_remove HEXCHAT_OPTS '--disable-sasl' &&
-list_remove HEXCHAT_OPTS '--enable-ipv6' &&
-list_remove HEXCHAT_OPTS '--disable-ipv6' &&
-list_remove HEXCHAT_OPTS '--enable-doat' &&
-list_remove HEXCHAT_OPTS '--disable-doat' &&
+persistent_remove HEXCHAT_NO_MONO &&
+. "$GRIMOIRE"/MESON_CONFIGURE &&
+
+# Update autotools options to meson options
+for i in $HEXCHAT_OPTS; do
+  case "$i" in
+    (--disable-checksum)      newopt=with-checksum=false;;
+    (--disable-dbus)          newopt=dbus=disabled;;
+    (--disable-fishlim)       newopt=with-fishlim=false;;
+    (--disable-gtkfe)         newopt=gtk-frontend=false;;
+    (--disable-libcanberra)   newopt=libcanberra=disabled;;
+    (--disable-lua)           newopt=with-lua=false;;
+    (--disable-openssl)       newopt=tls=disabled;;
+    (--disable-perl)          newopt=with-perl=false;;
+    (--disable-plugin)        newopt=plugin=false;;
+    (--disable-python)        newopt=with-python=false;;
+    (--disable-sysinfo)       newopt=with-sysinfo=false;;
+    (--disable-textfe)        newopt=text-frontend=false;;
+    (--enable-checksum)       newopt=with-checksum=true;;
+    (--enable-dbus)           newopt=dbus=enabled;;
+    (--enable-fishlim)        newopt=with-fishlim=true;;
+    (--enable-gtkfe)          newopt=gtk-frontend=true;;
+    (--enable-libcanberra)    newopt=libcanberra=enabled;;
+    (--enable-lua)            newopt=with-lua=luajit;;
+    (--enable-openssl*)       newopt=tls=enabled;;
+    (--enable-perl)           newopt=with-perl=perl;;
+    (--enable-plugin)         newopt=plugin=true;;
+    (--enable-python)         newopt=with-python=python3;;
+    (--enable-sysinfo)        newopt=with-sysinfo=true;;
+    (--enable-textfe)         newopt=text-frontend=true;;
+    (--with-theme-manager)    newopt=theme-manager=true;;
+    (--without-theme-manager) newopt=theme-manager=false;;
+    (--*)
+      # Remove obsolete/unknown options
+      message "${PROBLEM_COLOR}WARNING: Unknown option '$i';" \
+	      "removing$DEFAULT_COLOR"
+      list_remove HEXCHAT_OPTS "$i"
+    ;&
+    (*) continue;;
+  esac &&
+  list_remove HEXCHAT_OPTS "$i" &&
+  list_add HEXCHAT_OPTS "$newopt" || return 1
+done &&
 
 config_query_option HEXCHAT_OPTS "Build the text frontend?" n \
-                                 "--enable-textfe" \
-                                 "--disable-textfe" &&
-
+		    text-frontend={true,false} &&
 config_query_option HEXCHAT_OPTS "Enable plugin support?" y \
-                                 "--enable-plugin" \
-                                 "--disable-plugin" &&
+		    plugin={true,false} &&
 
-if list_find "$HEXCHAT_OPTS" "--enable-plugin"; then
-  config_query_option HEXCHAT_OPTS "Enable checksum plugin?" y  \
-                                   "--enable-checksum" \
-                                   "--disable-checksum" &&
-
-  config_query_option HEXCHAT_OPTS "Enable FiSHLiM plugin?" y \
-                                   "--enable-fishlim" \
-                                   "--disable-fishlim" &&
-
+if list_find "$HEXCHAT_OPTS" "plugin=true"; then
+  config_query_option HEXCHAT_OPTS "Enable the legacy IRC perl module for compatilibity with old scripts?" n \
+		      with-perl-legacy-api={true,false} &&
+  config_query_option HEXCHAT_OPTS "Enable DCC checksum plugin?" y \
+		      with-checksum={true,false} &&
+  config_query_option HEXCHAT_OPTS "Enable FiSH encryption plugin?" y \
+		      with-fishlim={true,false} &&
   config_query_option HEXCHAT_OPTS "Enable sysinfo plugin?" y \
-                                   "--enable-sysinfo" \
-                                   "--disable-sysinfo"
+		      with-systinfo={true,false}
 else
-  list_add HEXCHAT_OPTS '--disable-checksum' &&
-  list_add HEXCHAT_OPTS '--disable-doat' &&
-  list_add HEXCHAT_OPTS '--disable-fishlim' &&
-  list_add HEXCHAT_OPTS '--disable-sysinfo'
-fi &&
-
-config_query HEXCHAT_NO_MONO "Apply patch to prevent from forcing monospace fonts (useful for pixel font users)?" n
+  list_add HEXCHAT_OPTS 'with-checksum=false' &&
+  list_add HEXCHAT_OPTS 'with-fishlim=false' &&
+  list_add HEXCHAT_OPTS 'with-sysinfo=false'
+fi
