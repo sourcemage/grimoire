@@ -38,20 +38,22 @@ meson_build () {
 }
 
 meson_install () {
-  local BUILDER &&
-  local BUILDER_OPTS="-j ${MAKE_NJOBS} -C builddir/" &&
+  local MESON_INSTALL &&
+  local MESON_OPTS &&
 
-  if ! is_depends_enabled ${SPELL} $(get_spell_provider ${SPELL} NINJA-BUILD); then
-    BUILDER="muon samu"
-  elif [[ $(get_spell_provider ${SPELL} NINJA-BUILD) == samurai ]]; then
-    BUILDER="samu"
+  if [[ $(get_spell_provider ${SPELL} MESON-BUILD) == muon ]]; then
+    MESON_INSTALL="muon"
+
+    MESON_OPTS="-C builddir/ install"
   else
-    BUILDER="ninja"
+    MESON_INSTALL="meson"
+
+    MESON_OPTS="install -C builddir/ --no-rebuild"
   fi &&
 
   cd "${SOURCE_DIRECTORY}" &&
 
-  ${BUILDER} ${BUILDER_OPTS} install
+  ${MESON_INSTALL} ${MESON_OPTS}
 }
 
 default_build() {
