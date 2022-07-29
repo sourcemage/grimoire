@@ -18,5 +18,10 @@ if is_depends_enabled "${SPELL}" "smgl-gl_select"; then
   fi
 fi &&
 
-OPTS+=" --bindir=${INSTALL_ROOT}/usr/bin --confdir=${INSTALL_ROOT}/etc/mpv" &&
-waf_build
+if [[ "${MPV_BRANCH}" == "scm" ]]; then
+  default_build
+else
+  # remove on next release
+  OPTS+=" --bindir=${INSTALL_ROOT}/usr/bin --confdir=${INSTALL_ROOT}/etc/mpv" &&
+  waf_build
+fi

@@ -1,131 +1,287 @@
 depends perl   &&
-depends python3 &&
 depends LIBAVCODEC &&
 depends libass &&
 
-optional_depends luajit \
-                 "--enable-lua" \
-                 "--disable-lua" \
-                 "for Lua scripting support" &&
+if [[ "${MPV_BRANCH}" == "scm" ]]; then
+  . "${GRIMOIRE}/MESON_DEPENDS" &&
 
-optional_depends docutils \
-                 "--enable-manpage-build" \
-                 "--disable-manpage-build" \
-                 "to build and install manpage" &&
+  optional_depends LUA \
+                   "lua=enabled" \
+                   "lua=disabled" \
+                   "for Lua scripting support" &&
 
-# audio output
-optional_depends alsa-lib \
-                 "--enable-alsa" \
-                 "--disable-alsa" \
-                 "for ALSA audio output" &&
+  optional_depends docutils \
+                   "manpage-build=enabled" \
+                   "manpage-build=disabled" \
+                   "to build and install manpage" &&
 
-optional_depends pulseaudio \
-                 "--enable-pulse" \
-                 "--disable-pulse" \
-                 "for Pulseaudio audio output" &&
+  # audio output
+  optional_depends alsa-lib \
+                   "alsa=enabled" \
+                   "alsa=disabled" \
+                   "for ALSA audio output" &&
 
-optional_depends JACK-DRIVER \
-                 "--enable-jack" \
-                 "--disable-jack" \
-                 "for JACK audio output" &&
+  optional_depends pipewire \
+                   "pipewire=enabled" \
+                   "pipewire=disabled" \
+                   "for Pipewire audio output" &&
 
-optional_depends openal \
-                 "--enable-openal" \
-                 "--disable-openal" \
-                 "for OpenAL audio output" &&
+  optional_depends pulseaudio \
+                   "pulse=enabled" \
+                   "pulse=disabled" \
+                   "for Pulseaudio audio output" &&
 
-optional_depends sdl2 \
-                 "--enable-sdl2" \
-                 "--disable-sdl2" \
-                 "for SDL 2.0+ audio and video output" &&
+  optional_depends JACK-DRIVER \
+                   "jack=enabled" \
+                   "jack=disabled" \
+                   "for JACK audio output" &&
 
-# video output
-optional_depends OPENGL \
-                 "--enable-gl" \
-                 "--disable-gl" \
-                 "for OpenGL video output" &&
+  optional_depends openal \
+                   "openal=enabled" \
+                   "openal=disabled" \
+                   "for OpenAL audio output" &&
 
-optional_depends libcaca \
-                 "--enable-caca" \
-                 "--disable-caca" \
-                 "for CACA video output" &&
+  optional_depends sdl2 \
+                   "sdl2=enabled" \
+                   "sdl2=disabled" \
+                   "for SDL 2.0+ audio and video output" &&
+  if is_depends_enabled "${SPELL}" sdl2; then
+    config_query_option MPV_OPTS "Enable SDL2 gamepad input?" n \
+                                 "sdl2-gamepad=enabled" \
+                                 "sdl2-gamepad=disabled" &&
 
-optional_depends libx11 \
-                 "--enable-x11" \
-                 "--disable-x11" \
-                 "for X11 video output" &&
+    config_query_option MPV_OPTS "Enable SDL2 audio?" y \
+                                 "sdl2-audio=enabled" \
+                                 "sdl2-audio=disabled"
+  fi &&
 
-if is_depends_enabled $SPELL libx11; then
-  depends libxext &&
-  depends libxrandr &&
-  depends libxscrnsaver &&
-  depends libxinerama &&
+  optional_depends sndio \
+                   "sndio=enabled" \
+                   "sndio=disabled" \
+                   "for sndio audio output" &&
 
-  optional_depends libvdpau \
-                   "--enable-vdpau" \
-                   "--disable-vdpau" \
-                   "for VDPAU acceleration" &&
+  # video output
+  optional_depends OPENGL \
+                   "gl=enabled" \
+                   "gl=disabled" \
+                   "for OpenGL video output" &&
 
-  optional_depends libxv \
-                   "--enable-xv" \
-                   "--disable-xv" \
-                   "for Xv video output"
+  optional_depends libcaca \
+                   "caca=enabled" \
+                   "caca=disabled" \
+                   "for CACA video output" &&
+
+# optional_depends sixel \
+#                  "sixel=enabled" \
+#                  "sixel=disabled" \
+#                  "for Sixel support" &&
+
+  optional_depends libva \
+                   "vaapi=enabled" \
+                   "vaapi=disabled" \
+                   "for VAAPI video acceleration" &&
+
+  optional_depends wayland \
+                   "wayland=enabled" \
+                   "wayland=disabled" \
+                   "for Wayland support" &&
+
+  if list_find "$MPV_OPTS" "gpl=true"; then
+    optional_depends libx11 \
+                     "x11=enabled" \
+                     "x11=disabled" \
+                     "for X11 video output" &&
+    if is_depends_enabled $SPELL libx11; then
+      depends libxext &&
+      depends libxpresent &&
+      depends libxrandr &&
+      depends libxscrnsaver &&
+      depends libxinerama &&
+
+      optional_depends libvdpau \
+                       "vdpau=enabled" \
+                       "vdpau=disabled" \
+                       "for VDPAU acceleration" &&
+
+      optional_depends libxv \
+                       "xv=enabled" \
+                       "xv=disabled" \
+                       "for Xv video output"
+    fi
+  fi &&
+
+
+  # codecs
+  optional_depends JPEG \
+                   "jpeg=enabled" \
+                   "jpeg=disabled" \
+                   "for JPEG input/output support" &&
+
+  optional_depends libcdio-paranoia \
+                   "cdda=enabled" \
+                   "cdda=disabled" \
+                   "for cdda support" &&
+
+  # features
+
+  optional_depends lcms2 \
+                   "lcms2=enabled" \
+                   "lcms2=disabled" \
+                   "for LCMS2 support" &&
+
+  optional_depends libbluray \
+                   "libbluray=enabled" \
+                   "libbluray=disabled" \
+                   "for Blu-ray support" &&
+
+  optional_depends libdvdnav \
+                   "dvdnav=enabled" \
+                   "dvdnav=disabled" \
+                   "for dvd navigation support" &&
+
+  optional_depends uchardet \
+                   "uchardet=enabled" \
+                   "uchardet=disabled" \
+                   "for charset discovery and conversion using uchardet" &&
+
+  optional_depends smgl-gl_select "" "" "to select OPENGL provider" &&
+
+  if is_depends_enabled "${SPELL}" "$(get_spell_provider ${SPELL} LUA)"; then
+    optional_depends youtube-dl "" "" "to watch Youtube videos"
+  fi &&
+
+  optional_depends libarchive \
+                   "libarchive=enabled" \
+                   "libarchive=disabled" \
+                   "to support reading zip files and more"
 else
-  list_add MPV_OPTS "--disable-xf86vm" &&
-  list_add MPV_OPTS "--disable-vdpau" &&
-  list_add MPV_OPTS "--disable-xv" &&
-  list_remove MPV_OPTS "--disable-xinerama" &&
-  list_remove MPV_OPTS "--disable-xext"
-fi &&
+  # remove on next release
+  depends python3 &&
 
-# codecs
-optional_depends JPEG \
-                 "--enable-jpeg" \
-                 "--disable-jpeg" \
-                 "for JPEG input/output support" &&
+  optional_depends luajit \
+                   "--enable-lua" \
+                   "--disable-lua" \
+                   "for Lua scripting support" &&
 
-optional_depends libcdio-paranoia \
-                 "--enable-cdda" \
-                 "--disable-cdda" \
-                 "for cdda support" &&
+  optional_depends docutils \
+                   "--enable-manpage-build" \
+                   "--disable-manpage-build" \
+                   "to build and install manpage" &&
 
-# features
-list_remove MPV_OPTS "--enable-radio-capture" &&
-list_remove MPV_OPTS "--disable-radio-capture" &&
-list_remove MPV_OPTS "--enable-pvr" &&
-list_remove MPV_OPTS "--disable-pvr" &&
+  # audio output
+  optional_depends alsa-lib \
+                   "--enable-alsa" \
+                   "--disable-alsa" \
+                   "for ALSA audio output" &&
 
-if is_depends_enabled $SPELL samba; then
-  depends SSL
-fi &&
+  optional_depends pulseaudio \
+                   "--enable-pulse" \
+                   "--disable-pulse" \
+                   "for Pulseaudio audio output" &&
 
-optional_depends lcms2 \
-                 "--enable-lcms2" \
-                 "--disable-lcms2" \
-                 "for LCMS2 support" &&
+  optional_depends JACK-DRIVER \
+                   "--enable-jack" \
+                   "--disable-jack" \
+                   "for JACK audio output" &&
 
-optional_depends libbluray \
-                 "--enable-libbluray" \
-                 "--disable-libbluray" \
-                 "for Blu-ray support" &&
+  optional_depends openal \
+                   "--enable-openal" \
+                   "--disable-openal" \
+                   "for OpenAL audio output" &&
 
-optional_depends libdvdnav \
-                 "--enable-dvdnav" \
-                 "--disable-dvdnav" \
-                 "for dvd navigation support" &&
+  optional_depends sdl2 \
+                   "--enable-sdl2" \
+                   "--disable-sdl2" \
+                   "for SDL 2.0+ audio and video output" &&
 
-optional_depends uchardet \
-                 "--enable-uchardet" \
-                 "--disable-uchardet" \
-                 "for charset discovery and conversion using uchardet" &&
+  # video output
+  optional_depends OPENGL \
+                   "--enable-gl" \
+                   "--disable-gl" \
+                   "for OpenGL video output" &&
 
-optional_depends smgl-gl_select "" "" "to select OPENGL provider" &&
+  optional_depends libcaca \
+                   "--enable-caca" \
+                   "--disable-caca" \
+                   "for CACA video output" &&
 
-if is_depends_enabled $SPELL luajit; then
-  optional_depends youtube-dl "" "" "to watch Youtube videos"
-fi &&
+  optional_depends libx11 \
+                   "--enable-x11" \
+                   "--disable-x11" \
+                   "for X11 video output" &&
 
-optional_depends libarchive \
-                 "--enable-libarchive" \
-                 "--disable-libarchive" \
-                 "to support reading zip files and more"
+  if is_depends_enabled $SPELL libx11; then
+    depends libxext &&
+    depends libxrandr &&
+    depends libxscrnsaver &&
+    depends libxinerama &&
+
+    optional_depends libvdpau \
+                     "--enable-vdpau" \
+                     "--disable-vdpau" \
+                     "for VDPAU acceleration" &&
+
+    optional_depends libxv \
+                     "--enable-xv" \
+                     "--disable-xv" \
+                     "for Xv video output"
+  else
+    list_add MPV_OPTS "--disable-xf86vm" &&
+    list_add MPV_OPTS "--disable-vdpau" &&
+    list_add MPV_OPTS "--disable-xv" &&
+    list_remove MPV_OPTS "--disable-xinerama" &&
+    list_remove MPV_OPTS "--disable-xext"
+  fi &&
+
+  # codecs
+  optional_depends JPEG \
+                   "--enable-jpeg" \
+                   "--disable-jpeg" \
+                   "for JPEG input/output support" &&
+
+  optional_depends libcdio-paranoia \
+                   "--enable-cdda" \
+                   "--disable-cdda" \
+                   "for cdda support" &&
+
+  # features
+  list_remove MPV_OPTS "--enable-radio-capture" &&
+  list_remove MPV_OPTS "--disable-radio-capture" &&
+  list_remove MPV_OPTS "--enable-pvr" &&
+  list_remove MPV_OPTS "--disable-pvr" &&
+
+  if is_depends_enabled $SPELL samba; then
+    depends SSL
+  fi &&
+
+  optional_depends lcms2 \
+                   "--enable-lcms2" \
+                   "--disable-lcms2" \
+                   "for LCMS2 support" &&
+
+  optional_depends libbluray \
+                   "--enable-libbluray" \
+                   "--disable-libbluray" \
+                   "for Blu-ray support" &&
+
+  optional_depends libdvdnav \
+                   "--enable-dvdnav" \
+                   "--disable-dvdnav" \
+                   "for dvd navigation support" &&
+
+  optional_depends uchardet \
+                   "--enable-uchardet" \
+                   "--disable-uchardet" \
+                   "for charset discovery and conversion using uchardet" &&
+
+  optional_depends smgl-gl_select "" "" "to select OPENGL provider" &&
+
+  if is_depends_enabled $SPELL luajit; then
+    optional_depends youtube-dl "" "" "to watch Youtube videos"
+  fi &&
+
+  optional_depends libarchive \
+                   "--enable-libarchive" \
+                   "--disable-libarchive" \
+                   "to support reading zip files and more"
+fi
