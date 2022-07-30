@@ -1,0 +1,1 @@
+make LOCALINC="${INSTALL_ROOT}/usr/include" LOCALLIB="${INSTALL_ROOT}/lib"
