@@ -1,3 +1,2 @@
-OPTS="$OPTS PREFIX=${INSTALL_ROOT}/usr" &&
-cd ${SOURCE_DIRECTORY}/src &&
-make $OPTS
+OPTS+=" PREFIX=$INSTALL_ROOT/usr" &&
+make -C "$SOURCE_DIRECTORY"/src $OPTS
