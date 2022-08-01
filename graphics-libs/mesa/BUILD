@@ -20,6 +20,10 @@ case "$HOST" in
   MESA_TOOLS="${MESA_TOOLS% }"
   ;;
 esac &&
+if [[ "${MESA_BRANCH}" == "stable" ]]; then
+  OPTS+=" use-elf-tls=false"
+fi &&
+
 local vulkan=${MESA_VULKAN//none} &&
 local gallium=${MESA_GALLIUM//none} &&
 local dri=${MESA_DRI//none} &&
@@ -29,7 +33,6 @@ OPTS+=" gallium-drivers=${gallium// /,} \
           platforms=${MESA_EGL// /,} \
                 glx=${MESA_GLX// /,} \
               tools=${MESA_TOOLS// /,} \
-        use-elf-tls=false \
      $MESA_GLES1 $MESA_GLES2" &&
 
 default_build
