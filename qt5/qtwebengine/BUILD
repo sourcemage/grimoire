@@ -2,14 +2,17 @@
 qt5_build() {
 # qmake uses its own flag settings
   qmake QMAKE_CONFIG="$OPTS" QMAKE_CFLAGS="$CFLAGS" QMAKE_CXXFLAGS="$CXXFLAGS"\
-    PREFIX=${1-$QT5DIR} LIBDIR=$QT5DIR/lib *.pro &&
-#    -- -system-ffmpeg -webengine-icu &&
+    PREFIX=${1-$QT5DIR} LIBDIR=$QT5DIR/lib *.pro \
+    -- -system-ffmpeg -webengine-icu &&
   make
 }
 
 OPTS+=" -shared"  &&
 if list_find "$CXXFLAGS" -Os; then
   OPTS+=" -optimize-size"
+fi &&
+if is_depends_enabled $SPELL nodejs-bin;then
+  export PATH+=":/opt/nodejs/bin"
 fi &&
 
 qt5_build

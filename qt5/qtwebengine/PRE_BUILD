@@ -1,3 +1,24 @@
 default_pre_build    &&
 cd $SOURCE_DIRECTORY &&
-apply_patch_dir patches
+# apply BLFS patches
+for ((i=2; i<=BLFS_PATCH; i+=1)); do
+  local patchname="SOURCE${i}" &&
+  verify_file "${i}" &&
+  message "${MESSAGE_COLOR}applying patch ${!patchname} ...${DEFAULT_COLOR}" &&
+  patch -p1 < ${SOURCE_CACHE}/${!patchname}
+done &&
+
+# apply local patches
+apply_patch_dir patches &&
+
+# as suggested by BLFS
+mkdir -pv .git src/3rdparty/chromium/.git &&
+#QTV=`installed_version qtbase` &&
+QTV=`qmake -v|grep Qt|cut -d\  -f4` &&
+message "${MESSAGE_COLOR}set qt version=$QTV${DEFAULT_COLOR}" &&
+sed -e "/^MODULE_VERSION/s/5.*/$QTV/" -i .qmake.conf &&
+find -type f -name "*.pr[io]" | \
+  xargs sed -i -e 's|INCLUDEPATH += |&$$QTWEBENGINE_ROOT/include |' &&
+#sed -e '/link_pulseaudio/s/false/true/' \
+#    -i src/3rdparty/chromium/media/media_options.gni &&
+sed -i '/python2/s/2//' src/buildtools/config/support.pri
