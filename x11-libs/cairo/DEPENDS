@@ -1,6 +1,6 @@
 . "$GRIMOIRE/FUNCTIONS" &&
 
-depends freetype2 '--enable-ft' &&
+depends freetype2 '--enable-ft=yes' &&
 depends fontconfig &&
 depends pixman &&
 depends xz-utils &&
@@ -10,73 +10,71 @@ if spell_ok pixman && is_version_less $(installed_version pixman) 0.30.0; then
 fi &&
 
 optional_depends zlib \
-                 "--enable-xml" \
-                 "--disable-xml" \
+                 "--enable-xml=yes" \
+                 "--enable-xml=no" \
                  "for XML surface backend" &&
 
 # uses libbfd-*.so
 optional_depends -sub LIBERTY binutils \
-                 "--enable-symbol-lookup" \
-                 "--disable-symbol-lookup" \
+                 "--enable-symbol-lookup=yes" \
+                 "--enable-symbol-lookup=no" \
                  "for symbol-lookup feature" &&
 
 optional_depends libxcb \
-                 "--enable-xcb" \
-                 "--disable-xcb" \
+                 "--enable-xcb=yes" \
+                 "--enable-xcb=no" \
                  "for XCB surface backend feature" &&
 
 optional_depends glib2 \
-                 "--enable-gobject" \
-                 "--disable-gobject" \
+                 "--enable-gobject=yes" \
+                 "--enable-gobject=no" \
                  "for gobject functions feature" &&
 
 optional_depends libx11 \
-                 "--enable-xlib" \
-                 "--disable-xlib" \
+                 "--enable-xlib=yes" \
+                 "--enable-xlib=no" \
                  "for Xlib surface backend feature" &&
 
 if is_depends_enabled $SPELL libx11; then
   depends xorgproto &&
   depends libxext &&
   optional_depends libxrender \
-                   "--enable-xlib-xrender" \
-                   "--disable-xlib-xrender" \
+                   "--enable-xlib-xrender=yes" \
+                   "--enable-xlib-xrender=no" \
                    "for Xlib Xrender surface backend" &&
 
-  # Crashes firefox, see https://bugzilla.mozilla.org/show_bug.cgi?id=1136417
-  # Verified the crash with cairo-1.12.18 and cairo-1.14.2.
-  # It's off by default upstream, too, we just avoid suggestion dumb things
-  # to our users. They can always enable it via CONFIG_LOCAL.
-#  config_query_option CAIRO_OPTS "Enable Xlib/XCB functions feature?" n \
-#                                 "--enable-xlib-xcb" \
-#                                 "--disable-xlib-xcb"
-  message "${MESSAGE_COLOR}WARNING: Disabling xlib-xcb, which is unstable (crashes firefox).$DEFAULT_COLOR" &&
-  # Still need to disable it in case CAIRO_OPTS has it still in it.
-  list_add CAIRO_OPTS "--disable-xlib-xcb"
-
+  if is_depends_enabled ${SPELL} libxcb; then
+    config_query_option CAIRO_OPTS "Enable Xlib/XCB functions feature?" n \
+                                   "--enable-xlib-xcb=yes" \
+                                   "--enable-xlib-xcb=no" &&
+   list_remove CAIRO_OPTS "--enable-xlib-xcb" &&
+   list_remove CAIRO_OPTS "--disable-xlib-xcb"
+  fi
 fi &&
 
 optional_depends libpng \
-                 "--enable-png --enable-svg" \
-                 "--disable-png --disable-svg" \
+                 "--enable-png=yes" \
+                 "--enable-png=no" \
                  "for PNG support" &&
+if is_depends_enabled ${SPELL} libpng; then
+  optional_depends librsvg2 \
+                   "--enable-svg=yees" \
+                   "--enable-svg=no" \
+                   "for SVG support"
+fi &&
 
 optional_depends OPENGL \
-                 "--enable-gl" \
-                 "--disable-gl" \
+                 "--enable-gl=yes" \
+                 "--enable-gl=no" \
                  "for OpenGL accelerated graphics" &&
 
-optional_depends directfb \
-                 "--enable-directfb" \
-                 "--disable-directfb" \
-                 "for directfb surface backend feature" &&
 
 optional_depends gtk-doc \
-                 "--enable-gtk-doc" \
-                 "--disable-gtk-doc" \
+                 "--enable-gtk-doc=yes" \
+                 "--enable-gtk-doc=no" \
                  "Build documentation with gtk-doc" &&
 
 optional_depends valgrind \
-                 "--enable-valgrind" \
-                 "--disable-valgrind" \
+                 "--enable-valgrind=yes" \
+                 "--enable-valgrind=no" \
                  "for Valgrind support"
