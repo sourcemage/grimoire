@@ -1,4 +1,9 @@
 . "$GRIMOIRE/FUNCTIONS" &&
+. "${GRIMOIRE}/MESON_DEPENDS" &&
+
+if [[ "${CAIRO_BRANCH}" == "scm" ]]; then
+  depends git
+fi &&
 
 depends pixman &&
 
@@ -7,84 +12,72 @@ if spell_ok pixman && is_version_less $(installed_version pixman) 0.30.0; then
 fi &&
 
 optional_depends zlib \
-                 "--enable-xml=yes" \
-                 "--enable-xml=no" \
+                 "xml=enabled" \
+                 "xml=disabled" \
                  "for XML surface backend" &&
 
 # uses libbfd-*.so
 optional_depends -sub LIBERTY binutils \
-                 "--enable-symbol-lookup=yes" \
-                 "--enable-symbol-lookup=no" \
+                 "symbol-lookup=enabled" \
+                 "symbol-lookup=disabled" \
                  "for symbol-lookup feature" &&
 
 optional_depends freetype2 \
-                 "--enable-ft=yes" \
-                 "--enable-ft=no" \
+                 "freetype=enabled" \
+                 "freetype=disabled" \
                  "for Freetype font backend" &&
 if is_depends_enabled ${SPELL} freetype2; then
   optional_depends fontconfig \
-                   "--enable-fc=yes" \
-                   "--enable-fc=no" \
+                   "fontconfig=enabled" \
+                   "fontconfig=disabled" \
                    "for Fontconfig backend"
 fi &&
 
 optional_depends libxcb \
-                 "--enable-xcb=yes" \
-                 "--enable-xcb=no" \
+                 "xcb=enabled" \
+                 "xcb=disabled" \
                  "for XCB surface backend feature" &&
 
 optional_depends glib2 \
-                 "--enable-gobject=yes" \
-                 "--enable-gobject=no" \
+                 "glib=enabled" \
+                 "glib=disabled" \
                  "for gobject functions feature" &&
 
 optional_depends libx11 \
-                 "--enable-xlib=yes" \
-                 "--enable-xlib=no" \
+                 "xlib=enabled" \
+                 "xlib=disabled" \
                  "for Xlib surface backend feature" &&
 
 if is_depends_enabled $SPELL libx11; then
   depends xorgproto &&
   depends libxext &&
-  optional_depends libxrender \
-                   "--enable-xlib-xrender=yes" \
-                   "--enable-xlib-xrender=no" \
-                   "for Xlib Xrender surface backend" &&
+  depends libxrender &&
 
   if is_depends_enabled ${SPELL} libxcb; then
     config_query_option CAIRO_OPTS "Enable Xlib/XCB functions feature?" n \
-                                   "--enable-xlib-xcb=yes" \
-                                   "--enable-xlib-xcb=no" &&
+                                   "xlib-xcb=enabled" \
+                                   "xlib-xcb=disabled" &&
    list_remove CAIRO_OPTS "--enable-xlib-xcb" &&
+   list_remove CAIRO_OPTS "--enable-xlib-xcb=yes" &&
+   list_remove CAIRO_OPTS "--enable-xlib-xcb=nno" &&
    list_remove CAIRO_OPTS "--disable-xlib-xcb"
   fi
 fi &&
 
 optional_depends libpng \
-                 "--enable-png=yes" \
-                 "--enable-png=no" \
+                 "png=enabled" \
+                 "png=disabled" \
                  "for PNG support" &&
-if is_depends_enabled ${SPELL} libpng; then
-  optional_depends librsvg2 \
-                   "--enable-svg=yees" \
-                   "--enable-svg=no" \
-                   "for SVG support"
-fi &&
 
 optional_depends lzo "" "" "for LZO compression support" &&
 
 optional_depends OPENGL \
-                 "--enable-gl=yes" \
-                 "--enable-gl=no" \
+                 "gl-backend=auto" \
+                 "gl-backend=disabled" \
                  "for OpenGL accelerated graphics" &&
 
 
 optional_depends gtk-doc \
-                 "--enable-gtk-doc=yes" \
-                 "--enable-gtk-doc=no" \
-                 "Build documentation with gtk-doc" &&
-
-optional_depends valgrind \
-                 "--enable-valgrind=yes" \
-                 "--enable-valgrind=no" \
-                 "for Valgrind support"
+                 "gtk_doc=true" \
+                 "gtk_doc=false" \
+                 "Build documentation with gtk-doc"
