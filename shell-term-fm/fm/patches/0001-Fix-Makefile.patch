@@ -1,0 +1,87 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Subject: Fix Makefile
+Date: Sun,  7 Aug 2022 21:06:15 +0200
+
+* Remove rules covered by default rules
+* Respect and use CFLAGS and LIBS
+* Add install target
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ Makefile |   43 ++++++++++---------------------------------
+ 1 file changed, 10 insertions(+), 33 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 75c377bfdd4c..5bff930cce3f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -2,58 +2,35 @@ exe = fm
+ objects = aboutwindow.o aboutwindow_signals.o accelkey.o ctreecolumn.o filetype.o fileutils.o fm.o fmdialog.o fmwindow.o fmwindow_signals.o layout.o preferences.o preferenceswindow.o preferenceswindow_signals.o rowstyle.o
+ glibconfig = glib-config
+ gtkconfig = gtk-config
+-lib-flags = `$(glibconfig) --libs` `$(gtkconfig) --libs`
+-include-flags = `$(glibconfig) --cflags` `$(gtkconfig) --cflags`
++CFLAGS += $(shell ${glibconfig} --cflags) $(shell ${gtkconfig} --cflags)
++LIBS += $(shell ${glibconfig} --libs) $(shell ${gtkconfig} --libs)
+ 
+ fm: $(objects)
+-	gcc -o $(exe) $(objects) $(lib-flags)
+-	strip fm
++	${CC} ${CFLAGS} ${LDFLAGS} -o ${exe} ${objects} ${LIBS}
+ 
+ aboutwindow.o : aboutwindow.c aboutwindow.h aboutwindow_signals.h
+-	gcc -Wall -O2 -c aboutwindow.c $(include-flags)
+-
+ aboutwindow_signals.o : aboutwindow_signals.c aboutwindow.h aboutwindow_signals.h
+-	gcc -Wall -O2 -c aboutwindow_signals.c $(include-flags)
+-
+ accelkey.o : accelkey.c accelkey.h fmwindow.h preferences.h
+-	gcc -Wall -O2 -c accelkey.c $(include-flags)
+-
+ ctreecolumn.o : ctreecolumn.c ctreecolumn.h preferences.h
+-	gcc -Wall -O2 -c ctreecolumn.c $(include-flags)
+-
+ filetype.o : filetype.c filetype.h fileutils.h fmwindow.h rowstyle.h
+-	gcc -Wall -O2 -c filetype.c $(include-flags)
+-
+ fileutils.o : fileutils.c fileutils.h fmwindow.h
+-	gcc -Wall -O2 -c fileutils.c $(include-flags)
+-
+ fm.o : fm.c fmwindow.h layout.h preferences.h
+-	gcc -Wall -O2 -c fm.c $(include-flags)
+-
+ fmdialog.o : fmdialog.c fmdialog.h
+-	gcc -Wall -O2 -c fmdialog.c $(include-flags)
+-
+ fmwindow.o : fmwindow.c accelkey.h ctreecolumn.h filetype.h fileutils.h fmwindow.h fmwindow_signals.h preferences.h rowstyle.h
+-	gcc -Wall -O2 -c fmwindow.c $(include-flags)
+-
+ fmwindow_signals.o : fmwindow_signals.c aboutwindow.h accelkey.h ctreecolumn.h filetype.h fileutils.h fmwindow.h fmwindow_signals.h  preferences.h rowstyle.h
+-	gcc -Wall -O2 -c fmwindow_signals.c $(include-flags)
+-
+ layout.o : layout.c fmwindow.h layout.h
+-	gcc -Wall -O2 -c layout.c $(include-flags)
+-
+ preferences.o : preferences.c accelkey.h ctreecolumn.h filetype.h preferences.h rowstyle.h
+-	gcc -Wall -O2 -c preferences.c $(include-flags)
+-
+ preferenceswindow.o : preferenceswindow.c accelkey.h filetype.h fmdialog.h fmwindow.h layout.h preferences.h preferenceswindow.h rowstyle.h
+-	gcc -Wall -O2 -c preferenceswindow.c $(include-flags)
+-
+ preferenceswindow_signals.o : preferenceswindow_signals.c preferenceswindow_signals.h
+-	gcc -Wall -O2 -c preferenceswindow_signals.c $(include-flags)
+-
+ rowstyle.o : rowstyle.c filetype.h fmwindow.h fmwindow_signals.h rowstyle.h
+-	gcc -Wall -O2 -c rowstyle.c $(include-flags)
+ 
+ .PHONY : clean
+ clean:
+ 	rm -fv $(exe) $(objects)
++
++DESTDIR =
++prefix = /usr
++bindir = ${prefix}/bin
++.PHONY: install
++install:
++	install -m555 -s ${exe} ${DESTDIR}${bindir}
