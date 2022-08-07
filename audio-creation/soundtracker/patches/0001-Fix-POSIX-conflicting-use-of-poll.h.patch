@@ -1,0 +1,85 @@
+From 0e87d52de5d01c3b137e5566bffd183ff6dddbe7 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Fri, 23 Sep 2022 16:12:09 +0200
+Subject: [PATCH 1/2] Fix POSIX-conflicting use of poll.h
+
+The local poll.h header may clobber a POSIX-compliant implementation
+providing <poll.h> as the main header instead of <sys/poll.h> (which is
+not POSIX).
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ app/audio.c               | 2 +-
+ app/gui.c                 | 2 +-
+ app/poll.c                | 4 ++--
+ app/{poll.h => st-poll.h} | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)
+ rename app/{poll.h => st-poll.h} (98%)
+
+diff --git a/app/audio.c b/app/audio.c
+index fa847f4c3e93..df1af71e60cb 100644
+--- a/app/audio.c
++++ b/app/audio.c
+@@ -30,7 +30,7 @@
+ #include <unistd.h>
+ #include <fcntl.h>
+ #include <errno.h>
+-#include "poll.h"
++#include "st-poll.h"
+ 
+ #ifdef _POSIX_PRIORITY_SCHEDULING
+ #include <sched.h>
+diff --git a/app/gui.c b/app/gui.c
+index 7972fbd4fa03..8a2d6c50ae08 100644
+--- a/app/gui.c
++++ b/app/gui.c
+@@ -28,7 +28,7 @@
+ 
+ #include <unistd.h>
+ 
+-#include "poll.h"
++#include "st-poll.h"
+ 
+ #include <gdk/gdkkeysyms.h>
+ #include <gtk/gtk.h>
+diff --git a/app/poll.c b/app/poll.c
+index cdc8c3b1a58e..fd2b3de79759 100644
+--- a/app/poll.c
++++ b/app/poll.c
+@@ -31,7 +31,7 @@
+ #include <sys/types.h>
+ #include <unistd.h>
+ 
+-#include "poll.h"
++#include "st-poll.h"
+ 
+ /* Poll the file descriptors described by the NFDS structures starting at
+    FDS.  If TIMEOUT is nonzero and not -1, allow TIMEOUT milliseconds for
+@@ -101,7 +101,7 @@ poll (fds, nfds, timeout)
+ #define  WIN32_LEAN_AND_MEAN
+ #include "glib.h"
+ #include <windows.h>
+-#include "poll.h"
++#include "st-poll.h"
+ 
+ typedef struct plst {
+   HANDLE       pa, pb;
+diff --git a/app/poll.h b/app/st-poll.h
+similarity index 98%
+rename from app/poll.h
+rename to app/st-poll.h
+index 3ae255b48957..f822059f0588 100644
+--- a/app/poll.h
++++ b/app/st-poll.h
+@@ -27,7 +27,7 @@
+ #include <config.h>
+ 
+ #ifdef HAVE_POLL
+-#include <sys/poll.h>
++#include <poll.h>
+ #else
+ 
+ /* Data structure describing a polling request.  */
+-- 
+2.37.3
+
