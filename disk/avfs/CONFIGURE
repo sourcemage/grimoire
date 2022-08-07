@@ -1,3 +1,9 @@
+# remove obsolete options from AVFS_OPTS
+list_remove AVFS_OPTS '--disable-preload' &&
+list_remove AVFS_OPTS '--enable-preload' &&
+list_remove AVFS_OPTS '--disable-avfscoda' &&
+list_remove AVFS_OPTS '--enable-avfscoda' &&
+
 config_query_option AVFS_OPTS "Compile avfs as a shared and static library?" y \
                               "--enable-library" \
                               "--disable-library" &&
@@ -6,22 +12,11 @@ config_query_option AVFS_OPTS "Compile in debug information?" n \
                               "--enable-debug" \
                               "--disable-debug" &&
 
-# preload doesn't work on glibc systems
-list_add "AVFS_OPTS" "--disable-preload" &&
-#config_query_option AVFS_OPTS "Compile the preloaded library and server?" n \
-#                              "--enable-preload" \
-#                              "--disable-preload" &&
-
 # dav support is broken
-message "${PROBLEM_COLOR}Dav module is incompatible with modern libraries, disabling it...${DEFAULT_COLOR}" &&
-list_add "AVFS_OPTS" "--disable-dav" &&
-#config_query_option AVFS_OPTS "Compile the dav module?" n \
-#                              "--enable-dav" \
-#                              "--disable-dav" &&
+if list_find "$AVFS_OPTS" "--enable-dav"; then
+  message "${PROBLEM_COLOR}Dav module is incompatible with modern libraries, disabling it...${DEFAULT_COLOR}" &&
 
-# coda support is broken
-message "${PROBLEM_COLOR}Coda module is incompatible with modern kernels, disabling it...${DEFAULT_COLOR}" &&
-list_add "AVFS_OPTS" "--disable-avfscoda"
-#config_query_option AVFS_OPTS "Compile avfscoda daemon and kernel module?" n \
-#                              "--enable-avfscoda" \
-#                              "--disable-avfscoda"
+  list_remove "AVFS_OPTS" "--enable-dav"
+fi &&
+
+list_add "AVFS_OPTS" "--disable-dav"
