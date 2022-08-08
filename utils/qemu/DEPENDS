@@ -1,8 +1,5 @@
 . "$GRIMOIRE"/MESON_DEPENDS &&
 . "$GRIMOIRE"/VDEPENDS &&
-vdepends <<! &&
-	python3               flags: --python=python3
-!
 
 case "$HOST" in
   (*-musl)
@@ -27,8 +24,12 @@ if list_find "pa" $QEMU_AUDIO; then
   depends  pulseaudio
 fi &&
 
-if list_find "esd" $QEMU_AUDIO; then
-  depends  esound
+if list_find "jack" ${QEMU_AUDIO}; then
+  depends JACK
+fi &&
+
+if list_find "oss" ${QEMU_AUDIO}; then
+  depends oss
 fi &&
 
 if list_find '--enable-docs' ${QEMU_OPTS}; then
@@ -115,17 +116,17 @@ optional_depends bzip2 \
 		 --{enable,disable}-bzip2 \
 		 'for reading bzip2-compressed DMG images' &&
 
-optional_depends lzfse \
-		 --{enable,disable}-lzfse \
-		 'for reading lzfse-compressed DMG images' &&
+#optional_depends lzfse \
+#		 --{enable,disable}-lzfse \
+#		 'for reading lzfse-compressed DMG images' &&
 
 optional_depends zstd \
 		 --{enable,disable}-zstd \
 		 'for migration and qcow2 cluster compression' &&
 
 optional_depends libxml2 \
-		 '--enable-libxml2 --enable-parallels' \
-		 '--disable-libxml2' \
+		 '--enable-parallels' \
+		 '--disable-parallels' \
 		 'for Parallels image format support' &&
 
 case "$QEMU_OPTS" in *--enable-vnc*)
@@ -165,8 +166,7 @@ optional_depends capstone \
 		 --{enable,disable}-capstone \
 		 'for capstone disassembler support' &&
 
-optional_depends jemalloc \
-		 --{enable,disable}-jemalloc \
+optional_depends jemalloc '--enable-malloc=jemalloc' '' \
 		 'for jemalloc support' &&
 
 optional_depends libssh \
