@@ -1,2 +1,1 @@
-./test.py &&
-./setup.py install
+default_build_make
