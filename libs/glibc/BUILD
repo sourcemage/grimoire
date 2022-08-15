@@ -34,18 +34,12 @@ export CPPFLAGS="$CPPFLAGS -I$GLIBC_HEADERS_DIR/usr/include"  &&
 #
 cd  $SOURCE_DIRECTORY.bld  &&
 
-#
-# Install all libs into /lib
-# Fixes installing glibc on x86_64 without a lib64 symlink/dir
-# Bug #441
-#
-echo -e "slibdir=/lib" > configparms &&
-
 # security-related options
 OPTS+=" --enable-bind-now"                 &&
 OPTS+=" --enable-stack-protector=strong"   &&
 OPTS+=" --enable-stackguard-randomization" &&
 OPTS+=" $GLIBC_CET"                        &&
+
 
 #
 # Configure glibc to use the sanitised headers
@@ -64,5 +58,10 @@ $SOURCE_DIRECTORY/configure  --host=$HOST                       \
 			  --disable-werror                      \
                      --with-headers=$GLIBC_HEADERS_DIR/usr/include  \
                           --disable-multi-arch                  \
+                    libc_cv_slibdir=/lib                        \
                                     $OPTS                       &&
-default_build_make
+default_build_make &&
+
+# fake install
+mkdir -p "${SOURCE_DIRECTORY}.bld/INSTALL_ROOT" &&
+make  install install_root="${SOURCE_DIRECTORY}.bld/INSTALL_ROOT"
