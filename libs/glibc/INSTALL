@@ -33,13 +33,12 @@ done  &&
 # install
 #
 cd "${SOURCE_DIRECTORY}.bld/INSTALL_ROOT" &&
-tar -cf- . | (cd "$INSTALL_ROOT/" && tar -xvf-)
-
-if [[ ${SMGL_COMPAT_ARCHS[1]} == x86_64 || ${SMGL_COMPAT_ARCHS[1]} == em64t ]]; then
-  [ -d /lib64 -a ! -f /lib64/ld-linux-x86-64.so.2 -a -f /lib/ld-linux-x86-64.so.2 ] &&
-    ln -s $TRACK_ROOT/lib/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
-  true  # see bug 8626 for info about this conditional
+if  test -d ${TRACK_ROOT}/lib64 && test -f ./lib/ld-linux-x86-64.so.2; then
+  mkdir -p ./lib64 &&
+  ln -sf $TRACK_ROOT/lib/ld-linux-x86-64.so.2 ./lib64/ld-linux-x86-64.so.2
 fi &&
+tar -cf- . | tar -C "${INSTALL_ROOT}/" -xvf-
+
 (  ldconfig  ||  true  )  &&
 
 #
