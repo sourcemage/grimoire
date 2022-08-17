@@ -1,1 +1,1 @@
-true
+gem build rake.gemspec
