@@ -10,6 +10,17 @@ do
 	     "$SOURCE_CACHE/$src")
   if query "Apply $src ($desc)?" n; then
     patch -fp1 -i "$SOURCE_CACHE/$src" || exit 1
+
+    if [ "$src" = "st-xresources-signal-reloading-20220407-ef05519.diff" ]; then
+      if grep -q "cursorstyle = 1" config.def.h; then
+        sedit "s:XRESOURCE_LOAD_INTEGER(\"cursorshape\", cursorshape);:XRESOURCE_LOAD_INTEGER(\"cursorstyle\", cursorstyle);:" x.c &&
+        patch -p0 < "${SPELL_DIRECTORY}/xsetcursor.patch"
+      fi
+
+      if grep -q "alpha = 0.8" config.def.h; then
+        sedit "s:XRESOURCE_LOAD_FLOAT(\"chscale\", chscale);:XRESOURCE_LOAD_FLOAT(\"chscale\", chscale); XRESOURCE_LOAD_FLOAT(\"alpha\", alpha);:" x.c
+      fi
+    fi
   fi
   let i++
 done
