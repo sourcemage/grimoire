@@ -1,9 +1,3 @@
-cd $SOURCE_DIRECTORY                          &&
+OPTS="${ALOCK_OPTS} ${OPTS}" &&
 
-if [[ "${ALOCK_SHADOW}" = "y" ]]; then
-    OPTS="${OPTS} --with-passwd"
-fi                                            &&
-
-OPTS="${OPTS} ${ALOCK_OPTS}"                  &&
-./configure --prefix $INSTALL_ROOT/usr $OPTS  &&
-make
+default_build
