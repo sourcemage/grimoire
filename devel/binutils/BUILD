@@ -1,3 +1,10 @@
+case "$HOST" in
+  (*-musl)
+    # FIXME gprofng doesn't build with musl
+    OPTS+=' --disable-gprofng'
+  ;;
+esac &&
+
 if [[ $BINUTILS_LTO == "y" ]];then
   OPTS+=" --enable-lto"
 fi &&
