@@ -1,0 +1,27 @@
+default_pre_build &&
+cd "${SOURCE_DIRECTORY}" &&
+
+if spell_ok gcc && is_version_less $(installed_version gcc) 4.8; then
+  sedit "s:-Wpedantic::" Makefile &&
+
+  CFLAGS="-std=c99 ${CFLAGS}"
+fi &&
+
+if spell_ok glibc && is_version_less $(installed_version glibc) 2.26; then
+  sedit "/bits\/getopt_core.h/d" src/evid.c
+fi &&
+
+sedit "s:^\(CFLAGS_ALL\:=.*\):\1 ${CFLAGS}:g" Makefile &&
+sedit "s:^\(LDFLAGS_ALL\:=.*\):\1 ${LDFLAGS}:g" Makefile &&
+
+if ! is_depends_enabled ${SPELL} libxfixes; then
+  sedit "/XEXTENSIONS=/d" Makefile
+fi &&
+
+if ! is_depends_enabled ${SPELL} libnotify; then
+  sedit "/NOTIFY:=/d" Makefile
+fi &&
+
+if is_depends_enabled ${SPELL} zenity; then
+  sedit "s:^[# ]+\(.+ZENITY=.*\):\1:" Makefile
+fi
