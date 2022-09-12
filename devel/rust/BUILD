@@ -15,7 +15,7 @@ export CFLAGS CXXFLAGS &&
 #    /usr/bin/rustc will be missing its soversion. You cannot win.
 #    Maybe we need our own bootstrap packages. Or a chain build starting
 #    with the latest available cache.
-if false && spell_ok "$SPELL"; then
+if spell_ok "$SPELL"; then
   _rust_root="$INSTALL_ROOT/usr"
 else
   _rust_root="$SOURCE_DIRECTORY/stage0-bootstrap" &&
@@ -47,4 +47,10 @@ sed -i "/BOOTSTRAP.*doc/d" Makefile &&
 
 export CARGO_HOME="$SOURCE_DIRECTORY/cargo_home" &&
 
-default_build_make
+default_build_make &&
+
+# fake install
+if spell_ok "${SPELL}"; then
+  mkdir -p "${SOURCE_DIRECTORY}/INSTALL_ROOT" &&
+  make DESTDIR="${SOURCE_DIRECTORY}/INSTALL_ROOT" install
+fi
