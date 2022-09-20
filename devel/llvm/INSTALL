@@ -8,28 +8,32 @@ then
 
   cd $SOURCE_DIRECTORY/tools/clang/tools &&
 
-  install -v -m 0755 -o root -g root -d "$target/scan-build" &&
-  install -v -m 0755 -o root -g root -t "${INSTALL_ROOT}/usr/bin/" scan-build/libexec/ccc-analyzer &&
-  install -v -m 0755 -o root -g root -t "${INSTALL_ROOT}/usr/bin/" scan-build/libexec/c++-analyzer &&
-  install -v -m 0755 -o root -g root -t "${INSTALL_ROOT}/usr/bin/" scan-build/bin/scan-build &&
-  ln -sf "/usr/bin/ccc-analyzer" "${INSTALL_ROOT}/usr/bin/c++-analyzer" &&
-  install -v -m 0644 -o root -g root -t "$target/scan-build" scan-build/share/scan-build/scanview.css &&
-  install -v -m 0644 -o root -g root -t "$target/scan-build" scan-build/share/scan-build/sorttable.js &&
-  install -v -m 0755 -o root -g root -d "$target/scan-view" &&
-  install -v -m 0755 -o root -g root -t "${INSTALL_ROOT}/usr/bin/" scan-view/bin/scan-view &&
-  install -v -m 0644 -o root -g root -t "$target/scan-view" scan-view/share/Reporter.py &&
-  install -v -m 0644 -o root -g root -t "$target/scan-view" scan-view/share/ScanView.py &&
-  install -v -m 0644 -o root -g root -t "$target/scan-view" scan-view/share/startfile.py
+  install -v -d "$target/scan-build" &&
 
-  install -v -m 0644 -o root -g root -t "${INSTALL_ROOT}/usr/share/man/man1/" scan-build/man/scan-build.1
+  for i in ccc-analyzer c++-analyzer; do
+    install -v -t "${INSTALL_ROOT}/usr/bin/" scan-build/libexec/${i}
+  done &&
+
+  for i in build view; do
+    install -v -t "${INSTALL_ROOT}/usr/bin/" scan-${i}/bin/scan-${l}
+  done &&
+
+  ln -sf "/usr/bin/ccc-analyzer" "${INSTALL_ROOT}/usr/bin/c++-analyzer" &&
+
+  for i in scanview.css sorttable.js;; do
+    install -v -t "$target/scan-build" scan-build/share/scan-build/${i}
+  done &&
+
+  install -v -d "$target/scan-view" &&
+
+  for i in Reporter.py ScanView.py startfile.py; do
+    install -v -t "$target/scan-view" scan-view/share/${i}
+  done &&
+
+  install -v -t "${INSTALL_ROOT}/usr/share/man/man1/" scan-build/man/scan-build.1
 fi &&
 
-if [[ "$LLVM_WITH_CLANG" == y ]] && is_depends_enabled $SPELL python; then
+if [[ "$LLVM_WITH_CLANG" == y ]] && spell_ok python3; then
   cd "${SOURCE_DIRECTORY}" &&
-  if spell_installed python; then
-    cp -Rv "${SOURCE_DIRECTORY}/tools/clang/bindings/python/clang" "${INSTALL_ROOT}/usr/lib/python$(installed_version python | cut -f1,2 -d.)/"
-  fi &&
-  if spell_installed python3; then
-    cp -Rv "${SOURCE_DIRECTORY}/tools/clang/bindings/python/clang" "${INSTALL_ROOT}/usr/lib/python$(installed_version python3 | cut -f1,2 -d.)/"
-  fi
+  cp -Rv "${SOURCE_DIRECTORY}/tools/clang/bindings/python/clang" "${INSTALL_ROOT}/usr/lib/python$(installed_version python3 | cut -f1,2 -d.)/"
 fi
