@@ -41,7 +41,7 @@ message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
 	$OPTS &&
 
 # static doesn't work
-sed -i '/^#crt-static *= *false/s/#//' config.toml &&
+sed -i '/^#crt-static/acrt-static = false' config.toml &&
 
 sed -i "/BOOTSTRAP.*doc/d" Makefile &&
 
