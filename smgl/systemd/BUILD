@@ -1,3 +1,5 @@
+OPTS+=" static-libsystemd=true"                           &&
+OPTS+=" static-libudev=true"                              &&
 OPTS+=" blkid=true"                                       &&
 OPTS+=" default-dnssec=no"                                &&
 OPTS+=" firstboot=false"                                  &&
