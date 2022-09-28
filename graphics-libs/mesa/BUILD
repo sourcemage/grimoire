@@ -24,6 +24,11 @@ if [[ "${MESA_BRANCH}" == "stable" ]]; then
   OPTS+=" use-elf-tls=false"
 fi &&
 
+if is_depends_enabled "${SPELL}" libva &&
+ ! list_find "${MESA_VA_CODECS}" "none"; then
+  OPTS+=" video-codecs=${MESA_VA_CODECS// /,}"
+fi &&
+
 local vulkan=${MESA_VULKAN//none} &&
 local gallium=${MESA_GALLIUM//none} &&
 local dri=${MESA_DRI//none} &&
