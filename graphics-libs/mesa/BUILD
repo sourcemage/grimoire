@@ -20,9 +20,6 @@ case "$HOST" in
   MESA_TOOLS="${MESA_TOOLS% }"
   ;;
 esac &&
-if [[ "${MESA_BRANCH}" == "stable" ]]; then
-  OPTS+=" use-elf-tls=false"
-fi &&
 
 if is_depends_enabled "${SPELL}" libva &&
  ! list_find "${MESA_VA_CODECS}" "none"; then
