@@ -1,1 +1,1 @@
-make $OPTS
+make ${OPTS} DESTDIR="${INSTALL_ROOT}" PREFIX="/usr"
