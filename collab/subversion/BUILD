@@ -24,7 +24,7 @@ if ! [[ -x configure ]]; then ./autogen.sh; fi &&
   OPTS="${OPTS} --disable-debug --disable-static --disable-mod-activation --enable-shared --disable-experimental-libtool"
 
 SWIG_LDFLAGS="${LDFLAGS}" &&
-OPTS+=" $SVN_GIT" &&
+OPTS+=" $SVN_PLAINPW $SVN_GIT" &&
 default_build     &&
 
 if [[ "$SVN_PERL"   == y ]]; then
