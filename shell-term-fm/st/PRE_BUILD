@@ -43,10 +43,13 @@ fi &&
 if [[ $ST_UNDERCURL == y ]]; then
   verify_file 8 &&
 
-  patch -p1 < "${SOURCE_CACHE}/${SOURCE8}" || exit 1
+  cat ${SOURCE_CACHE}/${SOURCE8} > "${SOURCE_DIRECTORY}/${SOURCE8}" &&
+  patch -p0 < "${SPELL_DIRECTORY}/undercurl.patch" &&
+
+  patch -p1 < "${SOURCE_DIRECTORY}/${SOURCE8}" || exit 1
 fi &&
 
-if [[ $ST_XRESOURCES == y ]]; then
+if [[ $ST_XRESOURCES == "original" ]]; then
   verify_file 9 &&
 
   patch -p1 < "${SOURCE_CACHE}/${SOURCE9}" || exit 1
@@ -55,13 +58,31 @@ fi &&
 if [[ $ST_ALPHA == y ]]; then
   verify_file 10 &&
 
-  patch -p1 < "${SOURCE_CACHE}/${SOURCE10}" || exit 1
+  cat ${SOURCE_CACHE}/${SOURCE10} > "${SOURCE_DIRECTORY}/${SOURCE10}" &&
+
+  if [[ $ST_HIDECURSOR == y ]]; then
+    patch -p0 < "${SPELL_DIRECTORY}/alpha_hidecursor.patch" || exit 1
+  fi &&
+
+  if [[ $ST_XRESOURCES == "original" ]]; then
+    if [[ $ST_HIDECURSOR == y ]]; then
+      patch -p0 < "${SPELL_DIRECTORY}/alpha_xr_hidecursor.patch" || exit 1
+    else
+      patch -p0 < "${SPELL_DIRECTORY}/alpha_xr.patch" || exit 1
+    fi
+  fi &&
+
+  patch -p1 < "${SOURCE_DIRECTORY}/${SOURCE10}" || exit 1
 fi &&
 
 if [[ $ST_SCROLLBACK == y ]]; then
   verify_file 11 &&
 
   cat ${SOURCE_CACHE}/${SOURCE11} > "${SOURCE_DIRECTORY}/${SOURCE11}" &&
+
+  if [[ $ST_COPYURL == y ]]; then
+    patch -p0 < "${SPELL_DIRECTORY}/scrollback_copyurl.patch" || exit 1
+  fi &&
 
   if [[ $ST_LINE_SNAP_DELIMITER == y ]]; then
     patch -p0 < "${SPELL_DIRECTORY}/scrollback_lsd.patch" || exit 1
@@ -82,7 +103,7 @@ if [[ $ST_SCROLLBACK_MOUSE_ALTSCREEN == y ]]; then
   patch -p1 < "${SOURCE_CACHE}/${SOURCE13}" || exit 1
 fi &&
 
-if [[ $ST_XRESOURCES_SIGNAL_RELOADING == y ]]; then
+if [[ $ST_XRESOURCES == "signal-reloading" ]]; then
   verify_file 14 &&
 
   patch -p1 < "${SOURCE_CACHE}/${SOURCE14}" &&
