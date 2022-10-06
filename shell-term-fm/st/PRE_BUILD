@@ -1,29 +1,102 @@
 default_pre_build &&
 cd ${SOURCE_DIRECTORY} &&
 
-# Apply optional patches
-i=2
-while src=$(eval 'echo "$SOURCE'"$i"\")
-      [[ -n "$src" ]]
-do
-  desc=$(sed -r '/^Subject: /!d;s@^[^ ]+ (\[[^]]+\] *)*@@;q' \
-	     "$SOURCE_CACHE/$src")
-  if query "Apply $src ($desc)?" n; then
-    patch -fp1 -i "$SOURCE_CACHE/$src" || exit 1
+if [[ $ST_HIDECURSOR == y ]]; then
+  verify_file 2 &&
 
-    if [ "$src" = "st-xresources-signal-reloading-20220407-ef05519.diff" ]; then
-      if grep -q "cursorstyle = 1" config.def.h; then
-        sedit "s:XRESOURCE_LOAD_INTEGER(\"cursorshape\", cursorshape);:XRESOURCE_LOAD_INTEGER(\"cursorstyle\", cursorstyle);:" x.c &&
-        patch -p0 < "${SPELL_DIRECTORY}/xsetcursor.patch"
-      fi
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE2}" || exit 1
+fi &&
 
-      if grep -q "alpha = 0.8" config.def.h; then
-        sedit "s:XRESOURCE_LOAD_FLOAT(\"chscale\", chscale);:XRESOURCE_LOAD_FLOAT(\"chscale\", chscale); XRESOURCE_LOAD_FLOAT(\"alpha\", alpha);:" x.c
-      fi
-    fi
+if [[ $ST_BLINKING_CURSOR == y ]]; then
+  verify_file 3 &&
+
+  cat ${SOURCE_CACHE}/${SOURCE3} > "${SOURCE_DIRECTORY}/${SOURCE3}" &&
+  patch -p0 < "${SPELL_DIRECTORY}/blinking_cursor.patch" &&
+
+  patch -p1 < "${SOURCE_DIRECTORY}/${SOURCE3}" || exit 1
+fi &&
+
+if [[ $ST_COPYURL == y ]]; then
+  verify_file 4 &&
+
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE4}" || exit 1
+fi &&
+
+if [[ $ST_LINE_SNAP_DELIMITER == y ]]; then
+  verify_file 5 &&
+
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE5}" || exit 1
+fi &&
+
+if [[ $ST_DESKTOPENTRY == y ]]; then
+  verify_file 6 &&
+
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE6}" || exit 1
+fi &&
+
+if [[ $ST_SYNC == y ]]; then
+  verify_file 7 &&
+
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE7}" || exit 1
+fi &&
+
+if [[ $ST_UNDERCURL == y ]]; then
+  verify_file 8 &&
+
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE8}" || exit 1
+fi &&
+
+if [[ $ST_XRESOURCES == y ]]; then
+  verify_file 9 &&
+
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE9}" || exit 1
+fi &&
+
+if [[ $ST_ALPHA == y ]]; then
+  verify_file 10 &&
+
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE10}" || exit 1
+fi &&
+
+if [[ $ST_SCROLLBACK == y ]]; then
+  verify_file 11 &&
+
+  cat ${SOURCE_CACHE}/${SOURCE11} > "${SOURCE_DIRECTORY}/${SOURCE11}" &&
+
+  if [[ $ST_LINE_SNAP_DELIMITER == y ]]; then
+    patch -p0 < "${SPELL_DIRECTORY}/scrollback_lsd.patch" || exit 1
+  fi &&
+
+  patch -p1 < "${SOURCE_DIRECTORY}/${SOURCE11}" || exit 1
+fi &&
+
+if [[ $ST_SCROLLBACK_MOUSE == y ]]; then
+  verify_file 12 &&
+
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE12}" || exit 1
+fi &&
+
+if [[ $ST_SCROLLBACK_MOUSE_ALTSCREEN == y ]]; then
+  verify_file 13 &&
+
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE13}" || exit 1
+fi &&
+
+if [[ $ST_XRESOURCES_SIGNAL_RELOADING == y ]]; then
+  verify_file 14 &&
+
+  patch -p1 < "${SOURCE_CACHE}/${SOURCE14}" &&
+
+  if grep -q "cursorstyle = 1" config.def.h; then
+    sedit "s:XRESOURCE_LOAD_INTEGER(\"cursorshape\", cursorshape);:XRESOURCE_LOAD_INTEGER(\"cursorstyle\", cursorstyle);:" x.c &&
+
+    patch -p0 < "${SPELL_DIRECTORY}/xsetcursor.patch" || exit 1
+  fi &&
+
+  if grep -q "alpha = 0.8" config.def.h; then
+    sedit "s:XRESOURCE_LOAD_FLOAT(\"chscale\", chscale);:XRESOURCE_LOAD_FLOAT(\"chscale\", chscale); XRESOURCE_LOAD_FLOAT(\"alpha\", alpha);:" x.c
   fi
-  let i++
-done
+fi &&
 
 if [[ "${ST_CONFIG}" == "y" ]]; then
   if [[ -e ${INSTALL_ROOT}/usr/share/doc/st/config.def.h ]]; then
