@@ -1,3 +1,5 @@
+source $GRIMOIRE/MESON_DEPENDS &&
+
 depends dbus    &&
 depends dbus-glib &&
 depends GETTEXT &&
@@ -9,69 +11,55 @@ depends libndp   &&
 depends readline &&
 depends util-linux &&
 depends DEVICE-MANAGER &&
-if is_depends_enabled $SPELL DEVICE-MANAGER; then
-  depends libgudev
+if !is_depends_enabled $SPELL systemd; then
+  depends elogind
 fi &&
+depends libgudev  &&
 
-depends $NETWORK_MANAGER_CRYPTO "--with-crypto=$NETWORK_MANAGER_CRYPTO" &&
+depends $NETWORK_MANAGER_CRYPTO crypto=$NETWORK_MANAGER_CRYPTO &&
 
-optional_depends newt  \
-                 '--with-nmtui=yes' \
-                 '--with-nmtui=no' \
-                 'Build nmtui' &&
+optional_depends newt nmtui={true,false}  'Build nmtui' &&
 
-optional_depends libsoup \
-                 '--with-libsoup=yes' \
-                 '--with-libsoup=no' \
-                 'SOAP support' &&
+optional_depends policykit  polkit={true,false}  "Enable PolicyKit support?"  &&
 
-optional_depends gtk-doc \
-        "--enable-gtk-doc"  \
-	"--disable-gtk-doc" \
-	"use gtk-doc to build documentation" 
-
-
-optional_depends policykit                    \
-                 "--enable-polkit=yes"        \
-                 "--enable-polkit=disabled"   \
-                 "Enable PolicyKit support?"  &&
-
-optional_depends CONSOLE-MANAGER                                \
-                 "--with-session-tracking=ck"                   \
-                 "--with-session-tracking=none"                 \
+optional_depends CONSOLE-MANAGER  session_tracking_consolekit={true,false} \
                  "Enable ConsoleKit session tracking support?"  &&
 
-optional_depends dnsmasq \
-                 "--with-dnsmasq" \
-                 "" \
-                 "DNS proxy with integrated DHCP" &&
+#optional_depends dhcpcd  "config_dhcp_default=dhcpcd dhcpcd=yes" dhcpcd='' \
+#                "Enable dhcpcd support?"            &&
 
-optional_depends dhcpcd                                 \
-                "--with-dhcpcd=yes --with-dhclient=no"  \
-                "--with-dhcpcd=no --with-dhclient=no"   \
-                "Enable dhcpcd 4.x support?"            &&
+optional_depends ppp ppp={true,false}  "enable PPP/PPPoE support?"  &&
 
-optional_depends ppp                          \
-                 "--enable-ppp"               \
-                 "--disable-ppp"              \
-                 "enable PPP/PPPoE support?"  &&
-
-optional_depends linux-firmware                              \
-                 "--with-kernel-firmware-dir=/lib/firmware"  \
+optional_depends linux-firmware  "kernel-firmware-dir=/lib/firmware"  \
                  "" "Use Linux Firmware?"                    &&
 
+optional_depends IFUPDOWN ifupdown={true,false}   "Network activation" &&
+
+optional_depends iwd iwd={true,false} 'enable iwd support' &&
+if !is_depends_enabled $SPELL iwd;then
+#  optional_depends wpa_supplicant '' '' ''
+  depends wpa_supplicant
+fi &&
+
+optional_depends modemmanager modem_manager={true,false} 'Modem Manager support' &&
+optional_depends audit libaudit={yes,no} 'audit support' &&
+optional_depends jansson ovs={true,false} 'Open vSwitch integration' &&
+optional_depends libselinux selinux={true,false} 'security enhaced linux'
+
+optional_depends gtk-doc docs={true,false} 'build documentation and manpages' &&
+optional_depends vala vapi={true,false} 'build api docs'
+if is_depends_enabled $SPELL vala || 
+   is_depends_enabled $SPELL gtk-doc ;then
+  depends gobject-introspection introspection=true
+else
+  optional_depends gobject-introspection introspection={true,false} "introspection support"
+fi
+
+if(false);then
 optional_depends upower \
-                 "--with-suspend-resume=upower" \
-                 "" \
                  "Suspend/Resume support" &&
 
-optional_depends IFUPDOWN \
-               "--enable-ifupdown" \
-               "" \
-               "Network activation" &&
-
-optional_depends BLUEZ \
-               "" \
-               "" \
-               "Bluetooth support" &&
-runtime_depends wpa_supplicant
+optional_depends dnsmasq \
+                 "DNS proxy with integrated DHCP"
+fi
+#optional_depends 
