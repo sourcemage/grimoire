@@ -1,0 +1,31 @@
+From 4917be423cb1a70a66e90e39a73e986b011d7687 Mon Sep 17 00:00:00 2001
+From: Mike Frysinger <vapier@gentoo.org>
+Date: Tue, 3 Aug 2021 00:34:59 +0200
+Subject: [PATCH 01/12] Disable ldconfig during install
+
+Do not bother running ldconfig on DESTDIR.  It's a waste of time as we
+won't use the result (portage will rebuild the cache after install).
+Also, the Gentoo sandbox does not currently catch chroot() behavior so
+we end up (incorrectly) flagging it as a violation as a write to /etc.
+
+http://sourceware.org/ml/libc-alpha/2012-08/msg00118.html
+https://bugs.gentoo.org/431038
+---
+ Makefile | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Makefile b/Makefile
+index 179dd478ff..763d6a084a 100644
+--- a/Makefile
++++ b/Makefile
+@@ -110,6 +110,7 @@ elf/ldso_install:
+ ifeq (no,$(cross-compiling))
+ ifeq (yes,$(build-shared))
+ install:
++dont-bother-with-destdir:
+ 	-test ! -x $(elf-objpfx)ldconfig || LC_ALL=C \
+ 	  $(elf-objpfx)ldconfig $(addprefix -r ,$(install_root)) \
+ 				$(slibdir) $(libdir)
+-- 
+2.35.1
+
