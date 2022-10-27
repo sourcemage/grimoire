@@ -15,4 +15,12 @@ if is_depends_enabled $SPELL iwd; then
 else
   config_wifi_backend_default=wpa_supplicant
 fi &&
+
+# disable stripping
+LDFLAGS="${LDFLAGS//,-s/}" &&
+LDFLAGS="${LDFLAGS//-s,/}" &&
+LDFLAGS="${LDFLAGS// -s/}" &&
+LDFLAGS="${LDFLAGS//-s /}" &&
+LDFLAGS="${LDFLAGS//^-s$/}" &&
+
 default_build
