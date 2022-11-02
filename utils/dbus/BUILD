@@ -9,7 +9,7 @@ fi  &&
 # when we're in a chain where libffi just has been updated and glib2 not yet.
 # Other solution would be to unnecessarily depend on glib2, or even
 # dbus-glib, which just smells too circular.
-OPTS="--without-dbus-glib --disable-modular-tests $OPTS" &&
+OPTS="--disable-modular-tests --enable-user-session ${DBUS_OPTS} $OPTS" &&
 
 create_account  messagebus  &&
 default_build               &&
