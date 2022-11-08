@@ -1,6 +1,4 @@
-OPTS="$OPTS $DILLO_OPTS"
-# Allow multiple definitions for ld.bfd, required with binutils 2.35+
-if ! is_version_less $(installed_version binutils) 2.35; then
-  LDFLAGS+=" -Wl,--allow-multiple-definition"
-fi &&
+OPTS="$OPTS $DILLO_OPTS" &&
+# Needed for GCC 10.x+
+CFLAGS+=" -fcommon" &&
 default_build
