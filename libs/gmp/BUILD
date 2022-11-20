@@ -1,6 +1,10 @@
 # For use in INSTALL for Bug #16031
 persistent_add gmp_old_version &&
-gmp_old_version=$(installed_version ${SPELL}) &&
+if spell_ok ${SPELL}; then
+  gmp_old_version=$(installed_version ${SPELL})
+else
+  gmp_old_version=
+fi &&
 
 # needed by essential /bin/expr at least
 OPTS="--libdir=$INSTALL_ROOT/lib $OPTS" &&
