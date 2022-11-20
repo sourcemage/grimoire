@@ -4,7 +4,11 @@ CFLAGS="$CFLAGS -DPIC -fPIC"    &&
 CFLAGS="${CFLAGS//-O[gs0-9]/-O3}" &&
 CFLAGS="${CFLAGS//-Ofast/-O3}" &&
 CFLAGS="${CFLAGS//-O /-O3 }" &&
-CFLAGS+=" -fno-tree-vectorize -mstackrealign -DUNALIGNED_OK" &&
+CFLAGS+=" -fno-tree-vectorize" &&
+if [[ "${SMGL_COMPAT_ARCHS[1]}" == "ia32"
+   || "${SMGL_COMPAT_ARCHS[1]}" == "x86_64" ]]; then
+  CFLAGS+=" -mstackrealign -DUNALIGNED_OK"
+fi &&
 
 sedit  "s/-O/$CFLAGS/"  Makefile                   &&
 
