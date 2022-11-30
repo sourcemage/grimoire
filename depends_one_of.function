@@ -1,0 +1,110 @@
+#---------------------------------------------------------------------
+## @Synopsis Set of functions for handling one of a set type dependencies
+##
+## @Copyright Source Mage Team
+#---------------------------------------------------------------------
+
+#---------------------------------------------------------------------
+## Depend on one of the given list of spells, and add the given
+## options to OPTS
+##
+## @param spell_1
+## @param options_1
+## @param spell_2
+## @param options_2
+## @param ...
+## @param description
+#---------------------------------------------------------------------
+function depends_one_of() {
+  local -a choices
+  local -A options
+  local -A subs
+
+  local persist_var="$1"
+  shift
+
+  while (($# >= 3)); do
+    local this_sub=
+    if [[ "$1" == '-sub' ]]; then
+      this_sub="$2"
+      shift 2
+    fi
+
+    local this_spell="$1"
+    choices+=("$this_spell")
+    options["$this_spell"]="$2"
+    [[ -z "$this_sub" ]] || subs["$this_spell"]="$this_sub"
+    shift 2
+  done
+
+  persistent_load spell_config.p
+  message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR} has a dependency on some $1"
+  declare -g choice=${!persist_var}
+  if [[ $RECONFIGURE || -z "${!persist_var}" ]] || ! list_find "${!persist_var}" "${choices[@]}"; then
+    select_provider choice "${!persist_var}" 0 "${choices[@]}"
+  else
+    message "${MESSAGE_COLOR}Using ${SPELL_COLOR}${choice}${DEFAULT_COLOR}"
+  fi
+  config_set_option "$persist_var" "$choice"
+  local -a depends_args
+  [[ -z "${subs["$choice"]}" ]] || depends_args+=(-sub "${subs["$choice"]}")
+  depends_args+=("$choice" "${options["$choice"]}")
+
+  depends "${depends_args[@]}"
+}
+
+#---------------------------------------------------------------------
+## Optionally depend on one of the given list of spells, and add the
+## given options to OPTS
+##
+## @param persist_var
+## @param spell_1
+## @param options_1
+## @param spell_2
+## @param options_2
+## @param ...
+## @param options_none
+## @param description
+#---------------------------------------------------------------------
+function optional_depends_one_of() {
+  local -a choices
+  local -A options
+  local -A subs
+
+  local persist_var="$1"
+  shift
+
+  while (($# >= 4)); do
+    local this_sub=
+    if [[ "$1" == '-sub' ]]; then
+      this_sub="$2"
+      shift 2
+    fi
+
+    local this_spell="$1"
+    choices+=("$this_spell")
+    options["$this_spell"]="$2"
+    [[ -z "$this_sub" ]] || subs["$this_spell"]="$this_sub"
+    shift 2
+  done
+
+  persistent_load spell_config.p
+  message "${SPELL_COLOR}${SPELL}${DEFAULT_COLOR} has an optional dependency on some $2"
+  declare -g choice=${!persist_var}
+  if [[ $RECONFIGURE || -z "${!persist_var}" ]] || ! list_find "${!persist_var}" none "${choices[@]}"; then
+    select_provider choice "${!persist_var}" 1 "${choices[@]}"
+  else
+    message "${MESSAGE_COLOR}Using ${SPELL_COLOR}${choice}${DEFAULT_COLOR}"
+  fi
+  config_set_option "$persist_var" "$choice"
+  if [[ "$choice" != 'none' ]]; then
+    local -a depends_args
+    [[ -z "${subs["$choice"]}" ]] || depends_args+=(-sub "${subs["$choice"]}")
+    depends_args+=("$choice" "${options["$choice"]}")
+
+    depends "${depends_args[@]}"
+  else
+    private_common_depends "${choices[0]}" off optional '' "$1"
+  fi
+  unset choice
+}
