@@ -1,46 +1,29 @@
+. "$GRIMOIRE/depends_one_of.function"
+
 depends  gmp  &&
 depends  zlib  &&
 
-case $CURL_SSL in
- gnutls)
-     depends  gnutls     \
-     "--with-gnutls \
-      --without-ssl --without-nss --without-mbedtls"
-     ;;
- libressl | openssl)
-     depends  SSL         \
-     "--with-ssl \
-      --without-gnutls --without-nss --without-mbedtls"
-     ;;
- nss) 
-     depends  -sub PEM nss         \
-     "--with-nss \
-      --without-gnutls --without-ssl --without-mbedtls"
-     ;;
- mbedtls | polarssl)
-     depends  mbedtls     \
-     "--with-mbedtls \
-      --without-ssl --without-nss --without-gnutls"
-     ;;
- none)
-   OPTS+=" --without-mbedtls --without-gnutls --without-nss --without-ssl"
-    ;;
-esac &&
+optional_depends_one_of  CURL_SSL \
+                         gnutls '--with-ssl --with-gnutls --without-openssl --without-nss --without-mbedtls --without-wolfssl' \
+                         openssl '--with-ssl --without-gnutls --with-openssl --without-nss --without-mbedtls --without-wolfssl' \
+                         libressl '--with-ssl --without-gnutls --with-openssl --without-nss --without-mbedtls --without-wolfssl' \
+                         mbedtls '--with-ssl --without-gnutls --without-openssl --without-nss --with-mbedtls --without-wolfssl' \
+                         wolfssl '--with-ssl --without-gnutls --without-openssl --without-nss --without-mbedtls --with-wolfssl' \
+                         '--without-ssl --without-ca-bundle' \
+                         'SSL library' &&
 
-if [[ "$CURL_SSL" == "none" ]]; then
-   OPTS+="  --without-ca-bundle"
-else
-  depends ca-certificates "--with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt"
+if [[ "$CURL_SSL" != "none" ]]; then
+  depends  ca-certificates "--with-ca-bundle=$INSTALL_ROOT/etc/ssl/certs/ca-certificates.crt"
 fi &&
 
-optional_depends  krb5   \
-                  "--with-gssapi "    \
+optional_depends  krb5 \
+                  "--with-gssapi " \
                   "--without-gssapi " \
                   "GSSAPI support" &&
 
-optional_depends  libssh2                              \
-                  "--with-libssh2"   \
-                  '--without-libssh2'                  \
+optional_depends  libssh2 \
+                  "--with-libssh2" \
+                  '--without-libssh2' \
                   "for SSH (SCP and SFTP) support"     &&
 
 optional_depends rtmpdump \
@@ -48,36 +31,36 @@ optional_depends rtmpdump \
                  '--without-librtmp' \
                  "for RTMP streaming media support" &&
 
-optional_depends  c-ares                                                       \
-                  "--enable-ares=$INSTALL_ROOT/usr"                            \
-                  '--disable-ares'                                             \
+optional_depends  c-ares \
+                  "--enable-ares=$INSTALL_ROOT/usr" \
+                  '--disable-ares' \
                   "to performs DNS requests and name resolves asynchronously"  &&
 
-optional_depends  libidn                                   \
-                  "--with-libidn=$INSTALL_ROOT/usr"        \
-                  '--without-libidn'                       \
+optional_depends  libidn \
+                  "--with-libidn=$INSTALL_ROOT/usr" \
+                  '--without-libidn' \
                   'for International Domain Name support'  &&
 
 if [[ "$CURL_SSL" != "none" ]]; then
-  optional_depends  openldap                                             \
-                    '--enable-ldap --enable-ldaps'                       \
-                    '--disable-ldap --disable-ldaps'                     \
+  optional_depends  openldap \
+                    '--enable-ldap --enable-ldaps' \
+                    '--disable-ldap --disable-ldaps' \
                     'for Lightweight Directory Access Protocol support'
 else
-  optional_depends  openldap                                             \
-                    '--enable-ldap'                                      \
-                    '--disable-ldap'                                     \
+  optional_depends  openldap \
+                    '--enable-ldap' \
+                    '--disable-ldap' \
                     'for Lightweight Directory Access Protocol support'
 fi &&
 
-optional_depends  nghttp2                \
-                  "--with-nghttp2"       \
-                  "--without-nghttp2"    \
+optional_depends  nghttp2 \
+                  "--with-nghttp2" \
+                  "--without-nghttp2" \
                   "for HTTP/2 support" &&
 
-optional_depends  nghttp3                \
-                  "--with-nghttp3"       \
-                  "--without-nghttp3"    \
+optional_depends  nghttp3 \
+                  "--with-nghttp3" \
+                  "--without-nghttp3" \
                   "for HTTP/3 support"   &&
 
 if is_depends_enabled ${SPELL} nghttp3; then
