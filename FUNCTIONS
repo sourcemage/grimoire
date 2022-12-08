@@ -813,10 +813,30 @@ function prepare_select_branch() {
 }
 
 #---
-## Get uppercase spell name with _ instead of -
+## Returns the spellname in all uppercase, and replacing hyphens with underscores
+##
+## Also checks the first character of the spell and transliterates it if
+## it is a number (bash variables cannot start with a number)
 #---
 function get_up_spell_name() {
-  echo ${1:-$SPELL} | tr '.+a-z-' '_XA-Z_'
+# Define an array containing the spelling of the numbers from 0 to 9
+  local NUMBER_SPELLINGS=("ZERO" "ONE" "TWO" "THREE" "FOUR" "FIVE" "SIX" "SEVEN" "EIGHT" "NINE")
+  local spell=${1:-$SPELL}
+
+  # Check if the first character of the argument is a number
+  if [[ ${spell::1} =~ ^[0-9] ]]; then
+    # Transliterate the number to its spelling (e.g. 1 to ONE)
+    first_char=${NUMBER_SPELLINGS[${spell::1}]}
+    # Replace the first character of the argument with the transliterated spelling
+    result="${first_char}${spell:1}"
+  else
+    # If the first character is not a number, use the argument as is
+    result=$spell
+  fi
+
+  # Replaces the hyphens with underscores, then echos $argument in all uppercase
+  result=${result//-/_}
+  echo "${result^^}"
 }
 
 #---
