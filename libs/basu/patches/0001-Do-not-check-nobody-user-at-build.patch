@@ -1,0 +1,49 @@
+From cefb30b6be12876e2b554dbb7e22c4f1f1018f36 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Tue, 13 Dec 2022 23:18:54 +0100
+Subject: [PATCH] Do not check nobody user at build
+
+Unimportant for source-based distributions, and currently the musl port of
+Source Mage doesn't provide an implementation of getent.
+
+Upstream-Status: Inappropriate
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ meson.build | 20 --------------------
+ 1 file changed, 20 deletions(-)
+
+diff --git a/meson.build b/meson.build
+index 1f29690c30a9..c942fd311b64 100644
+--- a/meson.build
++++ b/meson.build
+@@ -188,26 +188,6 @@ conf.set('GPERF_LEN_TYPE', gperf_len_type,
+ 
+ nobody_user = get_option('nobody-user')
+ 
+-if not meson.is_cross_build()
+-        getent_result = run_command('getent', 'passwd', '65534')
+-        if getent_result.returncode() == 0
+-                name = getent_result.stdout().split(':')[0]
+-                if name != nobody_user
+-                        warning('\n' +
+-                                'The local user with the UID 65534 does not match the configured user name "@0@" of the nobody user (its name is @1@).\n'.format(nobody_user, name) +
+-                                'Your build will result in an user table setup that is incompatible with the local system.')
+-                endif
+-        endif
+-        id_result = run_command('id', '-u', nobody_user)
+-        if id_result.returncode() == 0
+-                id = id_result.stdout().to_int()
+-                if id != 65534
+-                        warning('\n' +
+-                                'The local user with the configured user name "@0@" of the nobody user does not have UID 65534 (it has @1@).\n'.format(nobody_user, id) +
+-                                'Your build will result in an user table setup that is incompatible with the local system.')
+-                endif
+-        endif
+-endif
+ conf.set_quoted('NOBODY_USER_NAME', nobody_user)
+ 
+ system_bus_address = get_option('system-bus-address')
+-- 
+2.38.1
+
