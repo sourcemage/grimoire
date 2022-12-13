@@ -1,2 +1,2 @@
-OPTS+=" ${WLROOTS_OPTS}" &&
+OPTS+=" ${WLROOTS_OPTS} werror=false" &&
 default_build
