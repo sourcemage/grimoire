@@ -1,0 +1,2 @@
+OPTS+=\ -DLIBDEFLATE_BUILD_STATIC_LIB=0
+default_build
