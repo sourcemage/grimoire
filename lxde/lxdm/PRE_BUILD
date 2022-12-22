@@ -1,4 +1,29 @@
 default_pre_build &&
-cd ${SOURCE_DIRECTORY} &&
-rm ${SOURCE_DIRECTORY}/data/{PostLogin,PostLogout,PreLogin,PreReboot,PreShutdown,LoginReady,lxdm.conf} &&
-patch -p1 < ${SPELL_DIRECTORY}/lxdm-0.4.1-high-cpu-load.patch
+cd $SOURCE_DIRECTORY &&
+# some fixes from BLFS
+
+sed -i 's:sysconfig/i18n:profile.d/i18n.sh:g' data/lxdm.in &&
+sed -i 's:/etc/xprofile:/etc/profile:g' data/Xsession &&
+sed -e 's/^bg/#&/'        \
+    -e '/reset=1/ s/# //' \
+    -e 's/logou$/logout/' \
+    -e "/arg=/a arg=$XORG_PREFIX/bin/X" \
+    -i data/lxdm.conf.in &&
+
+cat > pam/lxdm << "EOF"
+# Begin /etc/pam.d/lxdm
+
+auth     requisite      pam_nologin.so
+auth     required       pam_env.so
+auth     required       pam_succeed_if.so uid >= 1000 quiet
+auth     include        system-auth
+
+account  include        system-account
+
+password include        system-password
+
+session  required       pam_limits.so
+session  include        system-session
+
+# End /etc/pam.d/lxdm
+EOF
