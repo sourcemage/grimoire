@@ -1,85 +1,129 @@
-depends -sub CXX gcc &&
-depends cmake &&
-depends libtool &&
-depends bison &&
-depends gperf &&
-depends flex &&
-depends icu &&
-depends libxslt &&
-depends libxml2 &&
-depends zlib &&
-depends libxt &&
-depends libxrender &&
-depends libxcomposite &&
-depends libxdamage &&
-depends MESA &&
-depends glib2 &&
-depends fontconfig &&
-depends freetype2 &&
+depends -sub CXX gcc      &&
+depends cmake             &&
+depends xz-utils          &&
+depends libtool           &&
+depends bison             &&
+depends gperf             &&
+depends flex              &&
+depends icu               &&
+depends libgcrypt         &&
+depends libtasn1          &&
+depends libxslt           &&
+depends libxml2           &&
+depends zlib              &&
+depends libxt             &&
+depends libxrender        &&
+depends libxcomposite     &&
+depends libxdamage        &&
+depends MESA              &&
+depends glib2             &&
+depends fontconfig        &&
+depends freetype2         &&
 depends -sub ICU harfbuzz &&
-depends cairo &&
-depends pango &&
-depends gtk+3 "-DPORT=GTK" &&
-depends gdk-pixbuf2 &&
-depends libsoup &&
-depends at-spi2-core &&
-depends libpng &&
-depends JPEG &&
-depends libwebp &&
-depends sqlite &&
-depends perl &&
-depends PYTHON &&
-depends RUBY &&
+depends cairo             &&
+depends pango             &&
+depends libx11            &&
+depends gdk-pixbuf2       &&
+depends libsoup           &&
+depends at-spi2-core      &&
+depends libpng            &&
+depends JPEG              &&
+depends libwebp           &&
+depends sqlite            &&
+depends perl              &&
+depends PYTHON            &&
+depends RUBY              &&
 
 if [[ ${SMGL_COMPAT_ARCHS[1]} == "x86_64" || "${SMGL_COMPAT_ARCHS[1]}" == "em64t" ]]; then
   depends llvm
 fi &&
 
-optional_depends enchant \
-                 "-DENABLE_SPELLCHECK=ON" \
-                 "-DENABLE_SPELLCHECK=OFF" \
-                 "Enable spellchecking support?" &&
+optional_depends libseccomp                                           \
+                 '-DENABLE_BUBBLEWRAP_SANDBOX=ON'                     \
+                 '-DENABLE_BUBBLEWRAP_SANDBOX=OFF'                    \
+                 'Enable bubblewrap sandbox support?'                 &&
 
-optional_depends hyphen \
-                 "-DUSE_LIBHYPHEN=ON" \
-                 "-DUSE_LIBHYPHEN=OFF" \
-                 "Enable default automatic hyphenation?"
+if is_depends_enabled $SPELL libseccomp; then
+  depends bubblewrap &&
+  depends xdg-dbus-proxy
+fi &&
 
-optional_depends libsecret \
-                 "-DENABLE_CREDENTIAL_STORAGE=1" \
-                 "-DENABLE_CREDENTIAL_STORAGE=0" \
-                 "Enable support for credential storage?" &&
+# To be enabled once libmanette spell is added
+#optional_depends libmanette                                          \
+#                 '-DENABLE_GAMEPAD=ON'                               \
+#                 '-DENABLE_GAMEPAD=OFF'                              \
+#                 'Gamepad support?'                                  &&
 
-optional_depends gobject-introspection \
-                 "-DENABLE_INTROSPECTION=ON" \
-                 "-DENABLE_INTROSPECTION=OFF" \
-                 "Enable GObject introspection?" &&
+optional_depends libavif                                              \
+                 'USE_AVIF=ON'                                        \
+                 'USE_AVIF=OFF'                                       \
+                 'Build with AVIF support?'                           &&
 
-optional_depends geoclue \
-                 "-DENABLE_GEOLOCATION=ON" \
-                 "-DENABLE_GEOLOCATION=OFF" \
-                 "Enable geolocation support?" &&
+optional_depends openjpeg                                             \
+                 'USE_OPENJPEG=ON'                                    \
+                 'USE_OPENJPEG=OFF'                                   \
+                 'Use openjpeg?'                                      &&
 
-optional_depends gstreamer-1.0 \
-                 "-DENABLE_WEB_AUDIO=ON -DENABLE_VIDEO=ON" \
-                 "-DENABLE_WEB_AUDIO=OFF -DENABLE_VIDEO=OFF" \
-                 "Enable support for HTML5 video and Web Audio?" &&
+optional_depends woff2                                                \
+                 'USE_WOFF2=ON'                                       \
+                 'USE_WOFF2=OFF'                                      \
+                 'Enable WOFF2 font support?'                         &&
+
+optional_depends gtk+4                                                \
+                 '-DUSE_GTK4=ON'                                      \
+                 '-DUSE_GTK4=OFF'                                     \
+                 'Build with gtk+4 support? (if not, uses gtk3)'      &&
+
+if !(is_depends_enabled $SPELL gtk+4); then
+  depends gtk+3
+fi &&
+
+optional_depends lcms2                                                \
+                 'USE_LCMS=ON'                                        \
+                 'USE_LCMS=OFF'                                       \
+                 'Enable LCMS support?'                               &&
+
+optional_depends wpebackend-fdo \
+                 '-DUSE_WPE_RENDERER=ON -DENABLE_WAYLAND_TARGET=ON'   \
+                 '-DUSE_WPE_RENDERER=OFF -DENABLE_WAYLAND_TARGET=OFF' \
+                 'for wpe renderer - also enables wayland support'    &&
+
+if is_depends_enabled $SPELL wpebackend-fdo; then
+  depends libwpe            &&
+  depends wayland-protocols &&
+  depends wayland
+fi &&
+
+optional_depends enchant                                              \
+                 '-DENABLE_SPELLCHECK=ON'                             \
+                 '-DENABLE_SPELLCHECK=OFF'                            \
+                 'Enable spellchecking support?'                      &&
+
+optional_depends hyphen                                               \
+                 '-DUSE_LIBHYPHEN=ON'                                 \
+                 '-DUSE_LIBHYPHEN=OFF'                                \
+                 'Enable default automatic hyphenation?'              &&
+
+optional_depends libsecret                                            \
+                 '-DUSE_LIBSECRET=ON'                                 \
+                 '-DUSE_LIBSECRET=OFF'                                \
+                 'Enable support for credential storage?'             &&
+
+optional_depends gobject-introspection                                \
+                 '-DENABLE_INTROSPECTION=ON'                          \
+                 '-DENABLE_INTROSPECTION=OFF'                         \
+                 'Enable GObject introspection?'                      &&
+
+optional_depends gstreamer-1.0                                        \
+                 '-DENABLE_WEB_AUDIO=ON -DENABLE_VIDEO=ON'            \
+                 '-DENABLE_WEB_AUDIO=OFF -DENABLE_VIDEO=OFF'          \
+                 'Enable support for HTML5 video and Web Audio?'      &&
 
 if is_depends_enabled $SPELL gstreamer-1.0 ; then
    depends gst-plugins-base-1.0
 fi &&
 
-optional_depends upower \
-                 "-DENABLE_BATTERY_STATUS=ON" \
-                 "-DENABLE_BATTERY_STATUS=OFF" \
-                 "Enable support for Battery Status API?" &&
-
-optional_depends gtk-doc \
-                 "-DENABLE_GTKDOC=ON" \
-                 "-DENABLE_GTKDOC=OFF" \
-                 "Build documentation with gtk-doc?" &&
-
-optional_depends wayland \
-                 "-DENABLE_WAYLAND_TARGET=ON" \
-                 "-DENABLE_WAYLAND_TARGET=OFF" \
-                 "Enable Wayland support?"
+optional_depends gtk-doc                                              \
+                 '-DENABLE_DOCUMENTATION=ON'                          \
+                 '-DENABLE_DOCUMENTATION=OFF'                         \
+                 'Build documentation with gtk-doc?'
