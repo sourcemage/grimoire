@@ -1,2 +1,2 @@
-OPTS+=" --enable-shared $RUBY_DOCS" &&
+OPTS+=" --enable-shared --without-baseruby $RUBY_DOCS" &&
 default_build
