@@ -4,48 +4,68 @@ if [[ "${PIPEWIRE_BRANCH}" == "scm" ]]; then
   depends git
 fi &&
 depends PKG-CONFIG                  &&
-depends DEVICE-MANAGER udev=enabled &&
+depends DEVICE-MANAGER "udev=enabled" &&
 depends ncurses                     &&
 
-optional_depends dbus "dbus=enabled" "dbus=disabled" "for DBUS support"                &&
-optional_depends doxygen   docs={en,dis}abled 'build dpcs'                             &&
-optional_depends xmltoman  man={en,dis}abled   'build manpages'                        &&
-optional_depends gst-plugins-base-1.0 gstreamer={en,dis}abled  'gstreamer integration' &&
+optional_depends dbus "dbus=enabled" "dbus=disabled" "for DBUS support"     &&
+optional_depends doxygen "docs=enabled" "docs=disabled" "build dpcs"        &&
+optional_depends xmltoman "man=enabled" "man=disabled" "build manpages"     &&
+optional_depends gst-plugins-base-1.0 "gstreamer=enabled"                   \
+                                      "gstreamer=disabled"                  \
+                                      "gstreamer integration"               &&
 if is_depends_enabled $SPELL gst-plugins-base-1.0;then
   depends gstreamer-1.0 &&
   depends glib2
 fi &&
 
-optional_depends avahi  avahi={en,dis}abled 'for service-discovery support' &&
-optional_depends alsa-lib  pipewire-alsa={en,dis}abled 'ALSA sound support' &&
-optional_depends bluez5    bluez5={en,dis}abled 'Bluetooth support' &&
+optional_depends avahi "avahi=enabled" "avahi=disabled"                     \
+                       "for service-discovery support"                      &&
+optional_depends alsa-lib "pipewire-alsa=enabled" "pipewire-alsa=disabled"  \
+                          "ALSA sound support"                              &&
+optional_depends bluez5 "bluez5=enabled" "bluez5=disabled"                  \
+                        "Bluetooth support"                                 &&
 if is_depends_enabled $SPELL bluez5; then
   depends sbc &&
   optional_depends opus \
-                   'bluez5-codec-opus=enabled' \
-                   'bluez5-codec-opus=disabled' \
-                   'for Opus codec support in Bluetooth module' &&
+                   "bluez5-codec-opus=enabled" \
+                   "bluez5-codec-opus=disabled" \
+                   "for Opus codec support in Bluetooth module" &&
   optional_depends modemmanager \
-                   'bluez5-backend-native-mm=enabled' \
-                   'bluez5-backend-native-mm=disabled' \
-                   'for ModemManager support in Bluetooth module'
+                   "bluez5-backend-native-mm=enabled" \
+                   "bluez5-backend-native-mm=disabled" \
+                   "for ModemManager support in Bluetooth module"
 fi &&
-optional_depends JACK-DRIVER pipewire-jack={en,dis}abled 'jack integration' &&
-optional_depends LIBAVCODEC ffmpeg={en,dis}abled 'AV decoding' &&
-optional_depends libva  '' '' 'hardware accelerated video' &&
-optional_depends libxcb 'x11=enabled' 'x11=disabled' 'X11 integration'
-optional_depends libxfixes 'x11-xfixes=enabled' 'x11-xfixes=disabled' 'for X11 XFIXES extension support'
-optional_depends LIBPULSE libpulse={en,dis}abled 'PulseAudio support' &&
-optional_depends sdl2   'sdl2=enabled' 'sdl2=disabled' 'for SDL2 support' &&
-optional_depends systemd   systemd={en,dis}abled 'SystemD support' &&
-optional_depends v4l-utils v4l2={en,dis}abled 'V4L support' &&
-optional_depends vulkan-loader vulkan={en,dis}abled 'Vulkan support' &&
-optional_depends libsndfile sndfile={en,dis}abled 'sndfile support' &&
-optional_depends libcanberra libcanberra={en,dis}abled 'for canberra support' &&
-optional_depends libusb libusb={en,dis}abled 'for USB support' &&
-optional_depends lv2 lv2={en,dis}abled 'for loading lv2 modules' &&
-optional_depends webrtc-audio-processing echo-cancel-webrtc={en,dis}abled 'for a WebRTC-based echo canceller' &&
-optional_depends SSL raop={en,dis}abled 'for remote-access output protocol support' &&
-optional_depends readline 'readline=enabled' 'readline=disabled' 'to include code for readline support' &&
-optional_depends flatpak 'flatpak=enabled' 'flatpak=disabled' 'for flatpak support'
-#optional_depends wayland '' '' ''
+optional_depends JACK-DRIVER "pipewire-jack=enabled" "pipewire-jack=disabled" \
+                             "jack integration"                               &&
+optional_depends LIBAVCODEC "ffmpeg=enabled" "ffmpeg=disabled" "AV decoding"  &&
+if is_depends_enabled ${SPELL} $(get_spell_provider ${SPELL} LIBAVCODEC); then
+  config_query_option PIPEWIRE_OPTS "Enable FFmpeg integration in pw-cat/pw-play/pw-record?" y \
+                                    "pw-cat-ffmpeg=enabled" \
+                                    "pw-cat-ffmpeg=disabled"
+fi &&
+optional_depends libva  "" "" "hardware accelerated video" &&
+optional_depends libxcb "x11=enabled" "x11=disabled" "X11 integration" &&
+optional_depends libxfixes "x11-xfixes=enabled" "x11-xfixes=disabled"  \
+                           "for X11 XFIXES extension support"          &&
+optional_depends LIBPULSE "libpulse=enabled" "libpulse=disabled"       \
+                          "PulseAudio support"                         &&
+optional_depends sdl2   "sdl2=enabled" "sdl2=disabled" "for SDL2 support" &&
+optional_depends systemd "systemd=enabled" "systemd=disabled" "SystemD support" &&
+optional_depends v4l-utils "v4l2=enabled" "v4l2=disabled" "V4L support" &&
+optional_depends vulkan-loader "vulkan=enabled" "vulkan=disabled" \
+                               "Vulkan support"                   &&
+optional_depends libsndfile "sndfile=enabled" "sndfile=disabled"  \
+                            "sndfile support"                     &&
+optional_depends libcanberra "libcanberra=enabled" "libcanberra=disabled" \
+                             "for canberra support"                       &&
+optional_depends libusb "libusb=enabled" "libusb=disabled" "for USB support" &&
+optional_depends lv2 "lv2=enabled" "lv2=disabled" "for loading lv2 modules" &&
+optional_depends webrtc-audio-processing                                    \
+                 "echo-cancel-webrtc=enabled" "echo-cancel-webrtc=disabled" \
+                 "for a WebRTC-based echo canceller"                        &&
+optional_depends SSL "raop=enabled" "raop=disabled"                         \
+                     "for remote-access output protocol support" &&
+optional_depends readline "readline=enabled" "readline=disabled" \
+                          "to include code for readline support" &&
+optional_depends flatpak "flatpak=enabled" "" "for flatpak support"
+#optional_depends wayland "" "" ""
