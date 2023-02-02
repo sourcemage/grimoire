@@ -1,1 +1,2 @@
+OPTS+=' -DUNIT_TESTING=OFF -DWITH_EXAMPLES=OFF' &&
 cmake_build
