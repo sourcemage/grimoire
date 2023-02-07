@@ -1,3 +1,2 @@
-for f in *.bdf spectrum-fonts/*.bdf; do
-  bdftopcf $f | gzip -9 > ${f%%.bdf}.pcf.gz
-done
+ln -s "$SPELL_DIRECTORY"/Makefile . &&
+${MAKE:-make} -j "$MAKE_NJOBS" prefix="$INSTALL_ROOT"/usr
