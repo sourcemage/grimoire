@@ -8,23 +8,32 @@ depends  python3                                                 &&
 depends  icu     "--with-system-icu"                             &&
 
 depends  glib2                                                   &&
-depends  gtk+3   "--enable-default-toolkit=cairo-gtk3"           &&
 if spell_ok at-spi2-core                                         &&
    is_version_less "2.45.0" "$(installed_version at-spi2-core)"; then
   depends at-spi2-core
 else
   depends atk
 fi                                                               &&
-depends  libx11                                                  &&
-depends  libxext                                                 &&
-depends  libxrender                                              &&
-depends  libxt                                                   &&
-depends  libxcomposite                                           &&
+
+optional_depends libx11 "" "" "for X11 backend"                  &&
+if is_depends_enabled "${SPELL}" "wayland"; then
+  depends libxext                                                &&
+  depends libxrender                                             &&
+  depends libxt                                                  &&
+  depends libxcomposite                                          &&
+  depends libxft
+fi                                                               &&
+
+optional_depends wayland "" "" "for Wayland backend"             &&
+if is_depends_enabled "${SPELL}" "wayland"; then
+  local WAYLAND_SUFFIX="-wayland"
+fi                                                               &&
+
+depends gtk+3 "--enable-default-toolkit=cairo-gtk3${WAYLAND_SUFFIX}" &&
 
 depends  pango                                                   &&
 depends  fontconfig                                              &&
 depends  freetype2                                               &&
-depends  libxft                                                  &&
 
 depends  tar   &&
 depends  unzip &&
