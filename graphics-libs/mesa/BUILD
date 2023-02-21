@@ -28,7 +28,6 @@ fi &&
 
 local vulkan=${MESA_VULKAN//none} &&
 local gallium=${MESA_GALLIUM//none} &&
-local dri=${MESA_DRI//none} &&
 
 OPTS+=" gallium-drivers=${gallium// /,} \
      vulkan-drivers=${vulkan// /,} \
