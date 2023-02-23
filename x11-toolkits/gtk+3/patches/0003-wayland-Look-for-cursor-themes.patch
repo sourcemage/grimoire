@@ -1,0 +1,73 @@
+From 3f1536632f682c355d0c3abe1afc80cf975c2cce Mon Sep 17 00:00:00 2001
+From: Matthias Clasen <mclasen@redhat.com>
+Date: Tue, 29 Jun 2021 16:57:15 -0400
+Subject: [PATCH] wayland: Look for cursor themes in $HOME
+
+We should look in the same places that libXcursor does,
+so add $XDG_DATA_HOME/icons and $HOME/.icons to the list.
+
+Fixes: #4080
+---
+ gdk/wayland/gdkdisplay-wayland.c | 36 +++++++++++++++++++++++++-------
+ 1 file changed, 29 insertions(+), 7 deletions(-)
+
+diff --git a/gdk/wayland/gdkdisplay-wayland.c b/gdk/wayland/gdkdisplay-wayland.c
+index f60f75a9a1..ddf2bf312c 100644
+--- a/gdk/wayland/gdkdisplay-wayland.c
++++ b/gdk/wayland/gdkdisplay-wayland.c
+@@ -1112,6 +1112,26 @@ gdk_wayland_display_init (GdkWaylandDisplay *display)
+   display->monitors = g_ptr_array_new_with_free_func (g_object_unref);
+ }
+ 
++static struct wl_cursor_theme *
++try_load_theme (GdkWaylandDisplay *display_wayland,
++                const char        *dir,
++                gboolean           dotdir,
++                const char        *name,
++                int                size)
++{
++  struct wl_cursor_theme *theme = NULL;
++  char *path;
++
++  path = g_build_filename (dir, dotdir ? ".icons" : "icons", name, "cursors", NULL);
++
++  if (g_file_test (path, G_FILE_TEST_IS_DIR))
++    theme = wl_cursor_theme_create (path, size, display_wayland->shm);
++
++  g_free (path);
++
++  return theme;
++}
++
+ static struct wl_cursor_theme *
+ get_cursor_theme (GdkWaylandDisplay *display_wayland,
+                   const char *name,
+@@ -1121,16 +1141,18 @@ get_cursor_theme (GdkWaylandDisplay *display_wayland,
+   struct wl_cursor_theme *theme = NULL;
+   int i;
+ 
++  theme = try_load_theme (display_wayland, g_get_user_data_dir (), FALSE, name, size);
++  if (theme)
++    return theme;
++
++  theme = try_load_theme (display_wayland, g_get_home_dir (), TRUE, name, size);
++  if (theme)
++    return theme;
++
+   xdg_data_dirs = g_get_system_data_dirs ();
+   for (i = 0; xdg_data_dirs[i]; i++)
+     {
+-      char *path = g_build_filename (xdg_data_dirs[i], "icons", name, "cursors", NULL);
+-
+-      if (g_file_test (path, G_FILE_TEST_IS_DIR))
+-        theme = wl_cursor_theme_create (path, size, display_wayland->shm);
+-
+-      g_free (path);
+-
++      theme = try_load_theme (display_wayland, xdg_data_dirs[i], FALSE, name, size);
+       if (theme)
+         return theme;
+     }
+-- 
+GitLab
+
