@@ -14,15 +14,10 @@ depends json-glib                 &&
 depends libassuan                 &&
 depends libxml2                   &&
 depends pyparsing                 &&
-depends ostree                    && #needs curl or libsoup support for http downloading
 depends gsettings-desktop-schemas &&
 depends dbus                      &&
 depends FUSE                      &&
 depends gdk-pixbuf2               &&
-
-# Curl is non-optional dependency until ostree sub-depends implemented
-depends curl                      &&
-
 
 if [[ "${FLATPAK_BRANCH}" == "pre-release" ]]; then
   optional_depends dconf                                                      \
@@ -40,17 +35,17 @@ if [[ "${FLATPAK_BRANCH}" == "pre-release" ]]; then
                    "gtkdoc=disabled"                                          \
                    "build API reference documentation?"                       &&
 
-  # Disabling soup HTTP backend until flatpak ostree sub-depends is set up
-  #optional_depends libsoup                                                    \
-  #                 "                                                          \
-  #                 "http_backend=soup"                                        \
-  #                 "Use libsoup as http backend?"                             &&
+  optional_depends libsoup                                                    \
+                   "http_backend=soup"                                        \
+                   ""                                                         \
+                   "Use libsoup as http backend (curl otherwise)?"            &&
 
-  #if is_depends_enabled $SPELL libsoup; then
-  #  depends -sub WITH_SOUP ostree
-  #else
-  #  depends -sub WITH_CURL ostree
-  #fi &&
+  if is_depends_enabled $SPELL libsoup; then
+    depends -sub WITH_SOUP ostree
+  else
+    depends curl "http_backend=curl" &&
+    depends -sub WITH_CURL ostree
+  fi &&
 
   optional_depends zstd                                                       \
                    "libzstd=enabled"                                          \
@@ -101,12 +96,11 @@ if [[ "${FLATPAK_BRANCH}" == "pre-release" ]]; then
                    "docbook_docs=disabled"                                    \
                    "Build documentation?"
 else
-
   optional_depends policykit                                                         \
                    ""                                                                \
                    "--disable-system-helper"                                         \
                    "Enable system helper? (recommended)"                             &&
-        
+
   if is_depends_enabled $SPELL policykit; then
     optional_depends libselinux                                 \
                      "--enable-selinux-module"                  \
