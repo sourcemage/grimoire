@@ -6,6 +6,8 @@ case "$HOST" in
 esac &&
 
 if [[ "${CAIRO_BRANCH}" == "scm" ]]; then
+  list_remove CAIRO_OPTS "xml=enabled" &&
+  list_remove CAIRO_OPTS "xml=disabled" &&
   depends git
 fi &&
 
@@ -16,9 +18,9 @@ if spell_ok pixman && is_version_less $(installed_version pixman) 0.30.0; then
 fi &&
 
 optional_depends zlib \
-                 "xml=enabled" \
-                 "xml=disabled" \
-                 "for XML surface backend" &&
+                 "zlib=enabled" \
+                 "zlib=disabled" \
+                 "for script, ps, pdf and XML surfaces" &&
 
 # uses libbfd-*.so
 optional_depends -sub LIBERTY binutils \
@@ -74,4 +76,12 @@ optional_depends lzo "" "" "for LZO compression support" &&
 optional_depends gtk-doc \
                  "gtk_doc=true" \
                  "gtk_doc=false" \
-                 "Build documentation with gtk-doc"
+                 "Build documentation with gtk-doc" &&
+
+if [[ "${CAIRO_BRANCH}" != "scm" ]] &&
+is_depends_enabled "${SPELL}" "zlib" &&
+is_depends_enabled "${SPELL}" "libpng"; then
+    config_query_option CAIRO_OPTS "Enable XML surface backend?" y \
+                        "xml=enabled" \
+                        "xml=disabled"
+fi
