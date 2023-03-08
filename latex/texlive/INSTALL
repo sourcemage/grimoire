@@ -1,3 +1,5 @@
+# These mess with just-installed binaries. Should be fixed properly.
+rm -rf "${SOURCE_DIRECORY}/old.libraries" &&
 cd ${COMPILE_DIRECTORY} &&
 default_install  &&
 
@@ -33,7 +35,10 @@ cp -vdR "$SOURCE_DIRECTORY/texk/tests/TeXLive" \
 
 # update filename db & create all formats
 ${INSTALL_ROOT}/usr/bin/mktexlsr &&
-${INSTALL_ROOT}/usr/bin/fmtutil-sys --cnffile "$fmtutilcnf" --fmtdir ${INSTALL_ROOT}/usr/share/texmf-dist/web2c --all &&
+if ! ${INSTALL_ROOT}/usr/bin/fmtutil-sys --cnffile "$fmtutilcnf" --fmtdir ${INSTALL_ROOT}/usr/share/texmf-dist/web2c --all; then
+  message "${ERROR_COLOR}Failure of fmtutil might just mean that your texmf is out of date.$DEFAULT_COLOR"
+  exit 1
+fi &&
 
 # allow fontconfig to see latex fonts
 mkdir -p "${INSTALL_ROOT}/etc/fonts/conf.avail" &&

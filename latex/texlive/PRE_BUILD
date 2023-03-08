@@ -27,6 +27,9 @@ done &&
 # Override bundled libraries' buildsystems to force system versions
 # XXX lua52 and luajit can't be so easily removed due to internal API
 # dependencies.
+# The whole xpdf business is confusing. We need an overhaul of dependencies,
+# anyway for the 2022 update. Just getting it to build!
+#      xpdf \
 for i in \
       cairo \
       freetype2 \
@@ -41,7 +44,6 @@ for i in \
       pixman \
       poppler \
       potrace \
-      xpdf \
       zlib \
       zziplib
 do
@@ -72,29 +74,4 @@ sed '/utypes.h/i\
 #include <unicode/utf16.h>
 ' -i texk/upmendex/mendex.h &&
 
-mkdir "$COMPILE_DIRECTORY" &&
-
-if spell_ok poppler; then
-  cd "${SOURCE_DIRECTORY}/texk/web2c/pdftexdir" &&
-  popplerver="$(installed_version poppler | cut -f 1,2 -d .)" &&
-  case "$popplerver" in
-    # really old: keep things as-is
-    (0.?|0.[0-4]?|0.5[0-8]) ;;
-    # special case for the non-versioned file
-    (0.59|0.6?|0.70)
-      ln -vsf pdftosrc{-newpoppler,}.cc
-      ;&
-    # symlink the best matches for the installed poppler version
-    (*)
-      {
-        echo ./pdftosrc-poppler$popplerver.z
-        echo ./pdftoepdf-poppler$popplerver.z
-        find -name 'pdfto*-poppler*.0.cc'
-      } | sort -V | awk -F- '
-	/z$/ { done[$1]; next }
-	!($1 in done) { latest[$1] = $0 }
-	END { for (i in latest) print latest[i], i ".cc" }
-      ' | xargs -n 2 ln -vsf
-  esac &&
-  cd "${SOURCE_DIRECTORY}"
-fi
+mkdir "$COMPILE_DIRECTORY"
