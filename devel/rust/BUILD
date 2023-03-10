@@ -27,18 +27,19 @@ else
 fi &&
 message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
 ./configure \
-	--build="${BUILD/-pc-/-unknown-}" \
-	--prefix="$INSTALL_ROOT"/usr \
-	--enable-local-rust \
-	--local-rust-root="$_rust_root" \
-	--enable-locked-deps \
-	--enable-vendor \
-	--enable-extended \
-	--enable-missing-tools \
-	--disable-docs \
-	--enable-llvm-link-shared \
+            --build="${BUILD/-pc-/-unknown-}" \
+           --prefix="$INSTALL_ROOT"/usr \
+  --release-channel="stable" \
+           --enable-local-rust \
+  --local-rust-root="$_rust_root" \
+           --enable-locked-deps \
+           --enable-vendor \
+           --enable-extended \
+           --enable-missing-tools \
+          --disable-docs \
+           --enable-llvm-link-shared \
   --llvm-root=$INSTALL_ROOT/usr --disable-llvm-version-check --disable-codegen-tests \
-	$OPTS &&
+                    $OPTS &&
 
 # static doesn't work
 sed -i '/^#crt-static/acrt-static = false' config.toml &&
