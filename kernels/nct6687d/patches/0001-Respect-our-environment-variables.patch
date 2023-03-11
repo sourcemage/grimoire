@@ -1,23 +1,27 @@
-From 395ecc0c3103209d144847f982bfb5e029caca84 Mon Sep 17 00:00:00 2001
+From d27f23a7d0d307f5363b8eb70dd012ce416d1b41 Mon Sep 17 00:00:00 2001
 From: Florian Franzmann <bwlf@bandrate.org>
-Date: Sat, 28 May 2022 18:01:30 +0200
-Subject: [PATCH] Respect our environment variables
+Date: Sat, 11 Mar 2023 08:21:09 +0100
+Subject: [PATCH] Respect environment variables
 
 ---
- Makefile | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ Makefile | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index ac2988a..41d2f1e 100644
+index 14de1b6..ddc8efa 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -1,19 +1,17 @@
+@@ -1,23 +1,22 @@
  obj-m += nct6687.o
  
--curpwd := $(shell pwd)
--kver   := $(shell uname -r)
-+.PHONY: build install clean
+-curpwd      := $(shell pwd)
+-kver        := $(shell uname -r)
+ commitcount := $(shell git rev-list --all --count)
+ commithash  := $(shell git rev-parse --short HEAD)
  
+ 
++.PHONY: build install clean
++
  build:
  	rm -rf ${curpwd}/${kver}
  	mkdir -p ${curpwd}/${kver}
@@ -25,17 +29,36 @@ index ac2988a..41d2f1e 100644
  	cd ${curpwd}/${kver}
 -	make -C /lib/modules/${kver}/build M=${curpwd}/${kver} modules
 +	make -C $(DESTDIR)/lib/modules/${kver}/build M=${curpwd}/${kver} modules
- 
--install: build
+ install: build
 -	sudo cp ${curpwd}/${kver}/nct6687.ko /lib/modules/${kver}/kernel/drivers/hwmon/
 -	sudo depmod
 -	sudo modprobe nct6687
-+install:
-+	install -v -m 644 -o root -g root ${curpwd}/${kver}/nct6687.ko $(DESTDIR)/lib/modules/${kver}/kernel/drivers/hwmon/
++	install -v -m644 -o root -g root ${curpwd}/${kver}/nct6687.ko $(DESTDIR)/lib/modules/${kver}/kernel/drivers/hwmon/
 +	depmod ${kver}
- 
  clean:
- 	[ -d "${curpwd}/${kver}" ] && make -C /lib/modules/${kver}/build M=${curpwd}/${kver} clean
+-	[ -d "${curpwd}/${kver}" ] && make -C /lib/modules/${kver}/build M=${curpwd}/${kver} clean
++	[ -d "${curpwd}/${kver}" ] && make -C $(DESTDIR)/lib/modules/${kver}/build M=${curpwd}/${kver} clean
+ 
+ 
+ akmod/build:
+@@ -43,7 +42,7 @@ akmod: akmod/install
+ 
+ 
+ dkms/build:
+-	make -C /lib/modules/${kver}/build M=${curpwd} modules
++	make -C $(DESTDIR)/lib/modules/${kver}/build M=${curpwd} modules
+ 
+ dkms/install:
+ 	rm -rf ${curpwd}/dkms
+@@ -56,7 +55,7 @@ dkms/install:
+ 
+ dkms/clean:
+ 	sudo dkms remove nct6687d/1 --all
+-	make -C /lib/modules/${kver}/build M=${curpwd} clean
++	make -C $(DESTDIR)/lib/modules/${kver}/build M=${curpwd} clean
+ 
+ debian/changelog: FORCE
+ 	git --no-pager log \
 -- 
-2.36.0
+2.39.2
 
