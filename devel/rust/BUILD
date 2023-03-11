@@ -38,20 +38,25 @@ message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
            --enable-missing-tools \
           --disable-docs \
            --enable-llvm-link-shared \
-  --llvm-root=$INSTALL_ROOT/usr --disable-llvm-version-check --disable-codegen-tests \
+        --llvm-root=$INSTALL_ROOT/usr \
+          --disable-llvm-version-check \
+          --disable-codegen-tests \
                     $OPTS &&
 
-# static doesn't work
-sed -i '/^#crt-static/acrt-static = false' config.toml &&
-
-sed -i "/BOOTSTRAP.*doc/d" Makefile &&
+# various switches to disable static build, downloading and using llvm
+# toolchain from rust CI and to set user profile
+sed -e '/^#crt-static/acrt-static = false' \
+    -e '/^#download-ci-llvm/adownload-ci-llvm = false' \
+    -e '/^#llvm-tools/allvm-tools = false' \
+    -e '/^#profile /aprofile = "user"' -i config.toml &&
 
 export CARGO_HOME="$SOURCE_DIRECTORY/cargo_home" &&
 
-default_build_make &&
+python3 ./x.py build  --config="${SOURCE_DIRECTORY}/config.toml" -j"${MAKE_NJOBS:-1}" &&
 
 # fake install
 if spell_ok "${SPELL}"; then
   mkdir -p "${SOURCE_DIRECTORY}/INSTALL_ROOT" &&
-  make DESTDIR="${SOURCE_DIRECTORY}/INSTALL_ROOT" install
+  DESTDIR="${SOURCE_DIRECTORY}/INSTALL_ROOT" python3 ./x.py install \
+    --config="${SOURCE_DIRECTORY}/config.toml" -j"${MAKE_NJOBS:-1}"
 fi
