@@ -1,0 +1,5 @@
+OPTS+=" -DBUILD_TZ_LIB=ON \
+-DUSE_SYSTEM_TZ_DB=ON \
+-DENABLE_DATE_TESTING=OFF" &&
+
+default_build
