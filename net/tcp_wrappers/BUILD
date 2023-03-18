@@ -9,4 +9,6 @@ fi  &&
 
 # tcp_wrappers-7.6-shared_lib_plus_plus-1.patch changes "-O" to "-O2"
 sedit 's/= -O2/= '"$CFLAGS"'/' Makefile  &&
-make REAL_DAEMON_DIR=${INSTALL_ROOT}/usr/sbin STYLE=-DPROCESS_OPTIONS linux  
+make_single  &&
+make REAL_DAEMON_DIR=${INSTALL_ROOT}/usr/sbin STYLE=-DPROCESS_OPTIONS linux  &&
+make_normal
