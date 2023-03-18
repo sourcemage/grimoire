@@ -1,7 +1,15 @@
-cp target/release/{greetd,agreety} $INSTALL_ROOT/usr/bin &&
-SERVICE=$INSTALL_ROOT/lib/systemd/system  &&
-mkdir -p $SERVICE                         &&
-chmod a-x greetd,service                  &&
-cp greetd.service $SERVICE/greetd.service &&
-mkdir -p $INSTALL_ROOT/etc/greetd         &&
-cp config.toml $INSTALL_ROOT/etc/greetd/config.toml
+cp target/release/{greetd,agreety} "$INSTALL_ROOT/usr/bin" &&
+if [[ $SYSUNIT == "y" ]]; then
+  SERVICE="$INSTALL_ROOT/lib/systemd/system"  &&
+  mkdir -p "$SERVICE"                         &&
+  chmod a-x greetd.service                    &&
+  cp greetd.service "$SERVICE/greetd.service"
+fi &&
+mkdir -p "$INSTALL_ROOT/etc/greetd"         &&
+cp config.toml "$INSTALL_ROOT/etc/greetd/config.toml" &&
+if is_depends_enabled $SPELL scdoc; then
+  install -D agreety.1 "${INSTALL_ROOT}/usr/share/man/man1/agreety.1" &&
+  install -D greetd.1 "${INSTALL_ROOT}/usr/share/man/man1/greetd.1" &&
+  install -D greetd.5 "${INSTALL_ROOT}/usr/share/man/man5/greetd.5" &&
+  install -D greetd-ipc.7 "${INSTALL_ROOT}/usr/share/man/man7/greetd-ipc.7"
+fi
