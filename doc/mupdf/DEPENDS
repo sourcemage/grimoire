@@ -4,9 +4,18 @@ depends freetype2 &&
 depends harfbuzz &&
 depends jbig2dec &&
 depends zlib &&
-depends libxext &&
-depends libx11 &&
 depends gumbo-parser &&
+
+optional_depends libx11 "HAVE_X11=yes" "HAVE_X11=no HAVE_GLUT=no" \
+                        "to build X11 client" &&
+if is_depends_enabled "${SPELL}" "libx11"; then
+  depends libxext &&
+
+  optional_depends GLUT "HAVE_GLUT=yes" "" "for OpenGL-based viewer" &&
+  if is_depends_enabled ${SPELL} $(get_spell_provider ${SPELL} GLUT); then
+    depends OPENGL
+  fi
+fi &&
 
 optional_depends SSL \
                  "HAVE_OPENSSL=yes" \
@@ -16,13 +25,4 @@ optional_depends SSL \
 optional_depends curl \
                  "HAVE_CURL=yes" \
                  "HAVE_CURL=no" \
-                 "for progressive loading support" &&
-
-optional_depends GLUT \
-                 "HAVE_GLUT=yes" \
-                 "HAVE_GLUT=no" \
-                 "for OpenGL-based viewer" &&
-
-if is_depends_enabled ${SPELL} $(get_spell_provider ${SPELL} GLUT); then
-  depends OPENGL
-fi
+                 "for progressive loading support"
