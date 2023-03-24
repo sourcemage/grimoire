@@ -1,0 +1,38 @@
+#!/bin/bash
+
+SERVICE="VMware Tools"
+PROGRAM=/usr/bin/vmtoolsd
+PIDFILE=/var/run/vmtoolsd.pid
+RUNLEVEL=3
+NEEDS="+network"
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo -n "Starting $SERVICE..."
+  $PROGRAM -b $PIDFILE
+  ITER=0
+  while [ ! -e $PIDFILE ] && [ "$ITER" -lt 10 ] ; do sleep 1; echo -n . ;ITER=$((++ITER)); done
+  echo
+  if [ ! -e $PIDFILE ]; then
+    print_status failure
+    exit 1
+  fi
+}
+
+stop() {
+  echo "Stopping $SERVICE..."
+  if [[ -e $PIDFILE ]]; then
+    kill `cat $PIDFILE`
+    rm $PIDFILE
+  else
+    print_status failure
+    exit 1
+  fi
+}
+
+restart() {
+  echo "Restarting $SERVICE..."
+  $0 stop
+  $0 start
+}
