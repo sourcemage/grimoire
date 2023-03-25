@@ -13,16 +13,18 @@ depends -sub "PYTHON3" mako &&
 depends nettle  &&
 depends zlib    &&
 
-if list_find "$MESA_GALLIUM" "nouveau"; then
-  depends -sub RTTI llvm
-fi &&
+local LLVM_SUB_DEPS &&
+if list_find "$MESA_GALLIUM" "nouveau"; then LLVM_SUB_DEPS+=" RTTI"; fi &&
 
 if (list_find "${MESA_GALLIUM}" "radeonsi") ||
    (list_find "$MESA_VULKAN" amd); then
-  depends -sub AMD llvm &&
+  LLVM_SUB_DEPS+=" AMD" &&
   depends LIBELF
-else
+fi &&
+if [[ -z "${LLVM_SUB_DEPS}" ]]; then
   optional_depends llvm 'llvm=enabled' 'llvm=disabled' 'LLVM support'
+else
+  depends -sub "${LLVM_SUB_DEPS# }" llvm "llvm=enabled"
 fi &&
 
 if list_find "$MESA_GLX" dri;then
