@@ -1,1 +1,1 @@
-make
+make AWK=awk
