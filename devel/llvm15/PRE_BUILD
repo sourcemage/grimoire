@@ -1,0 +1,46 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+apply_patch_dir patches-llvm &&
+unpack_file 21 &&
+mv cmake-${VERSION}.src/Modules/*cmake cmake &&
+if [[ "$LLVM_WITH_CLANG" == y ]]; then
+  unpack_file 5 &&
+  mv compiler-rt-${VERSION}.src runtimes/compiler-rt &&
+  unpack_file 3 &&
+  mv clang-${VERSION}.src tools/clang &&
+  unpack_file 9 &&
+  mv clang-tools-extra-${VERSION}.src tools/clang/tools/extra &&
+  apply_patch_dir patches-clang &&
+  sedit '/^[\t ]*set(model_compiler /{s@[.][.]/clang-tools-@tools/clang/tools/@}' \
+      tools/clang/tools/extra/clangd/quality/CompletionModel.cmake
+fi &&
+
+if [[ "$LLVM_WITH_POLLY" == y ]]; then
+  unpack_file 11                &&
+  mv polly-${VERSION}.src tools/polly
+fi &&
+
+if [[ "$LLVM_WITH_LLD" == y ]]; then
+  unpack_file 13                  &&
+  mv lld-${VERSION}.src tools/lld &&
+  unpack_file 15                  &&
+  mv libunwind-${VERSION}.src libunwind &&
+  unpack_file 17                  &&
+  mv libcxx-${VERSION}.src runtimes/libcxx &&
+  unpack_file 19                  &&
+  mv libcxxabi-${VERSION}.src runtimes/libcxxabi &&
+  apply_patch_dir patches-lld
+fi &&
+
+cd "$SOURCE_DIRECTORY" &&
+
+# small cmake related fix for libffi
+if spell_ok libffi;then
+  FFI=`pkg-config --cflags-only-I libffi` &&
+  FFI=${FFI//-I/} &&
+  FFI=${FFI//\ */} &&
+  sed -i "/FFI_I/s|\"\"|\"$FFI\"|" CMakeLists.txt
+fi  &&
+
+# do not build all backends
+sed -i "/^set.*all\"$/s/all//"  CMakeLists.txt
