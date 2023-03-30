@@ -1,0 +1,39 @@
+cmake_install &&
+
+ln -sfn /opt/llvm15/share/clang/run-clang-tidy.py /opt/llvm15/bin/run-clang-tidy &&
+
+if [[ "$LLVM_WITH_ANALYZER" == "y" ]]
+then
+  target="$INSTALL_ROOT/opt/llvm15/share/llvm" &&
+
+  cd $SOURCE_DIRECTORY/tools/clang/tools &&
+
+  install -v -d "$target/scan-build" &&
+
+  for i in ccc-analyzer c++-analyzer; do
+    install -v -t "${INSTALL_ROOT}/opt/llvm15/bin/" scan-build/libexec/${i}
+  done &&
+
+  for i in build view; do
+    install -v -t "${INSTALL_ROOT}/opt/llvm15/bin/" scan-${i}/bin/scan-${i}
+  done &&
+
+  ln -sf "/opt/llvm15/bin/ccc-analyzer" "${INSTALL_ROOT}/opt/llvm15/bin/c++-analyzer" &&
+
+  for i in scanview.css sorttable.js; do
+    install -v -t "$target/scan-build" scan-build/share/scan-build/${i}
+  done &&
+
+  install -v -d "$target/scan-view" &&
+
+  for i in Reporter.py ScanView.py startfile.py; do
+    install -v -t "$target/scan-view" scan-view/share/${i}
+  done &&
+
+  install -v -t "${INSTALL_ROOT}/opt/llvm15/share/man/man1/" scan-build/man/scan-build.1
+fi &&
+
+if [[ "$LLVM_WITH_CLANG" == y ]] && spell_ok python3; then
+  cd "${SOURCE_DIRECTORY}" &&
+  cp -Rv "${SOURCE_DIRECTORY}/tools/clang/bindings/python/clang" "${INSTALL_ROOT}/opt/llvm15/lib/python$(installed_version python3 | cut -f1,2 -d.)/"
+fi
