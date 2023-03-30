@@ -1,0 +1,36 @@
+From e406bf5f44331476a556146140eaf0f02d08b7be Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Thu, 30 Mar 2023 17:49:38 +0200
+Subject: [PATCH 1/5] Enable building without mallinfo on Linux
+
+Upstream-Status: Inappropriate [CLA involved]
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ src/OSD/OSD_MemInfo.cxx | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/OSD/OSD_MemInfo.cxx b/src/OSD/OSD_MemInfo.cxx
+index 8a9f10e09d48..6143c02427bf 100644
+--- a/src/OSD/OSD_MemInfo.cxx
++++ b/src/OSD/OSD_MemInfo.cxx
+@@ -182,12 +182,16 @@ void OSD_MemInfo::Update()
+     #if __GLIBC_PREREQ(2,33)
+       #define HAS_MALLINFO2
+     #endif
++  #elif defined(__GLIBC__) || defined(__UCLIBC__)
++    #define HAS_MALLINFO
+   #endif
+ 
+   #ifdef HAS_MALLINFO2
+     const struct mallinfo2 aMI = mallinfo2();
+-  #else
++  #elif defined(HAS_MALLINFO)
+     const struct mallinfo aMI = mallinfo();
++  #else
++    const struct { size_t uordblks; } aMI = {0};
+   #endif
+     myCounters[MemHeapUsage] = aMI.uordblks;
+   }
+-- 
+2.40.0
+

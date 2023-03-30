@@ -1,0 +1,48 @@
+From f5eb0a9f16cf7485b2bfbb6703bbe52c212053e0 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Fri, 31 Mar 2023 19:50:17 +0200
+Subject: [PATCH 2/5] Enable compiling without fe*except
+
+Upstream-Status: Inappropriate [CLA involved]
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ src/OSD/OSD_signal.cxx | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/OSD/OSD_signal.cxx b/src/OSD/OSD_signal.cxx
+index 7da3f19004c1..e9cac5aea2dd 100644
+--- a/src/OSD/OSD_signal.cxx
++++ b/src/OSD/OSD_signal.cxx
+@@ -20,6 +20,11 @@
+ 
+ #include <Standard_WarningDisableFunctionCast.hxx>
+ 
++#if defined (__GLIBC__) || defined (__UCLIBC__)
++#define HAVE_FEENABLEEXCCEPT
++#define HAVE_FEGETEXCEPT
++#endif
++
+ static OSD_SignalMode OSD_WasSetSignal = OSD_SignalMode_AsIs;
+ static Standard_Integer OSD_SignalStackTraceLength = 0;
+ 
+@@ -974,7 +979,7 @@ static void SegvHandler(const int theSignal,
+ //=======================================================================
+ void OSD::SetFloatingSignal (Standard_Boolean theFloatingSignal)
+ {
+-#if defined (__linux__)
++#ifdef HAVE_FEENABLEEXCEPT
+   feclearexcept (FE_ALL_EXCEPT);
+   if (theFloatingSignal)
+   {
+@@ -1007,7 +1012,7 @@ void OSD::SetFloatingSignal (Standard_Boolean theFloatingSignal)
+ //=======================================================================
+ Standard_Boolean OSD::ToCatchFloatingSignals()
+ {
+-#if defined (__linux__)
++#ifdef HAVE_FEGETEXCEPT
+   return (fegetexcept() & _OSD_FPX) != 0;
+ #else
+   return Standard_False;
+-- 
+2.40.0
+
