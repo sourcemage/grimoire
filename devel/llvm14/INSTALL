@@ -1,0 +1,36 @@
+cmake_install &&
+#cmake -DCMAKE_INSTALL_PREFIX=/opt/llvm14 -P cmake_install.cmake &&
+
+ln -sfn /opt/llvm14/share/clang/run-clang-tidy.py /opt/llvm14/bin/run-clang-tidy &&
+
+if [[ "$LLVM_WITH_ANALYZER" == "y" ]]
+then
+  target="$INSTALL_ROOT/opt/llvm14/share/llvm" &&
+
+  cd $SOURCE_DIRECTORY/tools/clang/tools &&
+
+  install -v -m 0755 -o root -g root -d "$target/scan-build" &&
+  install -v -m 0755 -o root -g root -t "${INSTALL_ROOT}/opt/llvm14/bin/" scan-build/libexec/ccc-analyzer &&
+  install -v -m 0755 -o root -g root -t "${INSTALL_ROOT}/opt/llvm14/bin/" scan-build/libexec/c++-analyzer &&
+  install -v -m 0755 -o root -g root -t "${INSTALL_ROOT}/opt/llvm14/bin/" scan-build/bin/scan-build &&
+  ln -sf "/opt/llvm14/usr/bin/ccc-analyzer" "${INSTALL_ROOT}/opt/llvm14/bin/c++-analyzer" &&
+  install -v -m 0644 -o root -g root -t "$target/scan-build" scan-build/share/scan-build/scanview.css &&
+  install -v -m 0644 -o root -g root -t "$target/scan-build" scan-build/share/scan-build/sorttable.js &&
+  install -v -m 0755 -o root -g root -d "$target/scan-view" &&
+  install -v -m 0755 -o root -g root -t "${INSTALL_ROOT}/opt/llvm14/bin/" scan-view/bin/scan-view &&
+  install -v -m 0644 -o root -g root -t "$target/scan-view" scan-view/share/Reporter.py &&
+  install -v -m 0644 -o root -g root -t "$target/scan-view" scan-view/share/ScanView.py &&
+  install -v -m 0644 -o root -g root -t "$target/scan-view" scan-view/share/startfile.py
+
+  install -v -m 0644 -o root -g root -t "${INSTALL_ROOT}/opt/llvm14/share/man/man1/" scan-build/man/scan-build.1
+fi &&
+
+if [[ "$LLVM_WITH_CLANG" == y ]] && is_depends_enabled $SPELL python; then
+  cd "${SOURCE_DIRECTORY}" &&
+  if spell_installed python; then
+    cp -Rv "${SOURCE_DIRECTORY}/tools/clang/bindings/python/clang" "${INSTALL_ROOT}/opt/llvm14/lib/python$(installed_version python | cut -f1,2 -d.)/"
+  fi &&
+  if spell_installed python3; then
+    cp -Rv "${SOURCE_DIRECTORY}/tools/clang/bindings/python/clang" "${INSTALL_ROOT}/opt/llvm14/lib/python$(installed_version python3 | cut -f1,2 -d.)/"
+  fi
+fi

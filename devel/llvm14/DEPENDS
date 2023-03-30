@@ -1,0 +1,30 @@
+source $GRIMOIRE/CMAKE_DEPENDS &&
+case "$HOST" in
+  (*-musl)
+    depends libexecinfo &&
+    depends musl-obstack
+    ;;
+esac &&
+depends libtool &&
+depends -sub CXX gcc &&
+depends PKG-CONFIG &&
+depends zlib  '-DLLVM_ENABLE_ZLIB=1' &&
+depends python3 &&
+if [[ "$LLVM_WITH_ANALYZER" == "y" ]]
+then
+  optional_depends z3 \
+                   -DCLANG_ANALYZER_ENABLE_Z3_SOLVER={1,0} \
+                   'for Z3 solver support in Clang Static Analyzer' &&
+  # perl is required for scan-build, which is the analyzer itself
+  runtime_depends perl
+fi &&
+
+optional_depends ocaml   '' '' 'build bindings for OCaml' &&
+optional_depends doxygen '' '' "build documentation?" &&
+optional_depends libffi  '-DLLVM_ENABLE_FFI=1 -DFFI_INCLUDE_DIR=/usr/lib/libffi-3.2.1/include' '' 'use sytem FFI' &&
+if [[ "$LLVM_WITH_LLDB" == y ]]; then
+  depends six -DLLDB_USE_SYSTEM_SIX=YES &&
+  depends swig &&
+  depends libedit &&
+  depends ncurses
+fi
