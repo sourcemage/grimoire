@@ -1,3 +1,8 @@
+case "$HOST" in
+  (*-musl)
+    OPTS+=' -DLIBCXX_HAS_MUSL_LIBC=YES'
+    ;;
+esac &&
 # Remove -DPIC from compiler flags, produces build errors
 CXXFLAGS="${CXXFLAGS//-DPIC}" &&
 # Default target, not detected correctly
