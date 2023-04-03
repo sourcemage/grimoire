@@ -1,0 +1,19 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+# http://lua-users.org/lists/lua-l/2006-10/msg00580.html
+sedit "s:/usr/local:$INSTALL_ROOT/usr:" src/luaconf.h &&
+
+# build shared library
+sed "s:%%BRANCH%%:${VERSION%.?}:" "${SPELL_DIRECTORY}/shared.patch" | patch -p0 &&
+
+echo '# lua.pc -- pkg-config data for Lua' > "${SOURCE_DIRECTORY}/lua.pc" &&
+grep '^V=' "${SOURCE_DIRECTORY}/Makefile" >> "${SOURCE_DIRECTORY}/lua.pc" &&
+grep '^R=' "${SOURCE_DIRECTORY}/Makefile" \
+  | sed -e 's,$V,${V},' >> "${SOURCE_DIRECTORY}/lua.pc" &&
+grep '^INSTALL_.*=' "${SOURCE_DIRECTORY}/Makefile" \
+  | grep -v 'INSTALL_DATA' \
+  | grep -v 'INSTALL_EXEC' \
+  | sed -e 's/INSTALL_TOP/prefix/' -e 's:/usr/local:/usr:' \
+  | tr '(' '{' | tr ')' '}' >> "${SOURCE_DIRECTORY}/lua.pc" &&
+cat "${SPELL_DIRECTORY}/lua.pc.in" >> "${SOURCE_DIRECTORY}/lua.pc"
