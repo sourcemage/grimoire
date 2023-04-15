@@ -18,10 +18,10 @@ if ! is_depends_enabled $SPELL libedit;then
   OPTS+=" -DLLVM_ENABLE_BACKTRACES=0"
 fi &&
 # Enable RTTI if requested, recommended, changing it breaks the ABI
-if [ y = "$LLVM_WITH_RTTI" ]; then
-  OPTS+=" -DLLVM_ENABLE_RTTI=1"
+if [[ y == "$LLVM_WITH_RTTI" ]]; then
+  OPTS+=" -DLLVM_ENABLE_RTTI=ON"
 else
-  OPTS+=" -DLLVM_ENABLE_RTTI=0"
+  OPTS+=" -DLLVM_ENABLE_RTTI=OFF"
 fi &&
 
 OPTS+=" -DLLVM_BUILD_BENCHMARKS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_TESTS=OFF" &&
