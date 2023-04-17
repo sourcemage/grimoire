@@ -1,0 +1,42 @@
+
+# HG changeset patch
+# User stransky <stransky@redhat.com>
+# Date 1681291030 0
+# Node ID a559fcdcfccf1089673f431a9e8133e888365a7b
+# Parent  d553eb2d6e15839e4cafa9fcf537d9f3d0bc1c82
+Bug 1827429 [Wayland] Call NotifyOcclusionState(OcclusionState::VISIBLE) from nsWindow::OnExposeEvent() as we know the window is visible r=emilio a=pascalc
+
+Differential Revision: https://phabricator.services.mozilla.com/D175138
+
+diff --git a/widget/gtk/nsWindow.cpp b/widget/gtk/nsWindow.cpp
+--- a/widget/gtk/nsWindow.cpp
++++ b/widget/gtk/nsWindow.cpp
+@@ -3724,20 +3724,25 @@ void nsWindow::CreateCompositorVsyncDisp
+     LOG_VSYNC("  create CompositorVsyncDispatcher()");
+     mCompositorVsyncDispatcher =
+         new CompositorVsyncDispatcher(mWaylandVsyncDispatcher);
+   }
+ }
+ #endif
+ 
+ gboolean nsWindow::OnExposeEvent(cairo_t* cr) {
++  // This might destroy us.
++  NotifyOcclusionState(OcclusionState::VISIBLE);
++  if (mIsDestroyed) {
++    return FALSE;
++  }
++
+   // Send any pending resize events so that layout can update.
+-  // May run event loop.
++  // May run event loop and destroy us.
+   MaybeDispatchResized();
+-
+   if (mIsDestroyed) {
+     return FALSE;
+   }
+ 
+   // Windows that are not visible will be painted after they become visible.
+   if (!mGdkWindow || !mHasMappedToplevel) {
+     return FALSE;
+   }
+
