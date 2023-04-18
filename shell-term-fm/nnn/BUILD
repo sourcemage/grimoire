@@ -5,4 +5,4 @@ fi &&
 
 OPTS="${NNN_OPTS} ${OPTS}" &&
 
-make CFLAGS_OPTIMIZATION= $OPTS
+make CFLAGS_OPTIMIZATION= $OPTS CC=clang
