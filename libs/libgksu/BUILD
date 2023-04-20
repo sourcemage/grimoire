@@ -1,3 +1,2 @@
-LDFLAGS="-lgtk-x11-2.0 $LDFLAGS" &&
-
+export LIBS=" -lgtk-x11-2.0 -lX11" &&
 default_build
