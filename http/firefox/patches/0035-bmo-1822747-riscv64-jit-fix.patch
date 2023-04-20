@@ -1,0 +1,80 @@
+
+# HG changeset patch
+# User Lu Yahan <yahan@iscas.ac.cn>
+# Date 1679305236 0
+# Node ID f2cd6873bc2a3f01038ef40cabb3b5d81ab7420f
+# Parent  49e254104e73f10002d85bf3567a16a40fde01b5
+Bug 1822747 - Add a 'pushValue' function in MacroAssembler.r=jandem
+
+Differential Revision: https://phabricator.services.mozilla.com/D172760
+
+diff --git a/js/src/jit/moz.build b/js/src/jit/moz.build
+--- a/js/src/jit/moz.build
++++ b/js/src/jit/moz.build
+@@ -225,17 +225,17 @@ elif CONFIG["JS_CODEGEN_LOONG64"]:
+         "loong64/Trampoline-loong64.cpp",
+     ]
+     if CONFIG["JS_SIMULATOR_LOONG64"]:
+         UNIFIED_SOURCES += ["loong64/Simulator-loong64.cpp"]
+ elif CONFIG["JS_CODEGEN_RISCV64"]:
+     UNIFIED_SOURCES += [
+         "riscv64/Architecture-riscv64.cpp",
+         "riscv64/Assembler-riscv64.cpp",
+-        "riscv64/AssemblerMatInt.cpp.cpp",
++        "riscv64/AssemblerMatInt.cpp",
+         "riscv64/CodeGenerator-riscv64.cpp",
+         "riscv64/constant/Base-constant-riscv.cpp",
+         "riscv64/disasm/Disasm-riscv64.cpp",
+         "riscv64/extension/base-assembler-riscv.cc",
+         "riscv64/extension/base-riscv-i.cc",
+         "riscv64/extension/extension-riscv-a.cc",
+         "riscv64/extension/extension-riscv-c.cc",
+         "riscv64/extension/extension-riscv-d.cc",
+diff --git a/js/src/jit/riscv64/MacroAssembler-riscv64.h b/js/src/jit/riscv64/MacroAssembler-riscv64.h
+--- a/js/src/jit/riscv64/MacroAssembler-riscv64.h
++++ b/js/src/jit/riscv64/MacroAssembler-riscv64.h
+@@ -988,16 +988,20 @@ class MacroAssemblerRiscv64Compat : publ
+   }
+   void pushValue(JSValueType type, Register reg) {
+     UseScratchRegisterScope temps(this);
+     Register scratch = temps.Acquire();
+     boxValue(type, reg, scratch);
+     push(scratch);
+   }
+   void pushValue(const Address& addr);
++  void pushValue(const BaseIndex& addr, Register scratch) {
++    loadValue(addr, ValueOperand(scratch));
++    pushValue(ValueOperand(scratch));
++  }
+ 
+   void handleFailureWithHandlerTail(Label* profilerExitTail,
+                                     Label* bailoutTail);
+ 
+   /////////////////////////////////////////////////////////////////
+   // Common interface.
+   /////////////////////////////////////////////////////////////////
+  public:
+diff --git a/js/src/jsapi-tests/testJitMacroAssembler.cpp b/js/src/jsapi-tests/testJitMacroAssembler.cpp
+--- a/js/src/jsapi-tests/testJitMacroAssembler.cpp
++++ b/js/src/jsapi-tests/testJitMacroAssembler.cpp
+@@ -19,18 +19,17 @@
+ #include "jit/MacroAssembler-inl.h"
+ 
+ using namespace js;
+ using namespace js::jit;
+ 
+ using mozilla::NegativeInfinity;
+ using mozilla::PositiveInfinity;
+ 
+-#if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64) || \
+-    defined(JS_CODEGEN_RISCV64s)
++#if defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
+ 
+ BEGIN_TEST(testJitMacroAssembler_flexibleDivMod) {
+   TempAllocator tempAlloc(&cx->tempLifoAlloc());
+   JitContext jcx(cx);
+   StackMacroAssembler masm(cx, tempAlloc);
+   AutoCreatedBy acb(masm, __func__);
+ 
+   PrepareJit(masm);
+
