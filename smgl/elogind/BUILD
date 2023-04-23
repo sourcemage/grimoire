@@ -11,4 +11,3 @@ case $(get_spell_provider ${SPELL} INIT) in
                *) OPTS+=' cgroup-controller=none'    ;;
 esac &&
 default_build
-
