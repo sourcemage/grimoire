@@ -1,0 +1,33 @@
+#!/bin/bash
+
+. /etc/default/earlyoom
+
+PROGRAM=/usr/bin/earlyoom
+ARGS="${EARLYOOM_ARGS}"
+RUNLEVEL=3
+NEEDS="+local_fs"
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo "Starting ${NAME}..."
+
+  TIMEOUT=3
+
+  exec /bin/sh -c "set -o pipefail; exec ${PROGRAM} ${ARGS} 2>&1 | logger -ip daemon.info -t earlyoom" 2> /dev/null &
+  ppid=$!
+
+  sleep $TIMEOUT && pgrep -P $ppid > /dev/null || wait $ppid
+
+  evaluate_retval
+}
+
+stop() {
+  echo "Stopping ${NAME}..."
+
+  killproc ${NAME}
+}
+
+reload() {
+  _restart
+}

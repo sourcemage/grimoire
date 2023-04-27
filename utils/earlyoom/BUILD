@@ -1,1 +1,1 @@
-PREFIX="${INSTALL_ROOT}/usr" make
+make VERSION="${VERSION}" PREFIX="${INSTALL_ROOT}/usr"
