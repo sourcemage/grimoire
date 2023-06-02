@@ -39,7 +39,6 @@ message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
           --disable-docs \
            --enable-llvm-link-shared \
         --llvm-root=$INSTALL_ROOT/usr \
-          --disable-llvm-version-check \
           --disable-codegen-tests \
                     $OPTS &&
 
