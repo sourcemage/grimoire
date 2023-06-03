@@ -1,3 +1,12 @@
 default_pre_build      &&
 cd ${SOURCE_DIRECTORY} &&
-patch -p1 < ${SCRIPT_DIRECTORY}/separate-rootmenu.patch
+awk '
+	BEGIN { menufile = "jwmrc-menu"; print "<JWM>" > menufile }
+	END { print "</JWM>" > menufile }
+	function rootmenu_end() {
+		if (!/^ *<\/RootMenu>/) return 1
+		printf "    <Include>/etc/%s</Include>\n", menufile
+	}
+	/^ *<RootMenu/, !rootmenu_end() { print > menufile; next } 1
+' example.jwmrc > example.jwmrc.$$ &&
+mv example.jwmrc.$$ example.jwmrc
