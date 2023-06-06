@@ -1,0 +1,57 @@
+
+# HG changeset patch
+# User Jason Kratzer <jkratzer@mozilla.com>
+# Date 1685032345 0
+# Node ID 48788df052ae4d4b77ed4efd94e972d96131b1dd
+# Parent  4971297a8917c4ce5f9136ebb0c82cde74eb50c4
+Bug 1832604 - Disable AVX512 instructions on coverage builds. r=lsalzman
+
+Differential Revision: https://phabricator.services.mozilla.com/D179098
+
+diff --git a/gfx/skia/generate_mozbuild.py b/gfx/skia/generate_mozbuild.py
+--- a/gfx/skia/generate_mozbuild.py
++++ b/gfx/skia/generate_mozbuild.py
+@@ -51,17 +51,18 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'wind
+ 
+ # We should autogenerate these SSE related flags.
+ 
+ if CONFIG['INTEL_ARCHITECTURE']:
+     SOURCES['skia/src/opts/SkOpts_ssse3.cpp'].flags += ['-mssse3']
+     SOURCES['skia/src/opts/SkOpts_sse42.cpp'].flags += ['-msse4.2']
+     SOURCES['skia/src/opts/SkOpts_avx.cpp'].flags += ['-mavx']
+     SOURCES['skia/src/opts/SkOpts_hsw.cpp'].flags += ['-mavx2', '-mf16c', '-mfma']
+-    SOURCES['skia/src/opts/SkOpts_skx.cpp'].flags += ['-mavx512f', '-mavx512dq', '-mavx512cd', '-mavx512bw', '-mavx512vl']
++    if not CONFIG["MOZ_CODE_COVERAGE"]:
++      SOURCES['skia/src/opts/SkOpts_skx.cpp'].flags += ['-mavx512f', '-mavx512dq', '-mavx512cd', '-mavx512bw', '-mavx512vl']
+ elif CONFIG['CPU_ARCH'] == 'aarch64' and CONFIG['CC_TYPE'] in ('clang', 'gcc'):
+     SOURCES['skia/src/opts/SkOpts_crc32.cpp'].flags += ['-march=armv8-a+crc']
+ 
+ DEFINES['SKIA_IMPLEMENTATION'] = 1
+ 
+ DEFINES['SK_PDF_USE_HARFBUZZ_SUBSETTING'] = 1
+ 
+ if CONFIG['MOZ_TREE_FREETYPE']:
+diff --git a/gfx/skia/moz.build b/gfx/skia/moz.build
+--- a/gfx/skia/moz.build
++++ b/gfx/skia/moz.build
+@@ -562,17 +562,18 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'wind
+ 
+ # We should autogenerate these SSE related flags.
+ 
+ if CONFIG['INTEL_ARCHITECTURE']:
+     SOURCES['skia/src/opts/SkOpts_ssse3.cpp'].flags += ['-mssse3']
+     SOURCES['skia/src/opts/SkOpts_sse42.cpp'].flags += ['-msse4.2']
+     SOURCES['skia/src/opts/SkOpts_avx.cpp'].flags += ['-mavx']
+     SOURCES['skia/src/opts/SkOpts_hsw.cpp'].flags += ['-mavx2', '-mf16c', '-mfma']
+-    SOURCES['skia/src/opts/SkOpts_skx.cpp'].flags += ['-mavx512f', '-mavx512dq', '-mavx512cd', '-mavx512bw', '-mavx512vl']
++    if not CONFIG["MOZ_CODE_COVERAGE"]:
++        SOURCES['skia/src/opts/SkOpts_skx.cpp'].flags += ['-mavx512f', '-mavx512dq', '-mavx512cd', '-mavx512bw', '-mavx512vl']
+ elif CONFIG['CPU_ARCH'] == 'aarch64' and CONFIG['CC_TYPE'] in ('clang', 'gcc'):
+     SOURCES['skia/src/opts/SkOpts_crc32.cpp'].flags += ['-march=armv8-a+crc']
+ 
+ DEFINES['SKIA_IMPLEMENTATION'] = 1
+ 
+ DEFINES['SK_PDF_USE_HARFBUZZ_SUBSETTING'] = 1
+ 
+ if CONFIG['MOZ_TREE_FREETYPE']:
+
