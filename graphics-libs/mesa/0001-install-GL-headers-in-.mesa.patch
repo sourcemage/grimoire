@@ -1,20 +1,19 @@
-From cbdb123158b7e115c9c767104bb2793a10d95151 Mon Sep 17 00:00:00 2001
+From 5ddf5e9f399ba1bb8e3fcac1fc3adce63d89102d Mon Sep 17 00:00:00 2001
 From: Florian Franzmann <bwlf@bandrate.org>
-Date: Sun, 9 May 2021 14:36:52 +0200
-Subject: [PATCH] Install GL headers in .mesa install libGL to lib/.mesa
+Date: Fri, 9 Jun 2023 09:54:37 +0200
+Subject: [PATCH] Install to the right paths
 
 ---
- include/meson.build         | 8 ++++----
- src/egl/meson.build         | 1 +
- src/glx/meson.build         | 1 +
- src/mapi/es2api/meson.build | 1 +
- 4 files changed, 7 insertions(+), 4 deletions(-)
+ include/meson.build | 8 ++++----
+ src/egl/meson.build | 1 +
+ src/glx/meson.build | 1 +
+ 3 files changed, 6 insertions(+), 4 deletions(-)
 
 diff --git a/include/meson.build b/include/meson.build
-index 4ee415f..7aa2487 100644
+index c55325d..44a0118 100644
 --- a/include/meson.build
 +++ b/include/meson.build
-@@ -66,7 +66,7 @@ if not with_glvnd
+@@ -65,7 +65,7 @@ if not with_glvnd
        'GL/gl.h',
        'GL/glcorearb.h',
        'GL/glext.h',
@@ -23,7 +22,7 @@ index 4ee415f..7aa2487 100644
      )
    endif
  
-@@ -74,7 +74,7 @@ if not with_glvnd
+@@ -73,7 +73,7 @@ if not with_glvnd
      install_headers(
        'GL/glx.h',
        'GL/glxext.h',
@@ -32,7 +31,7 @@ index 4ee415f..7aa2487 100644
    endif
  
    if with_egl
-@@ -97,11 +97,11 @@ if with_egl
+@@ -96,11 +96,11 @@ if with_egl
  endif
  
  if with_osmesa
@@ -41,27 +40,28 @@ index 4ee415f..7aa2487 100644
  endif
  
  if with_dri
-   install_headers('GL/internal/dri_interface.h', subdir : 'GL/internal')
+-  install_headers('GL/internal/dri_interface.h', subdir : 'GL/internal')
++  install_headers('GL/internal/dri_interface.h', subdir : 'GL/.mesa/internal')
  endif
  
  if with_gallium_st_nine
 diff --git a/src/egl/meson.build b/src/egl/meson.build
-index 599a667..d482a33 100644
+index ac9a48e..92e83de 100644
 --- a/src/egl/meson.build
 +++ b/src/egl/meson.build
-@@ -206,6 +206,7 @@ libegl = shared_library(
+@@ -211,6 +211,7 @@ libegl = shared_library(
+   link_args : [ld_args_bsymbolic, ld_args_gc_sections],
+   dependencies : [deps_for_egl, dep_dl, dep_libdrm, dep_clock, dep_thread, idep_mesautil],
+   install : true,
++  install_dir : 'lib/.mesa',
    version : egl_lib_version,
    soversion : egl_lib_soversion,
-   name_prefix : 'lib', # even on windows
-+  install_dir : 'lib/.mesa',
-   vs_module_defs : egl_def
- )
- 
+   name_prefix : host_machine.system() == 'windows' ? 'lib' : [],  # always use lib, but avoid warnings on !windows
 diff --git a/src/glx/meson.build b/src/glx/meson.build
-index 58f9e1a..b282e5f 100644
+index 20f0474..b8143c2 100644
 --- a/src/glx/meson.build
 +++ b/src/glx/meson.build
-@@ -159,6 +159,7 @@ libgl = shared_library(
+@@ -154,6 +154,7 @@ libgl = shared_library(
    version : gl_lib_version,
    darwin_versions : '4.0.0',
    install : true,
@@ -69,18 +69,6 @@ index 58f9e1a..b282e5f 100644
  )
  
  if with_tests
-diff --git a/src/mapi/es2api/meson.build b/src/mapi/es2api/meson.build
-index 356c576..04f3df6 100644
---- a/src/mapi/es2api/meson.build
-+++ b/src/mapi/es2api/meson.build
-@@ -52,6 +52,7 @@ libgles2 = shared_library(
-   darwin_versions : '3.0.0',
-   name_prefix : 'lib',
-   install : true,
-+  install_dir : 'lib/.mesa',
- )
- 
- pkg.generate(
 -- 
-2.31.1
+2.40.1
 
