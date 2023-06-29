@@ -284,51 +284,54 @@ function create_details()
 				patchversion=""
 				appendversion=""
 				source_patch $patch
-				case "$patch" in
-					LATEST*)
-						echo "PATCH[${counter}]=\$${patch}"
-						;;
-					*)
-						echo "PATCH[${counter}]=${patch}"
-						;;
-				esac
-				echo -n '. ${SPELL_DIRECTORY}/info/patches/*/${PATCH['
-				echo -n $counter
-				echo ']}'
-				echo "SOURCE${counter}=\$source"
-				echo "SOURCE${counter}_URL=\$source_url"
-				echo 'TXTMESSAGE="${TXTMESSAGE}${txtmessage} "'
-				echo 'SHORT="${SHORT}${short} "'
-				if [[ "" != "$patchversion" ]]
+				if [[ "$source" != "" ]] # safeguard against X.Y.0 patches when no patch sources exist
 				then
-					basekver="$appliedkernels"
-					echo 'KERNEL_VERSION=${patchversion}'
-					patchversion=""
-					patch_det_version="true"
-				fi
-				if [[ "$appendversion" != "" ]]
-				then
-					version_append_list="${version_append_list}${patch}:${counter} "
-					patch_det_version="true"
-				fi
-				if [[ "$source_gpg" != "" ]] 
-				then
-					echo "SOURCE${counter}_GPG=\$source_gpg"
-					if [[ "$gpg_source_url" != "" ]]
+					case "$patch" in
+						LATEST*)
+							echo "PATCH[${counter}]=\$${patch}"
+							;;
+						*)
+							echo "PATCH[${counter}]=${patch}"
+							;;
+					esac
+					echo -n '. ${SPELL_DIRECTORY}/info/patches/*/${PATCH['
+					echo -n $counter
+					echo ']}'
+					echo "SOURCE${counter}=\$source"
+					echo "SOURCE${counter}_URL=\$source_url"
+					echo 'TXTMESSAGE="${TXTMESSAGE}${txtmessage} "'
+					echo 'SHORT="${SHORT}${short} "'
+					if [[ "" != "$patchversion" ]]
 					then
-						source_gpg_list_url="${source_gpg_list_url}${patch}:${counter} "
+						basekver="$appliedkernels"
+						echo 'KERNEL_VERSION=${patchversion}'
+						patchversion=""
+						patch_det_version="true"
 					fi
-				elif [[ "$sha512sum" != "" ]]
-				then
-					echo "SOURCE${counter}_HASH=\"sha512:\$sha512sum\""
-				elif [[ "$sha1sum" != "" ]]
-				then
-					echo "SOURCE${counter}_HASH=\"sha1:\$sha1sum\""
-				elif [[ "$md5sum" != "" ]]
-				then
-					echo "SOURCE${counter}_HASH=\"md5:\$md5sum\""
-				else
-					echo "SOURCE${counter}_IGNORE=UNVERIFIED"
+					if [[ "$appendversion" != "" ]]
+					then
+						version_append_list="${version_append_list}${patch}:${counter} "
+						patch_det_version="true"
+					fi
+					if [[ "$source_gpg" != "" ]]
+					then
+						echo "SOURCE${counter}_GPG=\$source_gpg"
+						if [[ "$gpg_source_url" != "" ]]
+						then
+							source_gpg_list_url="${source_gpg_list_url}${patch}:${counter} "
+						fi
+					elif [[ "$sha512sum" != "" ]]
+					then
+						echo "SOURCE${counter}_HASH=\"sha512:\$sha512sum\""
+					elif [[ "$sha1sum" != "" ]]
+					then
+						echo "SOURCE${counter}_HASH=\"sha1:\$sha1sum\""
+					elif [[ "$md5sum" != "" ]]
+					then
+						echo "SOURCE${counter}_HASH=\"md5:\$md5sum\""
+					else
+						echo "SOURCE${counter}_IGNORE=UNVERIFIED"
+					fi
 				fi
 				(( counter++ ))
 			done
