@@ -1,0 +1,77 @@
+
+# HG changeset patch
+# User serge-sans-paille <sguelton@mozilla.com>
+# Date 1687447863 0
+# Node ID 34ef9f4d1d2c638f47eb4615a6ea47c011c91e87
+# Parent  eecca96ba9040cb07462280dda39d8551fc8c098
+Bug 1839023 - Fix missing arm-specifc header r=nbp
+
+Differential Revision: https://phabricator.services.mozilla.com/D181738
+
+diff --git a/js/src/jit/shared/AtomicOperations-shared-jit.cpp b/js/src/jit/shared/AtomicOperations-shared-jit.cpp
+--- a/js/src/jit/shared/AtomicOperations-shared-jit.cpp
++++ b/js/src/jit/shared/AtomicOperations-shared-jit.cpp
+@@ -1,16 +1,20 @@
+ /* -*- Mode: C++; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+  * vim: set ts=8 sts=4 et sw=4 tw=99:
+  * This Source Code Form is subject to the terms of the Mozilla Public
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ #include "jit/AtomicOperations.h"
+ 
++#if defined(__arm__)
++#  include "jit/arm/Architecture-arm.h"
++#endif
++
+ #ifdef JS_HAVE_GENERATED_ATOMIC_OPS
+ 
+ #  include <atomic>
+ 
+ #  include "js/GCAPI.h"
+ 
+ using namespace js;
+ using namespace js::jit;
+@@ -73,18 +77,18 @@ void AtomicMemcpyDownUnsynchronized(uint
+   const uint8_t* lim = src + nbytes;
+ 
+   // Set up bulk copying.  The cases are ordered the way they are on the
+   // assumption that if we can achieve aligned copies even with a little
+   // preprocessing then that is better than unaligned copying on a platform
+   // that supports it.
+ 
+   if (nbytes >= WORDSIZE) {
+-    void (*copyBlock)(uint8_t * dest, const uint8_t* src);
+-    void (*copyWord)(uint8_t * dest, const uint8_t* src);
++    void (*copyBlock)(uint8_t* dest, const uint8_t* src);
++    void (*copyWord)(uint8_t* dest, const uint8_t* src);
+ 
+     if (((uintptr_t(dest) ^ uintptr_t(src)) & WORDMASK) == 0) {
+       const uint8_t* cutoff = (const uint8_t*)RoundUp(uintptr_t(src), WORDSIZE);
+       MOZ_ASSERT(cutoff <= lim);  // because nbytes >= WORDSIZE
+       while (src < cutoff) {
+         AtomicCopyByteUnsynchronized(dest++, src++);
+       }
+       copyBlock = AtomicCopyBlockDownUnsynchronized;
+@@ -126,18 +130,18 @@ void AtomicMemcpyUpUnsynchronized(uint8_
+   JS::AutoSuppressGCAnalysis nogc;
+ 
+   const uint8_t* lim = src;
+ 
+   src += nbytes;
+   dest += nbytes;
+ 
+   if (nbytes >= WORDSIZE) {
+-    void (*copyBlock)(uint8_t * dest, const uint8_t* src);
+-    void (*copyWord)(uint8_t * dest, const uint8_t* src);
++    void (*copyBlock)(uint8_t* dest, const uint8_t* src);
++    void (*copyWord)(uint8_t* dest, const uint8_t* src);
+ 
+     if (((uintptr_t(dest) ^ uintptr_t(src)) & WORDMASK) == 0) {
+       const uint8_t* cutoff = (const uint8_t*)(uintptr_t(src) & ~WORDMASK);
+       MOZ_ASSERT(cutoff >= lim);  // Because nbytes >= WORDSIZE
+       while (src > cutoff) {
+         AtomicCopyByteUnsynchronized(--dest, --src);
+       }
+       copyBlock = AtomicCopyBlockUpUnsynchronized;
+
