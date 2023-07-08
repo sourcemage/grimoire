@@ -1,68 +1,133 @@
 source $GRIMOIRE/MESON_DEPENDS &&
 
-depends dbus    &&
+depends dbus &&
 depends dbus-glib &&
 depends GETTEXT &&
 depends glib2 &&
-depends iptables &&
-depends libnl    &&
+depends libnl &&
 depends libgcrypt &&
-depends libndp   &&
+depends libndp &&
 depends readline &&
 depends util-linux &&
 depends DEVICE-MANAGER &&
-if ! is_depends_enabled $SPELL systemd; then
-  depends elogind
+
+optional_depends iptables '' '' "Enable iptables support" &&
+optional_depends nftables '' '' "Enable nftables support" &&
+
+optional_depends libpsl libpsl={true,false} "Link against libpsl" &&
+
+if [ -n "$LOGGING_BACKEND" ] ;then
+  case "$LOGGING_BACKEND" in
+    syslog) depends SYSTEM-LOGGER ;;
+    journal) depends systemd ;;
+  esac
+  LOGGING_BACKEND_OPT="config_logging_backend_default=$LOGGING_BACKEND"
 fi &&
+persistent_add LOGGING_BACKEND_OPT &&
+
+if [ -n "$SESSION_TRACKING" ] ;then
+	case "$SESSION_TRACKING" in
+		none) SESSION_TRACKING="no" ;;
+		consolekit)
+			depends "$SESSION_TRACKING" "session_tracking_consolekit=true" &&
+      unset SESSION_TRACKING
+      ;;
+		*)
+			depends "$SESSION_TRACKING" "session_tracking_consolekit=false"
+      ;;
+	esac &&
+  SESSION_TRACKING_OPT="${SESSION_TRACKING:+session_tracking=$SESSION_TRACKING}"
+fi &&
+persistent_add SESSION_TRACKING_OPT &&
+
+for s in consolekit elogind systemd ;do
+  if ! is_depends_enabled "$SPELL" "$s" ;then
+    optional_depends "$s" "Enable $s support"
+  fi
+done
+
+if [ -n "$SUSPEND_RESUME" ] ;then
+	case "$SUSPEND_RESUME" in
+    auto) ;;
+    none) unset SUSPEND_RESUME ;;
+    *) depends "$SUSPEND_RESUME" ;;
+  esac &&
+  SUSPEND_RESUME_OPT="${SUSPEND_RESUME:+suspend_resume=$SUSPEND_RESUME}" ;;
+fi &&
+persistent_add SUSPEND_RESUME_OPT &&
+
+if ! is_depends_enabled "$SPELL" upower ;then
+  optional_depends upower "Enable upower suspend/resume support"
+fi &&
+
 depends libgudev  &&
 
-depends $NETWORK_MANAGER_CRYPTO crypto=$NETWORK_MANAGER_CRYPTO &&
-
-optional_depends newt nmtui={true,false}  'Build nmtui' &&
-
-optional_depends policykit  polkit={true,false}  "Enable PolicyKit support?"  &&
-
-optional_depends CONSOLE-MANAGER  session_tracking_consolekit={true,false} \
-                 "Enable ConsoleKit session tracking support?"  &&
-
-#optional_depends dhcpcd  "config_dhcp_default=dhcpcd dhcpcd=yes" dhcpcd='' \
-#                "Enable dhcpcd support?"            &&
-
-optional_depends ppp ppp={true,false}  "enable PPP/PPPoE support?"  &&
-
-optional_depends linux-firmware  "kernel_firmware_dir=/lib/firmware"  \
-                 "" "Use Linux Firmware?"                    &&
-
-optional_depends IFUPDOWN ifupdown={true,false}   "Network activation" &&
-
-optional_depends iwd iwd={true,false} 'enable iwd support' &&
-if ! is_depends_enabled $SPELL iwd;then
-#  optional_depends wpa_supplicant '' '' ''
-  depends wpa_supplicant
+if [ -n "$NETWORK_MANAGER_CRYPTO" ] ;then
+  case "$NETWORK_MANAGER_CRYPTO" in
+    none) NETWORK_MANAGER_CRYPTO="null" ;;
+    *) depends "$NETWORK_MANAGER_CRYPTO" ;;
+  esac &&
+  NM_CRYPTO="crypto=$NETWORK_MANAGER_CRYPTO"
 fi &&
+persistent_add NM_CRYPTO &&
+
+optional_depends newt nmtui={true,false} "Build nmtui" &&
+
+optional_depends policykit polkit={true,false} "Enable PolicyKit support?" &&
+
+case "$DEFAULT_DHCP" in
+  dhcpcd) depends "$DEFAULT_DHCP" "${DEFAULT_DHCP}=true" ;;
+  dhclient) depends "$DEFAULT_DHCP" "${DEFAULT_DHCP}=true" ;;
+esac &&
+
+for s in dhclient dhcpcd ;do
+  if ! is_depends_enabled "$SPELL" "$s" ;then
+    optional_depends dhcpcd dhcpcd={true,false} "Enable $s DHCP client support"
+  fi
+done &&
+
+optional_depends ppp ppp={true,false} "Enable PPP/PPPoE support?" &&
+
+optional_depends IFUPDOWN ifupdown={true,false} "Network activation" &&
+
+if [ -n "$DEFAULT_WIFI" ] ;then
+  case "$DEFAULT_WIFI" in
+    iwd) depends iwd iwd=true ;;
+    wpa_supplicant) depends wpa_supplicant ;;
+  esac
+fi &&
+
+for s in iwd wpa_supplicant ;do
+  if ! is_depends_enabled "$SPELL" "$s" ;then
+    optional_depends dhcpcd dhcpcd={true,false} "Enable $s support"
+  fi
+done &&
 
 optional_depends modemmanager modem_manager={true,false} 'Modem Manager support' &&
-optional_depends audit libaudit={yes,no} 'audit support' &&
-optional_depends jansson ovs={true,false} 'Open vSwitch integration' &&
-optional_depends libselinux selinux={true,false} 'security enhaced linux'
+optional_depends audit libaudit={yes,no} "audit support" &&
+optional_depends jansson ovs={true,false} "Open vSwitch integration" &&
+optional_depends libselinux selinux={true,false} "Security Enhaced Linux support" &&
+optional_depends dnsmasq "Enable dnsmasq support" &&
 
-optional_depends gtk-doc docs={true,false} 'build documentation and manpages' &&
-optional_depends vala vapi={true,false} 'build api docs'
-if is_depends_enabled $SPELL vala || 
-   is_depends_enabled $SPELL gtk-doc ;then
-  depends gobject-introspection introspection=true
-else
-  optional_depends gobject-introspection introspection={true,false} "introspection support"
+if [ -n "$NM_DOCS" ] && [ x"$NM_DOCS"x = x"y"x ] ;then
+  depends gtk-doc docs=true
 fi &&
 
-runtime_depends curl   &&
-runtime_depends libpsl
+optional_depends vala vapi={true,false} 'Build api docs'
 
-if(false);then
-optional_depends upower \
-                 "Suspend/Resume support" &&
+if is_depends_enabled $SPELL vala ||
+   is_depends_enabled $SPELL gtk-doc ||
+   "${NM_DOCS#*=}" ;then
+  depends gobject-introspection introspection=true &&
+  depends pygobject3
+fi &&
 
-optional_depends dnsmasq \
-                 "DNS proxy with integrated DHCP"
-fi
-#optional_depends 
+if ! is_depends_enabled "$SPELL" gobject-introspection ;then
+  optional_depends gobject-introspection introspection={true,false} "Enable introspection support"
+fi &&
+
+if "{CONNECTION_CHECK##*=}" ;then
+  runtime_depends curl
+fi &&
+
+suggest_depends linux-firmware
