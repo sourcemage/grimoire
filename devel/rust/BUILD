@@ -15,16 +15,16 @@ export CFLAGS CXXFLAGS &&
 #    /usr/bin/rustc will be missing its soversion. You cannot win.
 #    Maybe we need our own bootstrap packages. Or a chain build starting
 #    with the latest available cache.
-if spell_ok "$SPELL"; then
-  _rust_root="$INSTALL_ROOT/usr"
-else
+#if spell_ok "$SPELL"; then
+#  _rust_root="$INSTALL_ROOT/usr"
+#else
   _rust_root="$SOURCE_DIRECTORY/stage0-bootstrap" &&
   install -D -m555 -t "$_rust_root"/bin "${SOURCE3%.tar.xz}"/cargo/bin/cargo &&
   for i in "$SOURCE4" "$SOURCE5"; do
     ./"${i%.tar.xz}"/install.sh \
         --destdir="$_rust_root" --prefix=/ --disable-ldconfig || break
-  done
-fi &&
+  done &&
+#fi &&
 message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
 ./configure \
             --build="${BUILD/-pc-/-unknown-}" \
