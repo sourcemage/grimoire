@@ -14,7 +14,10 @@ depends DEVICE-MANAGER &&
 optional_depends iptables '' '' "Enable iptables support" &&
 optional_depends nftables '' '' "Enable nftables support" &&
 
-optional_depends libpsl libpsl={true,false} "Link against libpsl" &&
+optional_depends libpsl \
+                 libpsl=true \
+                 libpsl=false \
+                 "Link against libpsl" &&
 
 if [ -n "$LOGGING_BACKEND" ] ;then
   case "$LOGGING_BACKEND" in
@@ -26,28 +29,40 @@ fi &&
 persistent_add LOGGING_BACKEND_OPT &&
 
 if [ -n "$SESSION_TRACKING" ] ;then
-	case "$SESSION_TRACKING" in
-		none) SESSION_TRACKING="no" ;;
-		consolekit)
-			depends "$SESSION_TRACKING" "session_tracking_consolekit=true" &&
+  case "$SESSION_TRACKING" in
+    none) SESSION_TRACKING="no" ;;
+    consolekit)
+      depends CONSOLE-MANAGER "session_tracking_consolekit=true" &&
       unset SESSION_TRACKING
       ;;
-		*)
-			depends "$SESSION_TRACKING" "session_tracking_consolekit=false"
+    *)
+      depends "$SESSION_TRACKING" "session_tracking_consolekit=false"
       ;;
-	esac &&
+  esac &&
   SESSION_TRACKING_OPT="${SESSION_TRACKING:+session_tracking=$SESSION_TRACKING}"
 fi &&
 persistent_add SESSION_TRACKING_OPT &&
 
-for s in consolekit elogind systemd ;do
+for s in CONSOLE-MANAGER elogind systemd ;do
+  case "$s" in
+    CONSOLE-MANAGER)
+      s=$(get_spell_provider "${SPELL}" "CONSOLE-MANAGER") &&
+      case "$s" in
+        none) unset s ;;
+      esac &&
+      if [ -z "$s" ] ;then
+        optional_depends CONSOLE-MANAGER '' '' "Enable ConsoleKit support" &&
+        continue
+      fi
+      ;;
+  esac &&
   if ! is_depends_enabled "$SPELL" "$s" ;then
-    optional_depends "$s" "Enable $s support"
+    optional_depends "$s" '' '' "Enable $s support"
   fi
 done
 
 if [ -n "$SUSPEND_RESUME" ] ;then
-	case "$SUSPEND_RESUME" in
+  case "$SUSPEND_RESUME" in
     auto) ;;
     none) unset SUSPEND_RESUME ;;
     *) depends "$SUSPEND_RESUME" ;;
@@ -57,10 +72,10 @@ fi &&
 persistent_add SUSPEND_RESUME_OPT &&
 
 if ! is_depends_enabled "$SPELL" upower ;then
-  optional_depends upower "Enable upower suspend/resume support"
+  optional_depends upower '' '' "Enable upower suspend/resume support"
 fi &&
 
-depends libgudev  &&
+depends libgudev &&
 
 if [ -n "$NETWORK_MANAGER_CRYPTO" ] ;then
   case "$NETWORK_MANAGER_CRYPTO" in
@@ -71,24 +86,41 @@ if [ -n "$NETWORK_MANAGER_CRYPTO" ] ;then
 fi &&
 persistent_add NM_CRYPTO &&
 
-optional_depends newt nmtui={true,false} "Build nmtui" &&
+optional_depends newt \
+                 nmtui=true \
+                 nmtui=false \
+                 "Build nmtui" &&
 
-optional_depends policykit polkit={true,false} "Enable PolicyKit support?" &&
+optional_depends policykit \
+                 polkit=true \
+                 polkit=false \
+                 "Enable PolicyKit support?" &&
 
 case "$DEFAULT_DHCP" in
   dhcpcd) depends "$DEFAULT_DHCP" "${DEFAULT_DHCP}=true" ;;
-  dhclient) depends "$DEFAULT_DHCP" "${DEFAULT_DHCP}=true" ;;
+  # we don't yet have a dhclient spell
+  #dhclient) depends "$DEFAULT_DHCP" "${DEFAULT_DHCP}=true" ;;
 esac &&
 
-for s in dhclient dhcpcd ;do
+# when we have a dhclient spell, add it to the for loop list below
+for s in dhcpcd ;do
   if ! is_depends_enabled "$SPELL" "$s" ;then
-    optional_depends "$s" "$s"={true,false} "Enable $s DHCP client support"
+    optional_depends "$s" \
+                     "$s=true" \
+                     "$s=false" \
+                     "Enable $s DHCP client support"
   fi
 done &&
 
-optional_depends ppp ppp={true,false} "Enable PPP/PPPoE support?" &&
+optional_depends ppp \
+                 ppp=true \
+                 ppp=false \
+                 "Enable PPP/PPPoE support?" &&
 
-optional_depends IFUPDOWN ifupdown={true,false} "Network activation" &&
+optional_depends IFUPDOWN
+                 ifupdown=true \
+                 ifupdown=false \
+                 "Network activation" &&
 
 if [ -n "$DEFAULT_WIFI" ] ;then
   case "$DEFAULT_WIFI" in
@@ -99,21 +131,48 @@ fi &&
 
 for s in iwd wpa_supplicant ;do
   if ! is_depends_enabled "$SPELL" "$s" ;then
-    optional_depends "$s" "$s"={true,false} "Enable $s support"
+    case "$s" in
+      iwd)
+        optional_depends "$s" \
+                         "$s=true" \
+                         "$s=false" \
+                         "Enable $s support"
+        ;;
+      *) optional_depends "$s" '' '' "Enable $s support" ;;
+    esac
   fi
 done &&
 
-optional_depends modemmanager modem_manager={true,false} 'Modem Manager support' &&
-optional_depends audit libaudit={yes,no} "audit support" &&
-optional_depends jansson ovs={true,false} "Open vSwitch integration" &&
-optional_depends libselinux selinux={true,false} "Security Enhaced Linux support" &&
-optional_depends dnsmasq "" "" "Enable dnsmasq support" &&
+optional_depends modemmanager \
+                 modem_manager=true \
+                 modem_manager=false \
+                 "Modem Manager support" &&
+
+optional_depends audit \
+                 libaudit=yes \
+                 libaudit=no \
+                 "audit support" &&
+
+optional_depends jansson \
+                 ovs=true \
+                 ovs=false \
+                 "Open vSwitch integration" &&
+
+optional_depends libselinux \
+                 selinux=true \
+                 selinux=false \
+                 "Security Enhanced Linux support" &&
+
+optional_depends dnsmasq '' '' "Enable dnsmasq support" &&
 
 if [ -n "$NM_DOCS" ] && [ x"$NM_DOCS"x = x"y"x ] ;then
   depends gtk-doc docs=true
 fi &&
 
-optional_depends vala vapi={true,false} 'Build api docs'
+optional_depends vala \
+                 vapi=true \
+                 vapi=false \
+                 "Build api docs"
 
 if is_depends_enabled "$SPELL" vala ||
    is_depends_enabled "$SPELL" gtk-doc ||
@@ -123,7 +182,10 @@ if is_depends_enabled "$SPELL" vala ||
 fi &&
 
 if ! is_depends_enabled "$SPELL" gobject-introspection ;then
-  optional_depends gobject-introspection introspection={true,false} "Enable introspection support"
+  optional_depends gobject-introspection \
+                   introspection=true \
+                   introspection=false \
+                   "Enable introspection support"
 fi &&
 
 if "${CONNECTION_CHECK##*=}" ;then
