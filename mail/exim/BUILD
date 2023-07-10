@@ -160,6 +160,11 @@ then
   echo  "AUTH_SPA=yes"  >>  Local/Makefile
 fi  &&
 
+if  [[  "$EXIM_TLSA"  ==  "y"  ]]
+then
+  echo  "AUTH_TLS=yes"  >>  Local/Makefile
+fi  &&
+
 if  list_find  "$OPTS"  '--enable-readline-testing';  then
   echo  "USE_READLINE=yes"  >>  Local/Makefile  &&
   EXTRALIBS="$EXTRALIBS  -ldl"
