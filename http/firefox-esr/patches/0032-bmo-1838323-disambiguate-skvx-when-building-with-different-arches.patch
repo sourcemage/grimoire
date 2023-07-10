@@ -1,0 +1,85 @@
+
+# HG changeset patch
+# User Lee Salzman <lsalzman@mozilla.com>
+# Date 1688610280 0
+# Node ID 07bc853b8799270e182342be68ddcfca8acb2f28
+# Parent  fdcac5f186cb2394b6a7e9a0f03bacd38edff404
+Bug 1838323 - Disambiguate skvx when building with different arch options. r=glandium
+
+It seems that GCC, under certain circumstances, does not completely inline code in the skvx namespace in Skia, even though the code specifies "always_inline". As a side-effect, it leaves around symbols that are generated with different architecture flags supplied. LTO then picks one of the symbols, at what may as well be random.
+
+This could potentially be an issue under clang if it ever failed to inline.
+
+As a workaround for both, we force skvx to exist in arch-specific namespaces, i.e. -Dskvx=skvx_foo, so that even in the worst case, no ambiguous symbols will be generated.
+
+Differential Revision: https://phabricator.services.mozilla.com/D182855
+
+diff --git a/gfx/skia/generate_mozbuild.py b/gfx/skia/generate_mozbuild.py
+--- a/gfx/skia/generate_mozbuild.py
++++ b/gfx/skia/generate_mozbuild.py
+@@ -47,24 +47,24 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'wind
+     UNIFIED_SOURCES += [
+         'skia/src/fonts/SkFontMgr_indirect.cpp',
+         'skia/src/fonts/SkRemotableFontMgr.cpp',
+     ]
+ 
+ # We should autogenerate these SSE related flags.
+ 
+ if CONFIG['INTEL_ARCHITECTURE']:
+-    SOURCES['skia/src/opts/SkOpts_ssse3.cpp'].flags += ['-mssse3']
+-    SOURCES['skia/src/opts/SkOpts_sse42.cpp'].flags += ['-msse4.2']
+-    SOURCES['skia/src/opts/SkOpts_avx.cpp'].flags += ['-mavx']
+-    SOURCES['skia/src/opts/SkOpts_hsw.cpp'].flags += ['-mavx2', '-mf16c', '-mfma']
++    SOURCES['skia/src/opts/SkOpts_ssse3.cpp'].flags += ['-Dskvx=skvx_ssse3', '-mssse3']
++    SOURCES['skia/src/opts/SkOpts_sse42.cpp'].flags += ['-Dskvx=skvx_sse42', '-msse4.2']
++    SOURCES['skia/src/opts/SkOpts_avx.cpp'].flags += ['-Dskvx=skvx_avx', '-mavx']
++    SOURCES['skia/src/opts/SkOpts_hsw.cpp'].flags += ['-Dskvx=skvx_hsw', '-mavx2', '-mf16c', '-mfma']
+     if not CONFIG["MOZ_CODE_COVERAGE"]:
+-      SOURCES['skia/src/opts/SkOpts_skx.cpp'].flags += ['-mavx512f', '-mavx512dq', '-mavx512cd', '-mavx512bw', '-mavx512vl']
++        SOURCES['skia/src/opts/SkOpts_skx.cpp'].flags += ['-Dskvx=skvx_skx', '-mavx512f', '-mavx512dq', '-mavx512cd', '-mavx512bw', '-mavx512vl']
+ elif CONFIG['CPU_ARCH'] == 'aarch64' and CONFIG['CC_TYPE'] in ('clang', 'gcc'):
+-    SOURCES['skia/src/opts/SkOpts_crc32.cpp'].flags += ['-march=armv8-a+crc']
++    SOURCES['skia/src/opts/SkOpts_crc32.cpp'].flags += ['-Dskvx=skvx_crc32', '-march=armv8-a+crc']
+ 
+ DEFINES['MOZ_SKIA'] = True
+ 
+ DEFINES['SKIA_IMPLEMENTATION'] = 1
+ 
+ DEFINES['SK_PDF_USE_HARFBUZZ_SUBSETTING'] = 1
+ 
+ if CONFIG['MOZ_TREE_FREETYPE']:
+diff --git a/gfx/skia/moz.build b/gfx/skia/moz.build
+--- a/gfx/skia/moz.build
++++ b/gfx/skia/moz.build
+@@ -557,24 +557,24 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'wind
+     UNIFIED_SOURCES += [
+         'skia/src/fonts/SkFontMgr_indirect.cpp',
+         'skia/src/fonts/SkRemotableFontMgr.cpp',
+     ]
+ 
+ # We should autogenerate these SSE related flags.
+ 
+ if CONFIG['INTEL_ARCHITECTURE']:
+-    SOURCES['skia/src/opts/SkOpts_ssse3.cpp'].flags += ['-mssse3']
+-    SOURCES['skia/src/opts/SkOpts_sse42.cpp'].flags += ['-msse4.2']
+-    SOURCES['skia/src/opts/SkOpts_avx.cpp'].flags += ['-mavx']
+-    SOURCES['skia/src/opts/SkOpts_hsw.cpp'].flags += ['-mavx2', '-mf16c', '-mfma']
++    SOURCES['skia/src/opts/SkOpts_ssse3.cpp'].flags += ['-Dskvx=skvx_ssse3', '-mssse3']
++    SOURCES['skia/src/opts/SkOpts_sse42.cpp'].flags += ['-Dskvx=skvx_sse42', '-msse4.2']
++    SOURCES['skia/src/opts/SkOpts_avx.cpp'].flags += ['-Dskvx=skvx_avx', '-mavx']
++    SOURCES['skia/src/opts/SkOpts_hsw.cpp'].flags += ['-Dskvx=skvx_hsw', '-mavx2', '-mf16c', '-mfma']
+     if not CONFIG["MOZ_CODE_COVERAGE"]:
+-        SOURCES['skia/src/opts/SkOpts_skx.cpp'].flags += ['-mavx512f', '-mavx512dq', '-mavx512cd', '-mavx512bw', '-mavx512vl']
++        SOURCES['skia/src/opts/SkOpts_skx.cpp'].flags += ['-Dskvx=skvx_skx', '-mavx512f', '-mavx512dq', '-mavx512cd', '-mavx512bw', '-mavx512vl']
+ elif CONFIG['CPU_ARCH'] == 'aarch64' and CONFIG['CC_TYPE'] in ('clang', 'gcc'):
+-    SOURCES['skia/src/opts/SkOpts_crc32.cpp'].flags += ['-march=armv8-a+crc']
++    SOURCES['skia/src/opts/SkOpts_crc32.cpp'].flags += ['-Dskvx=skvx_crc32', '-march=armv8-a+crc']
+ 
+ DEFINES['MOZ_SKIA'] = True
+ 
+ DEFINES['SKIA_IMPLEMENTATION'] = 1
+ 
+ DEFINES['SK_PDF_USE_HARFBUZZ_SUBSETTING'] = 1
+ 
+ if CONFIG['MOZ_TREE_FREETYPE']:
+

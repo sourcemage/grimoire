@@ -1,8 +1,6 @@
 default_pre_build  &&
 cd  $SOURCE_DIRECTORY &&
 
-apply_patch_dir patches &&
-
 # To remove version suffix from some directories
 sed 's;-$(MOZ_APP_VERSION);;g' -i config/baseconfig.mk &&
 
@@ -34,6 +32,10 @@ else
   echo "ac_add_options --disable-profiling --disable-tests"
 fi >> .mozconfig &&
 
+if [[ $FIREFOX_SCCACHE == 'y' ]]; then
+  echo 'ac_add_options --with-ccache=sccache' >> .mozconfig
+fi &&
+
 if [[ $FIREFOX_WIDEVINE == y ]]; then
   echo "ac_add_options --enable-eme=widevine" >> .mozconfig
 else
@@ -50,4 +52,10 @@ case "$HOST" in
 	ac_add_options --disable-gold
 !
   ;;
-esac
+esac &&
+
+# clearing all checksums so the patches wouldn't cause troubles
+find third_party/rust -name .cargo-checksum.json \
+  -exec sed -i -e 's/\("files":{\)[^}]*/\1/' {}  \; &&
+
+apply_patch_dir patches
