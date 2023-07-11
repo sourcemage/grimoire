@@ -1,0 +1,59 @@
+           SPELL=gcc-10
+         VERSION=10.5.0
+     ISL_VERSION=0.20
+ BASE_SOURCE_URL="https://ftp.gnu.org/pub/gnu/gcc/gcc-$VERSION"
+          SOURCE=gcc-$VERSION.tar.xz
+         SOURCE2=$SOURCE.sig
+SOURCE_DIRECTORY=$BUILD_DIRECTORY/gcc-$VERSION
+   SOURCE_URL[0]=$GNU_URL/gcc/gcc-$VERSION/$SOURCE
+   SOURCE_URL[1]=${BASE_SOURCE_URL}/$SOURCE
+  SOURCE2_URL[0]=${SOURCE_URL[0]}.sig
+  SOURCE2_URL[1]=${SOURCE_URL[1]}.sig
+      SOURCE_GPG=gnu.gpg:$SOURCE.sig:UPSTREAM_KEY
+  SOURCE2_IGNORE=signature
+
+if [[ "$GCC_10_CLOOG" == "y" ]]; then
+         SOURCE3=isl-${ISL_VERSION}.tar.xz
+  SOURCE3_URL[0]=http://isl.gforge.inria.fr/$SOURCE3
+    SOURCE3_HASH=sha512:394bccd22d8e63cb052a60ad8b1a75f4ec43916a9482c66f5167b534b538161179c47919815983b7fbc20dfaa1a590e88b251850aa092bbffc2891635bf30dc4
+fi
+
+if list_find "$GCC_10_COMPILER" "ada" ; then
+
+# howto generate the ada bootstraper
+# step 1: make a backup of your existing gcc cache you'll lose things like libstdc++
+# step 2: modify sorcery CFLAGS to be generic x86_64 only
+# step 3: cast -r gcc -> select c and ada
+# step 4: wait
+# step 5: after it's done copy the generated cache(named gcc-$VERSION-$HOST.tar.bz2)
+#         to ada-$VERSION-$HOST.tar.bz2
+# step 7: update version under the right field and test cast gcc with ada enabled
+# step 8: cast something ada dependant AND RUN IT
+# step 9: if it all works then upload the cache generated under step 5 somewhere
+#         bug someone to put it in the right place if you don't have access
+# step 10: restore your old gcc cache and resurrect it
+#
+
+  case "${SMGL_COMPAT_ARCHS[1]}" in
+    x86_64) VERSION13=8.2.0 ARCH13=x86_64 ;;
+    *)      VERSION13=4.7.1 ARCH13=i686 ;;
+  esac
+      SOURCE13=ada-$VERSION13-$ARCH13-pc-linux-gnu.tar.bz2
+  SOURCE13_URL[0]=https://download.sourcemage.org/distro/$SOURCE13
+  SOURCE13_URL[1]=https://smgl.bandrate.org/$SOURCE13
+     SOURCE13_GPG="gurus.gpg:$SOURCE13.sig:VERIFIED_UPSTREAM_KEY"
+         SOURCE14=$SOURCE13.sig
+  SOURCE14_URL[0]=${SOURCE13_URL[0]}.sig
+  SOURCE14_URL[1]=${SOURCE13_URL[1]}.sig
+  SOURCE14_IGNORE=signature
+fi
+      LICENSE[0]=GPL
+           TMPFS=off
+        WEB_SITE=https://gcc.gnu.org/
+        KEYWORDS="compiler"
+         ENTERED=20040420
+           SHORT="the GNU Compiler Collection, version 10.x"
+            DOCS="$DOCS INSTALL"
+cat << EOF
+The entire GNU Compiler Collection.
+EOF

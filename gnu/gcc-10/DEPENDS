@@ -1,0 +1,45 @@
+. "$GRIMOIRE/FUNCTIONS" &&
+. "$GRIMOIRE/libcompat" &&
+depends perl &&
+depends  diffutils       &&
+depends  gmp     "--with-gmp=${INSTALL_ROOT}/"     &&
+depends  libmpc  "--with-mpc=${INSTALL_ROOT}/usr"  &&
+depends  mpfr    "--with-mpfr=${INSTALL_ROOT}/"    &&
+depends  smgl-fhs        &&
+depends  smgl-archspecs  &&
+depends  zlib "--with-system-zlib" &&
+
+optional_depends GETTEXT \
+                 "--enable-nls" \
+                 "--disable-nls" \
+                 "for Native Language Support" &&
+
+
+if is_version_less $(installed_version gcc) 4.9.0; then
+  depends gcc49
+fi &&
+
+if is_version_less $(installed_version gmp) 4.3.2; then
+  force_depends  mpfr
+fi &&
+if is_version_less $(installed_version mpfr) 2.4.2; then
+  force_depends  mpfr
+fi &&
+
+if spell_ok gmp; then
+  persistent_read gmp GMP_BUILD_ARCH GMP_BUILD_ARCH || true
+fi                                                        &&
+if spell_ok mpfr; then
+  persistent_read mpfr MPFR_BUILD_ARCH MPFR_BUILD_ARCH || true
+fi                                                        &&
+if [[ $GMP_BUILD_ARCH  != ${SMGL_COMPAT_ARCHS[4]}
+   || $MPFR_BUILD_ARCH != ${SMGL_COMPAT_ARCHS[4]} ]]; then
+  force_depends gmp &&
+  force_depends mpfr
+fi &&
+
+
+if is_version_less $(installed_version libmpc) 0.8.1; then
+  force_depends libmpc
+fi
+

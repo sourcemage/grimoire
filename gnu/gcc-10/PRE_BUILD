@@ -1,0 +1,47 @@
+default_pre_build  &&
+
+if [[ "$GCC_10_CLOOG" == "y" ]]; then
+  cd "$SOURCE_DIRECTORY" &&
+  unpack_file 3          &&
+  mv isl-$ISL_VERSION isl
+fi &&
+
+if list_find "$GCC_10_COMPILER" "ada" ; then
+  cd $SOURCE_DIRECTORY  &&
+
+  mkdir ${SOURCE13/.tar.bz2}  &&
+  cd ${SOURCE13/.tar.bz2}  &&
+  unpack_file 13  &&
+
+  #
+  # This section is used to build a gnat bootstrap cache
+  #
+  touch $SOURCE_DIRECTORY/gcc/cstamp-h.in  &&
+  touch $SOURCE_DIRECTORY/gcc/ada/[es]info.h  &&
+  touch $SOURCE_DIRECTORY/gcc/ada/nmake.ad[bs]  &&
+
+
+  sedit 's:and Nam is "gnatgcc":and Nam is "gcc":'  \
+        $SOURCE_DIRECTORY/gcc/ada/osint.ads &&
+  cd ${SOURCE_DIRECTORY}
+  #
+  # End Ada bootstrap cache code
+  #
+fi  &&
+
+mk_source_dir "$SOURCE_DIRECTORY.bld" &&
+cd "$SOURCE_DIRECTORY" &&
+apply_patch_dir patches &&
+
+# Drop .la files like everyone else.
+find . -name Makefile.in \
+| xargs sed -i 's,^\(LIBTOOL[[:space:]]*=[[:space:]]*\),\1'"$GRIMOIRE"'/libtool-nola ,' &&
+
+sed -i 's/install_to_$(INSTALL_DEST) //' libiberty/Makefile.in &&
+sed -i 's@\./fixinc\.sh@-c true@' gcc/Makefile.in &&
+
+case "$HOST" in
+(*-musl)
+  patch -fp1 -i "$SPELL_DIRECTORY/ssp_nonshared.diff"
+  ;;
+esac
