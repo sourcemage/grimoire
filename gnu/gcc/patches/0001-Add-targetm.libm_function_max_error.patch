@@ -1,0 +1,618 @@
+From 0bcb1683aa0986519f10d2bab149096d394ca715 Mon Sep 17 00:00:00 2001
+From: Jakub Jelinek <jakub@redhat.com>
+Date: Fri, 28 Apr 2023 08:59:29 +0200
+Subject: [PATCH 01/13] Add targetm.libm_function_max_error
+
+As has been discussed before, the following patch adds target hook
+for math library function maximum errors measured in ulps.
+The default is to return ~0U which is a magic maximum value which means
+nothing is known about precision of the match function.
+
+The first argument is unsigned int because enum combined_fn isn't available
+everywhere where target hooks are included but is expected to be given
+the enum combined_fn value, although it should be used solely to find out
+which kind of match function (say sin vs. cos vs. sqrt vs. exp10) rather
+than its variant (f suffix, no suffix, l suffix, f128 suffix, ...), for
+which there is the machine_mode argument.
+The last argument is a bool, if it is false, the function should return
+maximum known error in ulps for a given function (taking -frounding-math
+into account if enabled), with 0.5ulps being represented as 0.
+If it is true, it is about whether the function can return values outside of
+an intrinsic finite range for the function and by how many ulps.
+E.g. sin/cos should return result in [-1.,1], if the function is expected
+to never return values outside of that finite interval, the hook should
+return 0.  Similarly for sqrt such range is [-0.,+Inf].
+
+The patch implements it for glibc only so far, I hope other maintainers
+can submit details for Solaris, musl, perhaps BSDs, etc.
+For glibc I've gathered data from:
+1) https://www.gnu.org/software/libc/manual/html_node/Errors-in-Math-Functions.html
+   as latest published glibc data
+2) https://www.gnu.org/software/libc/manual/2.22/html_node/Errors-in-Math-Functions.html
+   as a few years old glibc data
+3) using attached libc-ulps.sh script from glibc git
+4) using attached ulp-tester.c (how to invoke in file comment; tested
+   both x86_64, ppc64, ppc64le 50M pseudo-random values in all 4 rounding
+   modes, plus on x86_64 float/double sin/cos using libmvec - see
+   attached libmvec-wrapper.c as well)
+5) using attached boundary-tester.c to test for whether sin/cos/sqrt return
+   values outside of the intrinsic ranges for those functions (again,
+   tested on x86_64, ppc64, ppc64le plus on x86_64 using libmvec as well;
+   libmvec with non-default rounding modes is pretty much random number
+   generator it seems)
+
+The data is added to various hooks, the generic and generic glibc versions
+being in targhooks.c so that the various targets can easily override it.
+The intent is that the generic glibc version handles most of the stuff
+and specific target arch overrides handle the outliers or special cases.
+The patch has special case for x86_64 when __FAST_MATH__ is defined (as
+one can use in that case either libm or libmvec and we don't know which
+one will be used; so it uses maximum of what libm provides and libmvec),
+rs6000 (had to add one because cosf has 3ulps on ppc* rather than 1-2ulps
+on most other targets; MODE_COMPOSITE_P could be in theory handled in the
+generic code too, but as we have rs6000-linux specific function, it can be
+done just there), arc-linux (because DFmode sin has 7ulps there compared to
+1ulps on other targets, both in default rounding mode and in others) and
+or1k-linux (while DFmode sin has 1ulps there for default rounding mode,
+for other rounding modes it has up to 7ulps).
+Now, for -frounding-math I'm trying to add a few ulps more because I expect
+it to be much less tested, except that for boundary_p I try to use
+the numbers I got from the 5) tester.
+
+2023-04-28  Jakub Jelinek  <jakub@redhat.com>
+
+	* target.def (libm_function_max_error): New target hook.
+	* doc/tm.texi.in (TARGET_LIBM_FUNCTION_MAX_ERROR): Add.
+	* doc/tm.texi: Regenerated.
+	* targhooks.h (default_libm_function_max_error,
+	glibc_linux_libm_function_max_error): Declare.
+	* targhooks.cc: Include case-cfn-macros.h.
+	(default_libm_function_max_error,
+	glibc_linux_libm_function_max_error): New functions.
+	* config/linux.h (TARGET_LIBM_FUNCTION_MAX_ERROR): Redefine.
+	* config/linux-protos.h (linux_libm_function_max_error): Declare.
+	* config/linux.cc: Include target.h and targhooks.h.
+	(linux_libm_function_max_error): New function.
+	* config/arc/arc.cc: Include targhooks.h and case-cfn-macros.h.
+	(arc_libm_function_max_error): New function.
+	(TARGET_LIBM_FUNCTION_MAX_ERROR): Redefine.
+	* config/i386/i386.cc (ix86_libc_has_fast_function): Formatting fix.
+	(ix86_libm_function_max_error): New function.
+	(TARGET_LIBM_FUNCTION_MAX_ERROR): Redefine.
+	* config/rs6000/rs6000-protos.h
+	(rs6000_linux_libm_function_max_error): Declare.
+	* config/rs6000/rs6000-linux.cc: Include target.h, targhooks.h, tree.h
+	and case-cfn-macros.h.
+	(rs6000_linux_libm_function_max_error): New function.
+	* config/rs6000/linux.h (TARGET_LIBM_FUNCTION_MAX_ERROR): Redefine.
+	* config/rs6000/linux64.h (TARGET_LIBM_FUNCTION_MAX_ERROR): Redefine.
+	* config/or1k/or1k.cc: Include targhooks.h and case-cfn-macros.h.
+	(or1k_libm_function_max_error): New function.
+	(TARGET_LIBM_FUNCTION_MAX_ERROR): Redefine.
+
+(cherry picked from commit bd539c9b801bde3a919a5ad16b741ab4f5eca6e3)
+Origin: Upstream
+Upstream-Status: Backport [v14]
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ gcc/config/arc/arc.cc             | 36 ++++++++++++++++
+ gcc/config/i386/i386.cc           | 55 ++++++++++++++++++++++++-
+ gcc/config/linux-protos.h         |  2 +
+ gcc/config/linux.cc               | 11 +++++
+ gcc/config/linux.h                |  3 ++
+ gcc/config/or1k/or1k.cc           | 31 ++++++++++++++
+ gcc/config/rs6000/linux.h         |  3 ++
+ gcc/config/rs6000/linux64.h       |  3 ++
+ gcc/config/rs6000/rs6000-linux.cc | 40 ++++++++++++++++++
+ gcc/config/rs6000/rs6000-protos.h |  2 +
+ gcc/doc/tm.texi                   | 15 +++++++
+ gcc/doc/tm.texi.in                |  2 +
+ gcc/target.def                    | 17 ++++++++
+ gcc/targhooks.cc                  | 68 +++++++++++++++++++++++++++++++
+ gcc/targhooks.h                   |  3 ++
+ 15 files changed, 290 insertions(+), 1 deletion(-)
+
+diff --git a/gcc/config/arc/arc.cc b/gcc/config/arc/arc.cc
+index 22eb2e9cb459..b47935a9214d 100644
+--- a/gcc/config/arc/arc.cc
++++ b/gcc/config/arc/arc.cc
+@@ -68,6 +68,8 @@ along with GCC; see the file COPYING3.  If not see
+ #include "alias.h"
+ #include "opts.h"
+ #include "hw-doloop.h"
++#include "targhooks.h"
++#include "case-cfn-macros.h"
+ 
+ /* Which cpu we're compiling for (ARC600, ARC601, ARC700).  */
+ static char arc_cpu_name[10] = "";
+@@ -11808,6 +11810,37 @@ arc_insn_cost (rtx_insn *insn, bool speed)
+   return cost;
+ }
+ 
++static unsigned
++arc_libm_function_max_error (unsigned cfn, machine_mode mode,
++			     bool boundary_p)
++{
++#ifdef OPTION_GLIBC
++  bool glibc_p = OPTION_GLIBC;
++#else
++  bool glibc_p = false;
++#endif
++  if (glibc_p)
++    {
++      int rnd = flag_rounding_math ? 4 : 0;
++      switch (cfn)
++	{
++	CASE_CFN_SIN:
++	CASE_CFN_SIN_FN:
++	  if (!boundary_p && mode == DFmode)
++	    return 7 + rnd;
++	  break;
++	CASE_CFN_COS:
++	CASE_CFN_COS_FN:
++	  if (!boundary_p && mode == DFmode)
++	    return 4 + rnd;
++	default:
++	  break;
++	}
++      return glibc_linux_libm_function_max_error (cfn, mode, boundary_p);
++    }
++  return default_libm_function_max_error (cfn, mode, boundary_p);
++}
++
+ #undef TARGET_USE_ANCHORS_FOR_SYMBOL_P
+ #define TARGET_USE_ANCHORS_FOR_SYMBOL_P arc_use_anchors_for_symbol_p
+ 
+@@ -11832,6 +11865,9 @@ arc_insn_cost (rtx_insn *insn, bool speed)
+ #undef  TARGET_INSN_COST
+ #define TARGET_INSN_COST arc_insn_cost
+ 
++#undef  TARGET_LIBM_FUNCTION_MAX_ERROR
++#define TARGET_LIBM_FUNCTION_MAX_ERROR arc_libm_function_max_error
++
+ struct gcc_target targetm = TARGET_INITIALIZER;
+ 
+ #include "gt-arc.h"
+diff --git a/gcc/config/i386/i386.cc b/gcc/config/i386/i386.cc
+index fbd33a6bfd12..f3ae413cacbe 100644
+--- a/gcc/config/i386/i386.cc
++++ b/gcc/config/i386/i386.cc
+@@ -25248,7 +25248,8 @@ ix86_libgcc_floating_mode_supported_p
+ #undef TARGET_MEMTAG_TAG_SIZE
+ #define TARGET_MEMTAG_TAG_SIZE ix86_memtag_tag_size
+ 
+-static bool ix86_libc_has_fast_function (int fcode ATTRIBUTE_UNUSED)
++static bool
++ix86_libc_has_fast_function (int fcode ATTRIBUTE_UNUSED)
+ {
+ #ifdef OPTION_GLIBC
+   if (OPTION_GLIBC)
+@@ -25263,6 +25264,58 @@ static bool ix86_libc_has_fast_function (int fcode ATTRIBUTE_UNUSED)
+ #undef TARGET_LIBC_HAS_FAST_FUNCTION
+ #define TARGET_LIBC_HAS_FAST_FUNCTION ix86_libc_has_fast_function
+ 
++static unsigned
++ix86_libm_function_max_error (unsigned cfn, machine_mode mode,
++			      bool boundary_p)
++{
++#ifdef OPTION_GLIBC
++  bool glibc_p = OPTION_GLIBC;
++#else
++  bool glibc_p = false;
++#endif
++  if (glibc_p)
++    {
++      /* If __FAST_MATH__ is defined, glibc provides libmvec.  */
++      unsigned int libmvec_ret = 0;
++      if (!flag_trapping_math
++	  && flag_unsafe_math_optimizations
++	  && flag_finite_math_only
++	  && !flag_signed_zeros
++	  && !flag_errno_math)
++	switch (cfn)
++	  {
++	  CASE_CFN_COS:
++	  CASE_CFN_COS_FN:
++	  CASE_CFN_SIN:
++	  CASE_CFN_SIN_FN:
++	    if (!boundary_p)
++	      {
++		/* With non-default rounding modes, libmvec provides
++		   complete garbage in results.  E.g.
++		   _ZGVcN8v_sinf for 1.40129846e-45f in FE_UPWARD
++		   returns 0.00333309174f rather than 1.40129846e-45f.  */
++		if (flag_rounding_math)
++		  return ~0U;
++		/* https://www.gnu.org/software/libc/manual/html_node/Errors-in-Math-Functions.html
++		   claims libmvec maximum error is 4ulps.
++		   My own random testing indicates 2ulps for SFmode and
++		   0.5ulps for DFmode, but let's go with the 4ulps.  */
++		libmvec_ret = 4;
++	      }
++	    break;
++	  default:
++	    break;
++	  }
++      unsigned int ret = glibc_linux_libm_function_max_error (cfn, mode,
++							      boundary_p);
++      return MAX (ret, libmvec_ret);
++    }
++  return default_libm_function_max_error (cfn, mode, boundary_p);
++}
++
++#undef TARGET_LIBM_FUNCTION_MAX_ERROR
++#define TARGET_LIBM_FUNCTION_MAX_ERROR ix86_libm_function_max_error
++
+ #if CHECKING_P
+ #undef TARGET_RUN_TARGET_SELFTESTS
+ #define TARGET_RUN_TARGET_SELFTESTS selftest::ix86_run_selftests
+diff --git a/gcc/config/linux-protos.h b/gcc/config/linux-protos.h
+index 147b4ebdb24c..f2ea930ace76 100644
+--- a/gcc/config/linux-protos.h
++++ b/gcc/config/linux-protos.h
+@@ -20,3 +20,5 @@ along with GCC; see the file COPYING3.  If not see
+ extern bool linux_has_ifunc_p (void);
+ 
+ extern bool linux_libc_has_function (enum function_class fn_class, tree);
++
++extern unsigned linux_libm_function_max_error (unsigned, machine_mode, bool);
+diff --git a/gcc/config/linux.cc b/gcc/config/linux.cc
+index 28c8c15dbc0b..9114e55d44e7 100644
+--- a/gcc/config/linux.cc
++++ b/gcc/config/linux.cc
+@@ -23,6 +23,8 @@ along with GCC; see the file COPYING3.  If not see
+ #include "tm.h"
+ #include "tree.h"
+ #include "linux-protos.h"
++#include "target.h"
++#include "targhooks.h"
+ 
+ bool
+ linux_libc_has_function (enum function_class fn_class,
+@@ -38,3 +40,12 @@ linux_libc_has_function (enum function_class fn_class,
+ 
+   return false;
+ }
++
++unsigned
++linux_libm_function_max_error (unsigned cfn, machine_mode mode,
++			       bool boundary_p)
++{
++  if (OPTION_GLIBC)
++    return glibc_linux_libm_function_max_error (cfn, mode, boundary_p);
++  return default_libm_function_max_error (cfn, mode, boundary_p);
++}
+diff --git a/gcc/config/linux.h b/gcc/config/linux.h
+index e3aca79ccccb..ac56816bfca0 100644
+--- a/gcc/config/linux.h
++++ b/gcc/config/linux.h
+@@ -212,4 +212,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ # undef TARGET_LIBC_HAS_FUNCTION
+ # define TARGET_LIBC_HAS_FUNCTION linux_libc_has_function
+ 
++# undef TARGET_LIBM_FUNCTION_MAX_ERROR
++# define TARGET_LIBM_FUNCTION_MAX_ERROR linux_libm_function_max_error
++
+ #endif
+diff --git a/gcc/config/or1k/or1k.cc b/gcc/config/or1k/or1k.cc
+index f98f1ec685bd..ec30bc8156cb 100644
+--- a/gcc/config/or1k/or1k.cc
++++ b/gcc/config/or1k/or1k.cc
+@@ -44,6 +44,8 @@
+ #include "explow.h"
+ #include "cfgrtl.h"
+ #include "alias.h"
++#include "targhooks.h"
++#include "case-cfn-macros.h"
+ 
+ /* These 4 are needed to allow using satisfies_constraint_J.  */
+ #include "insn-config.h"
+@@ -2191,6 +2193,32 @@ or1k_output_mi_thunk (FILE *file, tree thunk_fndecl,
+   epilogue_completed = 0;
+ }
+ 
++static unsigned
++or1k_libm_function_max_error (unsigned cfn, machine_mode mode,
++			      bool boundary_p)
++{
++#ifdef OPTION_GLIBC
++  bool glibc_p = OPTION_GLIBC;
++#else
++  bool glibc_p = false;
++#endif
++  if (glibc_p)
++    {
++      switch (cfn)
++	{
++	CASE_CFN_SIN:
++	CASE_CFN_SIN_FN:
++	  if (!boundary_p && mode == DFmode && flag_rounding_math)
++	    return 7;
++	  break;
++	default:
++	  break;
++	}
++      return glibc_linux_libm_function_max_error (cfn, mode, boundary_p);
++    }
++  return default_libm_function_max_error (cfn, mode, boundary_p);
++}
++
+ #undef  TARGET_ASM_OUTPUT_MI_THUNK
+ #define TARGET_ASM_OUTPUT_MI_THUNK or1k_output_mi_thunk
+ #undef  TARGET_ASM_CAN_OUTPUT_MI_THUNK
+@@ -2214,6 +2242,9 @@ or1k_output_mi_thunk (FILE *file, tree thunk_fndecl,
+ #undef  TARGET_HAVE_SPECULATION_SAFE_VALUE
+ #define TARGET_HAVE_SPECULATION_SAFE_VALUE speculation_safe_value_not_needed
+ 
++#undef  TARGET_LIBM_FUNCTION_MAX_ERROR
++#define TARGET_LIBM_FUNCTION_MAX_ERROR or1k_libm_function_max_error
++
+ /* Calling Conventions.  */
+ #undef  TARGET_FUNCTION_VALUE
+ #define TARGET_FUNCTION_VALUE or1k_function_value
+diff --git a/gcc/config/rs6000/linux.h b/gcc/config/rs6000/linux.h
+index 5d21befe8e41..8dc2a89684a2 100644
+--- a/gcc/config/rs6000/linux.h
++++ b/gcc/config/rs6000/linux.h
+@@ -50,6 +50,9 @@
+ #undef TARGET_LIBC_HAS_FUNCTION
+ #define TARGET_LIBC_HAS_FUNCTION linux_libc_has_function
+ 
++#undef TARGET_LIBM_FUNCTION_MAX_ERROR
++#define TARGET_LIBM_FUNCTION_MAX_ERROR rs6000_linux_libm_function_max_error
++
+ #undef  TARGET_OS_CPP_BUILTINS
+ #define TARGET_OS_CPP_BUILTINS()			\
+   do							\
+diff --git a/gcc/config/rs6000/linux64.h b/gcc/config/rs6000/linux64.h
+index 9e457033d115..6e4acaf00c20 100644
+--- a/gcc/config/rs6000/linux64.h
++++ b/gcc/config/rs6000/linux64.h
+@@ -288,6 +288,9 @@ extern int dot_symbols;
+ #undef TARGET_LIBC_HAS_FUNCTION
+ #define TARGET_LIBC_HAS_FUNCTION linux_libc_has_function
+ 
++#undef TARGET_LIBM_FUNCTION_MAX_ERROR
++#define TARGET_LIBM_FUNCTION_MAX_ERROR rs6000_linux_libm_function_max_error
++
+ #undef  TARGET_OS_CPP_BUILTINS
+ #define TARGET_OS_CPP_BUILTINS()			\
+   do							\
+diff --git a/gcc/config/rs6000/rs6000-linux.cc b/gcc/config/rs6000/rs6000-linux.cc
+index 35dc10974167..0f89cb47777c 100644
+--- a/gcc/config/rs6000/rs6000-linux.cc
++++ b/gcc/config/rs6000/rs6000-linux.cc
+@@ -23,6 +23,10 @@ along with GCC; see the file COPYING3.  If not see
+ #include "system.h"
+ #include "coretypes.h"
+ #include "tm.h"
++#include "target.h"
++#include "targhooks.h"
++#include "tree.h"
++#include "case-cfn-macros.h"
+ 
+ /* Implement TARGET_FLOAT_EXCEPTIONS_ROUNDING_SUPPORTED_P.  */
+ 
+@@ -36,3 +40,39 @@ rs6000_linux_float_exceptions_rounding_supported_p (void)
+   else
+     return TARGET_HARD_FLOAT;
+ }
++
++/* Implement TARGET_LIBM_FUNCTION_MAX_ERROR.  */
++
++unsigned
++rs6000_linux_libm_function_max_error (unsigned cfn, machine_mode mode,
++				      bool boundary_p)
++{
++  if (OPTION_GLIBC)
++    {
++      int rnd = flag_rounding_math ? 4 : 0;
++      switch (cfn)
++	{
++	CASE_CFN_SQRT:
++	CASE_CFN_SQRT_FN:
++	  if (!boundary_p && MODE_COMPOSITE_P (mode))
++	    return 1 + rnd;
++	  break;
++	CASE_CFN_COS:
++	CASE_CFN_COS_FN:
++	  if (!boundary_p && mode == SFmode)
++	    return 3 + rnd;
++	  if (!boundary_p && MODE_COMPOSITE_P (mode))
++	    return 4 + rnd;
++	  break;
++	CASE_CFN_SIN:
++	CASE_CFN_SIN_FN:
++	  if (!boundary_p && MODE_COMPOSITE_P (mode))
++	    return 1 + rnd;
++	  break;
++	default:
++	  break;
++	}
++      return glibc_linux_libm_function_max_error (cfn, mode, boundary_p);
++    }
++  return default_libm_function_max_error (cfn, mode, boundary_p);
++}
+diff --git a/gcc/config/rs6000/rs6000-protos.h b/gcc/config/rs6000/rs6000-protos.h
+index 1a4fc1df6683..9a4cc18c6d3b 100644
+--- a/gcc/config/rs6000/rs6000-protos.h
++++ b/gcc/config/rs6000/rs6000-protos.h
+@@ -334,6 +334,8 @@ extern unsigned char rs6000_class_max_nregs[][LIM_REG_CLASSES];
+ extern unsigned char rs6000_hard_regno_nregs[][FIRST_PSEUDO_REGISTER];
+ 
+ extern bool rs6000_linux_float_exceptions_rounding_supported_p (void);
++extern unsigned rs6000_linux_libm_function_max_error (unsigned, machine_mode,
++						      bool);
+ 
+ /* Pass management.  */
+ namespace gcc { class context; }
+diff --git a/gcc/doc/tm.texi b/gcc/doc/tm.texi
+index a660e33739bd..33e7ffc8af5a 100644
+--- a/gcc/doc/tm.texi
++++ b/gcc/doc/tm.texi
+@@ -5760,6 +5760,21 @@ This hook determines whether a function from a class of functions
+ @code{(enum function_class)}@var{fcode} has a fast implementation.
+ @end deftypefn
+ 
++@deftypefn {Target Hook} unsigned TARGET_LIBM_FUNCTION_MAX_ERROR (unsigned @var{cfn}, machine_mode @var{mode}, bool @var{boundary_p})
++This hook determines expected maximum errors for math functions measured
++in ulps (units of the last place).  0 means 0.5ulps precision (correctly
++rounded).  ~0U means unknown errors.  The @code{combined_fn} @var{cfn}
++argument should identify just which math built-in function it is rather than
++its variant, @var{mode} the variant in terms of floating-point machine mode.
++The hook should also take into account @code{flag_rounding_math} whether it
++is maximum error just in default rounding mode, or in all possible rounding
++modes.  @var{boundary_p} is @code{true} for maximum errors on intrinsic math
++boundaries of functions rather than errors inside of the usual result ranges
++of the functions.  E.g.@ the sin/cos function finite result is in between
++-1.0 and 1.0 inclusive, with @var{boundary_p} true the function returns how
++many ulps below or above those boundaries result could be.
++@end deftypefn
++
+ @defmac NEXT_OBJC_RUNTIME
+ Set this macro to 1 to use the "NeXT" Objective-C message sending conventions
+ by default.  This calling convention involves passing the object, the selector
+diff --git a/gcc/doc/tm.texi.in b/gcc/doc/tm.texi.in
+index f7ab5d48a634..c98b2447e28a 100644
+--- a/gcc/doc/tm.texi.in
++++ b/gcc/doc/tm.texi.in
+@@ -4004,6 +4004,8 @@ macro, a reasonable default is used.
+ 
+ @hook TARGET_LIBC_HAS_FAST_FUNCTION
+ 
++@hook TARGET_LIBM_FUNCTION_MAX_ERROR
++
+ @defmac NEXT_OBJC_RUNTIME
+ Set this macro to 1 to use the "NeXT" Objective-C message sending conventions
+ by default.  This calling convention involves passing the object, the selector
+diff --git a/gcc/target.def b/gcc/target.def
+index 171bbd1caf15..cda6c51e5167 100644
+--- a/gcc/target.def
++++ b/gcc/target.def
+@@ -2670,6 +2670,23 @@ DEFHOOK
+  bool, (int fcode),
+  default_libc_has_fast_function)
+ 
++DEFHOOK
++(libm_function_max_error,
++ "This hook determines expected maximum errors for math functions measured\n\
++in ulps (units of the last place).  0 means 0.5ulps precision (correctly\n\
++rounded).  ~0U means unknown errors.  The @code{combined_fn} @var{cfn}\n\
++argument should identify just which math built-in function it is rather than\n\
++its variant, @var{mode} the variant in terms of floating-point machine mode.\n\
++The hook should also take into account @code{flag_rounding_math} whether it\n\
++is maximum error just in default rounding mode, or in all possible rounding\n\
++modes.  @var{boundary_p} is @code{true} for maximum errors on intrinsic math\n\
++boundaries of functions rather than errors inside of the usual result ranges\n\
++of the functions.  E.g.@ the sin/cos function finite result is in between\n\
++-1.0 and 1.0 inclusive, with @var{boundary_p} true the function returns how\n\
++many ulps below or above those boundaries result could be.",
++ unsigned, (unsigned cfn, machine_mode mode, bool boundary_p),
++ default_libm_function_max_error)
++
+ /* True if new jumps cannot be created, to replace existing ones or
+    not, at the current point in the compilation.  */
+ DEFHOOK
+diff --git a/gcc/targhooks.cc b/gcc/targhooks.cc
+index 51bf3fb7a82f..e190369f87a9 100644
+--- a/gcc/targhooks.cc
++++ b/gcc/targhooks.cc
+@@ -94,6 +94,7 @@ along with GCC; see the file COPYING3.  If not see
+ #include "cfgloop.h"
+ #include "tree-vectorizer.h"
+ #include "options.h"
++#include "case-cfn-macros.h"
+ 
+ bool
+ default_legitimate_address_p (machine_mode mode ATTRIBUTE_UNUSED,
+@@ -1903,6 +1904,73 @@ bsd_libc_has_function (enum function_class fn_class,
+   return false;
+ }
+ 
++unsigned
++default_libm_function_max_error (unsigned, machine_mode, bool)
++{
++  return ~0U;
++}
++
++unsigned
++glibc_linux_libm_function_max_error (unsigned cfn, machine_mode mode,
++				     bool boundary_p)
++{
++  /* Let's use
++     https://www.gnu.org/software/libc/manual/2.22/html_node/Errors-in-Math-Functions.html
++     https://www.gnu.org/software/libc/manual/html_node/Errors-in-Math-Functions.html
++     with usual values recorded here and significant outliers handled in
++     target CPU specific overriders.  The tables only record default
++     rounding to nearest, for -frounding-math let's add some extra ulps.
++     For boundary_p values (say finite results outside of [-1.,1.] for
++     sin/cos, or [-0.,+Inf] for sqrt etc. let's use custom random testers.  */
++  int rnd = flag_rounding_math ? 4 : 0;
++  bool sf = (REAL_MODE_FORMAT (mode) == &ieee_single_format
++	     || REAL_MODE_FORMAT (mode) == &mips_single_format
++	     || REAL_MODE_FORMAT (mode) == &motorola_single_format);
++  bool df = (REAL_MODE_FORMAT (mode) == &ieee_double_format
++	     || REAL_MODE_FORMAT (mode) == &mips_double_format
++	     || REAL_MODE_FORMAT (mode) == &motorola_double_format);
++  bool xf = (REAL_MODE_FORMAT (mode) == &ieee_extended_intel_96_format
++	     || REAL_MODE_FORMAT (mode) == &ieee_extended_intel_128_format
++	     || REAL_MODE_FORMAT (mode) == &ieee_extended_motorola_format);
++  bool tf = (REAL_MODE_FORMAT (mode) == &ieee_quad_format
++	     || REAL_MODE_FORMAT (mode) == &mips_quad_format);
++
++  switch (cfn)
++    {
++    CASE_CFN_SQRT:
++    CASE_CFN_SQRT_FN:
++      if (boundary_p)
++	/* https://gcc.gnu.org/pipermail/gcc-patches/2023-April/616595.html */
++	return 0;
++      if (sf || df || xf || tf)
++	return 0 + rnd;
++      break;
++    CASE_CFN_COS:
++    CASE_CFN_COS_FN:
++      /* cos is generally errors like sin, but far more arches have 2ulps
++	 for double.  */
++      if (!boundary_p && df)
++	return 2 + rnd;
++      gcc_fallthrough ();
++    CASE_CFN_SIN:
++    CASE_CFN_SIN_FN:
++      if (boundary_p)
++	/* According to
++	   https://sourceware.org/pipermail/gcc-patches/2023-April/616315.html
++	   seems default rounding sin/cos stay strictly in [-1.,1.] range,
++	   with rounding to infinity it can be 1ulp larger/smaller.  */
++	return flag_rounding_math ? 1 : 0;
++      if (sf || df)
++	return 1 + rnd;
++      if (xf || tf)
++	return 2 + rnd;
++      break;
++    default:
++      break;
++    }
++
++  return default_libm_function_max_error (cfn, mode, boundary_p);
++}
+ 
+ tree
+ default_builtin_tm_load_store (tree ARG_UNUSED (type))
+diff --git a/gcc/targhooks.h b/gcc/targhooks.h
+index cf3d3107a0db..1a0db8dddd59 100644
+--- a/gcc/targhooks.h
++++ b/gcc/targhooks.h
+@@ -219,6 +219,9 @@ extern bool default_libc_has_fast_function (int fcode);
+ extern bool no_c99_libc_has_function (enum function_class, tree);
+ extern bool gnu_libc_has_function (enum function_class, tree);
+ extern bool bsd_libc_has_function (enum function_class, tree);
++extern unsigned default_libm_function_max_error (unsigned, machine_mode, bool);
++extern unsigned glibc_linux_libm_function_max_error (unsigned, machine_mode,
++						     bool);
+ 
+ extern tree default_builtin_tm_load_store (tree);
+ 
+-- 
+2.40.1
+
