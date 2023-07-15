@@ -1,3 +1,6 @@
+# Fails to build with -Ofast
+CFLAGS="${CFLAGS//-Ofast/-O2}" &&
+
 OPTS+=' smack=false tests=unsafe split-usr=true' &&
 OPTS+=' split-bin=true' &&
 OPTS+=' rootlibdir=/lib' &&
