@@ -77,11 +77,10 @@ start()
 
   echo "Mounting root file system read/write..."
   {
-    mount    -n -o remount,rw / &&
-    if ! [[ -h /etc/mtab ]]; then
-      builtin echo > /etc/mtab
-    fi &&
-    mount    -f -o remount,rw /
+    mount -n -o remount,rw / &&
+    if ! [ -h /etc/mtab ]; then
+      ln -sf /proc/mounts /etc/mtab
+    fi
   } || exit 1
 
   evaluate_retval || exit 1
