@@ -1,4 +1,3 @@
-# Disable git cloning of subproject
-OPTS+=" session-managers=none ${PIPEWIRE_OPTS}" &&
+OPTS="${PIPEWIRE_OPTS} ${OPTS}" &&
 
 default_build
