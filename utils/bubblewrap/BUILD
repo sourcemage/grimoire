@@ -1,4 +1,3 @@
-if [[ $TESTS == 'n' ]]; then
-OPTS+=" tests=false"
-fi &&
+OPTS="${BUBBLEWRAP_OPTS} ${OPTS}" &&
+
 default_build
