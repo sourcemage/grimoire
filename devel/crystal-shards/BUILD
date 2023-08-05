@@ -1,1 +1,1 @@
-DESTDIR="${INSTALL_ROOT}/" PREFIX="/usr" make CRFLAGS=--release
+PREFIX="${INSTALL_ROOT}/usr" make CRFLAGS=--release
