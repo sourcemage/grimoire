@@ -1,0 +1,102 @@
+
+# HG changeset patch
+# User Mike Hommey <mh+mozilla@glandium.org>
+# Date 1688455805 0
+# Node ID 8f3c18688bf43961a61f78f11f8aaef5e5de5fec
+# Parent  25c1a2b1eff10640f2c23261214875b0c13c9037
+Bug 1841571 - Treat rust libraries as objects in the build graph. r=firefox-build-system-reviewers,sergesanspaille
+
+The build graph has dependencies like:
+  some/dir/target: some/dir/target-objects
+
+where some/dir/target-objects will build the objects in the directory,
+and some/dir/target will link some binary (executable or shared library)
+using those objects (and/or objects in other directories).
+
+From that perspective, the rust (static) libraries are more similar to
+objects, and we should treat them as such.
+
+This will allow to add the right dependencies to use a in-tree-built tool
+to link shared libraries without having building the rust libraries
+depend on it just because they are treated as other binaries in the
+build graph.
+
+Differential Revision: https://phabricator.services.mozilla.com/D182694
+
+diff --git a/config/recurse.mk b/config/recurse.mk
+--- a/config/recurse.mk
++++ b/config/recurse.mk
+@@ -230,12 +230,12 @@ ifndef TEST_MOZBUILD
+ pre-export:: $(DEPTH)/.cargo/config
+ endif
+ 
+ # When building gtest as part of the build (LINK_GTEST_DURING_COMPILE),
+ # force the build system to get to it first, so that it can be linked
+ # quickly without LTO, allowing the build system to go ahead with
+ # plain gkrust and libxul while libxul-gtest is being linked and
+ # dump-sym'ed.
+-ifneq (,$(filter toolkit/library/gtest/rust/target,$(compile_targets)))
+-toolkit/library/rust/target: toolkit/library/gtest/rust/target
++ifneq (,$(filter toolkit/library/gtest/rust/target-objects,$(compile_targets)))
++toolkit/library/rust/target-objects: toolkit/library/gtest/rust/target-objects
+ endif
+ endif
+diff --git a/config/rules.mk b/config/rules.mk
+--- a/config/rules.mk
++++ b/config/rules.mk
+@@ -381,28 +381,28 @@ else
+ resfile =
+ resfile_for_manifest =
+ endif
+ 
+ ##############################################
+ ifdef COMPILE_ENVIRONMENT
+ compile:: host target
+ 
+-host:: $(HOST_OBJS) $(HOST_PROGRAM) $(HOST_SIMPLE_PROGRAMS) $(HOST_RUST_PROGRAMS) $(HOST_RUST_LIBRARY_FILE) $(HOST_SHARED_LIBRARY)
++host:: $(HOST_OBJS) $(HOST_PROGRAM) $(HOST_SIMPLE_PROGRAMS) $(HOST_RUST_PROGRAMS) $(HOST_SHARED_LIBRARY)
+ 
+-target:: $(filter-out $(MOZBUILD_NON_DEFAULT_TARGETS),$(LIBRARY) $(SHARED_LIBRARY) $(PROGRAM) $(SIMPLE_PROGRAMS) $(RUST_LIBRARY_FILE) $(RUST_PROGRAMS))
++target:: $(filter-out $(MOZBUILD_NON_DEFAULT_TARGETS),$(LIBRARY) $(SHARED_LIBRARY) $(PROGRAM) $(SIMPLE_PROGRAMS) $(RUST_PROGRAMS))
+ 
+ ifndef LIBRARY
+ ifdef OBJS
+ target:: $(OBJS)
+ endif
+ endif
+ 
+-target-objects: $(OBJS) $(PROGOBJS)
+-host-objects: $(HOST_OBJS) $(HOST_PROGOBJS)
++target-objects: $(OBJS) $(PROGOBJS) $(filter-out $(MOZBUILD_NON_DEFAULT_TARGETS),$(RUST_LIBRARY_FILE))
++host-objects: $(HOST_OBJS) $(HOST_PROGOBJS) $(HOST_RUST_LIBRARY_FILE)
+ 
+ syms::
+ 
+ include $(MOZILLA_DIR)/config/makefiles/target_binaries.mk
+ endif
+ 
+ alltags:
+ 	$(RM) TAGS
+diff --git a/python/mozbuild/mozbuild/backend/recursivemake.py b/python/mozbuild/mozbuild/backend/recursivemake.py
+--- a/python/mozbuild/mozbuild/backend/recursivemake.py
++++ b/python/mozbuild/mozbuild/backend/recursivemake.py
+@@ -1379,16 +1379,18 @@ class RecursiveMakeBackend(MakeBackend):
+             self._process_non_default_target(libdef, libdef.import_name, backend_file)
+ 
+     def _process_host_shared_library(self, libdef, backend_file):
+         backend_file.write("HOST_SHARED_LIBRARY = %s\n" % libdef.lib_name)
+ 
+     def _build_target_for_obj(self, obj):
+         if hasattr(obj, "output_category") and obj.output_category:
+             target_name = obj.output_category
++        elif isinstance(obj, BaseRustLibrary):
++            target_name = f"{obj.KIND}-objects"
+         else:
+             target_name = obj.KIND
+         if target_name == "wasm":
+             target_name = "target"
+         return "%s/%s" % (
+             mozpath.relpath(obj.objdir, self.environment.topobjdir),
+             target_name,
+         )
+

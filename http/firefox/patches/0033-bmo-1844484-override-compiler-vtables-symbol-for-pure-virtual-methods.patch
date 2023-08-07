@@ -1,0 +1,150 @@
+
+# HG changeset patch
+# User Mike Hommey <mh+mozilla@glandium.org>
+# Date 1690956771 0
+# Node ID b3c797d9f72325bd693c43ff9a1b110e6af964b2
+# Parent  7ee1dad073d03db2f730fd5c2baf77f37e458feb
+Bug 1844484 - Override the symbol used by compilers in vtables for pure virtual methods. r=firefox-build-system-reviewers,ahochheiden
+
+In bug 1839743, we made the build system prefer packed relative
+relocations to elfhack when both the system libc and linker support
+them. Unfortunately, while that covers most of the benefits from
+elfhack, it doesn't cover bug 651892.
+
+To cover it, we make every C++ executable contain its own copy of
+the symbol, so that all relocations related to it become relative.
+
+And because this is actually (slightly) beneficial on macos, and because
+it's also an advantage to have our own abort called rather than the
+system's, we apply the same to all platforms.
+
+Differential Revision: https://phabricator.services.mozilla.com/D184068
+
+diff --git a/build/pure_virtual/moz.build b/build/pure_virtual/moz.build
+new file mode 100644
+--- /dev/null
++++ b/build/pure_virtual/moz.build
+@@ -0,0 +1,23 @@
++# -*- Mode: python; indent-tabs-mode: nil; tab-width: 40 -*-
++# vim: set filetype=python:
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this
++# file, You can obtain one at http://mozilla.org/MPL/2.0/.
++
++Library("pure_virtual")
++
++SOURCES += ["pure_virtual.c"]
++
++FORCE_STATIC_LIB = True
++
++USE_STATIC_LIBS = True
++
++# Build a real library so that the linker can remove it if the symbol
++# is never used.
++NO_EXPAND_LIBS = True
++
++# LTO can mess things up.
++if CONFIG["CC_TYPE"] == "clang-cl":
++    CFLAGS += ["-clang:-fno-lto"]
++else:
++    CFLAGS += ["-fno-lto"]
+diff --git a/build/pure_virtual/pure_virtual.c b/build/pure_virtual/pure_virtual.c
+new file mode 100644
+--- /dev/null
++++ b/build/pure_virtual/pure_virtual.c
+@@ -0,0 +1,27 @@
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++#include <mozilla/Assertions.h>
++
++// This function is used in vtables to point at pure virtual methods.
++// The implementation in the standard library usually aborts, but
++// the function is normally never called (a call would be a bug).
++// Each of these entries in vtables, however, require an unnecessary
++// dynamic relocation. Defining our own function makes the linker
++// point the vtables here instead of the standard library, replacing
++// the dynamic relocations with relative relocations.
++//
++// On Windows, it doesn't really make a difference, but on macOS it
++// can be packed better, saving about 10KB in libxul, and on 64-bits
++// ELF systems, with packed relative relocations, it saves 140KB.
++//
++// Another advantage of having our own is that we can use MOZ_CRASH
++// instead of the system's abort.
++#ifdef _MSC_VER
++int __cdecl _purecall() { MOZ_CRASH("pure virtual call"); }
++#else
++__attribute__((visibility("hidden"))) void __cxa_pure_virtual() {
++  MOZ_CRASH("pure virtual call");
++}
++#endif
+diff --git a/mfbt/moz.build b/mfbt/moz.build
+--- a/mfbt/moz.build
++++ b/mfbt/moz.build
+@@ -200,8 +200,13 @@ SOURCES += [
+ SOURCES["lz4/xxhash.c"].flags += ["-Wno-unused-function"]
+ 
+ DisableStlWrapping()
+ 
+ if CONFIG["MOZ_NEEDS_LIBATOMIC"]:
+     OS_LIBS += ["atomic"]
+ 
+ DEFINES["LZ4LIB_VISIBILITY"] = ""
++
++# This is kind of gross because this is not a subdirectory,
++# but pure_virtual requires mfbt to build and some projects
++# don't use mfbt.
++DIRS += ["../build/pure_virtual"]
+diff --git a/python/mozbuild/mozbuild/frontend/emitter.py b/python/mozbuild/mozbuild/frontend/emitter.py
+--- a/python/mozbuild/mozbuild/frontend/emitter.py
++++ b/python/mozbuild/mozbuild/frontend/emitter.py
+@@ -383,16 +383,18 @@ class TreeMetadataEmitter(LoggingMixin):
+             if (
+                 context.config.substs.get("MOZ_STDCXX_COMPAT")
+                 and context.config.substs.get(self.ARCH_VAR.get(obj.KIND)) == "Linux"
+             ):
+                 self._link_library(
+                     context, obj, variable, self.STDCXXCOMPAT_NAME[obj.KIND]
+                 )
+             if obj.KIND == "target":
++                if "pure_virtual" in self._libs:
++                    self._link_library(context, obj, variable, "pure_virtual")
+                 for lib in context.config.substs.get("STLPORT_LIBS", []):
+                     obj.link_system_library(lib)
+ 
+     def _link_library(self, context, obj, variable, path):
+         force_static = path.startswith("static:") and obj.KIND == "target"
+         if force_static:
+             path = path[7:]
+         name = mozpath.basename(path)
+diff --git a/toolkit/crashreporter/test/unit/test_crash_purevirtual.js b/toolkit/crashreporter/test/unit/test_crash_purevirtual.js
+--- a/toolkit/crashreporter/test/unit/test_crash_purevirtual.js
++++ b/toolkit/crashreporter/test/unit/test_crash_purevirtual.js
+@@ -1,24 +1,16 @@
+ add_task(async function run_test() {
+   if (!("@mozilla.org/toolkit/crash-reporter;1" in Cc)) {
+     dump(
+       "INFO | test_crash_purevirtual.js | Can't test crashreporter in a non-libxul build.\n"
+     );
+     return;
+   }
+ 
+-  var isOSX = "nsILocalFileMac" in Ci;
+-  if (isOSX) {
+-    dump(
+-      "INFO | test_crash_purevirtual.js | TODO: purecalls not caught on OS X\n"
+-    );
+-    return;
+-  }
+-
+   // Try crashing with a pure virtual call
+   await do_crash(
+     function () {
+       crashType = CrashTestUtils.CRASH_PURE_VIRTUAL_CALL;
+       crashReporter.annotateCrashReport("TestKey", "TestValue");
+     },
+     function (mdump, extra) {
+       Assert.equal(extra.TestKey, "TestValue");
+

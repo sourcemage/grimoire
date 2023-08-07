@@ -1,0 +1,431 @@
+
+# HG changeset patch
+# User Mike Hommey <mh+mozilla@glandium.org>
+# Date 1688543450 0
+# Node ID aec57c7faed9d7639d7e1fbd936a8b38bc747e63
+# Parent  38b13df05dd40dab0cd1eaba4f7248de589d99e8
+Bug 1841567 - Stop running check_binary on host binaries. r=firefox-build-system-reviewers,sergesanspaille
+
+Back when this was added, we weren't using sysroots, and we did end up
+with host binaries that couldn't run on the host because libstdc++ came
+along the host compiler, and was newer than the system libstdc++. These
+concerns are long gone (libstdc++ in the sysroots is older than any
+supported linux host build system), so we don't need to run those checks
+anymore.
+
+Differential Revision: https://phabricator.services.mozilla.com/D182691
+
+diff --git a/config/makefiles/rust.mk b/config/makefiles/rust.mk
+--- a/config/makefiles/rust.mk
++++ b/config/makefiles/rust.mk
+@@ -442,17 +442,17 @@ RUST_LIBRARY_DEPS := $(wordlist 2, 10000
+ # the chance of proxy bypasses originating from rust code.
+ # The check only works when rust code is built with -Clto but without MOZ_LTO_RUST_CROSS.
+ # Sanitizers and sancov also fail because compiler-rt hooks network functions.
+ ifndef MOZ_PROFILE_GENERATE
+ ifeq ($(OS_ARCH), Linux)
+ ifeq (,$(rustflags_sancov)$(MOZ_ASAN)$(MOZ_TSAN)$(MOZ_UBSAN))
+ ifndef MOZ_LTO_RUST_CROSS
+ ifneq (,$(filter -Clto,$(cargo_rustc_flags)))
+-	$(call py_action,check_binary,--target --networking $@)
++	$(call py_action,check_binary,--networking $@)
+ endif
+ endif
+ endif
+ endif
+ endif
+ 
+ define make_default_rule
+ $(1):
+diff --git a/config/rules.mk b/config/rules.mk
+--- a/config/rules.mk
++++ b/config/rules.mk
+@@ -417,17 +417,17 @@ endef
+ # creates OBJS, links with LIBS to create Foo
+ #
+ $(PROGRAM): $(PROGOBJS) $(STATIC_LIBS) $(EXTRA_DEPS) $(call resfile,$(PROGRAM)) $(GLOBAL_DEPS) $(call mkdir_deps,$(FINAL_TARGET))
+ 	$(REPORT_BUILD)
+ ifeq (_WINNT,$(GNU_CC)_$(OS_ARCH))
+ 	$(LINKER) -OUT:$@ -PDB:$(LINK_PDBFILE) -IMPLIB:$(basename $(@F)).lib $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(MOZ_PROGRAM_LDFLAGS) $($(notdir $@)_OBJS) $(filter %.res,$^) $(STATIC_LIBS) $(SHARED_LIBS) $(OS_LIBS)
+ else # !WINNT || GNU_CC
+ 	$(call EXPAND_CC_OR_CXX,$@) -o $@ $(COMPUTED_CXX_LDFLAGS) $(PGO_CFLAGS) $($(notdir $@)_OBJS) $(filter %.res,$^) $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(STATIC_LIBS) $(MOZ_PROGRAM_LDFLAGS) $(SHARED_LIBS) $(OS_LIBS)
+-	$(call py_action,check_binary,--target $@)
++	$(call py_action,check_binary,$@)
+ endif # WINNT && !GNU_CC
+ 
+ ifdef ENABLE_STRIP
+ 	$(STRIP) $(STRIP_FLAGS) $@
+ endif
+ ifdef MOZ_POST_PROGRAM_COMMAND
+ 	$(MOZ_POST_PROGRAM_COMMAND) $@
+ endif
+@@ -438,19 +438,16 @@ ifeq (_WINNT,$(GNU_CC)_$(HOST_OS_ARCH))
+ 	$(HOST_LINKER) -OUT:$@ -PDB:$(HOST_PDBFILE) $($(notdir $@)_OBJS) $(WIN32_EXE_LDFLAGS) $(HOST_LDFLAGS) $(HOST_LINKER_LIBPATHS) $(HOST_LIBS) $(HOST_EXTRA_LIBS)
+ else
+ ifeq ($(HOST_CPP_PROG_LINK),1)
+ 	$(HOST_CXX) -o $@ $(HOST_CXX_LDFLAGS) $(HOST_LDFLAGS) $($(notdir $@)_OBJS) $(HOST_LIBS) $(HOST_EXTRA_LIBS)
+ else
+ 	$(HOST_CC) -o $@ $(HOST_C_LDFLAGS) $(HOST_LDFLAGS) $($(notdir $@)_OBJS) $(HOST_LIBS) $(HOST_EXTRA_LIBS)
+ endif # HOST_CPP_PROG_LINK
+ endif
+-ifndef CROSS_COMPILE
+-	$(call py_action,check_binary,--host $@)
+-endif
+ 
+ #
+ # This is an attempt to support generation of multiple binaries
+ # in one directory, it assumes everything to compile Foo is in
+ # Foo.o (from either Foo.c or Foo.cpp).
+ #
+ # SIMPLE_PROGRAMS = Foo Bar
+ # creates Foo.o Bar.o, links with LIBS to create Foo, Bar.
+@@ -461,17 +458,17 @@ endef
+ $(foreach p,$(SIMPLE_PROGRAMS),$(eval $(call simple_program_deps,$(p))))
+ 
+ $(SIMPLE_PROGRAMS):
+ 	$(REPORT_BUILD)
+ ifeq (_WINNT,$(GNU_CC)_$(OS_ARCH))
+ 	$(LINKER) -out:$@ -pdb:$(LINK_PDBFILE) $($@_OBJS) $(filter %.res,$^) $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(MOZ_PROGRAM_LDFLAGS) $(STATIC_LIBS) $(SHARED_LIBS) $(OS_LIBS)
+ else
+ 	$(call EXPAND_CC_OR_CXX,$@) $(COMPUTED_CXX_LDFLAGS) $(PGO_CFLAGS) -o $@ $($@_OBJS) $(filter %.res,$^) $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(STATIC_LIBS) $(MOZ_PROGRAM_LDFLAGS) $(SHARED_LIBS) $(OS_LIBS)
+-	$(call py_action,check_binary,--target $@)
++	$(call py_action,check_binary,$@)
+ endif # WINNT && !GNU_CC
+ 
+ ifdef ENABLE_STRIP
+ 	$(STRIP) $(STRIP_FLAGS) $@
+ endif
+ ifdef MOZ_POST_PROGRAM_COMMAND
+ 	$(MOZ_POST_PROGRAM_COMMAND) $@
+ endif
+@@ -482,19 +479,16 @@ ifeq (WINNT_,$(HOST_OS_ARCH)_$(GNU_CC))
+ 	$(HOST_LINKER) -OUT:$@ -PDB:$(HOST_PDBFILE) $($(notdir $@)_OBJS) $(WIN32_EXE_LDFLAGS) $(HOST_LDFLAGS) $(HOST_LINKER_LIBPATHS) $(HOST_LIBS) $(HOST_EXTRA_LIBS)
+ else
+ ifneq (,$(HOST_CPPSRCS)$(USE_HOST_CXX))
+ 	$(HOST_CXX) $(HOST_OUTOPTION)$@ $(HOST_CXX_LDFLAGS) $(HOST_LDFLAGS) $($(notdir $@)_OBJS) $(HOST_LIBS) $(HOST_EXTRA_LIBS)
+ else
+ 	$(HOST_CC) $(HOST_OUTOPTION)$@ $(HOST_C_LDFLAGS) $(HOST_LDFLAGS) $($(notdir $@)_OBJS) $(HOST_LIBS) $(HOST_EXTRA_LIBS)
+ endif
+ endif
+-ifndef CROSS_COMPILE
+-	$(call py_action,check_binary,--host $@)
+-endif
+ 
+ $(LIBRARY): $(OBJS) $(STATIC_LIBS) $(EXTRA_DEPS) $(GLOBAL_DEPS)
+ 	$(REPORT_BUILD)
+ 	$(RM) $(REAL_LIBRARY)
+ 	$(AR) $(AR_FLAGS) $($@_OBJS)
+ 
+ $(WASM_ARCHIVE): $(CWASMOBJS) $(CPPWASMOBJS) $(STATIC_LIBS) $(EXTRA_DEPS) $(GLOBAL_DEPS)
+ 	$(REPORT_BUILD_VERBOSE)
+@@ -525,17 +519,17 @@ endif
+ # so instead of deleting .o files after repacking them into a dylib, we make
+ # symlinks back to the originals. The symlinks are a no-op for stabs debugging,
+ # so no need to conditionalize on OS version or debugging format.
+ 
+ $(SHARED_LIBRARY): $(OBJS) $(call resfile,$(SHARED_LIBRARY)) $(STATIC_LIBS) $(EXTRA_DEPS) $(GLOBAL_DEPS)
+ 	$(REPORT_BUILD)
+ 	$(RM) $@
+ 	$(MKSHLIB) $($@_OBJS) $(filter %.res,$^) $(LDFLAGS) $(STATIC_LIBS) $(SHARED_LIBS) $(EXTRA_DSO_LDOPTS) $(MOZ_GLUE_LDFLAGS) $(OS_LIBS)
+-	$(call py_action,check_binary,--target $@)
++	$(call py_action,check_binary,$@)
+ 
+ ifeq (_WINNT,$(GNU_CC)_$(OS_ARCH))
+ endif	# WINNT && !GCC
+ 	chmod +x $@
+ ifdef ENABLE_STRIP
+ 	$(STRIP) $(STRIP_FLAGS) $@
+ endif
+ 
+diff --git a/python/mozbuild/mozbuild/action/check_binary.py b/python/mozbuild/mozbuild/action/check_binary.py
+--- a/python/mozbuild/mozbuild/action/check_binary.py
++++ b/python/mozbuild/mozbuild/action/check_binary.py
+@@ -15,22 +15,18 @@ from packaging.version import Version
+ from mozbuild.action.util import log_build_task
+ from mozbuild.util import memoize
+ 
+ STDCXX_MAX_VERSION = Version("3.4.19")
+ CXXABI_MAX_VERSION = Version("1.3.7")
+ GLIBC_MAX_VERSION = Version("2.17")
+ LIBGCC_MAX_VERSION = Version("4.8")
+ 
+-HOST = {"platform": buildconfig.substs["HOST_OS_ARCH"], "readelf": "readelf"}
+-
+-TARGET = {
+-    "platform": buildconfig.substs["OS_TARGET"],
+-    "readelf": buildconfig.substs.get("READELF", "readelf"),
+-}
++PLATFORM = buildconfig.substs["OS_TARGET"]
++READELF = buildconfig.substs.get("READELF", "readelf")
+ 
+ ADDR_RE = re.compile(r"[0-9a-f]{8,16}")
+ 
+ if buildconfig.substs.get("HAVE_64BIT_BUILD"):
+     GUESSED_NSMODULE_SIZE = 8
+ else:
+     GUESSED_NSMODULE_SIZE = 4
+ 
+@@ -58,24 +54,24 @@ def at_least_one(iter):
+     for item in iter:
+         saw_one = True
+         yield item
+     if not saw_one:
+         raise Empty()
+ 
+ 
+ # Iterates the symbol table on ELF binaries.
+-def iter_elf_symbols(target, binary, all=False):
++def iter_elf_symbols(binary, all=False):
+     ty = get_type(binary)
+     # Static libraries are ar archives. Assume they are ELF.
+     if ty == UNKNOWN and open(binary, "rb").read(8) == b"!<arch>\n":
+         ty = ELF
+     assert ty == ELF
+     for line in get_output(
+-        target["readelf"], "--wide", "--syms" if all else "--dyn-syms", binary
++        READELF, "--wide", "--syms" if all else "--dyn-syms", binary
+     ):
+         data = line.split()
+         if not (len(data) >= 8 and data[0].endswith(":") and data[0][:-1].isdigit()):
+             continue
+         n, addr, size, type, bind, vis, index, name = data[:8]
+ 
+         if "@" in name:
+             name, ver = name.rsplit("@", 1)
+@@ -88,36 +84,36 @@ def iter_elf_symbols(target, binary, all
+             # readelf output may contain decimal values or hexadecimal
+             # values prefixed with 0x for the size. Let python autodetect.
+             "size": int(size, 0),
+             "name": name,
+             "version": ver,
+         }
+ 
+ 
+-def iter_readelf_dynamic(target, binary):
+-    for line in get_output(target["readelf"], "-d", binary):
++def iter_readelf_dynamic(binary):
++    for line in get_output(READELF, "-d", binary):
+         data = line.split(None, 2)
+         if data and len(data) == 3 and data[0].startswith("0x"):
+             yield data[1].rstrip(")").lstrip("("), data[2]
+ 
+ 
+-def check_binary_compat(target, binary):
++def check_binary_compat(binary):
+     if get_type(binary) != ELF:
+         raise Skip()
+     checks = (
+         ("libstdc++", "GLIBCXX_", STDCXX_MAX_VERSION),
+         ("libstdc++", "CXXABI_", CXXABI_MAX_VERSION),
+         ("libgcc", "GCC_", LIBGCC_MAX_VERSION),
+         ("libc", "GLIBC_", GLIBC_MAX_VERSION),
+     )
+ 
+     unwanted = {}
+     try:
+-        for sym in at_least_one(iter_elf_symbols(target, binary)):
++        for sym in at_least_one(iter_elf_symbols(binary)):
+             # Only check versions on undefined symbols
+             if sym["addr"] != 0:
+                 continue
+ 
+             # No version to check
+             if not sym["version"]:
+                 continue
+ 
+@@ -136,21 +132,21 @@ def check_binary_compat(target, binary):
+                     "We do not want these {} symbol versions to be used:".format(lib)
+                 )
+                 error.extend(
+                     " {} ({})".format(s["name"], s["version"]) for s in unwanted[prefix]
+                 )
+         raise RuntimeError("\n".join(error))
+ 
+ 
+-def check_textrel(target, binary):
+-    if target is HOST or get_type(binary) != ELF:
++def check_textrel(binary):
++    if get_type(binary) != ELF:
+         raise Skip()
+     try:
+-        for tag, value in at_least_one(iter_readelf_dynamic(target, binary)):
++        for tag, value in at_least_one(iter_readelf_dynamic(binary)):
+             if tag == "TEXTREL" or (tag == "FLAGS" and "TEXTREL" in value):
+                 raise RuntimeError(
+                     "We do not want text relocations in libraries and programs"
+                 )
+     except Empty:
+         raise RuntimeError("Could not parse readelf output?")
+ 
+ 
+@@ -162,54 +158,52 @@ def ishex(s):
+         return False
+ 
+ 
+ def is_libxul(binary):
+     basename = os.path.basename(binary).lower()
+     return "xul" in basename
+ 
+ 
+-def check_pt_load(target, binary):
+-    if target is HOST or get_type(binary) != ELF or not is_libxul(binary):
++def check_pt_load(binary):
++    if get_type(binary) != ELF or not is_libxul(binary):
+         raise Skip()
+     count = 0
+-    for line in get_output(target["readelf"], "-l", binary):
++    for line in get_output(READELF, "-l", binary):
+         data = line.split()
+         if data and data[0] == "LOAD":
+             count += 1
+     if count <= 1:
+         raise RuntimeError("Expected more than one PT_LOAD segment")
+ 
+ 
+-def check_mozglue_order(target, binary):
+-    if target is HOST or target["platform"] != "Android":
++def check_mozglue_order(binary):
++    if PLATFORM != "Android":
+         raise Skip()
+     # While this is very unlikely (libc being added by the compiler at the end
+     # of the linker command line), if libmozglue.so ends up after libc.so, all
+     # hell breaks loose, so better safe than sorry, and check it's actually the
+     # case.
+     try:
+         mozglue = libc = None
+-        for n, (tag, value) in enumerate(
+-            at_least_one(iter_readelf_dynamic(target, binary))
+-        ):
++        for n, (tag, value) in enumerate(at_least_one(iter_readelf_dynamic(binary))):
+             if tag == "NEEDED":
+                 if "[libmozglue.so]" in value:
+                     mozglue = n
+                 elif "[libc.so]" in value:
+                     libc = n
+         if libc is None:
+             raise RuntimeError("libc.so is not linked?")
+         if mozglue is not None and libc < mozglue:
+             raise RuntimeError("libmozglue.so must be linked before libc.so")
+     except Empty:
+         raise RuntimeError("Could not parse readelf output?")
+ 
+ 
+-def check_networking(target, binary):
++def check_networking(binary):
+     retcode = 0
+     networking_functions = set(
+         [
+             # socketpair is not concerning; it is restricted to AF_UNIX
+             "connect",
+             "accept",
+             "listen",
+             "getsockname",
+@@ -237,17 +231,17 @@ def check_networking(target, binary):
+             "getprotobynumber",
+             "setprotoent",
+             "endprotoent",
+         ]
+     )
+     bad_occurences_names = set()
+ 
+     try:
+-        for sym in at_least_one(iter_elf_symbols(target, binary, all=True)):
++        for sym in at_least_one(iter_elf_symbols(binary, all=True)):
+             if sym["addr"] == 0 and sym["name"] in networking_functions:
+                 bad_occurences_names.add(sym["name"])
+     except Empty:
+         raise RuntimeError("Could not parse llvm-objdump output?")
+ 
+     basename = os.path.basename(binary)
+     if bad_occurences_names:
+         s = (
+@@ -263,37 +257,37 @@ def check_networking(target, binary):
+             file=sys.stderr,
+         )
+         retcode = 1
+     elif buildconfig.substs.get("MOZ_AUTOMATION"):
+         print("TEST-PASS | check_networking | {}".format(basename))
+     return retcode
+ 
+ 
+-def checks(target, binary):
++def checks(binary):
+     # The clang-plugin is built as target but is really a host binary.
+-    # Cheat and pretend we were passed the right argument.
++    # Cheat and pretend we weren't called.
+     if "clang-plugin" in binary:
+-        target = HOST
++        return 0
+     checks = []
+-    if buildconfig.substs.get("MOZ_STDCXX_COMPAT") and target["platform"] == "Linux":
++    if buildconfig.substs.get("MOZ_STDCXX_COMPAT") and PLATFORM == "Linux":
+         checks.append(check_binary_compat)
+ 
+     # Disabled for local builds because of readelf performance: See bug 1472496
+     if not buildconfig.substs.get("DEVELOPER_OPTIONS"):
+         checks.append(check_textrel)
+         checks.append(check_pt_load)
+         checks.append(check_mozglue_order)
+ 
+     retcode = 0
+     basename = os.path.basename(binary)
+     for c in checks:
+         try:
+             name = c.__name__
+-            c(target, binary)
++            c(binary)
+             if buildconfig.substs.get("MOZ_AUTOMATION"):
+                 print("TEST-PASS | {} | {}".format(name, basename))
+         except Skip:
+             pass
+         except RuntimeError as e:
+             print(
+                 "TEST-UNEXPECTED-FAIL | {} | {} | {}".format(name, basename, str(e)),
+                 file=sys.stderr,
+@@ -301,43 +295,26 @@ def checks(target, binary):
+             retcode = 1
+     return retcode
+ 
+ 
+ def main(args):
+     parser = argparse.ArgumentParser(description="Check built binaries")
+ 
+     parser.add_argument(
+-        "--host", action="store_true", help="Perform checks for a host binary"
+-    )
+-    parser.add_argument(
+-        "--target", action="store_true", help="Perform checks for a target binary"
+-    )
+-    parser.add_argument(
+         "--networking",
+         action="store_true",
+         help="Perform checks for networking functions",
+     )
+ 
+     parser.add_argument(
+         "binary", metavar="PATH", help="Location of the binary to check"
+     )
+ 
+     options = parser.parse_args(args)
+ 
+-    if options.host == options.target:
+-        print("Exactly one of --host or --target must be given", file=sys.stderr)
+-        return 1
+-
+-    if options.networking and options.host:
+-        print("--networking is only valid with --target", file=sys.stderr)
+-        return 1
+-
+     if options.networking:
+-        return check_networking(TARGET, options.binary)
+-    elif options.host:
+-        return checks(HOST, options.binary)
+-    elif options.target:
+-        return checks(TARGET, options.binary)
++        return check_networking(options.binary)
++    return checks(options.binary)
+ 
+ 
+ if __name__ == "__main__":
+     sys.exit(log_build_task(main, sys.argv[1:]))
+
