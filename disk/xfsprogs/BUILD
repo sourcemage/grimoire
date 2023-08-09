@@ -4,6 +4,8 @@
 
 disable_reject_underlinking &&
 
+CFLAGS+=' -D_LARGEFILE64_SOURCE' && # to expose off64_t and related symbols
+
 OPTS="DEBUG=-DNDEBUG \
   --libexecdir=$DEFAULT_ROOT/usr/lib \
   --sbindir=$DEFAULT_ROOT/sbin \
