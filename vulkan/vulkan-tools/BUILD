@@ -1,4 +1,6 @@
-OPTS+=" -DSPIRV_SKIP_TESTS=1" &&
-OPTS+=" -DSPIRV_CHECK_CONTEXT=0" &&
-OPTS+=" -DSPIRV_WERROR=0" &&
+OPTS="-DSPIRV_SKIP_TESTS=ON
+   -DSPIRV_CHECK_CONTEXT=OFF
+          -DSPIRV_WERROR=OFF
+             -DBUILD_ICD=OFF
+                  ${OPTS}" &&
 default_build
