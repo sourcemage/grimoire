@@ -1,5 +1,4 @@
 OPTS+=" -DSPIRV_SKIP_TESTS=1" &&
 OPTS+=" -DSPIRV_CHECK_CONTEXT=0" &&
 OPTS+=" -DSPIRV_WERROR=0" &&
-cmake_build
-
+default_build
