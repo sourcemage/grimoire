@@ -285,11 +285,25 @@ function  install_www_files ()
 }
 
 #---------------------------------------------------------------------
+## Internal function to find patches
+#---------------------------------------------------------------------
+apply_patch_dir_find() {
+  local dir="$SPELL_DIRECTORY/$1"; shift
+  find "$dir" \( -name \*.patch -o -name \*.diff \) "$@"
+}
+
+#---------------------------------------------------------------------
 ## Apply patches from a directory
 #---------------------------------------------------------------------
-function apply_patch_dir() {
-  [ -d "$SPELL_DIRECTORY/$1" ] || return 0
-  find "$SPELL_DIRECTORY/$1" \( -name \*.patch -o -name \*.diff \) -print0 |
+apply_patch_dir() {
+  # Check the directory exists and contains files.
+  if ! [ -d "$SPELL_DIRECTORY/$1" ] ||
+     ! apply_patch_dir_find "$1" -mindepth 1 -exec false {} + -quit
+  then
+    messsage "${MESSAGE_COLOR}No patches found.$DEFAULT_COLOR"
+    return
+  fi
+  apply_patch_dir_find "$1" -print0 |
   sort -zV | xargs -r -0 -n 1 -t patch -fp1 -i
 }
 
