@@ -1,13 +1,9 @@
-. "$GRIMOIRE"/VDEPENDS      &&
-. "$GRIMOIRE"/MESON_DEPENDS &&
-
-if [[ "${WLROOTS_BRANCH}" == "scm" ]]; then
-  depends git
-fi &&
+. "$GRIMOIRE"/VDEPENDS                &&
+. "$GRIMOIRE"/MESON_DEPENDS           &&
+. "$GRIMOIRE"/depends_one_of.function &&
 
 depends python3           &&
 depends libxkbcommon      &&
-depends OPENGL            &&
 depends pixman            &&
 depends wayland           &&
 depends wayland-protocols &&
@@ -16,40 +12,57 @@ vdepends <<! &&
 	libdrm >= 2.4.109
 !
 
-optional_depends seatd                                                       \
-                 'session=enabled'                                           \
-                 'session=disabled'                                          \
-           'Enable session support? (required for libinput or DRM backends)' &&
-
-if is_depends_enabled $SPELL seatd; then
-  depends DEVICE-MANAGER &&
-  optional_depends libinput '' '' 'Enable input backend?' &&
-  optional_depends hwdata '' '' 'Enable DRM backend?'     &&
-
-  if is_depends_enabled $SPELL hwdata; then
-    # Needed until both are incorporated into next wlroots release
-    if [[ "${WLROOTS_BRANCH}" == "scm" ]]; then
-      depends libdisplay-info &&
-      depends libliftoff
-    fi
+if list_find "${WLROOTS_RENDERERS}" "gles2"; then
+  optional_depends -sub GLES2 mesa '' '' 'Use mesa for gles2? If no, uses nvidia' &&
+  if ! is_depends_enabled $SPELL mesa; then
+    depends NVIDIA z-rejected
   fi
+else
+  depends OPENGL
 fi &&
 
-optional_depends libxcb '' '' 'enable X11 backend' &&
-
-if is_depends_enabled $SPELL libxcb; then
-  depends xwayland            &&
-  depends xcb-util-renderutil &&
-  depends xcb-util-wm         &&
-  
-  optional_depends xcb-util-errors             \
-                   'xcb-errors=enabled'        \
-                   'xcb-errors=disabled'       \
-                   'Improved error reporting?'
-fi &&
-
-optional_depends vulkan-headers '' '' 'build Vulkan renderer' &&
-if is_depends_enabled $SPELL vulkan-headers;then
-  depends vulkan-loader &&
+if list_find "${WLROOTS_RENDERERS}" "vulkan"; then
+  depends vulkan-headers &&
+  depends vulkan-loader  &&
   depends glslang
+fi &&
+
+if list_find "${WLROOTS_BACKENDS}" "libinput"; then
+  depends libinput
+fi &&
+
+if list_find "${WLROOTS_BACKENDS}" "drm"; then
+  if [[ "${WLROOTS_BRANCH}" == "scm" ]]; then
+    depends libdisplay-info &&
+    depends libliftoff
+  fi
+    depends hwdata
+fi &&
+
+if list_find "${WLROOTS_BACKENDS}" "x11"; then
+  depends xwayland 'xwayland=enabled' &&
+  depends libxcb                      &&
+  depends xcb-util-wm                 &&
+  depends xcb-util-renderutil         &&
+
+  optional_depends xcb-util-errors                    \
+                   'xcb-errors=enabled'               \
+                   'xcb-errors=disabled'              \
+                   'Enable improved error reporting?'
+fi &&
+
+if [[ "${WLROOTS_BRANCH}" == "scm" ]]; then
+  depends git &&
+
+  if ! list_find "${WLROOTS_BACKENDS}" "drm" &&
+     ! list_find "${WLROOTS_BACKENDS}" "libinput"; then
+    
+    optional_depends seatd                     \
+                     'session=enabled'         \
+                     'session=disabled'        \
+                     'Enable session support?'
+  else
+    depends seatd &&
+    depends DEVICE-MANAGER
+  fi
 fi
