@@ -1,0 +1,184 @@
+
+# HG changeset patch
+# User stransky <stransky@redhat.com>
+# Date 1690447248 0
+# Node ID 0963f5b18821bbcac2c9799552a6d60fc31ae7ae
+# Parent  f3abc129a8e8c6554481b7a7c3e63c34df3c9ee3
+Bug 1837627 Don't use YUVColorSpace::Identity for YUV pixel formats r=alwu
+
+Check color space of video frames and use YUVColorSpace::Identity for RGB frames only. This patch also unifies color space setup for shm and non-shm video decoding paths.
+
+- Implement TransferAVColorSpaceToColorSpace() to convert color space from AVColorSpace to gfx::YUVColorSpace.
+  It also check color format and doesn't allow to mix YUV color space and RGB formats.
+- Use TransferAVColorSpaceToColorSpace() in both shm and non-shm decoding paths.
+
+Differential Revision: https://phabricator.services.mozilla.com/D184469
+
+diff --git a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
+--- a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
++++ b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
+@@ -607,16 +607,42 @@ static gfx::ColorDepth GetColorDepth(con
+       return gfx::ColorDepth::COLOR_12;
+ #endif
+     default:
+       MOZ_ASSERT_UNREACHABLE("Not supported format?");
+       return gfx::ColorDepth::COLOR_8;
+   }
+ }
+ 
++static bool IsYUVFormat(const AVPixelFormat& aFormat) {
++  return aFormat != AV_PIX_FMT_GBRP;
++}
++
++static gfx::YUVColorSpace TransferAVColorSpaceToColorSpace(
++    const AVColorSpace aSpace, const AVPixelFormat aFormat,
++    const gfx::IntSize& aSize) {
++  if (!IsYUVFormat(aFormat)) {
++    return gfx::YUVColorSpace::Identity;
++  }
++  switch (aSpace) {
++#if LIBAVCODEC_VERSION_MAJOR >= 55
++    case AVCOL_SPC_BT2020_NCL:
++    case AVCOL_SPC_BT2020_CL:
++      return gfx::YUVColorSpace::BT2020;
++#endif
++    case AVCOL_SPC_BT709:
++      return gfx::YUVColorSpace::BT709;
++    case AVCOL_SPC_SMPTE170M:
++    case AVCOL_SPC_BT470BG:
++      return gfx::YUVColorSpace::BT601;
++    default:
++      return DefaultColorSpace(aSize);
++  }
++}
++
+ #ifdef CUSTOMIZED_BUFFER_ALLOCATION
+ static int GetVideoBufferWrapper(struct AVCodecContext* aCodecContext,
+                                  AVFrame* aFrame, int aFlags) {
+   auto* decoder =
+       static_cast<FFmpegVideoDecoder<LIBAV_VER>*>(aCodecContext->opaque);
+   int rv = decoder->GetVideoBuffer(aCodecContext, aFrame, aFlags);
+   return rv < 0 ? decoder->GetVideoBufferDefault(aCodecContext, aFrame, aFlags)
+                 : rv;
+@@ -625,32 +651,16 @@ static int GetVideoBufferWrapper(struct 
+ static void ReleaseVideoBufferWrapper(void* opaque, uint8_t* data) {
+   if (opaque) {
+     FFMPEG_LOGV("ReleaseVideoBufferWrapper: PlanarYCbCrImage=%p", opaque);
+     RefPtr<ImageBufferWrapper> image = static_cast<ImageBufferWrapper*>(opaque);
+     image->ReleaseBuffer();
+   }
+ }
+ 
+-static gfx::YUVColorSpace TransferAVColorSpaceToYUVColorSpace(
+-    AVColorSpace aSpace) {
+-  switch (aSpace) {
+-    case AVCOL_SPC_BT2020_NCL:
+-    case AVCOL_SPC_BT2020_CL:
+-      return gfx::YUVColorSpace::BT2020;
+-    case AVCOL_SPC_BT709:
+-      return gfx::YUVColorSpace::BT709;
+-    case AVCOL_SPC_SMPTE170M:
+-    case AVCOL_SPC_BT470BG:
+-      return gfx::YUVColorSpace::BT601;
+-    default:
+-      return gfx::YUVColorSpace::Default;
+-  }
+-}
+-
+ static bool IsColorFormatSupportedForUsingCustomizedBuffer(
+     const AVPixelFormat& aFormat) {
+ #  if XP_WIN
+   // Currently the web render doesn't support uploading R16 surface, so we can't
+   // use the shmem texture for 10 bit+ videos which would be uploaded by the
+   // web render. See Bug 1751498.
+   return aFormat == AV_PIX_FMT_YUV420P || aFormat == AV_PIX_FMT_YUVJ420P ||
+          aFormat == AV_PIX_FMT_YUV444P;
+@@ -723,18 +733,19 @@ FFmpegVideoDecoder<LIBAV_VER>::AllocateT
+ 
+   // Setting other attributes
+   data.mPictureRect = gfx::IntRect(
+       mInfo.ScaledImageRect(aCodecContext->width, aCodecContext->height)
+           .TopLeft(),
+       gfx::IntSize(aCodecContext->width, aCodecContext->height));
+   data.mStereoMode = mInfo.mStereoMode;
+   if (aCodecContext->colorspace != AVCOL_SPC_UNSPECIFIED) {
+-    data.mYUVColorSpace =
+-        TransferAVColorSpaceToYUVColorSpace(aCodecContext->colorspace);
++    data.mYUVColorSpace = TransferAVColorSpaceToColorSpace(
++        aCodecContext->colorspace, aCodecContext->pix_fmt,
++        data.mPictureRect.Size());
+   } else {
+     data.mYUVColorSpace = mInfo.mColorSpace
+                               ? *mInfo.mColorSpace
+                               : DefaultColorSpace(data.mPictureRect.Size());
+   }
+   data.mColorDepth = GetColorDepth(aCodecContext->pix_fmt);
+   data.mColorRange = aCodecContext->color_range == AVCOL_RANGE_JPEG
+                          ? gfx::ColorRange::FULL
+@@ -1275,40 +1286,27 @@ MediaResult FFmpegVideoDecoder<LIBAV_VER
+   if (aGotFrame) {
+     *aGotFrame = true;
+   }
+   return rv;
+ #endif
+ }
+ 
+ gfx::YUVColorSpace FFmpegVideoDecoder<LIBAV_VER>::GetFrameColorSpace() const {
++  AVColorSpace colorSpace = AVCOL_SPC_UNSPECIFIED;
+ #if LIBAVCODEC_VERSION_MAJOR > 58
+-  switch (mFrame->colorspace) {
++  colorSpace = mFrame->colorspace;
+ #else
+-  AVColorSpace colorSpace = AVCOL_SPC_UNSPECIFIED;
+   if (mLib->av_frame_get_colorspace) {
+     colorSpace = (AVColorSpace)mLib->av_frame_get_colorspace(mFrame);
+   }
+-  switch (colorSpace) {
+ #endif
+-#if LIBAVCODEC_VERSION_MAJOR >= 55
+-    case AVCOL_SPC_BT2020_NCL:
+-    case AVCOL_SPC_BT2020_CL:
+-      return gfx::YUVColorSpace::BT2020;
+-#endif
+-    case AVCOL_SPC_BT709:
+-      return gfx::YUVColorSpace::BT709;
+-    case AVCOL_SPC_SMPTE170M:
+-    case AVCOL_SPC_BT470BG:
+-      return gfx::YUVColorSpace::BT601;
+-    case AVCOL_SPC_RGB:
+-      return gfx::YUVColorSpace::Identity;
+-    default:
+-      return DefaultColorSpace({mFrame->width, mFrame->height});
+-  }
++  return TransferAVColorSpaceToColorSpace(
++      colorSpace, (AVPixelFormat)mFrame->format,
++      gfx::IntSize{mFrame->width, mFrame->height});
+ }
+ 
+ gfx::ColorSpace2 FFmpegVideoDecoder<LIBAV_VER>::GetFrameColorPrimaries() const {
+   AVColorPrimaries colorPrimaries = AVCOL_PRI_UNSPECIFIED;
+ #if LIBAVCODEC_VERSION_MAJOR > 57
+   colorPrimaries = mFrame->color_primaries;
+ #endif
+   switch (colorPrimaries) {
+@@ -1632,17 +1630,18 @@ bool FFmpegVideoDecoder<LIBAV_VER>::IsFo
+ }
+ 
+ // See ffmpeg / vaapi_decode.c how CodecID is mapped to VAProfile.
+ static const struct {
+   enum AVCodecID codec_id;
+   VAProfile va_profile;
+   char name[100];
+ } vaapi_profile_map[] = {
+-#  define MAP(c, v, n) {AV_CODEC_ID_##c, VAProfile##v, n}
++#  define MAP(c, v, n) \
++    { AV_CODEC_ID_##c, VAProfile##v, n }
+     MAP(H264, H264ConstrainedBaseline, "H264ConstrainedBaseline"),
+     MAP(H264, H264Main, "H264Main"),
+     MAP(H264, H264High, "H264High"),
+     MAP(VP8, VP8Version0_3, "VP8Version0_3"),
+     MAP(VP9, VP9Profile0, "VP9Profile0"),
+     MAP(VP9, VP9Profile2, "VP9Profile2"),
+     MAP(AV1, AV1Profile0, "AV1Profile0"),
+     MAP(AV1, AV1Profile1, "AV1Profile1"),
+

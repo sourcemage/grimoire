@@ -1,0 +1,105 @@
+
+# HG changeset patch
+# User stransky <stransky@redhat.com>
+# Date 1690834111 0
+# Node ID dd8ef46f522442182dcefcf0b8e1baa1a56d2cd0
+# Parent  ed02af11f3cf62eb5935caa7bc132274c8a2cb5e
+Bug 1839615 [Linux] Configure libva logging according to platform decoder log r=alwu
+
+Differential Revision: https://phabricator.services.mozilla.com/D184948
+
+diff --git a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
+--- a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
++++ b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
+@@ -264,16 +264,27 @@ bool FFmpegVideoDecoder<LIBAV_VER>::Crea
+     return false;
+   }
+ 
+   mCodecContext->hw_device_ctx = mLib->av_buffer_ref(mVAAPIDeviceContext);
+   releaseVAAPIcontext.release();
+   return true;
+ }
+ 
++void FFmpegVideoDecoder<LIBAV_VER>::AdjustHWDecodeLogging() {
++  if (MOZ_LOG_TEST(sPDMLog, LogLevel::Debug)) {
++    mLib->av_log_set_level(AV_LOG_DEBUG);
++    setenv("LIBVA_MESSAGING_LEVEL", "1", false);
++  } else if (MOZ_LOG_TEST(sPDMLog, LogLevel::Info)) {
++    setenv("LIBVA_MESSAGING_LEVEL", "2", false);
++  } else {
++    setenv("LIBVA_MESSAGING_LEVEL", "0", false);
++  }
++}
++
+ MediaResult FFmpegVideoDecoder<LIBAV_VER>::InitVAAPIDecoder() {
+   FFMPEG_LOG("Initialising VA-API FFmpeg decoder");
+ 
+   StaticMutexAutoLock mon(sMutex);
+ 
+   // mAcceleratedFormats is already configured so check supported
+   // formats before we do anything.
+   if (mAcceleratedFormats.Length()) {
+@@ -340,19 +351,17 @@ MediaResult FFmpegVideoDecoder<LIBAV_VER
+     mAcceleratedFormats = GetAcceleratedFormats();
+     if (!IsFormatAccelerated(mCodecID)) {
+       FFMPEG_LOG("  Format %s is not accelerated",
+                  mLib->avcodec_get_name(mCodecID));
+       return NS_ERROR_NOT_AVAILABLE;
+     }
+   }
+ 
+-  if (MOZ_LOG_TEST(sPDMLog, LogLevel::Debug)) {
+-    mLib->av_log_set_level(AV_LOG_DEBUG);
+-  }
++  AdjustHWDecodeLogging();
+ 
+   FFMPEG_LOG("  VA-API FFmpeg init successful");
+   releaseVAAPIdecoder.release();
+   return NS_OK;
+ }
+ 
+ MediaResult FFmpegVideoDecoder<LIBAV_VER>::InitV4L2Decoder() {
+   FFMPEG_LOG("Initialising V4L2-DRM FFmpeg decoder");
+@@ -420,19 +429,17 @@ MediaResult FFmpegVideoDecoder<LIBAV_VER
+   if (mAcceleratedFormats.IsEmpty()) {
+     // FFmpeg does not correctly report that the V4L2 wrapper decoders are
+     // hardware accelerated, but we know they always are.  If we've gotten
+     // this far then we know this codec has a V4L2 wrapper decoder and so is
+     // accelerateed.
+     mAcceleratedFormats.AppendElement(mCodecID);
+   }
+ 
+-  if (MOZ_LOG_TEST(sPDMLog, LogLevel::Debug)) {
+-    mLib->av_log_set_level(AV_LOG_DEBUG);
+-  }
++  AdjustHWDecodeLogging();
+ 
+   FFMPEG_LOG("  V4L2 FFmpeg init successful");
+   mUsingV4L2 = true;
+   releaseDecoder.release();
+   return NS_OK;
+ }
+ #endif
+ 
+diff --git a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h
+--- a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h
++++ b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h
+@@ -135,16 +135,17 @@ class FFmpegVideoDecoder<LIBAV_VER>
+                              AVCodecID aCodecID, AVVAAPIHWConfig* hwconfig);
+   nsTArray<AVCodecID> GetAcceleratedFormats();
+   bool IsFormatAccelerated(AVCodecID aCodecID) const;
+ 
+   MediaResult CreateImageVAAPI(int64_t aOffset, int64_t aPts, int64_t aDuration,
+                                MediaDataDecoder::DecodedData& aResults);
+   MediaResult CreateImageV4L2(int64_t aOffset, int64_t aPts, int64_t aDuration,
+                               MediaDataDecoder::DecodedData& aResults);
++  void AdjustHWDecodeLogging();
+ #endif
+ 
+ #ifdef MOZ_WAYLAND_USE_HWDECODE
+   AVBufferRef* mVAAPIDeviceContext;
+   bool mUsingV4L2;
+   bool mEnableHardwareDecoding;
+   VADisplay mDisplay;
+   UniquePtr<VideoFramePool<LIBAV_VER>> mVideoFramePool;
+
