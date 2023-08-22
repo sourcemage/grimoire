@@ -25,7 +25,7 @@ cd     buildit &&
               --enable-ld=yes               \
               --enable-gold=yes             \
               $OPTS  &&
-make tooldir=/usr DESTDIR="$INSTALL_ROOT"
+make tooldir=/usr DESTDIR="$INSTALL_ROOT" &&
 disable_fortify_source &&
 
 # Install into a staging area before messing with the installed
