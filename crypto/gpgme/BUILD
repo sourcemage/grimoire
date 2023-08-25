@@ -1,3 +1,4 @@
+OPTS+=" --disable-gpg-test" &&
 export QT6DIR=$INSTALL_ROOT/opt/qt6 &&
 GPG_LANG=no
 if [ "$GPG_LANG_CXX" = y ]; then
