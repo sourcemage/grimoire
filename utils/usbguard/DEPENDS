@@ -1,0 +1,45 @@
+. "${GRIMOIRE}/depends_one_of.function" &&
+
+if [[ "${USBGUARD_BRANCH}" == "scm" ]]; then
+  depends autoconf &&
+  depends automake &&
+  depends git
+fi &&
+
+depends DEVICE-MANAGER &&
+depends libqb &&
+depends protobuf &&
+
+depends_one_of USBGUARD_HASHING \
+               libgcrypt "--with-crypto-library=gcrypt" \
+               libsodium "--with-crypto-library=libsodium" \
+               openssl "--with-crypto-library=openssl" \
+               "hashing library" &&
+
+optional_depends asciidoc \
+                 "" \
+                 "" \
+                 "for documentation" &&
+
+optional_depends dbus \
+                 "--with-dbus" \
+                 "--without-dbus --without-polkit" \
+                 "for DBus bridge service" &&
+if is_depends_enabled "${SPELL}" "dbus"; then
+  depends polkit
+fi &&
+
+optional_depends libseccomp \
+                 "--enable-seccomp" \
+                 "--disable-seccomp" \
+                 "for system calls list support" &&
+
+optional_depends libcap-ng \
+                 "--enable-libcapng" \
+                 "--disable-libcapng" \
+                 "for dropping privileges support" &&
+
+optional_depends systemd \
+                 "--enable-systemd" \
+                 "--disable-systemd" \
+                 "for systemd unit"
