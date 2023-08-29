@@ -284,35 +284,21 @@ create_details()
         patchversion=""
         appendversion=""
         source_patch $patch
+        case "$patch" in
+          LATEST*)
+            echo "PATCH[${counter}]=\$${patch}"
+            ;;
+          *)
+            echo "PATCH[${counter}]=${patch}"
+            ;;
+        esac
+        echo -n '. ${SPELL_DIRECTORY}/info/patches/*/${PATCH['
+        echo -n $counter
+        echo ']}'
         if [[ "$source" != "" ]] # safeguard against X.Y.0 patches when no patch sources exist
         then
-          case "$patch" in
-            LATEST*)
-              echo "PATCH[${counter}]=\$${patch}"
-              ;;
-            *)
-              echo "PATCH[${counter}]=${patch}"
-              ;;
-          esac
-          echo -n '. ${SPELL_DIRECTORY}/info/patches/*/${PATCH['
-          echo -n $counter
-          echo ']}'
           echo "SOURCE${counter}=\$source"
           echo "SOURCE${counter}_URL=\$source_url"
-          echo 'TXTMESSAGE="${TXTMESSAGE}${txtmessage} "'
-          echo 'SHORT="${SHORT}${short} "'
-          if [[ "" != "$patchversion" ]]
-          then
-            basekver="$appliedkernels"
-            echo 'KERNEL_VERSION=${patchversion}'
-            patchversion=""
-            patch_det_version="true"
-          fi
-          if [[ "$appendversion" != "" ]]
-          then
-            version_append_list="${version_append_list}${patch}:${counter} "
-            patch_det_version="true"
-          fi
           if [[ "$source_gpg" != "" ]]
           then
             echo "SOURCE${counter}_GPG=\$source_gpg"
@@ -332,6 +318,20 @@ create_details()
           else
             echo "SOURCE${counter}_IGNORE=UNVERIFIED"
           fi
+        fi
+        echo 'TXTMESSAGE="${TXTMESSAGE}${txtmessage} "'
+        echo 'SHORT="${SHORT}${short} "'
+        if [[ "" != "$patchversion" ]]
+        then
+          basekver="$appliedkernels"
+          echo 'KERNEL_VERSION=${patchversion}'
+          patchversion=""
+          patch_det_version="true"
+        fi
+        if [[ "$appendversion" != "" ]]
+        then
+          version_append_list="${version_append_list}${patch}:${counter} "
+          patch_det_version="true"
         fi
         (( counter++ ))
       done
@@ -381,7 +381,6 @@ create_details()
           echo "SOURCE2_IGNORE=signature"
           ;;
         5*|6*)
-          message "${MESSAGE_COLOR}version 5 or 6 kernel${DEFAULT_COLOR}"
           . $KERNELS_DIRECTORY/${BASE_KVER}
           echo ". \${SPELL_DIRECTORY}/info/kernels/${BASE_KVER}"
           echo "SOURCE=\$source"
