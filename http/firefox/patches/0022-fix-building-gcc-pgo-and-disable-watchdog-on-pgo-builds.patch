@@ -1,31 +1,25 @@
 diff -Naur a/build/moz.configure/lto-pgo.configure b/build/moz.configure/lto-pgo.configure
---- a/build/moz.configure/lto-pgo.configure	2023-08-01 09:34:24.624120874 +0300
-+++ b/build/moz.configure/lto-pgo.configure	2023-08-01 09:42:14.109375611 +0300
-@@ -91,9 +91,9 @@
- def pgo_flags(compiler, profdata, target_is_windows, pgo_temporal):
-     if compiler.type == "gcc":
+--- a/build/moz.configure/lto-pgo.configure	2023-08-29 08:58:52.823922531 +0300
++++ b/build/moz.configure/lto-pgo.configure	2023-08-29 09:00:07.573718920 +0300
+@@ -86,7 +86,7 @@
          return namespace(
--            gen_cflags=["-fprofile-generate"],
-+		    gen_cflags=["-fprofile-generate", "-DMOZ_PROFILE_INSTRUMENTATION"],
+             gen_cflags=["-fprofile-generate"],
              gen_ldflags=["-fprofile-generate"],
 -            use_cflags=["-fprofile-use", "-fprofile-correction", "-Wcoverage-mismatch"],
-+            use_cflags=["-fprofile-use", "-fprofile-correction", "-Wno-coverage-mismatch"],
++			use_cflags=["-fprofile-use", "-fprofile-correction", "-Wno-coverage-mismatch"],
              use_ldflags=["-fprofile-use"],
          )
  
-@@ -105,7 +105,7 @@
-         else:
-             gen_ldflags = ["-fprofile-generate"]
+
+diff -r b22cb12f611c build/pgo/profileserver.py
+--- a/build/pgo/profileserver.py	Thu Oct 07 08:11:19 2021 +0000
++++ b/build/pgo/profileserver.py	Sun Oct 10 20:36:46 2021 -0700
+@@ -82,19 +82,32 @@
+         docroot=os.path.join(build.topsrcdir, "build", "pgo"),
+         path_mappings=path_mappings,
+     )
+     httpd.start(block=False)
  
--        gen_cflags = [prefix + "-fprofile-generate"]
-+        gen_cflags = [prefix + "-fprofile-generate", "-DMOZ_PROFILE_INSTRUMENTATION"]
-         if pgo_temporal:
-             gen_cflags += ["-mllvm", "-pgo-temporal-instrumentation"]
- 
-diff -Naur a/build/pgo/profileserver.py b/build/pgo/profileserver.py
---- a/build/pgo/profileserver.py	2023-08-01 09:34:24.630120978 +0300
-+++ b/build/pgo/profileserver.py	2023-08-01 09:47:01.544871568 +0300
-@@ -87,9 +87,22 @@
      locations = ServerLocations()
      locations.add_host(host="127.0.0.1", port=PORT, options="primary,privileged")
  
@@ -51,7 +45,17 @@ diff -Naur a/build/pgo/profileserver.py b/build/pgo/profileserver.py
  
      with TemporaryDirectory() as profilePath:
          # TODO: refactor this into mozprofile
-@@ -213,6 +226,10 @@
+         profile_data_dir = os.path.join(build.topsrcdir, "testing", "profiles")
+         with open(os.path.join(profile_data_dir, "profiles.json"), "r") as fh:
+             base_profiles = json.load(fh)["profileserver"]
+ 
+         prefpaths = [
+@@ -207,16 +220,20 @@
+ 
+         # Try to move the crash reports to the artifacts even if Firefox appears
+         # to exit successfully, in case there's a crash that doesn't set the
+         # return code to non-zero for some reason.
+         if get_crashreports(profilePath, name="Firefox exited successfully?") != 0:
              print("Firefox exited successfully, but produced a crashreport")
              sys.exit(1)
  
@@ -62,20 +66,33 @@ diff -Naur a/build/pgo/profileserver.py b/build/pgo/profileserver.py
          llvm_profdata = env.get("LLVM_PROFDATA")
          if llvm_profdata:
              profraw_files = glob.glob("*.profraw")
-diff -Naur a/toolkit/components/terminator/nsTerminator.cpp b/toolkit/components/terminator/nsTerminator.cpp
---- a/toolkit/components/terminator/nsTerminator.cpp	2023-08-01 09:34:19.635034175 +0300
-+++ b/toolkit/components/terminator/nsTerminator.cpp	2023-08-01 09:43:37.076062984 +0300
-@@ -460,6 +460,13 @@
+             if not profraw_files:
+                 print(
+                     "Could not find profraw files in the current directory: %s"
+                     % os.getcwd()
+                 )
+diff -r b22cb12f611c toolkit/components/terminator/nsTerminator.cpp
+--- a/toolkit/components/terminator/nsTerminator.cpp	Thu Apr 07 15:11:19 2022 +0000
++++ b/toolkit/components/terminator/nsTerminator.cpp	Thu Apr 07 20:44:28 2022 -0700
+@@ -461,16 +461,21 @@
+       // Defend against overflow
+       crashAfterMS = INT32_MAX;
+     } else {
+       crashAfterMS *= scaleUp;
+     }
    }
  #endif
  
 +  // Disable watchdog for PGO train builds - writting profile information at
 +  // exit may take time and it is better to make build hang rather than
 +  // silently produce poorly performing binary.
-+#ifdef MOZ_PROFILE_INSTRUMENTATION
 +  crashAfterMS = INT32_MAX;
-+#endif
 +
    UniquePtr<Options> options(new Options());
    // crashAfterTicks is guaranteed to be > 0 as
    // crashAfterMS >= ADDITIONAL_WAIT_BEFORE_CRASH_MS >> HEARTBEAT_INTERVAL_MS
+   options->crashAfterTicks = crashAfterMS / HEARTBEAT_INTERVAL_MS;
+ 
+   DebugOnly<PRThread*> watchdogThread =
+       CreateSystemThread(RunWatchdog, options.release());
+   MOZ_ASSERT(watchdogThread);

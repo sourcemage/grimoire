@@ -1,0 +1,451 @@
+
+# HG changeset patch
+# User stransky <stransky@redhat.com>
+# Date 1691134608 0
+# Node ID 4fb5d7fb05768e517a9de0310aad97dc60eb9142
+# Parent  a0da46a5cddd1f88b3f35948704fe311a910d44e
+Bug 1846701 [Linux] Rename MOZ_WAYLAND_USE_HWDECODE to MOZ_USE_HWDECODE as we build HW decode on X11 too r=alwu
+
+Differential Revision: https://phabricator.services.mozilla.com/D185140
+
+diff --git a/dom/media/platforms/ffmpeg/FFmpegLibs.h b/dom/media/platforms/ffmpeg/FFmpegLibs.h
+--- a/dom/media/platforms/ffmpeg/FFmpegLibs.h
++++ b/dom/media/platforms/ffmpeg/FFmpegLibs.h
+@@ -9,17 +9,17 @@
+ 
+ extern "C" {
+ #ifdef __GNUC__
+ #  pragma GCC visibility push(default)
+ #endif
+ #include "libavcodec/avcodec.h"
+ #include "libavutil/avutil.h"
+ #include "libavutil/mem.h"
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+ #  include "libavutil/hwcontext_vaapi.h"
+ #  include "libavutil/hwcontext_drm.h"
+ #endif
+ #ifdef __GNUC__
+ #  pragma GCC visibility pop
+ #endif
+ }
+ 
+diff --git a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
+--- a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
++++ b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.cpp
+@@ -14,17 +14,17 @@
+ #include "VPXDecoder.h"
+ #include "mozilla/layers/KnowsCompositor.h"
+ #if LIBAVCODEC_VERSION_MAJOR >= 57
+ #  include "mozilla/layers/TextureClient.h"
+ #endif
+ #if LIBAVCODEC_VERSION_MAJOR >= 58
+ #  include "mozilla/ProfilerMarkers.h"
+ #endif
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+ #  include "H264.h"
+ #  include "mozilla/gfx/gfxVars.h"
+ #  include "mozilla/layers/DMABUFSurfaceImage.h"
+ #  include "mozilla/widget/DMABufLibWrapper.h"
+ #  include "FFmpegVideoFramePool.h"
+ #  include "va/va.h"
+ #endif
+ 
+@@ -58,17 +58,17 @@
+ #include "prsystem.h"
+ 
+ #ifdef XP_WIN
+ #  include "mozilla/gfx/DeviceManagerDx.h"
+ #  include "mozilla/gfx/gfxVars.h"
+ #endif
+ 
+ // Forward declare from va.h
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+ typedef int VAStatus;
+ #  define VA_EXPORT_SURFACE_READ_ONLY 0x0001
+ #  define VA_EXPORT_SURFACE_SEPARATE_LAYERS 0x0004
+ #  define VA_STATUS_SUCCESS 0x00000000
+ #endif
+ // Use some extra HW frames for potential rendering lags.
+ #define EXTRA_HW_FRAMES 6
+ // Defines number of delayed frames until we switch back to SW decode.
+@@ -80,17 +80,17 @@ typedef int VAStatus;
+ 
+ #define AV_LOG_DEBUG 48
+ 
+ typedef mozilla::layers::Image Image;
+ typedef mozilla::layers::PlanarYCbCrImage PlanarYCbCrImage;
+ 
+ namespace mozilla {
+ 
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+ nsTArray<AVCodecID> FFmpegVideoDecoder<LIBAV_VER>::mAcceleratedFormats;
+ #endif
+ 
+ using media::TimeUnit;
+ 
+ /**
+  * FFmpeg calls back to this function with a list of pixel formats it supports.
+  * We choose a pixel format that we support and return it.
+@@ -141,17 +141,17 @@ static AVPixelFormat ChoosePixelFormat(A
+         break;
+     }
+   }
+ 
+   NS_WARNING("FFmpeg does not share any supported pixel formats.");
+   return AV_PIX_FMT_NONE;
+ }
+ 
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+ static AVPixelFormat ChooseVAAPIPixelFormat(AVCodecContext* aCodecContext,
+                                             const AVPixelFormat* aFormats) {
+   FFMPEG_LOG("Choosing FFmpeg pixel format for VA-API video decoding.");
+   for (; *aFormats > -1; aFormats++) {
+     switch (*aFormats) {
+       case AV_PIX_FMT_VAAPI_VLD:
+         FFMPEG_LOG("Requesting pixel format VAAPI_VLD");
+         return AV_PIX_FMT_VAAPI_VLD;
+@@ -472,17 +472,17 @@ int64_t FFmpegVideoDecoder<LIBAV_VER>::P
+ 
+ void FFmpegVideoDecoder<LIBAV_VER>::PtsCorrectionContext::Reset() {
+   mNumFaultyPts = 0;
+   mNumFaultyDts = 0;
+   mLastPts = INT64_MIN;
+   mLastDts = INT64_MIN;
+ }
+ 
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+ void FFmpegVideoDecoder<LIBAV_VER>::InitHWDecodingPrefs() {
+   if (!mEnableHardwareDecoding) {
+     FFMPEG_LOG("VAAPI is disabled by parent decoder module.");
+     return;
+   }
+ 
+   bool supported = false;
+   switch (mCodecID) {
+@@ -524,17 +524,17 @@ void FFmpegVideoDecoder<LIBAV_VER>::Init
+ #endif
+ 
+ FFmpegVideoDecoder<LIBAV_VER>::FFmpegVideoDecoder(
+     FFmpegLibWrapper* aLib, const VideoInfo& aConfig,
+     KnowsCompositor* aAllocator, ImageContainer* aImageContainer,
+     bool aLowLatency, bool aDisableHardwareDecoding,
+     Maybe<TrackingId> aTrackingId)
+     : FFmpegDataDecoder(aLib, GetCodecId(aConfig.mMimeType)),
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+       mVAAPIDeviceContext(nullptr),
+       mUsingV4L2(false),
+       mEnableHardwareDecoding(!aDisableHardwareDecoding),
+       mDisplay(nullptr),
+ #endif
+       mImageAllocator(aAllocator),
+       mImageContainer(aImageContainer),
+       mInfo(aConfig),
+@@ -547,32 +547,32 @@ FFmpegVideoDecoder<LIBAV_VER>::FFmpegVid
+       mLowLatency(aLowLatency),
+       mTrackingId(std::move(aTrackingId)) {
+   FFMPEG_LOG("FFmpegVideoDecoder::FFmpegVideoDecoder MIME %s Codec ID %d",
+              aConfig.mMimeType.get(), mCodecID);
+   // Use a new MediaByteBuffer as the object will be modified during
+   // initialization.
+   mExtraData = new MediaByteBuffer;
+   mExtraData->AppendElements(*aConfig.mExtraData);
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+   InitHWDecodingPrefs();
+ #endif
+ }
+ 
+ FFmpegVideoDecoder<LIBAV_VER>::~FFmpegVideoDecoder() {
+ #ifdef CUSTOMIZED_BUFFER_ALLOCATION
+   MOZ_DIAGNOSTIC_ASSERT(mAllocatedImages.IsEmpty(),
+                         "Should release all shmem buffers before destroy!");
+ #endif
+ }
+ 
+ RefPtr<MediaDataDecoder::InitPromise> FFmpegVideoDecoder<LIBAV_VER>::Init() {
+   MediaResult rv;
+ 
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+   if (mEnableHardwareDecoding) {
+ #  ifdef MOZ_ENABLE_VAAPI
+     rv = InitVAAPIDecoder();
+     if (NS_SUCCEEDED(rv)) {
+       return InitPromise::CreateAndResolve(TrackInfo::kVideoTrack, __func__);
+     }
+ #  endif  // MOZ_ENABLE_VAAPI
+ 
+@@ -581,17 +581,17 @@ RefPtr<MediaDataDecoder::InitPromise> FF
+     rv = InitV4L2Decoder();
+     if (NS_SUCCEEDED(rv)) {
+       return InitPromise::CreateAndResolve(TrackInfo::kVideoTrack, __func__);
+     }
+ #  endif  // MOZ_ENABLE_V4L2
+ 
+     mEnableHardwareDecoding = false;
+   }
+-#endif  // MOZ_WAYLAND_USE_HWDECODE
++#endif  // MOZ_USE_HWDECODE
+ 
+   rv = InitDecoder();
+   if (NS_SUCCEEDED(rv)) {
+     return InitPromise::CreateAndResolve(TrackInfo::kVideoTrack, __func__);
+   }
+ 
+   return InitPromise::CreateAndReject(rv, __func__);
+ }
+@@ -946,17 +946,17 @@ void FFmpegVideoDecoder<LIBAV_VER>::Init
+ nsCString FFmpegVideoDecoder<LIBAV_VER>::GetCodecName() const {
+ #if LIBAVCODEC_VERSION_MAJOR > 53
+   return nsCString(mLib->avcodec_descriptor_get(mCodecID)->name);
+ #else
+   return nsLiteralCString("FFmpegAudioDecoder");
+ #endif
+ }
+ 
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+ void FFmpegVideoDecoder<LIBAV_VER>::InitHWCodecContext(bool aUsingV4L2) {
+   mCodecContext->width = mInfo.mImage.width;
+   mCodecContext->height = mInfo.mImage.height;
+   mCodecContext->thread_count = 1;
+ 
+   if (aUsingV4L2) {
+     mCodecContext->get_format = ChooseV4L2PixelFormat;
+   } else {
+@@ -1083,17 +1083,17 @@ MediaResult FFmpegVideoDecoder<LIBAV_VER
+     *aGotFrame = false;
+   }
+   do {
+     if (!PrepareFrame()) {
+       NS_WARNING("FFmpeg decoder failed to allocate frame.");
+       return MediaResult(NS_ERROR_OUT_OF_MEMORY, __func__);
+     }
+ 
+-#  ifdef MOZ_WAYLAND_USE_HWDECODE
++#  ifdef MOZ_USE_HWDECODE
+     // Release unused VA-API surfaces before avcodec_receive_frame() as
+     // ffmpeg recycles VASurface for HW decoding.
+     if (mVideoFramePool) {
+       mVideoFramePool->ReleaseUnusedVAAPIFrames();
+     }
+ #  endif
+ 
+     res = mLib->avcodec_receive_frame(mCodecContext, mFrame);
+@@ -1112,17 +1112,17 @@ MediaResult FFmpegVideoDecoder<LIBAV_VER
+           NS_ERROR_DOM_MEDIA_DECODE_ERR,
+           RESULT_DETAIL("avcodec_receive_frame error: %s", errStr));
+     }
+ 
+     UpdateDecodeTimes(decodeStart);
+     decodeStart = TimeStamp::Now();
+ 
+     MediaResult rv;
+-#  ifdef MOZ_WAYLAND_USE_HWDECODE
++#  ifdef MOZ_USE_HWDECODE
+     if (IsHardwareAccelerated()) {
+       if (mMissedDecodeInAverangeTime > HW_DECODE_LATE_FRAMES) {
+         PROFILER_MARKER_TEXT("FFmpegVideoDecoder::DoDecode", MEDIA_PLAYBACK, {},
+                              "Fallback to SW decode");
+         FFMPEG_LOG("  HW decoding is slow, switch back to SW decode");
+         return MediaResult(
+             NS_ERROR_DOM_MEDIA_DECODE_ERR,
+             RESULT_DETAIL("HW decoding is slow, switch back to SW decode"));
+@@ -1448,17 +1448,17 @@ MediaResult FFmpegVideoDecoder<LIBAV_VER
+   if (!v) {
+     return MediaResult(NS_ERROR_OUT_OF_MEMORY,
+                        RESULT_DETAIL("image allocation error"));
+   }
+   aResults.AppendElement(std::move(v));
+   return NS_OK;
+ }
+ 
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+ bool FFmpegVideoDecoder<LIBAV_VER>::GetVAAPISurfaceDescriptor(
+     VADRMPRIMESurfaceDescriptor* aVaDesc) {
+   VASurfaceID surface_id = (VASurfaceID)(uintptr_t)mFrame->data[3];
+   VAStatus vas = mLib->vaExportSurfaceHandle(
+       mDisplay, surface_id, VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
+       VA_EXPORT_SURFACE_READ_ONLY | VA_EXPORT_SURFACE_SEPARATE_LAYERS, aVaDesc);
+   if (vas != VA_STATUS_SUCCESS) {
+     return false;
+@@ -1604,35 +1604,35 @@ AVCodecID FFmpegVideoDecoder<LIBAV_VER>:
+   }
+ #endif
+ 
+   return AV_CODEC_ID_NONE;
+ }
+ 
+ void FFmpegVideoDecoder<LIBAV_VER>::ProcessShutdown() {
+   MOZ_ASSERT(mTaskQueue->IsOnCurrentThread());
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+   mVideoFramePool = nullptr;
+   if (IsHardwareAccelerated()) {
+     mLib->av_buffer_unref(&mVAAPIDeviceContext);
+   }
+ #endif
+   FFmpegDataDecoder<LIBAV_VER>::ProcessShutdown();
+ }
+ 
+ bool FFmpegVideoDecoder<LIBAV_VER>::IsHardwareAccelerated(
+     nsACString& aFailureReason) const {
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+   return mUsingV4L2 || !!mVAAPIDeviceContext;
+ #else
+   return false;
+ #endif
+ }
+ 
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+ bool FFmpegVideoDecoder<LIBAV_VER>::IsFormatAccelerated(
+     AVCodecID aCodecID) const {
+   for (const auto& format : mAcceleratedFormats) {
+     if (format == aCodecID) {
+       return true;
+     }
+   }
+   return false;
+diff --git a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h
+--- a/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h
++++ b/dom/media/platforms/ffmpeg/FFmpegVideoDecoder.h
+@@ -12,17 +12,17 @@
+ #include "FFmpegLibWrapper.h"
+ #include "PerformanceRecorder.h"
+ #include "SimpleMap.h"
+ #include "mozilla/ScopeExit.h"
+ #include "nsTHashSet.h"
+ #if LIBAVCODEC_VERSION_MAJOR >= 57 && LIBAVUTIL_VERSION_MAJOR >= 56
+ #  include "mozilla/layers/TextureClient.h"
+ #endif
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+ #  include "FFmpegVideoFramePool.h"
+ #endif
+ 
+ struct _VADRMPRIMESurfaceDescriptor;
+ typedef struct _VADRMPRIMESurfaceDescriptor VADRMPRIMESurfaceDescriptor;
+ 
+ namespace mozilla {
+ 
+@@ -118,17 +118,17 @@ class FFmpegVideoDecoder<LIBAV_VER>
+   layers::TextureClient* AllocateTextureClientForImage(
+       struct AVCodecContext* aCodecContext, layers::PlanarYCbCrImage* aImage);
+ 
+   gfx::IntSize GetAlignmentVideoFrameSize(struct AVCodecContext* aCodecContext,
+                                           int32_t aWidth,
+                                           int32_t aHeight) const;
+ #endif
+ 
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+   void InitHWDecodingPrefs();
+   MediaResult InitVAAPIDecoder();
+   MediaResult InitV4L2Decoder();
+   bool CreateVAAPIDeviceContext();
+   void InitHWCodecContext(bool aUsingV4L2);
+   AVCodec* FindVAAPICodec();
+   bool GetVAAPISurfaceDescriptor(VADRMPRIMESurfaceDescriptor* aVaDesc);
+   void AddAcceleratedFormats(nsTArray<AVCodecID>& aCodecList,
+@@ -138,17 +138,17 @@ class FFmpegVideoDecoder<LIBAV_VER>
+ 
+   MediaResult CreateImageVAAPI(int64_t aOffset, int64_t aPts, int64_t aDuration,
+                                MediaDataDecoder::DecodedData& aResults);
+   MediaResult CreateImageV4L2(int64_t aOffset, int64_t aPts, int64_t aDuration,
+                               MediaDataDecoder::DecodedData& aResults);
+   void AdjustHWDecodeLogging();
+ #endif
+ 
+-#ifdef MOZ_WAYLAND_USE_HWDECODE
++#ifdef MOZ_USE_HWDECODE
+   AVBufferRef* mVAAPIDeviceContext;
+   bool mUsingV4L2;
+   bool mEnableHardwareDecoding;
+   VADisplay mDisplay;
+   UniquePtr<VideoFramePool<LIBAV_VER>> mVideoFramePool;
+   static nsTArray<AVCodecID> mAcceleratedFormats;
+ #endif
+   RefPtr<KnowsCompositor> mImageAllocator;
+diff --git a/dom/media/platforms/ffmpeg/ffmpeg58/moz.build b/dom/media/platforms/ffmpeg/ffmpeg58/moz.build
+--- a/dom/media/platforms/ffmpeg/ffmpeg58/moz.build
++++ b/dom/media/platforms/ffmpeg/ffmpeg58/moz.build
+@@ -27,13 +27,13 @@ if CONFIG['CC_TYPE'] == 'gcc':
+     '-Wno-attributes',
+   ]
+ if CONFIG['MOZ_WIDGET_GTK']:
+   CXXFLAGS += CONFIG['MOZ_GTK3_CFLAGS']
+ if CONFIG['MOZ_ENABLE_VAAPI'] or CONFIG['MOZ_ENABLE_V4L2']:
+   UNIFIED_SOURCES += ['../FFmpegVideoFramePool.cpp']
+   LOCAL_INCLUDES += ['/third_party/drm/drm/include/libdrm/']
+   USE_LIBS += ['mozva']
+-  DEFINES['MOZ_WAYLAND_USE_HWDECODE'] = 1
++  DEFINES['MOZ_USE_HWDECODE'] = 1
+ 
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
+ FINAL_LIBRARY = 'xul'
+diff --git a/dom/media/platforms/ffmpeg/ffmpeg59/moz.build b/dom/media/platforms/ffmpeg/ffmpeg59/moz.build
+--- a/dom/media/platforms/ffmpeg/ffmpeg59/moz.build
++++ b/dom/media/platforms/ffmpeg/ffmpeg59/moz.build
+@@ -27,13 +27,13 @@ if CONFIG["CC_TYPE"] == "gcc":
+         "-Wno-attributes",
+     ]
+ if CONFIG["MOZ_WIDGET_TOOLKIT"] == "gtk":
+     CXXFLAGS += CONFIG["MOZ_GTK3_CFLAGS"]
+ if CONFIG["MOZ_ENABLE_VAAPI"] or CONFIG["MOZ_ENABLE_V4L2"]:
+     UNIFIED_SOURCES += ["../FFmpegVideoFramePool.cpp"]
+     LOCAL_INCLUDES += ["/third_party/drm/drm/include/libdrm/"]
+     USE_LIBS += ["mozva"]
+-    DEFINES["MOZ_WAYLAND_USE_HWDECODE"] = 1
++    DEFINES["MOZ_USE_HWDECODE"] = 1
+ 
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
+ FINAL_LIBRARY = "xul"
+diff --git a/dom/media/platforms/ffmpeg/ffmpeg60/moz.build b/dom/media/platforms/ffmpeg/ffmpeg60/moz.build
+--- a/dom/media/platforms/ffmpeg/ffmpeg60/moz.build
++++ b/dom/media/platforms/ffmpeg/ffmpeg60/moz.build
+@@ -27,13 +27,13 @@ if CONFIG["CC_TYPE"] == "gcc":
+         "-Wno-attributes",
+     ]
+ if CONFIG["MOZ_WIDGET_TOOLKIT"] == "gtk":
+     CXXFLAGS += CONFIG["MOZ_GTK3_CFLAGS"]
+ if CONFIG["MOZ_ENABLE_VAAPI"] or CONFIG["MOZ_ENABLE_V4L2"]:
+     UNIFIED_SOURCES += ["../FFmpegVideoFramePool.cpp"]
+     LOCAL_INCLUDES += ["/third_party/drm/drm/include/libdrm/"]
+     USE_LIBS += ["mozva"]
+-    DEFINES["MOZ_WAYLAND_USE_HWDECODE"] = 1
++    DEFINES["MOZ_USE_HWDECODE"] = 1
+ 
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
+ FINAL_LIBRARY = "xul"
+diff --git a/dom/media/platforms/ffmpeg/ffvpx/moz.build b/dom/media/platforms/ffmpeg/ffvpx/moz.build
+--- a/dom/media/platforms/ffmpeg/ffvpx/moz.build
++++ b/dom/media/platforms/ffmpeg/ffvpx/moz.build
+@@ -38,13 +38,13 @@ DEFINES["FFVPX_VERSION"] = 46465650
+ DEFINES["USING_MOZFFVPX"] = True
+ 
+ if CONFIG["MOZ_WIDGET_TOOLKIT"] == "gtk":
+     CXXFLAGS += CONFIG["MOZ_GTK3_CFLAGS"]
+ if CONFIG["MOZ_ENABLE_VAAPI"] or CONFIG["MOZ_ENABLE_V4L2"]:
+     UNIFIED_SOURCES += ["../FFmpegVideoFramePool.cpp"]
+     LOCAL_INCLUDES += ["/third_party/drm/drm/include/libdrm/"]
+     USE_LIBS += ["mozva"]
+-    DEFINES["MOZ_WAYLAND_USE_HWDECODE"] = 1
++    DEFINES["MOZ_USE_HWDECODE"] = 1
+ 
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
+ FINAL_LIBRARY = "xul"
+
