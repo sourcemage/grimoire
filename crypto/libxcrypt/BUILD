@@ -1,7 +1,8 @@
-OPTS+=' --disable-static' &&
-OPTS+=' --enable-obsolete-api=glibc' &&
-OPTS+=' --enable-hashes=strong,glibc' &&
-OPTS+=' --disable-werror' &&
-CFLAGS+=' -Wno-error=strict-overflow' &&
-default_build
+OPTS="$BUILD_STATIC $OPTS" &&
+OPTS="$OBSOLETE_APIS $OPTS" &&
+OPTS="$OBSOLETE_STUBS $OPTS" &&
+OPTS="$HASHES $OPTS" &&
+OPTS="--disable-werror $OPTS" &&
+CFLAGS="-Wno-error=strict-overflow" &&
 
+default_build

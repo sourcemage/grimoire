@@ -1,0 +1,51 @@
+. "$GRIMOIRE/config_query_multi.function" &&
+
+config_query_option BUILD_STATIC \
+                    "Build static libraries in addition to dynamic?" \
+                    y \
+                    --enable-static \
+                    --disable-static \
+                    &&
+
+config_query_list OBSOLETE_APIS \
+                  "Which obsolete APIs to enable?" \
+                  none \
+                  alt \
+                  glibc \
+                  owl \
+                  suse \
+                  all \
+                  &&
+
+config_query_option OBSOLETE_STUBS \
+                    "Enable obsolete API stubs that return ENOSYS?" \
+                    n \
+                    --enable-obsolete-api-enosys=yes \
+                    --enable-obsolete-api-enosys=no \
+                    &&
+
+config_query_multi HASHES "Which hashes to enable?" \
+                   strong \
+                   alt \
+                   fedora \
+                   freebsd \
+                   glibc \
+                   netbsd \
+                   openbsd \
+                   osx \
+                   owl \
+                   solaris \
+                   suse \
+                   all \
+                   &&
+
+case "$OBSOLETE_APIS" in
+  none) OBSOLETE_APIS=no ;;
+  all) OBSOLETE_APIS=yes ;;
+esac &&
+
+HASHES="--enable-hashes=${HASHES// /,}" &&
+OBSOLETE_APIS="--enable-obsolete-api=$OBSOLETE_APIS" &&
+
+persistent_remove HASHES OBSOLETE_APIS &&
+persistent_add HASHES OBSOLETE_APIS
