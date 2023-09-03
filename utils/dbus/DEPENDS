@@ -1,28 +1,65 @@
-source $GRIMOIRE/MESON_DEPENDS &&
-
 depends  PKG-CONFIG &&
 
-optional_depends  libx11 \
-                  x11_autolaunch=enabled \
-                  x11_autolaunch=disabled \
-                  'X11 autolaunch support' &&
+if [[ "${DBUS_BRANCH}" == "devel" ]]; then
+  . "${GRIMOIRE}/MESON_DEPENDS" &&
 
-if is_depends_enabled dbus libx11; then
+  optional_depends  libx11 \
+                    "x11_autolaunch=enabled" \
+                    "x11_autolaunch=disabled" \
+                    "X11 autolaunch support" &&
+
+  optional_depends  systemd \
+                    "systemd=enabled systemd_system_unitdir=${INSTALL_ROOT}/etc/systemd/system systemd_user_unitdir=${INSTALL_ROOT}/etc/systemd/user" \
+                    "systemd=disabled" \
+                    "systemd support"  &&
+
+  optional_depends  doxygen \
+                    "doxygen_docs=enabled" \
+                    "doxygen_docs=disabled" \
+                    "API documentation" &&
+
+  optional_depends elogind \
+                   "elogind=enabled" \
+                   "elogind=disabled" \
+                   "for elogind support" &&
+
+  optional_depends  xmlto \
+                    "xml_docs=enabled" \
+                    "xml_docs=disabled" \
+                   "docs in XML format"
+else
+  optional_depends  libx11 \
+                    "--with-x --enable-x11-autolaunch" \
+                    "--without-x --disable-x11-autolaunch" \
+                    "X11 autolaunch support" &&
+
+  optional_depends  systemd \
+                    "--enable-systemd --with-systemdsystemunitdi=${INSTALL_ROOT}/etc/systemd/system --with-systemduserunitdir=${INSTALL_ROOT}/etc/systemd/user" \
+                    "--disable-systemd" \
+                    "systemd support"  &&
+
+  optional_depends  doxygen \
+                    "--enable-doxygen-docs" \
+                    "--disable-doxygen-docs" \
+                    "API documentation" &&
+
+  optional_depends elogind \
+                   '--enable-elogind' \
+                   '--disable-elogind' \
+                   'for elogind support' &&
+
+  optional_depends  xmlto \
+                    "--enable-xml-docs" \
+                    "--disable-xml-docs" \
+                   "docs in XML format"
+fi &&
+
+if is_depends_enabled "${SPELL}" "libx11"; then
   depends libsm  &&
   depends libice
 fi &&
 
-optional_depends  systemd \
-                  systemd=enabled \
-                  systemd=disabled \
-                  'systemd support'  &&
-
-optional_depends  doxygen \
-                  doxygen_docs=enabled \
-                  doxygen_docs=disabled \
-                  'API documentation' &&
-
-optional_depends  xmlto \
-                  xml_docs=enabled \
-                  xml_docs=disabled \
-                 'docs in XML format'
+if is_depends_enabled "${SPELL}" "elogind"; then
+  depends autoconf &&
+  depends automake
+fi
