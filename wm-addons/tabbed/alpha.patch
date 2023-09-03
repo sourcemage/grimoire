@@ -1,0 +1,28 @@
+--- alpha.diff.orig	2018-11-11 01:33:48.000000000 -0800
++++ alpha.diff	2023-09-02 22:03:54.867402531 -0700
+@@ -5,9 +5,9 @@
+ @@ -9,7 +9,7 @@ MANPREFIX = ${PREFIX}/share/man
+  
+  # includes and libs
+- INCS = -I. -I/usr/include -I/usr/include/freetype2
+--LIBS = -L/usr/lib -lc -lX11 -lfontconfig -lXft
+-+LIBS = -L/usr/lib -lc -lX11 -lfontconfig -lXft -lXrender
++ INCS = -I. -I/usr/include -I$(X11INC) -I${FREETYPEINC}
++-LIBS = -L/usr/lib -lc -L${X11LIB} -lX11 ${FREETYPELIBS}
+++LIBS = -L/usr/lib -lc -L${X11LIB} -lX11 -lXrender ${FREETYPELIBS}
+  
+  # flags
+  CPPFLAGS = -DVERSION=\"${VERSION}\" -D_DEFAULT_SOURCE
+@@ -33,9 +33,9 @@
+ -		              DefaultDepth(dpy, screen));
+ +		dc.drawable = XCreatePixmap(dpy, win, ww, wh,
+ +		              32);
+- 		if (sel > -1)
+- 			resize(sel, ww, wh - bh);
+- 		XSync(dpy, False);
++
++ 		if (!obh && (wh <= bh)) {
++ 			obh = bh;
+ @@ -399,7 +402,7 @@ drawtext(const char *text, XftColor col[ColLast])
+  			;
+  	}
