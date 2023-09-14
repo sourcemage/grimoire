@@ -1,45 +1,98 @@
 . "$GRIMOIRE"/CMAKE_DEPENDS &&
-depends LIBAVCODEC &&
-depends OPENGL &&
-depends curl &&
-depends libxcb &&
-depends qtbase &&
-depends x264 &&
-optional_depends JACK-DRIVER \
-                 '' -DDISABLE_JACK=1 \
-                 'for JACK audio support' &&
-optional_depends LIBPULSE \
-                 '' -DDISABLE_PULSEAUDIO=1 \
-                 'for PulseAudio support' &&
-optional_depends alsa-lib \
-                 '' -DDISABLE_ALSA=1 \
-                 'for ALSA audio support' &&
-optional_depends glib2 \
-		 '' '' \
-		 'for D-Bus and XDG portal support' &&
-optional_depends imagemagick \
-		 -DLIBOBS_PREFER_IMAGEMAGICK={1,0} \
-		 'prefer ImageMagick over ffmpeg for image loading' &&
-optional_depends mbedtls \
-		 -DWITH_RTMPS={1,0} \
-		 'for mbedtls support' &&
+depends LIBAVCODEC          &&
+depends OPENGL              &&
+depends curl                &&
+depends libxcb              &&
+depends x264                &&
+depends jansson             &&
+
+optional_depends qt6base                                       \
+                 '-DQT_VERSION=6'                              \
+                 '-DQT_VERSION=5'                              \
+                 'for qt6 support (uses qt5 otherwise)'        &&
+
+if ! is_depends_enabled $SPELL qt6base; then
+  depends qtbase          &&
+  depends qtsvg           &&
+  depends qtquickcontrols
+else
+  depends qt6svg       &&
+  depends libxkbcommon
+fi &&
+
+optional_depends luajit                                        \
+                 '-DENABLE_SCRIPTING_LUA=ON'                   \
+                 '-DENABLE_SCRIPTING_LUA=OFF'                  \
+                 'for lua script support'                      &&
+
+optional_depends python3                                       \
+                 '-DENABLE_SCRIPTING_PYTHON=ON'                \
+                 '-DENABLE_SCRIPTING_PYTHON=OFF'               \
+                 'for python script support'                   &&
+
+if is_depends_enabled $SPELL luajit || is_depends_enabled $SPELL python3; then
+  depends swig '-DENABLE_SCRIPTING=ON'
+fi &&
+
+optional_depends JACK-DRIVER                                   \
+                 '-DENABLE_JACK=ON'                            \
+                 '-DENABLE_JACK=OFF'                           \
+                 'for JACK audio support'                      &&
+
+optional_depends LIBPULSE                                      \
+                 '-DENABLE_PULSEAUDIO=ON'                      \
+                 '-DENABLE_PULSEAUDIO=OFF'                     \
+                 'for PulseAudio support'                      &&
+
+optional_depends alsa-lib                                      \
+                 '-DENABLE_ALSA=ON'                            \
+                 '-DENABLE_ALSA=OFF'                           \
+                 'for ALSA audio support'                      &&
+
+optional_depends pipewire                                      \
+                 '-DENABLE_PIPEWIRE=ON'                        \
+                 '-DENABLE_PIPEWIRE=OFF'                       \
+                 'for pipewire support'                        &&
+
+optional_depends glib2 '' '' 'for D-Bus & XDG portal support'  &&
+
+optional_depends mbedtls                                       \
+                 '-DENABLE_RTMPS=ON'                           \
+                 '-DENABLE_RTMPS=OFF'                          \
+                 'for mbedtls support'                         &&
+
 if is_depends_enabled "$SPELL" mbedtls; then
   depends zlib
 fi &&
-optional_depends speexdsp \
-		 '' -DDISABLE_SPEEXDSP=1 \
-		 'for SpeexDSP-based noise suppression filter' &&
-optional_depends v4l-utils \
-                 '' -DDISABLE_V4L2=1 \
-                 'for V4L device support' &&
+
+optional_depends vlc                                           \
+                 '-DENABLE_VLC=ON'                             \
+                 '-DENABLE_VLC=OFF'                            \
+                 'for VLC support'                             &&
+
+optional_depends speexdsp                                      \
+                 '-DENABLE_SPEEXDSP=ON'                        \
+                 '-DENABLE_SPEEXDSP=OFF'                       \
+                 'for SpeexDSP-based noise suppression filter' &&
+
+optional_depends v4l-utils                                     \
+                 '-DENABLE_V4L2=ON'                            \
+                 '-DENABLE_V4L2=OFF'                           \
+                 'for V4L device support'                      &&
+                
 if is_depends_enabled "$SPELL" v4l-utils; then
-  optional_depends DEVICE-MANAGER \
-		   '' -DDISABLE_UDEV=1 \
-		   'for device hotplug support in V4L plugin'
+  optional_depends DEVICE-MANAGER                             \
+                   '-DENABLE_UDEV=ON'                         \
+                   '-DENABLE_UDEV=OFF'                        \
+                   'for device hotplug support in V4L plugin'
 fi &&
-optional_depends sndio \
-                 '' -DDISABLE_SNDIO=1 \
-                 'for Sndio audio support' &&
-optional_depends wayland \
-		 -DENABLE_WAYLAND={1,0} \
-		 'for Wayland support'
+
+optional_depends sndio                                         \
+                 '-DENABLE_SNDIO=ON'                           \
+                 '-DENABLE_SNDIO=OFF'                          \
+                 'for Sndio audio support'                     &&
+
+optional_depends wayland                                       \
+                 '-DENABLE_WAYLAND=ON'                         \
+                 '-DENABLE_WAYLAND=OFF'                        \
+                 'enable wayland support'
