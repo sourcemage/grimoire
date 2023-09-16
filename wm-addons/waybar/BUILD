@@ -1,2 +1,2 @@
-OPTS+=" ${WAYBAR_OPTS}" &&
+OPTS="${WAYBAR_OPTS} $OPTS" &&
 default_build
