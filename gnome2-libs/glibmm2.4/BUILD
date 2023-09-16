@@ -1,7 +1,13 @@
 if [[ $FULLDOCS == y ]]; then
-   OPTS="$OPTS --enable-documentation"
+  OPTS="build-documentation=true $OPTS"
 else
-   OPTS="$OPTS --disable-documentation"
+  OPTS="build-documentation=false $OPTS"
+fi &&
+
+if [[ $EXAMPLES == y ]]; then
+  OPTS="build-examples=true $OPTS"
+else
+  OPTS="build-examples=false $OPTS"
 fi &&
 
 default_build
