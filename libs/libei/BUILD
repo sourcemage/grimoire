@@ -1,2 +1,2 @@
-OPTS+=" tests=false" &&
+OPTS+=" tests=disabled" &&
 default_build
