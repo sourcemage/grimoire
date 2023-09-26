@@ -1,0 +1,55 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 15fa799086..65ad0c22fd 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -5,6 +5,11 @@
+ # All rights reserved. Use of this source code is governed by a
+ # BSD-style license that can be found in the LICENSE file.
+ 
++# Propagate this policy (FindPythonInterp removal) so it can be detected later
++if(NOT CMAKE_VERSION VERSION_LESS "3.27")
++  cmake_policy(GET CMP0148 _pybind11_cmp0148)
++endif()
++
+ cmake_minimum_required(VERSION 3.5)
+ 
+ # The `cmake_minimum_required(VERSION 3.5...3.26)` syntax does not work with
+@@ -16,6 +21,11 @@ else()
+   cmake_policy(VERSION 3.26)
+ endif()
+ 
++if(_pybind11_cmp0148)
++  cmake_policy(SET CMP0148 ${_pybind11_cmp0148})
++  unset(_pybind11_cmp0148)
++endif()
++
+ # Avoid infinite recursion if tests include this as a subdirectory
+ if(DEFINED PYBIND11_MASTER_PROJECT)
+   return()
+diff --git a/tools/FindPythonLibsNew.cmake b/tools/FindPythonLibsNew.cmake
+index ce558d4ece..992f9f52a9 100644
+--- a/tools/FindPythonLibsNew.cmake
++++ b/tools/FindPythonLibsNew.cmake
+@@ -95,6 +95,22 @@ if(NOT PythonLibsNew_FIND_VERSION)
+   set(PythonLibsNew_FIND_VERSION "3.6")
+ endif()
+ 
++if(NOT CMAKE_VERSION VERSION_LESS "3.27")
++  cmake_policy(GET CMP0148 _pybind11_cmp0148)
++  if(NOT _pybind11_cmp0148)
++    message(
++      AUTHOR_WARNING
++        "Policy CMP0148 is not set: The FindPythonInterp and FindPythonLibs "
++        "modules are removed.  Run \"cmake --help-policy CMP0148\" for policy "
++        "details.  Use the cmake_policy command to set the policy and suppress "
++        "this warning, or preferably upgrade to using FindPython, either by "
++        "calling it explicitly before pybind11, or by setting "
++        "PYBIND11_FINDPYTHON ON before pybind11.")
++  endif()
++  cmake_policy(SET CMP0148 OLD)
++  unset(_pybind11_cmp0148)
++endif()
++
+ find_package(PythonInterp ${PythonLibsNew_FIND_VERSION} ${_pythonlibs_required}
+              ${_pythonlibs_quiet})
+ 
