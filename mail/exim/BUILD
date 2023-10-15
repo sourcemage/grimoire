@@ -56,6 +56,11 @@ if  list_find  "$OPTS"  '--enable-sqlite-lookup';  then
   LOOKUP_LIBS="$LOOKUP_LIBS  -lsqlite3"
 fi  &&
 
+if  list_find  "$OPTS"  '--enable-redis-lookup';  then
+  echo  "LOOKUP_REDIS=yes"                      >>  Local/Makefile  &&
+  LOOKUP_LIBS="$LOOKUP_LIBS  -lhiredis"
+fi  &&
+
 if  list_find  "$OPTS"  '--enable-postgresql-lookup';  then
   echo  "LOOKUP_PGSQL=yes"  >>  Local/Makefile  &&
   LOOKUP_LIBS="$LOOKUP_LIBS  -lpq"
