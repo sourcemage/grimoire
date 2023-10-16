@@ -2,18 +2,21 @@
 
 if spell_ok $SPELL; then
   local OLD_SPELL_VERSION="$(installed_version $SPELL)"
-  if test "${VERSION:2:1}" != "${OLD_SPELL_VERSION:2:1}"; then
+  local minor=$(echo     "$VERSION"           | cut -f 2 -d .)
+  local old_minor=$(echo "$OLD_SPELL_VERSION" | cut -f 2 -d .)
+  local old_pyver=$(echo "$OLD_SPELL_VERSION" | cut -f 1,2 -d .)
+  if test "$minor" != "$old_minor"; then
     message "This is a possibly incompatible update of python..."
     message "Figuring out what spells need to be recast, this may take a while."
 
     for each in $(show_up_depends $SPELL 1); do
       # Check in the install logs if python packages has been installed
-      if gaze install $each | grep -q "$TRACK_ROOT/usr/lib/python${OLD_SPELL_VERSION:0:3}/site-packages"; then
+      if gaze install $each | grep -q "$TRACK_ROOT/usr/lib/python$old_pyver/site-packages"; then
         up_trigger $each cast_self
       else
       # Check if the binaries link against libpython.so
         if gaze install $each | xargs readelf -d 2> /dev/null |
-          grep -q "NEEDED.*libpython${OLD_SPELL_VERSION:0:3}"; then
+          grep -q "NEEDED.*libpython$old_pyver"; then
           up_trigger $each cast_self
         fi
       fi
