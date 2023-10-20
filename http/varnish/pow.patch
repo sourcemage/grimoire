@@ -1,0 +1,34 @@
+#
+# https://github.com/varnishcache/varnish-cache/pull/4001
+#
+--- lib/libvmod_std/vmod.vcc.orig	2023-10-18 03:36:17.074890932 +0000
++++ lib/libvmod_std/vmod.vcc	2023-10-18 03:41:21.996125534 +0000
+@@ -288,6 +288,14 @@
+ Example
+ 	| set req.http.My-Env = std.getenv("MY_ENV");
+ 
++$Function REAL pow(REAL base, REAL power)
++
++Calculates the power raised to the base number.
++
++Example::
++
++	| set req.http.x-p = std.pow(2.0, 2.0);
++
+ SEE ALSO
+ ========
+ 
+--- lib/libvmod_std/vmod_std.c.orig	2023-10-18 03:36:30.204902152 +0000
++++ lib/libvmod_std/vmod_std.c	2023-10-18 03:39:36.305061205 +0000
+@@ -274,3 +274,11 @@
+ 		return (NULL);
+ 	return (getenv(name));
+ }
++
++VCL_REAL __match_proto__(td_std_pow)
++vmod_pow(VRT_CTX, VCL_REAL base, VCL_REAL power)
++{
++	CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
++
++	return (pow(base, power));
++}
