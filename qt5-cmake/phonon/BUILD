@@ -1,4 +1,6 @@
-OPTS+=" -DPHONON_INSTALL_QT_EXTENSIONS_INTO_SYSTEM_QT=1" &&
-OPTS+=" -D__KDE_HAVE_GCC_VISIBILITY=NO" &&
+if is_depends_enabled $SPELL qt6base;then
+  OPTS+=" -DPHONON_BUILD_QT5=OFF"
+else
+  OPTS+=" -DPHONON_BUILD_QT6=OFF"
+fi &&
 default_build
-
