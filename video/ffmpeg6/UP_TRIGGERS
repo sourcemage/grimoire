@@ -1,0 +1,19 @@
+# up_trigger everything on major version updates 
+local NEW_SPELL_BRANCH="" &&
+local OLD_SPELL_BRANCH="" &&
+
+if spell_ok  $SPELL; then
+  NEW_SPELL_BRANCH="$(echo $VERSION | cut -d. -f1,2)" &&  
+  OLD_SPELL_BRANCH="$(installed_version $SPELL | cut -d. -f1,2)" &&
+
+  if test "${NEW_SPELL_BRANCH}" != "${OLD_SPELL_BRANCH}"; then
+    message "This is a possibly incompatible update of ${SPELL}..."
+    message "Figuring out what spells need to be recast, this may take a while."
+    for each in $(show_up_depends $SPELL 1); do
+      if gaze install $each | xargs readelf -d 2> /dev/null |
+         grep -q "NEEDED.*lib\(\(swscale\)\|\(avcodec\)\|\(avdevice\)\|\(avfilter\)\|\(avutil\)\|\(postproc\)\|\(swresample\)\)"; then
+           up_trigger $each cast_self
+      fi
+    done
+  fi
+fi
