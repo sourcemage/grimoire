@@ -1,19 +1,19 @@
 . "$GRIMOIRE/FUNCTIONS" &&
 
 check_libcrypt () {
-	if readelf -d "$1" 2> /dev/null | grep -q "NEEDED.*libcrypt\.so\.1"; then
-	 local each="$(gaze install {} | head -q -n 1)" &&
-	 up_trigger $each cast_self
-	fi
+  local lib="$1" &&
+  if readelf -d "${lib}" 2> /dev/null | grep -q "NEEDED.*libcrypt\.so\.1"; then
+   local each="$(gaze install "${lib}" | head -q -n 1)" &&
+   up_trigger $each cast_self
+  fi
 }
 if spell_ok glibc; then
   local GLIBC_VERSION="$(installed_version glibc)" &&
   if ! is_version_less "${GLIBC_VERSION}" "2.38"; then
-
     if ! spell_ok $SPELL; then
-		while IFS= read -d '' filename; do
-		  check_libcrypt "${filename}" </dev/null
-		done < <(find /lib /iib64 /usr/lib -name *.so* -print0)
+    while IFS= read -d '' filename; do
+      check_libcrypt "${filename}" </dev/null
+    done < <(find /lib /iib64 /usr/lib -name *.so* -print0)
     fi
   fi
 fi
