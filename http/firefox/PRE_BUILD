@@ -58,4 +58,12 @@ apply_patch_dir patches &&
 
 # clearing all checksums so the patches wouldn't cause troubles
 find third_party/rust -name .cargo-checksum.json \
-  -exec sed -i -e 's/\("files":{\)[^}]*/\1/' {}  \;
+  -exec sed -i -e 's/\("files":{\)[^}]*/\1/' {}  \; &&
+
+if is_depends_enabled "${SPELL}" "six"; then
+  local PY_VER="$(installed_version python3 | cut -d . -f1,2)" &&
+  apply_patch_dir "patches-for-python-3.12" &&
+  for i in $(find -name six.py); do
+   ln -sfv "${TRACK_ROOT}/usr/lib/python${PY_VER}/site-packages/six.py" "$i"
+ done
+fi
