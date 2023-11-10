@@ -1,0 +1,23 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+unpack_file 21 &&
+mv cmake-${VERSION}.src/Modules cmake &&
+sed '/LLVM_COMMON_CMAKE_UTILS /s;\.\./;;' -i CMakeLists.txt &&
+
+if [[ "$LLVM_WITH_POLLY" == y ]]; then
+  unpack_file 11                &&
+  mv polly-${VERSION}.src tools/polly
+fi &&
+
+cd "$SOURCE_DIRECTORY" &&
+
+# small cmake related fix for libffi
+if spell_ok libffi;then
+  FFI=`pkg-config --cflags-only-I libffi` &&
+  FFI=${FFI//-I/} &&
+  FFI=${FFI//\ */} &&
+  sed -i "/FFI_I/s|\"\"|\"$FFI\"|" CMakeLists.txt
+fi  &&
+
+# do not build all backends
+sed -i "/^set.*all\"$/s/all//"  CMakeLists.txt
