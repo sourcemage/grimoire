@@ -1,4 +1,3 @@
-OPTS+=" $GLS_AMD GLS_NV" &&
-OPTS+=" -DBUILD_SHARED_LIBS=true" &&
+OPTS+=" -DENABLE_OPT=OFF" &&
 default_build
 
