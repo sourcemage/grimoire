@@ -3,9 +3,8 @@ if [[ $RESTEST == y ]]; then
 fi &&
 
 OPTS+=" -DBUILD_SHARED_LIBS=on" &&
-OPTS+=" -DOPENEXR_NAMESPACE_VERSIONING=off" &&
 OPTS+=" -DOPENEXR_INSTALL_PKG_CONFIG=on" &&
-OPTS+=" -DOPENEXR_BUILD_EXAMPLES=off" &&
 OPTS+=" -DOPENEXR_USE_CLANG_TIDY=off" &&
+OPTS+=" -DBUILD_TESTING=off" &&
 
 CXXFLAGS="${CXXFLAGS} -fpermissive" LDFLAGS="${LDFLAGS} -lpthread" default_build
