@@ -1,0 +1,315 @@
+#---------------------------------------------------------------------
+## Checks the current return code from the previous command and prints
+## an error message if that return code is an error code.
+##
+## @param error_message_to_print_if_error
+##
+## @return current_return_code (gives back the same return code the
+##           function starts with)
+#---------------------------------------------------------------------
+_buildsys_chkerr() {
+  local rc="$?"
+  [ "$rc" -eq 0 ] && return 0
+  message "${PROBLEM_COLOR}$*${DEFAULT_COLOR}"
+  return "$rc"
+}
+
+#---------------------------------------------------------------------
+## Maps build system names and aliases to unique build system names.
+## Outputs the unique name if there is a match on the input.
+##
+## @param build_system (the build system name to map from)
+#---------------------------------------------------------------------
+buildsys_mapping() {
+  local buildsys="$1"
+  case "$buildsys" in
+    autotools|configure)
+      echo autotools
+      ;;
+    cmake)
+      echo cmake
+      ;;
+    meson)
+      echo meson
+      ;;
+  esac
+}
+
+#---------------------------------------------------------------------
+## Routes requests for default option values to the matching build
+## system function, if available.
+##
+## @param active_build_system (the currently active build system)
+## @param setting_value (required, must be either enabled or disabled)
+## @param setting_name (name of the option to set)
+##
+## @return 1 on invalid parameters
+## @return 2 on unknown build system (no matching defaults)
+#---------------------------------------------------------------------
+buildsys_defaults() {
+  local buildsys="$1"
+  [ -n "$buildsys" ]
+  _buildsys_chkerr "build system not defined" || return 1
+  shift 1
+  local func="$(buildsys_mapping "$buildsys")"
+  [ -n func ]
+  _buildsys_chkerr "no matching defaults function for $buildsys" || return 2
+  func="buildsys_${func}_default"
+  local func_check="$(command -v "$func")"
+  case "$func_check" in
+    "$func") ;;
+    *) unset func ;;
+  esac
+  [ -n "$func" ]
+  _buildsys_chkerr "$buildsys defaults function not defined: $func" || return 2
+  "$func" "$@"
+}
+
+#---------------------------------------------------------------------
+## Outputs the default enabled or default disabled, depending on the
+## first parameter, for the given setting/option name.
+##
+## @param setting_value (required, must be either enabled or disabled)
+## @param setting_name (name of the option to set)
+##
+## @return 1 on invalid parameters
+#---------------------------------------------------------------------
+buildsys_autotools_default() {
+  [ "$#" -eq 2 ]
+  _buildsys_chkerr "invalid parameters" || return 1
+  local value="$1"
+  local name="$2"
+  printf '--%s-%s\n' "${value%d}" "$name"
+}
+
+#---------------------------------------------------------------------
+## Outputs the default enabled or default disabled, depending on the
+## first parameter, for the given setting/option name.
+##
+## @param setting_value (required, must be either enabled or disabled)
+## @param setting_name (name of the option to set)
+##
+## @return 1 on invalid parameters
+#---------------------------------------------------------------------
+buildsys_cmake_default() {
+  [ "$#" -eq 2 ]
+  _buildsys_chkerr "invalid parameters" || return 1
+  local value="$1"
+  local name="$2"
+  case "$value" in
+    enabled) value=ON ;;
+    disabled) value=OFF ;;
+  esac
+  printf '-D%s=%s\n' "$name" "$value"
+}
+
+#---------------------------------------------------------------------
+## Outputs the default enabled or default disabled, depending on the
+## first parameter, for the given setting/option name.
+##
+## @param setting_value (required, must be either enabled or disabled)
+## @param setting_name (name of the option to set)
+##
+## @return 1 on invalid parameters
+#---------------------------------------------------------------------
+buildsys_meson_default() {
+  [ "$#" -eq 2 ]
+  _buildsys_chkerr "invalid parameters" || return 1
+  local value="$1"
+  local name="$2"
+  printf '%s=%s\n' "$name" "$value"
+}
+
+#---------------------------------------------------------------------
+## A wrapper over the usual depends and optional_depends functions.
+## Translates dependencies in a DEPENDS file into the formats required
+## for processing by the relevant build system(s) currently enabled.
+##
+## @param dependency_type (must be one of depends or optional_depends)
+## @param -a active_build_system (optional, flag to specify the
+##             currently active build system, overrides the build
+##             system set in $SPELL_BUILD_SYSTEM)
+## @param -g grimoie (optional, flag to specify the grimoire to use)
+## @param -o global_optname (optional, flag to give the default option
+##             name to use across all build systems)
+## @param spell_name (the name of the actual dependency as a spell)
+## @param [-b] build_system (the build system to define options for,
+##               e.g. cmake, meson, autotools, etc.)
+## @param -o local_optname (optional, flag to override the
+##             global_optname)
+## @param message (message to the user explaining this option)
+## @param enabled (the option or setting for when the dependency is
+##          enabled)
+## @param disabled (the option or setting for when the dependency is
+##          disabled)
+##
+## The syntax for the parameters is as follows:
+## 
+## buildsys_depends[_optional] \
+##                             [-a active_build_system] \
+##                             [-g grimoire] \
+##                             [-o global_optname] \
+##                             spell_name \
+##                               ...
+##                               [-b] build_systemN \
+##                                 [-o local_optname] \
+##                                 message \
+##                                 [enabled] \
+##                                 [disabled]
+##                               [-b] build_systemN+1 \
+##                                 [-o local_optname] \
+##                                 message \
+##                                 [enabled] \
+##                                 [disabled] \
+##                               ...
+##
+## @return 1 on parameter error
+## @return 2 if the active build system does not have a matching build
+##           system block defined
+## @return 3 when defaults are needed but not defined for the currently
+##           active build system
+## @return return code of the wrapped depends or optional_depends
+##           function otherwise
+#---------------------------------------------------------------------
+_buildsys_transform_depends() {
+  [ "$#" -gt 0 ]
+  _buildsys_chkerr "invalid parameters" || return 1
+  local buildsys
+  local disabled
+  local enabled
+  local global_optname
+  local grimoire
+  local match
+  local next
+  local optname
+  local spell
+  local targetsys
+  depends_func="$1" &&
+  shift 1 &&
+  case "$1" in
+    -a) targetsys="$2" && shift 2 ;;
+  esac &&
+  : "${targetsys:=$(buildsys_mapping "$SPELL_BUILD_SYSTEM")}" &&
+  [ -n "$targetsys" ]
+  _buildsys_chkerr "SPELL_BUILD_SYSTEM not defined" || return 1
+  while [ "$#" -gt 0 ] ;do
+    case "$1" in
+      -g) grimoire="$2" && shift 2 ;;
+      -o) global_optname="$2" && shift 2 ;;
+      *) break ;;
+    esac
+  done &&
+  spell="$1" &&
+  shift 1 &&
+  while [ "$#" -gt 0 ] ;do
+    case "$1" in
+      -b) buildsys="$2" && shift 2 ;;
+      *) buildsys="$1" && shift 1 ;;
+    esac &&
+    match=false &&
+    case "$(buildsys_mapping "$buildsys")" in
+      "$targetsys") match=true ;;
+    esac &&
+    unset optname &&
+    for arg in msg enabled disabled ;do
+      [ "$#" -eq 0 ] && break
+      if ! "$match" ;then
+        case "$1" in
+          -b) break ;;
+        esac
+      fi &&
+      case "$1" in
+        -b)
+          if [ -n "${msg+1}" ] ;then
+            break
+          else
+            _buildsys_chkerr "invalid parameters: empty build system block"
+	    return 1
+          fi
+          ;;
+        -o)
+          optname="$2" &&
+          shift 2
+          ;;
+      esac &&
+      case "$arg" in
+        msg) msg="$1" ;;
+        enabled) enabled="$1" ;;
+        disabled) disabled="$1" ;;
+      esac &&
+      shift 1
+    done &&
+    if ! "$match" ;then
+      continue
+    fi &&
+    : "${optname=$global_optname}" &&
+    : "${optname=$spell}" &&
+    if [ -n "$optname" ] ;then
+      : "${enabled:=$(buildsys_defaults "$buildsys" enabled "$optname")}"
+      [ -n "$enabled" ]
+      _buildsys_chkerr "$enabled" || return 3
+      : "${disabled:=$(buildsys_defaults "$buildsys" disabled "$optname")}"
+      [ -n "$disabled" ]
+      _buildsys_chkerr "$disabled" || return 3
+    fi &&
+    "$match" && break
+  done &&
+  "$match"
+  _buildsys_chkerr "no matching build system found" || return 2
+  case "$depends_func" in
+    depends) unset disabled ;;
+  esac &&
+  "$depends_func" "$spell" "$enabled" ${disabled:+"$disabled"} "$msg" "$grimoire"
+}
+
+#---------------------------------------------------------------------
+## A wrapper over the _buildsys_transform_depends function.
+## Calls _buildsys_transform_depends with the dependency type set to
+## "depends". See _buildsys_optional_depends for further details of
+## the parameters.
+##
+## @param -g grimoie (optional, flag to specify the grimoire to use)
+## @param -o global_optname (optional, flag to give the default option
+##             name to use across all build systems)
+## @param spell_name (the name of the actual dependency as a spell)
+## @param [-b] build_system (the build system to define options for,
+##               e.g. cmake, meson, autotools, etc.)
+## @param -o local_optname (optional, flag to override the
+##             global_optname)
+## @param message (message to the user explaining this option)
+## @param enabled (the option or setting for when the dependency is
+##          enabled)
+## @param disabled (the option or setting for when the dependency is
+##          disabled)
+##
+## @return the return value of _buildsys_transform_depends
+#---------------------------------------------------------------------
+buildsys_depends() {
+  _buildsys_transform_depends "depends" "$@"
+}
+
+#---------------------------------------------------------------------
+## A wrapper over the _buildsys_transform_depends function.
+## Calls _buildsys_transform_depends with the dependency type set to
+## "optional_depends". See _buildsys_optional_depends for details of
+## the parameters.
+##
+## @param -g grimoie (optional, flag to specify the grimoire to use)
+## @param -o global_optname (optional, flag to give the default option
+##             name to use across all build systems)
+## @param spell_name (the name of the actual dependency as a spell)
+## @param [-b] build_system (the build system to define options for,
+##               e.g. cmake, meson, autotools, etc.)
+## @param -o local_optname (optional, flag to override the
+##             global_optname)
+## @param message (message to the user explaining this option)
+## @param enabled (the option or setting for when the dependency is
+##          enabled)
+## @param disabled (the option or setting for when the dependency is
+##          disabled)
+##
+## @return the return value of _buildsys_transform_depends
+#---------------------------------------------------------------------
+buildsys_optional_depends() {
+  _buildsys_transform_depends "optional_depends" "$@"
+}
