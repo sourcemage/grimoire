@@ -79,11 +79,6 @@ depends nodejs                                                   &&
 depends startup-notification                                     &&
 depends gconf2                                                   &&
 
-optional_depends  wireless_tools \
-                  "--enable-necko-wifi" \
-                  "--disable-necko-wifi" \
-                  "for Necko WiFi scanning" &&
-
 for b in $FIREFOX_AUDIO
 do
   case $b in
@@ -125,7 +120,16 @@ if is_depends_enabled $SPELL alsa-lib; then
   depends yasm
 fi &&
 
-depends dbus-glib "--enable-dbus" &&
+optional_depends dbus \
+                 "--enable-dbus" \
+                 "--disable-dbus --disable-necko-wifi" \
+                 "for DBus support" &&
+if is_depends_enabled "${SPELL}" "dbus" ; then
+  optional_depends wireless_tools \
+                   "--enable-necko-wifi" \
+                   "" \
+                   "for Necko WiFi scanning"
+fi &&
 
 # Firefox is currently borked and does not compile without OpenGL headers
 #optional_depends  OPENGL \
