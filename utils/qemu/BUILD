@@ -20,6 +20,7 @@ esac &&
             --localstatedir="$INSTALL_ROOT/var" \
             --target-list="${QEMU_ARCHS// /,}"  \
             --audio-drv-list="${QEMU_AUDIO// /,}" \
+            --enable-fdt="internal" \
             $QEMU_OPTS                      \
             $OPTS                           &&
 
