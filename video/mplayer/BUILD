@@ -1,6 +1,6 @@
 disable_pic                 &&
 
-OPTS="$MPLAYER_OPTS $MPLAYER_IVTV $OPTS"  &&
+OPTS="$MPLAYER_OPTS $OPTS"  &&
 
 CFLAGS= ./configure  --prefix=${INSTALL_ROOT}/usr    \
              --confdir=${TRACK_ROOT}/etc/mplayer   \
