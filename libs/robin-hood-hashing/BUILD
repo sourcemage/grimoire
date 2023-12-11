@@ -1,0 +1,3 @@
+OPTS="-DRH_STANDALONE_PROJECT=OFF ${OPTS}" &&
+
+default_build
