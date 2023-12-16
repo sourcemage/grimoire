@@ -40,6 +40,18 @@ else
    rm -f config.sh
 fi  &&
 
+if ! is_depends_enabled $SPELL libxcrypt; then
+  sed -i -e '/<<EOT >>config\.sh/,/^EOT/ {
+             s/^cryptlib=.*/cryptlib='"''"'/
+             s/^d_crypt=.*/d_crypt='"'undef'"'/
+             s/^d_crypt_r=.*/d_crypt_r='"'undef'"'/
+             s/^i_crypt=.*/i_crypt='"'undef'"'/
+             }
+             \#^\. \./UU/extract#i cryptlib='"''"'\
+             perllibs=${perllibs//-lcrypt}
+             ' Configure
+fi &&
+
 BUILD_ZLIB=False BUILD_BZIP2=0 \
 setarch ${HOST%%-*} ./Configure -Doptimize="$CFLAGS" $CONFIG_OPTS $PERL_PATHS &&
 
