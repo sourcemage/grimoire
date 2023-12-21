@@ -1,1 +1,1 @@
-qt4_build
+qt6_build
