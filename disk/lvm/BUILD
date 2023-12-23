@@ -1,3 +1,4 @@
+LDFLAGS+="-fuse-ld=bfd" &&
 ./configure --build=$BUILD                  		\
             --prefix=$INSTALL_ROOT/usr      		\
             --sbindir=$INSTALL_ROOT/sbin    		\
