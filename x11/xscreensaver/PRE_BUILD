@@ -1,12 +1,29 @@
 default_pre_build &&
 cd "$SOURCE_DIRECTORY" &&
+if [[ $XSCSV_NOTIMEBOMB == y ]]; then
+  message "${MESSAGE_COLOR}Patching out the update nag message.${DEFAULT_COLOR}" &&
+  patch -p1 <<EOT
+--- xscreensaver-6.08/driver/dialog.c.orig	2024-01-03 09:56:55.167407777 +0100
++++ xscreensaver-6.08/driver/dialog.c	2024-01-03 10:48:19.227273017 +0100
+@@ -1456,3 +1456,3 @@
+   */
+-  if (time ((time_t *) 0) - XSCREENSAVER_RELEASED > 60*60*24*30*17)
++  /* if (time ((time_t *) 0) - XSCREENSAVER_RELEASED > 60*60*24*30*17)
+     {
+@@ -1467,3 +1467,3 @@
+     }
+-  else if (strstr (ws->version, "a") || strstr (ws->version, "b"))
++  else */ if (strstr (ws->version, "a") || strstr (ws->version, "b"))
+     {
+EOT
+fi &&
 # On Source Mage, /etc/pam.d gets populated regardless of linux-pam
 # being there. Upstream likely won't be sympathetic with this, so
 # keep a local hack.
 patch -p0 <<EOT
 --- configure.orig	2023-03-07 11:48:12.299643343 +0100
 +++ configure	2023-03-07 11:49:19.190672169 +0100
-@@ -22069,7 +22069,8 @@
+@@ -22370,7 +22370,8 @@
    if test -d /etc/pam.d -o -f /etc/pam.conf ; then
      warn  "Your system seems to have PAM, but PAM is not being used."
      warn2 "That is probably not going to work out well."
