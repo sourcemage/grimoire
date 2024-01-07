@@ -1,6 +1,14 @@
 # don't make it track all info files in /usr/share/info
 #  sedit  's:${COPYDESTS} ${infodir}:${COPYDESTS}:'  Makefile.in  &&
 
+case "$HOST" in
+  (*-musl)
+    # Workaround bug in libexecinfo spell that causes temacs to crash during
+    # bootstrap. Last tested with libexecinfo 1.1.
+    OPTS+=' ac_cv_header_execinfo_h=no'
+    ;;
+esac
+
 # Fixes Bug #2938
 export  LDFLAGS="${LDFLAGS/-z combreloc/}"  &&
 
