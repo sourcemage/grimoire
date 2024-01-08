@@ -17,13 +17,17 @@ SOURCE_DIRECTORY="$BUILD_DIRECTORY/$SPELL-$XVERSION"
   SOURCE2_IGNORE=signature
   SOURCE4_IGNORE=signature
      PATCHES_URL="${GNU_URL}/${SPELL}/${SPELL}-${XVERSION}-patches"
-for ((i=5; i<=2*BASH_PATCHLEVEL + 3; i+=2)); do
-  eval "SOURCE${i}=\${SPELL}\${XVERSION//./}-\$(printf \"%03d\" \$(((i-3)/2)))
-        SOURCE${i}_URL[0]=\${PATCHES_URL}/\${SOURCE${i}}
-        SOURCE$((i+1))=\${SOURCE${i}}.sig
-        SOURCE$((i+1))_URL[0]=\${SOURCE${i}_URL[0]}.sig
-        SOURCE${i}_GPG=gnu.gpg:\${SOURCE$((i+1))}:UPSTREAM_KEY
-        SOURCE$((i+1))_IGNORE=signature"
+declare -i index=5
+declare -i sigindex=index+1
+for i in $(seq -f "%03g" $BASH_PATCHLEVEL); do
+  eval "SOURCE${index}=\${SPELL}\${XVERSION//./}-\${i}
+        SOURCE${index}_URL[0]=\${PATCHES_URL}/\${SOURCE${index}}
+        SOURCE${sigindex}=\${SOURCE${index}}.sig
+        SOURCE${sigindex}_URL[0]=\${SOURCE${index}_URL[0]}.sig
+        SOURCE${index}_GPG=gnu.gpg:\${SOURCE${sigindex}}:UPSTREAM_KEY
+        SOURCE${sigindex}_IGNORE=signature"
+  ((index+=2))
+  ((sigindex+=2))
 done
         WEB_SITE=http://cnswww.cns.cwru.edu/~chet/bash/bashtop.html
          ENTERED=20010922
