@@ -60,6 +60,7 @@ $SOURCE_DIRECTORY/configure  --host=$HOST                       \
                           --disable-multi-arch                  \
                     libc_cv_slibdir=/lib                        \
                                     $OPTS                       &&
+LDFLAGS+=" -fuse-ld=bfd" &&
 default_build_make &&
 
 # fake install
