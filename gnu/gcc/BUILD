@@ -144,8 +144,7 @@ if is_version_less $(installed_version $SPELL) 4.9.0; then
     message "${DEFAULT_COLOR}" 1>&2
     return 1
   fi
-  make CC=/opt/gcc49/bin/gcc CXX=/opt/gcc49/bin/g++ CPP=/opt/gcc49/bin/cpp \
-       CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET
+  PATH=/opt/gcc49/bin:$PATH make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET
 else
   make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $GCC_TARGET
 fi
