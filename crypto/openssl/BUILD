@@ -37,19 +37,15 @@ make build_man_docs &&
     RUN_COMPILER_DIR="${RUN_COMPILER_DIR:-/var/lib/sorcery/build}" &&
     PATH="${PATH//$RUN_COMPILER_DIR:/}"                            &&
     (
-    OPTS="--with-ssl=openssl"
-
-    delve -c start BUILD wget                 && # this links against old libraries still
+    # Build wget with just prepared openssl.
+    OPTS="--with-ssl=openssl" \
+    OPENSSL_CFLAGS="-I$SOURCE_DIRECTORY/include" \
+    OPENSSL_LIBS="-L$SOURCE_DIRECTORY $(PKG_CONFIG_LIBDIR=$SOURCE_DIRECTORY pkg-config --libs openssl)" \
+    delve -c start BUILD wget &&
     local TEMPWGET_DIR="$BUILD_DIRECTORY/wget-$(gaze version wget |
                         head -n 3 | tail -n 1 | awk '{ print $4 }')" &&
                         # $4 is grimoire version, not installed version -- internal sorcery interface, too?
-    cd "$TEMPWGET_DIR/src"                    &&
-    rm wget                                   &&
-    cp -vf $SOURCE_DIRECTORY/lib{ssl,crypto}.so* "$INSTALL_ROOT/usr/lib/" &&
-    make wget                                 && # race to get a new library wget built
-    install -m 755 wget /usr/bin/wget         && # and installed
-    cd -                                      &&
-    ldconfig
+    cp "$TEMPWGET_DIR/src/wget" "$SOURCE_DIRECTORY"
     )
-fi
+  fi
 }
