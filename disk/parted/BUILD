@@ -1,3 +1,5 @@
+export LIBS &&
+
 case "$HOST" in
 (*-musl)
   LIBS+=' -liconv'
