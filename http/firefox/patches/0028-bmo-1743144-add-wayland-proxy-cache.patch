@@ -1,6 +1,17 @@
-diff -Naur a/third_party/wayland-proxy/moz.build b/third_party/wayland-proxy/moz.build
---- a/third_party/wayland-proxy/moz.build	1970-01-01 00:00:00.000000000 -0000
-+++ b/third_party/wayland-proxy/moz.build	2024-01-09 07:37:36.629125932 -0000
+
+# HG changeset patch
+# User stransky <stransky@redhat.com>
+# Date 1704803101 0
+# Node ID 6a0659188d6c3d77231a59f836c1a42462d2725c
+# Parent  051ee8b6b5420d6e2ef877ed6ff3a70306257659
+Bug 1743144 [Wayland] Implement Wayland proxy r=emilio
+
+Differential Revision: https://phabricator.services.mozilla.com/D196554
+
+diff --git a/third_party/wayland-proxy/moz.build b/third_party/wayland-proxy/moz.build
+new file mode 100644
+--- /dev/null
++++ b/third_party/wayland-proxy/moz.build
 @@ -0,0 +1,16 @@
 +# -*- Mode: python; indent-tabs-mode: nil; tab-width: 40 -*-
 +# vim: set filetype=python:
@@ -18,10 +29,11 @@ diff -Naur a/third_party/wayland-proxy/moz.build b/third_party/wayland-proxy/moz
 +    "wayland-proxy.h",
 +]
 +FINAL_LIBRARY = "xul"
-diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-proxy/wayland-proxy.cpp
---- a/third_party/wayland-proxy/wayland-proxy.cpp	1970-01-01 00:00:00.000000000 -0000
-+++ b/third_party/wayland-proxy/wayland-proxy.cpp	2024-01-09 07:37:36.630125950 -0000
-@@ -0,0 +1,742 @@
+diff --git a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-proxy/wayland-proxy.cpp
+new file mode 100644
+--- /dev/null
++++ b/third_party/wayland-proxy/wayland-proxy.cpp
+@@ -0,0 +1,755 @@
 +/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
 + * This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -30,7 +42,7 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-p
 +// This code is based on Rust implementation at
 +// https://github.com/the8472/weyland-p5000
 +
-+// Version 1.0
++// Version 1.1
 +
 +#include <stdio.h>
 +#include <stdlib.h>
@@ -100,8 +112,8 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-p
 + public:
 +  bool Write(int aSocket);
 +
-+  bool Loaded() { return mLoaded && (mFds.size() || mData.size()); }
-+  bool Failed() { return mFailed; }
++  bool Loaded() const { return mLoaded && (mFds.size() || mData.size()); }
++  bool Failed() const { return mFailed; }
 +
 +  explicit WaylandMessage(int aSocket) { Read(aSocket); }
 +  ~WaylandMessage();
@@ -114,7 +126,7 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-p
 +  bool mFailed = false;
 +
 +  std::vector<int> mFds;
-+  std::vector<byte> mData;
++  std::vector<unsigned char> mData;
 +};
 +
 +class ProxiedConnection {
@@ -309,7 +321,7 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-p
 +  if (mCompositorSocket == -1) {
 +    Error("ProxiedConnection::Init() socket()");
 +  }
-+  return mApplicationSocket > 0 && mCompositorSocket > 0;
++  return mApplicationSocket >= 0 && mCompositorSocket >= 0;
 +}
 +
 +struct pollfd* ProxiedConnection::AddToPollFd(struct pollfd* aPfds) {
@@ -319,18 +331,19 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-p
 +
 +  // We're connected and we have data for appplication from compositor.
 +  // Add POLLOUT to request write to app socket.
-+  if (mCompositorConnected && mToApplicationQueue.size()) {
++  if (mCompositorConnected && !mToApplicationQueue.empty()) {
 +    aPfds->events |= POLLOUT;
 +  }
 +  aPfds++;
 +
 +  aPfds->fd = mCompositorSocket;
++  aPfds->events = 0;
 +  // We're waiting for connection or we have data for compositor
-+  if (!mCompositorConnected || mToCompositorQueue.size()) {
++  if (!mCompositorConnected || !mToCompositorQueue.empty()) {
 +    aPfds->events |= POLLOUT;
 +  }
 +  if (mCompositorConnected) {
-+    aPfds->events = POLLIN;
++    aPfds->events |= POLLIN;
 +  }
 +  aPfds++;
 +
@@ -427,16 +440,28 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-p
 +    int aDestSocket, int aDestPollFlags,
 +    std::vector<std::unique_ptr<WaylandMessage>>& aMessageQueue) {
 +  // Can't write to destination yet
-+  if (!(aDestPollFlags & POLLOUT)) {
++  if (!(aDestPollFlags & POLLOUT) || aMessageQueue.empty()) {
 +    return true;
 +  }
 +
-+  while (aMessageQueue.size()) {
-+    if (!aMessageQueue[0]->Write(aDestSocket)) {
-+      return !aMessageQueue[0]->Failed();
++  std::vector<std::unique_ptr<WaylandMessage>>::iterator message;
++  for (message = aMessageQueue.begin(); message != aMessageQueue.end();) {
++    if (!(*message)->Write(aDestSocket)) {
++      // Failed to write the message, remove whole connection
++      // as it's broken.
++      if ((*message)->Failed()) {
++        return false;
++      }
++      break;
 +    }
-+    aMessageQueue.erase(aMessageQueue.begin());
++    message++;
 +  }
++
++  // Remove all written messages at once.
++  if (message != aMessageQueue.begin()) {
++    aMessageQueue.erase(aMessageQueue.begin(), message);
++  }
++
 +  return true;
 +}
 +
@@ -665,7 +690,7 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-p
 +    if (!(*connection)->Process()) {
 +      Info("WaylandProxy: remove connection\n");
 +      connection = mConnections.erase(connection);
-+      if (!mConnections.size()) {
++      if (mConnections.empty()) {
 +        // We removed last connection - quit.
 +        Info("WaylandProxy: removed last connection, quit\n");
 +        return false;
@@ -686,6 +711,7 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-p
 +  Info("WaylandProxy terminated\n");
 +  if (mThreadRunning) {
 +    Info("WaylandProxy thread is still running, terminating.\n");
++    mThreadRunning = false;
 +    pthread_cancel(mThread);
 +    pthread_join(mThread, nullptr);
 +  }
@@ -701,7 +727,6 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-p
 +  pthread_setname_np(pthread_self(), "WaylandProxy");
 +#endif
 +  aProxy->Run();
-+  aProxy->mThreadRunning = false;
 +  Info("WaylandProxy thread exited\n");
 +  return nullptr;
 +}
@@ -764,10 +789,11 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.cpp b/third_party/wayland-p
 +}
 +
 +void WaylandProxy::SetVerbose(bool aVerbose) { sPrintInfo = aVerbose; }
-diff -Naur a/third_party/wayland-proxy/wayland-proxy.h b/third_party/wayland-proxy/wayland-proxy.h
---- a/third_party/wayland-proxy/wayland-proxy.h	1970-01-01 00:00:00.000000000 -0000
-+++ b/third_party/wayland-proxy/wayland-proxy.h	2024-01-09 07:37:36.630125950 -0000
-@@ -0,0 +1,55 @@
+diff --git a/third_party/wayland-proxy/wayland-proxy.h b/third_party/wayland-proxy/wayland-proxy.h
+new file mode 100644
+--- /dev/null
++++ b/third_party/wayland-proxy/wayland-proxy.h
+@@ -0,0 +1,58 @@
 +/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
 + * This Source Code Form is subject to the terms of the Mozilla Public
 + * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -782,19 +808,22 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.h b/third_party/wayland-pro
 +#include <atomic>
 +#include <memory>
 +
-+typedef unsigned char byte;
-+
 +class ProxiedConnection;
 +
 +class WaylandProxy {
 + public:
-+
 +  static std::unique_ptr<WaylandProxy> Create();
 +
++  // Launch an application with Wayland proxy set
 +  bool RunChildApplication(char* argv[]);
++
++  // Run proxy as part of already running application
++  // and set Wayland proxy display for it.
 +  bool RunThread();
 +
++  // Set original Wayland display env variable.
 +  void SetWaylandDisplay();
++
 +  static void SetVerbose(bool aVerbose);
 +
 +  ~WaylandProxy();
@@ -823,34 +852,48 @@ diff -Naur a/third_party/wayland-proxy/wayland-proxy.h b/third_party/wayland-pro
 +};
 +
 +#endif  // _wayland_proxy_h_
-diff -Naur a/toolkit/moz.configure b/toolkit/moz.configure
---- a/toolkit/moz.configure	2024-01-08 18:43:07.000000000 -0000
-+++ b/toolkit/moz.configure	2024-01-09 07:37:36.644126205 -0000
-@@ -534,6 +534,20 @@
- set_config("MOZ_WAYLAND", depends_if(wayland_headers)(lambda _: True))
- set_define("MOZ_WAYLAND", depends_if(wayland_headers)(lambda _: True))
+diff --git a/widget/gtk/moz.build b/widget/gtk/moz.build
+--- a/widget/gtk/moz.build
++++ b/widget/gtk/moz.build
+@@ -18,17 +18,17 @@ with Files("*IMContextWrapper*"):
  
-+# Wayland proxy is used as load balancer between Firefox and Wayland
-+# compositor.
-+# ==============================================================
-+option("--disable-wayland-proxy", help="Disable Wayland load balancer")
-+
-+
-+@depends("--enable-wayland-proxy", when=toolkit_gtk_wayland)
-+def wayland_proxy(value):
-+    if value:
-+        return True
-+
-+
-+set_config("MOZ_WAYLAND_PROXY", wayland_proxy)
-+set_define("MOZ_WAYLAND_PROXY", wayland_proxy)
+ with Files("*nsGtkKeyUtils*"):
+     BUG_COMPONENT = ("Core", "DOM: UI Events & Focus Handling")
  
- # Hardware-accelerated video decode with VAAPI and V4L2 on Linux
- # ==============================================================
-diff -Naur a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
---- a/toolkit/xre/nsAppRunner.cpp	2024-01-08 18:43:07.000000000 -0000
-+++ b/toolkit/xre/nsAppRunner.cpp	2024-01-09 07:37:36.637126077 -0000
-@@ -340,13 +340,24 @@
+ if CONFIG["COMPILE_ENVIRONMENT"]:
+     DIRS += ["mozgtk"]
+ 
+ if CONFIG["MOZ_WAYLAND"]:
+-    DIRS += ["wayland", "mozwayland"]
++    DIRS += ["wayland", "mozwayland", "../../third_party/wayland-proxy"]
+ 
+ if CONFIG["MOZ_ENABLE_VAAPI"]:
+     DIRS += ["vaapitest"]
+ 
+ if CONFIG["MOZ_ENABLE_V4L2"]:
+     DIRS += ["v4l2test"]
+ 
+ EXPORTS += [
+
+
+# HG changeset patch
+# User stransky <stransky@redhat.com>
+# Date 1704803102 0
+# Node ID b0d2efdcd6cc0254d9c02cf82e7fe83c09d32e89
+# Parent  6a0659188d6c3d77231a59f836c1a42462d2725c
+Bug 1743144 [Wayland] Enable Wayland proxy on start r=emilio
+
+Differential Revision: https://phabricator.services.mozilla.com/D196555
+
+diff --git a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
+--- a/toolkit/xre/nsAppRunner.cpp
++++ b/toolkit/xre/nsAppRunner.cpp
+@@ -339,23 +339,34 @@ nsString gProcessStartupShortcut;
+ 
+ #if defined(MOZ_WIDGET_GTK)
+ #  include <glib.h>
+ #  include "mozilla/WidgetUtilsGtk.h"
+ #  include <gtk/gtk.h>
  #  ifdef MOZ_WAYLAND
  #    include <gdk/gdkwayland.h>
  #    include "mozilla/widget/nsWaylandDisplay.h"
@@ -875,7 +918,17 @@ diff -Naur a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
  #ifdef FUZZING
  #  include "FuzzerRunner.h"
  
-@@ -2788,6 +2799,9 @@
+ namespace mozilla {
+ FuzzerRunner* fuzzerRunner = 0;
+ }  // namespace mozilla
+ 
+ #  ifdef LIBFUZZER
+@@ -2787,16 +2798,19 @@ static ReturnAbortOnError ProfileLockedD
+         SaveFileToEnv("XRE_PROFILE_LOCAL_PATH", aProfileLocalDir);
+ 
+ #if defined(MOZ_HAS_REMOTE)
+         if (gRemoteService) {
+           gRemoteService->UnlockStartup();
            gRemoteService = nullptr;
          }
  #endif
@@ -885,7 +938,17 @@ diff -Naur a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
          return LaunchChild(false, true);
        }
      } else {
-@@ -2902,6 +2916,9 @@
+       rv = ps->Alert(nullptr, killTitle.get(), killMessage.get());
+       NS_ENSURE_SUCCESS_LOG(rv, rv);
+     }
+ 
+     return NS_ERROR_ABORT;
+@@ -2901,16 +2915,19 @@ static ReturnAbortOnError ShowProfileMan
+     gRestartArgv[gRestartArgc] = nullptr;
+   }
+ #if defined(MOZ_HAS_REMOTE)
+   if (gRemoteService) {
+     gRemoteService->UnlockStartup();
      gRemoteService = nullptr;
    }
  #endif
@@ -895,7 +958,17 @@ diff -Naur a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
    return LaunchChild(false, true);
  }
  
-@@ -4707,6 +4724,23 @@
+ static bool gDoMigration = false;
+ static bool gDoProfileReset = false;
+ static nsCOMPtr<nsIToolkitProfile> gResetOldProfile;
+ 
+ static nsresult LockProfile(nsINativeAppSupport* aNative, nsIFile* aRootDir,
+@@ -4706,26 +4723,42 @@ int XREMain::XRE_mainStartup(bool* aExit
+     XInitThreads();
+   }
+ #endif
+ #if defined(MOZ_WIDGET_GTK)
+   if (!isBackgroundTaskMode && !gfxPlatform::IsHeadless()) {
      const char* display_name = nullptr;
      bool saveDisplayArg = false;
  
@@ -919,7 +992,9 @@ diff -Naur a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
      // display_name is owned by gdk.
      display_name = gdk_get_display_arg_name();
      // if --display argument is given make sure it's
-@@ -4716,7 +4750,6 @@
+     // also passed to ContentChild::Init() by MOZ_GDK_DISPLAY.
+     if (display_name) {
+       SaveWordToEnv("MOZ_GDK_DISPLAY", nsDependentCString(display_name));
        saveDisplayArg = true;
      }
  
@@ -927,7 +1002,17 @@ diff -Naur a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
      // On Wayland disabled builds read X11 DISPLAY env exclusively
      // and don't care about different displays.
      if (!waylandEnabled && !display_name) {
-@@ -5918,6 +5951,7 @@
+       display_name = PR_GetEnv("DISPLAY");
+       if (!display_name) {
+         PR_fprintf(PR_STDERR,
+                    "Error: no DISPLAY environment variable specified\n");
+         return 1;
+@@ -5954,16 +5987,17 @@ int XREMain::XRE_main(int argc, char* ar
+   mozilla::AppShutdown::MaybeDoRestart();
+ 
+ #ifdef MOZ_WIDGET_GTK
+   // gdk_display_close also calls gdk_display_manager_set_default_display
+   // appropriately when necessary.
    if (!gfxPlatform::IsHeadless()) {
  #  ifdef MOZ_WAYLAND
      WaylandDisplayRelease();
@@ -935,19 +1020,10 @@ diff -Naur a/toolkit/xre/nsAppRunner.cpp b/toolkit/xre/nsAppRunner.cpp
  #  endif
    }
  #endif
-diff -Naur a/widget/gtk/moz.build b/widget/gtk/moz.build
---- a/widget/gtk/moz.build	2024-01-08 18:43:07.000000000 -0000
-+++ b/widget/gtk/moz.build	2024-01-09 07:37:36.630125950 -0000
-@@ -23,7 +23,11 @@
-     DIRS += ["mozgtk"]
  
- if CONFIG["MOZ_WAYLAND"]:
--    DIRS += ["wayland", "mozwayland"]
-+    DIRS += [
-+        "wayland",
-+        "mozwayland",
-+        "../../third_party/wayland-proxy"
-+    ]
+   XRE_DeinitCommandLine();
  
- if CONFIG["MOZ_ENABLE_VAAPI"]:
-     DIRS += ["vaapitest"]
+   if (NS_FAILED(rv)) {
+     return 1;
+
+
