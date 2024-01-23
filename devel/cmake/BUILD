@@ -7,6 +7,6 @@ fi &&
            --datadir=/share/${SPELL}      \
             --docdir=/share/doc/${SPELL}  \
             --mandir=/share/man           \
-            --parallel=${MAKE_NJOBS}      \
+            --parallel=$((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS)) \
             $OPTS                         &&
 make

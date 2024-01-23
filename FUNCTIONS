@@ -671,12 +671,12 @@ function waf_build() {
     # Slip in something here. Full control ist still in waf's hands and
     # it probably will add flags as it wants:-/
     ./waf configure $waf_opts \
-      -j $MAKE_NJOBS \
+      -j $((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS)) \
       --cxxflags="$CXXFLAGS" \
       $OPTS
   else
      ./waf configure $waf_opts \
-       -j $MAKE_NJOBS \
+       -j $((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS)) \
        $OPTS
   fi &&
   ./waf build
@@ -713,7 +713,8 @@ cmake_build() {
         -DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
         -DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
          $OPTS ../  &&
-  CMAKE_BUILD_PARALLEL_LEVEL="$MAKE_NJOBS" cmake --build .
+  CMAKE_BUILD_PARALLEL_LEVEL=$((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS)) \
+  cmake --build .
 }
 
 function cmake_install() {
@@ -902,7 +903,8 @@ function default_build_configure() {
 ## Default make
 #---
 default_build_make() {
-  make -j "$MAKE_NJOBS" CC="${CC:-cc}" HOSTCC="${HOSTCC:-${CC:-cc}}"
+  ${MAKE:-make} -j $((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS)) \
+    CC="${CC:-cc}" HOSTCC="${HOSTCC:-${CC:-cc}}"
 }
 
 #---
