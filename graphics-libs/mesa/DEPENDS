@@ -14,17 +14,22 @@ depends nettle  &&
 depends zlib    &&
 
 local LLVM_SUB_DEPS &&
-if list_find "$MESA_GALLIUM" "nouveau"; then LLVM_SUB_DEPS+=" RTTI"; fi &&
+if list_find "$MESA_GALLIUM" "nouveau"; then LLVM_SUB_DEPS="RTTI ${LLVM_SUB_DEPS}"; fi &&
 
 if (list_find "${MESA_GALLIUM}" "radeonsi") ||
    (list_find "$MESA_VULKAN" amd); then
-  LLVM_SUB_DEPS+=" AMD" &&
+  LLVM_SUB_DEPS="AMD ${LLVM_SUB_DEPS}" &&
   depends LIBELF
 fi &&
 if [[ -z "${LLVM_SUB_DEPS}" ]]; then
   optional_depends llvm 'llvm=enabled' 'llvm=disabled' 'LLVM support'
 else
   depends -sub "${LLVM_SUB_DEPS# }" llvm "llvm=enabled"
+fi &&
+
+if list_find "${MESA_VULKAN}" "nouveau-experimental"; then
+  depends rust &&
+  depends rust-bindgen
 fi &&
 
 if list_find "$MESA_GLX" dri;then
@@ -52,7 +57,7 @@ fi &&
 optional_depends libvdpau 'gallium-vdpau=enabled' 'gallium-vdpau=disabled' 'gallium vdpau state tracker' &&
 optional_depends libva    'gallium-va=enabled'    'gallium-va=disabled'    'gallium va state tracker' &&
 if is_depends_enabled "${SPELL}" libva; then
-  . $GRIMOIRE/config_query_multi.function &&
+  . "${GRIMOIRE}/config_query_multi.function" &&
   config_query_multi MESA_VA_CODECS "Would you like to enable some patented codecs?" \
                                      none all vc1dec h264dec h264enc h265dec h265enc &&
   MESA_VA_CODECS="${MESA_VA_CODECS# }" &&

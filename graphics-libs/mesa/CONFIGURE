@@ -16,8 +16,8 @@ MESA_GLES1=${MESA_GLES1/false/disabled}
 MESA_GLES2=${MESA_GLES2/false/disabled}
 MESA_EGL=${MESA_EGL/drm/}
 
-. $GRIMOIRE/config_query_multi.function &&
-. $GRIMOIRE/MESON_CONFIGURE &&
+. "${GRIMOIRE}/config_query_multi.function" &&
+. "${GRIMOIRE}/MESON_CONFIGURE" &&
 
 config_query_multi MESA_EGL "window systems to support,recommend x11" x11 wayland &&
 
@@ -26,17 +26,18 @@ config_query_multi MESA_DRM "which libdrm hardware" AMD INTEL NOUVEAU RADEON &&
 local AVAILABLE_GALLIUM="svga swrast virgl zink"
 local AVAILABLE_VULKAN="swrast"
 if list_find "$MESA_DRM" AMD;then
-  AVAILABLE_VULKAN+=" amd"
+  AVAILABLE_VULKAN="amd ${AVAILABLE_VULKAN}"
 fi &&
 if list_find "$MESA_DRM" RADEON;then
-  AVAILABLE_GALLIUM+=" r300 r600 radeonsi"
+  AVAILABLE_GALLIUM="r300 r600 radeonsi ${AVAILABLE_GALLIUM}"
 fi &&
 if list_find "$MESA_DRM" INTEL;then
-  AVAILABLE_GALLIUM+=" i915 iris crocus"
-  AVAILABLE_VULKAN+=" intel"
+  AVAILABLE_GALLIUM="i915 iris crocus ${AVAILABLE_GALLIUM}" &&
+  AVAILABLE_VULKAN="intel ${AVAILABLE_VULKAN}"
 fi &&
 if list_find "$MESA_DRM" NOUVEAU;then
-  AVAILABLE_GALLIUM+=" nouveau"
+  AVAILABLE_GALLIUM="nouveau ${AVAILABLE_GALLIUM}" &&
+  AVAILABLE_VULKAN="nouveau-experimental ${AVAILABLE_VULKAN}"
 fi &&
 
 config_query_multi MESA_GLX "glx build types, recommend dri" disabled dri xlib &&
@@ -62,6 +63,10 @@ config_query_multi MESA_VULKAN \
 if list_find "$MESA_VULKAN" all; then
    MESA_VULKAN="$AVAILABLE_VULKAN"
 fi &&
+if list_find "${MESA_VULKAN}" "nouveau-experimental";then
+  message "${MESSAGE_COLOR}Nouveau Vulkan driver is still experimental, the build may fail.${DEFAULT_COLOR}"
+fi &&
+
 config_query_option MESA_GLES1 "support GLES1 - embedded systems" n gles1=enabled gles1=disabled &&
 config_query_option MESA_GLES2 "support GLES2/3 - embedded systems" n gles2=enabled gles2=disabled &&
 
@@ -77,5 +82,5 @@ config_query_multi MESA_TOOLS  "which tools to build" \
 config_query_multi MESA_OMX    "OMax support" auto disabled tizonia bellagio
 
 # strip any leading spaces from the driver lists
-MESA_GALLIUM="${MESA_GALLIUM# }"
+MESA_GALLIUM="${MESA_GALLIUM# }" &&
 MESA_VULKAN="${MESA_VULKAN# }"
