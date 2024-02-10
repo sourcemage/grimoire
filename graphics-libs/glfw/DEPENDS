@@ -1,12 +1,34 @@
-depends cmake &&
-depends libx11 &&
-depends libxinerama &&
-depends libxrandr &&
-depends libxxf86vm &&
-depends libxcursor &&
-depends OPENGL &&
+. "$GRIMOIRE/CMAKE_DEPENDS" &&
+. "$GRIMOIRE/build_system_handler.function" &&
 
-optional_depends doxygen \
-                 "-DGLFW_BUILD_DOCS=ON" \
-                 "-DGLFW_BUILD_DOCS=OFF" \
-                 "to build documentation"
+# needed to handle input
+buildsys_depends libxkbcommon &&
+
+if [ x"$GLFW_SUPPORT_X11"x = x'y'x ] ;then
+  buildsys_depends libxcb &&
+  buildsys_depends libxinerama &&
+  buildsys_depends libxrandr &&
+  buildsys_depends libxxf86vm &&
+  buildsys_depends libxcursor
+fi &&
+
+if [ x"$GLFW_SUPPORT_OSMESA"x = x'y'x ] ;then
+  buildsys_depends mesa -o GLFW_USE_OSMESA
+fi &&
+
+if [ x"$GLFW_SUPPORT_WAYLAND"x = x'y'x ] ;then
+  buildsys_depends extra-cmake-modules &&
+  buildsys_depends wayland -o GLFW_USE_WAYLAND
+fi &&
+
+if [ x"$GLFW_SUPPORT_OPENGL "x = x'y'x ] ;then
+  buildsys_depends OPENGL
+fi &&
+
+if [ x"$GLFW_SUPPORT_VULKAN "x = x'y'x ] ;then
+  buildsys_depends vulkan-headers
+fi &&
+
+buildsys_optional_depends doxygen \
+                          -o GLFW_BUILD_DOCS \
+                          "to build documentation"

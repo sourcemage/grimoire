@@ -1,6 +1,7 @@
+. "$GRIMOIRE/CMAKE_FUNCTIONS" &&
+
 OPTS="-DBUILD_SHARED_LIBS=ON \
       -DGLFW_BUILD_EXAMPLES=OFF \
-      -DGLFW_BUILD_TESTS=OFF \
       ${OPTS}" &&
 
-cmake_build
+default_build
