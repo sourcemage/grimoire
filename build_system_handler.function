@@ -79,7 +79,7 @@ buildsys_autotools_default() {
   _buildsys_chkerr "invalid parameters" || return 1
   local value="$1"
   local name="$2"
-  printf '--%s-%s\n' "${value%d}" "$name"
+  printf -- '--%s-%s\n' "${value%d}" "$name"
 }
 
 #---------------------------------------------------------------------
@@ -100,7 +100,7 @@ buildsys_cmake_default() {
     enabled) value=ON ;;
     disabled) value=OFF ;;
   esac
-  printf '-D%s=%s\n' "$name" "$value"
+  printf -- '-D%s=%s\n' "$name" "$value"
 }
 
 #---------------------------------------------------------------------
@@ -117,7 +117,7 @@ buildsys_meson_default() {
   _buildsys_chkerr "invalid parameters" || return 1
   local value="$1"
   local name="$2"
-  printf '%s=%s\n' "$name" "$value"
+  printf -- '%s=%s\n' "$name" "$value"
 }
 
 #---------------------------------------------------------------------
@@ -129,7 +129,7 @@ buildsys_meson_default() {
 ## @param -a active_build_system (optional, flag to specify the
 ##             currently active build system, overrides the build
 ##             system set in $SPELL_BUILD_SYSTEM)
-## @param -g grimoie (optional, flag to specify the grimoire to use)
+## @param -g grimoire (optional, flag to specify the grimoire to use)
 ## @param -o global_optname (optional, flag to give the default option
 ##             name to use across all build systems)
 ## @param spell_name (the name of the actual dependency as a spell)
@@ -201,10 +201,12 @@ _buildsys_transform_depends() {
   done &&
   spell="$1" &&
   shift 1 &&
+  match=true &&
   while [ "$#" -gt 0 ] ;do
+    match=false &&
+    buildsys="$targetsys"
     case "$1" in
       -b) buildsys="$2" && shift 2 ;;
-      *) buildsys="$1" && shift 1 ;;
     esac &&
     match=false &&
     case "$(buildsys_mapping "$buildsys")" in
@@ -259,6 +261,10 @@ _buildsys_transform_depends() {
   case "$depends_func" in
     depends) unset disabled ;;
   esac &&
+  if [ -n "$global_optname" ] ;then
+    # provide a last-resort fallback value for enabled settings
+    : "${enabled:=$(buildsys_defaults "$targetsys" enabled "$global_optname")}"
+  fi
   "$depends_func" "$spell" "$enabled" ${disabled:+"$disabled"} "$msg" "$grimoire"
 }
 
@@ -268,7 +274,7 @@ _buildsys_transform_depends() {
 ## "depends". See _buildsys_optional_depends for further details of
 ## the parameters.
 ##
-## @param -g grimoie (optional, flag to specify the grimoire to use)
+## @param -g grimoire (optional, flag to specify the grimoire to use)
 ## @param -o global_optname (optional, flag to give the default option
 ##             name to use across all build systems)
 ## @param spell_name (the name of the actual dependency as a spell)
@@ -294,7 +300,7 @@ buildsys_depends() {
 ## "optional_depends". See _buildsys_optional_depends for details of
 ## the parameters.
 ##
-## @param -g grimoie (optional, flag to specify the grimoire to use)
+## @param -g grimoire (optional, flag to specify the grimoire to use)
 ## @param -o global_optname (optional, flag to give the default option
 ##             name to use across all build systems)
 ## @param spell_name (the name of the actual dependency as a spell)
