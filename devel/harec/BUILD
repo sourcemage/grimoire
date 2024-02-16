@@ -1,5 +1,5 @@
-./configure --prefix="${INSTALL_ROOT}"/usr                 \
-        --sysconfdir="${INSTALL_ROOT}"/etc                 \
-            --mandir="${INSTALL_ROOT}"/usr/share/man       \
-                     $OPTS &&
+sed "
+	/^PREFIX *=/ s@=.*@= $INSTALL_ROOT/usr@
+	/^CFLAGS *=/ s/=/+=/ # honour env CFLAGS
+" configs/linux.mk > config.mk &&
 make all check
