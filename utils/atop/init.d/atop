@@ -1,0 +1,32 @@
+#!/bin/bash
+
+PROGRAM=/usr/share/atop/atop.daily
+NAME=atop
+PIDFILE=/var/run/atop.pid
+RUNLEVEL=2
+NEEDS="+local_fs"
+
+. /etc/init.d/smgl_init
+
+start() {
+  echo "Starting ${NAME}..."
+
+  TIMEOUT=3
+
+  exec /bin/sh -c "exec ${PROGRAM}" 2> /dev/null &
+  ppid=$!
+
+  sleep $TIMEOUT && ps -p $ppid > /dev/null || wait $ppid
+
+  evaluate_retval
+}
+
+stop() {
+  echo "Stopping ${NAME}..."
+
+  killproc ${NAME}
+}
+
+reload() {
+  _restart
+}
