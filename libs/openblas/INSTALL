@@ -1,0 +1,22 @@
+mkdir "${SOURCE_DIRECTORY}/tempinstall" &&
+cd "${SOURCE_DIRECTORY}" &&
+DESTDIR="${SOURCE_DIRECTORY}/tempinstall" cmake --install build &&
+DESTDIR="${SOURCE_DIRECTORY}/tempinstall" cmake --install build64 &&
+
+mkdir -p "${SOURCE_DIRECTORY}/tempinstall/usr/lib/pkgconfig" &&
+cd "${SOURCE_DIRECTORY}/tempinstall/usr/lib/" &&
+for _lib in blas cblas lapack lapacke; do
+    ln -s libopenblas.so.${VERSION%.*} lib${_lib}.so
+    ln -s libopenblas.so.${VERSION%.*} lib${_lib}.so.3
+    ln -s openblas.pc "${SOURCE_DIRECTORY}"/tempinstall/usr/lib/pkgconfig/${_lib}.pc
+done &&
+
+for _lib in blas64 cblas64 lapack64 lapacke64; do
+    ln -s libopenblas_64.so.${VERSION%.*} lib${_lib}.so
+    ln -s libopenblas_64.so.${VERSION%.*} lib${_lib}.so.3
+    ln -s openblas64.pc "${SOURCE_DIRECTORY}"/tempinstall/usr/lib/pkgconfig/${_lib}.pc
+done &&
+
+cd "${SOURCE_DIRECTORY}/tempinstall" &&
+find . | cpio --pass-through --make-directories --unconditional --verbose \
+              "${INSTALL_ROOT}/"
