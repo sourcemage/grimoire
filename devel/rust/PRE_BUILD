@@ -1,20 +1,9 @@
-. "${GRIMOIRE}/FUNCTIONS" &&
 default_pre_build    &&
 cd "$SOURCE_DIRECTORY" &&
 apply_patch_dir patches &&
 
 # Remove dependency on bash
 sedit '1s@bash$@sh@' src/tools/rust-installer/install-template.sh &&
-
-# for LLVM 18
-if spell_ok llvm && ! is_version_less "$(installed_version llvm)" "18.0.0"; then
-sed 's/f[0-9][0-9]:/i128:128-&/' \
-    -i compiler/rustc_target/src/spec/targets/i?86*.rs \
-       compiler/rustc_target/src/spec/targets/x86_64*.rs &&
-sed '/static_assert_size!\((Lit|MetaItemLit|BasicBlockData|Terminator)/d' \
-    -ri compiler/rustc_ast/src/ast.rs \
-        compiler/rustc_middle/src/mir/mod.rs
-fi &&
 
 # remove checksums to avoid failure with patched sources
 find vendor -name .cargo-checksum.json \

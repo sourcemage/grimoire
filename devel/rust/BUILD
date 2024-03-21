@@ -35,7 +35,6 @@ message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
            --enable-locked-deps \
            --enable-vendor \
            --enable-extended \
-           --enable-missing-tools \
           --disable-docs \
            --enable-llvm-link-shared \
         --llvm-root=$INSTALL_ROOT/usr \
@@ -44,14 +43,14 @@ message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
 
 # various switches to disable static build, downloading and using llvm
 # toolchain from rust CI and to set user profile
-sed -e '/^#crt-static/acrt-static = false' \
-    -e '/^#download-ci-llvm/adownload-ci-llvm = false' \
-    -e '/^#llvm-tools/allvm-tools = false' \
-    -e '/^#profile /aprofile = "user"' -i config.toml &&
+sed -e "s;profile =.*;profile = 'user';" \
+    -e '/^\[llvm\]/adownload-ci-llvm = false' \
+    -e '/^\[build\]/aoptimized-compiler-builtins = false' -i config.toml &&
 
 export CARGO_HOME="$SOURCE_DIRECTORY/cargo_home" &&
 
-python3 ./x.py build  --config="${SOURCE_DIRECTORY}/config.toml" -j"${MAKE_NJOBS:-1}" &&
+python3 ./x.py build  --config="${SOURCE_DIRECTORY}/config.toml" \
+-j $((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS)) &&
 
 # fake install
 if spell_ok "${SPELL}"; then
