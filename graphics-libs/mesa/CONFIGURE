@@ -1,20 +1,21 @@
-persistent_remove MESALIB_OPTS
-persistent_remove MESALIB_VULKAN
-persistent_remove MESALIB_BUILD
-persistent_remove MESALIB_GALLIUM
-persistent_remove MESALIB_DRIVERS
-persistent_remove MESA_OSMESA
+persistent_remove MESALIB_OPTS &&
+persistent_remove MESALIB_VULKAN &&
+persistent_remove MESALIB_BUILD &&
+persistent_remove MESALIB_GALLIUM &&
+persistent_remove MESALIB_DRIVERS &&
+persistent_remove MESA_OSMESA &&
 persistent_remove MESA_DRI &&
 persistent_remove MESA_ARCH &&
 list_remove MESA_GLX "gallium-xlib" &&
 list_remove MESA_TOOLS "xvmc" &&
 
 # adjust some flags
-MESA_GLES1=${MESA_GLES1/true/enabled}
-MESA_GLES2=${MESA_GLES2/true/enabled}
-MESA_GLES1=${MESA_GLES1/false/disabled}
-MESA_GLES2=${MESA_GLES2/false/disabled}
-MESA_EGL=${MESA_EGL/drm/}
+MESA_GLES1=${MESA_GLES1/true/enabled} &&
+MESA_GLES2=${MESA_GLES2/true/enabled} &&
+MESA_GLES1=${MESA_GLES1/false/disabled} &&
+MESA_GLES2=${MESA_GLES2/false/disabled} &&
+MESA_EGL=${MESA_EGL/drm/} &&
+MESA_VULKAN=${MESA_VULKAN/\-experimental/} &&
 
 . "${GRIMOIRE}/config_query_multi.function" &&
 . "${GRIMOIRE}/MESON_CONFIGURE" &&
@@ -23,8 +24,8 @@ config_query_multi MESA_EGL "window systems to support,recommend x11" x11 waylan
 
 config_query_multi MESA_DRM "which libdrm hardware" AMD INTEL NOUVEAU RADEON &&
 # only suggest drivers for specified hardware
-local AVAILABLE_GALLIUM="svga swrast virgl zink"
-local AVAILABLE_VULKAN="swrast"
+local AVAILABLE_GALLIUM="svga swrast virgl zink" &&
+local AVAILABLE_VULKAN="swrast" &&
 if list_find "$MESA_DRM" AMD;then
   AVAILABLE_VULKAN="amd ${AVAILABLE_VULKAN}"
 fi &&
@@ -37,7 +38,7 @@ if list_find "$MESA_DRM" INTEL;then
 fi &&
 if list_find "$MESA_DRM" NOUVEAU;then
   AVAILABLE_GALLIUM="nouveau ${AVAILABLE_GALLIUM}" &&
-  AVAILABLE_VULKAN="nouveau-experimental ${AVAILABLE_VULKAN}"
+  AVAILABLE_VULKAN="nouveau ${AVAILABLE_VULKAN}"
 fi &&
 
 config_query_multi MESA_GLX "glx build types, recommend dri" disabled dri xlib &&
@@ -63,9 +64,6 @@ config_query_multi MESA_VULKAN \
 if list_find "$MESA_VULKAN" all; then
    MESA_VULKAN="$AVAILABLE_VULKAN"
 fi &&
-if list_find "${MESA_VULKAN}" "nouveau-experimental";then
-  message "${MESSAGE_COLOR}Nouveau Vulkan driver is still experimental, the build may fail.${DEFAULT_COLOR}"
-fi &&
 
 config_query_option MESA_GLES1 "support GLES1 - embedded systems" n gles1=enabled gles1=disabled &&
 config_query_option MESA_GLES2 "support GLES2/3 - embedded systems" n gles2=enabled gles2=disabled &&
@@ -79,7 +77,7 @@ config_query_multi MESA_TOOLS  "which tools to build" \
   nir \
   nouveau &&
 
-config_query_multi MESA_OMX    "OMax support" auto disabled tizonia bellagio
+config_query_multi MESA_OMX    "OMax support" auto disabled tizonia bellagio &&
 
 # strip any leading spaces from the driver lists
 MESA_GALLIUM="${MESA_GALLIUM# }" &&
