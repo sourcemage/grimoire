@@ -1,2 +1,5 @@
 CFLAGS="${CFLAGS//-ffast-math}" &&
-cmake_build
+CFLAGS="${CFLAGS//-Ofast/-O2}" &&
+CXXFLAGS="${CXXFLAGS//-Ofast/-O2}" &&
+
+default_build
