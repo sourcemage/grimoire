@@ -1,0 +1,36 @@
+SRC=$SOURCE_DIRECTORY &&
+BLD=$SRC/gen/Release/firebird &&
+cd $BLD &&
+local DEST &&
+# config files
+DEST=$INSTALL_ROOT/etc/firebird5   &&
+
+mkdir -p $DEST &&
+# treate the security db as a config file
+install_config_file security5.fdb $DEST/security5.fdb &&
+# link to config files
+FROM=$FB_PREFIX &&
+mkdir -p $FROM &&
+TGT=$TRACK_ROOT/etc/firebird5    &&
+ln -vsf $TGT/security5.fdb  $FROM &&
+cd $SRC/builds/install/misc &&
+for FF in firebird databases plugins replication; do
+  install_config_file $FF.conf $DEST/$FF.conf &&
+  ln -vsf $TGT/$FF.conf $FROM
+done &&
+chown -Rv firebird:firebird $DEST &&
+
+cd $BLD &&
+DEST=$FB_PREFIX &&
+# install the built tree
+
+cp -dR --preserve=mode,ownership * $DEST    &&
+
+cd $SRC/gen &&
+#cp msg.fdb help.fdb $DEST &&
+
+# systemd stuff
+DEST=$INSTALL_ROOT/lib/systemd/system &&
+FF=firebird.service &&
+mkdir -p $DEST &&
+install -m644 $SPELL_DIRECTORY/$FF $DEST/$FF

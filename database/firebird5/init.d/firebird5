@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# description: Start/Stop firebird5 database server
+#
+# This file belongs in /etc/init.d where it will be run
+# on system startup and shutdown to start the background
+# Firebird5  database Super server daemon 
+
+FB_DIR=/opt/firebird5/bin
+FB=firebird
+# preferred method of stopping is to kill the process
+
+source /etc/init.d/smgl_functions
+
+PROGRAM=/bin/false
+RUNLEVEL=3
+NEEDS="+network  +remote_fs"
+
+case $1 in
+	start)
+		mkdir -p /var/run/firebird # may be a tmpfs, so create it
+		chown firebird:firebird /var/run/firebird
+		chmod o=,ug=rwx /var/run/firebird
+		echo "Starting Firebird5 Server"
+                su -s "/bin/sh" -c "$FB_DIR/$FB" -l "firebird" &
+		evaluate_retval
+		;;
+	stop)
+                echo "Stopping Firebird5 server"
+                pkill -9 $FB
+		evaluate_retval
+                ;;
+
+        restart)
+                echo "Restarting Firebird5 server"
+	        $0 stop
+        	$0 start
+		evaluate_retval
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart}"
+                exit 1
+		;;
+esac
