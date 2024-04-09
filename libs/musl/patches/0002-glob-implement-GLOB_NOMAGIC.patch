@@ -1,0 +1,53 @@
+From c3c0fc50216a7a6665092bf9eeb8a72a941ac919 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Fri, 26 Jul 2019 18:13:14 +0200
+Subject: [PATCH 2/2] glob: implement GLOB_NOMAGIC
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ include/glob.h   |  1 +
+ src/regex/glob.c | 16 +++++++++++-----
+ 2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/include/glob.h b/include/glob.h
+index fed06745354a..35a2772b1d3c 100644
+--- a/include/glob.h
++++ b/include/glob.h
+@@ -31,6 +31,7 @@ void globfree(glob_t *);
+ #define GLOB_NOESCAPE 0x40
+ #define	GLOB_PERIOD   0x80
+ 
++#define GLOB_NOMAGIC     0x0800
+ #define GLOB_TILDE       0x1000
+ #define GLOB_TILDE_CHECK 0x4000
+ 
+diff --git a/src/regex/glob.c b/src/regex/glob.c
+index 3194eea74a75..21b0f0614668 100644
+--- a/src/regex/glob.c
++++ b/src/regex/glob.c
+@@ -272,11 +272,17 @@ int glob(const char *restrict pat, int flags, int (*errfunc)(const char *path, i
+ 	
+ 	for (cnt=0, tail=head.next; tail; tail=tail->next, cnt++);
+ 	if (!cnt) {
+-		if (flags & GLOB_NOCHECK) {
+-			tail = &head;
+-			if (append(&tail, pat, strlen(pat), 0))
+-				return GLOB_NOSPACE;
+-			cnt++;
++		/* GLOB_NOMAGIC implies GLOB_NOCHECK */
++		if (flags & (GLOB_NOMAGIC | GLOB_NOCHECK)) {
++			size_t len = strcspn(pat,
++					(flags & GLOB_NOMAGIC) ? "*?[" : "");
++			if (!pat[len]) {
++				tail = &head;
++				if (append(&tail, pat, len, 0))
++					return GLOB_NOSPACE;
++				cnt++;
++			} else if (!error)
++				return GLOB_NOMATCH;
+ 		} else if (!error)
+ 			return GLOB_NOMATCH;
+ 	}
+-- 
+2.43.0
+
