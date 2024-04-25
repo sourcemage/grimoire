@@ -1,2 +1,3 @@
 OPTS+=' -DSHARED_ONLY=1' &&
+OPTS+=' -DLIBICAL_BUILD_TESTING=0' &&
 default_build
