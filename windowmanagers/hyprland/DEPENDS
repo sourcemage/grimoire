@@ -13,24 +13,19 @@ depends OPENGL                      &&
 depends seatd                       &&
 depends tomlplusplus                &&
 depends hyprcursor                  &&
-if [[ "${SYSWLROOTS}" == "y" ]]; then
-  depends -sub "SCM HYPRLAND" wlroots 'use_system_wlroots=enabled'
-else
-  depends DEVICE-MANAGER &&
-  optional_depends hwdata '' '' 'Enable DRM backend?' &&
+depends DEVICE-MANAGER &&
+optional_depends hwdata '' '' 'Enable DRM backend?' &&
+if is_depends_enabled "${SPELL}" "hwdata"; then
+  depends libdisplay-info &&
+  depends libliftoff
+fi &&
 
-  if is_depends_enabled "${SPELL}" "hwdata"; then
-    depends libdisplay-info &&
-    depends libliftoff
-  fi &&
+optional_depends libxcb '' '' 'enable X11 backend' &&
 
-  optional_depends libxcb '' '' 'enable X11 backend' &&
-
-  optional_depends vulkan-headers '' '' 'build Vulkan renderer' &&
-  if is_depends_enabled $SPELL vulkan-headers;then
-    depends vulkan-loader &&
-    depends glslang
-  fi
+optional_depends vulkan-headers '' '' 'build Vulkan renderer' &&
+if is_depends_enabled $SPELL vulkan-headers;then
+  depends vulkan-loader &&
+  depends glslang
 fi &&
 
 optional_depends xwayland                            \
@@ -40,17 +35,12 @@ optional_depends xwayland                            \
 
 if is_depends_enabled $SPELL xwayland; then
   depends libxcb &&
-
-  if [[ "${SYSWLROOTS}" == "n" ]]; then
-    depends xcb-util-renderutil &&
-    depends xcb-util-wm         &&
-
-    optional_depends xcb-util-errors '' '' 'Improved error reporting?'
-  fi
+  depends xcb-util-renderutil &&
+  depends xcb-util-wm         &&
+  optional_depends xcb-util-errors '' '' 'Improved error reporting?'
 fi &&
 
 optional_depends systemd                             \
                  'systemd=enabled'                   \
                  'systemd=disabled'                  \
                  'Enable systemd support?'
-
