@@ -66,6 +66,11 @@ if  list_find  "$OPTS"  '--enable-postgresql-lookup';  then
   LOOKUP_LIBS="$LOOKUP_LIBS  -lpq"
 fi  &&
 
+if  list_find  "$OPTS"  '--enable-json-lookup';  then
+  echo  "LOOKUP_JSON=yes"  >>  Local/Makefile  &&
+  LOOKUP_LIBS="$LOOKUP_LIBS  -ljansson"
+fi  &&
+
 if  list_find  "$OPTS"  '--enable-openldap-lookup';  then
   echo  "LOOKUP_LDAP=yes"            >>  Local/Makefile  &&
   echo  "LDAP_LIB_TYPE=OPENLDAP2"    >>  Local/Makefile  &&
@@ -99,6 +104,10 @@ fi  &&
 
 if [[ "$EXIM_CDB" == "y" ]]; then
   echo "LOOKUP_CDB=yes" >> Local/Makefile
+fi &&
+
+if [[ "$EXIM_DSEARCH" == "y" ]]; then
+  echo "LOOKUP_DSEARCH=yes" >> Local/Makefile
 fi &&
 
 if  [[  "$EXIM_MAILDIR"  ==  "y"  ]]
