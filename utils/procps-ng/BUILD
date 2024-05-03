@@ -6,4 +6,9 @@ OPTS+=' --disable-static --disable-kill --enable-sigwinch' &&
 if spell_ok "simpleinit-msb"; then
   OPTS+=" --disable-pidof"
 fi &&
-default_build
+
+if is_depends_enabled $SPELL systemd; then
+  LDFLAGS="$LDFLAGS -lsystemd" default_build
+else
+  default_build
+fi
