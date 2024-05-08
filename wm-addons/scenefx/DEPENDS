@@ -1,0 +1,47 @@
+. "${GRIMOIRE}/MESON_DEPENDS" &&
+depends PKG-CONFIG            &&
+depends wlroots               &&
+depends wayland               &&
+depends wayland-protocols     &&
+depends OPENGL                &&
+depends libdrm                &&
+depends pixman                &&
+
+if list_find "${WLROOTS_RENDERERS}" "gles2"; then
+  optional_depends -sub GLES2 mesa '' '' 'Use mesa for gles2? If no, uses nvidia' &&
+  if ! is_depends_enabled $SPELL mesa; then
+    depends NVIDIA z-rejected
+  fi
+else
+  depends OPENGL
+fi &&
+
+if list_find "${WLROOTS_RENDERERS}" "vulkan"; then
+  depends vulkan-headers &&
+  depends vulkan-loader  &&
+  depends glslang
+fi &&
+
+if list_find "${WLROOTS_BACKENDS}" "libinput"; then
+  depends libinput
+fi &&
+
+if list_find "${WLROOTS_BACKENDS}" "drm"; then
+    depends libdisplay-info &&
+    depends libliftoff
+fi &&
+
+if list_find "${WLROOTS_BACKENDS}" "x11"; then
+  depends xwayland 'xwayland=enabled' &&
+  depends libxcb                      &&
+  depends xcb-util-wm                 &&
+  depends xcb-util-renderutil         &&
+
+  optional_depends xcb-util-errors                    \
+                   'xcb-errors=enabled'               \
+                   'xcb-errors=disabled'              \
+                   'Enable improved error reporting?'
+fi &&
+
+depends seatd &&
+depends DEVICE-MANAGER
