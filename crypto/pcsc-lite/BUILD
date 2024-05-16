@@ -1,10 +1,9 @@
-if [[ $PCSC_DEVICE_ACCESS != udev ]]; then
-  OPTS="--disable-libudev $OPTS"
+LDFLAGS+=" -ldl" &&
+if  is_depends_enabled $SPELL systemd;then
+  OPTS+=' libsystemd=true'
 fi &&
-if [[ $PCSC_DEVICE_ACCESS != libusb ]]; then
-  OPTS="--disable-libusb $OPTS"
-fi &&
+for DD in $PCSC_DEVICES;do
+  OPTS+=" $DD=true"
+done &&
 
-make_single    &&
-default_build  &&
-make_normal
+default_build
