@@ -1,0 +1,3 @@
+OPTS+=" ${CM_TESTS/BUILD_TESTING/SIMDUTF_TESTS}"
+default_build
+
