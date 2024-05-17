@@ -1,34 +1,38 @@
 . "$GRIMOIRE/FUNCTIONS" &&
+. "$GRIMOIRE/VDEPENDS" &&
 
-depends SSL  &&
-depends intltool &&
-depends curl     &&
-depends libevent &&
+vdepends << "!"
+	SSL
+	curl
+	intltool
+	libdeflate		flags: -DUSE_SYSTEM_DEFLATE=ON
+	libevent >= 2.0.10	flags: -DUSE_SYSTEM_EVENT2=ON
+	libnatpmp		flags: -DUSE_SYSTEM_NATPMP=ON
+	libpsl			flags: -DUSE_SYSTEM_PSL=ON
+	miniupnpc		flags: -DUSE_SYSTEM_MINIUPNPC=ON
+!
 
-if spell_ok libevent && is_version_less $(installed_version libevent) 2.0.10; then
-  force_depends libevent
-fi &&
+optional_depends systemd \
+                 -DWITH_SYSTEMD=ON \
+                 -DWITH_SYSTEMD=OFF \
+                 "for systemd startup notification support" &&
 
-runtime_depends zlib &&
+optional_depends QT \
+                 -DENABLE_QT=ON \
+                 -DENABLE_QT=OFF \
+                 "for QT client" &&
 
 optional_depends gtk+3 \
-                 "--with-gtk" \
-                 "--without-gtk" \
+                 -DENABLE_GTK=ON \
+                 -DENABLE_GTK=OFF \
                  "for GTK+ client" &&
 
 if is_depends_enabled $SPELL gtk+3; then
-  depends GETTEXT '--enable-nls' &&
-
   optional_depends libcanberra "" "" "for sounds support" &&
   optional_depends dbus-glib "" "" "for dbus support"
-else
-  optional_depends GETTEXT \
-                   "--enable-nls" \
-                   "--disable-nls" \
-                   "for native language support"
 fi &&
 
-optional_depends libnatpmp \
-                 "--enable-external-natpmp" \
-                 "--disable-external-natpmp" \
-                 "to use system natpmp"
+optional_depends GETTEXT \
+                 -DENABLE_NLS=ON \
+                 -DENABLE_NLS=OFF \
+                 "for native language support"
