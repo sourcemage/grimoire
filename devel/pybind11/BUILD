@@ -1,2 +1,3 @@
+OPTS+=" -DPYBIND11_INSTALL=ON" &&
 OPTS+=" -DPYBIND11_TEST=OFF" &&
 default_build
