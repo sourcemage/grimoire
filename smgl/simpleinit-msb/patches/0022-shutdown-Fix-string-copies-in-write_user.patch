@@ -1,0 +1,44 @@
+From 4ffc87a2588ba553ec667f6ef4ec0a1d00bbff4e Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 8 Jun 2024 22:02:51 +0200
+Subject: [PATCH 22/23] shutdown: Fix string copies in write_user
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ login-utils/shutdown.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/login-utils/shutdown.c b/login-utils/shutdown.c
+index 23fe24fca1e2..950c14a82efd 100644
+--- a/login-utils/shutdown.c
++++ b/login-utils/shutdown.c
+@@ -581,14 +581,15 @@ write_user(struct utmp *ut)
+ {
+ 	int fd;
+ 	int minutes, hours;
+-	char term[40] = {'/','d','e','v','/',0};
++#define TERM_PREFIX "/dev/"
++	char term[40] = TERM_PREFIX;
+ 	char msg[266];
+ 
+ 	minutes = timeout / 60;
+ 	hours = minutes / 60;
+ 	minutes %= 60;
+ 	
+-	(void) strncat(term, ut->ut_line, sizeof(ut->ut_line));
++	strncat(term, ut->ut_line, sizeof(term) - sizeof(TERM_PREFIX));
+ 
+ 	/* try not to get stuck on a mangled ut_line entry... */
+ 	if((fd = open(term, O_WRONLY|O_NONBLOCK)) < 0)
+@@ -649,7 +650,7 @@ write_wtmp(void)
+ 	
+ 	memset((char *)&ut, 0, sizeof(ut));
+ 	strcpy(ut.ut_line, "~");
+-	memcpy(ut.ut_name, "shutdown", sizeof(ut.ut_name));
++	strcpy(ut.ut_name, "shutdown");
+ 
+ 	time(&ut.ut_time);
+ 	ut.ut_type = BOOT_TIME;
+-- 
+2.44.0
+
