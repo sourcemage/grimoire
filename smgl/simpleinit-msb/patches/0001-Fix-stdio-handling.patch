@@ -1,27 +1,23 @@
---- lib/pathnames.h.orig	2001-09-26 12:59:46.000000000 +0200
-+++ lib/pathnames.h	2004-02-20 14:33:35.000000000 +0100
-@@ -130,7 +130,7 @@
- #define _PATH_MTAB		"/etc/mtab"
- #define _PATH_PROC_MOUNTS	"/proc/mounts"
- #define _PATH_UMOUNT		"/bin/umount"
--#define UMOUNT_ARGS		"umount", "-a", "-t", "nodevfs,noproc"
-+#define UMOUNT_ARGS		"umount", "-a", "-t", "nodevfs,noproc,noramfs"
- #define SWAPOFF_ARGS            "swapoff", "-a"
- 
- /* used in login-utils/setpwnam.h and login-utils/islocal.c */
---- login-utils/shutdown.c.orig	2001-09-26 12:59:46.000000000 +0200
-+++ login-utils/shutdown.c	2004-02-20 15:53:27.000000000 +0100
-@@ -746,6 +746,7 @@
- 	n = 0;
- 	while (n < 100 && (mnt = getmntent(mtab))) {
- 		if (strcmp (mnt->mnt_type, "devfs") == 0) continue;
-+    if (strcmp (mnt->mnt_type, "ramfs") == 0) continue;
- 		mntlist[n++] = strdup(mnt->mnt_dir);
- 	}
- 	endmntent(mtab);
---- login-utils/simpleinit.c.orig	2004-01-11 00:24:42.000000000 +0100
-+++ login-utils/simpleinit.c	2004-02-20 14:28:31.000000000 +0100
-@@ -321,6 +321,8 @@
+From 473297022c81498ed0f4296c9bbf70addbddb335 Mon Sep 17 00:00:00 2001
+From: Unknown <root@fawkes.sourcemage.org>
+Date: Mon, 24 Apr 2006 09:03:08 -0500
+Subject: [PATCH 01/23] Fix stdio handling
+
+* Add SIGUSR handler
+* Fix SIGTERM handler
+
+[ismael@sourcemage.org: Normalised patch and added proper commit message]
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ login-utils/simpleinit.c | 36 ++++++++++++++++++++++++++++++------
+ 1 file changed, 30 insertions(+), 6 deletions(-)
+
+diff --git a/login-utils/simpleinit.c b/login-utils/simpleinit.c
+index f7031dfa2c21..4d0b4111aa4a 100644
+--- a/login-utils/simpleinit.c
++++ b/login-utils/simpleinit.c
+@@ -321,6 +321,8 @@ void sigchild_handler (int sig);
  void sigquit_handler (int sig);
  void userspace_sigquit_handler (int sig);
  void sigterm_handler (int sig);
@@ -30,16 +26,16 @@
  #ifdef SET_TZ
  void set_tz (void);
  #endif
-@@ -396,6 +398,8 @@
+@@ -396,6 +398,8 @@ int main(int argc, char *argv[])
  	sigaction (SIGCHLD, &sa, NULL);
  	sa.sa_handler = userspace_sigquit_handler;
  	sigaction (SIGQUIT, &sa, NULL);
-+  sa.sa_handler = sigusr_handler;
-+  sigaction (SIGUSR1, &sa, NULL);
++	sa.sa_handler = sigusr_handler;
++	sigaction (SIGUSR1, &sa, NULL);
  	if (userspace) fix_userspace_paths(); else
  	{
    	  sa.sa_handler = sigtstp_handler;
-@@ -440,12 +444,7 @@
+@@ -440,12 +444,7 @@ int main(int argc, char *argv[])
  			}	
  	}
  
@@ -49,11 +45,11 @@
 -			err ( _("error opening fifo\n") );
 -	}
 -	fcntl(initctl_fd,F_SETFD,FD_CLOEXEC); /*make sure no one inherits the fd*/
-+  open_initctl_fifo();
++	open_initctl_fifo();
  	
  	if (userspace){
  	  pid_t mypid=getpid();
-@@ -885,6 +884,28 @@
+@@ -885,6 +884,28 @@ void sigtstp_handler (int sig)
      if (!stopped) hup_handler (sig);
  }   /*  End Function sigtstp_handler  */
  
@@ -69,26 +65,29 @@
 +
 +void sigusr_handler (int sig)
 +{
-+    close (0);
-+    close (1);
-+    close (2);
-+	  open ("/dev/console", O_RDONLY, 0);
-+	  open ("/dev/console", O_RDWR, 0);
-+	  dup2 (1, 2);
-+    open_initctl_fifo();
-+    sig=sig;
++	close (0);
++	close (1);
++	close (2);
++	open ("/dev/console", O_RDONLY, 0);
++	open ("/dev/console", O_RDWR, 0);
++	dup2 (1, 2);
++	open_initctl_fifo();
++	sig=sig;
 +}
 +
  void sigterm_handler (int sig)
  {
      int i;
-@@ -1686,6 +1707,9 @@
+@@ -1686,6 +1707,9 @@ int run_command (const char *file, const char *name, pid_t pid, struct script_st
  	    for (i = 1; i < NSIG; i++) signal (i, SIG_DFL);
  	    sigprocmask(SIG_UNBLOCK,&all_signals,NULL);
  	    if (!userspace) {
-+        close (0);
-+        close (1);
-+        close (2);
++		close (0);
++		close (1);
++		close (2);
  	    	open ("/dev/console", O_RDONLY, 0);
  	    	open ("/dev/console", O_RDWR, 0);
  	    	dup2 (1, 2);
+-- 
+2.44.0
+

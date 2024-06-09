@@ -1,33 +1,22 @@
-From 52d2ede2771e76f186526cf67a8b1454e88cc5b8 Mon Sep 17 00:00:00 2001
+From 7a16f4ba6ef4bf1505540038e0b51120f38e5d7c Mon Sep 17 00:00:00 2001
 From: Florian Franzmann <bwlf@bandrate.org>
 Date: Fri, 4 Jun 2021 15:05:44 +0200
-Subject: [PATCH] Update bootlogd to version 2.99
+Subject: [PATCH 13/23] Update bootlogd to version 2.99
 
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
 ---
- sysvtools/bootlogd.c | 444 +++++++++++++++++++++++++++----------------
- sysvtools/bootlogd.h |  12 ++
- 2 files changed, 290 insertions(+), 166 deletions(-)
+ sysvtools/bootlogd.c | 430 +++++++++++++++++++++++++++----------------
+ sysvtools/bootlogd.h |  11 ++
+ 2 files changed, 282 insertions(+), 159 deletions(-)
  create mode 100644 sysvtools/bootlogd.h
 
 diff --git a/sysvtools/bootlogd.c b/sysvtools/bootlogd.c
-index e220349..787db87 100644
+index e220349b597d..d3ab181eefa1 100644
 --- a/sysvtools/bootlogd.c
 +++ b/sysvtools/bootlogd.c
-@@ -8,18 +8,21 @@
-  * Bugs:	Uses openpty(), only available in glibc. Sorry.
-  *
-  *		This file is part of the sysvinit suite,
-- *		Copyright 1991-2004 Miquel van Smoorenburg.
-+ *		Copyright (C) 1991-2004 Miquel van Smoorenburg.
-  *
-- *		This program is free software; you can redistribute it and/or
-- *		modify it under the terms of the GNU General Public License
-- *		as published by the Free Software Foundation; either version
-- *		2 of the License, or (at your option) any later version.
-+ *		This program is free software; you can redistribute it and/or modify
-+ *		it under the terms of the GNU General Public License as published by
-+ *		the Free Software Foundation; either version 2 of the License, or
-+ *		(at your option) any later version.
+@@ -15,11 +15,14 @@
+  *		as published by the Free Software Foundation; either version
+  *		2 of the License, or (at your option) any later version.
   *
 - *				*NOTE* *NOTE* *NOTE*
 - *			This is a PROOF OF CONCEPT IMPLEMENTATION
@@ -133,12 +122,11 @@ index e220349..787db87 100644
  	struct dirent	*ent;
  	struct stat	st;
 -	int		r = 0;
--
--	if (chdir("/dev") < 0 || (dir = opendir(".")) == NULL) {
--		perror("bootlogd: /dev");
 +	int		r = -1;
 +	char *olddir = getcwd(NULL, 0);
-+
+ 
+-	if (chdir("/dev") < 0 || (dir = opendir(".")) == NULL) {
+-		perror("bootlogd: /dev");
 +	if (chdir(startdir) < 0 || (dir = opendir(".")) == NULL) {
 +		int msglen = strlen(startdir) + 11;
 +		char *msg = malloc(msglen);
@@ -158,7 +146,7 @@ index e220349..787db87 100644
 +			snprintf(path, rlen, "%s/%s", startdir, ent->d_name);
 +			r = findtty(res, path, rlen, dev);
 +			free(path);
-+			if (0 == r) { 
++			if (0 == r) {
 +				closedir(dir);
 +				chdir(olddir);
 +				return 0;
@@ -280,9 +268,8 @@ index e220349..787db87 100644
  		close(fd);
  	}
  	if (didmount) umount("/proc");
--
+ 
 -	if (r < 0) return r;
-+                
 +	if (n < 0) return 0;
  
  	/*
@@ -312,7 +299,7 @@ index e220349..787db87 100644
 +						goto dontuse;
 +					}
 +				}
-+			
++
 +			num_consoles++;
 +			if (num_consoles >= max_consoles) {
 +				break;
@@ -333,7 +320,7 @@ index e220349..787db87 100644
  	for (n = 0; defcons[n]; n++)
 -		if (isconsole(defcons[n], res, rlen))
 -			return 0;
-+		if (isconsole(defcons[n], cons[0].name, sizeof(cons[0].name))) 
++		if (isconsole(defcons[n], cons[0].name, sizeof(cons[0].name)))
 +			return 1;
  
  	fprintf(stderr, "bootlogd: cannot deduce real console device\n");
@@ -355,15 +342,14 @@ index e220349..787db87 100644
 -	int		olen = len;
 -	int		dosync = 0;
 -	int		tlen;
--
--	while (len > 0) {
--		tmp[0] = 0;
--		if (didnl) {
 +	int dosync = 0;
 +	int i;
 +	static int first_run = 1;
 +	static int inside_esc = 0;
-+
+ 
+-	while (len > 0) {
+-		tmp[0] = 0;
+-		if (didnl) {
 +	for (i = 0; i < len; i++) {
 +		int ignore = 0;
 +
@@ -405,18 +391,7 @@ index e220349..787db87 100644
 -			default:
 -				sprintf(tmp, "\\%03o", *ptr);
 -				break;
--		}
--		ptr++;
--		len--;
- 
--		tlen = strlen(tmp);
--		if (tlen && (line.pos + tlen < sizeof(line.buf))) {
--			memcpy(line.buf + line.pos, tmp, tlen);
--			line.pos += tlen;
--		}
--		if (didnl) {
--			fprintf(fp, "%s\n", line.buf);
--			memset(&line, 0, sizeof(line));
++
 +		/* remove escape sequences, but do it in a way that allows us to stop
 +		 * in the middle in case the string was cut off */
 +                if (! print_escape_characters)
@@ -466,10 +441,21 @@ index e220349..787db87 100644
 +		if (!ignore) {
 +			fwrite(ptr, sizeof(char), 1, fp);
  		}
--	}
- 
-+		ptr++;
-+	}
++
+ 		ptr++;
+-		len--;
+-
+-		tlen = strlen(tmp);
+-		if (tlen && (line.pos + tlen < sizeof(line.buf))) {
+-			memcpy(line.buf + line.pos, tmp, tlen);
+-			line.pos += tlen;
+-		}
+-		if (didnl) {
+-			fprintf(fp, "%s\n", line.buf);
+-			memset(&line, 0, sizeof(line));
+-		}
+ 	}
+-
  	if (dosync) {
  		fflush(fp);
 -		fdatasync(fileno(fp));
@@ -579,7 +565,7 @@ index e220349..787db87 100644
 +                       strcpy(cons[considx].name, "/dev/vc/1");
 +
 +               if ((cons[considx].fd = open_nb(cons[considx].name)) < 0) {
-+                       fprintf(stderr, "bootlogd: %s: %s\n", 
++                       fprintf(stderr, "bootlogd: %s: %s\n",
 +                                cons[considx].name, strerror(errno));
 +                       consoles_left--;
 +               }
@@ -679,13 +665,13 @@ index e220349..787db87 100644
 +							cons[considx].fd,
 +							cons[considx].name, errno);
 +						if (cons[considx].fd >= 0) continue;
-+						/*	
++						/*
 +						 *	If this was the last console,
 +						 *	generate a fake signal
 +						 */
 +						if (--consoles_left <= 0) got_signal = 1;
 +						break;
-+ 					}   /* end of while */
++					}   /* end of while */
 +				}     /* end of going through all consoles */
  
  				/*
@@ -705,16 +691,17 @@ index e220349..787db87 100644
 -		if (fp == NULL && rotate && access(logfile, F_OK) == 0) {
 -			snprintf(buf, sizeof(buf), "%s~", logfile);
 -			rename(logfile, buf);
+-		}
+-		if (fp == NULL)
 +		if (fp == NULL && access(logfile, F_OK) == 0) {
 +			if (rotate) {
 +				snprintf(buf, sizeof(buf), "%s~", logfile);
 +				rename(logfile, buf);
 +			}
-+			fp = fopen(logfile, "a");
- 		}
--		if (fp == NULL)
-+		if (fp == NULL && createlogfile)
  			fp = fopen(logfile, "a");
++		}
++		if (fp == NULL && createlogfile)
++			fp = fopen(logfile, "a");
 +
  		if (inptr >= outptr)
  			todo = inptr - outptr;
@@ -741,10 +728,10 @@ index e220349..787db87 100644
  }
 diff --git a/sysvtools/bootlogd.h b/sysvtools/bootlogd.h
 new file mode 100644
-index 0000000..b47bc9d
+index 000000000000..412dc768771a
 --- /dev/null
 +++ b/sysvtools/bootlogd.h
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,11 @@
 +#ifndef LOGFILE
 +#define LOGFILE "/var/log/boot"
 +#endif
@@ -756,7 +743,6 @@ index 0000000..b47bc9d
 +#ifndef FALSE
 +#define FALSE 0
 +#endif
-+
 -- 
-2.31.1
+2.44.0
 

@@ -1,21 +1,6 @@
 default_pre_build &&
 cd "$SOURCE_DIRECTORY" &&
-
-patch -p0 < "$SPELL_DIRECTORY/simpleinit.patch" &&
-patch -p0 < "$SPELL_DIRECTORY/simpleinit-1000uid.patch" &&
-patch -p0 < "$SPELL_DIRECTORY/simpleinit-msb-crypt.patch" &&
-patch -p0 < "$SPELL_DIRECTORY/simpleinit-output-on-shutdown.patch" &&
-patch -p0 < "$SPELL_DIRECTORY/simpleinit-selinux.patch" &&
-patch -p0 < "$SPELL_DIRECTORY/simpleinit-nonls.patch" &&
-patch -p0 < "$SPELL_DIRECTORY/simpleinit-poweroff.patch" &&
-message "${MESSAGE_COLOR}Apply linux 2.6.38+ headers patch...${DEFAULT_COLOR}" &&
-message "${MESSAGE_COLOR}Applying glibc 2.28 patch...${DEFAULT_COLOR}" &&
-patch -p1 < "$SPELL_DIRECTORY"/glibc-2.28.patch &&
-patch -fp1 -i "$SPELL_DIRECTORY"/sigsetmask.patch &&
-patch -p1 < "$SPELL_DIRECTORY"/0001-Update-bootlogd-to-version-2.99.patch &&
-
-sedit '/^LDFLAGS[\t ]*=/d;/^CFLAGS[\t ]*=/s/=.*/+= -D_GNU_SOURCE/' \
-  sysvtools/Makefile &&
+apply_patch_dir patches &&
 
 if [[ $SIMPLEINIT_STATIC == y ]]; then
   sedit '/^shutdown:/a\t$(CC) -static $(LDFLAGS) -o $@ $^' login-utils/Makefile

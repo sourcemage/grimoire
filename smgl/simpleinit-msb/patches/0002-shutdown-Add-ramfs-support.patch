@@ -1,0 +1,41 @@
+From a0727a2932266ff27bdf8f487948af512a5114df Mon Sep 17 00:00:00 2001
+From: Unknown <root@fawkes.sourcemage.org>
+Date: Mon, 24 Apr 2006 09:03:08 -0500
+Subject: [PATCH 02/23] shutdown: Add ramfs support
+
+[ismael@sourcemage.org: Normalised patch and added proper commit message]
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ lib/pathnames.h        | 2 +-
+ login-utils/shutdown.c | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/lib/pathnames.h b/lib/pathnames.h
+index 58bfa59bd27e..d15d94aabf5c 100644
+--- a/lib/pathnames.h
++++ b/lib/pathnames.h
+@@ -130,7 +130,7 @@ Libc5 and glibc 2.0-2.1 have /var/spool/mail, but glibc 2.1.1 has /var/mail.
+ #define _PATH_MTAB		"/etc/mtab"
+ #define _PATH_PROC_MOUNTS	"/proc/mounts"
+ #define _PATH_UMOUNT		"/bin/umount"
+-#define UMOUNT_ARGS		"umount", "-a", "-t", "nodevfs,noproc"
++#define UMOUNT_ARGS		"umount", "-a", "-t", "nodevfs,noproc,noramfs"
+ #define SWAPOFF_ARGS            "swapoff", "-a"
+ 
+ /* used in login-utils/setpwnam.h and login-utils/islocal.c */
+diff --git a/login-utils/shutdown.c b/login-utils/shutdown.c
+index 5b68a618d76a..ba74121dc8ba 100644
+--- a/login-utils/shutdown.c
++++ b/login-utils/shutdown.c
+@@ -746,6 +746,7 @@ unmount_disks_ourselves(void)
+ 	n = 0;
+ 	while (n < 100 && (mnt = getmntent(mtab))) {
+ 		if (strcmp (mnt->mnt_type, "devfs") == 0) continue;
++		if (strcmp (mnt->mnt_type, "ramfs") == 0) continue;
+ 		mntlist[n++] = strdup(mnt->mnt_dir);
+ 	}
+ 	endmntent(mtab);
+-- 
+2.44.0
+

@@ -1,5 +1,21 @@
---- login-utils/simpleinit.c	2007-09-14 23:44:34.726342737 +0000
-+++ login-utils/simpleinit.c	2007-09-14 23:44:18.000000000 +0000
+From 288548ae97605008c053c5aff3a607714942353b Mon Sep 17 00:00:00 2001
+From: David Michael Leo Brown Jr <dmlb2000@gmail.com>
+Date: Sat, 15 Sep 2007 00:23:25 +0000
+Subject: [PATCH 05/23] simpleinit: Add SELinux support
+
+Load policy if enabled.
+
+[ismael@sourcemage.org: Normalised commit message]
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ login-utils/simpleinit.c | 72 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 71 insertions(+), 1 deletion(-)
+
+diff --git a/login-utils/simpleinit.c b/login-utils/simpleinit.c
+index 34a31d4a420c..4a7be83973f3 100644
+--- a/login-utils/simpleinit.c
++++ b/login-utils/simpleinit.c
 @@ -218,6 +218,8 @@
  #include <sys/ioctl.h>
  #include <dirent.h>
@@ -9,7 +25,7 @@
  #include <utmp.h>
  #include <sched.h>
  #include <time.h>
-@@ -271,6 +273,7 @@
+@@ -271,6 +273,7 @@ struct initline {
  struct initline inittab[NUMCMD];
  int numcmd;
  int stopped = 0;	/* are we stopped */
@@ -17,7 +33,7 @@
  static char boot_prog[PATH_SIZE] = _PATH_RC;
  static char init_root[PATH_SIZE] = "\0";
  static char script_prefix[PATH_SIZE] = "\0";
-@@ -332,6 +335,8 @@
+@@ -332,6 +335,8 @@ void utmp_init_process(int id);
  pid_t mywait (int *status);
  int run_command (const char *file, const char *name, pid_t pid,struct script_struct* waiting_script);
  void ystrncat(char* dest,const char* src,ssize_t n);
@@ -26,10 +42,10 @@
  
  /* like strcat, but dest will never contain more than n characters after
  the call (i.e. a 0-terminator will be found among the first n characters,
-@@ -441,7 +446,14 @@
+@@ -445,7 +450,14 @@ int main(int argc, char *argv[])
  	}
  
-   open_initctl_fifo();
+ 	open_initctl_fifo();
 -	
 +
 +	if (!no_selinux) {
@@ -42,7 +58,7 @@
  	if (userspace){
  	  pid_t mypid=getpid();
  	  int fd;
-@@ -538,6 +550,64 @@
+@@ -542,6 +554,64 @@ int main(int argc, char *argv[])
  
  #define MAXTRIES 3 /* number of tries allowed when giving the password */
  
@@ -70,7 +86,7 @@
 +		err( _(txt));
 +		return ret;
 +	}
-+	
++
 +	fd = open("/etc/selinux/policy.bin", O_RDONLY);
 +	if (fd < 0) {
 +		char txt[256];
@@ -78,7 +94,7 @@
 +		err( _(txt));
 +		return -1;
 +	}
-+	
++
 +	ret = fstat(fd, &sb);
 +	if (ret < 0) {
 +		char txt[256];
@@ -107,3 +123,6 @@
  /*
   * run boot script(s). The environment is passed to the script(s), so the RC
   * environment variable can be used to decide what to do.
+-- 
+2.44.0
+
