@@ -1,0 +1,218 @@
+From 204e222f1974feccb09466e5fcdbb28b8076037c Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 8 Jun 2024 22:30:06 +0200
+Subject: [PATCH 23/23] Force modern libc reboot syscall wrapper
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ lib/Makefile             |  4 +---
+ lib/linux_reboot.h       | 30 ------------------------------
+ lib/my_reboot.c          | 40 ----------------------------------------
+ login-utils/Makefile     |  9 ++++-----
+ login-utils/shutdown.c   | 10 +++++-----
+ login-utils/simpleinit.c |  6 +++---
+ 6 files changed, 13 insertions(+), 86 deletions(-)
+ delete mode 100644 lib/linux_reboot.h
+ delete mode 100644 lib/my_reboot.c
+
+diff --git a/lib/Makefile b/lib/Makefile
+index 6747061c389e..4d87dcf805c7 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -1,9 +1,7 @@
+ include ../make_include
+ include ../mconfig
+ 
+-all: my_reboot.o xstrncpy.o
+-
+-my_reboot.o: my_reboot.c linux_reboot.h
++all: xstrncpy.o
+ 
+ xstrncpy.o: xstrncpy.h
+ 
+diff --git a/lib/linux_reboot.h b/lib/linux_reboot.h
+deleted file mode 100644
+index 780d7509344c..000000000000
+--- a/lib/linux_reboot.h
++++ /dev/null
+@@ -1,30 +0,0 @@
+-extern int my_reboot(int);
+-
+-/*
+- * Magic values required to use _reboot() system call.
+- */
+-
+-#define	LINUX_REBOOT_MAGIC1	0xfee1dead
+-#define	LINUX_REBOOT_MAGIC2	672274793
+-#define	LINUX_REBOOT_MAGIC2A	85072278
+-#define	LINUX_REBOOT_MAGIC2B	369367448
+-
+-
+-/*
+- * Commands accepted by the _reboot() system call.
+- *
+- * RESTART     Restart system using default command and mode.
+- * HALT        Stop OS and give system control to ROM monitor, if any.
+- * CAD_ON      Ctrl-Alt-Del sequence causes RESTART command.
+- * CAD_OFF     Ctrl-Alt-Del sequence sends SIGINT to init task.
+- * POWER_OFF   Stop OS and remove all power from system, if possible.
+- * RESTART2    Restart system using given command string.
+- */
+-
+-#define	LINUX_REBOOT_CMD_RESTART	0x01234567
+-#define	LINUX_REBOOT_CMD_HALT		0xCDEF0123
+-#define	LINUX_REBOOT_CMD_CAD_ON		0x89ABCDEF
+-#define	LINUX_REBOOT_CMD_CAD_OFF	0x00000000
+-#define	LINUX_REBOOT_CMD_POWER_OFF	0x4321FEDC
+-#define	LINUX_REBOOT_CMD_RESTART2	0xA1B2C3D4
+-
+diff --git a/lib/my_reboot.c b/lib/my_reboot.c
+deleted file mode 100644
+index 12ea4c926c69..000000000000
+--- a/lib/my_reboot.c
++++ /dev/null
+@@ -1,40 +0,0 @@
+-/* Including <unistd.h> makes sure that on a glibc system
+-   <features.h> is included, which again defines __GLIBC__ */
+-#include <unistd.h>
+-#include "linux_reboot.h"
+-
+-#define USE_LIBC
+-
+-#ifdef USE_LIBC
+-
+-/* libc version */
+-#if defined __GLIBC__ && __GLIBC__ >= 2
+-#  include <sys/reboot.h>
+-#  define REBOOT(cmd) reboot(cmd)
+-#else
+-extern int reboot(int, int, int);
+-#  define REBOOT(cmd) reboot(LINUX_REBOOT_MAGIC1,LINUX_REBOOT_MAGIC2,(cmd))
+-#endif
+-int
+-my_reboot(int cmd) {
+-	return REBOOT(cmd);
+-}
+-
+-#else /* no USE_LIBC */
+-
+-/* direct syscall version */
+-#include <linux/unistd.h>
+-
+-#ifdef _syscall3
+-_syscall3(int,  reboot,  int,  magic, int, magic_too, int, cmd);
+-#else
+-/* Let us hope we have a 3-argument reboot here */
+-extern int reboot(int, int, int);
+-#endif
+-
+-int
+-my_reboot(int cmd) {
+-	return reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd);
+-}
+-
+-#endif
+diff --git a/login-utils/Makefile b/login-utils/Makefile
+index 7639c356db91..96ac2d334ccb 100644
+--- a/login-utils/Makefile
++++ b/login-utils/Makefile
+@@ -52,14 +52,13 @@ debug:
+ 
+ # Rules for everything else
+ 
+-simpleinit.o: simpleinit.h simpleinit.c  $(LIB)/pathnames.h \
+-	      $(LIB)/linux_reboot.h
++simpleinit.o: simpleinit.h simpleinit.c  $(LIB)/pathnames.h
+ initctl.o: simpleinit.h initctl.c $(LIB)/pathnames.h
+-shutdown.o: $(LIB)/pathnames.h $(LIB)/linux_reboot.h shutdown.c
++shutdown.o: $(LIB)/pathnames.h shutdown.c
+ 
+-shutdown: shutdown.o $(LIB)/my_reboot.o $(LIB)/xstrncpy.o
++shutdown: shutdown.o $(LIB)/xstrncpy.o
+ 
+-simpleinit: simpleinit.o $(LIB)/my_reboot.o $(LIB)/xstrncpy.o
++simpleinit: simpleinit.o $(LIB)/xstrncpy.o
+ 	$(CC) $(LDFLAGS) -o $@ $^      #$(CRYPT)
+ 
+ telinit:
+diff --git a/login-utils/shutdown.c b/login-utils/shutdown.c
+index 950c14a82efd..f46e8570b515 100644
+--- a/login-utils/shutdown.c
++++ b/login-utils/shutdown.c
+@@ -112,7 +112,7 @@
+ #include <limits.h>
+ #include <sys/stat.h>
+ #include <sys/utsname.h>
+-#include "linux_reboot.h"
++#include <sys/reboot.h>
+ #include "pathnames.h"
+ #include "xstrncpy.h"
+ #include "nls.h"
+@@ -472,13 +472,13 @@ main(int argc, char *argv[])
+ 	if(opt_reboot) {
+ 		my_puts(_("Please stand by while rebooting the system...\n"));
+ 		sleep(1);
+-		my_reboot(LINUX_REBOOT_CMD_RESTART); /* RB_AUTOBOOT */
++		reboot(RB_AUTOBOOT);
+ 		my_puts(_("\nWhy am I still alive after reboot?"));
+ 	} else {
+ 		my_puts(_("\nNow you can turn off the power..."));
+ 
+ 		/* allow C-A-D now, faith@cs.unc.edu, re-fixed 8-Jul-96 */
+-		my_reboot(LINUX_REBOOT_CMD_CAD_ON); /* RB_ENABLE_CAD */
++		reboot(RB_ENABLE_CAD);
+ 		sleep (1);  /*  Wait for devices to finish writing to media  */
+ 		do_halt(halt_action);
+ 	}
+@@ -555,7 +555,7 @@ do_halt(char *action) {
+ 	if (strcasecmp (action, "power_off") == 0) {
+ 		printf(_("Calling kernel power-off facility...\n"));
+ 		fflush(stdout);
+-		my_reboot(LINUX_REBOOT_CMD_POWER_OFF);
++		reboot(RB_POWER_OFF);
+ 		printf(_("Error powering off\t%s\n"), ERRSTRING);
+ 		fflush(stdout);
+ 		sleep (2);
+@@ -573,7 +573,7 @@ do_halt(char *action) {
+ 		sleep (2);
+ 	}
+ 
+-	my_reboot(LINUX_REBOOT_CMD_HALT); /* RB_HALT_SYSTEM */
++	reboot(RB_HALT_SYSTEM);
+ }
+ 
+ void
+diff --git a/login-utils/simpleinit.c b/login-utils/simpleinit.c
+index de8e60cb97b1..bf1d08bc7a15 100644
+--- a/login-utils/simpleinit.c
++++ b/login-utils/simpleinit.c
+@@ -225,7 +225,7 @@
+ #include <time.h>
+ #include "defines.h"
+ #include "pathnames.h"
+-#include "linux_reboot.h"
++#include <sys/reboot.h>
+ #include "xstrncpy.h"
+ #include "nls.h"
+ #include "simpleinit.h"
+@@ -414,7 +414,7 @@ int main(int argc, char *argv[])
+ 	  sa.sa_handler = sigquit_handler;
+ 	  sigaction (SIGQUIT, &sa, NULL);
+ 
+-	  my_reboot (LINUX_REBOOT_CMD_CAD_OFF);
++	  reboot (RB_DISABLE_CAD);
+ 	} 
+ 
+ 	/*  Find script to run. Command-line overrides config file overrides
+@@ -1018,7 +1018,7 @@ void int_handler (int sig)
+ 	or the user specified his own program (in which case he probably
+ 	doesn't like the hard reboot) */
+ 	if (!(userspace || have_cad_prog))
+-		my_reboot(LINUX_REBOOT_CMD_RESTART);
++		reboot(RB_AUTOBOOT);
+ 	if (pid==0) exit(1);
+ 	sig=sig;
+ }
+-- 
+2.44.0
+
