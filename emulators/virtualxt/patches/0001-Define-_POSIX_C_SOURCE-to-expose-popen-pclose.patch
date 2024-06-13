@@ -1,27 +1,56 @@
-From 3120ed5e8a744ea018ad57ea538d3b7aead46b7a Mon Sep 17 00:00:00 2001
+From eea78c9b1cb8e2a2ddffbd5e4cbfa7a11db53c94 Mon Sep 17 00:00:00 2001
 From: Ismael Luceno <ismael@iodev.co.uk>
 Date: Fri, 12 Apr 2024 17:47:34 +0200
-Subject: [PATCH] Define _POSIX_C_SOURCE to expose popen/pclose
+Subject: [PATCH] Define _POSIX_C_SOURCE to expose popen & pclose
+
+popen and pclose aren't exposed by musl libc unless one of the following
+macros is defined:
+
+	#if defined(_POSIX_SOURCE) || defined(_POSIX_C_SOURCE) \
+	 || defined(_X_OPEN_SOURCE) || defined(_GNU_SOURCE) \
+	 || defined(_BSD_SOURCE)
+
+According to popen(3) on Linux man-pages 6.05.01:
+
+	Feature Test Macro Requirements for glibc (...):
+
+	    popen(), pclose():
+	        _POSIX_C_SOURCE >= 2
+                    || /* glibc <= 2.19: */ _BSD_SOURCE || _SVID_SOURCE
+
+Notes:
+* _POSIX_SOURCE has been superseded by _POSIX_C_SOURCE.
+* _POSIX_C_SOURCE with a value of 2 (POSIX.2-1992) is the option that
+  potentially causes the least namespace contamination.
+* Seems the Mac OS X libc is broken: it hides snprintf/vsnprintf with
+  _POSIX_C_SOURCE == 2, which is presumably wrong.
+
+See feature_test_macros(7) for more information about the macros.
 
 Origin: Source Mage
-Upstream-Status: Pending
+Upstream-Status: Submitted
+ [https://github.com/andreas-jonsson/virtualxt/pull/80]
 Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
 ---
- front/sdl/main.c | 1 +
- 1 file changed, 1 insertion(+)
+ front/sdl/main.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
 diff --git a/front/sdl/main.c b/front/sdl/main.c
-index 8f088aa09e55..0faacad1efb0 100644
+index 8f088aa09e55..6f510fe155b2 100644
 --- a/front/sdl/main.c
 +++ b/front/sdl/main.c
-@@ -21,6 +21,7 @@
+@@ -21,6 +21,11 @@
  //
  // 3. This notice may not be removed or altered from any source distribution.
  
-+#define _POSIX_C_SOURCE 2
++/* The Mac OS X libc API selection is broken (tested with Xcode 15.0.1) */
++#ifndef __APPLE__
++#define _POSIX_C_SOURCE 2 /* select POSIX.2-1992 to expose popen & pclose */
++#endif
++
  #include <stdio.h>
  #include <stdlib.h>
  #include <stdbool.h>
 -- 
-2.43.0
+2.44.0
 
