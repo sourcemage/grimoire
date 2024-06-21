@@ -1,3 +1,4 @@
+CFLAGS+=' -D_LARGEFILE64_SOURCE' &&
 OPTS+=" --disable-gpg-test" &&
 export QT6DIR=$INSTALL_ROOT/opt/qt6 &&
 GPG_LANG=no
