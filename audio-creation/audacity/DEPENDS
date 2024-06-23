@@ -1,44 +1,82 @@
-depends cmake &&
-depends python3 &&
-depends WXWIDGET -Daudacity_use_wxwidgets=system &&
-# Dunno what for, but is checked explicitly.
-depends gtk+3 &&
-depends glib2 &&
-depends expat -Daudacity_use_expat=system &&
+. "$GRIMOIRE/CMAKE_DEPENDS" &&
+. "$GRIMOIRE/VDEPENDS" &&
+vdepends <<! &&
+	# FIXME catch2		flags: -Daudacity_use_catch2=system
+	expat			flags: -Daudacity_use_expat=system
+	lame			flags: -Daudacity_use_libmp3lame=system
+	portaudio19		flags: -Daudacity_use_portaudio=system -Daudacity_use_midi=system
+	python3
+	rapidjson		flags: -Daudacity_use_rapidjson=system
+	soxr			flags: -Daudacity_use_soxr=system
+	sqlite
+	wxgtk-3.2 >= 3.2.5	flags: -Daudacity_use_wxwidgets=system
+	zlib			flags: -Daudacity_use_zlib=system
+!
 
-optional_depends ffmpeg \
-  -Daudacity_use_ffmpeg={loaded,off} \
-  "for conversions" &&
+optional_depends LIBAVCODEC \
+  -Daudacity_use_ffmpeg=loaded \
+  -Daudacity_use_ffmpeg=off \
+  "for FFmpeg CODECs support" &&
+
+optional_depends JPEG \
+  -Daudacity_use_jpeg=system \
+  -Daudacity_use_jpeg=off \
+  "for JPEG support" &&
+
+optional_depends libpng \
+  -Daudacity_use_png=system \
+  -Daudacity_use_png=off \
+  "for PNG support" &&
+
+optional_depends libogg \
+  -Daudacity_use_libogg=system \
+  -Daudacity_use_libogg=off \
+  "for OGG container support" &&
 
 optional_depends flac \
-  -Daudacity_use_flac={system,off} \
-  "for FLAC support" &&
+  -Daudacity_use_libflac=system \
+  -Daudacity_use_libflac=off \
+  "for FLAC codec support" &&
 
-optional_depends libmad \
-  -Daudacity_use_mad={system,off} \
-  "as mp3 decoder" &&
+optional_depends wavpack \
+  -Daudacity_use_wavpack=system \
+  -Daudacity_use_wavpack=off \
+  "for WavPack format support" &&
+
+optional_depends mpg123 \
+  -Daudacity_use_libmpg123=system \
+  -Daudacity_use_libmpg123=off \
+  "for MP3 decoding support" &&
 
 optional_depends libid3tag \
-  -Daudacity_use_id3tag={system,off} \
+  -Daudacity_use_libid3tag=system \
+  -Daudacity_use_libid3tag=off \
   "for ID3 tagging" &&
 
-depends libsndfile -Daudacity_use_sndfile=system &&
+optional_depends libsndfile \
+  -Daudacity_use_libsndfile=system \
+  -Daudacity_use_libsndfile=off \
+  "for raw PCM container formats support" &&
+
+optional_depends opus \
+  -Daudacity_use_libopus=system \
+  -Daudacity_use_libopus=off \
+  "for Opus codec support" &&
 
 optional_depends libvorbis \
-  -Daudacity_use_vorbis={system,off} &&
+  -Daudacity_use_libvorbis=system \
+  -Daudacity_use_libvorbis=off \
+  "for Vorbis codec support" &&
 
-# Not strictly necessary, as the API is a shipped
-# header, but it helps to have the basic set of
-# example plugins present, and it's cheap.
-
-depends ladspa -Daudacity_use_ladspa=ON &&
-
-# insists on using shipped copy of lame, strange
-# so no depends here
+optional_depends vst3sdk \
+  -Daudacity_use_vst3sdk=system \
+  -Daudacity_has_vst3=OFF \
+  "for VST3 plugins" && # FIXME package missing
 
 optional_depends lv2 \
-  -Daudacity_use_lv2={system,off} \
-  "for LV2 plugins (triggers some more related deps)" &&
+  -Daudacity_use_lv2=system \
+  -Daudacity_use_lv2=off \
+  "for LV2 plugins (triggers some more related deps)" && # FIXME option doesn't work
 
 if is_depends_enabled "$SPELL" lv2; then
   depends serd     &&
@@ -48,31 +86,19 @@ if is_depends_enabled "$SPELL" lv2; then
   depends suil-0
 fi &&
 
-# dunno about smbms, keep it local
+# FIXME smbms / sbsms
 
 optional_depends soundtouch \
-  -Daudacity_use_soundtouch={system,off} \
-  "for effects" &&
-
-depends soxr \
-  -Daudacity_use_soxr=system &&
+  -Daudacity_use_soundtouch=system \
+  -Daudacity_use_soundtouch=off \
+  "for effects" &&  # FIXME option doesn't work
 
 optional_depends vamp-plugin-sdk \
-  -Daudacity_use_vamp={system,off} &&
+  -Daudacity_use_vamp=system \
+  -Daudacity_use_vamp=off \
+  "for Vamp support" &&  # FIXME option doesn't work
 
 optional_depends twolame \
-  -Daudacity_use_twolame={system,off} \
-  "for MP2 creation" &&
-
-# Not trying to force portaudio stuff,
-# that can be sensitive and is core to audacity.
-
-optional_depends alsa-lib \
-  -Daudacity_use_pa_alsa={YES,NO} \
-  "for audio I/O" &&
-
-optional_depends JACK-DRIVER \
-  -Daudacity_use_pa_jack={loaded,off} \
-  "for audio I/O" &&
-
-true
+  -Daudacity_use_twolame=system \
+  -Daudacity_use_twolame=off \
+  "for MP2 creation" # FIXME option doesn't work
