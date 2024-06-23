@@ -1,3 +1,4 @@
+CXXFLAGS+=' -D_LARGEFILE64_SOURCE' &&
 if [ libressl = "$(get_spell_provider "$SPELL" SSL)" ]; then
   OPTS+=' -DQT_FEATURE_dtls=OFF'
 fi &&
