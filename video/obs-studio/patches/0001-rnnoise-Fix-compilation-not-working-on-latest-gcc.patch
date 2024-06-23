@@ -1,0 +1,35 @@
+From f60d6bcfe2c6e58490b12e2c01b55316ccb3c3ea Mon Sep 17 00:00:00 2001
+From: cg2121 <claytong1214@gmail.com>
+Date: Sat, 11 May 2024 21:32:45 -0500
+Subject: [PATCH] rnnoise: Fix compilation not working on latest gcc
+
+The latest gcc spits out an error about calloc parameters that are
+in the wrong order.
+
+Upstream-Status: Backport
+Origin: Upstream
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ plugins/obs-filters/rnnoise/src/denoise.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/plugins/obs-filters/rnnoise/src/denoise.c b/plugins/obs-filters/rnnoise/src/denoise.c
+index 7639f745630e..c1907f1442e7 100644
+--- a/plugins/obs-filters/rnnoise/src/denoise.c
++++ b/plugins/obs-filters/rnnoise/src/denoise.c
+@@ -265,9 +265,9 @@ int rnnoise_init(DenoiseState *st, RNNModel *model) {
+     st->rnn.model = model;
+   else
+     st->rnn.model = &rnnoise_model_orig;
+-  st->rnn.vad_gru_state = calloc(sizeof(float), st->rnn.model->vad_gru_size);
+-  st->rnn.noise_gru_state = calloc(sizeof(float), st->rnn.model->noise_gru_size);
+-  st->rnn.denoise_gru_state = calloc(sizeof(float), st->rnn.model->denoise_gru_size);
++  st->rnn.vad_gru_state = calloc(st->rnn.model->vad_gru_size, sizeof(float));
++  st->rnn.noise_gru_state = calloc(st->rnn.model->noise_gru_size, sizeof(float));
++  st->rnn.denoise_gru_state = calloc(st->rnn.model->denoise_gru_size, sizeof(float));
+   return 0;
+ }
+ 
+-- 
+2.44.0
+
