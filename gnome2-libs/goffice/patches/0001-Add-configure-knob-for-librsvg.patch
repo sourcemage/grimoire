@@ -1,0 +1,285 @@
+From 5b5b705ab659d8997091e807df4a362e6e7b7f13 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Wed, 26 Jun 2024 00:50:00 +0200
+Subject: [PATCH] Add configure knob for librsvg
+
+Necessary due to the limited platform support in rust and its difficult
+bootstrapping.
+
+Origin: Source Mage
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ configure                        |   28 +++++++++++++++++++++++++++-
+ configure.ac                     |   14 +++++++++++++-
+ goffice/Makefile.am              |    5 ++++-
+ goffice/component/go-component.c |    4 ++++
+ goffice/goffice.c                |    2 ++
+ goffice/utils/go-image.c         |   10 +++++++++-
+ goffice/utils/go-svg.h           |    2 ++
+ libgoffice.pc.in                 |    2 +-
+ 8 files changed, 62 insertions(+), 5 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 73242da9e512..ee000d43377f 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -124,7 +124,6 @@ goffice_reqs="
+ 	pango			>= 1.24.0
+ 	pangocairo		>= 1.24.0
+ 	cairo			>= 1.10.0
+-	librsvg-2.0		>= 2.22.0
+ 	gdk-pixbuf-2.0	>= 2.22.0
+ 	libxslt
+ "
+@@ -349,6 +348,19 @@ case $with_config_backend in
+ 		;;
+ esac
+ 
++dnl ***********************
++dnl Should we use librsvg ?
++dnl ***********************
++AC_ARG_WITH(librsvg,
++	AS_HELP_STRING([--without-librsvg],[Build without SVG support]))
++if ! test "x$with_librsvg" = xno; then
++	goffice_reqs="$goffice_reqs librsvg-2.0 >= 2.22.0"
++	EXTRA_DEPS="$EXTRA_DEPS librsvg-2.0"
++	AC_DEFINE(GOFFICE_WITH_LIBRSVG, 1, [Define if librsvg is used])
++fi
++AM_CONDITIONAL(WITH_LIBRSVG, [! test "x$with_librsvg" = xno])
++
++
+ dnl *******************
+ dnl Should we use gtk ?
+ dnl *******************
+diff --git b/configure a/configure
+index cd8bec25208e..e2aec137da7e 100755
+--- b/configure
++++ a/configure
+@@ -732,6 +732,8 @@ WITH_GTK_FALSE
+ WITH_GTK_TRUE
+ GTK_LIBS
+ GTK_CFLAGS
++WITH_LIBRSVG_FALSE
++WITH_LIBRSVG_TRUE
+ GTK_MAC_LIBS
+ GTK_MAC_CFLAGS
+ PLATFORM_OSX_FALSE
+@@ -1644,6 +1646,7 @@ Optional Packages:
+   --with-lasem=[no/auto/yes]
+                           Build with lasem use (default=auto)
+   --with-config-backend=gsettings|keyfile|win32           Choose the config backend
++  --without-librsvg       Build without SVG support
+   --without-gtk           Build without UI
+   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
+   --with-libiconv-prefix[=DIR]  search for libiconv in DIR/include and DIR/lib
+@@ -14825,7 +14828,6 @@ goffice_reqs="
+ 	pango			>= 1.24.0
+ 	pangocairo		>= 1.24.0
+ 	cairo			>= 1.10.0
+-	librsvg-2.0		>= 2.22.0
+ 	gdk-pixbuf-2.0	>= 2.22.0
+ 	libxslt
+ "
+@@ -15771,6 +15773,26 @@ printf "%s\n" "#define GOFFICE_WITH_GSETTINGS 1" >>confdefs.h
+ 		;;
+ esac
+ 
++
++# Check whether --with-librsvg was given.
++if test ${with_librsvg+y}
++then :
++  withval=$with_librsvg;
++fi
++if ! test "x$with_librsvg" = xno; then
++  goffice_reqs="$goffice_reqs librsvg-2.0 >= 2.22.0"
++  EXTRA_DEPS="$EXTRA_DEPS librsvg-2.0"
++  printf "%s\n" "#define GOFFICE_WITH_LIBRSVG 1" >>confdefs.h
++fi
++if ! test "x$with_librsvg" = xno; then
++  WITH_LIBRSVG_TRUE=
++  WITH_LIBRSVG_FALSE='#'
++else
++  WITH_LIBRSVG_TRUE='#'
++  WITH_LIBRSVG_FALSE=
++fi
++
++
+ goffice_with_gtk=true
+ 
+ # Check whether --with-gtk was given.
+@@ -19941,6 +19963,10 @@ if test -z "${PLATFORM_OSX_TRUE}" && test -z "${PLATFORM_OSX_FALSE}"; then
+   as_fn_error $? "conditional \"PLATFORM_OSX\" was never defined.
+ Usually this means the macro was only invoked conditionally." "$LINENO" 5
+ fi
++if test -z "${WITH_LIBRSVG_TRUE}" && test -z "${WITH_LIBRSVG_FALSE}"; then
++  as_fn_error $? "conditional \"WITH_LIBRSVG\" was never defined.
++Usually this means the macro was only invoked conditionally." "$LINENO" 5
++fi
+ if test -z "${WITH_GTK_TRUE}" && test -z "${WITH_GTK_FALSE}"; then
+   as_fn_error $? "conditional \"WITH_GTK\" was never defined.
+ Usually this means the macro was only invoked conditionally." "$LINENO" 5
+diff --git a/goffice/Makefile.am b/goffice/Makefile.am
+index 3518b8f8f669..fe72239f3488 100644
+--- a/goffice/Makefile.am
++++ b/goffice/Makefile.am
+@@ -393,7 +393,6 @@ utils_SOURCES =					\
+ 	utils/go-gradient.c			\
+ 	utils/go-image.c			\
+ 	utils/go-pixbuf.c			\
+-	utils/go-svg.c				\
+ 	utils/go-emf.c				\
+ 	utils/go-spectre.c			\
+ 	utils/go-line.c				\
+@@ -422,6 +421,10 @@ utils_SOURCES =					\
+ 	utils/go-style.c			\
+ 	utils/go-styled-object.c
+ 
++if WITH_LIBRSVG
++utils_SOURCES += utils/go-svg.c
++endif
++
+ utilsdir = $(goffice_include_dir)/utils
+ utils_HEADERS =					\
+ 	utils/goffice-utils.h			\
+diff --git a/goffice/component/go-component.c b/goffice/component/go-component.c
+index 51ab0288e189..4d1383c24de5 100644
+--- a/goffice/component/go-component.c
++++ b/goffice/component/go-component.c
+@@ -30,6 +30,7 @@
+ #include <cairo-svg.h>
+ #include <string.h>
+ 
++#ifdef GOFFICE_WITH_LIBRSVG
+ #include <librsvg/rsvg.h>
+ #ifdef LIBRSVG_CHECK_VERSION
+ #define NEEDS_LIBRSVG_CAIRO_H !LIBRSVG_CHECK_VERSION(2,36,2)
+@@ -39,6 +40,7 @@
+ #if NEEDS_LIBRSVG_CAIRO_H
+ #include <librsvg/rsvg-cairo.h>
+ #endif
++#endif /* GOFFICE_WITH_LIBRSVG */
+ 
+ struct _GOComponentPrivate {
+ 	gboolean is_inline; /* if set, the object will be displayed in compact mode
+@@ -285,6 +287,7 @@ go_component_snapshot_render (GOComponent *component, cairo_t *cr,
+ {
+ 	GOComponentSnapshot *snapshot = (GOComponentSnapshot *) component;
+ 	switch (component->snapshot_type) {
++#ifdef GOFFICE_WITH_LIBRSVG
+ 	case GO_SNAPSHOT_SVG:
+ 		/* NOTE: we might use lasem here, and also use a GOSvg image */
+ 		if (snapshot->image == NULL) {
+@@ -312,6 +315,7 @@ go_component_snapshot_render (GOComponent *component, cairo_t *cr,
+ 			cairo_restore (cr);
+ 		}
+ 		break;
++#endif /* GOFFICE_WITH_LIBRSVG */
+ 	case GO_SNAPSHOT_PNG: {
+ 		if (snapshot->image == NULL) {
+ 			GInputStream *in = g_memory_input_stream_new_from_data (
+diff --git a/goffice/goffice.c b/goffice/goffice.c
+index 3633434acbda..cc9fa1d5219f 100644
+--- a/goffice/goffice.c
++++ b/goffice/goffice.c
+@@ -243,7 +243,9 @@ libgoffice_init (void)
+ 	g_type_ensure (GO_TYPE_EMF);
+ 	g_type_ensure (GO_TYPE_PIXBUF);
+ 	g_type_ensure (GO_TYPE_SPECTRE);
++#ifdef GOFFICE_WITH_SVG
+ 	g_type_ensure (GO_TYPE_SVG);
++#endif /* GOFFICE_WITH_SVG */
+ 
+ 	_gog_themes_init ();
+ 	_go_number_format_init ();
+diff --git a/goffice/utils/go-image.c b/goffice/utils/go-image.c
+index b5814a6c1399..aed276bed7a9 100644
+--- a/goffice/utils/go-image.c
++++ b/goffice/utils/go-image.c
+@@ -25,7 +25,6 @@
+ #include <gsf/gsf-utils.h>
+ #include <gsf/gsf-impl-utils.h>
+ #include <glib/gi18n-lib.h>
+-#include <librsvg/rsvg.h>
+ 
+ /**
+  * GOImageFormat:
+@@ -611,7 +610,10 @@ go_image_new_from_file (char const *filename, GError **error)
+ 	g_free (name);
+ 	switch (format) {
+ 	case GO_IMAGE_FORMAT_SVG:
++#ifdef GOFFICE_WITH_LIBRSVG
+ 		return go_svg_new_from_file (filename, error);
++#endif /* GOFFICE_WITH_LIBRSVG */
++		break;
+ 	case GO_IMAGE_FORMAT_EMF:
+ 	case GO_IMAGE_FORMAT_WMF:
+ 		return go_emf_new_from_file (filename, error);
+@@ -651,8 +653,10 @@ go_image_new_from_data (char const *type, guint8 const *data, gsize length, char
+ 	if (data == NULL || length == 0) {
+ 		image = NULL;
+ 		type = "unknown";
++#ifdef GOFFICE_WITH_LIBRSVG
+ 	} else if (!strcmp (type, "svg")) {
+ 		image = go_svg_new_from_data (data, length, error);
++#endif /* GOFFICE_WITH_LIBRSVG */
+ 	} else if (!strcmp (type, "emf") || !strcmp (type, "wmf")) {
+ 		image = go_emf_new_from_data (data, length, error);
+ 	} else if (!strcmp (type, "eps")) {
+@@ -703,8 +707,10 @@ GType
+ go_image_type_for_format (char const *format)
+ {
+ 	g_return_val_if_fail (format && *format, 0);
++#ifdef GOFFICE_WITH_LIBRSVG
+ 	if (!strcmp (format, "svg"))
+ 		return GO_TYPE_SVG;
++#endif /* GOFFICE_WITH_LIBRSVG */
+ 	if (!strcmp (format, "emf") || !strcmp (format, "wmf"))
+ 		return GO_TYPE_EMF;
+ 	if (!strcmp (format, "eps"))
+@@ -839,8 +845,10 @@ go_image_get_info (GOImage *image)
+ 	/* Dubious */
+ 	if (GO_IS_EMF (image))
+ 		return go_image_get_format_info (GO_IMAGE_FORMAT_EMF);
++#ifdef GOFFICE_WITH_LIBRSVG
+ 	if (GO_IS_SVG (image))
+ 		return go_image_get_format_info (GO_IMAGE_FORMAT_SVG);
++#endif /* GOFFICE_WITH_LIBRSVG */
+ 	if (GO_IS_SPECTRE (image))
+ 		return go_image_get_format_info (GO_IMAGE_FORMAT_EPS);
+ 	return NULL;
+diff --git a/goffice/utils/go-svg.h b/goffice/utils/go-svg.h
+index 714e8f043382..00677ad5f6fa 100644
+--- a/goffice/utils/go-svg.h
++++ b/goffice/utils/go-svg.h
+@@ -21,6 +21,7 @@
+ 
+ #ifndef GO_SVG_H
+ #define GO_SVG_H
++#ifdef GOFFICE_WITH_LIBRSVG
+ 
+ #include <goffice/goffice.h>
+ 
+@@ -37,4 +38,5 @@ GOImage *go_svg_new_from_data (char const *data, size_t length, GError **error);
+ 
+ G_END_DECLS
+ 
++#endif /* GOFFICE_WITH_LIBRSVG */
+ #endif /* GO_SVG_H */
+diff --git a/libgoffice.pc.in b/libgoffice.pc.in
+index a1a8aac7618d..b4ab9f9dca33 100644
+--- a/libgoffice.pc.in
++++ b/libgoffice.pc.in
+@@ -6,7 +6,7 @@ includedir=@includedir@
+ Name: libGOffice
+ Description: G Office support library
+ Version: @VERSION@
+-Requires.private: glib-2.0 gobject-2.0 gio-2.0 libgsf-1 libxml-2.0 gtk+-3.0 cairo pangocairo librsvg-2.0 libxslt @EXTRA_DEPS@
++Requires.private: glib-2.0 gobject-2.0 gio-2.0 libgsf-1 libxml-2.0 gtk+-3.0 cairo pangocairo libxslt @EXTRA_DEPS@
+ Libs: -L${libdir} -lgoffice-@GOFFICE_API_VER@
+ Libs.private: @EXTRA_LIBS@
+ Cflags: -I${includedir}/libgoffice-@GOFFICE_API_VER@ @EXTRA_INCLUDES@
+-- 
+2.44.0
+Fixed up by sm-checkpatch 0.1
+
