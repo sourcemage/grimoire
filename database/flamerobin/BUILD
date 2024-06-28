@@ -1,7 +1,3 @@
-chmod u+x configure          &&
-OPTS="--enable-shared $OPTS" &&
-mkdir release       &&
-cd release          &&
-ln -s ../configure  &&
-#export IBPP=/usr    &&
+export export LD_LIBRARY_PATH=/opt/firebird5/lib &&
+OPTS+=" -DCMAKE_UNITY_BUILD=true" &&
 default_build
