@@ -1,1 +1,1 @@
-make -f "$SPELL_DIRECTORY"/Makefile
+make -f "$SOURCE_CACHE"/"$SOURCE2"
