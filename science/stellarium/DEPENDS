@@ -1,14 +1,49 @@
-depends  boost      &&
-depends  cmake      &&
-depends  curl       &&
-depends  freetype2  &&
-depends -sub CXX gcc        &&
-depends  gettext    &&
-depends  GLUT       &&
-depends  JPEG       &&
-depends  libpng     &&
-depends  OPENGL     &&
-depends  qt4        &&
-depends  zlib       &&
-depends  libice     &&
-depends  libxext
+. "$GRIMOIRE"/VDEPENDS &&
+. "$GRIMOIRE"/CMAKE_DEPENDS &&
+
+optional_depends qxlsx \
+                 -DENABLE_XLSX=ON \
+                 -DENABLE_XLSX=OFF \
+                 'for OOXML Workbook (XLSX) support' &&
+
+vdepends <<! &&
+	GLUT
+	JPEG
+	OPENGL
+	QT
+	boost
+	curl
+	freetype2
+	gcc[CXX]
+	gettext
+	libice
+	libpng
+	libxext
+	nlopt
+	zlib
+!
+
+case "$(get_spell_provider "$SPELL" QT)" in
+  (qt6base)
+    vdepends <<!
+	qt6charts
+	qt6multimedia
+	qt6positioning
+	qt6serialport
+	qt6tools
+!
+    ;;
+  (qtbase)
+    vdepends <<!
+	qtcharts
+	qtmultimedia
+	qtpositioning
+	qtserialport
+	qttools
+!
+    ;;
+  (*)
+    message "${PROBLEM_COLOR}Not compatible with the selected QT" \
+      "provider.$NORMAL_COLOR"
+    ;;
+esac
