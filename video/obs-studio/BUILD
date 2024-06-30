@@ -9,5 +9,4 @@ if ! is_depends_enabled $SPELL python3 && ! is_depends_enabled $SPELL luajit; th
   OPTS="-DENABLE_SCRIPTING=OFF $OPTS"
 fi &&
 
-OPTS+=" Qt6_DIR=$INSTALL_ROOT/opt/qt6/cmake/Qt6" &&
 default_build
