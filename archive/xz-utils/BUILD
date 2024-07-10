@@ -1,2 +1,3 @@
-OPTS+=" -DBUILD_SHARED_LIBS=1" &&
+OPTS+=" --exec-prefix=${INSTALL_ROOT}" &&
+
 default_build
