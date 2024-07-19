@@ -5,7 +5,7 @@ APACHE24_EXTRA="${APACHE24_EXTRA} --with-mpm=${APACHE24_MPM}" &&
 rm  -fr  srclib/apr*/  &&
 
 # correct flags to find external apr-util
-CPPFLAGS="`apr-config --includes` $CPPFLAGS" &&
+CPPFLAGS="`apr-1-config --includes` $CPPFLAGS" &&
 
 # use smgl standard layout
 cp -f $SCRIPT_DIRECTORY/config.layout $SOURCE_DIRECTORY &&
