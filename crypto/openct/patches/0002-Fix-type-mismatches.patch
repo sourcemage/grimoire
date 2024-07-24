@@ -1,0 +1,64 @@
+From a60acb970b6b10d60135bb89fe67e87f192c9e2a Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Wed, 24 Jul 2024 19:56:01 +0200
+Subject: [PATCH 2/2] Fix type mismatches
+
+ifdhandler.c: In function 'ifdhandler_run':
+ifdhandler.c:239:52: error: passing argument 2 of 'ifd_get_eventfd' from incompatible pointer type [-Wincompatible-pointer-types]
+  239 |                 sock->fd = ifd_get_eventfd(reader, &sock->events);
+      |                                                    ^~~~~~~~~~~~~
+      |                                                    |
+      |                                                    int *
+In file included from internal.h:17,
+                 from ifdhandler.c:7:
+../../src/include/openct/ifd.h:182:65: note: expected 'short int *' but argument is of type 'int *'
+  182 | extern int                      ifd_get_eventfd(ifd_reader_t *, short *);
+      |                                                                 ^~~~~~~
+process.c: In function 'do_memory_write':
+process.c:461:61: error: passing argument 4 of 'ct_tlv_get_opaque' from incompatible pointer type [-Wincompatible-pointer-types]
+  461 |             || !ct_tlv_get_opaque(args, CT_TAG_DATA, &data, &data_len))
+      |                                                             ^~~~~~~~~
+      |                                                             |
+      |                                                             unsigned int *
+In file included from process.c:20:
+../../src/include/openct/tlv.h:40:62: note: expected 'size_t *' {aka 'long unsigned int *'} but argument is of type 'unsigned int *'
+   40 |                                 ifd_tag_t, unsigned char **, size_t *);
+      |                                                              ^~~~~~~~
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ src/ifd/process.c           | 2 +-
+ src/include/openct/socket.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/ifd/process.c b/src/ifd/process.c
+index 4563bdf8cfe0..fe967dfb44e6 100644
+--- a/src/ifd/process.c
++++ b/src/ifd/process.c
+@@ -450,7 +450,7 @@ static int do_memory_write(ifd_reader_t * reader, int unit,
+ 			   ct_tlv_parser_t * args, ct_tlv_builder_t * resp)
+ {
+ 	unsigned char *data;
+-	unsigned int data_len;
++	size_t data_len;
+ 	unsigned int address;
+ 	int rc;
+ 
+diff --git a/src/include/openct/socket.h b/src/include/openct/socket.h
+index b1064e9206db..a3d3c7f05118 100644
+--- a/src/include/openct/socket.h
++++ b/src/include/openct/socket.h
+@@ -37,7 +37,7 @@ typedef struct ct_socket {
+ 			listener : 1;
+ 
+ 	/* events to poll for */
+-	int		events;
++	short		events;
+ 
+ 	void *		user_data;
+ 	int		(*poll)(struct ct_socket *, struct pollfd *);
+-- 
+2.44.0
+
