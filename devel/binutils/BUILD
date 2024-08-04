@@ -1,9 +1,5 @@
-case "$HOST" in
-  (*-musl)
-    # FIXME gprofng doesn't build with musl
-    OPTS+=' --disable-gprofng'
-  ;;
-esac &&
+export CFLAGS+=" -Wno-format-overflow" &&
+OPTS+=' --disable-gprofng' &&
 
 if [[ $BINUTILS_LTO == "y" ]];then
   OPTS+=" --enable-lto"
