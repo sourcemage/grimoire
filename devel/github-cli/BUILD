@@ -1,2 +1,4 @@
-# TODO Remove CGO_LDFLAGS when LDFLAGS filtering is added by upstream.
-make CGO_LDFLAGS= bin/gh manpages
+make \
+	GOCACHE="$SOURCE_DIRECTORY"/.gocache \
+	GOPROXY=proxy.golang.org,direct \
+	bin/gh manpages
