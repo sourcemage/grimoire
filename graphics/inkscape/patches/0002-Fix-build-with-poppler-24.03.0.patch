@@ -1,0 +1,80 @@
+From 4330f33ea4a7bd18e5d2f359f8c8c2c45e7f0ad7 Mon Sep 17 00:00:00 2001
+From: Andreas Sturmlechner <asturm@gentoo.org>
+Date: Mon, 4 Mar 2024 22:59:40 +0100
+Subject: [PATCH 2/4] Fix build with >=poppler-24.03.0
+
+Fixes build errors caused by:
+
+"Use an enum for Function getType"
+Upstream commit 6e3824d45d42cb806a28a2df84e4ab6bb3587083
+
+Signed-off-by: Andreas Sturmlechner <asturm@gentoo.org>
+
+Fixes https://gitlab.com/inkscape/inkscape/-/issues/4787
+
+Origin: Upstream
+Upstream-Status: Backport [commit f7e944575ea5247952d23f85dfa905cfa13f7b28]
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ .../internal/pdfinput/poppler-transition-api.h         | 10 ++++++++++
+ src/extension/internal/pdfinput/svg-builder.cpp        |  8 ++++----
+ 2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/extension/internal/pdfinput/poppler-transition-api.h b/src/extension/internal/pdfinput/poppler-transition-api.h
+index dc9e47e45bbc..9c94cc4a91e9 100644
+--- a/src/extension/internal/pdfinput/poppler-transition-api.h
++++ b/src/extension/internal/pdfinput/poppler-transition-api.h
+@@ -14,6 +14,16 @@
+ 
+ #include <glib/poppler-features.h>
+ 
++#if POPPLER_CHECK_VERSION(24, 3, 0)
++#define _POPPLER_FUNCTION_TYPE_SAMPLED Function::Type::Sampled
++#define _POPPLER_FUNCTION_TYPE_EXPONENTIAL Function::Type::Exponential
++#define _POPPLER_FUNCTION_TYPE_STITCHING Function::Type::Stitching
++#else
++#define _POPPLER_FUNCTION_TYPE_SAMPLED 0
++#define _POPPLER_FUNCTION_TYPE_EXPONENTIAL 2
++#define _POPPLER_FUNCTION_TYPE_STITCHING 3
++#endif
++
+ #if POPPLER_CHECK_VERSION(22, 4, 0)
+ #define _POPPLER_FONTPTR_TO_GFX8(font_ptr) ((Gfx8BitFont *)font_ptr.get())
+ #else
+diff --git a/src/extension/internal/pdfinput/svg-builder.cpp b/src/extension/internal/pdfinput/svg-builder.cpp
+index dcc0a19160f5..562daa1bdfd1 100644
+--- a/src/extension/internal/pdfinput/svg-builder.cpp
++++ b/src/extension/internal/pdfinput/svg-builder.cpp
+@@ -1158,9 +1158,9 @@ static bool svgGetShadingColor(GfxShading *shading, double offset, GfxColor *res
+ #define INT_EPSILON 8
+ bool SvgBuilder::_addGradientStops(Inkscape::XML::Node *gradient, GfxShading *shading,
+                                    _POPPLER_CONST Function *func) {
+-    int type = func->getType();
++    auto type = func->getType();
+     auto space = shading->getColorSpace();
+-    if ( type == 0 || type == 2 ) {  // Sampled or exponential function
++    if (type == _POPPLER_FUNCTION_TYPE_SAMPLED || type == _POPPLER_FUNCTION_TYPE_EXPONENTIAL) {
+         GfxColor stop1, stop2;
+         if (!svgGetShadingColor(shading, 0.0, &stop1) || !svgGetShadingColor(shading, 1.0, &stop2)) {
+             return false;
+@@ -1168,7 +1168,7 @@ bool SvgBuilder::_addGradientStops(Inkscape::XML::Node *gradient, GfxShading *sh
+             _addStopToGradient(gradient, 0.0, &stop1, space, 1.0);
+             _addStopToGradient(gradient, 1.0, &stop2, space, 1.0);
+         }
+-    } else if ( type == 3 ) { // Stitching
++    } else if (type == _POPPLER_FUNCTION_TYPE_STITCHING) {
+         auto stitchingFunc = static_cast<_POPPLER_CONST StitchingFunction*>(func);
+         const double *bounds = stitchingFunc->getBounds();
+         const double *encode = stitchingFunc->getEncode();
+@@ -1183,7 +1183,7 @@ bool SvgBuilder::_addGradientStops(Inkscape::XML::Node *gradient, GfxShading *sh
+         for ( int i = 0 ; i < num_funcs ; i++ ) {
+             svgGetShadingColor(shading, bounds[i + 1], &color);
+             // Add stops
+-            if (stitchingFunc->getFunc(i)->getType() == 2) {    // process exponential fxn
++            if (stitchingFunc->getFunc(i)->getType() == _POPPLER_FUNCTION_TYPE_EXPONENTIAL) {
+                 double expE = (static_cast<_POPPLER_CONST ExponentialFunction*>(stitchingFunc->getFunc(i)))->getE();
+                 if (expE > 1.0) {
+                     expE = (bounds[i + 1] - bounds[i])/expE;    // approximate exponential as a single straight line at x=1
+-- 
+2.44.0
+
