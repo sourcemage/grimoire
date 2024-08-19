@@ -29,10 +29,6 @@ fi &&
 local vulkan=${MESA_VULKAN//none} &&
 local gallium=${MESA_GALLIUM//none} &&
 
-# for NVK
-if list_find "${MESA_VULKAN}" "nouveau"; then
-  python3 bin/git_sha1_gen.py --output src/git_sha1.h
-fi &&
 
 OPTS+=" gallium-drivers=${gallium// /,} \
      vulkan-drivers=${vulkan// /,} \
