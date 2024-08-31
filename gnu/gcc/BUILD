@@ -54,6 +54,11 @@ else
   OPTS="--build=$HOST $OPTS"
 fi  &&
 
+if [ "x$GCC_NO_MARCH" = xy ]; then
+  CFLAGS="${CFLAGS//-march=/-mtune=}" &&
+  CXXFLAGS="${CXXFLAGS//-march=/-mtune=}"
+fi &&
+
 # store CFLAGS and LDFLAGS persistently so they can be read by the other
 # split spells later, see bug #10087
 GCC_CFLAGS="$CFLAGS"  &&
