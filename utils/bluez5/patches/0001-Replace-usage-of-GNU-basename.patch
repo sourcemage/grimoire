@@ -1,0 +1,65 @@
+From 9cc67100c7b2448b8e901dc897fb5c5037b20e74 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Mon, 2 Sep 2024 07:43:08 +0200
+Subject: [PATCH] Replace usage of GNU-basename
+
+Fixes build agains musl libc 1.2.5. Musl doesn't provide a GNU-compatible
+implementation of basename.
+
+Use strrchr instead, since it's trivial.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ mesh/mesh-config-json.c | 4 +++-
+ mesh/rpl.c              | 4 +++-
+ tools/hex2hcd.c         | 3 +++
+ 3 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/mesh/mesh-config-json.c b/mesh/mesh-config-json.c
+index c198627c6f6e..d888fd9fdb3f 100644
+--- a/mesh/mesh-config-json.c
++++ b/mesh/mesh-config-json.c
+@@ -2706,7 +2706,9 @@ void mesh_config_destroy_nvm(struct mesh_config *cfg)
+ 	if (!hex2str(cfg->uuid, 16, uuid, sizeof(uuid)))
+ 		return;
+ 
+-	node_name = basename(node_dir);
++	node_name = strrchr(node_dir, '/');
++	if (!node_name++)
++		node_name = node_dir;
+ 
+ 	/* Make sure path name of node follows expected guidelines */
+ 	if (strcmp(node_name, uuid))
+diff --git a/mesh/rpl.c b/mesh/rpl.c
+index fb225dddd62b..ca1a7ff36779 100644
+--- a/mesh/rpl.c
++++ b/mesh/rpl.c
+@@ -146,7 +146,9 @@ static void get_entries(const char *iv_path, struct l_queue *rpl_list)
+ 	if (!dir)
+ 		return;
+ 
+-	iv_txt = basename(iv_path);
++	iv_txt = strrchr(iv_path);
++	if (!iv_txt++)
++		iv_txt = iv_path;
+ 	if (sscanf(iv_txt, "%08x", &iv_index) != 1) {
+ 		closedir(dir);
+ 		return;
+diff --git a/tools/hex2hcd.c b/tools/hex2hcd.c
+index e6dca5a8106b..5ef1d4b6c444 100644
+--- a/tools/hex2hcd.c
++++ b/tools/hex2hcd.c
+@@ -302,6 +302,9 @@ static void ver_parse_entry(const char *pathname)
+ 	}
+ 
+ 	if (S_ISREG(st.st_mode)) {
++		const char *bname = strrchr(pathname, '/');
++		if (!bname++)
++			bname = pathname;
+ 		ver_parse_file(basename(pathname));
+ 		goto done;
+ 	}
+-- 
+2.46.0
+
