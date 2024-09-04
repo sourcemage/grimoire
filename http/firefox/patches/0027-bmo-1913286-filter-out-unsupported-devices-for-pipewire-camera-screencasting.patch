@@ -1,0 +1,330 @@
+
+# HG changeset patch
+# User Jan Grulich <jgrulich@redhat.com>
+# Date 1725275240 0
+# Node ID 25415f3c344023667c01089f74b9f0c6fc7b6a56
+# Parent  3071e3421b420019ce714503e0d96f68f0289268
+Bug 1913286 - WebRTC backport: PipeWire camera: filter out devices with no capabilities r=pehrsons,webrtc-reviewers
+
+Filter out devices that do not support any format supported by WebRTC.
+This will for example be IR cameras that show as duplicated in the list
+of cameras, but support only GRAY8 format and for that reason do not
+work at all.
+
+This is a simple backport of an WebRTC upstream change.
+
+Upstream commit: b4aba7834e6c94adace1cb4c20e2e1ee70eb9cc5
+
+Differential Revision: https://phabricator.services.mozilla.com/D219224
+
+diff --git a/third_party/libwebrtc/modules/video_capture/linux/device_info_pipewire.cc b/third_party/libwebrtc/modules/video_capture/linux/device_info_pipewire.cc
+--- a/third_party/libwebrtc/modules/video_capture/linux/device_info_pipewire.cc
++++ b/third_party/libwebrtc/modules/video_capture/linux/device_info_pipewire.cc
+@@ -52,56 +52,56 @@ int32_t DeviceInfoPipeWire::GetDeviceNam
+                                           uint32_t productUniqueIdUTF8Length,
+                                           pid_t* pid,
+                                           bool* deviceIsPlaceholder) {
+   RTC_CHECK(pipewire_session_);
+ 
+   if (deviceNumber >= NumberOfDevices())
+     return -1;
+ 
+-  const PipeWireNode& node = pipewire_session_->nodes().at(deviceNumber);
++  const auto& node = pipewire_session_->nodes().at(deviceNumber);
+ 
+-  if (deviceNameLength <= node.display_name().length()) {
++  if (deviceNameLength <= node->display_name().length()) {
+     RTC_LOG(LS_INFO) << "deviceNameUTF8 buffer passed is too small";
+     return -1;
+   }
+-  if (deviceUniqueIdUTF8Length <= node.unique_id().length()) {
++  if (deviceUniqueIdUTF8Length <= node->unique_id().length()) {
+     RTC_LOG(LS_INFO) << "deviceUniqueIdUTF8 buffer passed is too small";
+     return -1;
+   }
+   if (productUniqueIdUTF8 &&
+-      productUniqueIdUTF8Length <= node.model_id().length()) {
++      productUniqueIdUTF8Length <= node->model_id().length()) {
+     RTC_LOG(LS_INFO) << "productUniqueIdUTF8 buffer passed is too small";
+     return -1;
+   }
+ 
+   memset(deviceNameUTF8, 0, deviceNameLength);
+-  node.display_name().copy(deviceNameUTF8, deviceNameLength);
++  node->display_name().copy(deviceNameUTF8, deviceNameLength);
+ 
+   memset(deviceUniqueIdUTF8, 0, deviceUniqueIdUTF8Length);
+-  node.unique_id().copy(deviceUniqueIdUTF8, deviceUniqueIdUTF8Length);
++  node->unique_id().copy(deviceUniqueIdUTF8, deviceUniqueIdUTF8Length);
+ 
+   if (productUniqueIdUTF8) {
+     memset(productUniqueIdUTF8, 0, productUniqueIdUTF8Length);
+-    node.model_id().copy(productUniqueIdUTF8, productUniqueIdUTF8Length);
++    node->model_id().copy(productUniqueIdUTF8, productUniqueIdUTF8Length);
+   }
+ 
+   return 0;
+ }
+ 
+ int32_t DeviceInfoPipeWire::CreateCapabilityMap(
+     const char* deviceUniqueIdUTF8) {
+   RTC_CHECK(pipewire_session_);
+ 
+   for (auto& node : pipewire_session_->nodes()) {
+-    if (node.unique_id().compare(deviceUniqueIdUTF8) != 0)
++    if (node->unique_id().compare(deviceUniqueIdUTF8) != 0)
+       continue;
+ 
+-    _captureCapabilities = node.capabilities();
+-    _lastUsedDeviceNameLength = node.unique_id().length();
++    _captureCapabilities = node->capabilities();
++    _lastUsedDeviceNameLength = node->unique_id().length();
+     _lastUsedDeviceName = static_cast<char*>(
+         realloc(_lastUsedDeviceName, _lastUsedDeviceNameLength + 1));
+     memcpy(_lastUsedDeviceName, deviceUniqueIdUTF8,
+            _lastUsedDeviceNameLength + 1);
+     return _captureCapabilities.size();
+   }
+   return -1;
+ }
+diff --git a/third_party/libwebrtc/modules/video_capture/linux/pipewire_session.cc b/third_party/libwebrtc/modules/video_capture/linux/pipewire_session.cc
+--- a/third_party/libwebrtc/modules/video_capture/linux/pipewire_session.cc
++++ b/third_party/libwebrtc/modules/video_capture/linux/pipewire_session.cc
+@@ -47,16 +47,29 @@ VideoType PipeWireRawFormatToVideoType(u
+       return VideoType::kABGR;
+     case SPA_VIDEO_FORMAT_ARGB:
+       return VideoType::kBGRA;
+     default:
+       return VideoType::kUnknown;
+   }
+ }
+ 
++void PipeWireNode::PipeWireNodeDeleter::operator()(
++    PipeWireNode* node) const noexcept {
++  pw_proxy_destroy(node->proxy_);
++  spa_hook_remove(&node->node_listener_);
++}
++
++// static
++PipeWireNode::PipeWireNodePtr PipeWireNode::Create(PipeWireSession* session,
++                                                   uint32_t id,
++                                                   const spa_dict* props) {
++  return PipeWireNodePtr(new PipeWireNode(session, id, props));
++}
++
+ PipeWireNode::PipeWireNode(PipeWireSession* session,
+                            uint32_t id,
+                            const spa_dict* props)
+     : session_(session),
+       id_(id),
+       display_name_(spa_dict_lookup(props, PW_KEY_NODE_DESCRIPTION)),
+       unique_id_(rtc::ToString(id)) {
+   RTC_LOG(LS_VERBOSE) << "Found Camera: " << display_name_;
+@@ -68,21 +81,16 @@ PipeWireNode::PipeWireNode(PipeWireSessi
+       .version = PW_VERSION_NODE_EVENTS,
+       .info = OnNodeInfo,
+       .param = OnNodeParam,
+   };
+ 
+   pw_node_add_listener(proxy_, &node_listener_, &node_events, this);
+ }
+ 
+-PipeWireNode::~PipeWireNode() {
+-  pw_proxy_destroy(proxy_);
+-  spa_hook_remove(&node_listener_);
+-}
+-
+ // static
+ void PipeWireNode::OnNodeInfo(void* data, const pw_node_info* info) {
+   PipeWireNode* that = static_cast<PipeWireNode*>(data);
+ 
+   if (info->change_mask & PW_NODE_CHANGE_MASK_PROPS) {
+     const char* vid_str;
+     const char* pid_str;
+     absl::optional<int> vid;
+@@ -94,17 +102,19 @@ void PipeWireNode::OnNodeInfo(void* data
+     pid = pid_str ? rtc::StringToNumber<int>(pid_str) : absl::nullopt;
+ 
+     if (vid && pid) {
+       char model_str[10];
+       snprintf(model_str, sizeof(model_str), "%04x:%04x", vid.value(),
+                pid.value());
+       that->model_id_ = model_str;
+     }
+-  } else if (info->change_mask & PW_NODE_CHANGE_MASK_PARAMS) {
++  }
++
++  if (info->change_mask & PW_NODE_CHANGE_MASK_PARAMS) {
+     for (uint32_t i = 0; i < info->n_params; i++) {
+       uint32_t id = info->params[i].id;
+       if (id == SPA_PARAM_EnumFormat &&
+           info->params[i].flags & SPA_PARAM_INFO_READ) {
+         pw_node_enum_params(that->proxy_, 0, id, 0, UINT32_MAX, nullptr);
+         break;
+       }
+     }
+@@ -345,58 +355,67 @@ void PipeWireSession::OnCoreError(void* 
+ 
+ // static
+ void PipeWireSession::OnCoreDone(void* data, uint32_t id, int seq) {
+   PipeWireSession* that = static_cast<PipeWireSession*>(data);
+ 
+   if (id == PW_ID_CORE) {
+     if (seq == that->sync_seq_) {
+       RTC_LOG(LS_VERBOSE) << "Enumerating PipeWire camera devices complete.";
++
++      // Remove camera devices with no capabilities
++      auto it = std::remove_if(that->nodes_.begin(), that->nodes_.end(),
++                               [](const PipeWireNode::PipeWireNodePtr& node) {
++                                 return node->capabilities().empty();
++                               });
++      that->nodes_.erase(it, that->nodes_.end());
++
+       that->Finish(VideoCaptureOptions::Status::SUCCESS);
+     }
+   }
+ }
+ 
+ // static
+ void PipeWireSession::OnRegistryGlobal(void* data,
+                                        uint32_t id,
+                                        uint32_t permissions,
+                                        const char* type,
+                                        uint32_t version,
+                                        const spa_dict* props) {
+   PipeWireSession* that = static_cast<PipeWireSession*>(data);
+ 
+   // Skip already added nodes to avoid duplicate camera entries
+   if (std::find_if(that->nodes_.begin(), that->nodes_.end(),
+-                   [id](const PipeWireNode& node) {
+-                     return node.id() == id;
++                   [id](const PipeWireNode::PipeWireNodePtr& node) {
++                     return node->id() == id;
+                    }) != that->nodes_.end())
+     return;
+ 
+   if (type != absl::string_view(PW_TYPE_INTERFACE_Node))
+     return;
+ 
+   if (!spa_dict_lookup(props, PW_KEY_NODE_DESCRIPTION))
+     return;
+ 
+   auto node_role = spa_dict_lookup(props, PW_KEY_MEDIA_ROLE);
+   if (!node_role || strcmp(node_role, "Camera"))
+     return;
+ 
+-  that->nodes_.emplace_back(that, id, props);
++  that->nodes_.push_back(PipeWireNode::Create(that, id, props));
+   that->PipeWireSync();
+ }
+ 
+ // static
+ void PipeWireSession::OnRegistryGlobalRemove(void* data, uint32_t id) {
+   PipeWireSession* that = static_cast<PipeWireSession*>(data);
+ 
+-  auto it = std::remove_if(
+-      that->nodes_.begin(), that->nodes_.end(),
+-      [id](const PipeWireNode& node) { return node.id() == id; });
++  auto it = std::remove_if(that->nodes_.begin(), that->nodes_.end(),
++                           [id](const PipeWireNode::PipeWireNodePtr& node) {
++                             return node->id() == id;
++                           });
+   that->nodes_.erase(it, that->nodes_.end());
+ }
+ 
+ void PipeWireSession::Finish(VideoCaptureOptions::Status status) {
+   webrtc::MutexLock lock(&callback_lock_);
+ 
+   if (callback_) {
+     callback_->OnInitialized(status);
+diff --git a/third_party/libwebrtc/modules/video_capture/linux/pipewire_session.h b/third_party/libwebrtc/modules/video_capture/linux/pipewire_session.h
+--- a/third_party/libwebrtc/modules/video_capture/linux/pipewire_session.h
++++ b/third_party/libwebrtc/modules/video_capture/linux/pipewire_session.h
+@@ -32,27 +32,37 @@ namespace videocapturemodule {
+ class PipeWireSession;
+ class VideoCaptureModulePipeWire;
+ 
+ // PipeWireNode objects are the local representation of PipeWire node objects.
+ // The portal API ensured that only camera nodes are visible to the client.
+ // So they all represent one camera that is available via PipeWire.
+ class PipeWireNode {
+  public:
+-  PipeWireNode(PipeWireSession* session, uint32_t id, const spa_dict* props);
+-  ~PipeWireNode();
++  struct PipeWireNodeDeleter {
++    void operator()(PipeWireNode* node) const noexcept;
++  };
++
++  using PipeWireNodePtr =
++      std::unique_ptr<PipeWireNode, PipeWireNode::PipeWireNodeDeleter>;
++  static PipeWireNodePtr Create(PipeWireSession* session,
++                                uint32_t id,
++                                const spa_dict* props);
+ 
+   uint32_t id() const { return id_; }
+   std::string display_name() const { return display_name_; }
+   std::string unique_id() const { return unique_id_; }
+   std::string model_id() const { return model_id_; }
+   std::vector<VideoCaptureCapability> capabilities() const {
+     return capabilities_;
+   }
+ 
++ protected:
++  PipeWireNode(PipeWireSession* session, uint32_t id, const spa_dict* props);
++
+  private:
+   static void OnNodeInfo(void* data, const pw_node_info* info);
+   static void OnNodeParam(void* data,
+                           int seq,
+                           uint32_t id,
+                           uint32_t index,
+                           uint32_t next,
+                           const spa_pod* param);
+@@ -82,18 +92,19 @@ class CameraPortalNotifier : public Came
+ 
+ class PipeWireSession : public rtc::RefCountedNonVirtual<PipeWireSession> {
+  public:
+   PipeWireSession();
+   ~PipeWireSession();
+ 
+   void Init(VideoCaptureOptions::Callback* callback,
+             int fd = kInvalidPipeWireFd);
+-
+-  const std::deque<PipeWireNode>& nodes() const { return nodes_; }
++  const std::deque<PipeWireNode::PipeWireNodePtr>& nodes() const {
++    return nodes_;
++  }
+ 
+   friend class CameraPortalNotifier;
+   friend class PipeWireNode;
+   friend class VideoCaptureModulePipeWire;
+ 
+  private:
+   void InitPipeWire(int fd);
+   bool StartPipeWire(int fd);
+@@ -129,17 +140,17 @@ class PipeWireSession : public rtc::RefC
+   struct pw_core* pw_core_ = nullptr;
+   struct spa_hook core_listener_;
+ 
+   struct pw_registry* pw_registry_ = nullptr;
+   struct spa_hook registry_listener_;
+ 
+   int sync_seq_ = 0;
+ 
+-  std::deque<PipeWireNode> nodes_;
++  std::deque<PipeWireNode::PipeWireNodePtr> nodes_;
+   std::unique_ptr<CameraPortal> portal_;
+   std::unique_ptr<CameraPortalNotifier> portal_notifier_;
+ };
+ 
+ }  // namespace videocapturemodule
+ }  // namespace webrtc
+ 
+ #endif  // MODULES_VIDEO_CAPTURE_LINUX_PIPEWIRE_SESSION_H_
+diff --git a/third_party/libwebrtc/moz-patch-stack/b4aba7834e.no-op-cherry-pick-msg b/third_party/libwebrtc/moz-patch-stack/b4aba7834e.no-op-cherry-pick-msg
+new file mode 100644
+--- /dev/null
++++ b/third_party/libwebrtc/moz-patch-stack/b4aba7834e.no-op-cherry-pick-msg
+@@ -0,0 +1,1 @@
++We cherry-picked this in bug 1913286.
+
