@@ -45,6 +45,8 @@ message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
 # toolchain from rust CI and to set user profile
 sed -e "s;profile =.*;profile = 'user';" \
     -e '/^\[llvm\]/adownload-ci-llvm = false' \
+    -e '/^\[rust\]/alld = false' \
+    -e '/^\[llvm\]/aninja = false' \
     -e '/^\[build\]/aoptimized-compiler-builtins = false' -i config.toml &&
 
 export CARGO_HOME="$SOURCE_DIRECTORY/cargo_home" &&
