@@ -1,0 +1,77 @@
+From 128b6253a924c30e8e4fd1f09ce19e21a826c5ad Mon Sep 17 00:00:00 2001
+From: Simon Ser <contact@emersion.fr>
+Date: Thu, 23 Nov 2023 13:08:53 +0100
+Subject: [PATCH 5/15] Pass wl_display to wlr_output_layout
+
+References: https://gitlab.freedesktop.org/wlroots/wlroots/-/merge_requests/4310
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ include/sway/tree/root.h | 2 +-
+ sway/main.c              | 2 --
+ sway/server.c            | 2 ++
+ sway/tree/root.c         | 4 ++--
+ 4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/include/sway/tree/root.h b/include/sway/tree/root.h
+index a2c088e76841..b3dda12f94e0 100644
+--- a/include/sway/tree/root.h
++++ b/include/sway/tree/root.h
+@@ -41,7 +41,7 @@ struct sway_root {
+ 	} events;
+ };
+ 
+-struct sway_root *root_create(void);
++struct sway_root *root_create(struct wl_display *display);
+ 
+ void root_destroy(struct sway_root *root);
+ 
+diff --git a/sway/main.c b/sway/main.c
+index 85bc2f1c9658..23689757e0a2 100644
+--- a/sway/main.c
++++ b/sway/main.c
+@@ -375,8 +375,6 @@ int main(int argc, char **argv) {
+ 
+ 	sway_log(SWAY_INFO, "Starting sway version " SWAY_VERSION);
+ 
+-	root = root_create();
+-
+ 	if (!server_init(&server)) {
+ 		return 1;
+ 	}
+diff --git a/sway/server.c b/sway/server.c
+index de70e0abc682..e4f8a7c8ca67 100644
+--- a/sway/server.c
++++ b/sway/server.c
+@@ -120,6 +120,8 @@ bool server_init(struct sway_server *server) {
+ 
+ 	wl_display_set_global_filter(server->wl_display, filter_global, NULL);
+ 
++	root = root_create(server->wl_display);
++
+ 	server->backend = wlr_backend_autocreate(server->wl_display, &server->session);
+ 	if (!server->backend) {
+ 		sway_log(SWAY_ERROR, "Unable to create backend");
+diff --git a/sway/tree/root.c b/sway/tree/root.c
+index 66008d30d09e..478df00cb187 100644
+--- a/sway/tree/root.c
++++ b/sway/tree/root.c
+@@ -24,14 +24,14 @@ static void output_layout_handle_change(struct wl_listener *listener,
+ 	transaction_commit_dirty();
+ }
+ 
+-struct sway_root *root_create(void) {
++struct sway_root *root_create(struct wl_display *wl_display) {
+ 	struct sway_root *root = calloc(1, sizeof(struct sway_root));
+ 	if (!root) {
+ 		sway_log(SWAY_ERROR, "Unable to allocate sway_root");
+ 		return NULL;
+ 	}
+ 	node_init(&root->node, N_ROOT, root);
+-	root->output_layout = wlr_output_layout_create();
++	root->output_layout = wlr_output_layout_create(wl_display);
+ 	wl_list_init(&root->all_outputs);
+ #if HAVE_XWAYLAND
+ 	wl_list_init(&root->xwayland_unmanaged);
+-- 
+2.46.0
+

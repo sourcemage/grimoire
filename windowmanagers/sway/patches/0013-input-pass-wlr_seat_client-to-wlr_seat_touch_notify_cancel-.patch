@@ -1,0 +1,31 @@
+From 9e1465107788af2c8ce93e2a288e9d32bc09711c Mon Sep 17 00:00:00 2001
+From: Simon Ser <contact@emersion.fr>
+Date: Thu, 28 Mar 2024 11:45:46 +0100
+Subject: [PATCH 13/15] input: pass wlr_seat_client to wlr_seat_touch_notify_cancel()
+
+References: https://gitlab.freedesktop.org/wlroots/wlroots/-/merge_requests/4613
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ sway/input/seatop_down.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/sway/input/seatop_down.c b/sway/input/seatop_down.c
+index 35fd3bcb2024..340e334bfd7c 100644
+--- a/sway/input/seatop_down.c
++++ b/sway/input/seatop_down.c
+@@ -117,7 +117,11 @@ static void handle_touch_cancel(struct sway_seat *seat,
+ 	}
+ 
+ 	if (e->surface) {
+-		wlr_seat_touch_notify_cancel(seat->wlr_seat, e->surface);
++		struct wl_client *client = wl_resource_get_client(e->surface->resource);
++		struct wlr_seat_client *seat_client = wlr_seat_client_for_wl_client(seat->wlr_seat, client);
++		if (seat_client != NULL) {
++			wlr_seat_touch_notify_cancel(seat->wlr_seat, seat_client);
++		}
+ 	}
+ 
+ 	if (wl_list_empty(&e->point_events)) {
+-- 
+2.46.0
+

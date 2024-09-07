@@ -1,0 +1,198 @@
+From a946b1aecfa3f32a3bfae66d66df0bdf77440d69 Mon Sep 17 00:00:00 2001
+From: llyyr <llyyr.public@gmail.com>
+Date: Wed, 22 Nov 2023 00:05:03 +0530
+Subject: [PATCH 3/15] Chase wlroots!4440
+
+References: https://gitlab.freedesktop.org/wlroots/wlroots/-/merge_requests/4440
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ include/sway/input/input-manager.h            |  2 -
+ protocols/meson.build                         |  1 -
+ protocols/wlr-input-inhibitor-unstable-v1.xml | 67 -------------------
+ sway/input/input-manager.c                    | 37 ----------
+ sway/server.c                                 |  1 -
+ 5 files changed, 108 deletions(-)
+ delete mode 100644 protocols/wlr-input-inhibitor-unstable-v1.xml
+
+diff --git a/include/sway/input/input-manager.h b/include/sway/input/input-manager.h
+index 4bd5170931dc..145edd4b6eb2 100644
+--- a/include/sway/input/input-manager.h
++++ b/include/sway/input/input-manager.h
+@@ -1,7 +1,6 @@
+ #ifndef _SWAY_INPUT_INPUT_MANAGER_H
+ #define _SWAY_INPUT_INPUT_MANAGER_H
+ #include <libinput.h>
+-#include <wlr/types/wlr_input_inhibitor.h>
+ #include <wlr/types/wlr_keyboard_shortcuts_inhibit_v1.h>
+ #include <wlr/types/wlr_virtual_keyboard_v1.h>
+ #include <wlr/types/wlr_virtual_pointer_v1.h>
+@@ -21,7 +20,6 @@ struct sway_input_manager {
+ 	struct wl_list devices;
+ 	struct wl_list seats;
+ 
+-	struct wlr_input_inhibit_manager *inhibit;
+ 	struct wlr_keyboard_shortcuts_inhibit_manager_v1 *keyboard_shortcuts_inhibit;
+ 	struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard;
+ 	struct wlr_virtual_pointer_manager_v1 *virtual_pointer;
+diff --git a/protocols/meson.build b/protocols/meson.build
+index 2992ac58519e..81edb5841b23 100644
+--- a/protocols/meson.build
++++ b/protocols/meson.build
+@@ -16,7 +16,6 @@ protocols = [
+ 	wl_protocol_dir / 'staging/cursor-shape/cursor-shape-v1.xml',
+ 	'wlr-layer-shell-unstable-v1.xml',
+ 	'idle.xml',
+-	'wlr-input-inhibitor-unstable-v1.xml',
+ 	'wlr-output-power-management-unstable-v1.xml',
+ ]
+ 
+diff --git a/protocols/wlr-input-inhibitor-unstable-v1.xml b/protocols/wlr-input-inhibitor-unstable-v1.xml
+deleted file mode 100644
+index b62d1bb440a5..000000000000
+--- a/protocols/wlr-input-inhibitor-unstable-v1.xml
++++ /dev/null
+@@ -1,67 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<protocol name="wlr_input_inhibit_unstable_v1">
+-  <copyright>
+-    Copyright © 2018 Drew DeVault
+-
+-    Permission to use, copy, modify, distribute, and sell this
+-    software and its documentation for any purpose is hereby granted
+-    without fee, provided that the above copyright notice appear in
+-    all copies and that both that copyright notice and this permission
+-    notice appear in supporting documentation, and that the name of
+-    the copyright holders not be used in advertising or publicity
+-    pertaining to distribution of the software without specific,
+-    written prior permission.  The copyright holders make no
+-    representations about the suitability of this software for any
+-    purpose.  It is provided "as is" without express or implied
+-    warranty.
+-
+-    THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+-    SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+-    FITNESS, IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY
+-    SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+-    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+-    AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+-    ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+-    THIS SOFTWARE.
+-  </copyright>
+-
+-  <interface name="zwlr_input_inhibit_manager_v1" version="1">
+-    <description summary="inhibits input events to other clients">
+-      Clients can use this interface to prevent input events from being sent to
+-      any surfaces but its own, which is useful for example in lock screen
+-      software. It is assumed that access to this interface will be locked down
+-      to whitelisted clients by the compositor.
+-    </description>
+-
+-    <request name="get_inhibitor">
+-      <description summary="inhibit input to other clients">
+-        Activates the input inhibitor. As long as the inhibitor is active, the
+-        compositor will not send input events to other clients.
+-      </description>
+-      <arg name="id" type="new_id" interface="zwlr_input_inhibitor_v1"/>
+-    </request>
+-
+-    <enum name="error">
+-      <entry name="already_inhibited" value="0" summary="an input inhibitor is already in use on the compositor"/>
+-    </enum>
+-  </interface>
+-
+-  <interface name="zwlr_input_inhibitor_v1" version="1">
+-    <description summary="inhibits input to other clients">
+-      While this resource exists, input to clients other than the owner of the
+-      inhibitor resource will not receive input events. The client that owns
+-      this resource will receive all input events normally. The compositor will
+-      also disable all of its own input processing (such as keyboard shortcuts)
+-      while the inhibitor is active.
+-
+-      The compositor may continue to send input events to selected clients,
+-      such as an on-screen keyboard (via the input-method protocol).
+-    </description>
+-
+-    <request name="destroy" type="destructor">
+-      <description summary="destroy the input inhibitor object">
+-        Destroy the inhibitor and allow other clients to receive input.
+-      </description>
+-    </request>
+-  </interface>
+-</protocol>
+diff --git a/sway/input/input-manager.c b/sway/input/input-manager.c
+index dcaeb056ecef..4febc333426f 100644
+--- a/sway/input/input-manager.c
++++ b/sway/input/input-manager.c
+@@ -6,7 +6,6 @@
+ #include <wlr/config.h>
+ #include <wlr/types/wlr_cursor.h>
+ #include <wlr/types/wlr_keyboard_group.h>
+-#include <wlr/types/wlr_input_inhibitor.h>
+ #include <wlr/types/wlr_virtual_keyboard_v1.h>
+ #include <wlr/types/wlr_virtual_pointer_v1.h>
+ #include "sway/config.h"
+@@ -284,34 +283,6 @@ static void handle_new_input(struct wl_listener *listener, void *data) {
+ 	}
+ }
+ 
+-static void handle_inhibit_activate(struct wl_listener *listener, void *data) {
+-	struct sway_input_manager *input_manager = wl_container_of(
+-			listener, input_manager, inhibit_activate);
+-	struct sway_seat *seat;
+-	wl_list_for_each(seat, &input_manager->seats, link) {
+-		seat_set_exclusive_client(seat, input_manager->inhibit->active_client);
+-	}
+-}
+-
+-static void handle_inhibit_deactivate(struct wl_listener *listener, void *data) {
+-	struct sway_input_manager *input_manager = wl_container_of(
+-			listener, input_manager, inhibit_deactivate);
+-	struct sway_seat *seat;
+-	if (server.session_lock.locked) {
+-		// Don't deactivate the grab of a screenlocker
+-		return;
+-	}
+-	wl_list_for_each(seat, &input_manager->seats, link) {
+-		seat_set_exclusive_client(seat, NULL);
+-		struct sway_node *previous = seat_get_focus(seat);
+-		if (previous) {
+-			// Hack to get seat to re-focus the return value of get_focus
+-			seat_set_focus(seat, NULL);
+-			seat_set_focus(seat, previous);
+-		}
+-	}
+-}
+-
+ static void handle_keyboard_shortcuts_inhibitor_destroy(
+ 		struct wl_listener *listener, void *data) {
+ 	struct sway_keyboard_shortcuts_inhibitor *sway_inhibitor =
+@@ -480,14 +451,6 @@ struct sway_input_manager *input_manager_create(struct sway_server *server) {
+ 		&input->virtual_pointer_new);
+ 	input->virtual_pointer_new.notify = handle_virtual_pointer;
+ 
+-	input->inhibit = wlr_input_inhibit_manager_create(server->wl_display);
+-	input->inhibit_activate.notify = handle_inhibit_activate;
+-	wl_signal_add(&input->inhibit->events.activate,
+-			&input->inhibit_activate);
+-	input->inhibit_deactivate.notify = handle_inhibit_deactivate;
+-	wl_signal_add(&input->inhibit->events.deactivate,
+-			&input->inhibit_deactivate);
+-
+ 	input->keyboard_shortcuts_inhibit =
+ 		wlr_keyboard_shortcuts_inhibit_v1_create(server->wl_display);
+ 	input->keyboard_shortcuts_inhibit_new_inhibitor.notify =
+diff --git a/sway/server.c b/sway/server.c
+index 217c9ac940ac..de70e0abc682 100644
+--- a/sway/server.c
++++ b/sway/server.c
+@@ -87,7 +87,6 @@ static bool is_privileged(const struct wl_global *global) {
+ 		global == server.gamma_control_manager_v1->global ||
+ 		global == server.layer_shell->global ||
+ 		global == server.session_lock.manager->global ||
+-		global == server.input->inhibit->global ||
+ 		global == server.input->keyboard_shortcuts_inhibit->global ||
+ 		global == server.input->virtual_keyboard->global ||
+ 		global == server.input->virtual_pointer->global;
+-- 
+2.46.0
+
