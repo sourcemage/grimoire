@@ -1,10 +1,12 @@
-From fca8474e9bd64bff8df16fdaf409d5f575ba9501 Mon Sep 17 00:00:00 2001
+From b2e33ad1468e9a663618a39ec822d2df8c4d220a Mon Sep 17 00:00:00 2001
 From: Simon Ser <contact@emersion.fr>
 Date: Wed, 28 Feb 2024 17:49:58 +0100
-Subject: [PATCH 9/15] Convert to new pointer enums
+Subject: [PATCH 09/15] Convert to new pointer enums
 
 References: https://gitlab.freedesktop.org/wlroots/wlroots/-/merge_requests/4575
-Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+Origin: Upstream
+Upstream-Status: Backported [commit fca8474e9bd64bff8df16fdaf409d5f575ba9501]
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
 ---
  include/sway/input/cursor.h         |  2 +-
  include/sway/input/seat.h           |  6 ++---
@@ -33,10 +35,10 @@ index 1e21c66fe326..527d03500c70 100644
  void dispatch_cursor_axis(struct sway_cursor *cursor,
  		struct wlr_pointer_axis_event *event);
 diff --git a/include/sway/input/seat.h b/include/sway/input/seat.h
-index e5aa847837ec..475753d8a9f0 100644
+index 97e81c1902c4..112d18b8952f 100644
 --- a/include/sway/input/seat.h
 +++ b/include/sway/input/seat.h
-@@ -17,7 +17,7 @@ struct sway_seat;
+@@ -17,7 +17,7 @@ struct render_context;
  struct sway_seatop_impl {
  	void (*button)(struct sway_seat *seat, uint32_t time_msec,
  			struct wlr_input_device *device, uint32_t button,
@@ -45,7 +47,7 @@ index e5aa847837ec..475753d8a9f0 100644
  	void (*pointer_motion)(struct sway_seat *seat, uint32_t time_msec);
  	void (*pointer_axis)(struct sway_seat *seat,
  			struct wlr_pointer_axis_event *event);
-@@ -286,13 +286,13 @@ struct sway_container *seat_get_focus_inactive_floating(struct sway_seat *seat,
+@@ -296,13 +296,13 @@ struct sway_container *seat_get_focus_inactive_floating(struct sway_seat *seat,
  		struct sway_workspace *workspace);
  
  void seat_pointer_notify_button(struct sway_seat *seat, uint32_t time_msec,
@@ -62,10 +64,10 @@ index e5aa847837ec..475753d8a9f0 100644
  void seatop_pointer_motion(struct sway_seat *seat, uint32_t time_msec);
  
 diff --git a/sway/commands/seat/cursor.c b/sway/commands/seat/cursor.c
-index 85c5edcadb8a..df7c379d1089 100644
+index 5a8a3bc8f770..7236f27f2925 100644
 --- a/sway/commands/seat/cursor.c
 +++ b/sway/commands/seat/cursor.c
-@@ -84,12 +84,12 @@ struct cmd_results *seat_cmd_cursor(int argc, char **argv) {
+@@ -85,12 +85,12 @@ struct cmd_results *seat_cmd_cursor(int argc, char **argv) {
  
  static struct cmd_results *press_or_release(struct sway_cursor *cursor,
  		char *action, char *button_str) {
@@ -81,7 +83,7 @@ index 85c5edcadb8a..df7c379d1089 100644
  	} else {
  		return cmd_results_new(CMD_INVALID, "%s", expected_syntax);
  	}
-@@ -104,16 +104,16 @@ static struct cmd_results *press_or_release(struct sway_cursor *cursor,
+@@ -105,16 +105,16 @@ static struct cmd_results *press_or_release(struct sway_cursor *cursor,
  	} else if (button == SWAY_SCROLL_UP || button == SWAY_SCROLL_DOWN
  			|| button == SWAY_SCROLL_LEFT || button == SWAY_SCROLL_RIGHT) {
  		// Dispatch axis event
@@ -103,10 +105,10 @@ index 85c5edcadb8a..df7c379d1089 100644
  			.delta = delta * 15,
  			.delta_discrete = delta
 diff --git a/sway/input/cursor.c b/sway/input/cursor.c
-index e8cd8112232c..7d66a89d98bd 100644
+index 36aab93e23f8..a275045e0603 100644
 --- a/sway/input/cursor.c
 +++ b/sway/input/cursor.c
-@@ -356,7 +356,7 @@ static void handle_pointer_motion_absolute(
+@@ -429,7 +429,7 @@ static void handle_pointer_motion_absolute(
  
  void dispatch_cursor_button(struct sway_cursor *cursor,
  		struct wlr_input_device *device, uint32_t time_msec, uint32_t button,
@@ -115,7 +117,7 @@ index e8cd8112232c..7d66a89d98bd 100644
  	if (time_msec == 0) {
  		time_msec = get_current_time_msec();
  	}
-@@ -368,7 +368,7 @@ static void handle_pointer_button(struct wl_listener *listener, void *data) {
+@@ -441,7 +441,7 @@ static void handle_pointer_button(struct wl_listener *listener, void *data) {
  	struct sway_cursor *cursor = wl_container_of(listener, cursor, button);
  	struct wlr_pointer_button_event *event = data;
  
@@ -124,7 +126,7 @@ index e8cd8112232c..7d66a89d98bd 100644
  		cursor->pressed_button_count++;
  	} else {
  		if (cursor->pressed_button_count > 0) {
-@@ -430,7 +430,7 @@ static void handle_touch_up(struct wl_listener *listener, void *data) {
+@@ -503,7 +503,7 @@ static void handle_touch_up(struct wl_listener *listener, void *data) {
  		if (cursor->pointer_touch_id == cursor->seat->touch_id) {
  			cursor->pointer_touch_up = true;
  			dispatch_cursor_button(cursor, &event->touch->base,
@@ -133,7 +135,7 @@ index e8cd8112232c..7d66a89d98bd 100644
  		}
  	} else {
  		seatop_touch_up(seat, event);
-@@ -448,7 +448,7 @@ static void handle_touch_cancel(struct wl_listener *listener, void *data) {
+@@ -521,7 +521,7 @@ static void handle_touch_cancel(struct wl_listener *listener, void *data) {
  		if (cursor->pointer_touch_id == cursor->seat->touch_id) {
  			cursor->pointer_touch_up = true;
  			dispatch_cursor_button(cursor, &event->touch->base,
@@ -142,7 +144,7 @@ index e8cd8112232c..7d66a89d98bd 100644
  		}
  	} else {
  		seatop_touch_cancel(seat, event);
-@@ -661,7 +661,7 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
+@@ -738,7 +738,7 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
  			event->state == WLR_TABLET_TOOL_TIP_UP) {
  		cursor->simulating_pointer_from_tool_tip = false;
  		dispatch_cursor_button(cursor, &event->tablet->base, event->time_msec,
@@ -151,7 +153,7 @@ index e8cd8112232c..7d66a89d98bd 100644
  		wlr_seat_pointer_notify_frame(cursor->seat->wlr_seat);
  	} else if (!surface || !wlr_surface_accepts_tablet_v2(tablet_v2, surface)) {
  		// If we started holding the tool tip down on a surface that accepts
-@@ -673,7 +673,7 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
+@@ -750,7 +750,7 @@ static void handle_tool_tip(struct wl_listener *listener, void *data) {
  		} else {
  			cursor->simulating_pointer_from_tool_tip = true;
  			dispatch_cursor_button(cursor, &event->tablet->base,
@@ -160,7 +162,7 @@ index e8cd8112232c..7d66a89d98bd 100644
  			wlr_seat_pointer_notify_frame(cursor->seat->wlr_seat);
  		}
  	} else {
-@@ -776,13 +776,13 @@ static void handle_tool_button(struct wl_listener *listener, void *data) {
+@@ -853,13 +853,13 @@ static void handle_tool_button(struct wl_listener *listener, void *data) {
  		case WLR_BUTTON_PRESSED:
  			if (cursor->tool_buttons == 0) {
  				dispatch_cursor_button(cursor, &event->tablet->base,
@@ -177,10 +179,10 @@ index e8cd8112232c..7d66a89d98bd 100644
  			break;
  		}
 diff --git a/sway/input/seat.c b/sway/input/seat.c
-index 9dd078c6163e..7ae298288197 100644
+index 0fd0e8e65fc0..1b29e1a6c0c3 100644
 --- a/sway/input/seat.c
 +++ b/sway/input/seat.c
-@@ -1520,7 +1520,7 @@ struct seat_config *seat_get_config_by_name(const char *name) {
+@@ -1575,7 +1575,7 @@ struct seat_config *seat_get_config_by_name(const char *name) {
  }
  
  void seat_pointer_notify_button(struct sway_seat *seat, uint32_t time_msec,
@@ -189,7 +191,7 @@ index 9dd078c6163e..7ae298288197 100644
  	seat->last_button_serial = wlr_seat_pointer_notify_button(seat->wlr_seat,
  			time_msec, button, state);
  }
-@@ -1557,7 +1557,7 @@ void seatop_unref(struct sway_seat *seat, struct sway_container *con) {
+@@ -1612,7 +1612,7 @@ void seatop_unref(struct sway_seat *seat, struct sway_container *con) {
  
  void seatop_button(struct sway_seat *seat, uint32_t time_msec,
  		struct wlr_input_device *device, uint32_t button,
@@ -199,10 +201,10 @@ index 9dd078c6163e..7ae298288197 100644
  		seat->seatop_impl->button(seat, time_msec, device, button, state);
  	}
 diff --git a/sway/input/seatop_default.c b/sway/input/seatop_default.c
-index f2a9c2cdf4cd..0c6f7c5e385c 100644
+index 54dac8dab5e7..af22b9cf34f4 100644
 --- a/sway/input/seatop_default.c
 +++ b/sway/input/seatop_default.c
-@@ -290,7 +290,7 @@ static void handle_tablet_tool_tip(struct sway_seat *seat,
+@@ -287,7 +287,7 @@ static void handle_tablet_tool_tip(struct sway_seat *seat,
  
  static bool trigger_pointer_button_binding(struct sway_seat *seat,
  		struct wlr_input_device *device, uint32_t button,
@@ -211,7 +213,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  		bool on_titlebar, bool on_border, bool on_contents, bool on_workspace) {
  	// We can reach this for non-pointer devices if we're currently emulating
  	// pointer input for one. Emulated input should not trigger bindings. The
-@@ -304,7 +304,7 @@ static bool trigger_pointer_button_binding(struct sway_seat *seat,
+@@ -301,7 +301,7 @@ static bool trigger_pointer_button_binding(struct sway_seat *seat,
  	char *device_identifier = device ? input_device_get_identifier(device)
  		: strdup("*");
  	struct sway_binding *binding = NULL;
@@ -220,7 +222,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  		state_add_button(e, button);
  		binding = get_active_mouse_binding(e,
  			config->current_mode->mouse_bindings, modifiers, false,
-@@ -329,7 +329,7 @@ static bool trigger_pointer_button_binding(struct sway_seat *seat,
+@@ -326,7 +326,7 @@ static bool trigger_pointer_button_binding(struct sway_seat *seat,
  
  static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  		struct wlr_input_device *device, uint32_t button,
@@ -229,7 +231,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  	struct sway_cursor *cursor = seat->cursor;
  
  	// Determine what's under the cursor
-@@ -362,7 +362,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
+@@ -359,7 +359,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  
  	// Handle clicking an empty workspace
  	if (node && node->type == N_WORKSPACE) {
@@ -238,7 +240,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  			seat_set_focus(seat, node);
  			transaction_commit_dirty();
  		}
-@@ -377,7 +377,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
+@@ -374,7 +374,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  			seat_set_focus_layer(seat, layer);
  			transaction_commit_dirty();
  		}
@@ -247,7 +249,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  			seatop_begin_down_on_surface(seat, surface, sx, sy);
  		}
  		seat_pointer_notify_button(seat, time_msec, button, state);
-@@ -386,7 +386,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
+@@ -383,7 +383,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  
  	// Handle tiling resize via border
  	if (cont && resize_edge && button == BTN_LEFT &&
@@ -256,7 +258,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  		// If a resize is triggered on a tabbed or stacked container, change
  		// focus to the tab which already had inactive focus -- otherwise, we'd
  		// change the active tab when the user probably just wanted to resize.
-@@ -404,7 +404,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
+@@ -401,7 +401,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  	// Handle tiling resize via mod
  	bool mod_pressed = modifiers & config->floating_mod;
  	if (cont && !is_floating_or_child && mod_pressed &&
@@ -265,7 +267,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  		uint32_t btn_resize = config->floating_mod_inverse ?
  			BTN_LEFT : BTN_RIGHT;
  		if (button == btn_resize) {
-@@ -432,7 +432,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
+@@ -429,7 +429,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  	}
  
  	// Handle changing focus when clicking on a container
@@ -274,7 +276,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  		// Default case: focus the container that was just clicked.
  		node = &cont->node;
  
-@@ -453,7 +453,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
+@@ -450,7 +450,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  
  	// Handle beginning floating move
  	if (cont && is_floating_or_child && !is_fullscreen_or_child &&
@@ -283,7 +285,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  		uint32_t btn_move = config->floating_mod_inverse ? BTN_RIGHT : BTN_LEFT;
  		if (button == btn_move && (mod_pressed || on_titlebar)) {
  			seatop_begin_move_floating(seat, container_toplevel_ancestor(cont));
-@@ -463,7 +463,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
+@@ -460,7 +460,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  
  	// Handle beginning floating resize
  	if (cont && is_floating_or_child && !is_fullscreen_or_child &&
@@ -292,7 +294,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  		// Via border
  		if (button == BTN_LEFT && resize_edge != WLR_EDGE_NONE) {
  			seat_set_focus_container(seat, cont);
-@@ -489,7 +489,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
+@@ -486,7 +486,7 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  
  	// Handle moving a tiling container
  	if (config->tiling_drag && (mod_pressed || on_titlebar) &&
@@ -301,7 +303,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  			cont && cont->pending.fullscreen_mode == FULLSCREEN_NONE) {
  		// If moving a container by its title bar, use a threshold for the drag
  		if (!mod_pressed && config->tiling_drag_threshold > 0) {
-@@ -502,14 +502,14 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
+@@ -499,14 +499,14 @@ static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  	}
  
  	// Handle mousedown on a container surface
@@ -319,7 +321,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  		seat_pointer_notify_button(seat, time_msec, button, state);
  		return;
  	}
-@@ -684,7 +684,7 @@ static void handle_touch_down(struct sway_seat *seat,
+@@ -691,7 +691,7 @@ static void handle_touch_down(struct sway_seat *seat,
  		pointer_motion(cursor, event->time_msec, &event->touch->base, dx, dy,
  				dx, dy);
  		dispatch_cursor_button(cursor, &event->touch->base, event->time_msec,
@@ -328,7 +330,7 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  	}
  }
  
-@@ -694,9 +694,9 @@ static void handle_touch_down(struct sway_seat *seat,
+@@ -701,9 +701,9 @@ static void handle_touch_down(struct sway_seat *seat,
  
  static uint32_t wl_axis_to_button(struct wlr_pointer_axis_event *event) {
  	switch (event->orientation) {
@@ -341,10 +343,10 @@ index f2a9c2cdf4cd..0c6f7c5e385c 100644
  	default:
  		sway_log(SWAY_DEBUG, "Unknown axis orientation");
 diff --git a/sway/input/seatop_down.c b/sway/input/seatop_down.c
-index 12d7ae7a6ee7..35fd3bcb2024 100644
+index b4421fe6ad0a..44b345d12dd4 100644
 --- a/sway/input/seatop_down.c
 +++ b/sway/input/seatop_down.c
-@@ -142,7 +142,7 @@ static void handle_pointer_axis(struct sway_seat *seat,
+@@ -143,7 +143,7 @@ static void handle_pointer_axis(struct sway_seat *seat,
  
  static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  		struct wlr_input_device *device, uint32_t button,
@@ -354,10 +356,10 @@ index 12d7ae7a6ee7..35fd3bcb2024 100644
  
  	if (seat->cursor->pressed_button_count == 0) {
 diff --git a/sway/input/seatop_move_floating.c b/sway/input/seatop_move_floating.c
-index 7de3f4d8373d..83668d88eee2 100644
+index ddcd4c53e4ec..0efedecc39df 100644
 --- a/sway/input/seatop_move_floating.c
 +++ b/sway/input/seatop_move_floating.c
-@@ -21,7 +21,7 @@ static void finalize_move(struct sway_seat *seat) {
+@@ -23,7 +23,7 @@ static void finalize_move(struct sway_seat *seat) {
  
  static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  		struct wlr_input_device *device, uint32_t button,
@@ -367,10 +369,10 @@ index 7de3f4d8373d..83668d88eee2 100644
  		finalize_move(seat);
  	}
 diff --git a/sway/input/seatop_move_tiling.c b/sway/input/seatop_move_tiling.c
-index 4f4d6e4198ba..c525b77a9e9b 100644
+index 26704d0d91a8..a1e455a97b97 100644
 --- a/sway/input/seatop_move_tiling.c
 +++ b/sway/input/seatop_move_tiling.c
-@@ -405,7 +405,7 @@ static void finalize_move(struct sway_seat *seat) {
+@@ -409,7 +409,7 @@ static void finalize_move(struct sway_seat *seat) {
  
  static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  		struct wlr_input_device *device, uint32_t button,
@@ -380,10 +382,10 @@ index 4f4d6e4198ba..c525b77a9e9b 100644
  		finalize_move(seat);
  	}
 diff --git a/sway/input/seatop_resize_floating.c b/sway/input/seatop_resize_floating.c
-index 168dfffe3eee..bec86e33ad43 100644
+index df6830266448..1fe13104b616 100644
 --- a/sway/input/seatop_resize_floating.c
 +++ b/sway/input/seatop_resize_floating.c
-@@ -20,7 +20,7 @@ struct seatop_resize_floating_event {
+@@ -21,7 +21,7 @@ struct seatop_resize_floating_event {
  
  static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  		struct wlr_input_device *device, uint32_t button,
@@ -393,10 +395,10 @@ index 168dfffe3eee..bec86e33ad43 100644
  	struct sway_container *con = e->con;
  
 diff --git a/sway/input/seatop_resize_tiling.c b/sway/input/seatop_resize_tiling.c
-index 9ce4ff8b1ace..15fd333b390b 100644
+index 869d11b50004..8ab2bcf37fbe 100644
 --- a/sway/input/seatop_resize_tiling.c
 +++ b/sway/input/seatop_resize_tiling.c
-@@ -45,7 +45,7 @@ static struct sway_container *container_get_resize_sibling(
+@@ -46,7 +46,7 @@ static struct sway_container *container_get_resize_sibling(
  
  static void handle_button(struct sway_seat *seat, uint32_t time_msec,
  		struct wlr_input_device *device, uint32_t button,
