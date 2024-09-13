@@ -1,13 +1,49 @@
 message "Dnsmasq can use uptime instead of RTC for timing, enable this when" &&
 message "your RTC is broken or if your leasefiles are on a flash filesystem" &&
-config_query_option DNSMASQ_RTC "Use uptime instead of RTC for timing?" \
-                    n "-DHAVE_BROKEN_RTC" "" &&
+config_query DNSMASQ_RTC "Use uptime instead of RTC for timing?" n &&
 
-config_query_option DNSMASQ_TFTP "Enable the built-in TFTP server?" \
-                    y "-DHAVE_TFTP" "-DNO_TFTP" &&
+config_query DNSMASQ_NO_ID "Don't report *.bind CHAOS info to clients, forward such requests upstream instead?" n &&
 
-config_query_option DNSMASQ_DHCP "Enable the built-in DHCP server?" \
-                    y "-DHAVE_DHCP" "-DNO_DHCP" &&
+config_query_option DNSMASQ_OPTS "Enable authoritative DNS server support?" y \
+                                 "-DHAVE_AUTH" \
+                                 "-DNO_AUTH" &&
 
-config_query_option DNSMASQ_SCRIPT "Enable script actions on lease changes?" \
-                    y "-DHAVE_SCRIPT" "-DNO_SCRIPT"
+config_query_option DNSMASQ_OPTS "Enable ipset support?" y \
+                                 "-DHAVE_IPSET" \
+                                 "-DNO_IPSET" &&
+
+# backporting legacy options
+for o in DNSMASQ_TFTP DNSMASQ_DHCP DNSMASQ_SCRIPT; do
+  if [[ -n ${!o} ]]; then
+    list_add "DNSMASQ_OPTS" "${!o}"
+    persistent_remove ${o}
+  fi
+done &&
+
+config_query_option DNSMASQ_OPTS "Enable the built-in TFTP server?" y \
+                                 "-DHAVE_TFTP" \
+                                 "-DNO_TFTP" &&
+
+config_query_option DNSMASQ_OPTS "Enable the built-in DHCPv4 server?" y \
+                                 "-DHAVE_DHCP" \
+                                 "-DNO_DHCP" &&
+
+config_query_option DNSMASQ_OPTS "Enable the built-in DHCPv6 server?" y \
+                                 "-DHAVE_DHCP6" \
+                                 "-DNO_DHCP6" &&
+
+config_query_option DNSMASQ_OPTS "Enable script actions on lease changes?" y \
+                                 "-DHAVE_SCRIPT" \
+                                 "-DNO_SCRIPT" &&
+
+config_query_option DNSMASQ_OPTS "Enable dumpfile packet debugging?" y \
+                                 "-DHAVE_DUMPFILE" \
+                                 "-DNO_DUMPFILE" &&
+
+config_query_option DNSMASQ_OPTS "Enable DNS forwarding loop probe and removal?" y \
+                                 "-DHAVE_LOOP" \
+                                 "-DNO_LOOP" &&
+
+config_query_option DNSMASQ_OPTS "Enable inotify support for config files?" n \
+                                 "-DHAVE_INOTIFY" \
+                                 "-DNO_INOTIFY"

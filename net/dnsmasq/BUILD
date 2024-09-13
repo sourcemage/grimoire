@@ -1,5 +1,15 @@
-COPTS="$COPTS  $DNSMASQ_RTC $DNSMASQ_TFTP $DNSMASQ_DHCP $DNSMASQ_SCRIPT"
-make COPTS="$OPTS $COPTS" &&
+if [[ "${DNSMASQ_RTC}" == y ]]; then
+  OPTS="-DHAVE_BROKEN_RTC ${OPTS}"
+fi &&
+
+if [[ "${DNSMASQ_NO_ID}" == y ]]; then
+  OPTS="-DNO_ID ${OPTS}"
+fi &&
+
+local i18_target &&
+
 if is_depends_enabled $SPELL gettext; then
-  make all-i18n
-fi
+  i18_target="all-i18n"
+fi &&
+
+make COPTS="${DNSMASQ_OPTS} ${OPTS}" CFLAGS="${CFLAGS}" PREFIX="${INSTALL_ROOT}/usr" $i18n_target
