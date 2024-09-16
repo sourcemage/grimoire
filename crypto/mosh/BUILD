@@ -1,2 +1,2 @@
-CXXFLAGS="${CXXFLAGS// -std=gnu++20}" &&
+CXXFLAGS+=' -std=gnu++20'
 default_build
