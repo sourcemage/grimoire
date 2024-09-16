@@ -1,0 +1,2675 @@
+
+# HG changeset patch
+# User Mike Hommey <mh+mozilla@glandium.org>
+# Date 1725915543 0
+# Node ID 32a7a66074d14ab077c8c0fbbbd929a72840ed59
+# Parent  43674c61dadccffc2eb1389b15d069f9ee753ff9
+Bug 1916038 - Add volatile for gcc inline to avoid being removed. r=gfx-reviewers,nical
+
+This extends the fix upstream did in 616bee5420b62a7be09fda0252034e8be85f91b0,
+which was not enough.
+
+Differential Revision: https://phabricator.services.mozilla.com/D221275
+
+diff --git a/media/libyuv/04_add_missing_volatile.patch b/media/libyuv/04_add_missing_volatile.patch
+new file mode 100644
+--- /dev/null
++++ b/media/libyuv/04_add_missing_volatile.patch
+@@ -0,0 +1,875 @@
++diff --git a/include/libyuv/macros_msa.h b/include/libyuv/macros_msa.h
++index 6434a4da0537c..08e8c82927dd0 100644
++--- a/include/libyuv/macros_msa.h
+++++ b/include/libyuv/macros_msa.h
++@@ -20,7 +20,7 @@
++   ({                                                   \
++     const uint8_t* psrc_lw_m = (const uint8_t*)(psrc); \
++     uint32_t val_m;                                    \
++-    asm("lw  %[val_m],  %[psrc_lw_m]  \n"              \
+++    asm volatile("lw  %[val_m],  %[psrc_lw_m]  \n"     \
++         : [val_m] "=r"(val_m)                          \
++         : [psrc_lw_m] "m"(*psrc_lw_m));                \
++     val_m;                                             \
++@@ -31,7 +31,7 @@
++   ({                                                   \
++     const uint8_t* psrc_ld_m = (const uint8_t*)(psrc); \
++     uint64_t val_m = 0;                                \
++-    asm("ld  %[val_m],  %[psrc_ld_m]  \n"              \
+++    asm volatile("ld  %[val_m],  %[psrc_ld_m]  \n"     \
++         : [val_m] "=r"(val_m)                          \
++         : [psrc_ld_m] "m"(*psrc_ld_m));                \
++     val_m;                                             \
++@@ -55,7 +55,7 @@
++   ({                                                    \
++     uint8_t* pdst_sw_m = (uint8_t*)(pdst); /* NOLINT */ \
++     uint32_t val_m = (val);                             \
++-    asm("sw  %[val_m],  %[pdst_sw_m]  \n"               \
+++    asm volatile("sw  %[val_m],  %[pdst_sw_m]  \n"      \
++         : [pdst_sw_m] "=m"(*pdst_sw_m)                  \
++         : [val_m] "r"(val_m));                          \
++   })
++@@ -65,7 +65,7 @@
++   ({                                                    \
++     uint8_t* pdst_sd_m = (uint8_t*)(pdst); /* NOLINT */ \
++     uint64_t val_m = (val);                             \
++-    asm("sd  %[val_m],  %[pdst_sd_m]  \n"               \
+++    asm volatile("sd  %[val_m],  %[pdst_sd_m]  \n"      \
++         : [pdst_sd_m] "=m"(*pdst_sd_m)                  \
++         : [val_m] "r"(val_m));                          \
++   })
++@@ -86,7 +86,8 @@
++     uint8_t* psrc_lw_m = (uint8_t*)(psrc);      \
++     uint32_t val_lw_m;                          \
++                                                 \
++-    asm("lwr %[val_lw_m], 0(%[psrc_lw_m]) \n\t" \
+++    asm volatile(                               \
+++        "lwr %[val_lw_m], 0(%[psrc_lw_m]) \n\t" \
++         "lwl %[val_lw_m], 3(%[psrc_lw_m]) \n\t" \
++                                                 \
++         : [val_lw_m] "=&r"(val_lw_m)            \
++@@ -101,7 +102,8 @@
++     uint8_t* psrc_ld_m = (uint8_t*)(psrc);      \
++     uint64_t val_ld_m = 0;                      \
++                                                 \
++-    asm("ldr %[val_ld_m], 0(%[psrc_ld_m]) \n\t" \
+++    asm volatile(                               \
+++        "ldr %[val_ld_m], 0(%[psrc_ld_m]) \n\t" \
++         "ldl %[val_ld_m], 7(%[psrc_ld_m]) \n\t" \
++                                                 \
++         : [val_ld_m] "=&r"(val_ld_m)            \
++@@ -128,7 +130,7 @@
++   ({                                                    \
++     uint8_t* pdst_sw_m = (uint8_t*)(pdst); /* NOLINT */ \
++     uint32_t val_m = (val);                             \
++-    asm("usw  %[val_m],  %[pdst_sw_m]  \n"              \
+++    asm volatile("usw  %[val_m],  %[pdst_sw_m]  \n"     \
++         : [pdst_sw_m] "=m"(*pdst_sw_m)                  \
++         : [val_m] "r"(val_m));                          \
++   })
++diff --git a/source/row_gcc.cc b/source/row_gcc.cc
++index f8f41860ab7c5..6eb3286b053ad 100644
++--- a/source/row_gcc.cc
+++++ b/source/row_gcc.cc
++@@ -2626,7 +2626,7 @@ void OMITFP I444ToARGBRow_SSSE3(const uint8_t* y_buf,
++                                 uint8_t* dst_argb,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++@@ -2686,7 +2686,7 @@ void OMITFP I422ToRGB24Row_SSSE3(const uint8_t* y_buf,
++                                  uint8_t* dst_rgb24,
++                                  const struct YuvConstants* yuvconstants,
++                                  int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "movdqa      %[kShuffleMaskARGBToRGB24_0],%%xmm5 \n"
++       "movdqa      %[kShuffleMaskARGBToRGB24],%%xmm6 \n"
++@@ -2722,7 +2722,7 @@ void OMITFP I444ToRGB24Row_SSSE3(const uint8_t* y_buf,
++                                  uint8_t* dst_rgb24,
++                                  const struct YuvConstants* yuvconstants,
++                                  int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "movdqa      %[kShuffleMaskARGBToRGB24_0],%%xmm5 \n"
++       "movdqa      %[kShuffleMaskARGBToRGB24],%%xmm6 \n"
++@@ -2758,7 +2758,7 @@ void OMITFP I422ToARGBRow_SSSE3(const uint8_t* y_buf,
++                                 uint8_t* dst_argb,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++@@ -2787,7 +2787,7 @@ void OMITFP I422ToAR30Row_SSSE3(const uint8_t* y_buf,
++                                 uint8_t* dst_ar30,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"  // AR30 constants
++@@ -2822,7 +2822,7 @@ void OMITFP I210ToARGBRow_SSSE3(const uint16_t* y_buf,
++                                 uint8_t* dst_argb,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++@@ -2852,7 +2852,7 @@ void OMITFP I212ToARGBRow_SSSE3(const uint16_t* y_buf,
++                                 uint8_t* dst_argb,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++@@ -2882,7 +2882,7 @@ void OMITFP I210ToAR30Row_SSSE3(const uint16_t* y_buf,
++                                 uint8_t* dst_ar30,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++@@ -2917,7 +2917,7 @@ void OMITFP I212ToAR30Row_SSSE3(const uint16_t* y_buf,
++                                 uint8_t* dst_ar30,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++@@ -2952,7 +2952,7 @@ void OMITFP I410ToARGBRow_SSSE3(const uint16_t* y_buf,
++                                 uint8_t* dst_argb,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++@@ -3045,7 +3045,7 @@ void OMITFP I410ToAR30Row_SSSE3(const uint16_t* y_buf,
++                                 uint8_t* dst_ar30,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++@@ -3238,7 +3238,7 @@ void OMITFP P210ToAR30Row_SSSE3(const uint16_t* y_buf,
++                                 uint8_t* dst_ar30,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++       "psrlw       $14,%%xmm5                    \n"
++@@ -3269,7 +3269,7 @@ void OMITFP P410ToAR30Row_SSSE3(const uint16_t* y_buf,
++                                 uint8_t* dst_ar30,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++       "psrlw       $14,%%xmm5                    \n"
++@@ -3301,7 +3301,7 @@ void OMITFP I422ToRGBARow_SSSE3(const uint8_t* y_buf,
++                                 uint8_t* dst_rgba,
++                                 const struct YuvConstants* yuvconstants,
++                                 int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "pcmpeqb     %%xmm5,%%xmm5                 \n"
++@@ -3712,7 +3712,7 @@ void OMITFP I444ToARGBRow_AVX2(const uint8_t* y_buf,
++                                uint8_t* dst_argb,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
++@@ -3746,7 +3746,7 @@ void OMITFP I422ToARGBRow_AVX2(const uint8_t* y_buf,
++                                uint8_t* dst_argb,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
++@@ -3786,7 +3786,7 @@ void OMITFP I422ToARGBRow_AVX512BW(const uint8_t* y_buf,
++                                    uint8_t* dst_argb,
++                                    const struct YuvConstants* yuvconstants,
++                                    int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX512BW(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%xmm5,%%xmm5,%%xmm5          \n"
++@@ -3825,7 +3825,7 @@ void OMITFP I422ToAR30Row_AVX2(const uint8_t* y_buf,
++                                uint8_t* dst_ar30,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
++@@ -3865,7 +3865,7 @@ void OMITFP I210ToARGBRow_AVX2(const uint16_t* y_buf,
++                                uint8_t* dst_argb,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
++@@ -3900,7 +3900,7 @@ void OMITFP I212ToARGBRow_AVX2(const uint16_t* y_buf,
++                                uint8_t* dst_argb,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
++@@ -3935,7 +3935,7 @@ void OMITFP I210ToAR30Row_AVX2(const uint16_t* y_buf,
++                                uint8_t* dst_ar30,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
++@@ -3975,7 +3975,7 @@ void OMITFP I212ToAR30Row_AVX2(const uint16_t* y_buf,
++                                uint8_t* dst_ar30,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
++@@ -4015,7 +4015,7 @@ void OMITFP I410ToARGBRow_AVX2(const uint16_t* y_buf,
++                                uint8_t* dst_argb,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
++@@ -4120,7 +4120,7 @@ void OMITFP I410ToAR30Row_AVX2(const uint16_t* y_buf,
++                                uint8_t* dst_ar30,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
++@@ -4228,7 +4228,7 @@ void OMITFP I422ToRGBARow_AVX2(const uint8_t* y_buf,
++                                uint8_t* dst_argb,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "sub         %[u_buf],%[v_buf]             \n"
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
++@@ -4430,7 +4430,7 @@ void OMITFP P210ToAR30Row_AVX2(const uint16_t* y_buf,
++                                uint8_t* dst_ar30,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
++       "vpsrlw      $14,%%ymm5,%%ymm5             \n"
++@@ -4467,7 +4467,7 @@ void OMITFP P410ToAR30Row_AVX2(const uint16_t* y_buf,
++                                uint8_t* dst_ar30,
++                                const struct YuvConstants* yuvconstants,
++                                int width) {
++-  asm (
+++  asm volatile (
++     YUVTORGB_SETUP_AVX2(yuvconstants)
++       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
++       "vpsrlw      $14,%%ymm5,%%ymm5             \n"
++@@ -5681,7 +5681,7 @@ void MergeXRGBRow_AVX2(const uint8_t* src_r,
++                        const uint8_t* src_b,
++                        uint8_t* dst_argb,
++                        int width) {
++-  asm(
+++  asm volatile(
++ 
++       LABELALIGN
++       "1:                                        \n"
++@@ -7381,7 +7381,7 @@ void ARGBUnattenuateRow_SSE2(const uint8_t* src_argb,
++                              uint8_t* dst_argb,
++                              int width) {
++   uintptr_t alpha;
++-  asm(
+++  asm volatile(
++       // 4 pixel loop.
++       LABELALIGN
++       "1:                                        \n"
++@@ -7841,7 +7841,7 @@ void ARGBAddRow_SSE2(const uint8_t* src_argb,
++                      const uint8_t* src_argb1,
++                      uint8_t* dst_argb,
++                      int width) {
++-  asm(
+++  asm volatile(
++       // 4 pixel loop.
++       LABELALIGN
++       "1:                                        \n"
++@@ -7869,7 +7869,7 @@ void ARGBAddRow_AVX2(const uint8_t* src_argb,
++                      const uint8_t* src_argb1,
++                      uint8_t* dst_argb,
++                      int width) {
++-  asm(
+++  asm volatile(
++       // 4 pixel loop.
++       LABELALIGN
++       "1:                                        \n"
++@@ -7897,7 +7897,7 @@ void ARGBSubtractRow_SSE2(const uint8_t* src_argb,
++                           const uint8_t* src_argb1,
++                           uint8_t* dst_argb,
++                           int width) {
++-  asm(
+++  asm volatile(
++       // 4 pixel loop.
++       LABELALIGN
++       "1:                                        \n"
++@@ -7925,7 +7925,7 @@ void ARGBSubtractRow_AVX2(const uint8_t* src_argb,
++                           const uint8_t* src_argb1,
++                           uint8_t* dst_argb,
++                           int width) {
++-  asm(
+++  asm volatile(
++       // 4 pixel loop.
++       LABELALIGN
++       "1:                                        \n"
++@@ -9099,7 +9099,7 @@ void ARGBColorTableRow_X86(uint8_t* dst_argb,
++                            const uint8_t* table_argb,
++                            int width) {
++   uintptr_t pixel_temp;
++-  asm(
+++  asm volatile(
++       // 1 pixel loop.
++       LABELALIGN
++       "1:                                        \n"
++@@ -9132,7 +9132,7 @@ void RGBColorTableRow_X86(uint8_t* dst_argb,
++                           const uint8_t* table_argb,
++                           int width) {
++   uintptr_t pixel_temp;
++-  asm(
+++  asm volatile(
++       // 1 pixel loop.
++       LABELALIGN
++       "1:                                        \n"
++diff --git a/source/row_lsx.cc b/source/row_lsx.cc
++index 09f206cab93f2..fa088c9e78a94 100644
++--- a/source/row_lsx.cc
+++++ b/source/row_lsx.cc
++@@ -2805,7 +2805,8 @@ static void ARGBToYMatrixRow_LSX(const uint8_t* src_argb,
++                                  uint8_t* dst_y,
++                                  int width,
++                                  const struct RgbConstants* rgbconstants) {
++-  asm("vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
+++  asm volatile(
+++      "vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
++       "vldrepl.b      $vr1,  %3,    1             \n\t"  // load rgbconstants
++       "vldrepl.b      $vr2,  %3,    2             \n\t"  // load rgbconstants
++       "vldrepl.h      $vr3,  %3,    4             \n\t"  // load rgbconstants
++@@ -2863,7 +2864,8 @@ static void RGBAToYMatrixRow_LSX(const uint8_t* src_rgba,
++                                  uint8_t* dst_y,
++                                  int width,
++                                  const struct RgbConstants* rgbconstants) {
++-  asm("vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
+++  asm volatile(
+++      "vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
++       "vldrepl.b      $vr1,  %3,    1             \n\t"  // load rgbconstants
++       "vldrepl.b      $vr2,  %3,    2             \n\t"  // load rgbconstants
++       "vldrepl.h      $vr3,  %3,    4             \n\t"  // load rgbconstants
++@@ -2920,7 +2922,8 @@ static void RGBToYMatrixRow_LSX(const uint8_t* src_rgba,
++                       7,  9,  10, 12, 13, 15, 1,  0,  4,  0,  7,  0,  10,
++                       0,  13, 0,  16, 0,  19, 0,  22, 0,  25, 0,  28, 0,
++                       31, 0,  2,  0,  5,  0,  8,  0,  11, 0,  14, 0};
++-  asm("vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
+++  asm volatile(
+++      "vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
++       "vldrepl.b      $vr1,  %3,    1             \n\t"  // load rgbconstants
++       "vldrepl.b      $vr2,  %3,    2             \n\t"  // load rgbconstants
++       "vldrepl.h      $vr3,  %3,    4             \n\t"  // load rgbconstants
++diff --git a/source/scale_gcc.cc b/source/scale_gcc.cc
++index 9dfe64a931808..7556bcb4c1d62 100644
++--- a/source/scale_gcc.cc
+++++ b/source/scale_gcc.cc
++@@ -97,7 +97,7 @@ void ScaleRowDown2_SSSE3(const uint8_t* src_ptr,
++                          uint8_t* dst_ptr,
++                          int dst_width) {
++   (void)src_stride;
++-  asm(
+++  asm volatile(
++       // 16 pixel loop.
++       LABELALIGN
++       "1:                                        \n"
++@@ -123,7 +123,7 @@ void ScaleRowDown2Linear_SSSE3(const uint8_t* src_ptr,
++                                uint8_t* dst_ptr,
++                                int dst_width) {
++   (void)src_stride;
++-      asm("pcmpeqb     %%xmm4,%%xmm4                 \n"
+++      asm volatile("pcmpeqb     %%xmm4,%%xmm4                 \n"
++       "psrlw       $0xf,%%xmm4                   \n"
++       "packuswb    %%xmm4,%%xmm4                 \n"
++       "pxor        %%xmm5,%%xmm5                 \n"
++@@ -153,7 +153,7 @@ void ScaleRowDown2Box_SSSE3(const uint8_t* src_ptr,
++                             ptrdiff_t src_stride,
++                             uint8_t* dst_ptr,
++                             int dst_width) {
++-      asm("pcmpeqb     %%xmm4,%%xmm4                 \n"
+++      asm volatile("pcmpeqb     %%xmm4,%%xmm4                 \n"
++       "psrlw       $0xf,%%xmm4                   \n"
++       "packuswb    %%xmm4,%%xmm4                 \n"
++       "pxor        %%xmm5,%%xmm5                 \n"
++@@ -219,7 +219,7 @@ void ScaleRowDown2Linear_AVX2(const uint8_t* src_ptr,
++                               uint8_t* dst_ptr,
++                               int dst_width) {
++   (void)src_stride;
++-      asm("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
+++      asm volatile("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpsrlw      $0xf,%%ymm4,%%ymm4            \n"
++       "vpackuswb   %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpxor       %%ymm5,%%ymm5,%%ymm5          \n"
++@@ -251,7 +251,7 @@ void ScaleRowDown2Box_AVX2(const uint8_t* src_ptr,
++                            ptrdiff_t src_stride,
++                            uint8_t* dst_ptr,
++                            int dst_width) {
++-      asm("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
+++      asm volatile("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpsrlw      $0xf,%%ymm4,%%ymm4            \n"
++       "vpackuswb   %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpxor       %%ymm5,%%ymm5,%%ymm5          \n"
++@@ -293,7 +293,7 @@ void ScaleRowDown4_SSSE3(const uint8_t* src_ptr,
++                          uint8_t* dst_ptr,
++                          int dst_width) {
++   (void)src_stride;
++-      asm("pcmpeqb     %%xmm5,%%xmm5                 \n"
+++      asm volatile("pcmpeqb     %%xmm5,%%xmm5                 \n"
++       "psrld       $0x18,%%xmm5                  \n"
++       "pslld       $0x10,%%xmm5                  \n"
++ 
++@@ -323,7 +323,7 @@ void ScaleRowDown4Box_SSSE3(const uint8_t* src_ptr,
++                             uint8_t* dst_ptr,
++                             int dst_width) {
++   intptr_t stridex3;
++-      asm("pcmpeqb     %%xmm4,%%xmm4                 \n"
+++      asm volatile("pcmpeqb     %%xmm4,%%xmm4                 \n"
++       "psrlw       $0xf,%%xmm4                   \n"
++       "movdqa      %%xmm4,%%xmm5                 \n"
++       "packuswb    %%xmm4,%%xmm4                 \n"
++@@ -377,7 +377,7 @@ void ScaleRowDown4_AVX2(const uint8_t* src_ptr,
++                         uint8_t* dst_ptr,
++                         int dst_width) {
++   (void)src_stride;
++-      asm("vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
+++      asm volatile("vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
++       "vpsrld      $0x18,%%ymm5,%%ymm5           \n"
++       "vpslld      $0x10,%%ymm5,%%ymm5           \n"
++ 
++@@ -409,7 +409,7 @@ void ScaleRowDown4Box_AVX2(const uint8_t* src_ptr,
++                            ptrdiff_t src_stride,
++                            uint8_t* dst_ptr,
++                            int dst_width) {
++-      asm("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
+++      asm volatile("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpsrlw      $0xf,%%ymm4,%%ymm4            \n"
++       "vpsllw      $0x3,%%ymm4,%%ymm5            \n"
++       "vpackuswb   %%ymm4,%%ymm4,%%ymm4          \n"
++@@ -464,7 +464,7 @@ void ScaleRowDown34_SSSE3(const uint8_t* src_ptr,
++                           uint8_t* dst_ptr,
++                           int dst_width) {
++   (void)src_stride;
++-      asm("movdqa      %0,%%xmm3                     \n"
+++      asm volatile("movdqa      %0,%%xmm3                     \n"
++       "movdqa      %1,%%xmm4                     \n"
++       "movdqa      %2,%%xmm5                     \n"
++       :
++@@ -499,7 +499,7 @@ void ScaleRowDown34_1_Box_SSSE3(const uint8_t* src_ptr,
++                                 ptrdiff_t src_stride,
++                                 uint8_t* dst_ptr,
++                                 int dst_width) {
++-      asm("movdqa      %0,%%xmm2                     \n"  // kShuf01
+++      asm volatile("movdqa      %0,%%xmm2                     \n"  // kShuf01
++       "movdqa      %1,%%xmm3                     \n"  // kShuf11
++       "movdqa      %2,%%xmm4                     \n"  // kShuf21
++       :
++@@ -507,7 +507,7 @@ void ScaleRowDown34_1_Box_SSSE3(const uint8_t* src_ptr,
++         "m"(kShuf11),  // %1
++         "m"(kShuf21)   // %2
++   );
++-      asm("movdqa      %0,%%xmm5                     \n"  // kMadd01
+++      asm volatile("movdqa      %0,%%xmm5                     \n"  // kMadd01
++       "movdqa      %1,%%xmm0                     \n"  // kMadd11
++       "movdqa      %2,%%xmm1                     \n"  // kRound34
++       :
++@@ -561,7 +561,7 @@ void ScaleRowDown34_0_Box_SSSE3(const uint8_t* src_ptr,
++                                 ptrdiff_t src_stride,
++                                 uint8_t* dst_ptr,
++                                 int dst_width) {
++-      asm("movdqa      %0,%%xmm2                     \n"  // kShuf01
+++      asm volatile("movdqa      %0,%%xmm2                     \n"  // kShuf01
++       "movdqa      %1,%%xmm3                     \n"  // kShuf11
++       "movdqa      %2,%%xmm4                     \n"  // kShuf21
++       :
++@@ -569,7 +569,7 @@ void ScaleRowDown34_0_Box_SSSE3(const uint8_t* src_ptr,
++         "m"(kShuf11),  // %1
++         "m"(kShuf21)   // %2
++   );
++-      asm("movdqa      %0,%%xmm5                     \n"  // kMadd01
+++      asm volatile("movdqa      %0,%%xmm5                     \n"  // kMadd01
++       "movdqa      %1,%%xmm0                     \n"  // kMadd11
++       "movdqa      %2,%%xmm1                     \n"  // kRound34
++       :
++@@ -628,7 +628,7 @@ void ScaleRowDown38_SSSE3(const uint8_t* src_ptr,
++                           uint8_t* dst_ptr,
++                           int dst_width) {
++   (void)src_stride;
++-      asm("movdqa      %3,%%xmm4                     \n"
+++      asm volatile("movdqa      %3,%%xmm4                     \n"
++       "movdqa      %4,%%xmm5                     \n"
++ 
++       LABELALIGN
++@@ -657,7 +657,7 @@ void ScaleRowDown38_2_Box_SSSE3(const uint8_t* src_ptr,
++                                 ptrdiff_t src_stride,
++                                 uint8_t* dst_ptr,
++                                 int dst_width) {
++-      asm("movdqa      %0,%%xmm2                     \n"
+++      asm volatile("movdqa      %0,%%xmm2                     \n"
++       "movdqa      %1,%%xmm3                     \n"
++       "movdqa      %2,%%xmm4                     \n"
++       "movdqa      %3,%%xmm5                     \n"
++@@ -699,7 +699,7 @@ void ScaleRowDown38_3_Box_SSSE3(const uint8_t* src_ptr,
++                                 ptrdiff_t src_stride,
++                                 uint8_t* dst_ptr,
++                                 int dst_width) {
++-      asm("movdqa      %0,%%xmm2                     \n"
+++      asm volatile("movdqa      %0,%%xmm2                     \n"
++       "movdqa      %1,%%xmm3                     \n"
++       "movdqa      %2,%%xmm4                     \n"
++       "pxor        %%xmm5,%%xmm5                 \n"
++@@ -766,7 +766,7 @@ static const uvec8 kLinearMadd31 = {3, 1, 1, 3, 3, 1, 1, 3,
++ void ScaleRowUp2_Linear_SSE2(const uint8_t* src_ptr,
++                              uint8_t* dst_ptr,
++                              int dst_width) {
++-      asm("pxor        %%xmm0,%%xmm0                 \n"  // 0
+++      asm volatile("pxor        %%xmm0,%%xmm0                 \n"  // 0
++       "pcmpeqw     %%xmm6,%%xmm6                 \n"
++       "psrlw       $15,%%xmm6                    \n"
++       "psllw       $1,%%xmm6                     \n"  // all 2
++@@ -934,7 +934,7 @@ void ScaleRowUp2_Bilinear_SSE2(const uint8_t* src_ptr,
++ void ScaleRowUp2_Linear_12_SSSE3(const uint16_t* src_ptr,
++                                  uint16_t* dst_ptr,
++                                  int dst_width) {
++-      asm("movdqa      %3,%%xmm5                     \n"
+++      asm volatile("movdqa      %3,%%xmm5                     \n"
++       "pcmpeqw     %%xmm4,%%xmm4                 \n"
++       "psrlw       $15,%%xmm4                    \n"
++       "psllw       $1,%%xmm4                     \n"  // all 2
++@@ -985,7 +985,7 @@ void ScaleRowUp2_Bilinear_12_SSSE3(const uint16_t* src_ptr,
++                                    uint16_t* dst_ptr,
++                                    ptrdiff_t dst_stride,
++                                    int dst_width) {
++-      asm("pcmpeqw     %%xmm7,%%xmm7                 \n"
+++      asm volatile("pcmpeqw     %%xmm7,%%xmm7                 \n"
++       "psrlw       $15,%%xmm7                    \n"
++       "psllw       $3,%%xmm7                     \n"  // all 8
++       "movdqa      %5,%%xmm6                     \n"
++@@ -1082,7 +1082,7 @@ void ScaleRowUp2_Bilinear_12_SSSE3(const uint16_t* src_ptr,
++ void ScaleRowUp2_Linear_16_SSE2(const uint16_t* src_ptr,
++                                 uint16_t* dst_ptr,
++                                 int dst_width) {
++-      asm("pxor        %%xmm5,%%xmm5                 \n"
+++      asm volatile("pxor        %%xmm5,%%xmm5                 \n"
++       "pcmpeqd     %%xmm4,%%xmm4                 \n"
++       "psrld       $31,%%xmm4                    \n"
++       "pslld       $1,%%xmm4                     \n"  // all 2
++@@ -1134,7 +1134,7 @@ void ScaleRowUp2_Bilinear_16_SSE2(const uint16_t* src_ptr,
++                                   uint16_t* dst_ptr,
++                                   ptrdiff_t dst_stride,
++                                   int dst_width) {
++-      asm("pxor        %%xmm7,%%xmm7                 \n"
+++      asm volatile("pxor        %%xmm7,%%xmm7                 \n"
++       "pcmpeqd     %%xmm6,%%xmm6                 \n"
++       "psrld       $31,%%xmm6                    \n"
++       "pslld       $3,%%xmm6                     \n"  // all 8
++@@ -1241,7 +1241,7 @@ void ScaleRowUp2_Bilinear_16_SSE2(const uint16_t* src_ptr,
++ void ScaleRowUp2_Linear_SSSE3(const uint8_t* src_ptr,
++                               uint8_t* dst_ptr,
++                               int dst_width) {
++-      asm("pcmpeqw     %%xmm4,%%xmm4                 \n"
+++      asm volatile("pcmpeqw     %%xmm4,%%xmm4                 \n"
++       "psrlw       $15,%%xmm4                    \n"
++       "psllw       $1,%%xmm4                     \n"  // all 2
++       "movdqa      %3,%%xmm3                     \n"
++@@ -1281,7 +1281,7 @@ void ScaleRowUp2_Bilinear_SSSE3(const uint8_t* src_ptr,
++                                 uint8_t* dst_ptr,
++                                 ptrdiff_t dst_stride,
++                                 int dst_width) {
++-      asm("pcmpeqw     %%xmm6,%%xmm6                 \n"
+++      asm volatile("pcmpeqw     %%xmm6,%%xmm6                 \n"
++       "psrlw       $15,%%xmm6                    \n"
++       "psllw       $3,%%xmm6                     \n"  // all 8
++       "movdqa      %5,%%xmm7                     \n"
++@@ -1365,7 +1365,7 @@ void ScaleRowUp2_Bilinear_SSSE3(const uint8_t* src_ptr,
++ void ScaleRowUp2_Linear_AVX2(const uint8_t* src_ptr,
++                              uint8_t* dst_ptr,
++                              int dst_width) {
++-      asm("vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
+++      asm volatile("vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpsrlw      $15,%%ymm4,%%ymm4             \n"
++       "vpsllw      $1,%%ymm4,%%ymm4              \n"  // all 2
++       "vbroadcastf128 %3,%%ymm3                  \n"
++@@ -1408,7 +1408,7 @@ void ScaleRowUp2_Bilinear_AVX2(const uint8_t* src_ptr,
++                                uint8_t* dst_ptr,
++                                ptrdiff_t dst_stride,
++                                int dst_width) {
++-      asm("vpcmpeqw    %%ymm6,%%ymm6,%%ymm6          \n"
+++      asm volatile("vpcmpeqw    %%ymm6,%%ymm6,%%ymm6          \n"
++       "vpsrlw      $15,%%ymm6,%%ymm6             \n"
++       "vpsllw      $3,%%ymm6,%%ymm6              \n"  // all 8
++       "vbroadcastf128 %5,%%ymm7                  \n"
++@@ -1489,7 +1489,7 @@ void ScaleRowUp2_Bilinear_AVX2(const uint8_t* src_ptr,
++ void ScaleRowUp2_Linear_12_AVX2(const uint16_t* src_ptr,
++                                 uint16_t* dst_ptr,
++                                 int dst_width) {
++-      asm("vbroadcastf128 %3,%%ymm5                  \n"
+++      asm volatile("vbroadcastf128 %3,%%ymm5                  \n"
++       "vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpsrlw      $15,%%ymm4,%%ymm4             \n"
++       "vpsllw      $1,%%ymm4,%%ymm4              \n"  // all 2
++@@ -1540,7 +1540,7 @@ void ScaleRowUp2_Bilinear_12_AVX2(const uint16_t* src_ptr,
++                                   uint16_t* dst_ptr,
++                                   ptrdiff_t dst_stride,
++                                   int dst_width) {
++-      asm("vbroadcastf128 %5,%%ymm5                  \n"
+++      asm volatile("vbroadcastf128 %5,%%ymm5                  \n"
++       "vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpsrlw      $15,%%ymm4,%%ymm4             \n"
++       "vpsllw      $3,%%ymm4,%%ymm4              \n"  // all 8
++@@ -1601,7 +1601,7 @@ void ScaleRowUp2_Bilinear_12_AVX2(const uint16_t* src_ptr,
++ void ScaleRowUp2_Linear_16_AVX2(const uint16_t* src_ptr,
++                                 uint16_t* dst_ptr,
++                                 int dst_width) {
++-      asm("vpcmpeqd    %%ymm4,%%ymm4,%%ymm4          \n"
+++      asm volatile("vpcmpeqd    %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpsrld      $31,%%ymm4,%%ymm4             \n"
++       "vpslld      $1,%%ymm4,%%ymm4              \n"  // all 2
++ 
++@@ -1650,7 +1650,7 @@ void ScaleRowUp2_Bilinear_16_AVX2(const uint16_t* src_ptr,
++                                   uint16_t* dst_ptr,
++                                   ptrdiff_t dst_stride,
++                                   int dst_width) {
++-      asm("vpcmpeqd    %%ymm6,%%ymm6,%%ymm6          \n"
+++      asm volatile("vpcmpeqd    %%ymm6,%%ymm6,%%ymm6          \n"
++       "vpsrld      $31,%%ymm6,%%ymm6             \n"
++       "vpslld      $3,%%ymm6,%%ymm6              \n"  // all 8
++ 
++@@ -1732,7 +1732,7 @@ void ScaleRowUp2_Bilinear_16_AVX2(const uint16_t* src_ptr,
++ void ScaleAddRow_SSE2(const uint8_t* src_ptr,
++                       uint16_t* dst_ptr,
++                       int src_width) {
++-      asm("pxor        %%xmm5,%%xmm5                 \n"
+++      asm volatile("pxor        %%xmm5,%%xmm5                 \n"
++ 
++       // 16 pixel loop.
++       LABELALIGN
++@@ -1763,7 +1763,7 @@ void ScaleAddRow_SSE2(const uint8_t* src_ptr,
++ void ScaleAddRow_AVX2(const uint8_t* src_ptr,
++                       uint16_t* dst_ptr,
++                       int src_width) {
++-      asm("vpxor       %%ymm5,%%ymm5,%%ymm5          \n"
+++      asm volatile("vpxor       %%ymm5,%%ymm5,%%ymm5          \n"
++ 
++       LABELALIGN
++       "1:                                        \n"
++@@ -1804,7 +1804,7 @@ void ScaleFilterCols_SSSE3(uint8_t* dst_ptr,
++                            int x,
++                            int dx) {
++   intptr_t x0, x1, temp_pixel;
++-      asm("movd        %6,%%xmm2                     \n"
+++      asm volatile("movd        %6,%%xmm2                     \n"
++       "movd        %7,%%xmm3                     \n"
++       "movl        $0x04040000,%k2               \n"
++       "movd        %k2,%%xmm5                    \n"
++@@ -2005,7 +2005,7 @@ void ScaleARGBRowDownEven_SSE2(const uint8_t* src_argb,
++   intptr_t src_stepx_x4 = (intptr_t)(src_stepx);
++   intptr_t src_stepx_x12;
++   (void)src_stride;
++-      asm("lea         0x00(,%1,4),%1                \n"
+++      asm volatile("lea         0x00(,%1,4),%1                \n"
++       "lea         0x00(%1,%1,2),%4              \n"
++ 
++       LABELALIGN
++@@ -2041,7 +2041,7 @@ void ScaleARGBRowDownEvenBox_SSE2(const uint8_t* src_argb,
++   intptr_t src_stepx_x4 = (intptr_t)(src_stepx);
++   intptr_t src_stepx_x12;
++   intptr_t row1 = (intptr_t)(src_stride);
++-      asm("lea         0x00(,%1,4),%1                \n"
+++      asm volatile("lea         0x00(,%1,4),%1                \n"
++       "lea         0x00(%1,%1,2),%4              \n"
++       "lea         0x00(%0,%5,1),%5              \n"
++ 
++@@ -2083,7 +2083,7 @@ void ScaleARGBCols_SSE2(uint8_t* dst_argb,
++                         int x,
++                         int dx) {
++   intptr_t x0, x1;
++-      asm("movd        %5,%%xmm2                     \n"
+++      asm volatile("movd        %5,%%xmm2                     \n"
++       "movd        %6,%%xmm3                     \n"
++       "pshufd      $0x0,%%xmm2,%%xmm2            \n"
++       "pshufd      $0x11,%%xmm3,%%xmm0           \n"
++@@ -2191,14 +2191,14 @@ void ScaleARGBFilterCols_SSSE3(uint8_t* dst_argb,
++                                int x,
++                                int dx) {
++   intptr_t x0, x1;
++-      asm("movdqa      %0,%%xmm4                     \n"
+++      asm volatile("movdqa      %0,%%xmm4                     \n"
++       "movdqa      %1,%%xmm5                     \n"
++       :
++       : "m"(kShuffleColARGB),   // %0
++         "m"(kShuffleFractions)  // %1
++   );
++ 
++-      asm("movd        %5,%%xmm2                     \n"
+++      asm volatile("movd        %5,%%xmm2                     \n"
++       "movd        %6,%%xmm3                     \n"
++       "pcmpeqb     %%xmm6,%%xmm6                 \n"
++       "psrlw       $0x9,%%xmm6                   \n"
++@@ -2260,7 +2260,7 @@ void ScaleARGBFilterCols_SSSE3(uint8_t* dst_argb,
++ 
++ // Divide num by div and return as 16.16 fixed point result.
++ int FixedDiv_X86(int num, int div) {
++-      asm("cdq                                       \n"
+++      asm volatile("cdq                                       \n"
++       "shld        $0x10,%%eax,%%edx             \n"
++       "shl         $0x10,%%eax                   \n"
++       "idiv        %1                            \n"
++@@ -2273,7 +2273,7 @@ int FixedDiv_X86(int num, int div) {
++ 
++ // Divide num - 1 by div - 1 and return as 16.16 fixed point result.
++ int FixedDiv1_X86(int num, int div) {
++-      asm("cdq                                       \n"
+++      asm volatile("cdq                                       \n"
++       "shld        $0x10,%%eax,%%edx             \n"
++       "shl         $0x10,%%eax                   \n"
++       "sub         $0x10001,%%eax                \n"
++@@ -2304,7 +2304,7 @@ void ScaleUVRowDown2Box_SSSE3(const uint8_t* src_ptr,
++                               ptrdiff_t src_stride,
++                               uint8_t* dst_ptr,
++                               int dst_width) {
++-      asm("pcmpeqb     %%xmm4,%%xmm4                 \n"  // 01010101
+++      asm volatile("pcmpeqb     %%xmm4,%%xmm4                 \n"  // 01010101
++       "psrlw       $0xf,%%xmm4                   \n"
++       "packuswb    %%xmm4,%%xmm4                 \n"
++       "pxor        %%xmm5, %%xmm5                \n"  // zero
++@@ -2343,7 +2343,7 @@ void ScaleUVRowDown2Box_AVX2(const uint8_t* src_ptr,
++                              ptrdiff_t src_stride,
++                              uint8_t* dst_ptr,
++                              int dst_width) {
++-      asm("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"  // 01010101
+++      asm volatile("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"  // 01010101
++       "vpsrlw      $0xf,%%ymm4,%%ymm4            \n"
++       "vpackuswb   %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpxor       %%ymm5,%%ymm5,%%ymm5          \n"  // zero
++@@ -2386,7 +2386,7 @@ static const uvec8 kUVLinearMadd31 = {3, 1, 3, 1, 1, 3, 1, 3,
++ void ScaleUVRowUp2_Linear_SSSE3(const uint8_t* src_ptr,
++                                 uint8_t* dst_ptr,
++                                 int dst_width) {
++-      asm("pcmpeqw     %%xmm4,%%xmm4                 \n"
+++      asm volatile("pcmpeqw     %%xmm4,%%xmm4                 \n"
++       "psrlw       $15,%%xmm4                    \n"
++       "psllw       $1,%%xmm4                     \n"  // all 2
++       "movdqa      %3,%%xmm3                     \n"
++@@ -2426,7 +2426,7 @@ void ScaleUVRowUp2_Bilinear_SSSE3(const uint8_t* src_ptr,
++                                   uint8_t* dst_ptr,
++                                   ptrdiff_t dst_stride,
++                                   int dst_width) {
++-      asm("pcmpeqw     %%xmm6,%%xmm6                 \n"
+++      asm volatile("pcmpeqw     %%xmm6,%%xmm6                 \n"
++       "psrlw       $15,%%xmm6                    \n"
++       "psllw       $3,%%xmm6                     \n"  // all 8
++       "movdqa      %5,%%xmm7                     \n"
++@@ -2509,7 +2509,7 @@ void ScaleUVRowUp2_Bilinear_SSSE3(const uint8_t* src_ptr,
++ void ScaleUVRowUp2_Linear_AVX2(const uint8_t* src_ptr,
++                                uint8_t* dst_ptr,
++                                int dst_width) {
++-      asm("vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
+++      asm volatile("vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpsrlw      $15,%%ymm4,%%ymm4             \n"
++       "vpsllw      $1,%%ymm4,%%ymm4              \n"  // all 2
++       "vbroadcastf128 %3,%%ymm3                  \n"
++@@ -2551,7 +2551,7 @@ void ScaleUVRowUp2_Bilinear_AVX2(const uint8_t* src_ptr,
++                                  uint8_t* dst_ptr,
++                                  ptrdiff_t dst_stride,
++                                  int dst_width) {
++-      asm("vpcmpeqw    %%ymm6,%%ymm6,%%ymm6          \n"
+++      asm volatile("vpcmpeqw    %%ymm6,%%ymm6,%%ymm6          \n"
++       "vpsrlw      $15,%%ymm6,%%ymm6             \n"
++       "vpsllw      $3,%%ymm6,%%ymm6              \n"  // all 8
++       "vbroadcastf128 %5,%%ymm7                  \n"
++@@ -2630,7 +2630,7 @@ void ScaleUVRowUp2_Bilinear_AVX2(const uint8_t* src_ptr,
++ void ScaleUVRowUp2_Linear_16_SSE41(const uint16_t* src_ptr,
++                                    uint16_t* dst_ptr,
++                                    int dst_width) {
++-      asm("pxor        %%xmm5,%%xmm5                 \n"
+++      asm volatile("pxor        %%xmm5,%%xmm5                 \n"
++       "pcmpeqd     %%xmm4,%%xmm4                 \n"
++       "psrld       $31,%%xmm4                    \n"
++       "pslld       $1,%%xmm4                     \n"  // all 2
++@@ -2681,7 +2681,7 @@ void ScaleUVRowUp2_Bilinear_16_SSE41(const uint16_t* src_ptr,
++                                      uint16_t* dst_ptr,
++                                      ptrdiff_t dst_stride,
++                                      int dst_width) {
++-      asm("pxor        %%xmm7,%%xmm7                 \n"
+++      asm volatile("pxor        %%xmm7,%%xmm7                 \n"
++       "pcmpeqd     %%xmm6,%%xmm6                 \n"
++       "psrld       $31,%%xmm6                    \n"
++       "pslld       $3,%%xmm6                     \n"  // all 8
++@@ -2771,7 +2771,7 @@ void ScaleUVRowUp2_Bilinear_16_SSE41(const uint16_t* src_ptr,
++ void ScaleUVRowUp2_Linear_16_AVX2(const uint16_t* src_ptr,
++                                   uint16_t* dst_ptr,
++                                   int dst_width) {
++-      asm("vpcmpeqd    %%ymm4,%%ymm4,%%ymm4          \n"
+++      asm volatile("vpcmpeqd    %%ymm4,%%ymm4,%%ymm4          \n"
++       "vpsrld      $31,%%ymm4,%%ymm4             \n"
++       "vpslld      $1,%%ymm4,%%ymm4              \n"  // all 2
++ 
++@@ -2819,7 +2819,7 @@ void ScaleUVRowUp2_Bilinear_16_AVX2(const uint16_t* src_ptr,
++                                     uint16_t* dst_ptr,
++                                     ptrdiff_t dst_stride,
++                                     int dst_width) {
++-      asm("vpcmpeqd    %%ymm6,%%ymm6,%%ymm6          \n"
+++      asm volatile("vpcmpeqd    %%ymm6,%%ymm6,%%ymm6          \n"
++       "vpsrld      $31,%%ymm6,%%ymm6             \n"
++       "vpslld      $3,%%ymm6,%%ymm6              \n"  // all 8
++ 
+diff --git a/media/libyuv/libyuv/include/libyuv/macros_msa.h b/media/libyuv/libyuv/include/libyuv/macros_msa.h
+--- a/media/libyuv/libyuv/include/libyuv/macros_msa.h
++++ b/media/libyuv/libyuv/include/libyuv/macros_msa.h
+@@ -15,28 +15,28 @@
+ #include <msa.h>
+ #include <stdint.h>
+ 
+ #if (__mips_isa_rev >= 6)
+ #define LW(psrc)                                       \
+   ({                                                   \
+     const uint8_t* psrc_lw_m = (const uint8_t*)(psrc); \
+     uint32_t val_m;                                    \
+-    asm("lw  %[val_m],  %[psrc_lw_m]  \n"              \
++    asm volatile("lw  %[val_m],  %[psrc_lw_m]  \n"     \
+         : [val_m] "=r"(val_m)                          \
+         : [psrc_lw_m] "m"(*psrc_lw_m));                \
+     val_m;                                             \
+   })
+ 
+ #if (__mips == 64)
+ #define LD(psrc)                                       \
+   ({                                                   \
+     const uint8_t* psrc_ld_m = (const uint8_t*)(psrc); \
+     uint64_t val_m = 0;                                \
+-    asm("ld  %[val_m],  %[psrc_ld_m]  \n"              \
++    asm volatile("ld  %[val_m],  %[psrc_ld_m]  \n"     \
+         : [val_m] "=r"(val_m)                          \
+         : [psrc_ld_m] "m"(*psrc_ld_m));                \
+     val_m;                                             \
+   })
+ #else  // !(__mips == 64)
+ #define LD(psrc)                                                         \
+   ({                                                                     \
+     const uint8_t* psrc_ld_m = (const uint8_t*)(psrc);                   \
+@@ -50,27 +50,27 @@
+     val_m;                                                               \
+   })
+ #endif  // (__mips == 64)
+ 
+ #define SW(val, pdst)                                   \
+   ({                                                    \
+     uint8_t* pdst_sw_m = (uint8_t*)(pdst); /* NOLINT */ \
+     uint32_t val_m = (val);                             \
+-    asm("sw  %[val_m],  %[pdst_sw_m]  \n"               \
++    asm volatile("sw  %[val_m],  %[pdst_sw_m]  \n"      \
+         : [pdst_sw_m] "=m"(*pdst_sw_m)                  \
+         : [val_m] "r"(val_m));                          \
+   })
+ 
+ #if (__mips == 64)
+ #define SD(val, pdst)                                   \
+   ({                                                    \
+     uint8_t* pdst_sd_m = (uint8_t*)(pdst); /* NOLINT */ \
+     uint64_t val_m = (val);                             \
+-    asm("sd  %[val_m],  %[pdst_sd_m]  \n"               \
++    asm volatile("sd  %[val_m],  %[pdst_sd_m]  \n"      \
+         : [pdst_sd_m] "=m"(*pdst_sd_m)                  \
+         : [val_m] "r"(val_m));                          \
+   })
+ #else  // !(__mips == 64)
+ #define SD(val, pdst)                                        \
+   ({                                                         \
+     uint8_t* pdst_sd_m = (uint8_t*)(pdst); /* NOLINT */      \
+     uint32_t val0_m, val1_m;                                 \
+@@ -81,32 +81,34 @@
+   })
+ #endif  // !(__mips == 64)
+ #else   // !(__mips_isa_rev >= 6)
+ #define LW(psrc)                                \
+   ({                                            \
+     uint8_t* psrc_lw_m = (uint8_t*)(psrc);      \
+     uint32_t val_lw_m;                          \
+                                                 \
+-    asm("lwr %[val_lw_m], 0(%[psrc_lw_m]) \n\t" \
++    asm volatile(                               \
++        "lwr %[val_lw_m], 0(%[psrc_lw_m]) \n\t" \
+         "lwl %[val_lw_m], 3(%[psrc_lw_m]) \n\t" \
+                                                 \
+         : [val_lw_m] "=&r"(val_lw_m)            \
+         : [psrc_lw_m] "r"(psrc_lw_m));          \
+                                                 \
+     val_lw_m;                                   \
+   })
+ 
+ #if (__mips == 64)
+ #define LD(psrc)                                \
+   ({                                            \
+     uint8_t* psrc_ld_m = (uint8_t*)(psrc);      \
+     uint64_t val_ld_m = 0;                      \
+                                                 \
+-    asm("ldr %[val_ld_m], 0(%[psrc_ld_m]) \n\t" \
++    asm volatile(                               \
++        "ldr %[val_ld_m], 0(%[psrc_ld_m]) \n\t" \
+         "ldl %[val_ld_m], 7(%[psrc_ld_m]) \n\t" \
+                                                 \
+         : [val_ld_m] "=&r"(val_ld_m)            \
+         : [psrc_ld_m] "r"(psrc_ld_m));          \
+                                                 \
+     val_ld_m;                                   \
+   })
+ #else  // !(__mips == 64)
+@@ -123,17 +125,17 @@
+     val_m;                                                               \
+   })
+ #endif  // (__mips == 64)
+ 
+ #define SW(val, pdst)                                   \
+   ({                                                    \
+     uint8_t* pdst_sw_m = (uint8_t*)(pdst); /* NOLINT */ \
+     uint32_t val_m = (val);                             \
+-    asm("usw  %[val_m],  %[pdst_sw_m]  \n"              \
++    asm volatile("usw  %[val_m],  %[pdst_sw_m]  \n"     \
+         : [pdst_sw_m] "=m"(*pdst_sw_m)                  \
+         : [val_m] "r"(val_m));                          \
+   })
+ 
+ #define SD(val, pdst)                                        \
+   ({                                                         \
+     uint8_t* pdst_sd_m = (uint8_t*)(pdst); /* NOLINT */      \
+     uint32_t val0_m, val1_m;                                 \
+diff --git a/media/libyuv/libyuv/source/row_gcc.cc b/media/libyuv/libyuv/source/row_gcc.cc
+--- a/media/libyuv/libyuv/source/row_gcc.cc
++++ b/media/libyuv/libyuv/source/row_gcc.cc
+@@ -2621,17 +2621,17 @@ void RGBAToUVRow_SSSE3(const uint8_t* sr
+   "lea        0x20(%[dst_ar30]), %[dst_ar30]                   \n"
+ 
+ void OMITFP I444ToARGBRow_SSSE3(const uint8_t* y_buf,
+                                 const uint8_t* u_buf,
+                                 const uint8_t* v_buf,
+                                 uint8_t* dst_argb,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV444
+     YUVTORGB(yuvconstants)
+@@ -2681,17 +2681,17 @@ void OMITFP I444AlphaToARGBRow_SSSE3(con
+ #endif  // HAS_I444ALPHATOARGBROW_SSSE3
+ 
+ void OMITFP I422ToRGB24Row_SSSE3(const uint8_t* y_buf,
+                                  const uint8_t* u_buf,
+                                  const uint8_t* v_buf,
+                                  uint8_t* dst_rgb24,
+                                  const struct YuvConstants* yuvconstants,
+                                  int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "movdqa      %[kShuffleMaskARGBToRGB24_0],%%xmm5 \n"
+       "movdqa      %[kShuffleMaskARGBToRGB24],%%xmm6 \n"
+       "sub         %[u_buf],%[v_buf]             \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV422
+@@ -2717,17 +2717,17 @@ void OMITFP I422ToRGB24Row_SSSE3(const u
+ }
+ 
+ void OMITFP I444ToRGB24Row_SSSE3(const uint8_t* y_buf,
+                                  const uint8_t* u_buf,
+                                  const uint8_t* v_buf,
+                                  uint8_t* dst_rgb24,
+                                  const struct YuvConstants* yuvconstants,
+                                  int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "movdqa      %[kShuffleMaskARGBToRGB24_0],%%xmm5 \n"
+       "movdqa      %[kShuffleMaskARGBToRGB24],%%xmm6 \n"
+       "sub         %[u_buf],%[v_buf]             \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV444
+@@ -2753,17 +2753,17 @@ void OMITFP I444ToRGB24Row_SSSE3(const u
+ }
+ 
+ void OMITFP I422ToARGBRow_SSSE3(const uint8_t* y_buf,
+                                 const uint8_t* u_buf,
+                                 const uint8_t* v_buf,
+                                 uint8_t* dst_argb,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV422
+     YUVTORGB(yuvconstants)
+@@ -2782,17 +2782,17 @@ void OMITFP I422ToARGBRow_SSSE3(const ui
+ }
+ 
+ void OMITFP I422ToAR30Row_SSSE3(const uint8_t* y_buf,
+                                 const uint8_t* u_buf,
+                                 const uint8_t* v_buf,
+                                 uint8_t* dst_ar30,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"  // AR30 constants
+       "psrlw       $14,%%xmm5                    \n"
+       "psllw       $4,%%xmm5                     \n"  // 2 alpha bits
+       "pxor        %%xmm6,%%xmm6                 \n"  // 0 for min
+       "pcmpeqb     %%xmm7,%%xmm7                 \n"
+       "psrlw       $6,%%xmm7                     \n"  // 1023 for max
+@@ -2817,17 +2817,17 @@ void OMITFP I422ToAR30Row_SSSE3(const ui
+ 
+ // 10 bit YUV to ARGB
+ void OMITFP I210ToARGBRow_SSSE3(const uint16_t* y_buf,
+                                 const uint16_t* u_buf,
+                                 const uint16_t* v_buf,
+                                 uint8_t* dst_argb,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV210
+     YUVTORGB(yuvconstants)
+@@ -2847,17 +2847,17 @@ void OMITFP I210ToARGBRow_SSSE3(const ui
+ 
+ // 12 bit YUV to ARGB
+ void OMITFP I212ToARGBRow_SSSE3(const uint16_t* y_buf,
+                                 const uint16_t* u_buf,
+                                 const uint16_t* v_buf,
+                                 uint8_t* dst_argb,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV212
+     YUVTORGB(yuvconstants)
+@@ -2877,17 +2877,17 @@ void OMITFP I212ToARGBRow_SSSE3(const ui
+ 
+ // 10 bit YUV to AR30
+ void OMITFP I210ToAR30Row_SSSE3(const uint16_t* y_buf,
+                                 const uint16_t* u_buf,
+                                 const uint16_t* v_buf,
+                                 uint8_t* dst_ar30,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+       "psrlw       $14,%%xmm5                    \n"
+       "psllw       $4,%%xmm5                     \n"  // 2 alpha bits
+       "pxor        %%xmm6,%%xmm6                 \n"  // 0 for min
+       "pcmpeqb     %%xmm7,%%xmm7                 \n"
+       "psrlw       $6,%%xmm7                     \n"  // 1023 for max
+@@ -2912,17 +2912,17 @@ void OMITFP I210ToAR30Row_SSSE3(const ui
+ 
+ // 12 bit YUV to AR30
+ void OMITFP I212ToAR30Row_SSSE3(const uint16_t* y_buf,
+                                 const uint16_t* u_buf,
+                                 const uint16_t* v_buf,
+                                 uint8_t* dst_ar30,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+       "psrlw       $14,%%xmm5                    \n"
+       "psllw       $4,%%xmm5                     \n"  // 2 alpha bits
+       "pxor        %%xmm6,%%xmm6                 \n"  // 0 for min
+       "pcmpeqb     %%xmm7,%%xmm7                 \n"
+       "psrlw       $6,%%xmm7                     \n"  // 1023 for max
+@@ -2947,17 +2947,17 @@ void OMITFP I212ToAR30Row_SSSE3(const ui
+ 
+ // 10 bit YUV to ARGB
+ void OMITFP I410ToARGBRow_SSSE3(const uint16_t* y_buf,
+                                 const uint16_t* u_buf,
+                                 const uint16_t* v_buf,
+                                 uint8_t* dst_argb,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV410
+     YUVTORGB(yuvconstants)
+@@ -3040,17 +3040,17 @@ void OMITFP I410AlphaToARGBRow_SSSE3(con
+ 
+ // 10 bit YUV to AR30
+ void OMITFP I410ToAR30Row_SSSE3(const uint16_t* y_buf,
+                                 const uint16_t* u_buf,
+                                 const uint16_t* v_buf,
+                                 uint8_t* dst_ar30,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+       "psrlw       $14,%%xmm5                    \n"
+       "psllw       $4,%%xmm5                     \n"  // 2 alpha bits
+       "pxor        %%xmm6,%%xmm6                 \n"  // 0 for min
+       "pcmpeqb     %%xmm7,%%xmm7                 \n"
+       "psrlw       $6,%%xmm7                     \n"  // 1023 for max
+@@ -3233,17 +3233,17 @@ void OMITFP P410ToARGBRow_SSSE3(const ui
+         "xmm5");
+ }
+ 
+ void OMITFP P210ToAR30Row_SSSE3(const uint16_t* y_buf,
+                                 const uint16_t* uv_buf,
+                                 uint8_t* dst_ar30,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+       "psrlw       $14,%%xmm5                    \n"
+       "psllw       $4,%%xmm5                     \n"  // 2 alpha bits
+       "pxor        %%xmm6,%%xmm6                 \n"  // 0 for min
+       "pcmpeqb     %%xmm7,%%xmm7                 \n"
+       "psrlw       $6,%%xmm7                     \n"  // 1023 for max
+ 
+@@ -3264,17 +3264,17 @@ void OMITFP P210ToAR30Row_SSSE3(const ui
+   );
+ }
+ 
+ void OMITFP P410ToAR30Row_SSSE3(const uint16_t* y_buf,
+                                 const uint16_t* uv_buf,
+                                 uint8_t* dst_ar30,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+       "psrlw       $14,%%xmm5                    \n"
+       "psllw       $4,%%xmm5                     \n"  // 2 alpha bits
+       "pxor        %%xmm6,%%xmm6                 \n"  // 0 for min
+       "pcmpeqb     %%xmm7,%%xmm7                 \n"
+       "psrlw       $6,%%xmm7                     \n"  // 1023 for max
+ 
+@@ -3296,17 +3296,17 @@ void OMITFP P410ToAR30Row_SSSE3(const ui
+ }
+ 
+ void OMITFP I422ToRGBARow_SSSE3(const uint8_t* y_buf,
+                                 const uint8_t* u_buf,
+                                 const uint8_t* v_buf,
+                                 uint8_t* dst_rgba,
+                                 const struct YuvConstants* yuvconstants,
+                                 int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "pcmpeqb     %%xmm5,%%xmm5                 \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV422
+     YUVTORGB(yuvconstants)
+@@ -3707,17 +3707,17 @@ void OMITFP I422ToRGBARow_SSSE3(const ui
+ // 16 pixels
+ // 16 UV values with 16 Y producing 16 ARGB (64 bytes).
+ void OMITFP I444ToARGBRow_AVX2(const uint8_t* y_buf,
+                                const uint8_t* u_buf,
+                                const uint8_t* v_buf,
+                                uint8_t* dst_argb,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV444_AVX2
+     YUVTORGB_AVX2(yuvconstants)
+@@ -3741,17 +3741,17 @@ void OMITFP I444ToARGBRow_AVX2(const uin
+ // 16 pixels
+ // 8 UV values upsampled to 16 UV, mixed with 16 Y producing 16 ARGB (64 bytes).
+ void OMITFP I422ToARGBRow_AVX2(const uint8_t* y_buf,
+                                const uint8_t* u_buf,
+                                const uint8_t* v_buf,
+                                uint8_t* dst_argb,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV422_AVX2
+     YUVTORGB_AVX2(yuvconstants)
+@@ -3781,17 +3781,17 @@ static const uint64_t kUnpermuteAVX512[8
+ // 16 UV values upsampled to 32 UV, mixed with 32 Y producing 32 ARGB (128
+ // bytes).
+ void OMITFP I422ToARGBRow_AVX512BW(const uint8_t* y_buf,
+                                    const uint8_t* u_buf,
+                                    const uint8_t* v_buf,
+                                    uint8_t* dst_argb,
+                                    const struct YuvConstants* yuvconstants,
+                                    int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX512BW(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%xmm5,%%xmm5,%%xmm5          \n"
+       "vpbroadcastq %%xmm5,%%zmm5                \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV422_AVX512BW
+@@ -3820,17 +3820,17 @@ void OMITFP I422ToARGBRow_AVX512BW(const
+ // 16 pixels
+ // 8 UV values upsampled to 16 UV, mixed with 16 Y producing 16 AR30 (64 bytes).
+ void OMITFP I422ToAR30Row_AVX2(const uint8_t* y_buf,
+                                const uint8_t* u_buf,
+                                const uint8_t* v_buf,
+                                uint8_t* dst_ar30,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
+       "vpsrlw      $14,%%ymm5,%%ymm5             \n"
+       "vpsllw      $4,%%ymm5,%%ymm5              \n"  // 2 alpha bits
+       "vpxor       %%ymm6,%%ymm6,%%ymm6          \n"  // 0 for min
+       "vpcmpeqb    %%ymm7,%%ymm7,%%ymm7          \n"  // 1023 for max
+       "vpsrlw      $6,%%ymm7,%%ymm7              \n"
+@@ -3860,17 +3860,17 @@ void OMITFP I422ToAR30Row_AVX2(const uin
+ // 16 pixels
+ // 8 UV values upsampled to 16 UV, mixed with 16 Y producing 16 ARGB (64 bytes).
+ void OMITFP I210ToARGBRow_AVX2(const uint16_t* y_buf,
+                                const uint16_t* u_buf,
+                                const uint16_t* v_buf,
+                                uint8_t* dst_argb,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV210_AVX2
+     YUVTORGB_AVX2(yuvconstants)
+@@ -3895,17 +3895,17 @@ void OMITFP I210ToARGBRow_AVX2(const uin
+ // 16 pixels
+ // 8 UV values upsampled to 16 UV, mixed with 16 Y producing 16 ARGB (64 bytes).
+ void OMITFP I212ToARGBRow_AVX2(const uint16_t* y_buf,
+                                const uint16_t* u_buf,
+                                const uint16_t* v_buf,
+                                uint8_t* dst_argb,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV212_AVX2
+     YUVTORGB_AVX2(yuvconstants)
+@@ -3930,17 +3930,17 @@ void OMITFP I212ToARGBRow_AVX2(const uin
+ // 16 pixels
+ // 8 UV values upsampled to 16 UV, mixed with 16 Y producing 16 AR30 (64 bytes).
+ void OMITFP I210ToAR30Row_AVX2(const uint16_t* y_buf,
+                                const uint16_t* u_buf,
+                                const uint16_t* v_buf,
+                                uint8_t* dst_ar30,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
+       "vpsrlw      $14,%%ymm5,%%ymm5             \n"
+       "vpsllw      $4,%%ymm5,%%ymm5              \n"  // 2 alpha bits
+       "vpxor       %%ymm6,%%ymm6,%%ymm6          \n"  // 0 for min
+       "vpcmpeqb    %%ymm7,%%ymm7,%%ymm7          \n"  // 1023 for max
+       "vpsrlw      $6,%%ymm7,%%ymm7              \n"
+@@ -3970,17 +3970,17 @@ void OMITFP I210ToAR30Row_AVX2(const uin
+ // 16 pixels
+ // 8 UV values upsampled to 16 UV, mixed with 16 Y producing 16 AR30 (64 bytes).
+ void OMITFP I212ToAR30Row_AVX2(const uint16_t* y_buf,
+                                const uint16_t* u_buf,
+                                const uint16_t* v_buf,
+                                uint8_t* dst_ar30,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
+       "vpsrlw      $14,%%ymm5,%%ymm5             \n"
+       "vpsllw      $4,%%ymm5,%%ymm5              \n"  // 2 alpha bits
+       "vpxor       %%ymm6,%%ymm6,%%ymm6          \n"  // 0 for min
+       "vpcmpeqb    %%ymm7,%%ymm7,%%ymm7          \n"  // 1023 for max
+       "vpsrlw      $6,%%ymm7,%%ymm7              \n"
+@@ -4010,17 +4010,17 @@ void OMITFP I212ToAR30Row_AVX2(const uin
+ // 16 pixels
+ // 16 UV values with 16 Y producing 16 ARGB (64 bytes).
+ void OMITFP I410ToARGBRow_AVX2(const uint16_t* y_buf,
+                                const uint16_t* u_buf,
+                                const uint16_t* v_buf,
+                                uint8_t* dst_argb,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV410_AVX2
+     YUVTORGB_AVX2(yuvconstants)
+@@ -4115,17 +4115,17 @@ void OMITFP I410AlphaToARGBRow_AVX2(cons
+ // 16 pixels
+ // 16 UV values with 16 Y producing 16 AR30 (64 bytes).
+ void OMITFP I410ToAR30Row_AVX2(const uint16_t* y_buf,
+                                const uint16_t* u_buf,
+                                const uint16_t* v_buf,
+                                uint8_t* dst_ar30,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
+       "vpsrlw      $14,%%ymm5,%%ymm5             \n"
+       "vpsllw      $4,%%ymm5,%%ymm5              \n"  // 2 alpha bits
+       "vpxor       %%ymm6,%%ymm6,%%ymm6          \n"  // 0 for min
+       "vpcmpeqb    %%ymm7,%%ymm7,%%ymm7          \n"  // 1023 for max
+       "vpsrlw      $6,%%ymm7,%%ymm7              \n"
+@@ -4223,17 +4223,17 @@ void OMITFP I422AlphaToARGBRow_AVX2(cons
+ // 16 pixels
+ // 8 UV values upsampled to 16 UV, mixed with 16 Y producing 16 RGBA (64 bytes).
+ void OMITFP I422ToRGBARow_AVX2(const uint8_t* y_buf,
+                                const uint8_t* u_buf,
+                                const uint8_t* v_buf,
+                                uint8_t* dst_argb,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "sub         %[u_buf],%[v_buf]             \n"
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
+ 
+     LABELALIGN
+       "1:                                        \n"
+     READYUV422_AVX2
+     YUVTORGB_AVX2(yuvconstants)
+@@ -4425,17 +4425,17 @@ void OMITFP P410ToARGBRow_AVX2(const uin
+ #if defined(HAS_P210TOAR30ROW_AVX2)
+ // 16 pixels
+ // 16 UV values with 16 Y producing 16 AR30 (64 bytes).
+ void OMITFP P210ToAR30Row_AVX2(const uint16_t* y_buf,
+                                const uint16_t* uv_buf,
+                                uint8_t* dst_ar30,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
+       "vpsrlw      $14,%%ymm5,%%ymm5             \n"
+       "vpsllw      $4,%%ymm5,%%ymm5              \n"  // 2 alpha bits
+       "vpxor       %%ymm6,%%ymm6,%%ymm6          \n"  // 0 for min
+       "vpcmpeqb    %%ymm7,%%ymm7,%%ymm7          \n"  // 1023 for max
+       "vpsrlw      $6,%%ymm7,%%ymm7              \n"
+ 
+@@ -4462,17 +4462,17 @@ void OMITFP P210ToAR30Row_AVX2(const uin
+ #if defined(HAS_P410TOAR30ROW_AVX2)
+ // 16 pixels
+ // 16 UV values with 16 Y producing 16 AR30 (64 bytes).
+ void OMITFP P410ToAR30Row_AVX2(const uint16_t* y_buf,
+                                const uint16_t* uv_buf,
+                                uint8_t* dst_ar30,
+                                const struct YuvConstants* yuvconstants,
+                                int width) {
+-  asm (
++  asm volatile (
+     YUVTORGB_SETUP_AVX2(yuvconstants)
+       "vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"  // AR30 constants
+       "vpsrlw      $14,%%ymm5,%%ymm5             \n"
+       "vpsllw      $4,%%ymm5,%%ymm5              \n"  // 2 alpha bits
+       "vpxor       %%ymm6,%%ymm6,%%ymm6          \n"  // 0 for min
+       "vpcmpeqb    %%ymm7,%%ymm7,%%ymm7          \n"  // 1023 for max
+       "vpsrlw      $6,%%ymm7,%%ymm7              \n"
+ 
+@@ -5676,17 +5676,17 @@ void MergeARGBRow_AVX2(const uint8_t* sr
+ #endif
+ 
+ #ifdef HAS_MERGEXRGBROW_AVX2
+ void MergeXRGBRow_AVX2(const uint8_t* src_r,
+                        const uint8_t* src_g,
+                        const uint8_t* src_b,
+                        uint8_t* dst_argb,
+                        int width) {
+-  asm(
++  asm volatile(
+ 
+       LABELALIGN
+       "1:                                        \n"
+ 
+       "vmovdqu     (%2),%%xmm0                   \n"  // B
+       "vpcmpeqb    %%ymm1,%%ymm1,%%ymm1          \n"  // A(255)
+       "vinserti128 $0,(%1),%%ymm1,%%ymm1         \n"  // R
+       "vinserti128 $1,(%0),%%ymm0,%%ymm0         \n"  // G
+@@ -7376,17 +7376,17 @@ void ARGBAttenuateRow_AVX2(const uint8_t
+ #endif  // HAS_ARGBATTENUATEROW_AVX2
+ 
+ #ifdef HAS_ARGBUNATTENUATEROW_SSE2
+ // Unattenuate 4 pixels at a time.
+ void ARGBUnattenuateRow_SSE2(const uint8_t* src_argb,
+                              uint8_t* dst_argb,
+                              int width) {
+   uintptr_t alpha;
+-  asm(
++  asm volatile(
+       // 4 pixel loop.
+       LABELALIGN
+       "1:                                        \n"
+       "movdqu      (%0),%%xmm0                   \n"
+       "movzb       0x03(%0),%3                   \n"
+       "punpcklbw   %%xmm0,%%xmm0                 \n"
+       "movd        0x00(%4,%3,4),%%xmm2          \n"
+       "movzb       0x07(%0),%3                   \n"
+@@ -7836,17 +7836,17 @@ void ARGBMultiplyRow_AVX2(const uint8_t*
+ #endif  // HAS_ARGBMULTIPLYROW_AVX2
+ 
+ #ifdef HAS_ARGBADDROW_SSE2
+ // Add 2 rows of ARGB pixels together, 4 pixels at a time.
+ void ARGBAddRow_SSE2(const uint8_t* src_argb,
+                      const uint8_t* src_argb1,
+                      uint8_t* dst_argb,
+                      int width) {
+-  asm(
++  asm volatile(
+       // 4 pixel loop.
+       LABELALIGN
+       "1:                                        \n"
+       "movdqu      (%0),%%xmm0                   \n"
+       "lea         0x10(%0),%0                   \n"
+       "movdqu      (%1),%%xmm1                   \n"
+       "lea         0x10(%1),%1                   \n"
+       "paddusb     %%xmm1,%%xmm0                 \n"
+@@ -7864,17 +7864,17 @@ void ARGBAddRow_SSE2(const uint8_t* src_
+ #endif  // HAS_ARGBADDROW_SSE2
+ 
+ #ifdef HAS_ARGBADDROW_AVX2
+ // Add 2 rows of ARGB pixels together, 4 pixels at a time.
+ void ARGBAddRow_AVX2(const uint8_t* src_argb,
+                      const uint8_t* src_argb1,
+                      uint8_t* dst_argb,
+                      int width) {
+-  asm(
++  asm volatile(
+       // 4 pixel loop.
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%ymm0                   \n"
+       "lea         0x20(%0),%0                   \n"
+       "vpaddusb    (%1),%%ymm0,%%ymm0            \n"
+       "lea         0x20(%1),%1                   \n"
+       "vmovdqu     %%ymm0,(%2)                   \n"
+@@ -7892,17 +7892,17 @@ void ARGBAddRow_AVX2(const uint8_t* src_
+ #endif  // HAS_ARGBADDROW_AVX2
+ 
+ #ifdef HAS_ARGBSUBTRACTROW_SSE2
+ // Subtract 2 rows of ARGB pixels, 4 pixels at a time.
+ void ARGBSubtractRow_SSE2(const uint8_t* src_argb,
+                           const uint8_t* src_argb1,
+                           uint8_t* dst_argb,
+                           int width) {
+-  asm(
++  asm volatile(
+       // 4 pixel loop.
+       LABELALIGN
+       "1:                                        \n"
+       "movdqu      (%0),%%xmm0                   \n"
+       "lea         0x10(%0),%0                   \n"
+       "movdqu      (%1),%%xmm1                   \n"
+       "lea         0x10(%1),%1                   \n"
+       "psubusb     %%xmm1,%%xmm0                 \n"
+@@ -7920,17 +7920,17 @@ void ARGBSubtractRow_SSE2(const uint8_t*
+ #endif  // HAS_ARGBSUBTRACTROW_SSE2
+ 
+ #ifdef HAS_ARGBSUBTRACTROW_AVX2
+ // Subtract 2 rows of ARGB pixels, 8 pixels at a time.
+ void ARGBSubtractRow_AVX2(const uint8_t* src_argb,
+                           const uint8_t* src_argb1,
+                           uint8_t* dst_argb,
+                           int width) {
+-  asm(
++  asm volatile(
+       // 4 pixel loop.
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%ymm0                   \n"
+       "lea         0x20(%0),%0                   \n"
+       "vpsubusb    (%1),%%ymm0,%%ymm0            \n"
+       "lea         0x20(%1),%1                   \n"
+       "vmovdqu     %%ymm0,(%2)                   \n"
+@@ -9094,17 +9094,17 @@ void HalfFloat1Row_F16C(const uint16_t* 
+ #endif  // HAS_HALFFLOATROW_F16C
+ 
+ #ifdef HAS_ARGBCOLORTABLEROW_X86
+ // Tranform ARGB pixels with color table.
+ void ARGBColorTableRow_X86(uint8_t* dst_argb,
+                            const uint8_t* table_argb,
+                            int width) {
+   uintptr_t pixel_temp;
+-  asm(
++  asm volatile(
+       // 1 pixel loop.
+       LABELALIGN
+       "1:                                        \n"
+       "movzb       (%0),%1                       \n"
+       "lea         0x4(%0),%0                    \n"
+       "movzb       0x00(%3,%1,4),%1              \n"
+       "mov         %b1,-0x4(%0)                  \n"
+       "movzb       -0x3(%0),%1                   \n"
+@@ -9127,17 +9127,17 @@ void ARGBColorTableRow_X86(uint8_t* dst_
+ #endif  // HAS_ARGBCOLORTABLEROW_X86
+ 
+ #ifdef HAS_RGBCOLORTABLEROW_X86
+ // Tranform RGB pixels with color table.
+ void RGBColorTableRow_X86(uint8_t* dst_argb,
+                           const uint8_t* table_argb,
+                           int width) {
+   uintptr_t pixel_temp;
+-  asm(
++  asm volatile(
+       // 1 pixel loop.
+       LABELALIGN
+       "1:                                        \n"
+       "movzb       (%0),%1                       \n"
+       "lea         0x4(%0),%0                    \n"
+       "movzb       0x00(%3,%1,4),%1              \n"
+       "mov         %b1,-0x4(%0)                  \n"
+       "movzb       -0x3(%0),%1                   \n"
+diff --git a/media/libyuv/libyuv/source/row_lsx.cc b/media/libyuv/libyuv/source/row_lsx.cc
+--- a/media/libyuv/libyuv/source/row_lsx.cc
++++ b/media/libyuv/libyuv/source/row_lsx.cc
+@@ -2800,17 +2800,18 @@ static const struct RgbConstants kRawI60
+                                                       0x1080,
+                                                       0};
+ 
+ // ARGB expects first 3 values to contain RGB and 4th value is ignored.
+ static void ARGBToYMatrixRow_LSX(const uint8_t* src_argb,
+                                  uint8_t* dst_y,
+                                  int width,
+                                  const struct RgbConstants* rgbconstants) {
+-  asm("vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
++  asm volatile(
++      "vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
+       "vldrepl.b      $vr1,  %3,    1             \n\t"  // load rgbconstants
+       "vldrepl.b      $vr2,  %3,    2             \n\t"  // load rgbconstants
+       "vldrepl.h      $vr3,  %3,    4             \n\t"  // load rgbconstants
+       "1:                                         \n\t"
+       "vld            $vr4,  %0,    0             \n\t"
+       "vld            $vr5,  %0,    16            \n\t"
+       "vld            $vr6,  %0,    32            \n\t"
+       "vld            $vr7,  %0,    48            \n\t"  // load 16 pixels of
+@@ -2858,17 +2859,18 @@ void ABGRToYJRow_LSX(const uint8_t* src_
+ }
+ 
+ // RGBA expects first value to be A and ignored, then 3 values to contain RGB.
+ // Same code as ARGB, except the LD4
+ static void RGBAToYMatrixRow_LSX(const uint8_t* src_rgba,
+                                  uint8_t* dst_y,
+                                  int width,
+                                  const struct RgbConstants* rgbconstants) {
+-  asm("vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
++  asm volatile(
++      "vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
+       "vldrepl.b      $vr1,  %3,    1             \n\t"  // load rgbconstants
+       "vldrepl.b      $vr2,  %3,    2             \n\t"  // load rgbconstants
+       "vldrepl.h      $vr3,  %3,    4             \n\t"  // load rgbconstants
+       "1:                                         \n\t"
+       "vld            $vr4,  %0,    0             \n\t"
+       "vld            $vr5,  %0,    16            \n\t"
+       "vld            $vr6,  %0,    32            \n\t"
+       "vld            $vr7,  %0,    48            \n\t"  // load 16 pixels of
+@@ -2915,17 +2917,18 @@ static void RGBToYMatrixRow_LSX(const ui
+                                 uint8_t* dst_y,
+                                 int width,
+                                 const struct RgbConstants* rgbconstants) {
+   int8_t shuff[64] = {0,  2,  3,  5,  6,  8,  9,  11, 12, 14, 15, 17, 18,
+                       20, 21, 23, 24, 26, 27, 29, 30, 0,  1,  3,  4,  6,
+                       7,  9,  10, 12, 13, 15, 1,  0,  4,  0,  7,  0,  10,
+                       0,  13, 0,  16, 0,  19, 0,  22, 0,  25, 0,  28, 0,
+                       31, 0,  2,  0,  5,  0,  8,  0,  11, 0,  14, 0};
+-  asm("vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
++  asm volatile(
++      "vldrepl.b      $vr0,  %3,    0             \n\t"  // load rgbconstants
+       "vldrepl.b      $vr1,  %3,    1             \n\t"  // load rgbconstants
+       "vldrepl.b      $vr2,  %3,    2             \n\t"  // load rgbconstants
+       "vldrepl.h      $vr3,  %3,    4             \n\t"  // load rgbconstants
+       "vld            $vr4,  %4,    0             \n\t"  // load shuff
+       "vld            $vr5,  %4,    16            \n\t"
+       "vld            $vr6,  %4,    32            \n\t"
+       "vld            $vr7,  %4,    48            \n\t"
+       "1:                                         \n\t"
+diff --git a/media/libyuv/libyuv/source/scale_gcc.cc b/media/libyuv/libyuv/source/scale_gcc.cc
+--- a/media/libyuv/libyuv/source/scale_gcc.cc
++++ b/media/libyuv/libyuv/source/scale_gcc.cc
+@@ -92,17 +92,17 @@ static const uvec16 kScaleAb2 = {65536 /
+ // Generated using gcc disassembly on Visual C object file:
+ // objdump -D yuvscaler.obj >yuvscaler.txt
+ 
+ void ScaleRowDown2_SSSE3(const uint8_t* src_ptr,
+                          ptrdiff_t src_stride,
+                          uint8_t* dst_ptr,
+                          int dst_width) {
+   (void)src_stride;
+-  asm(
++  asm volatile(
+       // 16 pixel loop.
+       LABELALIGN
+       "1:                                        \n"
+       "movdqu      (%0),%%xmm0                   \n"
+       "movdqu      0x10(%0),%%xmm1               \n"
+       "lea         0x20(%0),%0                   \n"
+       "psrlw       $0x8,%%xmm0                   \n"
+       "psrlw       $0x8,%%xmm1                   \n"
+@@ -118,17 +118,17 @@ void ScaleRowDown2_SSSE3(const uint8_t* 
+       : "memory", "cc", "xmm0", "xmm1");
+ }
+ 
+ void ScaleRowDown2Linear_SSSE3(const uint8_t* src_ptr,
+                                ptrdiff_t src_stride,
+                                uint8_t* dst_ptr,
+                                int dst_width) {
+   (void)src_stride;
+-      asm("pcmpeqb     %%xmm4,%%xmm4                 \n"
++      asm volatile("pcmpeqb     %%xmm4,%%xmm4                 \n"
+       "psrlw       $0xf,%%xmm4                   \n"
+       "packuswb    %%xmm4,%%xmm4                 \n"
+       "pxor        %%xmm5,%%xmm5                 \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movdqu      (%0),%%xmm0                   \n"
+       "movdqu      0x10(%0),%%xmm1               \n"
+@@ -148,17 +148,17 @@ void ScaleRowDown2Linear_SSSE3(const uin
+       :
+       : "memory", "cc", "xmm0", "xmm1", "xmm4", "xmm5");
+ }
+ 
+ void ScaleRowDown2Box_SSSE3(const uint8_t* src_ptr,
+                             ptrdiff_t src_stride,
+                             uint8_t* dst_ptr,
+                             int dst_width) {
+-      asm("pcmpeqb     %%xmm4,%%xmm4                 \n"
++      asm volatile("pcmpeqb     %%xmm4,%%xmm4                 \n"
+       "psrlw       $0xf,%%xmm4                   \n"
+       "packuswb    %%xmm4,%%xmm4                 \n"
+       "pxor        %%xmm5,%%xmm5                 \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movdqu      (%0),%%xmm0                   \n"
+       "movdqu      0x10(%0),%%xmm1               \n"
+@@ -214,17 +214,17 @@ void ScaleRowDown2_AVX2(const uint8_t* s
+       : "memory", "cc", "xmm0", "xmm1");
+ }
+ 
+ void ScaleRowDown2Linear_AVX2(const uint8_t* src_ptr,
+                               ptrdiff_t src_stride,
+                               uint8_t* dst_ptr,
+                               int dst_width) {
+   (void)src_stride;
+-      asm("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
++      asm volatile("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpsrlw      $0xf,%%ymm4,%%ymm4            \n"
+       "vpackuswb   %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpxor       %%ymm5,%%ymm5,%%ymm5          \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%ymm0                   \n"
+       "vmovdqu     0x20(%0),%%ymm1               \n"
+@@ -246,17 +246,17 @@ void ScaleRowDown2Linear_AVX2(const uint
+       :
+       : "memory", "cc", "xmm0", "xmm1", "xmm4", "xmm5");
+ }
+ 
+ void ScaleRowDown2Box_AVX2(const uint8_t* src_ptr,
+                            ptrdiff_t src_stride,
+                            uint8_t* dst_ptr,
+                            int dst_width) {
+-      asm("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
++      asm volatile("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpsrlw      $0xf,%%ymm4,%%ymm4            \n"
+       "vpackuswb   %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpxor       %%ymm5,%%ymm5,%%ymm5          \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%ymm0                   \n"
+       "vmovdqu     0x20(%0),%%ymm1               \n"
+@@ -288,17 +288,17 @@ void ScaleRowDown2Box_AVX2(const uint8_t
+ }
+ #endif  // HAS_SCALEROWDOWN2_AVX2
+ 
+ void ScaleRowDown4_SSSE3(const uint8_t* src_ptr,
+                          ptrdiff_t src_stride,
+                          uint8_t* dst_ptr,
+                          int dst_width) {
+   (void)src_stride;
+-      asm("pcmpeqb     %%xmm5,%%xmm5                 \n"
++      asm volatile("pcmpeqb     %%xmm5,%%xmm5                 \n"
+       "psrld       $0x18,%%xmm5                  \n"
+       "pslld       $0x10,%%xmm5                  \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movdqu      (%0),%%xmm0                   \n"
+       "movdqu      0x10(%0),%%xmm1               \n"
+       "lea         0x20(%0),%0                   \n"
+@@ -318,17 +318,17 @@ void ScaleRowDown4_SSSE3(const uint8_t* 
+       : "memory", "cc", "xmm0", "xmm1", "xmm5");
+ }
+ 
+ void ScaleRowDown4Box_SSSE3(const uint8_t* src_ptr,
+                             ptrdiff_t src_stride,
+                             uint8_t* dst_ptr,
+                             int dst_width) {
+   intptr_t stridex3;
+-      asm("pcmpeqb     %%xmm4,%%xmm4                 \n"
++      asm volatile("pcmpeqb     %%xmm4,%%xmm4                 \n"
+       "psrlw       $0xf,%%xmm4                   \n"
+       "movdqa      %%xmm4,%%xmm5                 \n"
+       "packuswb    %%xmm4,%%xmm4                 \n"
+       "psllw       $0x3,%%xmm5                   \n"
+       "lea         0x00(%4,%4,2),%3              \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+@@ -372,17 +372,17 @@ void ScaleRowDown4Box_SSSE3(const uint8_
+ }
+ 
+ #ifdef HAS_SCALEROWDOWN4_AVX2
+ void ScaleRowDown4_AVX2(const uint8_t* src_ptr,
+                         ptrdiff_t src_stride,
+                         uint8_t* dst_ptr,
+                         int dst_width) {
+   (void)src_stride;
+-      asm("vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
++      asm volatile("vpcmpeqb    %%ymm5,%%ymm5,%%ymm5          \n"
+       "vpsrld      $0x18,%%ymm5,%%ymm5           \n"
+       "vpslld      $0x10,%%ymm5,%%ymm5           \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%ymm0                   \n"
+       "vmovdqu     0x20(%0),%%ymm1               \n"
+       "lea         0x40(%0),%0                   \n"
+@@ -404,17 +404,17 @@ void ScaleRowDown4_AVX2(const uint8_t* s
+       :
+       : "memory", "cc", "xmm0", "xmm1", "xmm5");
+ }
+ 
+ void ScaleRowDown4Box_AVX2(const uint8_t* src_ptr,
+                            ptrdiff_t src_stride,
+                            uint8_t* dst_ptr,
+                            int dst_width) {
+-      asm("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
++      asm volatile("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpsrlw      $0xf,%%ymm4,%%ymm4            \n"
+       "vpsllw      $0x3,%%ymm4,%%ymm5            \n"
+       "vpackuswb   %%ymm4,%%ymm4,%%ymm4          \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%ymm0                   \n"
+       "vmovdqu     0x20(%0),%%ymm1               \n"
+@@ -459,17 +459,17 @@ void ScaleRowDown4Box_AVX2(const uint8_t
+ }
+ #endif  // HAS_SCALEROWDOWN4_AVX2
+ 
+ void ScaleRowDown34_SSSE3(const uint8_t* src_ptr,
+                           ptrdiff_t src_stride,
+                           uint8_t* dst_ptr,
+                           int dst_width) {
+   (void)src_stride;
+-      asm("movdqa      %0,%%xmm3                     \n"
++      asm volatile("movdqa      %0,%%xmm3                     \n"
+       "movdqa      %1,%%xmm4                     \n"
+       "movdqa      %2,%%xmm5                     \n"
+       :
+       : "m"(kShuf0),  // %0
+         "m"(kShuf1),  // %1
+         "m"(kShuf2)   // %2
+   );
+   asm volatile (LABELALIGN
+@@ -494,25 +494,25 @@ void ScaleRowDown34_SSSE3(const uint8_t*
+       :
+       : "memory", "cc", "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5");
+ }
+ 
+ void ScaleRowDown34_1_Box_SSSE3(const uint8_t* src_ptr,
+                                 ptrdiff_t src_stride,
+                                 uint8_t* dst_ptr,
+                                 int dst_width) {
+-      asm("movdqa      %0,%%xmm2                     \n"  // kShuf01
++      asm volatile("movdqa      %0,%%xmm2                     \n"  // kShuf01
+       "movdqa      %1,%%xmm3                     \n"  // kShuf11
+       "movdqa      %2,%%xmm4                     \n"  // kShuf21
+       :
+       : "m"(kShuf01),  // %0
+         "m"(kShuf11),  // %1
+         "m"(kShuf21)   // %2
+   );
+-      asm("movdqa      %0,%%xmm5                     \n"  // kMadd01
++      asm volatile("movdqa      %0,%%xmm5                     \n"  // kMadd01
+       "movdqa      %1,%%xmm0                     \n"  // kMadd11
+       "movdqa      %2,%%xmm1                     \n"  // kRound34
+       :
+       : "m"(kMadd01),  // %0
+         "m"(kMadd11),  // %1
+         "m"(kRound34)  // %2
+   );
+   asm volatile (LABELALIGN
+@@ -556,25 +556,25 @@ void ScaleRowDown34_1_Box_SSSE3(const ui
+       : "memory", "cc", "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6",
+         "xmm7");
+ }
+ 
+ void ScaleRowDown34_0_Box_SSSE3(const uint8_t* src_ptr,
+                                 ptrdiff_t src_stride,
+                                 uint8_t* dst_ptr,
+                                 int dst_width) {
+-      asm("movdqa      %0,%%xmm2                     \n"  // kShuf01
++      asm volatile("movdqa      %0,%%xmm2                     \n"  // kShuf01
+       "movdqa      %1,%%xmm3                     \n"  // kShuf11
+       "movdqa      %2,%%xmm4                     \n"  // kShuf21
+       :
+       : "m"(kShuf01),  // %0
+         "m"(kShuf11),  // %1
+         "m"(kShuf21)   // %2
+   );
+-      asm("movdqa      %0,%%xmm5                     \n"  // kMadd01
++      asm volatile("movdqa      %0,%%xmm5                     \n"  // kMadd01
+       "movdqa      %1,%%xmm0                     \n"  // kMadd11
+       "movdqa      %2,%%xmm1                     \n"  // kRound34
+       :
+       : "m"(kMadd01),  // %0
+         "m"(kMadd11),  // %1
+         "m"(kRound34)  // %2
+   );
+ 
+@@ -623,17 +623,17 @@ void ScaleRowDown34_0_Box_SSSE3(const ui
+         "xmm7");
+ }
+ 
+ void ScaleRowDown38_SSSE3(const uint8_t* src_ptr,
+                           ptrdiff_t src_stride,
+                           uint8_t* dst_ptr,
+                           int dst_width) {
+   (void)src_stride;
+-      asm("movdqa      %3,%%xmm4                     \n"
++      asm volatile("movdqa      %3,%%xmm4                     \n"
+       "movdqa      %4,%%xmm5                     \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movdqu      (%0),%%xmm0                   \n"
+       "movdqu      0x10(%0),%%xmm1               \n"
+       "lea         0x20(%0),%0                   \n"
+       "pshufb      %%xmm4,%%xmm0                 \n"
+@@ -652,17 +652,17 @@ void ScaleRowDown38_SSSE3(const uint8_t*
+         "m"(kShuf38b)    // %4
+       : "memory", "cc", "xmm0", "xmm1", "xmm4", "xmm5");
+ }
+ 
+ void ScaleRowDown38_2_Box_SSSE3(const uint8_t* src_ptr,
+                                 ptrdiff_t src_stride,
+                                 uint8_t* dst_ptr,
+                                 int dst_width) {
+-      asm("movdqa      %0,%%xmm2                     \n"
++      asm volatile("movdqa      %0,%%xmm2                     \n"
+       "movdqa      %1,%%xmm3                     \n"
+       "movdqa      %2,%%xmm4                     \n"
+       "movdqa      %3,%%xmm5                     \n"
+       :
+       : "m"(kShufAb0),  // %0
+         "m"(kShufAb1),  // %1
+         "m"(kShufAb2),  // %2
+         "m"(kScaleAb2)  // %3
+@@ -694,17 +694,17 @@ void ScaleRowDown38_2_Box_SSSE3(const ui
+       : "r"((intptr_t)(src_stride))  // %3
+       : "memory", "cc", "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6");
+ }
+ 
+ void ScaleRowDown38_3_Box_SSSE3(const uint8_t* src_ptr,
+                                 ptrdiff_t src_stride,
+                                 uint8_t* dst_ptr,
+                                 int dst_width) {
+-      asm("movdqa      %0,%%xmm2                     \n"
++      asm volatile("movdqa      %0,%%xmm2                     \n"
+       "movdqa      %1,%%xmm3                     \n"
+       "movdqa      %2,%%xmm4                     \n"
+       "pxor        %%xmm5,%%xmm5                 \n"
+       :
+       : "m"(kShufAc),    // %0
+         "m"(kShufAc3),   // %1
+         "m"(kScaleAc33)  // %2
+   );
+@@ -761,17 +761,17 @@ static const uvec8 kLinearShuffleFar = {
+ 
+ static const uvec8 kLinearMadd31 = {3, 1, 1, 3, 3, 1, 1, 3,
+                                     3, 1, 1, 3, 3, 1, 1, 3};
+ 
+ #ifdef HAS_SCALEROWUP2_LINEAR_SSE2
+ void ScaleRowUp2_Linear_SSE2(const uint8_t* src_ptr,
+                              uint8_t* dst_ptr,
+                              int dst_width) {
+-      asm("pxor        %%xmm0,%%xmm0                 \n"  // 0
++      asm volatile("pxor        %%xmm0,%%xmm0                 \n"  // 0
+       "pcmpeqw     %%xmm6,%%xmm6                 \n"
+       "psrlw       $15,%%xmm6                    \n"
+       "psllw       $1,%%xmm6                     \n"  // all 2
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movq        (%0),%%xmm1                   \n"  // 01234567
+       "movq        1(%0),%%xmm2                  \n"  // 12345678
+@@ -929,17 +929,17 @@ void ScaleRowUp2_Bilinear_SSE2(const uin
+         "xmm7");
+ }
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_LINEAR_12_SSSE3
+ void ScaleRowUp2_Linear_12_SSSE3(const uint16_t* src_ptr,
+                                  uint16_t* dst_ptr,
+                                  int dst_width) {
+-      asm("movdqa      %3,%%xmm5                     \n"
++      asm volatile("movdqa      %3,%%xmm5                     \n"
+       "pcmpeqw     %%xmm4,%%xmm4                 \n"
+       "psrlw       $15,%%xmm4                    \n"
+       "psllw       $1,%%xmm4                     \n"  // all 2
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movdqu      (%0),%%xmm0                   \n"  // 01234567 (16)
+       "movdqu      2(%0),%%xmm1                  \n"  // 12345678 (16)
+@@ -980,17 +980,17 @@ void ScaleRowUp2_Linear_12_SSSE3(const u
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_BILINEAR_12_SSSE3
+ void ScaleRowUp2_Bilinear_12_SSSE3(const uint16_t* src_ptr,
+                                    ptrdiff_t src_stride,
+                                    uint16_t* dst_ptr,
+                                    ptrdiff_t dst_stride,
+                                    int dst_width) {
+-      asm("pcmpeqw     %%xmm7,%%xmm7                 \n"
++      asm volatile("pcmpeqw     %%xmm7,%%xmm7                 \n"
+       "psrlw       $15,%%xmm7                    \n"
+       "psllw       $3,%%xmm7                     \n"  // all 8
+       "movdqa      %5,%%xmm6                     \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       // above line
+       "movdqu      (%0),%%xmm0                   \n"  // 01234567 (16)
+@@ -1077,17 +1077,17 @@ void ScaleRowUp2_Bilinear_12_SSSE3(const
+         "xmm7");
+ }
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_LINEAR_16_SSE2
+ void ScaleRowUp2_Linear_16_SSE2(const uint16_t* src_ptr,
+                                 uint16_t* dst_ptr,
+                                 int dst_width) {
+-      asm("pxor        %%xmm5,%%xmm5                 \n"
++      asm volatile("pxor        %%xmm5,%%xmm5                 \n"
+       "pcmpeqd     %%xmm4,%%xmm4                 \n"
+       "psrld       $31,%%xmm4                    \n"
+       "pslld       $1,%%xmm4                     \n"  // all 2
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movq        (%0),%%xmm0                   \n"  // 0123 (16b)
+       "movq        2(%0),%%xmm1                  \n"  // 1234 (16b)
+@@ -1129,17 +1129,17 @@ void ScaleRowUp2_Linear_16_SSE2(const ui
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_BILINEAR_16_SSE2
+ void ScaleRowUp2_Bilinear_16_SSE2(const uint16_t* src_ptr,
+                                   ptrdiff_t src_stride,
+                                   uint16_t* dst_ptr,
+                                   ptrdiff_t dst_stride,
+                                   int dst_width) {
+-      asm("pxor        %%xmm7,%%xmm7                 \n"
++      asm volatile("pxor        %%xmm7,%%xmm7                 \n"
+       "pcmpeqd     %%xmm6,%%xmm6                 \n"
+       "psrld       $31,%%xmm6                    \n"
+       "pslld       $3,%%xmm6                     \n"  // all 8
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movq        (%0),%%xmm0                   \n"  // 0011 (16b, 1u1v)
+       "movq        4(%0),%%xmm1                  \n"  // 1122 (16b, 1u1v)
+@@ -1236,17 +1236,17 @@ void ScaleRowUp2_Bilinear_16_SSE2(const 
+         "xmm7");
+ }
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_LINEAR_SSSE3
+ void ScaleRowUp2_Linear_SSSE3(const uint8_t* src_ptr,
+                               uint8_t* dst_ptr,
+                               int dst_width) {
+-      asm("pcmpeqw     %%xmm4,%%xmm4                 \n"
++      asm volatile("pcmpeqw     %%xmm4,%%xmm4                 \n"
+       "psrlw       $15,%%xmm4                    \n"
+       "psllw       $1,%%xmm4                     \n"  // all 2
+       "movdqa      %3,%%xmm3                     \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movq        (%0),%%xmm0                   \n"  // 01234567
+       "movq        1(%0),%%xmm1                  \n"  // 12345678
+@@ -1276,17 +1276,17 @@ void ScaleRowUp2_Linear_SSSE3(const uint
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_BILINEAR_SSSE3
+ void ScaleRowUp2_Bilinear_SSSE3(const uint8_t* src_ptr,
+                                 ptrdiff_t src_stride,
+                                 uint8_t* dst_ptr,
+                                 ptrdiff_t dst_stride,
+                                 int dst_width) {
+-      asm("pcmpeqw     %%xmm6,%%xmm6                 \n"
++      asm volatile("pcmpeqw     %%xmm6,%%xmm6                 \n"
+       "psrlw       $15,%%xmm6                    \n"
+       "psllw       $3,%%xmm6                     \n"  // all 8
+       "movdqa      %5,%%xmm7                     \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movq        (%0),%%xmm0                   \n"  // 01234567
+       "movq        1(%0),%%xmm1                  \n"  // 12345678
+@@ -1360,17 +1360,17 @@ void ScaleRowUp2_Bilinear_SSSE3(const ui
+         "xmm7");
+ }
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_LINEAR_AVX2
+ void ScaleRowUp2_Linear_AVX2(const uint8_t* src_ptr,
+                              uint8_t* dst_ptr,
+                              int dst_width) {
+-      asm("vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
++      asm volatile("vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpsrlw      $15,%%ymm4,%%ymm4             \n"
+       "vpsllw      $1,%%ymm4,%%ymm4              \n"  // all 2
+       "vbroadcastf128 %3,%%ymm3                  \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%xmm0                   \n"  // 0123456789ABCDEF
+       "vmovdqu     1(%0),%%xmm1                  \n"  // 123456789ABCDEF0
+@@ -1403,17 +1403,17 @@ void ScaleRowUp2_Linear_AVX2(const uint8
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_BILINEAR_AVX2
+ void ScaleRowUp2_Bilinear_AVX2(const uint8_t* src_ptr,
+                                ptrdiff_t src_stride,
+                                uint8_t* dst_ptr,
+                                ptrdiff_t dst_stride,
+                                int dst_width) {
+-      asm("vpcmpeqw    %%ymm6,%%ymm6,%%ymm6          \n"
++      asm volatile("vpcmpeqw    %%ymm6,%%ymm6,%%ymm6          \n"
+       "vpsrlw      $15,%%ymm6,%%ymm6             \n"
+       "vpsllw      $3,%%ymm6,%%ymm6              \n"  // all 8
+       "vbroadcastf128 %5,%%ymm7                  \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%xmm0                   \n"  // 0123456789ABCDEF
+       "vmovdqu     1(%0),%%xmm1                  \n"  // 123456789ABCDEF0
+@@ -1484,17 +1484,17 @@ void ScaleRowUp2_Bilinear_AVX2(const uin
+         "xmm7");
+ }
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_LINEAR_12_AVX2
+ void ScaleRowUp2_Linear_12_AVX2(const uint16_t* src_ptr,
+                                 uint16_t* dst_ptr,
+                                 int dst_width) {
+-      asm("vbroadcastf128 %3,%%ymm5                  \n"
++      asm volatile("vbroadcastf128 %3,%%ymm5                  \n"
+       "vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpsrlw      $15,%%ymm4,%%ymm4             \n"
+       "vpsllw      $1,%%ymm4,%%ymm4              \n"  // all 2
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%ymm0                   \n"  // 0123456789ABCDEF (16b)
+       "vmovdqu     2(%0),%%ymm1                  \n"  // 123456789ABCDEF0 (16b)
+@@ -1535,17 +1535,17 @@ void ScaleRowUp2_Linear_12_AVX2(const ui
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_BILINEAR_12_AVX2
+ void ScaleRowUp2_Bilinear_12_AVX2(const uint16_t* src_ptr,
+                                   ptrdiff_t src_stride,
+                                   uint16_t* dst_ptr,
+                                   ptrdiff_t dst_stride,
+                                   int dst_width) {
+-      asm("vbroadcastf128 %5,%%ymm5                  \n"
++      asm volatile("vbroadcastf128 %5,%%ymm5                  \n"
+       "vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpsrlw      $15,%%ymm4,%%ymm4             \n"
+       "vpsllw      $3,%%ymm4,%%ymm4              \n"  // all 8
+ 
+       LABELALIGN
+       "1:                                        \n"
+ 
+       "vmovdqu     (%0),%%xmm0                   \n"  // 01234567 (16b)
+@@ -1596,17 +1596,17 @@ void ScaleRowUp2_Bilinear_12_AVX2(const 
+       : "memory", "cc", "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5");
+ }
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_LINEAR_16_AVX2
+ void ScaleRowUp2_Linear_16_AVX2(const uint16_t* src_ptr,
+                                 uint16_t* dst_ptr,
+                                 int dst_width) {
+-      asm("vpcmpeqd    %%ymm4,%%ymm4,%%ymm4          \n"
++      asm volatile("vpcmpeqd    %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpsrld      $31,%%ymm4,%%ymm4             \n"
+       "vpslld      $1,%%ymm4,%%ymm4              \n"  // all 2
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%xmm0                   \n"  // 01234567 (16b, 1u1v)
+       "vmovdqu     2(%0),%%xmm1                  \n"  // 12345678 (16b, 1u1v)
+ 
+@@ -1645,17 +1645,17 @@ void ScaleRowUp2_Linear_16_AVX2(const ui
+ #endif
+ 
+ #ifdef HAS_SCALEROWUP2_BILINEAR_16_AVX2
+ void ScaleRowUp2_Bilinear_16_AVX2(const uint16_t* src_ptr,
+                                   ptrdiff_t src_stride,
+                                   uint16_t* dst_ptr,
+                                   ptrdiff_t dst_stride,
+                                   int dst_width) {
+-      asm("vpcmpeqd    %%ymm6,%%ymm6,%%ymm6          \n"
++      asm volatile("vpcmpeqd    %%ymm6,%%ymm6,%%ymm6          \n"
+       "vpsrld      $31,%%ymm6,%%ymm6             \n"
+       "vpslld      $3,%%ymm6,%%ymm6              \n"  // all 8
+ 
+       LABELALIGN
+       "1:                                        \n"
+ 
+       "vmovdqu     (%0),%%xmm0                   \n"  // 01234567 (16b, 1u1v)
+       "vmovdqu     2(%0),%%xmm1                  \n"  // 12345678 (16b, 1u1v)
+@@ -1727,17 +1727,17 @@ void ScaleRowUp2_Bilinear_16_AVX2(const 
+       : "memory", "cc", "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6");
+ }
+ #endif
+ 
+ // Reads 16xN bytes and produces 16 shorts at a time.
+ void ScaleAddRow_SSE2(const uint8_t* src_ptr,
+                       uint16_t* dst_ptr,
+                       int src_width) {
+-      asm("pxor        %%xmm5,%%xmm5                 \n"
++      asm volatile("pxor        %%xmm5,%%xmm5                 \n"
+ 
+       // 16 pixel loop.
+       LABELALIGN
+       "1:                                        \n"
+       "movdqu      (%0),%%xmm3                   \n"
+       "lea         0x10(%0),%0                   \n"  // src_ptr += 16
+       "movdqu      (%1),%%xmm0                   \n"
+       "movdqu      0x10(%1),%%xmm1               \n"
+@@ -1758,17 +1758,17 @@ void ScaleAddRow_SSE2(const uint8_t* src
+       : "memory", "cc", "xmm0", "xmm1", "xmm2", "xmm3", "xmm5");
+ }
+ 
+ #ifdef HAS_SCALEADDROW_AVX2
+ // Reads 32 bytes and accumulates to 32 shorts at a time.
+ void ScaleAddRow_AVX2(const uint8_t* src_ptr,
+                       uint16_t* dst_ptr,
+                       int src_width) {
+-      asm("vpxor       %%ymm5,%%ymm5,%%ymm5          \n"
++      asm volatile("vpxor       %%ymm5,%%ymm5,%%ymm5          \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%ymm3                   \n"
+       "lea         0x20(%0),%0                   \n"  // src_ptr += 32
+       "vpermq      $0xd8,%%ymm3,%%ymm3           \n"
+       "vpunpcklbw  %%ymm5,%%ymm3,%%ymm2          \n"
+       "vpunpckhbw  %%ymm5,%%ymm3,%%ymm3          \n"
+@@ -1799,17 +1799,17 @@ static const uvec16 kFadd40 = {0x4040, 0
+ 
+ // Bilinear column filtering. SSSE3 version.
+ void ScaleFilterCols_SSSE3(uint8_t* dst_ptr,
+                            const uint8_t* src_ptr,
+                            int dst_width,
+                            int x,
+                            int dx) {
+   intptr_t x0, x1, temp_pixel;
+-      asm("movd        %6,%%xmm2                     \n"
++      asm volatile("movd        %6,%%xmm2                     \n"
+       "movd        %7,%%xmm3                     \n"
+       "movl        $0x04040000,%k2               \n"
+       "movd        %k2,%%xmm5                    \n"
+       "pcmpeqb     %%xmm6,%%xmm6                 \n"
+       "psrlw       $0x9,%%xmm6                   \n"  // 0x007f007f
+       "pcmpeqb     %%xmm7,%%xmm7                 \n"
+       "psrlw       $15,%%xmm7                    \n"  // 0x00010001
+ 
+@@ -2000,17 +2000,17 @@ void ScaleARGBRowDown2Box_SSE2(const uin
+ void ScaleARGBRowDownEven_SSE2(const uint8_t* src_argb,
+                                ptrdiff_t src_stride,
+                                int src_stepx,
+                                uint8_t* dst_argb,
+                                int dst_width) {
+   intptr_t src_stepx_x4 = (intptr_t)(src_stepx);
+   intptr_t src_stepx_x12;
+   (void)src_stride;
+-      asm("lea         0x00(,%1,4),%1                \n"
++      asm volatile("lea         0x00(,%1,4),%1                \n"
+       "lea         0x00(%1,%1,2),%4              \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movd        (%0),%%xmm0                   \n"
+       "movd        0x00(%0,%1,1),%%xmm1          \n"
+       "punpckldq   %%xmm1,%%xmm0                 \n"
+       "movd        0x00(%0,%1,2),%%xmm2          \n"
+@@ -2036,17 +2036,17 @@ void ScaleARGBRowDownEven_SSE2(const uin
+ void ScaleARGBRowDownEvenBox_SSE2(const uint8_t* src_argb,
+                                   ptrdiff_t src_stride,
+                                   int src_stepx,
+                                   uint8_t* dst_argb,
+                                   int dst_width) {
+   intptr_t src_stepx_x4 = (intptr_t)(src_stepx);
+   intptr_t src_stepx_x12;
+   intptr_t row1 = (intptr_t)(src_stride);
+-      asm("lea         0x00(,%1,4),%1                \n"
++      asm volatile("lea         0x00(,%1,4),%1                \n"
+       "lea         0x00(%1,%1,2),%4              \n"
+       "lea         0x00(%0,%5,1),%5              \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movq        (%0),%%xmm0                   \n"
+       "movhps      0x00(%0,%1,1),%%xmm0          \n"
+       "movq        0x00(%0,%1,2),%%xmm1          \n"
+@@ -2078,17 +2078,17 @@ void ScaleARGBRowDownEvenBox_SSE2(const 
+ }
+ 
+ void ScaleARGBCols_SSE2(uint8_t* dst_argb,
+                         const uint8_t* src_argb,
+                         int dst_width,
+                         int x,
+                         int dx) {
+   intptr_t x0, x1;
+-      asm("movd        %5,%%xmm2                     \n"
++      asm volatile("movd        %5,%%xmm2                     \n"
+       "movd        %6,%%xmm3                     \n"
+       "pshufd      $0x0,%%xmm2,%%xmm2            \n"
+       "pshufd      $0x11,%%xmm3,%%xmm0           \n"
+       "paddd       %%xmm0,%%xmm2                 \n"
+       "paddd       %%xmm3,%%xmm3                 \n"
+       "pshufd      $0x5,%%xmm3,%%xmm0            \n"
+       "paddd       %%xmm0,%%xmm2                 \n"
+       "paddd       %%xmm3,%%xmm3                 \n"
+@@ -2186,24 +2186,24 @@ static const uvec8 kShuffleFractions = {
+ 
+ // Bilinear row filtering combines 4x2 -> 4x1. SSSE3 version
+ void ScaleARGBFilterCols_SSSE3(uint8_t* dst_argb,
+                                const uint8_t* src_argb,
+                                int dst_width,
+                                int x,
+                                int dx) {
+   intptr_t x0, x1;
+-      asm("movdqa      %0,%%xmm4                     \n"
++      asm volatile("movdqa      %0,%%xmm4                     \n"
+       "movdqa      %1,%%xmm5                     \n"
+       :
+       : "m"(kShuffleColARGB),   // %0
+         "m"(kShuffleFractions)  // %1
+   );
+ 
+-      asm("movd        %5,%%xmm2                     \n"
++      asm volatile("movd        %5,%%xmm2                     \n"
+       "movd        %6,%%xmm3                     \n"
+       "pcmpeqb     %%xmm6,%%xmm6                 \n"
+       "psrlw       $0x9,%%xmm6                   \n"
+       "pextrw      $0x1,%%xmm2,%k3               \n"
+       "sub         $0x2,%2                       \n"
+       "jl          29f                           \n"
+       "movdqa      %%xmm2,%%xmm0                 \n"
+       "paddd       %%xmm3,%%xmm0                 \n"
+@@ -2255,30 +2255,30 @@ void ScaleARGBFilterCols_SSSE3(uint8_t* 
+         "=&r"(x1)          // %4
+       : "rm"(x),           // %5
+         "rm"(dx)           // %6
+       : "memory", "cc", "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6");
+ }
+ 
+ // Divide num by div and return as 16.16 fixed point result.
+ int FixedDiv_X86(int num, int div) {
+-      asm("cdq                                       \n"
++      asm volatile("cdq                                       \n"
+       "shld        $0x10,%%eax,%%edx             \n"
+       "shl         $0x10,%%eax                   \n"
+       "idiv        %1                            \n"
+       "mov         %0, %%eax                     \n"
+       : "+a"(num)  // %0
+       : "c"(div)   // %1
+       : "memory", "cc", "edx");
+   return num;
+ }
+ 
+ // Divide num - 1 by div - 1 and return as 16.16 fixed point result.
+ int FixedDiv1_X86(int num, int div) {
+-      asm("cdq                                       \n"
++      asm volatile("cdq                                       \n"
+       "shld        $0x10,%%eax,%%edx             \n"
+       "shl         $0x10,%%eax                   \n"
+       "sub         $0x10001,%%eax                \n"
+       "sbb         $0x0,%%edx                    \n"
+       "sub         $0x1,%1                       \n"
+       "idiv        %1                            \n"
+       "mov         %0, %%eax                     \n"
+       : "+a"(num)  // %0
+@@ -2299,17 +2299,17 @@ static const uvec8 kShuffleMergeUV = {0u
+ #endif
+ 
+ #ifdef HAS_SCALEUVROWDOWN2BOX_SSSE3
+ 
+ void ScaleUVRowDown2Box_SSSE3(const uint8_t* src_ptr,
+                               ptrdiff_t src_stride,
+                               uint8_t* dst_ptr,
+                               int dst_width) {
+-      asm("pcmpeqb     %%xmm4,%%xmm4                 \n"  // 01010101
++      asm volatile("pcmpeqb     %%xmm4,%%xmm4                 \n"  // 01010101
+       "psrlw       $0xf,%%xmm4                   \n"
+       "packuswb    %%xmm4,%%xmm4                 \n"
+       "pxor        %%xmm5, %%xmm5                \n"  // zero
+       "movdqa      %4,%%xmm1                     \n"  // split shuffler
+       "movdqa      %5,%%xmm3                     \n"  // merge shuffler
+ 
+       LABELALIGN
+       "1:                                        \n"
+@@ -2338,17 +2338,17 @@ void ScaleUVRowDown2Box_SSSE3(const uint
+ }
+ #endif  // HAS_SCALEUVROWDOWN2BOX_SSSE3
+ 
+ #ifdef HAS_SCALEUVROWDOWN2BOX_AVX2
+ void ScaleUVRowDown2Box_AVX2(const uint8_t* src_ptr,
+                              ptrdiff_t src_stride,
+                              uint8_t* dst_ptr,
+                              int dst_width) {
+-      asm("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"  // 01010101
++      asm volatile("vpcmpeqb    %%ymm4,%%ymm4,%%ymm4          \n"  // 01010101
+       "vpsrlw      $0xf,%%ymm4,%%ymm4            \n"
+       "vpackuswb   %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpxor       %%ymm5,%%ymm5,%%ymm5          \n"  // zero
+       "vbroadcastf128 %4,%%ymm1                  \n"  // split shuffler
+       "vbroadcastf128 %5,%%ymm3                  \n"  // merge shuffler
+ 
+       LABELALIGN
+       "1:                                        \n"
+@@ -2381,17 +2381,17 @@ void ScaleUVRowDown2Box_AVX2(const uint8
+ 
+ static const uvec8 kUVLinearMadd31 = {3, 1, 3, 1, 1, 3, 1, 3,
+                                       3, 1, 3, 1, 1, 3, 1, 3};
+ 
+ #ifdef HAS_SCALEUVROWUP2_LINEAR_SSSE3
+ void ScaleUVRowUp2_Linear_SSSE3(const uint8_t* src_ptr,
+                                 uint8_t* dst_ptr,
+                                 int dst_width) {
+-      asm("pcmpeqw     %%xmm4,%%xmm4                 \n"
++      asm volatile("pcmpeqw     %%xmm4,%%xmm4                 \n"
+       "psrlw       $15,%%xmm4                    \n"
+       "psllw       $1,%%xmm4                     \n"  // all 2
+       "movdqa      %3,%%xmm3                     \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movq        (%0),%%xmm0                   \n"  // 00112233 (1u1v)
+       "movq        2(%0),%%xmm1                  \n"  // 11223344 (1u1v)
+@@ -2421,17 +2421,17 @@ void ScaleUVRowUp2_Linear_SSSE3(const ui
+ #endif
+ 
+ #ifdef HAS_SCALEUVROWUP2_BILINEAR_SSSE3
+ void ScaleUVRowUp2_Bilinear_SSSE3(const uint8_t* src_ptr,
+                                   ptrdiff_t src_stride,
+                                   uint8_t* dst_ptr,
+                                   ptrdiff_t dst_stride,
+                                   int dst_width) {
+-      asm("pcmpeqw     %%xmm6,%%xmm6                 \n"
++      asm volatile("pcmpeqw     %%xmm6,%%xmm6                 \n"
+       "psrlw       $15,%%xmm6                    \n"
+       "psllw       $3,%%xmm6                     \n"  // all 8
+       "movdqa      %5,%%xmm7                     \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movq        (%0),%%xmm0                   \n"  // 00112233 (1u1v)
+       "movq        2(%0),%%xmm1                  \n"  // 11223344 (1u1v)
+@@ -2504,17 +2504,17 @@ void ScaleUVRowUp2_Bilinear_SSSE3(const 
+ }
+ #endif
+ 
+ #ifdef HAS_SCALEUVROWUP2_LINEAR_AVX2
+ 
+ void ScaleUVRowUp2_Linear_AVX2(const uint8_t* src_ptr,
+                                uint8_t* dst_ptr,
+                                int dst_width) {
+-      asm("vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
++      asm volatile("vpcmpeqw    %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpsrlw      $15,%%ymm4,%%ymm4             \n"
+       "vpsllw      $1,%%ymm4,%%ymm4              \n"  // all 2
+       "vbroadcastf128 %3,%%ymm3                  \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%xmm0                   \n"
+       "vmovdqu     2(%0),%%xmm1                  \n"
+@@ -2546,17 +2546,17 @@ void ScaleUVRowUp2_Linear_AVX2(const uin
+ #endif
+ 
+ #ifdef HAS_SCALEUVROWUP2_BILINEAR_AVX2
+ void ScaleUVRowUp2_Bilinear_AVX2(const uint8_t* src_ptr,
+                                  ptrdiff_t src_stride,
+                                  uint8_t* dst_ptr,
+                                  ptrdiff_t dst_stride,
+                                  int dst_width) {
+-      asm("vpcmpeqw    %%ymm6,%%ymm6,%%ymm6          \n"
++      asm volatile("vpcmpeqw    %%ymm6,%%ymm6,%%ymm6          \n"
+       "vpsrlw      $15,%%ymm6,%%ymm6             \n"
+       "vpsllw      $3,%%ymm6,%%ymm6              \n"  // all 8
+       "vbroadcastf128 %5,%%ymm7                  \n"
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%xmm0                   \n"
+       "vmovdqu     2(%0),%%xmm1                  \n"
+@@ -2625,17 +2625,17 @@ void ScaleUVRowUp2_Bilinear_AVX2(const u
+         "xmm7");
+ }
+ #endif
+ 
+ #ifdef HAS_SCALEUVROWUP2_LINEAR_16_SSE41
+ void ScaleUVRowUp2_Linear_16_SSE41(const uint16_t* src_ptr,
+                                    uint16_t* dst_ptr,
+                                    int dst_width) {
+-      asm("pxor        %%xmm5,%%xmm5                 \n"
++      asm volatile("pxor        %%xmm5,%%xmm5                 \n"
+       "pcmpeqd     %%xmm4,%%xmm4                 \n"
+       "psrld       $31,%%xmm4                    \n"
+       "pslld       $1,%%xmm4                     \n"  // all 2
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movq        (%0),%%xmm0                   \n"  // 0011 (16b, 1u1v)
+       "movq        4(%0),%%xmm1                  \n"  // 1122 (16b, 1u1v)
+@@ -2676,17 +2676,17 @@ void ScaleUVRowUp2_Linear_16_SSE41(const
+ #endif
+ 
+ #ifdef HAS_SCALEUVROWUP2_BILINEAR_16_SSE41
+ void ScaleUVRowUp2_Bilinear_16_SSE41(const uint16_t* src_ptr,
+                                      ptrdiff_t src_stride,
+                                      uint16_t* dst_ptr,
+                                      ptrdiff_t dst_stride,
+                                      int dst_width) {
+-      asm("pxor        %%xmm7,%%xmm7                 \n"
++      asm volatile("pxor        %%xmm7,%%xmm7                 \n"
+       "pcmpeqd     %%xmm6,%%xmm6                 \n"
+       "psrld       $31,%%xmm6                    \n"
+       "pslld       $3,%%xmm6                     \n"  // all 8
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "movq        (%0),%%xmm0                   \n"  // 0011 (16b, 1u1v)
+       "movq        4(%0),%%xmm1                  \n"  // 1122 (16b, 1u1v)
+@@ -2766,17 +2766,17 @@ void ScaleUVRowUp2_Bilinear_16_SSE41(con
+         "xmm7");
+ }
+ #endif
+ 
+ #ifdef HAS_SCALEUVROWUP2_LINEAR_16_AVX2
+ void ScaleUVRowUp2_Linear_16_AVX2(const uint16_t* src_ptr,
+                                   uint16_t* dst_ptr,
+                                   int dst_width) {
+-      asm("vpcmpeqd    %%ymm4,%%ymm4,%%ymm4          \n"
++      asm volatile("vpcmpeqd    %%ymm4,%%ymm4,%%ymm4          \n"
+       "vpsrld      $31,%%ymm4,%%ymm4             \n"
+       "vpslld      $1,%%ymm4,%%ymm4              \n"  // all 2
+ 
+       LABELALIGN
+       "1:                                        \n"
+       "vmovdqu     (%0),%%xmm0                   \n"  // 00112233 (16b, 1u1v)
+       "vmovdqu     4(%0),%%xmm1                  \n"  // 11223344 (16b, 1u1v)
+ 
+@@ -2814,17 +2814,17 @@ void ScaleUVRowUp2_Linear_16_AVX2(const 
+ #endif
+ 
+ #ifdef HAS_SCALEUVROWUP2_BILINEAR_16_AVX2
+ void ScaleUVRowUp2_Bilinear_16_AVX2(const uint16_t* src_ptr,
+                                     ptrdiff_t src_stride,
+                                     uint16_t* dst_ptr,
+                                     ptrdiff_t dst_stride,
+                                     int dst_width) {
+-      asm("vpcmpeqd    %%ymm6,%%ymm6,%%ymm6          \n"
++      asm volatile("vpcmpeqd    %%ymm6,%%ymm6,%%ymm6          \n"
+       "vpsrld      $31,%%ymm6,%%ymm6             \n"
+       "vpslld      $3,%%ymm6,%%ymm6              \n"  // all 8
+ 
+       LABELALIGN
+       "1:                                        \n"
+ 
+       "vmovdqu     (%0),%%xmm0                   \n"  // 00112233 (16b, 1u1v)
+       "vmovdqu     4(%0),%%xmm1                  \n"  // 11223344 (16b, 1u1v)
+diff --git a/media/libyuv/moz.yaml b/media/libyuv/moz.yaml
+--- a/media/libyuv/moz.yaml
++++ b/media/libyuv/moz.yaml
+@@ -50,8 +50,9 @@ vendoring:
+   exclude:
+     - ".*"
+ 
+   patches:
+     - 00_fix_build_errors.patch
+     - 01_make_mjpeg_printfs_optional.patch
+     - 02_update_gyp.patch
+     - 03_add_neon64_and_sve_gyp_targets.patch
++    - 04_add_missing_volatile.patch
+
