@@ -1,35 +1,18 @@
-make_normal  &&
-#
-# If bash is installed on a system without /bin then /bin will be just a file
-# instead of a directory
-# Bash is the first package installed by baseystem that writes to /bin
-#
-install  -d  -m  755  -o  root  -g  root  ${INSTALL_ROOT}/bin  &&
+cd INSTALL_ROOT &&
+find . | cpio --pass-through --make-directories --verbose "${INSTALL_ROOT}/" &&
 
-cp  -f   bash         ${INSTALL_ROOT}/bin      &&
-cp  -f   bashbug      ${INSTALL_ROOT}/bin      &&
-ln  -sf  bash         ${INSTALL_ROOT}/bin/sh   &&
+cd  "${SOURCE_DIRECTORY}/doc"  &&
 
-# install static bash
-install  -D  -m  755  bash.static  "$INSTALL_ROOT/sbin/bash.static"  &&
-# compatibility with older bash spell
-ln  -fns  ../sbin/bash.static  "$INSTALL_ROOT/bin/bash.static"  &&
-
-# create restricted shell
-ln  -fns  bash  $INSTALL_ROOT/bin/rbash  &&
-
-cd  doc  &&
-
-mkdir -p ${INSTALL_ROOT}/usr/share/man/man1 &&
+mkdir -p "${INSTALL_ROOT}/usr/share/man/man1" &&
 for  MANPAGE  in  `ls  *.1`;  do
-  gzip  -9  $MANPAGE  &&
-  cp  $MANPAGE.gz  ${INSTALL_ROOT}/usr/share/man/man1
+  gzip  -9  "${MANPAGE}"  &&
+  cp  "${MANPAGE}.gz"  "${INSTALL_ROOT}/usr/share/man/man1"
 done  &&
 
 if spell_ok texinfo; then
-  cp  bashref.info  ${INSTALL_ROOT}/usr/share/info/bash.info  &&
-  install-info  --info-dir=${INSTALL_ROOT}/usr/share/info     \
-                 ${INSTALL_ROOT}/usr/share/info/bash.info
+  cp  bashref.info  "${INSTALL_ROOT}/usr/share/info/bash.info"  &&
+  install-info  --info-dir="${INSTALL_ROOT}/usr/share/info"     \
+                 "${INSTALL_ROOT}/usr/share/info/bash.info"
 fi &&
 
 #
@@ -40,53 +23,53 @@ fi &&
 # Install etc/profile.d scripts
 #
 for i in dummy lc.sh;  do
-  if  install_config_file  $SCRIPT_DIRECTORY/profile.d/$i   \
-                           $INSTALL_ROOT/etc/profile.d/$i;  then
-    chmod  0755  $INSTALL_ROOT/etc/profile.d/$i
+  if  install_config_file  "${SCRIPT_DIRECTORY}/profile.d/$i"   \
+                           "${INSTALL_ROOT}/etc/profile.d/$i";  then
+    chmod  0755  "${INSTALL_ROOT}/etc/profile.d/$i"
   fi
 done  &&
 
 #Install configuration file for the lc.sh script
-install_config_file $SCRIPT_DIRECTORY/profile.d/locale.conf  \
-                    $INSTALL_ROOT/etc/sysconfig/locale       &&
+install_config_file "${SCRIPT_DIRECTORY}/profile.d/locale.conf"  \
+                    "${INSTALL_ROOT}/etc/sysconfig/locale"       &&
 
-if  install_config_file  $SCRIPT_DIRECTORY/profile   \
-                         $INSTALL_ROOT/etc/profile;  then
-  chmod  0755  $INSTALL_ROOT/etc/profile
+if  install_config_file  "${SCRIPT_DIRECTORY}/profile"   \
+                         "${INSTALL_ROOT}/etc/profile";  then
+  chmod  0755  "${INSTALL_ROOT}/etc/profile"
 fi  &&
 
 #
 # Bug #9672
 #
-if  install_config_file  $SCRIPT_DIRECTORY/bashrc   \
-                         $INSTALL_ROOT/etc/bashrc;  then
-  chmod  0755  $INSTALL_ROOT/etc/bashrc
+if  install_config_file  "${SCRIPT_DIRECTORY}/bashrc"   \
+                         "${INSTALL_ROOT}/etc/bashrc";  then
+  chmod  0755  "${INSTALL_ROOT}/etc/bashrc"
 fi  &&
 
 #
 # Bug #9673
 #
-if  install_config_file  $SCRIPT_DIRECTORY/skel/bash_profile    \
-                         $INSTALL_ROOT/etc/skel/.bash_profile;  then
-  chmod  0755  $INSTALL_ROOT/etc/skel/.bash_profile
+if  install_config_file  "${SCRIPT_DIRECTORY}/skel/bash_profile"    \
+                         "${INSTALL_ROOT}/etc/skel/.bash_profile";  then
+  chmod  0755  "${INSTALL_ROOT}/etc/skel/.bash_profile"
 fi  &&
 
 #
 # Bug #9626
 # bashrc should not symlink to bash_profile
 #
-if  [  -h  $INSTALL_ROOT/etc/skel/.bashrc  ];  then
-  rm  -f  $INSTALL_ROOT/etc/skel/.bashrc
+if  [  -h  "${TRACK_ROOT}/etc/skel/.bashrc"  ];  then
+  rm  -f  "${TRACK_ROOT}/etc/skel/.bashrc"
 fi  &&
 
-if  install_config_file  $SCRIPT_DIRECTORY/skel/bashrc    \
-                         $INSTALL_ROOT/etc/skel/.bashrc;  then
-  chmod  0755  $INSTALL_ROOT/etc/skel/.bashrc
+if  install_config_file  "${SCRIPT_DIRECTORY}/skel/bashrc"    \
+                         "${INSTALL_ROOT}/etc/skel/.bashrc";  then
+  chmod  0755  "${INSTALL_ROOT}/etc/skel/.bashrc"
 fi  &&
 
-if  install_config_file  $SCRIPT_DIRECTORY/skel/bash_logout    \
-                         $INSTALL_ROOT/etc/skel/.bash_logout;  then
-  chmod  0755  $INSTALL_ROOT/etc/skel/.bash_logout
+if  install_config_file  "${SCRIPT_DIRECTORY}/skel/bash_logout"    \
+                         "${INSTALL_ROOT}/etc/skel/.bash_logout";  then
+  chmod  0755  "${INSTALL_ROOT}/etc/skel/.bash_logout"
 fi
 
 #
