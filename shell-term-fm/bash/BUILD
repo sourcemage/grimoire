@@ -42,7 +42,7 @@ cp  -f   bashbug      ./INSTALL_ROOT/bin      &&
 ln  -sf  bash         ./INSTALL_ROOT/bin/sh   &&
 
 # install static bash
-install  -D  -m  755  bash.static  "./NSTALL_ROOT/sbin/bash.static"  &&
+install  -D  -m  755  bash.static  "./INSTALL_ROOT/sbin/bash.static"  &&
 # compatibility with older bash spell
 ln  -fns  ../sbin/bash.static  "./INSTALL_ROOT/bin/bash.static"  &&
 
