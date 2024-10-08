@@ -1,7 +1,11 @@
 OPTS="--enable-shared  $PYTHON3_OPTS $OPTS" &&
 OPTS="--with-ensurepip=no $OPTS"            &&
 
-OPTS+=" --enable-optimizations"             &&
+# Optimizations buildcfails for 3.13
+if [[ "${PYTHON3_BRANCH}" != "devel" &&
+      "${PYTHON3_BRANCH}" != "3.13"  ]]; then
+  OPTS+=" --enable-optimizations"
+fi                                          &&
 OPTS+=" --with-lto"                         &&
 OPTS+=" --with-computed-gotos"              &&
 
