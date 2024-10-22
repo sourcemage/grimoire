@@ -49,6 +49,14 @@ sed -e "s;profile =.*;profile = 'user';" \
     -e '/^\[llvm\]/aninja = false' \
     -e '/^\[build\]/aoptimized-compiler-builtins = false' -i config.toml &&
 
+ if list_find "${RUST_TOOLS}" "none"; then
+   sed '/^\[build\]/atools = \[\]' -i config.toml
+elif list_find "${RUST_TOOLS}" "default"; then
+  sed '/^\[build\]/atools = \[ "cargo", "rustdoc" \]' -i config.toml
+else
+  sed "/^\[build\]/atools = \[ \"${RUST_TOOLS// /\", \"}\" ]" -i config.toml
+fi &&
+
 export CARGO_HOME="$SOURCE_DIRECTORY/cargo_home" &&
 
 python3 ./x.py build  --config="${SOURCE_DIRECTORY}/config.toml" \
