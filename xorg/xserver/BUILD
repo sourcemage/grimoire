@@ -4,6 +4,7 @@ OPTS+=" xorg=$XSERVER_XORG \
         xnest=$XSERVER_XNEST \
         xvfb=$XSERVER_XVFB \
         xselinux=${XSERVER_SELINUX} \
+        xcsecurity=${XSERVER_SECURITY} \
         xephyr=$XSERVER_XEPHYR \
         glamor=$XSERVER_GLAMOR \
         listen_tcp=$XSERVER_TCP \
