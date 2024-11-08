@@ -1,0 +1,34 @@
+diff --git a/security/sandbox/linux/SandboxFilter.cpp b/security/sandbox/linux/SandboxFilter.cpp
+--- a/security/sandbox/linux/SandboxFilter.cpp
++++ b/security/sandbox/linux/SandboxFilter.cpp
+@@ -1597,10 +1597,14 @@
+         // fork() crash, currently, because there are too many system
+         // libraries/plugins that try to run commands.  But they can
+         // usually do something reasonable on error.
+       case __NR_clone:
+         return ClonePolicy(Error(EPERM));
++#  ifdef __NR_fork
++      case __NR_fork:
++        return Error(ENOSYS);
++#  endif
+ 
+ #  ifdef __NR_fadvise64
+       case __NR_fadvise64:
+         return Allow();
+ #  endif
+@@ -1984,10 +1988,14 @@
+         return Allow();
+ 
+         // nvidia drivers may attempt to spawn nvidia-modprobe
+       case __NR_clone:
+         return ClonePolicy(Error(EPERM));
++#  ifdef __NR_fork
++      case __NR_fork:
++        return Error(ENOSYS);
++#  endif
+ 
+         // Pass through the common policy.
+       default:
+         return SandboxPolicyCommon::EvaluateSyscall(sysno);
+     }
+
