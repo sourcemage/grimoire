@@ -1,3 +1,4 @@
-sed -i "s/-m32 -march=i486/$CFLAGS/" Makefile &&
+export LD=ld.bfd &&
+cd build64 &&
 make
 
