@@ -1,0 +1,442 @@
+diff --git a/config/external/moz.build b/config/external/moz.build
+--- a/config/external/moz.build
++++ b/config/external/moz.build
+@@ -37,11 +37,11 @@
+     external_dirs += ["media/libvorbis"]
+ 
+ if not CONFIG["MOZ_SYSTEM_LIBVPX"]:
+     external_dirs += ["media/libvpx"]
+ 
+-if CONFIG["MOZ_AV1"]:
++if CONFIG["MOZ_AV1"] and not CONFIG["MOZ_SYSTEM_AV1"]:
+     external_dirs += ["media/libaom"]
+     external_dirs += ["media/libdav1d"]
+ 
+ if not CONFIG["MOZ_SYSTEM_PNG"]:
+     external_dirs += ["media/libpng"]
+diff --git a/config/system-headers.mozbuild b/config/system-headers.mozbuild
+--- a/config/system-headers.mozbuild
++++ b/config/system-headers.mozbuild
+@@ -1302,10 +1302,15 @@
+ if CONFIG["MOZ_ENABLE_LIBPROXY"]:
+     system_headers += [
+         "proxy.h",
+     ]
+ 
++if CONFIG["MOZ_SYSTEM_AV1"]:
++    system_headers += [
++        "dav1d/dav1d.h",
++    ]
++
+ if CONFIG["MOZ_SYSTEM_ICU"]:
+     system_headers += [
+         "unicode/calendar.h",
+         "unicode/datefmt.h",
+         "unicode/dtfmtsym.h",
+diff --git a/dom/media/ipc/moz.build b/dom/media/ipc/moz.build
+--- a/dom/media/ipc/moz.build
++++ b/dom/media/ipc/moz.build
+@@ -73,10 +73,16 @@
+     ]
+     LOCAL_INCLUDES += [
+         "../platforms/wmf",
+     ]
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++    OS_LIBS += CONFIG["MOZ_SYSTEM_LIBAOM_LIBS"]
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBDAV1D_CFLAGS"]
++    OS_LIBS += CONFIG["MOZ_SYSTEM_LIBDAV1D_LIBS"]
++
+ if CONFIG["MOZ_WMF_CDM"]:
+     IPDL_SOURCES += [
+         "PMFCDM.ipdl",
+     ]
+     EXPORTS.mozilla += [
+diff --git a/dom/media/moz.build b/dom/media/moz.build
+--- a/dom/media/moz.build
++++ b/dom/media/moz.build
+@@ -57,10 +57,16 @@
+     "webrtc",
+     "webspeech",
+     "webvtt",
+ ]
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++    OS_LIBS += CONFIG["MOZ_SYSTEM_LIBAOM_LIBS"]
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBDAV1D_CFLAGS"]
++    OS_LIBS += CONFIG["MOZ_SYSTEM_LIBDAV1D_LIBS"]
++
+ if CONFIG["MOZ_ANDROID_HLS_SUPPORT"]:
+     DIRS += ["hls"]
+ 
+ if CONFIG["MOZ_WEBRTC"]:
+     DIRS += ["bridge"]
+diff --git a/dom/media/mp4/moz.build b/dom/media/mp4/moz.build
+--- a/dom/media/mp4/moz.build
++++ b/dom/media/mp4/moz.build
+@@ -33,10 +33,12 @@
+     "SampleIterator.cpp",
+     "SinfParser.cpp",
+ ]
+ 
+ FINAL_LIBRARY = "xul"
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
+ 
+ # Suppress warnings for now.
+ CXXFLAGS += [
+     "-Wno-sign-compare",
+ ]
+diff --git a/dom/media/platforms/agnostic/eme/moz.build b/dom/media/platforms/agnostic/eme/moz.build
+--- a/dom/media/platforms/agnostic/eme/moz.build
++++ b/dom/media/platforms/agnostic/eme/moz.build
+@@ -15,8 +15,11 @@
+     "ChromiumCDMVideoDecoder.cpp",
+     "EMEDecoderModule.cpp",
+     "SamplesWaitingForKey.cpp",
+ ]
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
+ FINAL_LIBRARY = "xul"
+diff --git a/dom/media/platforms/agnostic/gmp/moz.build b/dom/media/platforms/agnostic/gmp/moz.build
+--- a/dom/media/platforms/agnostic/gmp/moz.build
++++ b/dom/media/platforms/agnostic/gmp/moz.build
+@@ -6,10 +6,13 @@
+ 
+ LOCAL_INCLUDES += [
+     "/dom/media/gmp",  # for GMPLog.h,
+ ]
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ EXPORTS += [
+     "GMPDecoderModule.h",
+     "GMPEncoderModule.h",
+     "GMPVideoDecoder.h",
+     "GMPVideoEncoder.h",
+diff --git a/dom/media/platforms/ffmpeg/ffmpeg57/moz.build b/dom/media/platforms/ffmpeg/ffmpeg57/moz.build
+--- a/dom/media/platforms/ffmpeg/ffmpeg57/moz.build
++++ b/dom/media/platforms/ffmpeg/ffmpeg57/moz.build
+@@ -30,10 +30,13 @@
+     '-Wno-attributes',
+   ]
+ 
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ LOCAL_INCLUDES += [
+   "/media/libyuv/libyuv/include",
+ ]
+ 
+ FINAL_LIBRARY = 'xul'
+diff --git a/dom/media/platforms/ffmpeg/ffmpeg58/moz.build b/dom/media/platforms/ffmpeg/ffmpeg58/moz.build
+--- a/dom/media/platforms/ffmpeg/ffmpeg58/moz.build
++++ b/dom/media/platforms/ffmpeg/ffmpeg58/moz.build
+@@ -38,10 +38,13 @@
+   USE_LIBS += ['mozva']
+   DEFINES['MOZ_USE_HWDECODE'] = 1
+ 
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ LOCAL_INCLUDES += [
+   "/media/libyuv/libyuv/include",
+ ]
+ 
+ FINAL_LIBRARY = 'xul'
+diff --git a/dom/media/platforms/ffmpeg/ffmpeg59/moz.build b/dom/media/platforms/ffmpeg/ffmpeg59/moz.build
+--- a/dom/media/platforms/ffmpeg/ffmpeg59/moz.build
++++ b/dom/media/platforms/ffmpeg/ffmpeg59/moz.build
+@@ -38,10 +38,13 @@
+     USE_LIBS += ["mozva"]
+     DEFINES["MOZ_USE_HWDECODE"] = 1
+ 
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ LOCAL_INCLUDES += [
+   "/media/libyuv/libyuv/include",
+ ]
+ 
+ FINAL_LIBRARY = "xul"
+diff --git a/dom/media/platforms/ffmpeg/ffmpeg60/moz.build b/dom/media/platforms/ffmpeg/ffmpeg60/moz.build
+--- a/dom/media/platforms/ffmpeg/ffmpeg60/moz.build
++++ b/dom/media/platforms/ffmpeg/ffmpeg60/moz.build
+@@ -36,10 +36,13 @@
+     UNIFIED_SOURCES += ["../FFmpegVideoFramePool.cpp"]
+     LOCAL_INCLUDES += ["/third_party/drm/drm/include/libdrm/"]
+     USE_LIBS += ["mozva"]
+     DEFINES["MOZ_USE_HWDECODE"] = 1
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
+ LOCAL_INCLUDES += [
+   "/media/libyuv/libyuv/include",
+ ]
+diff --git a/dom/media/platforms/ffmpeg/ffmpeg61/moz.build b/dom/media/platforms/ffmpeg/ffmpeg61/moz.build
+--- a/dom/media/platforms/ffmpeg/ffmpeg61/moz.build
++++ b/dom/media/platforms/ffmpeg/ffmpeg61/moz.build
+@@ -38,10 +38,13 @@
+     USE_LIBS += ["mozva"]
+     DEFINES["MOZ_USE_HWDECODE"] = 1
+ 
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ LOCAL_INCLUDES += [
+     "/media/libyuv/libyuv/include",
+ ]
+ 
+ FINAL_LIBRARY = "xul"
+diff --git a/dom/media/platforms/ffmpeg/libav53/moz.build b/dom/media/platforms/ffmpeg/libav53/moz.build
+--- a/dom/media/platforms/ffmpeg/libav53/moz.build
++++ b/dom/media/platforms/ffmpeg/libav53/moz.build
+@@ -24,8 +24,11 @@
+ if CONFIG['CC_TYPE'] == 'clang':
+   CXXFLAGS += [
+     '-Wno-unknown-attributes',
+   ]
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ LOCAL_INCLUDES += [
+   "/media/libyuv/libyuv/include",
+ ]
+diff --git a/dom/media/platforms/ffmpeg/libav54/moz.build b/dom/media/platforms/ffmpeg/libav54/moz.build
+--- a/dom/media/platforms/ffmpeg/libav54/moz.build
++++ b/dom/media/platforms/ffmpeg/libav54/moz.build
+@@ -24,8 +24,11 @@
+ if CONFIG['CC_TYPE'] == 'clang':
+   CXXFLAGS += [
+     '-Wno-unknown-attributes',
+   ]
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ LOCAL_INCLUDES += [
+   "/media/libyuv/libyuv/include",
+ ]
+diff --git a/dom/media/platforms/ffmpeg/libav55/moz.build b/dom/media/platforms/ffmpeg/libav55/moz.build
+--- a/dom/media/platforms/ffmpeg/libav55/moz.build
++++ b/dom/media/platforms/ffmpeg/libav55/moz.build
+@@ -30,8 +30,11 @@
+     '-Wno-attributes',
+   ]
+ 
+ FINAL_LIBRARY = 'xul'
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ LOCAL_INCLUDES += [
+   "/media/libyuv/libyuv/include",
+ ]
+diff --git a/dom/media/platforms/ffmpeg/moz.build b/dom/media/platforms/ffmpeg/moz.build
+--- a/dom/media/platforms/ffmpeg/moz.build
++++ b/dom/media/platforms/ffmpeg/moz.build
+@@ -22,10 +22,13 @@
+ UNIFIED_SOURCES += ["FFmpegRuntimeLinker.cpp"]
+ 
+ if CONFIG["MOZ_WIDGET_TOOLKIT"] == "gtk":
+     include("/ipc/chromium/chromium-config.mozbuild")
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ LOCAL_INCLUDES += [
+     "/media/libyuv/libyuv/include",
+ ]
+ 
+ FINAL_LIBRARY = "xul"
+diff --git a/dom/media/platforms/moz.build b/dom/media/platforms/moz.build
+--- a/dom/media/platforms/moz.build
++++ b/dom/media/platforms/moz.build
+@@ -69,10 +69,15 @@
+     ]
+     UNIFIED_SOURCES += [
+         "agnostic/AOMDecoder.cpp",
+         "agnostic/DAV1DDecoder.cpp",
+     ]
++    if CONFIG["MOZ_SYSTEM_AV1"]:
++        CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++        OS_LIBS += CONFIG["MOZ_SYSTEM_LIBAOM_LIBS"]
++        CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBDAV1D_CFLAGS"]
++        OS_LIBS += CONFIG["MOZ_SYSTEM_LIBDAV1D_LIBS"]
+ 
+ if CONFIG["MOZ_OMX"]:
+     EXPORTS += [
+         "omx/OmxCoreLibLinker.h",
+     ]
+diff --git a/dom/media/systemservices/moz.build b/dom/media/systemservices/moz.build
+--- a/dom/media/systemservices/moz.build
++++ b/dom/media/systemservices/moz.build
+@@ -63,10 +63,13 @@
+         CXXFLAGS += CONFIG["MOZ_GTK3_CFLAGS"]
+ 
+ if CONFIG["OS_TARGET"] == "Android":
+     DEFINES["WEBRTC_ANDROID"] = True
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ if CONFIG["MOZ_WIDGET_TOOLKIT"] == "cocoa":
+     UNIFIED_SOURCES += ["OSXRunLoopSingleton.cpp"]
+     EXPORTS += ["OSXRunLoopSingleton.h"]
+ 
+ EXPORTS.mozilla += [
+diff --git a/dom/media/webaudio/moz.build b/dom/media/webaudio/moz.build
+--- a/dom/media/webaudio/moz.build
++++ b/dom/media/webaudio/moz.build
+@@ -145,7 +145,10 @@
+             CONFIG["SSE4_2_FLAGS"] + CONFIG["FMA_FLAGS"]
+         )
+ 
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ FINAL_LIBRARY = "xul"
+ LOCAL_INCLUDES += [".."]
+diff --git a/dom/media/webm/moz.build b/dom/media/webm/moz.build
+--- a/dom/media/webm/moz.build
++++ b/dom/media/webm/moz.build
+@@ -19,10 +19,12 @@
+     "WebMDemuxer.cpp",
+     "WebMWriter.cpp",
+ ]
+ 
+ CXXFLAGS += CONFIG["MOZ_LIBVPX_CFLAGS"]
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
+ 
+ FINAL_LIBRARY = "xul"
+ 
+ # Add libFuzzer configuration directives
+ include("/tools/fuzzing/libfuzzer-config.mozbuild")
+diff --git a/image/decoders/moz.build b/image/decoders/moz.build
+--- a/image/decoders/moz.build
++++ b/image/decoders/moz.build
+@@ -39,10 +39,13 @@
+ if CONFIG["MOZ_JXL"]:
+     UNIFIED_SOURCES += [
+         "nsJXLDecoder.cpp",
+     ]
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ include("/ipc/chromium/chromium-config.mozbuild")
+ 
+ LOCAL_INCLUDES += [
+     # Access to Skia headers for Downscaler.
+     "/gfx/2d",
+diff --git a/image/moz.build b/image/moz.build
+--- a/image/moz.build
++++ b/image/moz.build
+@@ -137,7 +137,10 @@
+     "/xpcom/threads",
+ ]
+ 
+ LOCAL_INCLUDES += CONFIG["SKIA_INCLUDES"]
+ 
++if CONFIG["MOZ_AV1"] and CONFIG["MOZ_SYSTEM_AV1"]:
++    CXXFLAGS += CONFIG["MOZ_SYSTEM_LIBAOM_CFLAGS"]
++
+ # Add libFuzzer configuration directives
+ include("/tools/fuzzing/libfuzzer-config.mozbuild")
+diff --git a/media/ffvpx/libavcodec/moz.build b/media/ffvpx/libavcodec/moz.build
+--- a/media/ffvpx/libavcodec/moz.build
++++ b/media/ffvpx/libavcodec/moz.build
+@@ -117,14 +117,18 @@
+         'vp9mvs.c',
+         'vp9prob.c',
+         'vp9recon.c',
+         'vpx_rac.c',
+     ]
+-    USE_LIBS += [
+-        'dav1d',
+-        'media_libdav1d_asm',
+-    ]
++    if CONFIG["MOZ_SYSTEM_AV1"]:
++      CFLAGS += CONFIG['MOZ_SYSTEM_LIBDAV1D_CFLAGS']
++      OS_LIBS += CONFIG['MOZ_SYSTEM_LIBDAV1D_LIBS']
++    else:
++      USE_LIBS += [
++          'dav1d',
++          'media_libdav1d_asm',
++      ]
+     if CONFIG["MOZ_WIDGET_TOOLKIT"] == "gtk":
+         LOCAL_INCLUDES += ['/media/mozva']
+         SOURCES += [
+             'vaapi_av1.c',
+             'vaapi_decode.c',
+diff --git a/toolkit/moz.configure b/toolkit/moz.configure
+--- a/toolkit/moz.configure
++++ b/toolkit/moz.configure
+@@ -862,26 +862,38 @@
+ def av1(value):
+     if value:
+         return True
+ 
+ 
+-@depends(target, when=av1 & compile_environment)
+-def dav1d_asm(target):
+-    if target.cpu in ("arm", "aarch64", "x86", "x86_64"):
++option("--with-system-av1", help="Use system av1 (located with pkg-config)")
++
++system_libaom_info = pkg_check_modules(
++    "MOZ_SYSTEM_LIBAOM", "aom >= 1.0.0", when="--with-system-av1"
++)
++
++system_libdav1d_info = pkg_check_modules(
++    "MOZ_SYSTEM_LIBDAV1D", "dav1d >= 0.1.1", when="--with-system-av1"
++)
++
++
++@depends(target, "--with-system-av1", when=av1 & compile_environment)
++def dav1d_asm(target, system_av1):
++    if not system_av1 and target.cpu in ("arm", "aarch64", "x86", "x86_64"):
+         return True
+ 
+ 
+-@depends(target, when=av1 & compile_environment)
+-def dav1d_nasm(target):
+-    if target.cpu in ("x86", "x86_64"):
++@depends(target, "--with-system-av1", when=av1 & compile_environment)
++def dav1d_nasm(target, system_av1):
++    if not system_av1 and target.cpu in ("x86", "x86_64"):
+         return namespace(version="2.14", what="AV1")
+ 
+ 
+ set_config("MOZ_DAV1D_ASM", dav1d_asm)
+ set_define("MOZ_DAV1D_ASM", dav1d_asm)
+ set_config("MOZ_AV1", av1)
+ set_define("MOZ_AV1", av1)
++set_config("MOZ_SYSTEM_AV1", True, when="--with-system-av1")
+ 
+ # JXL Image Codec Support
+ # ==============================================================
+ option("--disable-jxl", help="Disable jxl image support")
+ 
+
