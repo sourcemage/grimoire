@@ -1,0 +1,67 @@
+From 207ac0cdacb806cf572f3abc9fb36227d054373c Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Fri, 27 Dec 2024 17:10:57 +0100
+Subject: [PATCH 3/3] meson: Add support for libexecinfo
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ lib/libdvbv5/meson.build    | 1 +
+ meson.build                 | 3 ++-
+ utils/dvb/meson.build       | 2 +-
+ utils/media-ctl/meson.build | 1 +
+ 4 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/lib/libdvbv5/meson.build b/lib/libdvbv5/meson.build
+index 8f5929fcad40..d440719d28f7 100644
+--- a/lib/libdvbv5/meson.build
++++ b/lib/libdvbv5/meson.build
+@@ -129,6 +129,7 @@ libdvbv5_deps = [
+     dep_librt,
+     dep_libudev,
+     dep_threads,
++    dep_libexecinfo,
+ ]
+ 
+ libdvbv5_c_args = [
+diff --git a/meson.build b/meson.build
+index aad8a794f7da..415236deb685 100644
+--- a/meson.build
++++ b/meson.build
+@@ -157,7 +157,8 @@ if cc.has_header('sys/klog.h')
+     conf.set('HAVE_SYS_KLOG_H', 1)
+ endif
+ 
+-if cc.has_header_symbol('execinfo.h', 'backtrace')
++dep_libexecinfo = dependency('libexecinfo', required: false)
++if dep_libexecinfo.found() or cc.has_header_symbol('execinfo.h', 'backtrace')
+     conf.set('HAVE_BACKTRACE', 1)
+ endif
+ 
+diff --git a/utils/dvb/meson.build b/utils/dvb/meson.build
+index 762028bd0a67..0fce41510436 100644
+--- a/utils/dvb/meson.build
++++ b/utils/dvb/meson.build
+@@ -66,6 +66,6 @@ dvbv5_daemon_c_args = [
+ dvbv5_daemon = executable('dvbv5-daemon',
+                           dvbv5_daemon_sources,
+                           install : true,
+-                          dependencies : dvb_common_deps,
++                          dependencies : [dvb_common_deps, dep_libexecinfo],
+                           c_args : dvbv5_daemon_c_args,
+                           include_directories : v4l2_utils_incdir)
+diff --git a/utils/media-ctl/meson.build b/utils/media-ctl/meson.build
+index 3a7b0c9add4a..b913d8889423 100644
+--- a/utils/media-ctl/meson.build
++++ b/utils/media-ctl/meson.build
+@@ -5,6 +5,7 @@ libmediactl_sources = files(
+ 
+ libmediactl_deps = [
+     dep_libudev,
++    dep_libexecinfo
+ ]
+ 
+ libmediactl = static_library('mediactl',
+-- 
+2.47.1
+
