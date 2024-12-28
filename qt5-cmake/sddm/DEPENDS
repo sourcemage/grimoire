@@ -1,14 +1,32 @@
-source $GRIMOIRE/QT5_DEPENDS &&
-if [[ "${SDDM_BRANCH}" == "scm" ]]; then
-  depends git
+source $GRIMOIRE/QT_DEPENDS &&
+source $GRIMOIRE/depends_one_of.function &&
+
+if  is_depends_enabled $SPELL qt6base;then
+  depends qt6declarative -DBUILD_WITH_QT6=on &&
+  depends qt5compat &&
+  depends qt6tools
+else
+  depends qtdeclarative &&
+  depends qttools
 fi &&
-depends qtdeclarative &&
-depends qttools &&
+depends linux-pam &&
+depends libxau  &&
 depends libxcb  &&
+depends libxkbcommon  &&
 optional_depends elogind ' -DUSE_ELOGIND=1' '' 'session tracker' &&
 optional_depends systemd '' ' -DNO_SYSTEMD=1' ' session tracker' &&
-optional_depends linux-pam ' -DENABLE_PAM=1' ' -DENABLE_PAM=0' 'PAM support' &&
 optional_depends docutils  ' -DBUILD_MAN_PAGES=1' '' 'build man pages' &&
-suggest_depends upower      '' '' 'power management' &&
-suggest_depends qtquickcontrols2 '' '' 'style theme configuration' &&
-suggest_depends qtvirtualkeyboard '' '' 'on-screen keyboard'
+optional_depends wayland     '' '' 'run  greeter with wayland' &&
+if is_depends_enabled $SPELL wayland;then
+  depends_one_of QTG_COMPOSITOR \
+               labwc '' \
+               sway '' \
+               wayfire '' \
+               weston '' \
+               'wayland compositor'
+
+fi  &&
+optional_depends consolekit2 '' '' 'session managemnt' &&
+runtime_depends xrdb &&
+
+suggest_depends upower      '' '' 'power management'

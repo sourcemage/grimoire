@@ -1,23 +1,34 @@
 #!/bin/bash
 
 PROGRAM=/usr/bin/sddm
-SDDM=sddm-helper
 RUNLEVEL=5
 PROVIDES=display_manager
-NEEDS="smgl-messagebus"
-mkdir -p /var/run/sddm
+NEEDS="smgl-messagebus seatd"
 
 . /etc/init.d/smgl_init
 
+
 case $1 in
         start)
+# ensure that TMPX exists
+echo "creating $TMPX"
+TMPX=/tmp/.X11-unix
+mkdir -p  -ma=rwxt $TMPX
+
+#set permissions for tty
+#for TT in [0-9];do
+#  chgrp video /dev/tty$TT
+#  chmod g+rw /dev/tty$TT
+#done
+
+export XDG_VTNR=7
                 echo "Starting Display Manager"
                 $PROGRAM &
                 evaluate_retval
                 ;;
         stop)
                 echo "Stopping Display Manager"
-                /usr/bin/pkill $SDDM
+                /usr/bin/pkill -9 sddm*
                 evaluate_retval
                 ;;
 
