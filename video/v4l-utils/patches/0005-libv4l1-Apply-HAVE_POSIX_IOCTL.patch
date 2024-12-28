@@ -1,0 +1,47 @@
+From c9bcc78aeefdb9a30f54b1c3247747ae2bcd4ae6 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 28 Dec 2024 20:05:43 +0100
+Subject: [PATCH 5/5] libv4l1: Apply HAVE_POSIX_IOCTL
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ lib/include/libv4l1.h | 4 ++++
+ lib/libv4l1/libv4l1.c | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/lib/include/libv4l1.h b/lib/include/libv4l1.h
+index e16dea1c0f60..9cef62af4a7e 100644
+--- a/lib/include/libv4l1.h
++++ b/lib/include/libv4l1.h
+@@ -62,7 +62,11 @@ LIBV4L_PUBLIC extern FILE *v4l1_log_file;
+ LIBV4L_PUBLIC int v4l1_open(const char *file, int oflag, ...);
+ LIBV4L_PUBLIC int v4l1_close(int fd);
+ LIBV4L_PUBLIC int v4l1_dup(int fd);
++#ifdef HAVE_POSIX_IOCTL
++LIBV4L_PUBLIC int v4l1_ioctl(int fd, int request, ...);
++#else
+ LIBV4L_PUBLIC int v4l1_ioctl(int fd, unsigned long int request, ...);
++#endif
+ LIBV4L_PUBLIC ssize_t v4l1_read(int fd, void *buffer, size_t n);
+ LIBV4L_PUBLIC void *v4l1_mmap(void *start, size_t length, int prot, int flags,
+ 		int fd, int64_t offset);
+diff --git a/lib/libv4l1/libv4l1.c b/lib/libv4l1/libv4l1.c
+index ec903305eebd..9fe930498713 100644
+--- a/lib/libv4l1/libv4l1.c
++++ b/lib/libv4l1/libv4l1.c
+@@ -478,7 +478,11 @@ int v4l1_dup(int fd)
+ 	return v4l2_dup(fd);
+ }
+ 
++#ifdef HAVE_POSIX_IOCTL
++int v4l1_ioctl(int fd, int request, ...)
++#else
+ int v4l1_ioctl(int fd, unsigned long int request, ...)
++#endif
+ {
+ 	void *arg;
+ 	va_list ap;
+-- 
+2.47.1
+
