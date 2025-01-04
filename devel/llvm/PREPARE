@@ -1,5 +1,44 @@
-config_query LLVM_WITH_RTTI   "Enable RTTI? (recommended)" y &&
-config_query LLVM_WITH_CLANG  "Enable clang compiler frontend?"  n &&
-config_query LLVM_WITH_LLDB   "Enable lldb debugger?"            n &&
-config_query LLVM_WITH_POLLY  "Enable polihedral optimizer?"     n &&
-config_query LLVM_WITH_LLD    "Enable llvm's linker?"            n
+. $GRIMOIRE/config_query_multi.function  &&
+
+LLVM_ALL_RUNTIMES="all" &&
+LLVM_ALL_RUNTIMES="$LLVM_ALL_RUNTIMES compiler-rt" &&
+LLVM_ALL_RUNTIMES="$LLVM_ALL_RUNTIMES libcxx" &&
+LLVM_ALL_RUNTIMES="$LLVM_ALL_RUNTIMES libcxxabi" &&
+LLVM_ALL_RUNTIMES="$LLVM_ALL_RUNTIMES libunwind" &&
+LLVM_ALL_RUNTIMES="$LLVM_ALL_RUNTIMES openmp" &&
+
+config_query_multi LLVM_RUNTIMES "which runtime library targets?" \
+                   $LLVM_ALL_RUNTIMES &&
+
+# selecting "all" runtimes in the LLVM build system will only enable libcxx,
+# libcxxabi, and libunwind, instead of actually all possible supported
+# runtimes, so specify them manually
+if list_find "$LLVM_RUNTIMES" "all" ;then
+  LLVM_RUNTIMES="${LLVM_ALL_RUNTIMES#all }"
+fi &&
+
+config_query LLVM_WITH_RTTI     "Enable RTTI? (recommended)" y &&
+config_query LLVM_WITH_BOLT     "Enable BOLT?" n &&
+config_query LLVM_WITH_CLANG    "Enable clang compiler frontend? (selects compiler-rt runtime)" n &&
+config_query LLVM_WITH_LLDB     "Enable lldb debugger (selects libcxx and libcxxabi runtimes)?" n &&
+config_query LLVM_WITH_POLLY    "Enable polyhedral optimizer (polly)?" n &&
+config_query LLVM_WITH_LLD      "Enable llvm's linker (lld)?" n &&
+config_query LLVM_WITH_MLIR     "Enable llvm's MLIR?" n &&
+
+if [[ "$LLVM_WITH_CLANG" == y ]] ;then
+  for required in compiler-rt ;do
+    if ! list_find "$LLVM_RUNTIMES" "$required";then
+      LLVM_RUNTIMES="$LLVM_RUNTIMES $required"
+    fi
+  done
+fi &&
+
+if [[ "$LLVM_WITH_LLD" == y ]] ;then
+  for required in libcxx libcxxabi libunwind ;do
+    if ! list_find "$LLVM_RUNTIMES" "$required";then
+      LLVM_RUNTIMES="$LLVM_RUNTIMES $required"
+    fi
+  done
+fi &&
+
+persistent_add LLVM_RUNTIMES
