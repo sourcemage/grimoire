@@ -27,20 +27,16 @@ diff -up firefox-128.0/build/moz.configure/lto-pgo.configure.pgo firefox-128.0/b
 +            use_cflags=["-fprofile-use", "-fprofile-correction", "-Wno-coverage-mismatch"],
              use_ldflags=["-fprofile-use"],
          )
- 
-diff -up firefox-128.0/build/pgo/profileserver.py.pgo firefox-128.0/build/pgo/profileserver.py
---- firefox-128.0/build/pgo/profileserver.py.pgo	2024-07-02 00:34:15.000000000 +0200
-+++ firefox-128.0/build/pgo/profileserver.py	2024-07-02 17:59:44.425650444 +0200
-@@ -11,7 +11,7 @@ import subprocess
- import sys
- 
- import mozcrash
--from mozbuild.base import BinaryNotFoundException, MozbuildObject
-+from mozbuild.base import BinaryNotFoundException, MozbuildObject, BuildEnvironmentNotFoundException
- from mozfile import TemporaryDirectory
- from mozhttpd import MozHttpd
- from mozprofile import FirefoxProfile, Preferences
-@@ -97,9 +97,22 @@ if __name__ == "__main__":
+
+diff -r ac0e1ee8218f build/pgo/profileserver.py
+--- a/build/pgo/profileserver.py	Tue Feb 20 13:51:00 2024 +0000
++++ b/build/pgo/profileserver.py	Sat Feb 24 22:47:17 2024 -0800
+@@ -93,19 +93,32 @@
+         ),
+         path_mappings=path_mappings,
+     )
+     sp3_httpd.start(block=False)
+     print("started SP3 server on port 8000")
      locations = ServerLocations()
      locations.add_host(host="127.0.0.1", port=PORT, options="primary,privileged")
  
@@ -66,6 +62,33 @@ diff -up firefox-128.0/build/pgo/profileserver.py.pgo firefox-128.0/build/pgo/pr
  
      with TemporaryDirectory() as profilePath:
          # TODO: refactor this into mozprofile
+         profile_data_dir = os.path.join(build.topsrcdir, "testing", "profiles")
+         with open(os.path.join(profile_data_dir, "profiles.json"), "r") as fh:
+             base_profiles = json.load(fh)["profileserver"]
+ 
+         prefpaths = [
+@@ -222,16 +235,21 @@
+ 
+         # Try to move the crash reports to the artifacts even if Firefox appears
+         # to exit successfully, in case there's a crash that doesn't set the
+         # return code to non-zero for some reason.
+         if get_crashreports(profilePath, name="Firefox exited successfully?") != 0:
+             print("Firefox exited successfully, but produced a crashreport")
+             sys.exit(1)
+ 
++        if using_gcc: 
++            print('Copying profile data....')
++            os.system('pwd');
++            os.system('tar cf profdata.tar.gz `find . -name "*.gcda"`; cd ..; tar xf instrumented/profdata.tar.gz;');
++
+         llvm_profdata = env.get("LLVM_PROFDATA")
+         if llvm_profdata:
+             profraw_files = glob.glob("*.profraw")
+             if not profraw_files:
+                 print(
+                     "Could not find profraw files in the current directory: %s"
+                     % os.getcwd()
+                 )
 diff -up firefox-128.0/gfx/2d/moz.build.pgo firefox-128.0/gfx/2d/moz.build
 --- firefox-128.0/gfx/2d/moz.build.pgo	2024-07-02 00:34:17.000000000 +0200
 +++ firefox-128.0/gfx/2d/moz.build	2024-07-02 17:59:44.425650444 +0200
@@ -126,3 +149,19 @@ diff -up firefox-128.0/toolkit/components/terminator/nsTerminator.cpp.pgo firefo
    UniquePtr<Options> options(new Options());
    // crashAfterTicks is guaranteed to be > 0 as
    // crashAfterMS >= ADDITIONAL_WAIT_BEFORE_CRASH_MS >> HEARTBEAT_INTERVAL_MS
+diff -up firefox-84.0/security/sandbox/linux/moz.build.1516803 firefox-84.0/security/sandbox/linux/moz.build
+--- firefox-84.0/security/sandbox/linux/moz.build.1516803      2020-12-10 16:17:55.425139545 +0100
++++ firefox-84.0/security/sandbox/linux/moz.build      2020-12-10 16:29:21.945860841 +0100
+@@ -114,9 +114,8 @@ if CONFIG["CC_TYPE"] in ("clang", "gcc")
+ # gcc lto likes to put the top level asm in syscall.cc in a different partition
+ # from the function using it which breaks the build.  Work around that by
+ # forcing there to be only one partition.
+-for f in CONFIG["OS_CXXFLAGS"]:
+-    if f.startswith("-flto") and CONFIG["CC_TYPE"] != "clang":
+-        LDFLAGS += ["--param lto-partitions=1"]
++if CONFIG['CC_TYPE'] != 'clang':
++    LDFLAGS += ['--param', 'lto-partitions=1']
+ 
+ DEFINES["NS_NO_XPCOM"] = True
+ DisableStlWrapping()
+
