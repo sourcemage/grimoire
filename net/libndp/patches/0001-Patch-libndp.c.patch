@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Mon, 06 Jan 2025 08:19:30 +0100
+Subject: [PATCH] Explicitly cast sockaddr_in6 to sockaddr
+
+This is required with GCC 14 when compiling against musl.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ libndp/libndp.c | 36 ++++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)
+
+diff --git a/libndp/libndp.c b/libndp/libndp.c
+index 72ec92e..28548f7 100644
+--- a/libndp/libndp.c
++++ b/libndp/libndp.c
+@@ -209,7 +209,7 @@ static int myrecvfrom6(int sockfd, void *buf, size_t *buflen, int flags,
+ 	memcpy(&sin6.sin6_addr, addr, sizeof(sin6.sin6_addr));
+ 	sin6.sin6_scope_id = ifindex;
+ resend:
+-	ret = sendto(sockfd, buf, buflen, flags, &sin6, sizeof(sin6));
++	ret = sendto(sockfd, buf, buflen, flags, (struct sockaddr*)&sin6, sizeof(sin6));
+ 	if (ret == -1) {
+ 		switch(errno) {
+ 		case EINTR:
+-- 
+2.46.0
+
