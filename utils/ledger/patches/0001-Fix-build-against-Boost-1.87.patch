@@ -1,0 +1,65 @@
+From 1ce2e0ddd268efbe1e058a5bff7cb788b9b8c75d Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Tue, 7 Jan 2025 18:44:40 +0100
+Subject: [PATCH] Fix build against Boost 1.87
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ src/filters.cc |  2 +-
+ src/utils.h    | 14 ++++++--------
+ 2 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/filters.cc b/src/filters.cc
+index f725c2474bc5..1fb2e7fabe88 100644
+--- a/src/filters.cc
++++ b/src/filters.cc
+@@ -238,7 +238,7 @@ void anonymize_posts::render_commodity(amount_t& amt)
+ void anonymize_posts::operator()(post_t& post)
+ {
+ 	boost::uuids::detail::sha1  sha;
+-  unsigned int message_digest[5];
++  unsigned char message_digest[20];
+   bool         copy_xact_details = false;
+ 
+   if (last_xact != post.xact) {
+diff --git a/src/utils.h b/src/utils.h
+index b09377b8f9ca..6672183ec21d 100644
+--- a/src/utils.h
++++ b/src/utils.h
+@@ -607,16 +607,14 @@ inline int peek_next_nonws(std::istream& in) {
+     *_p = '\0';                                         \
+   }
+ 
+-inline string to_hex(unsigned int * message_digest, const int len = 1)
++inline string to_hex(const unsigned char message_digest[], int len = 20)
+ {
+   std::ostringstream buf;
+ 
+-  for(int i = 0; i < 5 ; i++) {
+-    buf.width(8);
+-    buf.fill('0');
++  buf.width(len);
++  buf.fill('0');
++  for(int i = 0; i < len ; i++) {
+     buf << std::hex << message_digest[i];
+-    if (i + 1 >= len)
+-      break;                    // only output the first LEN dwords
+   }
+   return buf.str();
+ }
+@@ -627,9 +625,9 @@ inline string sha1sum(const string& str)
+ 
+   sha.process_bytes(str.c_str(), str.length());
+ 
+-  unsigned int message_digest[5];
++  unsigned char message_digest[20];
+   sha.get_digest(message_digest);
+-  return to_hex(message_digest, 5);
++  return to_hex(message_digest);
+ }
+ 
+ extern const string version;
+-- 
+2.47.1
+
