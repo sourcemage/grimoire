@@ -1,4 +1,3 @@
-if [[ "${FLATPAK_BRANCH}" == "pre-release" ]]; then
-OPTS+=" tests=false"
-fi &&
+OPTS="tests=false ${OPTS}" &&
+
 default_build

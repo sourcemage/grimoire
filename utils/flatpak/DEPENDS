@@ -1,3 +1,4 @@
+. "$GRIMOIRE"/MESON_DEPENDS &&
 depends PKG-CONFIG                &&
 depends libarchive                &&
 depends gpgme                     &&
@@ -15,135 +16,77 @@ depends dbus                      &&
 depends FUSE                      &&
 depends gdk-pixbuf2               &&
 
-if [[ "${FLATPAK_BRANCH}" == "pre-release" ]]; then
-  . "$GRIMOIRE"/MESON_DEPENDS &&
-  depends xdg-dbus-proxy "system_dbus_proxy=${INSTALL_ROOT}/usr/bin/xdg-dbus-proxy" &&
+depends xdg-dbus-proxy "system_dbus_proxy=${INSTALL_ROOT}/usr/bin/xdg-dbus-proxy" &&
 
-  optional_depends dconf                                                      \
-                   "dconf=enabled"                                            \
-                   "dconf=disabled"                                           \
-                   "Use dconf?"                                               &&
+optional_depends dconf                                                      \
+                 "dconf=enabled"                                            \
+                 "dconf=disabled"                                           \
+                 "Use dconf?"                                               &&
 
-  optional_depends gobject-introspection                                      \
-                   "gir=enabled"                                              \
-                   "gir=disabled"                                             \
-                   "Build GObject-Introspection metadata?"                    \
+optional_depends gobject-introspection                                      \
+                 "gir=enabled"                                              \
+                 "gir=disabled"                                             \
+                 "Build GObject-Introspection metadata?"                    \
 
-  optional_depends gtk-doc                                                    \
-                   "gtkdoc=enabled"                                           \
-                   "gtkdoc=disabled"                                          \
-                   "build API reference documentation?"                       &&
+optional_depends gtk-doc                                                    \
+                 "gtkdoc=enabled"                                           \
+                 "gtkdoc=disabled"                                          \
+                 "build API reference documentation?"                       &&
 
-  optional_depends libsoup                                                    \
-                   "http_backend=soup"                                        \
-                   ""                                                         \
-                   "Use libsoup as http backend (curl otherwise)?"            &&
+optional_depends libsoup                                                    \
+                 "http_backend=soup"                                        \
+                 ""                                                         \
+                 "Use libsoup as http backend (curl otherwise)?"            &&
 
-  if is_depends_enabled $SPELL libsoup; then
-    depends -sub WITH_SOUP ostree
-  else
-    depends curl "http_backend=curl" &&
-    depends -sub WITH_CURL ostree
-  fi &&
-
-  optional_depends zstd                                                       \
-                   "libzstd=enabled"                                          \
-                   "libzstd=disabled"                                         \
-                   "Use zstd?"                                                &&
-
-  optional_depends libseccomp                                                 \
-                   "seccomp=enabled"                                          \
-                   "seccomp=disabled"                                         \
-                   "Enabled seccomp?"                                         &&
-
-  optional_depends bubblewrap                                                 \
-                   "system_bubblewrap=${INSTALL_ROOT}/usr/bin/bwrap"          \
-                   ""                                                         \
-                   "Use system bubblewrap? (recommended)"                     &&
-
-  optional_depends systemd                                                    \
-                   "systemd=enabled"                                          \
-                   "systemd=disabled"                                         \
-                   "Build with systemd support?"                              &&
-
-  optional_depends policykit                                                  \
-                   ""                                                         \
-                   "system_helper=disabled"                                   \
-                   "Enable system helper?"                                    &&
-
-  optional_depends xauth                                                      \
-                   ""                                                         \
-                   "xauth=disabled"                                           \
-                   "Enabled Xauth use?"                                       &&
-
-  if is_depends_enabled $SPELL xauth; then
-    depends libxau
-  fi &&
-
-  optional_depends libxslt                                                    \
-                   "man=enabled"                                              \
-                   "man=disabled"                                             \
-                   "Generate man-pages?"                                      &&
-
-  optional_depends xmlto                                                      \
-                   "docbook_docs=enabled"                                     \
-                   "docbook_docs=disabled"                                    \
-                   "Build documentation?"
+if is_depends_enabled $SPELL libsoup; then
+  depends -sub WITH_SOUP ostree
 else
-  optional_depends policykit                                                         \
-                   ""                                                                \
-                   "--disable-system-helper"                                         \
-                   "Enable system helper? (recommended)"                             &&
-
-  if is_depends_enabled $SPELL policykit; then
-    optional_depends libselinux                                 \
-                     "--enable-selinux-module"                  \
-                     ""                                         \
-                     "Enable selinux module for system-helper?"                        
-  fi &&
-
-  optional_depends xauth                                                             \
-                   ""                                                                \
-                   "--disable-xauth"                                                 \
-                   "Enable Xauth use?"                                               &&
-
-  if is_depends_enabled $SPELL xauth; then
-    depends libxau
-  fi &&
-
-  optional_depends libseccomp                                                        \
-                   ""                                                                \
-                   "--disable-seccomp"                                               \
-                   "Enable seccomp support?"                                         &&
-
-  optional_depends gobject-introspection                                             \
-                   "--enable-introspection=yes"                                      \
-                   "--enable-introspection=no"                                       \
-                   "Enable introspection?"                                           &&
-
-  optional_depends systemd                                                           \
-                   "--with-systemd=yes"                                              \
-                   "--with-systemd=no"                                               \
-                   "Enable systemd support?"                                         &&
-
-  optional_depends bubblewrap                                                        \
-                   "--with-system-bubblewrap=${INSTALL_ROOT}/usr/bin/bwrap"          \
-                   "--with-system-bubblewrap=no"                                     \
-                   "Use system bubblewrap? (recommended)"                            &&
-
-  optional_depends xdg-dbus-proxy                                                    \
-                   "--with-system-dbus-proxy=${INSTALL_ROOT}/usr/bin/xdg-dbus-proxy" \
-                   "--with-system-dbus-proxy=no"                                     \
-                   "Use system xdg-dbus-proxy? (recommended)"
-
-  optional_depends gtk-doc                                                           \
-                   "--enable-documentation --enable-gtk-doc"                         \
-                   ""                                                                \
-                   "Build gtk-doc documentation?"                                    &&
-
-  optional_depends xmlto                                                             \
-                   "--enable-docbook-docs"                                           \
-                   ""                                                                \
-                   "Build docbook documentation?"
+  depends curl "http_backend=curl" &&
+  depends -sub WITH_CURL ostree
 fi &&
+
+optional_depends zstd                                                       \
+                 "libzstd=enabled"                                          \
+                 "libzstd=disabled"                                         \
+                 "Use zstd?"                                                &&
+
+optional_depends libseccomp                                                 \
+                 "seccomp=enabled"                                          \
+                 "seccomp=disabled"                                         \
+                 "Enabled seccomp?"                                         &&
+
+optional_depends bubblewrap                                                 \
+                 "system_bubblewrap=${INSTALL_ROOT}/usr/bin/bwrap"          \
+                 ""                                                         \
+                 "Use system bubblewrap? (recommended)"                     &&
+
+optional_depends systemd                                                    \
+                 "systemd=enabled"                                          \
+                 "systemd=disabled"                                         \
+                 "Build with systemd support?"                              &&
+
+optional_depends policykit                                                  \
+                 ""                                                         \
+                 "system_helper=disabled"                                   \
+                 "Enable system helper?"                                    &&
+
+optional_depends xauth                                                      \
+                 ""                                                         \
+                 "xauth=disabled"                                           \
+                 "Enabled Xauth use?"                                       &&
+
+if is_depends_enabled $SPELL xauth; then
+  depends libxau
+fi &&
+
+optional_depends libxslt                                                    \
+                 "man=enabled"                                              \
+                 "man=disabled"                                             \
+                 "Generate man-pages?"                                      &&
+
+optional_depends xmlto                                                      \
+                 "docbook_docs=enabled"                                     \
+                 "docbook_docs=disabled"                                    \
+                 "Build documentation?"                                     &&
+
 suggest_depends xdg-desktop-portal "" "" "portal front-end service for flatpak"
