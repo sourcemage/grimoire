@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Wed, 15 Jan 2025 08:49:11 +0100
+Subject: [PATCH] Don't build bin/iconv in the install stage
+
+Also make it more standard so it succeeds building with slibtool.
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ src/Makefile.in |    9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/Makefile.in b/src/Makefile.in
+index e8fff47483eb..50c57b65f82e 100644
+--- a/src/Makefile.in
++++ b/src/Makefile.in
+@@ -70,9 +70,12 @@ OBJECTS_RES_no =
+ # i.e. during "make install". The intermediate 'iconv' executable is built
+ # without internationalization and not linked with libintl.
+ 
+-all : iconv_no_i18n$(EXEEXT) iconv.@OBJEXT@ $(OBJECTS_RES_@WOE32@)
++all : iconv_no_i18n$(EXEEXT) iconv$(EXEEXT) $(OBJECTS_RES_@WOE32@)
+ 	test `ls -ld . | sed -e 's/^d\(.........\).*/\1/'` = rwxrwxrwx || chmod 777 .
+ 
++iconv$(EXEEXT) : iconv.@OBJEXT@ ../lib/libiconv.la $(OBJECTS_RES_@WOE32@)
++	$(LIBTOOL_LINK) $(CC) $(LDFLAGS) $(CFLAGS) $(iconv_LDFLAGS) iconv.@OBJEXT@ ../srclib/libicrt.a @LTLIBINTL@ ../lib/libiconv.la $(OBJECTS_RES_@WOE32@) -o $@
++
+ # This is the temporary iconv executable, without internationalization.
+ iconv_no_i18n$(EXEEXT) : iconv_no_i18n.@OBJEXT@ ../lib/libiconv.la $(OBJECTS_RES_@WOE32@)
+ 	$(LIBTOOL_LINK) $(CC) $(LDFLAGS) $(CFLAGS) iconv_no_i18n.@OBJEXT@ ../srclib/libicrt.a ../lib/libiconv.la $(OBJECTS_RES_@WOE32@) -o $@
+@@ -111,10 +114,6 @@ iconv_LDFLAGS = `if test -n '$(RELOCATABLE_LDFLAGS)'; then $(RELOCATABLE_LDFLAGS
+ # ../lib/libiconv.la entirely.
+ install : all force
+ 	if [ ! -d $(DESTDIR)$(bindir) ] ; then $(mkinstalldirs) $(DESTDIR)$(bindir) ; fi
+-	case "@host_os@" in \
+-	  hpux*) $(CC) $(LDFLAGS) $(CFLAGS) $(iconv_LDFLAGS) iconv.@OBJEXT@ ../srclib/libicrt.a -L$(DESTDIR)$(libdir) -liconv @LIBINTL@ $(OBJECTS_RES_@WOE32@) `if test -n '$(DESTDIR)'; then echo " -Wl,+b -Wl,$(libdir)"; fi` -o iconv$(EXEEXT);; \
+-	  *) $(LIBTOOL_LINK) $(CC) $(LDFLAGS) $(CFLAGS) $(iconv_LDFLAGS) iconv.@OBJEXT@ ../srclib/libicrt.a @LTLIBINTL@ $(DESTDIR)$(libdir)/libiconv.la $(OBJECTS_RES_@WOE32@) -o iconv$(EXEEXT);; \
+-	esac
+ 	$(INSTALL_PROGRAM_ENV) $(LIBTOOL_INSTALL) $(INSTALL_PROGRAM) iconv$(EXEEXT) $(DESTDIR)$(bindir)/iconv$(EXEEXT)
+ 
+ install-strip : force
+-- 
+Fixed up by sm-checkpatch 0.1
+
