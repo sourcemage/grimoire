@@ -149,6 +149,7 @@ buildsys_meson_default() {
 ##                             [-a active_build_system] \
 ##                             [-g grimoire] \
 ##                             [-o global_optname] \
+##                             [-sub subdependency_feature] \
 ##                             spell_name \
 ##                               ...
 ##                               [-b] build_systemN \
@@ -183,6 +184,7 @@ _buildsys_transform_depends() {
   local next
   local optname
   local spell
+  local subdeps
   local targetsys
   depends_func="$1" &&
   shift 1 &&
@@ -196,6 +198,7 @@ _buildsys_transform_depends() {
     case "$1" in
       -g) grimoire="$2" && shift 2 ;;
       -o) global_optname="$2" && shift 2 ;;
+      -sub) subdeps="$subdeps $1 $2" && shift 2 ;;
       *) break ;;
     esac
   done &&
@@ -265,7 +268,7 @@ _buildsys_transform_depends() {
     # provide a last-resort fallback value for enabled settings
     : "${enabled:=$(buildsys_defaults "$targetsys" enabled "$global_optname")}"
   fi
-  "$depends_func" "$spell" "$enabled" ${disabled:+"$disabled"} "$msg" "$grimoire"
+  "$depends_func" $subdeps "$spell" "$enabled" ${disabled:+"$disabled"} "$msg" "$grimoire"
 }
 
 #---------------------------------------------------------------------
@@ -282,6 +285,9 @@ _buildsys_transform_depends() {
 ##               e.g. cmake, meson, autotools, etc.)
 ## @param -o local_optname (optional, flag to override the
 ##             global_optname)
+## @param -sub subdependency_feature (optional, flag to give required
+##               subdepedency feature names, one per flag, can be specified
+##               more than once)
 ## @param message (message to the user explaining this option)
 ## @param enabled (the option or setting for when the dependency is
 ##          enabled)
