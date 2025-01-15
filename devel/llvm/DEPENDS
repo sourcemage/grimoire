@@ -1,31 +1,56 @@
 source $GRIMOIRE/CMAKE_DEPENDS &&
 case "$HOST" in
   (*-musl)
-    depends libexecinfo &&
-    depends musl-obstack
+    buildsys_depends libexecinfo &&
+    buildsys_depends musl-obstack
     ;;
 esac &&
-depends libtool &&
-depends -sub CXX gcc &&
-depends PKG-CONFIG &&
-depends zlib  '-DLLVM_ENABLE_ZLIB=ON' &&
-depends python3 &&
-depends mako &&
+buildsys_depends libtool &&
+
+buildsys_depends PKG-CONFIG &&
+buildsys_depends python3 &&
+buildsys_depends mako &&
+
+if [ x"$LLVM_TOOLCHAIN_COMPILER"x = x"gcc"x ] ;then
+  buildsys_depends -sub CXX gcc
+fi &&
+
 if [[ "$LLVM_WITH_ANALYZER" == "y" ]] ;then
-  optional_depends z3 \
-                   -DCLANG_ANALYZER_ENABLE_Z3_SOLVER=ON \
-                   -DCLANG_ANALYZER_ENABLE_Z3_SOLVER=OFF \
-                   'for Z3 solver support in Clang Static Analyzer' &&
   # perl is required for scan-build, which is the analyzer itself
   runtime_depends perl
 fi &&
 
-optional_depends ocaml   '' '' 'build bindings for OCaml' &&
-optional_depends doxygen '' '' "build documentation?" &&
-optional_depends libffi  '-DLLVM_ENABLE_FFI=ON' '' 'use sytem FFI' &&
+buildsys_optional_depends zlib \
+                          -o LLVM_ENABLE_ZLIB \
+                          "Enable using zlib for (de)compression?" \
+                          &&
+
+buildsys_optional_depends zstd\
+                          -o LLVM_ENABLE_ZSTD \
+                          "Enable using zstd for (de)compression?" \
+                          &&
+
+buildsys_optional_depends z3 \
+                          -o CLANG_ENABLE_Z3_SOLVER \
+                          "Enable support for the Z3 constraint solver?" \
+                          &&
+
+buildsys_optional_depends libffi \
+                          -o LLVM_ENABLE_FFI \
+                          "Use sytem FFI?" \
+                          &&
+
+buildsys_optional_depends ocaml \
+                          "Build bindings for OCaml?" \
+                          &&
+
+buildsys_optional_depends doxygen \
+                          "Build documentation?" \
+                          &&
+
 if [[ "$LLVM_WITH_LLDB" == y ]]; then
-  depends six -DLLDB_USE_SYSTEM_SIX=YES &&
-  depends swig &&
-  depends libedit &&
-  depends ncurses
+  buildsys_depends six -o LLDB_USE_SYSTEM_SIX &&
+  buildsys_depends swig &&
+  buildsys_depends libedit &&
+  buildsys_depends ncurses
 fi

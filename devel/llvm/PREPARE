@@ -17,13 +17,44 @@ if list_find "$LLVM_RUNTIMES" "all" ;then
   LLVM_RUNTIMES="${LLVM_ALL_RUNTIMES#all }"
 fi &&
 
+
+local compilers=""
+for compiler in clang gcc ;do
+  if command -v "/usr/bin/$compiler" > /dev/null ;then
+    compilers="$compilers $compiler"
+  fi
+done
+
+local linkers="default "
+for linker in bfd gold lld mold ;do
+  if command -v "/usr/bin/ld.$linker" > /dev/null ;then
+    linkers="$linkers $linker"
+  fi
+done
+
+config_query_list LLVM_TOOLCHAIN_COMPILER \
+                  "Which compiler to use to build llvm and its components?" \
+                  $compilers &&
+
+config_query_list LLVM_TOOLCHAIN_LINKER \
+                  "Which linker to use to link llvm and its components?" \
+                  $linkers &&
+
+case "$LLVM_TOOLCHAIN_LINKER" in
+  default)
+    LLVM_TOOLCHAIN_LINKER="SYSTEM"
+    persistent_add LLVM_TOOLCHAIN_LINKER
+    ;;
+esac
+
 config_query LLVM_WITH_RTTI     "Enable RTTI? (recommended)" y &&
-config_query LLVM_WITH_BOLT     "Enable BOLT?" n &&
-config_query LLVM_WITH_CLANG    "Enable clang compiler frontend? (selects compiler-rt runtime)" n &&
-config_query LLVM_WITH_LLDB     "Enable lldb debugger (selects libcxx and libcxxabi runtimes)?" n &&
-config_query LLVM_WITH_POLLY    "Enable polyhedral optimizer (polly)?" n &&
-config_query LLVM_WITH_LLD      "Enable llvm's linker (lld)?" n &&
-config_query LLVM_WITH_MLIR     "Enable llvm's MLIR?" n &&
+config_query LLVM_WITH_UTILS    "Build the LLVM utilities?" y &&
+config_query LLVM_WITH_BOLT     "Build BOLT?" n &&
+config_query LLVM_WITH_CLANG    "Build the clang compiler frontend? (selects compiler-rt runtime)" n &&
+config_query LLVM_WITH_LLDB     "Build the LLDB debugger (selects libcxx and libcxxabi runtimes)?" n &&
+config_query LLVM_WITH_POLLY    "Build the polyhedral optimizer (polly)?" n &&
+config_query LLVM_WITH_LLD      "Build the LLVM linker (lld)?" n &&
+config_query LLVM_WITH_MLIR     "Build the LLVM multi-level intermediate representation (MLIR)?" n &&
 
 if [[ "$LLVM_WITH_CLANG" == y ]] ;then
   for required in compiler-rt ;do

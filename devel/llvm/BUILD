@@ -68,6 +68,12 @@ if [[ "$LLVM_WITH_POLLY" == y ]] ;then
   OPTS="$OPTS -DLLVM_TOOL_POLLY_BUILD=ON"
 fi &&
 
+if [[ "$LLVM_WITH_UTILS" == y ]] ;then
+  OPTS="$OPTS -DLLVM_BUILD_UTILS=ON"
+else
+  OPTS="$OPTS -DLLVM_BUILD_UTILS=OFF"
+fi &&
+
 if list_find "$LLVM_RUNTIMES" "compiler-rt" ;then
   OPTS="$OPTS -DLLVM_TOOL_COMPILER_RT_BUILD=ON" &&
   OPTS="$OPTS -DCOMPILER_RT_INCLUDE_TESTS=OFF"
@@ -91,6 +97,23 @@ fi &&
 if list_find "$LLVM_RUNTIMES" "openmp" ;then
   OPTS="$OPTS -DLLVM_TOOL_OPENMP_BUILD=ON"
 fi &&
+
+if [ -n "$LLVM_TOOLCHAIN_COMPILER" ] ;then
+  case "$LLVM_TOOLCHAIN_COMPILER" in
+    clang)
+      OPTS="$OPTS -DCMAKE_C_COMPILER=clang" &&
+      OPTS="$OPTS -DCMAKE_CXX_COMPILER=clang++"
+      ;;
+    gcc)
+      OPTS="$OPTS -DCMAKE_C_COMPILER=gcc" &&
+      OPTS="$OPTS -DCMAKE_CXX_COMPILER=g++"
+      ;;
+  esac
+fi
+
+if [ -n "$LLVM_TOOLCHAIN_LINKER" ] ;then
+  OPTS="$OPTS -DCMAKE_LINKER_TYPE=$(echo $LLVM_TOOLCHAIN_LINKER | tr [a-z] [A-Z])"
+fi
 
 OPTS="$OPTS -DLLVM_ENABLE_PROJECTS=${LLVM_PROJECTS// /;}" &&
 OPTS="$OPTS -DLLVM_ENABLE_RUNTIMES=${LLVM_RUNTIMES// /;}" &&
