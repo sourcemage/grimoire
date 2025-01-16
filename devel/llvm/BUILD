@@ -10,8 +10,10 @@ CXXFLAGS="${CXXFLAGS//-DPIC}" &&
 # Default target, not detected correctly
 OPTS="$OPTS -DLLVM_DEFAULT_TARGET_TRIPLE=$HOST" &&
 
-# LLVM_TARGETS
+# LLVM_targets and runtimes
 OPTS="$OPTS -DLLVM_TARGETS_TO_BUILD=${LLVM_TARGETS// /;}" &&
+OPTS="$OPTS -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=${LLVM_EXPERIMENTAL_TARGETS// /;}" &&
+OPTS="$OPTS -DLLVM_ENABLE_RUNTIMES=${LLVM_RUNTIMES// /;}" &&
 
 # recommended by mesa project
 OPTS="$OPTS -DLLVM_LINK_LLVM_DYLIB=1" &&
@@ -40,7 +42,7 @@ if [[ "$LLVM_WITH_BOLT" == y ]] ;then
 fi &&
 
 if [[ "$LLVM_WITH_CLANG" == y ]] ;then
-  LLVM_PROJECTS="$LLVM_PROJECTS clang" &&
+  LLVM_PROJECTS="$LLVM_PROJECTS clang;clang-tools-extra" &&
   OPTS="$OPTS -DLLVM_TOOL_CLANG_TOOLS_EXTRA_BUILD=ON" &&
   OPTS="$OPTS -DCLANG_INCLUDE_BENCHMARKS=OFF" &&
   OPTS="$OPTS -DCLANG_INCLUDE_TESTS=OFF"
@@ -74,7 +76,10 @@ fi &&
 if [[ "$LLVM_WITH_MLIR" == y ]] ;then
   LLVM_PROJECTS="$LLVM_PROJECTS mlir" &&
   OPTS="$OPTS -DLLVM_TOOL_MLIR_BUILD=ON" &&
-  OPTS="$OPTS -DMLIR_ENABLE_PYTHON_BENCHMARKS=OFF"
+  OPTS="$OPTS -DMLIR_ENABLE_PYTHON_BENCHMARKS=OFF" &&
+  if [[ "$LLVM_WITH_SPIRV" == y ]] ;then
+    OPTS="$OPTS -DMLIR_ENABLE_SPIRV_CPU_RUNNER=ON"
+  fi
 fi &&
 
 if [[ "$LLVM_WITH_POLLY" == y ]] ;then
@@ -83,14 +88,16 @@ if [[ "$LLVM_WITH_POLLY" == y ]] ;then
 fi &&
 
 if [[ "$LLVM_WITH_SPIRV" == y ]] ;then
-  OPTS="$OPTS -DLLVM_EXPERIMENTAL_TARGETS=SPIRV" &&
-  OPTS="$OPTS -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=/usr/include/spirv"
+  OPTS="$OPTS -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=/usr/include/spirv" &&
+  OPTS="$OPTS -DLLVM_TOOL_SPIRV_BUILD=ON"
 fi &&
 
 if [[ "$LLVM_WITH_UTILS" == y ]] ;then
   OPTS="$OPTS -DLLVM_BUILD_UTILS=ON"
+  OPTS="$OPTS -DLLVM_INSTALL_UTILS=ON"
 else
   OPTS="$OPTS -DLLVM_BUILD_UTILS=OFF"
+  OPTS="$OPTS -DLLVM_INSTALL_UTILS=OFF"
 fi &&
 
 if list_find "$LLVM_RUNTIMES" "compiler-rt" ;then
@@ -100,7 +107,7 @@ fi &&
 
 if list_find "$LLVM_RUNTIMES" "libcxx" ;then
   OPTS="$OPTS -DLLVM_TOOL_LIBCXX_BUILD=ON" &&
-  # libcxx includes benchmarks by default, which in turn depend ON
+  # libcxx includes benchmarks by default, which in turn depend on
   # google-benchmark, so disable them
   OPTS="$OPTS -DLIBCXX_INCLUDE_BENCHMARKS=OFF"
 fi &&
@@ -131,9 +138,26 @@ if [ -n "$LLVM_TOOLCHAIN_COMPILER" ] ;then
 fi
 
 if [ -n "$LLVM_TOOLCHAIN_LINKER" ] ;then
-  OPTS="$OPTS -DCMAKE_LINKER_TYPE=$(echo $LLVM_TOOLCHAIN_LINKER | tr [a-z] [A-Z])"
-fi
+  local linker="$LLVM_TOOLCHAIN_LINKER" &&
+  case "$linker" in
+    default)
+      linker="SYSTEM"
+      case "$(readlink -f "$(command -v ld)" | sed 's,^.*/,,')" in
+        lld|ld*.lld) OPTS="$OPTS -DLLVM_ENABLE_LLD=ON" ;;
+      esac
+      ;;
+    lld) OPTS="$OPTS -DLLVM_ENABLE_LLD=ON" ;;
+  esac &&
+  linker="$(echo "$linker" | tr [a-z] [A-Z])" &&
+  OPTS="$OPTS -DCMAKE_LINKER_TYPE=$linker"
+fi &&
 
-OPTS="$OPTS -DLLVM_ENABLE_PROJECTS=${LLVM_PROJECTS// /;}" &&
-OPTS="$OPTS -DLLVM_ENABLE_RUNTIMES=${LLVM_RUNTIMES// /;}" &&
+if [ -n "$LLVM_EXTERNAL_PROJECTS" ] ;then
+  OPTS="$OPTS -DLLVM_EXTERNAL_PROJECTS=${LLVM_EXTERNAL_PROJECTS// /;}"
+fi &&
+
+if [ -n "$LLVM_PROJECTS" ] ;then
+  OPTS="$OPTS -DLLVM_ENABLE_PROJECTS=${LLVM_PROJECTS// /;}"
+fi &&
+
 cmake_build -S ../llvm

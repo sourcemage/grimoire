@@ -105,13 +105,6 @@ config_query_list LLVM_TOOLCHAIN_LINKER \
                   "Which linker to use to link llvm and its components?" \
                   $linkers &&
 
-case "$LLVM_TOOLCHAIN_LINKER" in
-  default)
-    LLVM_TOOLCHAIN_LINKER="SYSTEM"
-    persistent_add LLVM_TOOLCHAIN_LINKER
-    ;;
-esac
-
 config_query LLVM_WITH_RTTI     "Enable RTTI? (recommended)" y &&
 config_query LLVM_WITH_UTILS    "Build the LLVM utilities?" y &&
 config_query LLVM_WITH_BOLT     "Build BOLT?" n &&
@@ -162,5 +155,16 @@ if [[ "$LLVM_WITH_LLD" == y ]] ;then
   done
 fi &&
 
+if list_find "$LLVM_EXPERIMENTAL_TARGETS" none ;then
+  LLVM_EXPERIMENTAL_TARGETS=""
+fi
+
+if [[ "$LLVM_WITH_SPIRV" == y ]] ;then
+  if ! list_find "$LLVM_EXPERIMENTAL_TARGETS" SPIRV ;then
+    LLVM_EXPERIMENTAL_TARGETS="$LLVM_EXPERIMENTAL_TARGETS SPIRV"
+  fi
+fi &&
+
+persistent_add LLVM_EXPERIMENTAL_TARGETS
 persistent_add LLVM_RUNTIMES
 persistent_add LLVM_WITH_SPIRV
