@@ -1,22 +1,87 @@
 . $GRIMOIRE/config_query_multi.function  &&
 
-LLVM_ALL_RUNTIMES="all" &&
-LLVM_ALL_RUNTIMES="$LLVM_ALL_RUNTIMES compiler-rt" &&
-LLVM_ALL_RUNTIMES="$LLVM_ALL_RUNTIMES libcxx" &&
-LLVM_ALL_RUNTIMES="$LLVM_ALL_RUNTIMES libcxxabi" &&
-LLVM_ALL_RUNTIMES="$LLVM_ALL_RUNTIMES libunwind" &&
-LLVM_ALL_RUNTIMES="$LLVM_ALL_RUNTIMES openmp" &&
+local targets="all" &&
+targets="$targets AArch64" &&
+targets="$targets AMDGPU" &&
+targets="$targets ARM" &&
+targets="$targets AVR" &&
+targets="$targets BPF" &&
+targets="$targets Hexagon" &&
+targets="$targets Lanai" &&
+targets="$targets LoongArch" &&
+targets="$targets Mips" &&
+targets="$targets MSP430" &&
+targets="$targets NVPTX" &&
+targets="$targets PowerPC" &&
+targets="$targets RISCV" &&
+targets="$targets Sparc" &&
+targets="$targets SystemZ" &&
+targets="$targets VE" &&
+targets="$targets WebAssembly" &&
+targets="$targets X86" &&
+targets="$targets XCore" &&
 
-config_query_multi LLVM_RUNTIMES "which runtime library targets?" \
-                   $LLVM_ALL_RUNTIMES &&
+local experimental_targets="none" &&
+experimental_targets="$experimental_targets all" &&
+experimental_targets="$experimental_targets ARC" &&
+experimental_targets="$experimental_targets CSKY" &&
+experimental_targets="$experimental_targets DirectX" &&
+experimental_targets="$experimental_targets M68k" &&
+experimental_targets="$experimental_targets SPIRV" &&
+experimental_targets="$experimental_targets Xtensa" &&
+
+local libclc_targets="all" &&
+libclc_targets="$libclc_targets amdgcn--"
+libclc_targets="$libclc_targets amdgcn--amdhsa"
+libclc_targets="$libclc_targets amdgcn-mesa-mesa3d"
+libclc_targets="$libclc_targets clspv--"
+libclc_targets="$libclc_targets clspv64--"
+libclc_targets="$libclc_targets nvptx--"
+libclc_targets="$libclc_targets nvptx--"
+libclc_targets="$libclc_targets nvptx--nvidiacl"
+libclc_targets="$libclc_targets nvptx64--"
+libclc_targets="$libclc_targets nvptx64--nvidiacl"
+libclc_targets="$libclc_targets ptx-nvidiacl"
+libclc_targets="$libclc_targets r600--"
+libclc_targets="$libclc_targets spirv-mesa3d-"
+libclc_targets="$libclc_targets spirv64-mesa3d-"
+
+local runtimes="all" &&
+runtimes="$runtimes compiler-rt" &&
+runtimes="$runtimes libcxx" &&
+runtimes="$runtimes libcxxabi" &&
+runtimes="$runtimes libunwind" &&
+runtimes="$runtimes openmp" &&
+
+message "$DEFAULT_COLOR$MESSAGE_COLOR" \
+        "LLVM can build multiple backends." \
+        "\nFor many, X86 and AMDGPU are sufficient." &&
+
+config_query_multi LLVM_TARGETS \
+                   "Which backend targets to build?" \
+                   $targets \
+                   &&
+
+config_query_multi LLVM_EXPERIMENTAL_TARGETS \
+                   "Which experimental backend targets to build?" \
+                   $experimental_targets \
+                   &&
+
+config_query_multi LLVM_RUNTIMES \
+                   "Which runtime library targets to build?" \
+                   $runtimes \
+                   &&
 
 # selecting "all" runtimes in the LLVM build system will only enable libcxx,
 # libcxxabi, and libunwind, instead of actually all possible supported
 # runtimes, so specify them manually
-if list_find "$LLVM_RUNTIMES" "all" ;then
-  LLVM_RUNTIMES="${LLVM_ALL_RUNTIMES#all }"
+if list_find "$runtimes" "all" ;then
+  LLVM_RUNTIMES="${runtimes#all }"
 fi &&
 
+if list_find "$LLVM_EXPERIMENTAL_TARGETS" SPIRV ;then
+  LLVM_WITH_SPIRV=y
+fi
 
 local compilers=""
 for compiler in clang gcc ;do
@@ -55,9 +120,34 @@ config_query LLVM_WITH_LLDB     "Build the LLDB debugger (selects libcxx and lib
 config_query LLVM_WITH_POLLY    "Build the polyhedral optimizer (polly)?" n &&
 config_query LLVM_WITH_LLD      "Build the LLVM linker (lld)?" n &&
 config_query LLVM_WITH_MLIR     "Build the LLVM multi-level intermediate representation (MLIR)?" n &&
+config_query LLVM_WITH_FLANG    "Build the flang fortran frontend (selects MLIR)?" n &&
+
+if [[ "$LLVM_WITH_CLANG" == y ]] ;then
+  config_query LLVM_WITH_LIBCLC "Build the LLVM OpenCL implementation (libclc)?" n &&
+  if [[ "$LLVM_WITH_LIBCLC" == y ]] ;then
+    config_query_multi LLVM_LIBCLC_TARGETS \
+                       "Which libclc targets to build?" \
+                       $libclc_targets
+  fi &&
+  case "$LLVM_LIBCLC_TARGETS" in
+    *spirv*)
+      LLVM_WITH_SPIRV=y &&
+      ;;
+  esac
+fi &&
 
 if [[ "$LLVM_WITH_CLANG" == y ]] ;then
   for required in compiler-rt ;do
+    if ! list_find "$LLVM_RUNTIMES" "$required";then
+      LLVM_RUNTIMES="$LLVM_RUNTIMES $required"
+    fi
+  done
+fi
+
+if [[ "$LLVM_WITH_FLANG" == y ]] ;then
+  LLVM_WITH_MLIR=y &&
+  persistent_add LLVM_WITH_MLIR
+  for required in compiler-rt openmp ;do
     if ! list_find "$LLVM_RUNTIMES" "$required";then
       LLVM_RUNTIMES="$LLVM_RUNTIMES $required"
     fi
@@ -73,3 +163,4 @@ if [[ "$LLVM_WITH_LLD" == y ]] ;then
 fi &&
 
 persistent_add LLVM_RUNTIMES
+persistent_add LLVM_WITH_SPIRV

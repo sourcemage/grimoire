@@ -46,6 +46,20 @@ if [[ "$LLVM_WITH_CLANG" == y ]] ;then
   OPTS="$OPTS -DCLANG_INCLUDE_TESTS=OFF"
 fi &&
 
+if [[ "$LLVM_WITH_FLANG" == y ]] ;then
+  LLVM_PROJECTS="$LLVM_PROJECTS flang"
+fi &&
+
+if [[ "$LLVM_WITH_LIBCLC" == y ]] ;then
+  LLVM_PROJECTS="$LLVM_PROJECTS libclc" &&
+  OPTS="$OPTS -DLIBCLC_TARGETS_TO_BUILD=${LLVM_LIBCLC_TARGETS// /;}"
+fi &&
+
+# workaround for https://github.com/llvm/llvm-project/issues/109537
+if [[ "$LLVM_WITH_LIBCLC" == y ]] ;then
+  OPTS="$OPTS -DLLVM_SPIRV=$(command -v llvm-spirv)"
+fi &&
+
 if [[ "$LLVM_WITH_LLD" == y ]] ;then
   LLVM_PROJECTS="$LLVM_PROJECTS lld" &&
   OPTS="$OPTS -DLLVM_TOOL_LLD_BUILD=ON"
@@ -66,6 +80,11 @@ fi &&
 if [[ "$LLVM_WITH_POLLY" == y ]] ;then
   LLVM_PROJECTS="$LLVM_PROJECTS polly" &&
   OPTS="$OPTS -DLLVM_TOOL_POLLY_BUILD=ON"
+fi &&
+
+if [[ "$LLVM_WITH_SPIRV" == y ]] ;then
+  OPTS="$OPTS -DLLVM_EXPERIMENTAL_TARGETS=SPIRV" &&
+  OPTS="$OPTS -DLLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR=/usr/include/spirv"
 fi &&
 
 if [[ "$LLVM_WITH_UTILS" == y ]] ;then
