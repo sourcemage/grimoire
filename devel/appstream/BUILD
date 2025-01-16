@@ -1,6 +1,6 @@
-OPTS+=' stemming=false'
-if is_depends_enabled $SPELL qtbase;then
-  PATH="$QT5DIR/bin/:$PATH"
-  export PKG_CONFIG_PATH="$QT5DIR/lib/pkgconfig"
+OPTS+=' stemming=false' &&
+if is_depends_enabled $SPELL qt6base; then
+  PATH="$QT6DIR/bin:$PATH" &&
+  export PKG_CONFIG_PATH="$QT6DIR/lib/pkgconfig"
 fi &&
 default_build
