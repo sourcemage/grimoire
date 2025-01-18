@@ -6,7 +6,6 @@ if [[ "${PYTHON3_BRANCH}" != "devel" &&
       "${PYTHON3_BRANCH}" != "3.13"  ]]; then
   OPTS+=" --enable-optimizations"
 fi                                          &&
-OPTS+=" --with-lto"                         &&
 OPTS+=" --with-computed-gotos"              &&
 
 OPTS="$OPTS --build=${BUILD}"
