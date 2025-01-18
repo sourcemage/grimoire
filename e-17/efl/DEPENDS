@@ -1,72 +1,138 @@
-depends fribidi &&
-depends libxp &&
-depends subversion &&
-depends valgrind &&
+. "$GRIMOIRE"/MESON_DEPENDS &&
 
-optional_depends check "" "" "Use check?"  &&
+depends luajit lua-interpreter=luajit &&
+depends SSL &&
+depends zlib embedded-lz4=false &&
+
+optional_depends check \
+                 build-tests=true \
+                 build-tests=false \
+                 'Build tests?' &&
 
 optional_depends doxygen                   \
-                 "--enable-doc"            \
-                 "--disable-doc"           \
+                 docs=true \
+                 docs=false \
                  "Build documentation?"    &&
 
-optional_depends  bullet                                           \
-                  '--enable-physics'                               \
-                  '--disable-physics'                              \
-                  'for physics effects and support (recommended)'  \
-                  'games'                                          &&
+optional_depends bullet \
+                 physics=true \
+                 physics=false \
+                 'for physics effects and support' \
+                 'games' &&
 
-optional_depends  curl                                       \
-                  '--enable-curl'                            \
-                  '--disable-curl'                           \
-                  'for curl download support (recommended)'  &&
+optional_depends libhypen \
+                 hyphen=true \
+                 hyphen=false \
+                 'for Hyphen text layout support' &&
 
-optional_depends  fontconfig                                         \
-                  '--enable-fontconfig'                              \
-                  '--disable-fontconfig'                             \
-                  'use fontconfig for finding fonts (recommended)?'  &&
+optional_depends fontconfig \
+                 fontconfig=true \
+                 fontconfig=false \
+                 'use fontconfig for finding fonts (recommended)?'  &&
 
-optional_depends  gettext                                      \
-                  '--enable-nls'                               \
-                  '--disable-nls'                              \
-                  'for Native Language Support (recommended)'  &&
+optional_depends fribidi \
+                 fribidi=true \
+                 fribidi=false \
+                 'for right to left text layout support' &&
 
-optional_depends  GIFLIB                                \
-                  '--enable-image-loader-gif'           \
-                  '--disable-image-loader-gif'          \
-                  'for GIF image loader (recommended)'  &&
+optional_depends harfbuzz \
+                 harfbuzz=true \
+                 harfbuzz=false \
+                 'for complex text layout support' &&
 
-optional_depends  libwebp                        \
-                  '--enable-image-loader-webp'   \
-                  '--disable-image-loader-webp'  \
-                  'for WebP image loader'        &&
+optional_depends gettext \
+                 nls=true \
+                 nls=false \
+                 'for Native Language Support (recommended)'  &&
 
-optional_depends  pixman                               \
-                  '--enable-pixman --enable-pixman-font --enable-pixman-rect --enable-pixman-line --enable-pixman-poly --enable-pixman-image --enable-pixman-image-scale-sample'                    \
-                  '--disable-pixman'                   \
-                  'use pixman for software rendering (not recommended)?'  &&
+### Audio/Video backends ###
+optional_depends gstreamer-1.0 \
+                 gstreamer=true \
+                 gstreamer=false \
+                 'for GStreamer support' &&
 
-optional_depends  pulseaudio                      \
-                  '--enable-pulseaudio'           \
-                  '--disable-pulseaudio'          \
-                  'for PulseAudio sound support'  &&
+optional_depends pulseaudio \
+                 pulseaudio=true \
+                 pulseaudio=false \
+                 'for PulseAudio sound support' &&
 
-optional_depends  sdl                  \
-                  '--enable-sdl'       \
-                  '--disable-sdl'      \
-                  'for SDL rendering'  &&
+### Graphic backends ###
+optional_depends pixman \
+                 pixman=true \
+                 pixman=false \
+                 'use pixman for software rendering (not recommended)'  &&
 
-optional_depends  tiff                           \
-                  '--enable-image-loader-tiff'   \
-                  '--disable-image-loader-tiff'  \
-                  'for TIFF image loader'        &&
+optional_depends libx11 \
+                 x11=true \
+                 x11=false \
+                 'for X11 support' &&
+if is_depends_enabled "$SPELL" libx11; then
+  optional_depends libxpresent \
+                   xpresent=true \
+                   xpresent=false \
+                   'for X11 XPresent extension support'
+fi &&
 
-optional_depends  tslib                     \
-                  '--enable-tslib'          \
-                  '--disable-tslib'         \
-                  'for touchscreen events'  &&
+optional_depends OPENGL \
+                 opengl=es-egl \
+                 opengl=none \
+                 'for OpenGL support (recommended)' &&
 
-optional_depends  util-linux                                    \
-                  '--enable-mount'                              \
-                  '--disable-mount'                             \
-                  'for mount (libmount) support (recommended)'
+optional_depends sdl \
+                 sdl=true \
+                 sdl=false \
+                 'for SDL rendering'  &&
+
+optional_depends wayland \
+                 wl=true \
+                 wl=false \
+                 'for Wayland client support' &&
+
+### Image Formats ###
+depends GIFLIB &&
+depends libpng &&
+
+optional_depends libavif '' '' 'for AVIF image loader' &&
+optional_depends libheif '' '' 'for HEIF image loader' &&
+optional_depends libjxl '' '' 'for JXL image loader' &&
+optional_depends librsvg2 '' '' 'for SVG vector graphics loader' &&
+optional_depends libwebp '' '' 'for WebP image loader' &&
+optional_depends openjpeg '' '' 'for JPEG2000 image loader' &&
+optional_depends rlottie '' '' 'for JSON vector graphics loader' &&
+optional_depends tiff '' '' 'for TIFF image loader' &&
+
+### Input Backends ###
+optional_depends tslib \
+                 tslib=true \
+                 tslib=false \
+                 'for touchscreen support in the raw framebuffer backend'  &&
+
+optional_depends libinput \
+                 input=true \
+                 input=false \
+                 'for libinput abstraction support' &&
+
+### Networking ###
+optional_depends connman \
+                 network-backend=connman \
+                 network-backend=none \
+                 'for ConnMan support (not recommended)' &&
+
+suggest_depends curl \
+                '' '' \
+                'for HTTP(S) support (recommended)' &&
+
+optional_depends util-linux \
+                 libmount=true \
+                 libmount=false \
+                 'for mount (libmount) support (recommended)' &&
+
+optional_depends DEVICE-MANAGER \
+                 eeze=true \
+                 eeze=false \
+                 'for Eeze device abstraction (udev wrapper)' &&
+
+optional_depends systemd \
+                 systemd=true \
+                 systemd=false \
+                 'for Systemd and Elogind support'
