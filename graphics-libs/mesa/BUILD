@@ -21,6 +21,9 @@ case "$HOST" in
     ;;
 esac &&
 
+# Remove -DPIC from compiler flags, produces build errors
+CXXFLAGS="${CXXFLAGS//-DPIC}" &&
+
 local link_llvm_shared
 case "$MESA_LINK_LLVM_SHARED" in
   shared) link_llvm_shared="y" ;;
@@ -47,13 +50,13 @@ meson_opt feature "glvnd"                  "$MESA_GLVND" &&
 meson_opt choice  "glx"                    "$MESA_GLX" &&
 meson_opt boolean "glx-direct"             "$MESA_GLX_DIRECT" &&
 meson_opt boolean "glx-read-only-text"     "$MESA_GLX_READONLY" &&
+meson_opt boolean "gpuvis"                 "$MESA_GPUVIS" &&
+meson_opt feature "intel-rt"               "$MESA_INTEL_RAYTRACE" &&
 meson_opt boolean "llvm-orcjit"            "$MESA_LLVM_ORCJIT" &&
 meson_opt boolean "opencl-spirv"           "$MESA_OPENCL_SPIRV" &&
 meson_opt boolean "opengl"                 "$MESA_OPENGL" &&
 meson_opt boolean "osmesa"                 "$MESA_OSMESA" &&
 meson_opt boolean "perfetto"               "$MESA_PERFETTO" &&
-meson_opt boolean "gpuvis"                 "$MESA_GPUVIS" &&
-meson_opt feature "intel-rt"               "$MESA_INTEL_RAYTRACE" &&
 meson_opt feature "shader-cache"           "$MESA_SHADER_CACHE" &&
 meson_opt feature "shared-llvm"            "$link_llvm_shared" &&
 meson_opt boolean "spirv-to-dxil"          "$MESA_SPIRV_DXIL" &&
