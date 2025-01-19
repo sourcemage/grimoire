@@ -132,6 +132,8 @@ buildsys_meson_default() {
 ## @param -g grimoire (optional, flag to specify the grimoire to use)
 ## @param -o global_optname (optional, flag to give the default option
 ##             name to use across all build systems)
+## @param -sub sub_dependency (optional, flag to give the
+##              sub-dependencies)
 ## @param spell_name (the name of the actual dependency as a spell)
 ## @param [-b] build_system (the build system to define options for,
 ##               e.g. cmake, meson, autotools, etc.)
@@ -198,7 +200,7 @@ _buildsys_transform_depends() {
     case "$1" in
       -g) grimoire="$2" && shift 2 ;;
       -o) global_optname="$2" && shift 2 ;;
-      -sub) subdeps="$subdeps $1 $2" && shift 2 ;;
+      -sub) subdeps="$2" && shift 2 ;;
       *) break ;;
     esac
   done &&
@@ -268,7 +270,11 @@ _buildsys_transform_depends() {
     # provide a last-resort fallback value for enabled settings
     : "${enabled:=$(buildsys_defaults "$targetsys" enabled "$global_optname")}"
   fi
-  "$depends_func" $subdeps "$spell" "$enabled" ${disabled:+"$disabled"} "$msg" "$grimoire"
+  "$depends_func" ${subdeps:+-sub "$subdeps"} "$spell" \
+    "$enabled" \
+    ${disabled:+"$disabled"} \
+    "$msg" \
+    "$grimoire"
 }
 
 #---------------------------------------------------------------------
