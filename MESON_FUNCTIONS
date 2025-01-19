@@ -57,6 +57,52 @@ meson_install () {
   DESTDIR="${INSTALL_ROOT}/" ${MESON_INSTALL} ${MESON_OPTS}
 }
 
+#---------------------------------------------------------------------
+## Converts from y/n or list values to meson build options.
+##
+## @param setting_type (boolean, feature, list/array, or choice/combo,
+##          defaults to feature)
+## @param setting_name
+## @param setting_value
+##
+## Note: this function automatically sets OPT. This function should
+## only be called from BUILD.
+#---------------------------------------------------------------------
+meson_opt() {
+  local name
+  local result
+  local type="$1"
+  case "$type" in
+    bool|boolean|feature|list|array|choice|combo)
+      name="$2"
+      shift 2
+      ;;
+    *)
+      type="feature"
+      name="$1"
+      shift 1
+      ;;
+  esac
+  case "$type" in
+    bool|boolean)
+      case "${1:-n}" in
+        y) result="true" ;;
+        n) result="false" ;;
+      esac
+      ;;
+    feature)
+      case "${1:-n}" in
+        y) result="enabled" ;;
+        n) result="disabled" ;;
+      esac
+      ;;
+    list|array|choice|combo)
+      result="${@// /,}"
+      ;;
+  esac
+  OPTS="$OPTS $name=$result"
+}
+
 default_build() {
   meson_build
 }
