@@ -1,89 +1,161 @@
 . "$GRIMOIRE"/VDEPENDS &&
 . "${GRIMOIRE}/MESON_DEPENDS" &&
-depends -sub "CXX" gcc &&
-depends bison &&
-depends flex  &&
-depends GETTEXT   &&
-depends glslang &&
-depends -sub "$MESA_DRM" libdrm &&
-depends util-macros &&
-depends expat &&
-depends -sub "PYTHON3" mako &&
+. "${GRIMOIRE}/build_system_handler.function" &&
+. "${GRIMOIRE}/config_query_multi.function" &&
 
-depends nettle  &&
-depends zlib    &&
+buildsys_depends bison &&
+buildsys_depends flex &&
+buildsys_depends -sub "CXX" gcc
+buildsys_depends GETTEXT &&
+buildsys_depends glslang &&
+buildsys_depends -sub "$MESA_DRM" libdrm &&
+buildsys_depends -sub "PYTHON3" mako &&
+buildsys_depends nettle &&
+buildsys_depends util-macros &&
 
+if [[ "$MESA_BRANCH" == "scm" ]] ;then
+  buildsys_depends pyyaml &&
+  buildsys_depends git
+fi &&
+
+local need_llvm &&
 local LLVM_SUB_DEPS &&
-if list_find "$MESA_GALLIUM" "nouveau"; then LLVM_SUB_DEPS="RTTI ${LLVM_SUB_DEPS}"; fi &&
 
-if (list_find "${MESA_GALLIUM}" "radeonsi") ||
-   (list_find "$MESA_VULKAN" amd); then
-  LLVM_SUB_DEPS="TARGET-AMDGPU ${LLVM_SUB_DEPS}" &&
-  depends LIBELF
+if list_find "$MESA_GALLIUM" llvmpipe ;then
+  need_llvm="y" &&
+  config_query MESA_LLVM_ORCJIT "Build llvmpipe with LLVM ORCJIT support?" n
 fi &&
-if [[ -z "${LLVM_SUB_DEPS}" ]]; then
-  optional_depends llvm 'llvm=enabled' 'llvm=disabled' 'LLVM support'
+
+if list_find "$MESA_VULKAN" amd ;then
+  if "$MESA_AMD_LLVM" == "y" ]] ;then
+    need_llvm="y"
+  fi
+fi &&
+
+if list_find "$MESA_GALLIUM" nouveau ;then
+  need_llvm="y" &&
+  LLVM_SUB_DEPS="RTTI $LLVM_SUB_DEPS"
+fi &&
+
+if list_find "$MESA_GALLIUM" radeonsi || list_find "$MESA_VULKAN" amd ;then
+  need_llvm="y" &&
+  LLVM_SUB_DEPS="TARGET-AMDGPU $LLVM_SUB_DEPS" &&
+  buildsys_depends LIBELF
+fi &&
+
+if list_find "$MESA_VULKAN" nouveau ;then
+  buildsys_depends rust &&
+  buildsys_depends rust-bindgen
+fi &&
+
+if list_find "$MESA_GLX" dri ;then
+  buildsys_depends libxext &&
+  buildsys_depends libxxf86vm &&
+  buildsys_depends libxfixes &&
+  buildsys_depends libxcb
+fi &&
+
+if list_find "$MESA_PLATFORMS" x11; then
+  buildsys_depends libxdamage &&
+  buildsys_depends libx11 &&
+  buildsys_depends xorgproto &&
+  buildsys_depends libxshmfence &&
+  buildsys_depends libxrandr
+fi &&
+
+if list_find "$MESA_PLATFORMS" wayland ;then
+  buildsys_depends wayland &&
+  buildsys_depends wayland-protocols
+fi &&
+
+if [[ "$MESA_GLVND" == "y" ]] ;then
+  vdepends <<< "libglvnd >= 1.3.2"
 else
-  depends -sub "${LLVM_SUB_DEPS# }" llvm "llvm=enabled"
+  buildsys_optional_depends smgl-gl_select \
+                            "Allow switching among different OPENGL providers"
 fi &&
 
-if list_find "${MESA_VULKAN}" "nouveau"; then
-  depends rust &&
-  depends rust-bindgen
+if list_find "$MESA_TOOLS" intel-ui ;then
+  buildsys_depends gtk+3
 fi &&
 
-if list_find "$MESA_GLX" dri;then
-  depends libxext &&
-  depends libxxf86vm &&
-  depends libxfixes &&
-  depends libxcb
-fi &&
-if list_find "$MESA_EGL" "x11"; then
-  depends libxdamage &&
-  depends libx11 &&
-  depends xorgproto &&
-  depends libxshmfence &&
-  depends libxrandr
-fi &&
-if list_find "$MESA_EGL" wayland;then
-  depends wayland &&
-  depends wayland-protocols
-fi &&
-
-if [[ "${MESA_BRANCH}" == "scm" ]]; then
-  depends pyyaml &&
-  depends git
-fi &&
-
-optional_depends libvdpau 'gallium-vdpau=enabled' 'gallium-vdpau=disabled' 'gallium vdpau state tracker' &&
-optional_depends libva    'gallium-va=enabled'    'gallium-va=disabled'    'gallium va state tracker' &&
-if is_depends_enabled "${SPELL}" libva; then
-  . "${GRIMOIRE}/config_query_multi.function" &&
-  config_query_multi MESA_VA_CODECS "Would you like to enable some patented codecs?" \
-                                     none all vc1dec h264dec h264enc h265dec h265enc &&
-  MESA_VA_CODECS="${MESA_VA_CODECS# }" &&
-  if list_find "${MESA_VA_CODECS}" "all"; then
-    MESA_VA_CODECS="vc1dec h264dec h264enc h265dec h265enc"
+if [[ "${need_llvm}" == "y" ]] ;then
+  if [ -n "$LLVM_SUB_DEPS" ] ;then
+    buildsys_depends -sub "${LLVM_SUB_DEPS## }" llvm -o llvm
+  else
+    buildsys_depends llvm -o llvm
   fi
 else
-  persistent_remove MESA_VA_CODECS
-fi &&
-#optional_depends libomxil 'gallium-omx=bellagio'   'gallium-omx=disabled'   'gallium omx bellagio state tracker' &&
-#optional_depends tizonia  'gallium-omx=tizonia'   'gallium-omx=disabled'   'gallium omx state tracker' &&
-#optional_depends libxa    '' '' 'gallium xa state tracker' &&
-optional_depends lm_sensors "lmsensors=enabled" "lmsensors=disabled" "HUD Sensor support" &&
-optional_depends valgrind "valgrind=enabled" "valgrind=disabled" "debugging" &&
-optional_depends libunwind "libunwind=enabled" "libunwind=disabled" "for stack-traces" &&
-optional_depends libselinux "selinux=true" "selinux=false" "SELinux-aware Mesa" &&
-optional_depends libglvnd "glvnd=true" "glvnd=false" "enable GLVND support'" &&
-optional_depends zstd     "" "" "to compress disk cache" &&
-
-if is_depends_enabled "$SPELL" libglvnd; then
-  vdepends <<< 'libglvnd >= 1.3.2 flags: glvnd=true'
-else
-  optional_depends smgl-gl_select '' '' 'allow select OPENGL provider'
+  buildsys_optional_depends llvm -o llvm "Enable LLVM support"
 fi &&
 
-if list_find "$MESA_TOOLS" intel-ui;then
-  depends gtk+3
+if is_depends_enabled "$SPELL" llvm ;then
+  config_query_multi MESA_LIBCLC_STATIC_LINK "Which libclc SPIR-V targets to link statically?" \
+                     none \
+                     all \
+                     spirv \
+                     spirv64 \
+                     &&
+  config_query_list MESA_LINK_LLVM_SHARED "How to link against LLVM (shared recommended)?" \
+                    shared \
+                    static \
+                    &&
+  if ! list_find "$MESA_GALLIUM" none ;then
+    config_query MESA_DRAW_LLVM "Use LLVM for the Gallium draw module?" y
+  fi
+fi &&
+
+local allow_va_and_vdpau
+for driver in r600 radeonsi nouveau d3d12 virgl ;do
+  if [[ "$driver" == "d3d12" ]] && [[ "$MESA_GALLIUM_D3D12_VIDEO" != "y" ]] ;then
+    continue
+  fi &&
+  if list_find "$MESA_GALLIUM" $driver ;then
+    allow_va_and_vdpau="y"
+  fi
+done
+
+if [[ "$allow_va_and_vdpau" == "y" ]] ;then
+  buildsys_optional_depends libvdpau \
+                            -o gallium-vdpau \
+                            "gallium vdpau state tracker" \
+                            &&
+
+  buildsys_optional_depends libva \
+                            -o gallium-va \
+                            "gallium va state tracker"
+fi &&
+
+buildsys_optional_depends lm_sensors \
+                          -o lmsensors \
+                          "HUD Sensor support" \
+                          &&
+
+buildsys_optional_depends libunwind \
+                          -o libunwind \
+                          "for stack-traces" \
+                          &&
+
+buildsys_optional_depends valgrind \
+                          -o valgrind \
+                          "for debugging with valgrind" \
+                          &&
+
+buildsys_optional_depends zstd \
+                          -o zstd \
+                          "Use ZSTD (over ZLIB) to build drivers" \
+                          &&
+
+buildsys_optional_depends zlib \
+                          -o zlib \
+                          "Use ZLIB to build drivers" \
+                          &&
+
+if [[ "$MESA_INTEL_RAYTRACE" == "y" ]] ;then
+  buildsys_depends python-ply
+fi &&
+
+if [[ "$MESA_XMLCONFIG" == "y" ]] ;then
+  buildsys_depends expat &&
+  suggest_depends driconf "to create custom xmlconfig (driconf) files"
 fi

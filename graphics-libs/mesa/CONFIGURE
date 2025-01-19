@@ -1,84 +1,193 @@
-persistent_remove MESALIB_OPTS &&
-persistent_remove MESALIB_VULKAN &&
-persistent_remove MESALIB_BUILD &&
-persistent_remove MESALIB_GALLIUM &&
-persistent_remove MESALIB_DRIVERS &&
-persistent_remove MESA_OSMESA &&
-persistent_remove MESA_DRI &&
-persistent_remove MESA_ARCH &&
-list_remove MESA_GLX "gallium-xlib" &&
-list_remove MESA_TOOLS "xvmc" &&
-
-# adjust some flags
-MESA_GLES1=${MESA_GLES1/true/enabled} &&
-MESA_GLES2=${MESA_GLES2/true/enabled} &&
-MESA_GLES1=${MESA_GLES1/false/disabled} &&
-MESA_GLES2=${MESA_GLES2/false/disabled} &&
-MESA_EGL=${MESA_EGL/drm/} &&
-MESA_VULKAN=${MESA_VULKAN/\-experimental/} &&
-
 . "${GRIMOIRE}/config_query_multi.function" &&
 . "${GRIMOIRE}/MESON_CONFIGURE" &&
 
-config_query_multi MESA_EGL "window systems to support,recommend x11" x11 wayland &&
+config_query_multi MESA_PLATFORMS "Which window systems to support?" \
+                   auto \
+                   wayland \
+                   x11 \
+                   &&
 
-config_query_multi MESA_DRM "which libdrm hardware" AMD INTEL NOUVEAU RADEON &&
+config_query_multi MESA_DRM "Which libdrm hardware to use?" \
+                   AMD \
+                   INTEL \
+                   NOUVEAU \
+                   RADEON \
+                   &&
+
 # only suggest drivers for specified hardware
-local AVAILABLE_GALLIUM="svga swrast virgl zink" &&
-local AVAILABLE_VULKAN="swrast" &&
+local AVAILABLE_GALLIUM="d3d12 llvmpipe softpipe svga virgl zink" &&
+local AVAILABLE_VULKAN="swrast virtio" &&
 if list_find "$MESA_DRM" AMD;then
-  AVAILABLE_VULKAN="amd ${AVAILABLE_VULKAN}"
+  AVAILABLE_VULKAN="amd ${AVAILABLE_VULKAN}" &&
+  config_query MESA_AMD_LLVM "Use LLVM for the AMD drivers?" y
 fi &&
 if list_find "$MESA_DRM" RADEON;then
   AVAILABLE_GALLIUM="r300 r600 radeonsi ${AVAILABLE_GALLIUM}"
 fi &&
 if list_find "$MESA_DRM" INTEL;then
   AVAILABLE_GALLIUM="i915 iris crocus ${AVAILABLE_GALLIUM}" &&
-  AVAILABLE_VULKAN="intel ${AVAILABLE_VULKAN}"
+  AVAILABLE_VULKAN="intel intel_hasvk ${AVAILABLE_VULKAN}"
 fi &&
 if list_find "$MESA_DRM" NOUVEAU;then
   AVAILABLE_GALLIUM="nouveau ${AVAILABLE_GALLIUM}" &&
   AVAILABLE_VULKAN="nouveau ${AVAILABLE_VULKAN}"
 fi &&
 
-config_query_multi MESA_GLX "glx build types, recommend dri" disabled dri xlib &&
+config_query_multi MESA_GALLIUM "Which gallium (accelerated) drivers to build?" \
+                   none \
+                   all \
+                   auto \
+                   $(echo $AVAILABLE_GALLIUM | sort) \
+                   &&
+
+if [ -n "$MESA_GALLIUM" ] &&  ! list_find "$MESA_GALLIUM" none ;then
+  config_query MESA_GALLIUM_HUD "Enable HUD block/NIC I/O HUD status support?" n &&
+
+  local allow_xa
+  for driver in nouveau freedreno i915 svga ;do
+    if list_find "$MESA_GALLIUM" $driver ;then
+      allow_xa="y"
+    fi
+  done
+  if [[ "$allow_xa" == "y" ]] ;then
+    config_query MESA_GALLIUM_XA "Build gallium XA frontend?" n
+  fi &&
+
+  if list_find "$MESA_GALLIUM" llvmpipe || list_find "$MESA_GALLIUM" softpipe ;then
+    config_query MESA_GALLIUM_D3D9 "Build gallium Direct3D9 (nine) frontend?" n &&
+    config_query MESA_GALLIUM_D3D10 "Build gallium Direct3D10 (WDDM UMD) frontend?" n
+  fi &&
+
+  if list_find "$MESA_GALLIUM" d3d12 ;then
+    config_query MESA_GALLIUM_D3D12_PIPELINE "Build gallium with Direct3D12 graphics pipeline support?" n &&
+    config_query MESA_GALLIUM_D3D12_VIDEO "Build gallium with Direct3D12 video support?" n
+  fi &&
+
+  config_query MESA_OPENCL "Build gallium OpenCL (clover) frontend?" n &&
+
+  if [[ "$MESA_OPENCL" == "y" ]] ;then
+    config_query MESA_OPENCL_SPIRV "Enable SPIR-V support in OpenCL (clover) frontend?" n
+  fi &&
+
+  config_query MESA_RUSTICL "Build gallium rusticl frontend?" n &&
+
+  if [[ "$MESA_RUSTICL" == "y" ]] ;then
+    config_query_multi MESA_RUSTICL_DRIVERS "Which drivers to enable with rusticl by default?" \
+                       auto \
+                       asahi
+  fi
+fi &&
+
+config_query_multi MESA_VULKAN "Which Vulkan drivers to build?" \
+                   none \
+                   all \
+                   auto \
+                   $(echo $AVAILABLE_VULKAN | sort) \
+                   &&
+
+if [ -n "$MESA_VULKAN" ] && ! list_find "$MESA_VULKAN" none ;then
+  config_query_multi MESA_VULKAN_LAYERS "Which Vulkan layers to build?" \
+                     none \
+                     device-select \
+                     intel-nullhw \
+                     overlay \
+                     screenshot \
+                     &&
+
+  config_query MESA_XLIB_LEASE "Enable VK_EXT_acquire_xlib_display?" n
+fi &&
+
+config_query MESA_SHADER_CACHE "Support on-disk shader caching?" n &&
+
+# EGL requires DRI, which is only enabled if gallium is enabled
+if ! list_find "$MESA_GALLIUM" none ;then
+  config_query MESA_EGL "Enable EGL platform support?" n &&
+
+  if [[ "$MESA_EGL" == "y" ]] ;then
+    config_query_list MESA_EGL_DEFAULT "Which window system should EGL assume for EGL_DEFAULT_DISPLAY" \
+                      auto \
+                      drm \
+                      surfaceless \
+                      wayland \
+                      x11
+  fi
+fi &&
+
+config_query MESA_GLES1 "Support OpenGL ES 1.x?" n &&
+config_query MESA_GLES23 "Support OpenGL ES 2.x and 3.x?" n &&
+config_query MESA_OPENGL "Enable desktop OpenGL support?" y &&
+config_query MESA_GBM "Enable gbm platform support?" n &&
+config_query MESA_OSMESA "Build OSmesa to support off-screen rendering?" n &&
+
+config_query_list MESA_GLX "Which glx build type (auto or dri recommended)?" \
+                  auto \
+                  disabled \
+                  dri \
+                  xlib \
+                  &&
+
 if list_find "${MESA_GLX}" "disabled"; then
   MESA_GLX="disabled"
+else
+  config_query MESA_GLX_DIRECT "Enable direct rendering in GLX and EGL for DRI?" y &&
+  config_query MESA_GLX_READONLY "Disable writable .text section on x86 (decreases performance)?" n
 fi &&
 
-# Gallium support
-
-message "${MESSAGE_COLOR}If you want to enable VDPAU you have to select at least one of the r300, r600,$DEFAULT_COLOR" &&
-message "${MESSAGE_COLOR}radeonsi or nouveau gallium drivers:${DEFAULT_COLOR}"                                         &&
-config_query_multi MESA_GALLIUM \
-        "which gallium (accellerated) drivers to build" \
-        none all $AVAILABLE_GALLIUM &&
-if list_find "$MESA_GALLIUM" all;then
-  MESA_GALLIUM="$AVAILABLE_GALLIUM"
+if [[ "$MESA_EGL" == "y" ]] || ! list_find "$MESA_GLX" disabled ;then
+  config_query MESA_GLVND "Enable GLVND support?" n
 fi &&
 
-# Vulkan support
-config_query_multi MESA_VULKAN \
-     "which Vulkan drivers to build" \
-     none all $AVAILABLE_VULKAN &&
-if list_find "$MESA_VULKAN" all; then
-   MESA_VULKAN="$AVAILABLE_VULKAN"
+config_query MESA_SPIRV_DXIL "Build support for the SPIR-V to DXIL library?" n &&
+
+config_query_multi MESA_TOOLS  "Which tools to build?" \
+                   none \
+                   all \
+                   dlclose-skip \
+                   drm-shim \
+                   etnaviv \
+                   freedreno \
+                   glsl \
+                   intel \
+                   intel-ui \
+                   nir \
+                   nouveau \
+                   &&
+
+config_query MESA_PERFETTO "Enable performance analysis with Perfetto" n &&
+
+if [[ "${MESA_PERFETTO#perfetto=}" == "true" ]] ;then
+  config_query_multi MESA_PERFETTO_SOURCES "Perfetto datasources to build" \
+                     auto \
+                     intel
 fi &&
 
-config_query_option MESA_GLES1 "support GLES1 - embedded systems" n gles1=enabled gles1=disabled &&
-config_query_option MESA_GLES2 "support GLES2/3 - embedded systems" n gles2=enabled gles2=disabled &&
+config_query MESA_TEFLON "Enable TensorFlow Lite delegate" n &&
+config_query MESA_GPUVIS "Enable tracing markers for gpuvis" n &&
 
-config_query_multi MESA_TOOLS  "which tools to build" \
-  etnaviv \
-  freedreno \
-  glsl \
-  intel \
-  intel-ui \
-  nir \
-  nouveau &&
+if list_find "$MESA_DRM" INTEL;then
+  config_query MESA_INTEL_RT "Build Intel raytracing support (on supported hardware)?" n
+fi &&
 
-config_query_multi MESA_OMX    "OMax support" auto disabled tizonia bellagio &&
+config_query_multi MESA_VIDEO_CODECS "Which codecs to build?" \
+                   none \
+                   all \
+                   all_free \
+                   av1dec \
+                   av1enc \
+                   h264dec \
+                   h264enc \
+                   h265dec \
+                   h265enc \
+                   vc1dec \
+                   vp9dec \
+                   &&
 
-# strip any leading spaces from the driver lists
-MESA_GALLIUM="${MESA_GALLIUM# }" &&
-MESA_VULKAN="${MESA_VULKAN# }"
+config_query MESA_XMLCONFIG "Enable custom xmlconfig (driconf) support (requires expat)?" n &&
+
+# strip any leading or trailing spaces from the driver lists
+MESA_GALLIUM="${MESA_GALLIUM## }" &&
+MESA_GALLIUM="${MESA_GALLIUM%% }" &&
+persistent_add MESA_GALLIUM &&
+MESA_VULKAN="${MESA_VULKAN## }" &&
+MESA_VULKAN="${MESA_VULKAN%% }" &&
+persistent_add MESA_VULKAN
