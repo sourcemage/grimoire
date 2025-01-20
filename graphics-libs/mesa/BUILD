@@ -40,7 +40,7 @@ meson_opt boolean "gallium-d3d10umd"       "$MESA_GALLIUM_D3D10" &&
 meson_opt feature "gallium-d3d12-graphics" "$MESA_GALLIUM_D3D12_PIPELINE" &&
 meson_opt feature "gallium-d3d12-video"    "$MESA_GALLIUM_D3D12_VIDEO" &&
 meson_opt boolean "gallium-extra-hud"      "$MESA_GALLIUM_HUD" &&
-meson_opt feature "gallium-opencl"         "$MESA_OPENCL" &&
+meson_opt choice  "gallium-opencl"         "$MESA_OPENCL" &&
 meson_opt boolean "gallium-rusticl"        "$MESA_RUSTICL" &&
 meson_opt feature "gallium-xa"             "$MESA_GALLIUM_XA" &&
 meson_opt feature "gbm"                    "$MESA_GBM" &&
@@ -53,7 +53,6 @@ meson_opt boolean "glx-read-only-text"     "$MESA_GLX_READONLY" &&
 meson_opt boolean "gpuvis"                 "$MESA_GPUVIS" &&
 meson_opt feature "intel-rt"               "$MESA_INTEL_RAYTRACE" &&
 meson_opt boolean "llvm-orcjit"            "$MESA_LLVM_ORCJIT" &&
-meson_opt boolean "opencl-spirv"           "$MESA_OPENCL_SPIRV" &&
 meson_opt boolean "opengl"                 "$MESA_OPENGL" &&
 meson_opt boolean "osmesa"                 "$MESA_OSMESA" &&
 meson_opt boolean "perfetto"               "$MESA_PERFETTO" &&
