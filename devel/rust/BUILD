@@ -54,7 +54,7 @@ sed -e "s;profile =.*;profile = 'user';" \
 elif list_find "${RUST_TOOLS}" "default"; then
   sed '/^\[build\]/atools = \[ "cargo", "rustdoc" \]' -i config.toml
 else
-  sed "/^\[build\]/atools = \[ \"${RUST_TOOLS// /\", \"}\" ]" -i config.toml
+  sed "/^\[build\]/atools = \[ \"${RUST_TOOLS// /\", \"}\" \]" -i config.toml
 fi &&
 
 export CARGO_HOME="$SOURCE_DIRECTORY/cargo_home" &&
