@@ -146,7 +146,7 @@ buildsys_meson_default() {
 ##          disabled)
 ##
 ## The syntax for the parameters is as follows:
-## 
+##
 ## buildsys_depends[_optional] \
 ##                             [-a active_build_system] \
 ##                             [-g grimoire] \
@@ -263,18 +263,25 @@ _buildsys_transform_depends() {
   done &&
   "$match"
   _buildsys_chkerr "no matching build system found" || return 2
-  case "$depends_func" in
-    depends) unset disabled ;;
-  esac &&
   if [ -n "$global_optname" ] ;then
     # provide a last-resort fallback value for enabled settings
     : "${enabled:=$(buildsys_defaults "$targetsys" enabled "$global_optname")}"
   fi
-  "$depends_func" ${subdeps:+-sub "$subdeps"} "$spell" \
-    "$enabled" \
-    ${disabled:+"$disabled"} \
-    "$msg" \
-    "$grimoire"
+  case "$depends_func" in
+    depends)
+      "$depends_func" ${subdeps:+-sub "$subdeps"} "$spell" \
+        "$enabled" \
+        "$msg" \
+        "$grimoire"
+      ;;
+    optional_depends)
+      "$depends_func" ${subdeps:+-sub "$subdeps"} "$spell" \
+        "$enabled" \
+        "$disabled" \
+        "$msg" \
+        "$grimoire"
+      ;;
+  esac
 }
 
 #---------------------------------------------------------------------
