@@ -1,4 +1,4 @@
-# FIXME ccache doesn't work with user "nobody"
+# Use our own wrappers instead of libreoffice's buildsystem support
 OPTS+=' --disable-ccache' &&
 # Release build type
 OPTS+=' --enable-release-build' &&
@@ -11,9 +11,11 @@ OPTS+=' --disable-extension-update --enable-readonly-installset' &&
 
 CXXFLAGS+=' -DU_USING_ICU_NAMESPACE=1' &&
 
+install -o nobody -d "$CCACHE_DIR" &&
 cd "$SOURCE_DIRECTORY.build" &&
 # XXX bails out if you try to build as root
 chown nobody . &&
+export LO_PATH_FOR_BUILD="$PATH" &&
 su nobody -s /bin/sh -c "
 \"$SOURCE_DIRECTORY\"/configure \
            --prefix=\"$INSTALL_ROOT\"/usr \
@@ -25,5 +27,6 @@ su nobody -s /bin/sh -c "
              --host=\"$HOST\" \
       --with-vendor=\"SourceMage\" \
                     $OPTS $LIBREOFFICE_OPTS &&
-make -j$MAKE_NJOBS
+gmake -j $((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS)) \
+      CCACHE_DIR='$CCACHE_DIR'
 "
