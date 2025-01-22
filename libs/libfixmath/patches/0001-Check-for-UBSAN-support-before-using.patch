@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Wed, 22 Jan 2025 22:23:04 +0100
+Subject: [PATCH] Check for UBSAN support before using
+
+Check with the compiler instead of guessing or maintaining a list.
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ tests/tests.cmake |    9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/tests/tests.cmake b/tests/tests.cmake.new
+index 2aa3b16..04e6f93 100644
+--- a/tests/tests.cmake
++++ b/tests/tests.cmake
+@@ -3,11 +3,11 @@
+ enable_testing()
+ 
+ # -fno-sanitize-recover
+-if(APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "ppc|ppc64")
+-# Darwin PPC does not support ubsan presently.
+-    set(sanitizer_opts "")
+-else()
+-    set(sanitizer_opts -fsanitize=undefined)
++set(sanitizer_opts -fsanitize=undefined)
++include(CheckLinkerFlag)
++check_linker_flag(C "${sanitizer_opts}" HAVE_UBSAN)
++if (NOT HAVE_UBSAN)
++    set(sanitizer_opts "")
+ endif()
+ 
+ add_custom_target(make_tests)

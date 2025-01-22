@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Rene Engelhard <rene@eller.debian.org>
+Date: Wed, 23 Mar 2022 00:00:00 +0000
+Subject: [PATCH] Link with -latomic
+ 
+needed e.g. on armel:
+	[ 72%] Linking C executable tests_nn64
+	/usr/bin/cmake -E cmake_link_script CMakeFiles/tests_nn64.dir/link.txt --verbose=1
+	/usr/bin/cc -Wall -pedantic -Wextra -Werror=return-type -Wl,-z,relro -fsanitize=undefined CMakeFiles/tests_nn64.dir/tests/tests.c.o CMakeFiles/tests_nn64.dir/tests/tests_basic.c.o CMakeFiles/tests_nn64.dir/tests/tests_lerp.c.o CMakeFiles/tests_nn64.dir/tests/tests_macros.c.o CMakeFiles/tests_nn64.dir/tests/tests_sqrt.c.o CMakeFiles/tests_nn64.dir/tests/tests_str.c.o -o tests_nn64  liblibfixmath_nn64.a -lm 
+	/usr/bin/ld: /usr/lib/gcc/arm-linux-gnueabi/11/libubsan.so: undefined reference to `__atomic_load_8'
+	collect2: error: ld returned 1 exit status<short summary of the patch>
+
+Origin: vendor
+Upstream-Status: Pending
+[ismael@sourcemage.org: Normalised the patch]
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ tests/tests.cmake |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- libfixmath-0~20220222.orig/tests/tests.cmake
++++ libfixmath-0~20220222/tests/tests.cmake
+@@ -26,7 +26,7 @@ function(create_variant name defs)
+     target_compile_options(libfixmath_${name} PRIVATE ${sanitizer_opts})
+     target_link_options(libfixmath_${name} PRIVATE ${sanitizer_opts})
+     add_executable(tests_${name} ${tests-srcs})
+-    target_link_libraries(tests_${name} PRIVATE libfixmath_${name} m)
++    target_link_libraries(tests_${name} PRIVATE libfixmath_${name} m atomic)
+     target_include_directories(tests_${name} PRIVATE ${CMAKE_SOURCE_DIR})
+     target_compile_definitions(tests_${name} PRIVATE ${defs})
+     target_compile_options(tests_${name} PRIVATE ${sanitizer_opts})
