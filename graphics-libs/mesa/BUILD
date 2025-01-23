@@ -53,7 +53,6 @@ meson_opt boolean "glx-read-only-text"     "$MESA_GLX_READONLY" &&
 meson_opt boolean "gpuvis"                 "$MESA_GPUVIS" &&
 meson_opt feature "intel-rt"               "$MESA_INTEL_RAYTRACE" &&
 meson_opt boolean "llvm-orcjit"            "$MESA_LLVM_ORCJIT" &&
-meson_opt boolean "opencl-spirv"           "$MESA_OPENCL_SPIRV" &&
 meson_opt boolean "opengl"                 "$MESA_OPENGL" &&
 meson_opt boolean "osmesa"                 "$MESA_OSMESA" &&
 meson_opt boolean "perfetto"               "$MESA_PERFETTO" &&
@@ -63,6 +62,10 @@ meson_opt boolean "spirv-to-dxil"          "$MESA_SPIRV_DXIL" &&
 meson_opt boolean "teflon"                 "$MESA_TEFLON" &&
 meson_opt feature "xlib-lease"             "$MESA_XLIB_LEASE" &&
 meson_opt feature "xmlconfig"              "$MESA_XMLCONFIG" &&
+
+if [[ "${MESA_BRANCH}" != "scm" ]] ;then
+  meson_opt boolean "opencl-spirv"         "$MESA_OPENCL_SPIRV"
+fi &&
 
 if [ -z "$MESA_GALLIUM" ] || list_find "$MESA_GALLIUM" none ;then
   meson_opt list "gallium-drivers" ""
