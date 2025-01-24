@@ -16,8 +16,8 @@ case "$HOST" in
     for i in "${unportable[@]}"; do
       MESA_TOOLS="${MESA_TOOLS// $i / }"
     done
-    MESA_TOOLS="${MESA_TOOLS## }"
-    MESA_TOOLS="${MESA_TOOLS%% }"
+    MESA_TOOLS="${MESA_TOOLS# }"
+    MESA_TOOLS="${MESA_TOOLS% }"
     ;;
 esac &&
 
@@ -67,9 +67,7 @@ if [[ "${MESA_BRANCH}" != "scm" ]] ;then
   meson_opt boolean "opencl-spirv"         "$MESA_OPENCL_SPIRV"
 fi &&
 
-if [ -z "$MESA_GALLIUM" ] || list_find "$MESA_GALLIUM" none ;then
-  meson_opt list "gallium-drivers" ""
-else
+if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
   meson_opt list "gallium-drivers" "$MESA_GALLIUM"
 fi &&
 
@@ -81,9 +79,7 @@ if [[ "$MESA_EGL" == y ]] && [ -n "$MESA_EGL_DEFAULT" ] ;then
   meson_opt choice "egl-native-platform" "$MESA_EGL_DEFAULT"
 fi &&
 
-if [ -z "$MESA_LIBCLC_STATIC_LINK" ] || list_find "$MESA_LIBCLC_STATIC_LINK" none ;then
-  meson_opt list "static-libclc" ""
-else
+if [ -n "$MESA_LIBCLC_STATIC_LINK" ] && ! list_find "$MESA_LIBCLC_STATIC_LINK" none ;then
   meson_opt list "static-libclc" "$MESA_LIBCLC_STATIC_LINK"
 fi &&
 
@@ -91,31 +87,23 @@ if [ -n "$MESA_PERFETTO_SOURCES" ] ;then
   meson_opt list "datasources" "$MESA_PERFETTO_SOURCES"
 fi &&
 
-if [ -z "$MESA_TOOLS" ] || list_find "$MESA_TOOLS" none ;then
-  meson_opt list "tools" ""
-else
+if [ -n "$MESA_TOOLS" ] && ! list_find "$MESA_TOOLS" none ;then
   meson_opt list "tools" "$MESA_TOOLS"
 fi &&
 
-if [ -z "$MESA_VIDEO_CODECS" ] || list_find "$MESA_VIDEO_CODECS" none ;then
-  meson_opt list "video-codecs" ""
-else
+if [ -n "$MESA_VIDEO_CODECS" ] && ! list_find "$MESA_VIDEO_CODECS" none ;then
   meson_opt list "video-codecs" "$MESA_VIDEO_CODECS"
 fi &&
 
-if [ -z "$MESA_VULKAN" ] || list_find "$MESA_VULKAN" none ;then
-  meson_opt list "vulkan-drivers" ""
-else
+if [ -n "$MESA_VULKAN" ] && ! list_find "$MESA_VULKAN" none ;then
   meson_opt list "vulkan-drivers" "$MESA_VULKAN"
 fi &&
 
-if [ -z "$MESA_VULKAN_LAYERS" ] || list_find "$MESA_VULKAN_LAYERS" none ;then
-  meson_opt list "vulkan-layers" ""
-else
+if [ -n "$MESA_VULKAN_LAYERS" ] && ! list_find "$MESA_VULKAN_LAYERS" none ;then
   meson_opt list "vulkan-layers" "$MESA_VULKAN_LAYERS"
 fi &&
 
-OPTS="${OPTS//  / }" &&
-OPTS="${OPTS## }" &&
-OPTS="${OPTS%% }" &&
+OPTS="$(echo "$OPTS" | sed 's,\s\+, ,g')" &&
+OPTS="${OPTS# }" &&
+OPTS="${OPTS% }" &&
 default_build
