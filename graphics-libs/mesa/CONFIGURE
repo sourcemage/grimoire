@@ -2,11 +2,46 @@
 . "${GRIMOIRE}/MESON_CONFIGURE" &&
 
 sort_list() {
-  printf '%s\n' "$@" | sort -fu
+  set -- $(printf '%s\n' "$@" | sort -fu)
+  echo "$@"
+}
+
+check_driver() {
+  [ -z "$MESA_DRIVERS" ] && return 1
+  [ -z "$drivers" ] && return 1
+  list_find "$MESA_DRIVERS" "$@"
+}
+
+check_gallium() {
+  [ -z "$MESA_GALLIUM" ] && return 1
+  [ -z "$AVAILABLE_GALLIUM" ] && return 1
+  list_find "$MESA_GALLIUM" none && return 1
+  [ "$#" -eq 0 ] && return 0
+  list_find "$MESA_GALLIUM" "$@"
+}
+
+check_platform() {
+  [ -z "$MESA_PLATFORMS" ] && return 1
+  list_find "$MESA_PLATFORMS" "$@"
+}
+
+check_layers() {
+  [ -z "$MESA_VULKAN_LAYERS" ] && return 1
+  [ -z "$AVAILABLE_LAYERS" ] && return 1
+  list_find "$MESA_VULKAN_LAYERS" none && return 1
+  [ "$#" -eq 0 ] && return 0
+  list_find "$MESA_VULKAN_LAYERS" "$@"
+}
+
+check_vulkan() {
+  [ -z "$MESA_VULKAN" ] && return 1
+  [ -z "$AVAILABLE_VULKAN" ] && return 1
+  list_find "$MESA_VULKAN" none && return 1
+  [ "$#" -eq 0 ] && return 0
+  list_find "$MESA_VULKAN" "$@"
 }
 
 config_query_multi MESA_PLATFORMS "Which window systems to support?" \
-                   auto \
                    wayland \
                    x11 \
                    &&
@@ -17,17 +52,20 @@ config_query_multi MESA_ARCH "Which hardware platforms to support?" \
                    &&
 
 local vendors="VMware" &&
+local drivers &&
+local MESA_DRIVERS &&
+
 if list_find "$MESA_ARCH" x86 ;then
   vendors="$vendors AMD Intel Nvidia Microsoft-WSL"
 fi &&
 if list_find "$MESA_ARCH" ARM ;then
   vendors="$vendors Freedreno Imagination Mali Nvidia RaspberryPi"
 fi &&
-vendors="${vendors## }" &&
-vendors="${vendors%% }" &&
+
+vendors="$(sort_list $vendors)" &&
 
 config_query_multi MESA_HW "Which graphics vendor hardware to support?" \
-                   $(sort_list $vendors) \
+                   $vendors \
                    &&
 
 for vendor in ${MESA_HW} ;do
@@ -51,116 +89,135 @@ for vendor in ${MESA_HW} ;do
   esac
 done &&
 
-drivers="${drivers# }" &&
-drivers="${drivers% }" &&
-case "$drivers" in
-  *" "*)
-    config_query_multi MESA_DRIVERS "Which drivers to support?" \
-                       all \
-                       $(sort_list $drivers)
-    ;;
-  *)
-    MESA_DRIVERS="$drivers"
-    ;;
-esac &&
+drivers="$(sort_list $drivers)" &&
 
-if list_find "$MESA_DRIVERS" etnaviv || list_find "$MESA_DRIVERS" WSL ;then
-  config_query MESA_VULKAN_EXPERIMENTAL "Enable experimental vulkan drivers?"
+local num_drivers="$(set -- $drivers; echo $#)" &&
+if [ $num_drivers -gt 1 ] ;then
+  config_query_multi MESA_DRIVERS_CHOICE "Which drivers to support?" \
+                     all \
+                     $drivers \
+                     &&
+  MESA_DRIVERS="$MESA_DRIVERS_CHOICE"
+else
+  MESA_DRIVERS="$drivers"
+fi
+
+if list_find "$MESA_DRIVERS" all ;then
+  MESA_DRIVERS="$drivers"
+fi
+
+# ensure that MESA_DRIVERS contains no newlines because sorcery's
+# persistent_add functions cannot correctly handle newlines
+MESA_DRIVERS="$(echo $MESA_DRIVERS | tr '\n' ' ')" &&
+
+if check_driver etnaviv WSL ;then
+  config_query MESA_VULKAN_EXPERIMENTAL "Enable experimental vulkan drivers?" n
 fi &&
 
 # only suggest drivers for specified hardware
 local AVAILABLE_GALLIUM="llvmpipe softpipe svga virgl zink" &&
 local AVAILABLE_VULKAN="swrast virtio" &&
+local AVAILABLE_LAYERS="device-select intel-nullhw overlay screenshot" &&
 local AVAILABLE_TOOLS="dlclose-skip drm-shim glsl nir" &&
+MESA_DRM=""
 
-if list_find "$MESA_DRIVERS" amdgpu;then
+if check_driver amdgpu ;then
   MESA_DRM="$MESA_DRM AMD" &&
   AVAILABLE_VULKAN="$AVAILABLE_VULKAN amd" &&
   config_query MESA_AMD_LLVM "Use LLVM for the AMD drivers?" y
 fi &&
 
-if list_find "$MESA_DRIVERS" radeon;then
+if check_driver radeon ;then
   MESA_DRM="$MESA_DRM RADEON" &&
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM r300 r600 radeonsi"
 fi &&
 
-if list_find "$MESA_DRIVERS" intel;then
+if check_driver intel ;then
   MESA_DRM="$MESA_DRM INTEL" &&
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM i915 iris crocus" &&
   AVAILABLE_VULKAN="$AVAILABLE_VULKAN intel intel_hasvk" &&
   AVAILABLE_TOOLS="$AVAILABLE_TOOLS intel intel-ui"
 fi &&
 
-if list_find "$MESA_DRIVERS" etnaviv;then
+if check_driver etnaviv ;then
   MESA_DRM="$MESA_DRM ETNAVIV" &&
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM etnaviv" &&
   AVAILABLE_VULKAN="$AVAILABLE_VULKAN etnaviv" &&
   AVAILABLE_TOOLS="$AVAILABLE_TOOLS etnaviv"
 fi &&
 
-if list_find "$MESA_DRIVERS" freedreno;then
+if check_driver freedreno ;then
   MESA_DRM="$MESA_DRM FREEDRENO" &&
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM freedreno" &&
   AVAILABLE_VULKAN="$AVAILABLE_VULKAN freedreno" &&
   AVAILABLE_TOOLS="$AVAILABLE_TOOLS freedreno"
 fi &&
 
-if list_find "$MESA_DRIVERS" lima;then
+if check_driver lima ;then
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM lima" &&
   AVAILABLE_TOOLS="$AVAILABLE_TOOLS lima"
 fi &&
 
-if list_find "$MESA_DRIVERS" nouveau;then
+if check_driver nouveau ;then
   MESA_DRM="$MESA_DRM NOUVEAU" &&
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM nouveau" &&
   AVAILABLE_VULKAN="$AVAILABLE_VULKAN nouveau" &&
   AVAILABLE_TOOLS="$AVAILABLE_TOOLS nouveau"
 fi &&
 
-if list_find "$MESA_DRIVERS" panfrost;then
+if check_driver panfrost ;then
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM panfrost" &&
   AVAILABLE_VULKAN="$AVAILABLE_VULKAN panfrost" &&
   AVAILABLE_TOOLS="$AVAILABLE_TOOLS panfrost"
 fi &&
 
-if list_find "$MESA_DRIVERS" rpi;then
+if check_driver rpi ;then
   MESA_DRM="$MESA_DRM VC4" &&
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM v3d vc4" &&
   AVAILABLE_VULKAN="$AVAILABLE_VULKAN broadcom" &&
   AVAILABLE_TOOLS="$AVAILABLE_TOOLS freedreno"
 fi &&
 
-if list_find "$MESA_DRIVERS" tegra;then
+if check_driver tegra ;then
   MESA_DRM="$MESA_DRM TEGRA" &&
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM tegra"
 fi &&
 
-if list_find "$MESA_DRIVERS" vmware;then
+if check_driver vmware ;then
   MESA_DRM="$MESA_DRM vmwgfx" &&
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM vmware"
 fi &&
 
-if list_find "$MESA_DRIVERS" WSL;then
+if check_driver WSL ;then
   AVAILABLE_GALLIUM="$AVAILABLE_GALLIUM d3d12" &&
   if [[ "$MESA_VULKAN_EXPERIMENTAL" == "y" ]] ;then
     AVAILABLE_VULKAN="$AVAILABLE_VULKAN microsoft-experimental"
   fi
 fi &&
 
-config_query_multi MESA_GALLIUM "Which gallium (accelerated) drivers to build?" \
+AVAILABLE_GALLIUM="$(sort_list $AVAILABLE_GALLIUM)" &&
+AVAILABLE_TOOLS="$(sort_list $AVAILABLE_TOOLS)" &&
+AVAILABLE_VULKAN="$(sort_list $AVAILABLE_VULKAN)" &&
+
+config_query_multi MESA_GALLIUM_CHOICE "Which gallium (accelerated) drivers to build?" \
                    none \
                    all \
-                   auto \
-                   $(sort_list $AVAILABLE_GALLIUM) \
+                   $AVAILABLE_GALLIUM \
                    &&
 
-if [ -n "$MESA_GALLIUM" ] &&  ! list_find "$MESA_GALLIUM" none ;then
+MESA_GALLIUM="$MESA_GALLIUM_CHOICE" &&
+
+if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
+  if list_find "$MESA_GALLIUM" all ;then
+    MESA_GALLIUM="$AVAILABLE_GALLIUM"
+  fi &&
+
   config_query MESA_GALLIUM_HUD "Enable HUD block/NIC I/O HUD status support?" n &&
 
   local allow_xa
   # XA state tracker requires one of the following gallium drivers
   for driver in nouveau freedreno i915 svga ;do
-    if list_find "$MESA_GALLIUM" $driver ;then
+    if check_gallium "$driver" ;then
       allow_xa="y"
     fi
   done &&
@@ -169,21 +226,21 @@ if [ -n "$MESA_GALLIUM" ] &&  ! list_find "$MESA_GALLIUM" none ;then
     config_query MESA_GALLIUM_XA "Build gallium XA frontend?" n
   fi &&
 
-  if list_find "$MESA_GALLIUM" vmware ;then
-    if ! list_find "$MESA_GALLIUM" svga ;then
+  if check_gallium vmware ;then
+    if ! check_gallium svga ;then
       message "The vmware driver requires gallium svga; adding gallium svga." &&
       MESA_GALLIUM="$MESA_GALLIUM svga"
     fi
   fi &&
 
-  if list_find "$MESA_GALLIUM" llvmpipe || list_find "$MESA_GALLIUM" softpipe ;then
+  if check_gallium llvmpipe softpipe ;then
     config_query MESA_GALLIUM_D3D9 "Build gallium Direct3D9 (nine) frontend?" n &&
-    if list_find "$MESA_DRIVERS" WSL ;then
+    if check_driver WSL ;then
       config_query MESA_GALLIUM_D3D10 "Build gallium Direct3D10 (WDDM UMD) frontend?" n
     fi
   fi &&
 
-  if list_find "$MESA_GALLIUM" d3d12 ;then
+  if check_gallium d3d12 ;then
     config_query MESA_GALLIUM_D3D12_PIPELINE "Build gallium with Direct3D12 graphics pipeline support?" n &&
     config_query MESA_GALLIUM_D3D12_VIDEO "Build gallium with Direct3D12 video support?" n
   fi &&
@@ -207,34 +264,11 @@ if [ -n "$MESA_GALLIUM" ] &&  ! list_find "$MESA_GALLIUM" none ;then
     config_query_multi MESA_RUSTICL_DRIVERS "Which drivers to enable with rusticl by default?" \
                        auto \
                        asahi
-  fi
-fi &&
+  fi &&
 
-config_query_multi MESA_VULKAN "Which Vulkan drivers to build?" \
-                   none \
-                   all \
-                   auto \
-                   $(sort_list $AVAILABLE_VULKAN) \
-                   &&
-
-if [ -n "$MESA_VULKAN" ] && ! list_find "$MESA_VULKAN" none ;then
-  config_query_multi MESA_VULKAN_LAYERS "Which Vulkan layers to build?" \
-                     none \
-                     device-select \
-                     intel-nullhw \
-                     overlay \
-                     screenshot \
-                     &&
-
-  config_query MESA_XLIB_LEASE "Enable VK_EXT_acquire_xlib_display?" n
-fi &&
-
-config_query MESA_SHADER_CACHE "Support on-disk shader caching?" n &&
-
-# EGL requires DRI, which is only enabled if gallium is enabled
-if ! list_find "$MESA_GALLIUM" none ;then
-  # Walyand requires EGL support
-  if list_find "$MESA_PLATFORMS" wayland || (list_find "$MESA_PLATFORMS" auto && spell_ok wayland) ;then
+  # EGL requires DRI, which is only enabled if gallium is enabled
+  if check_platform "$MESA_PLATFORMS" wayland ;then
+    # Walyand requires EGL support
     MESA_EGL=y &&
     persistent_add MESA_EGL
   else
@@ -243,20 +277,54 @@ if ! list_find "$MESA_GALLIUM" none ;then
 
   if [[ "$MESA_EGL" == "y" ]] ;then
     local egldefaults="drm surfaceless" &&
-    if list_find "$MESA_PLATFORMS" x11 ;then
+    if check_platform x11 ;then
       egldefaults="$egldefaults x11"
     fi &&
-    if list_find "$MESA_PLATFORMS" wayland ;then
+    if check_platform wayland ;then
       egldefaults="$egldefaults wayland"
     fi &&
-    if list_find "$MESA_PLATFORMS" WSL ;then
+    if check_driver WSL ;then
       egldefaults="$egldefaults windows"
     fi &&
+    egldefaults="$(sort_list $egldefaults)"
     config_query_list MESA_EGL_DEFAULT "Which window system should EGL assume for EGL_DEFAULT_DISPLAY" \
                       auto \
-                      $(sort_list $egldefaults)
+                      $egldefaults
   fi
 fi &&
+
+config_query_multi MESA_VULKAN_CHOICE "Which Vulkan drivers to build?" \
+                   none \
+                   all \
+                   $AVAILABLE_VULKAN \
+                   &&
+
+MESA_VULKAN="$MESA_VULKAN_CHOICE" &&
+
+if [ -n "$MESA_VULKAN" ] && ! list_find "$MESA_VULKAN" none ;then
+  if list_find "$MESA_VULKAN" all ;then
+    MESA_VULKAN="$AVAILABLE_VULKAN"
+  fi &&
+
+  config_query_multi MESA_VULKAN_LAYERS_CHOICE "Which Vulkan layers to build?" \
+                     none \
+                     all \
+                     $AVAILABLE_LAYERS \
+                     &&
+
+  MESA_VULKAN_LAYERS="$MESA_VULKAN_LAYERS_CHOICE" &&
+
+  if list_find "$MESA_VULKAN_LAYERS" none ;then
+    MESA_VULKAN_LAYERS="none"
+  fi &&
+  if list_find "$MESA_VULKAN_LAYERS" all ;then
+    MESA_VULKAN_LAYERS="$AVAILABLE_LAYERS"
+  fi &&
+
+  config_query MESA_XLIB_LEASE "Enable VK_EXT_acquire_xlib_display?" n
+fi &&
+
+config_query MESA_SHADER_CACHE "Support on-disk shader caching?" n &&
 
 config_query MESA_GLES1 "Support OpenGL ES 1.x?" n &&
 config_query MESA_GLES23 "Support OpenGL ES 2.x and 3.x?" n &&
@@ -264,12 +332,13 @@ config_query MESA_OPENGL "Enable desktop OpenGL support?" y &&
 config_query MESA_GBM "Enable generic buffer management (GBM) support?" n &&
 config_query MESA_OSMESA "Build OSmesa to support off-screen rendering?" n &&
 
-config_query_list MESA_GLX "Which GLX build type (auto or dri recommended)?" \
-                  auto \
+config_query_list MESA_GLX_CHOICE "Which GLX build type (dri recommended)?" \
                   disabled \
                   dri \
                   xlib \
                   &&
+
+MESA_GLX="$MESA_GLX_CHOICE"
 
 if list_find "${MESA_GLX}" "disabled"; then
   MESA_GLX="disabled"
@@ -284,11 +353,17 @@ fi &&
 
 config_query MESA_SPIRV_DXIL "Build support for the SPIR-V to DXIL library?" n &&
 
-config_query_multi MESA_TOOLS  "Which tools to build?" \
+config_query_multi MESA_TOOLS_CHOICE "Which tools to build?" \
                    none \
                    all \
-                   $(sort_list $AVAILABLE_TOOLS) \
+                   $AVAILABLE_TOOLS \
                    &&
+
+MESA_TOOLS="$MESA_TOOLS_CHOICE" &&
+
+if list_find "$MESA_TOOLS" all ;then
+  MESA_TOOLS="$AVAILABLE_TOOLS"
+fi
 
 local perfetto_sources=""
 if list_find "$MESA_DRIVERS" freedreno ;then
@@ -300,19 +375,20 @@ fi &&
 if list_find "$MESA_DRIVERS" panfrost ;then
   perfetto_sources="$perfetto_sources intel"
 fi &&
+  perfetto_sources="$(sort_list $perfetto_sources)" &&
 if [ -n "$perfetto_sources" ] ;then
   config_query MESA_PERFETTO "Enable performance analysis with Perfetto" n &&
   if [[ "$MESA_PERFETTO" == "y" ]] ;then
     config_query_multi MESA_PERFETTO_SOURCES "Perfetto datasources to build" \
                        auto \
-                       $(sort_list $perfetto_sources)
+                       $perfetto_sources
   fi
 fi &&
 
 config_query MESA_TEFLON "Enable TensorFlow Lite delegate" n &&
 config_query MESA_GPUVIS "Enable tracing markers for gpuvis" n &&
 
-if list_find "$MESA_VULKAN" intel || list_find "$MESA_VULKAN" intel_hasvk ;then
+if check_vulkan intel intel_hasvk ;then
   config_query MESA_INTEL_RT "Build Intel raytracing support (on supported hardware)?" n
 fi &&
 
@@ -332,20 +408,10 @@ config_query_multi MESA_VIDEO_CODECS "Which codecs to build?" \
 
 config_query MESA_XMLCONFIG "Enable custom xmlconfig (driconf) support (requires expat)?" n &&
 
-# strip any leading or trailing spaces from the driver lists
-MESA_DRM=$(awk -vRS=" " -vORS=" " '!a[$1]++ {print $1}' <<< ${MESA_DRM}) &&
-MESA_DRM="$(echo "$MESA_DRM" | sed 's,\s\+, ,g')" &&
-MESA_DRM="${MESA_DRM# }" &&
-MESA_DRM="${MESA_DRM% }" &&
-MESA_GALLIUM="$(echo "$MESA_GALLIUM" | sed 's,\s\+, ,g')" &&
-MESA_GALLIUM="${MESA_GALLIUM# }" &&
-MESA_GALLIUM="${MESA_GALLIUM% }" &&
-MESA_VULKAN="$(echo "$MESA_VULKAN" | sed 's,\s\+, ,g')" &&
-MESA_VULKAN="${MESA_VULKAN# }" &&
-MESA_VULKAN="${MESA_VULKAN% }" &&
-
+# declare global persistent variables
 persistent_add MESA_DRM &&
-persistent_add MESA_DRIVERS &&
 persistent_add MESA_GALLIUM &&
 persistent_add MESA_GLX &&
-persistent_add MESA_VULKAN
+persistent_add MESA_TOOLS &&
+persistent_add MESA_VULKAN &&
+persistent_add MESA_VULKAN_LAYERS
