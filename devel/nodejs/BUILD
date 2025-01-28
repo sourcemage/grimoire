@@ -1,3 +1,4 @@
+CXXFLAGS+=" -Wno-deprecated-declarations" &&
 # -Ofast breaks other projects (Firefox)
 CFLAGS="${CFLAGS//-Ofast/-O2}" &&
 CXXFLAGS="${CXXFLAGS//-Ofast/-O2}" &&
