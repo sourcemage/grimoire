@@ -6,29 +6,23 @@
          VERSION=$(get_scm_version)
   FORCE_DOWNLOAD=on
           SOURCE=$SPELL-git.tar.bz2
-SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-git
+SOURCE_DIRECTORY="${BUILD_DIRECTORY}/${SPELL}-git"
       SOURCE_URL="git://sourceware.org/git/glibc.git:$SPELL-git"
    SOURCE_IGNORE=volatile
   else
-         VERSION=2.40
-  SECURITY_PATCH=24
+         VERSION=2.41
+     SOURCE_HASH="sha512:894a3e5a796bc13df30c26a5bfbe4d60b5dbdaac54e7763432235124b547070c7dda88c50584536870cab79183d8cad73a3ac6ed09bfe54fa8482aad07253169"
+  SECURITY_PATCH=25
           SOURCE=$SPELL-$VERSION.tar.xz
-SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
-         SOURCE2=$SOURCE.sig
+SOURCE_DIRECTORY="${BUILD_DIRECTORY}/${SPELL}-${VERSION}"
    SOURCE_URL[0]=$GNU_URL/$SPELL/$SOURCE
-  SOURCE2_URL[0]=${SOURCE_URL[0]}.sig
-      SOURCE_GPG=glibc.gpg:$SOURCE.sig:UPSTREAM_KEY
-  SOURCE2_IGNORE=signature
   fi
   if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
- HEADERS_VERSION=6.10
+ HEADERS_VERSION=6.13
+    SOURCE3_HASH="sha512:1137e6440132b0958f89165440e99208f82b204e7245ae69dc9c808df97d13ce8f58136db92407e0e93394fa7f6283ec7a34597c6e92a5b6d9025e0960357957"
  HEADERS_MAJOR_VERSION=$(echo $HEADERS_VERSION|cut -f1 -d.)
          SOURCE3=linux-${HEADERS_VERSION}.tar.xz
-         SOURCE6=linux-${HEADERS_VERSION}.tar.sign
-  SOURCE6_IGNORE=signature
-     SOURCE3_GPG="kernel.gpg:${SOURCE6}:ESTABLISHED_UPSTREAM_KEY"
   SOURCE3_URL[0]="$KERNEL_URL/pub/linux/kernel/v${HEADERS_MAJOR_VERSION}.x/$SOURCE3"
-  SOURCE6_URL[0]="$KERNEL_URL/pub/linux/kernel/v${HEADERS_MAJOR_VERSION}.x/$SOURCE6"
   else
     local LINUX_DIRECTORY
  LINUX_DIRECTORY=$(gaze -q where -path linux)
@@ -40,6 +34,9 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
  HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_4}
          SOURCE3=linux-${LATEST_4}.tar.xz
          SOURCE6="linux-${LATEST_4}.tar.sign"
+     SOURCE3_GPG="kernel.gpg:${SOURCE6}:ESTABLISHED_UPSTREAM_KEY"
+  SOURCE6_IGNORE=signature
+     SOURCE6_URL="${KERNEL_URL}/pub/linux/kernel/$HEADERS_VDIR/${SOURCE6}"
     HEADERS_VDIR=v4.x
       if [[ ${HEADERS_VERSION} != *.0 ]]; then
          SOURCE7=patch-${HEADERS_VERSION}.xz
@@ -56,6 +53,9 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
  HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_5}
          SOURCE3=linux-${LATEST_5}.tar.xz
          SOURCE6="linux-${LATEST_5}.tar.sign"
+     SOURCE3_GPG="kernel.gpg:${SOURCE6}:ESTABLISHED_UPSTREAM_KEY"
+  SOURCE6_IGNORE=signature
+     SOURCE6_URL="${KERNEL_URL}/pub/linux/kernel/$HEADERS_VDIR/${SOURCE6}"
     HEADERS_VDIR=v5.x
       if [[ ${HEADERS_VERSION} != *.0 ]]; then
         . "${LINUX_DIRECTORY}/info/patches/maintenance_patches_5/${LATEST_maintenance_patches_5}"
@@ -64,22 +64,20 @@ SOURCE_DIRECTORY=$BUILD_DIRECTORY/$SPELL-$VERSION
       fi
          ;;
        6.*)
+        . "${LINUX_DIRECTORY}/info/kernels/${LATEST_6}"
+        . "${LINUX_DIRECTORY}/info/patches/maintenance_patches_6/${LATEST_maintenance_patches_6}"
  HEADERS_VERSION=$(echo $LATEST_maintenance_patches_6 | sed "s/patch-//")
  HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_6}
          SOURCE3=linux-${LATEST_6}.tar.xz
-         SOURCE6="linux-${LATEST_6}.tar.sign"
+    SOURCE3_HASH="${source_hash}"
     HEADERS_VDIR=v6.x
       if [[ ${HEADERS_VERSION} != *.0 ]]; then
-        . "${LINUX_DIRECTORY}/info/patches/maintenance_patches_6/${LATEST_maintenance_patches_6}"
         SOURCE7=patch-${HEADERS_VERSION}.xz
         SOURCE7_HASH="sha512:${sha512sum}"
       fi
     esac
 
-     SOURCE3_GPG="kernel.gpg:${SOURCE6}:ESTABLISHED_UPSTREAM_KEY"
      SOURCE3_URL="${KERNEL_URL}/pub/linux/kernel/$HEADERS_VDIR/${SOURCE3}"
-  SOURCE6_IGNORE=signature
-     SOURCE6_URL="${KERNEL_URL}/pub/linux/kernel/$HEADERS_VDIR/${SOURCE6}"
 
     if [[ -n $SOURCE7 ]]; then
      SOURCE7_URL="${KERNEL_URL}/pub/linux/kernel/$HEADERS_VDIR/${SOURCE7}"
