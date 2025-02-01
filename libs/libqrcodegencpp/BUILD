@@ -1,0 +1,1 @@
+gmake -C cpp VERSION="$VERSION" PREFIX="$INSTALL_ROOT"/usr
