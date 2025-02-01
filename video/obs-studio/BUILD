@@ -1,10 +1,9 @@
 # XXX Fix version number
 OPTS+=" -DOBS_VERSION_OVERRIDE=$VERSION" &&
-# XXX obs-filters plugin can't build with -ffast-math
-CFLAGS="${CFLAGS//-ffast-math}" &&
-OPTS+=' -DENABLE_NEW_MPEGTS_OUTPUT=OFF \
+OPTS+=' -DOBS_COMPILE_DEPRECATION_AS_WARNING=ON \
+        -DENABLE_NEW_MPEGTS_OUTPUT=OFF \
         -DENABLE_BROWSER=OFF \
-        -DENABLE_NATIVE_NVENC=OFF \
+        -DENABLE_NVENC=OFF \
         -DENABLE_WEBSOCKET=NO \
         -DENABLE_VST=ON \
         -DENABLE_AJA=OFF' &&
