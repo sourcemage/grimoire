@@ -1,0 +1,202 @@
+From 4985c8a7947a5b1498774d6ee6d9a40e2d779e34 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 1 Feb 2025 13:09:46 +0100
+Subject: [PATCH] =?UTF-8?q?Make=20=C2=B5TP=20optional=20again?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ libtransmission/CMakeLists.txt | 6 +++++-
+ libtransmission/net.cc         | 4 ++++
+ libtransmission/peer-io.cc     | 4 ++++
+ libtransmission/peer-mgr.cc    | 2 ++
+ libtransmission/peer-socket.cc | 2 ++
+ libtransmission/session.cc     | 6 ++++++
+ libtransmission/tr-udp.cc      | 4 ++++
+ libtransmission/tr-utp.cc      | 2 ++
+ 8 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/libtransmission/CMakeLists.txt b/libtransmission/CMakeLists.txt
+index 7c2127d5658e..aa08195d0428 100644
+--- a/libtransmission/CMakeLists.txt
++++ b/libtransmission/CMakeLists.txt
+@@ -178,6 +178,10 @@ target_sources(${TR_NAME}
+         webseed.cc
+         webseed.h)
+ 
++if(NOT ENABLE_UTP)
++    set_source_files_properties(tr-utp.cc PROPERTIES HEADER_FILE_ONLY ON)
++endif()
++
+ configure_file(version.h.in version.h)
+ 
+ target_sources(${TR_NAME}
+@@ -281,7 +285,7 @@ target_link_libraries(${TR_NAME}
+         natpmp::natpmp
+         miniupnpc::libminiupnpc
+         dht::dht
+-        libutp::libutp
++        ${UTP_LIBRARY}
+         libb64::libb64
+         ${LIBINTL_LIBRARY}
+         ${LIBM_LIBRARY}
+diff --git a/libtransmission/net.cc b/libtransmission/net.cc
+index d7384b6bdcf1..9927bf2005b3 100644
+--- a/libtransmission/net.cc
++++ b/libtransmission/net.cc
+@@ -25,7 +25,9 @@
+ 
+ #include <fmt/core.h>
+ 
++#ifdef WITH_UTP
+ #include <libutp/utp.h>
++#endif
+ 
+ #include "transmission.h"
+ 
+@@ -35,7 +37,9 @@
+ #include "session.h"
+ #include "tr-assert.h"
+ #include "tr-macros.h"
++#ifdef WITH_UTP
+ #include "tr-utp.h"
++#endif
+ #include "utils.h"
+ #include "variant.h"
+ 
+diff --git a/libtransmission/peer-io.cc b/libtransmission/peer-io.cc
+index a3e143b9b606..e80462814b58 100644
+--- a/libtransmission/peer-io.cc
++++ b/libtransmission/peer-io.cc
+@@ -13,7 +13,9 @@
+ #include <event2/event.h>
+ #include <event2/bufferevent.h>
+ 
++#ifdef WITH_UTP
+ #include <libutp/utp.h>
++#endif
+ 
+ #include <fmt/format.h>
+ 
+@@ -24,7 +26,9 @@
+ #include "net.h"
+ #include "peer-io.h"
+ #include "tr-assert.h"
++#ifdef WITH_UTP
+ #include "tr-utp.h"
++#endif
+ #include "utils.h" // for _()
+ 
+ #define tr_logAddErrorIo(io, msg) tr_logAddError(msg, (io)->display_name())
+diff --git a/libtransmission/peer-mgr.cc b/libtransmission/peer-mgr.cc
+index f17577647b1f..e9810daeb208 100644
+--- a/libtransmission/peer-mgr.cc
++++ b/libtransmission/peer-mgr.cc
+@@ -45,7 +45,9 @@
+ #include "torrent.h"
+ #include "torrent-magnet.h"
+ #include "tr-assert.h"
++#ifdef WITH_UTP
+ #include "tr-utp.h"
++#endif
+ #include "utils.h"
+ #include "webseed.h"
+ 
+diff --git a/libtransmission/peer-socket.cc b/libtransmission/peer-socket.cc
+index 380ed11c6e17..6143f885f3da 100644
+--- a/libtransmission/peer-socket.cc
++++ b/libtransmission/peer-socket.cc
+@@ -5,7 +5,9 @@
+ 
+ #include <fmt/format.h>
+ 
++#ifdef WITH_UTP
+ #include <libutp/utp.h>
++#endif
+ 
+ #include "transmission.h"
+ 
+diff --git a/libtransmission/session.cc b/libtransmission/session.cc
+index 1fa954d344d6..6395b675acfc 100644
+--- a/libtransmission/session.cc
++++ b/libtransmission/session.cc
+@@ -55,7 +55,9 @@
+ #include "tr-assert.h"
+ #include "tr-lpd.h"
+ #include "tr-strbuf.h"
++#ifdef WITH_UTP
+ #include "tr-utp.h"
++#endif
+ #include "utils.h"
+ #include "variant.h"
+ #include "verify.h"
+@@ -652,7 +654,9 @@ void tr_session::initImpl(init_data& data)
+         this->lpd_ = tr_lpd::create(lpd_mediator_, eventBase());
+     }
+ 
++#if WITH_UTP
+     tr_utpInit(this);
++#endif
+ 
+     /* cleanup */
+     tr_variantClear(&settings);
+@@ -1313,7 +1317,9 @@ void tr_session::closeImplPart2(std::promise<void>* closed_promise, std::chrono:
+     stats().saveIfDirty();
+     peer_mgr_.reset();
+     openFiles().closeAll();
++#if WITH_UTP
+     tr_utpClose(this);
++#endif
+     this->udp_core_.reset();
+ 
+     // tada we are done!
+diff --git a/libtransmission/tr-udp.cc b/libtransmission/tr-udp.cc
+index ef66a4ffa1b9..bf52846ef8ee 100644
+--- a/libtransmission/tr-udp.cc
++++ b/libtransmission/tr-udp.cc
+@@ -16,7 +16,9 @@
+ #include "net.h"
+ #include "session.h"
+ #include "tr-assert.h"
++#ifdef WITH_UTP
+ #include "tr-utp.h"
++#endif
+ #include "utils.h"
+ 
+ namespace
+@@ -123,6 +125,7 @@ void event_callback(evutil_socket_t s, [[maybe_unused]] short type, void* vsessi
+             tr_logAddTrace("Couldn't parse UDP tracker packet.");
+         }
+     }
++#ifdef WITH_UTP
+     else if (session->allowsUTP() && (session->utp_context != nullptr))
+     {
+         if (!tr_utpPacket(std::data(buf), rc, from_sa, fromlen, session))
+@@ -130,6 +133,7 @@ void event_callback(evutil_socket_t s, [[maybe_unused]] short type, void* vsessi
+             tr_logAddTrace("Unexpected UDP packet");
+         }
+     }
++#endif
+ }
+ } // namespace
+ 
+diff --git a/libtransmission/tr-utp.cc b/libtransmission/tr-utp.cc
+index 905c68e85bcd..42ab6df08f25 100644
+--- a/libtransmission/tr-utp.cc
++++ b/libtransmission/tr-utp.cc
+@@ -20,7 +20,9 @@
+ #include "peer-socket.h"
+ #include "session.h"
+ #include "timer.h"
++#ifdef WITH_UTP
+ #include "tr-utp.h"
++#endif
+ #include "utils.h"
+ 
+ using namespace std::literals;
+-- 
+2.48.1
+
