@@ -23,7 +23,7 @@ fi &&
 
 LDFLAGS="-ldl $LDFLAGS" &&
 CFLAGS="${CFLAGS//-ffast-math}" &&
-OPTS="--enable-dynamic-extensions $SQLITE_TSAFE $OPTS" &&
+OPTS="$SQLITE_TSAFE $OPTS" &&
 
 default_build &&
 
