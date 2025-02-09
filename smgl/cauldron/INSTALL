@@ -1,17 +1,29 @@
 # path where the scripts and data will be based
-install_path="$INSTALL_ROOT/${SCRIPT_BASE#/}"
+local install_path="$INSTALL_ROOT/${SCRIPT_BASE#/}"
 # strip any unnecessary trailing '/' from install_path
-install_path="${install_path%/}"
+local install_path="${install_path%/}"
+
+local install_man_path="$INSTALL_ROOT/usr/share/man/man"
 
 # path where the config files and etc. will be based
-etc_path="$INSTALL_ROOT/${ETC_BASE#/}"
+local etc_path="$INSTALL_ROOT/${ETC_BASE#/}"
 # strip any unnecessary trailing '/' from etc_path
-etc_path="${etc_path%/}"
+local etc_path="${etc_path%/}"
+
+#--------------
+# error-checking function
+#--------------
+chkerr() {
+  local rc="$?"
+  [ "$rc" -eq 0 ] && return 0
+  message "ERROR: $*"
+  return "$?"
+}
 
 #--------------
 # installation functions
 #--------------
-function install_dir() {
+install_dir() {
   local dir="$1"
   local dest="${2:-$install_path}"
 
@@ -19,7 +31,7 @@ function install_dir() {
   install -v -d -m 0755 "$dest/$dir"
 }
 
-function install_dir_files() {
+install_dir_files() {
   local dir="$1"
   local dest="${2:-$install_path}"
 
@@ -27,58 +39,91 @@ function install_dir_files() {
   find "$dir" -maxdepth 1 -type f -exec install -v -m 0644 -t "$dest" '{}' \;
 }
 
-function install_dir_single() {
+install_dir_single() {
   local dir="$1"
   local dest="${2:-$install_path}"
 
   # create the directory
   install_dir "$dir" "$dest" &&
-  #install -v -d -m 0755 "$dest/$dir" &&
 
   # install all the files in it (no child directories)
   install_dir_files "$dir" "$dest/$dir"
-  #find "$dir" -maxdepth 1 -type f -exec install -v -m 0644 '{}' "$dest"/'{}' \;
 }
 
-function install_dir_recursive() {
+install_dir_recursive() {
+  local dir="$1"
+  local dest="${2:-$install_path/$dir}"
+
+  pushd "$dir"
+
+  # create the parent and all child directories
+  find "." -type d -exec install -v -d -m 0755 "$dest"/'{}' \; &&
+
+  # install all the files for the directories
+  find "." -type f -exec install -v -m 0644 '{}' "$dest"/'{}' \; &&
+
+  popd
+}
+
+install_executable_script() {
+  local script="$1"
+  local dest="${2:-$INSTALL_ROOT/usr/bin}"
+
+  # install the executable script
+  install -v -m 0755 -t "$dest" "$script"
+}
+
+install_configs() {
   local dir="$1"
   local dest="${2:-$install_path}"
 
-  # create the parent and all child directories
-  find "$dir" -type d -exec install -v -d -m 0755 "$dest"/'{}' \; &&
-
-  # install all the files for the directories
-  find "$dir" -type f -exec install -v -m 0644 '{}' "$dest"/'{}' \;
+  install_dir_recursive "$dir/config" "$dest/$dir/config"
 }
 
 #--------------
 # common libraries
 #--------------
-function install_common() {
+install_common() {
   # install the common libraries
-  install_dir "common" "$install_path"
+  message "Installing common" &&
+  install_dir "common" "$install_path" &&
   install_dir_files "lib" "$install_path/common"
 }
 
 #--------------
 # cauldron
 #--------------
-function install_cauldron() {
-  # install the ISO filesystem cleaners
-  install_dir_single "cauldron/cleaners"
+prepare_cauldron() {
+  # update main config paths to SCRIPT_BASE
+  sedit "/^CAULDRON_CONF=/s,/usr/share/smgl/,$SCRIPT_BASE/," "cauldron/etc/cauldron.conf" &&
+
+  # update executable script default config paths to ETC_BASE
+  sedit "s,/etc/,$ETC_BASE/," "cauldron/bin/cauldron"
+}
+
+install_cauldron() {
+  install_executable_script "cauldron/bin/cauldron"
 }
 
 #--------------
 # enchantment
 #--------------
-function install_enchantment() {
+prepare_enchantment() {
+  # update main config paths to SCRIPT_BASE
+  sedit "/^ENCHANT_CONF=/s,/usr/share/smgl/,$SCRIPT_BASE/," "enchantment/etc/enchantment.conf" &&
+
+  # update executable script default config paths to ETC_BASE
+  sedit "s,/etc/,$ETC_BASE/," "enchantment/enchanters/shell/bin/enchantment-shell"
+}
+
+install_enchantment() {
   # install the installer modules
   install_dir_recursive "enchantment/modules" &&
 
   # install the selected installer interfaces
-  for installer in ${INTERFACES[@]}
-  do
+  for installer in ${INTERFACES[@]} ;do
     install_dir_recursive "enchantment/enchanters/$installer"
+    chkerr "failed to install enchanter: $installer" || return "$?"
   done
 }
 
@@ -87,31 +132,39 @@ function install_enchantment() {
 # MAIN
 #--------------
 
+for selected in ${CHOSEN_SCRIPTS[@]} ;do
+  if command -v "prepare_${selected}" >/dev/null ;then
+    "prepare_${selected}"
+    chkerr "failed to prepare $selected" || return "$?"
+  fi
+done &&
+
 install_common &&
 
-for selected in ${CHOSEN_SCRIPTS[@]}
-do
+for selected in ${CHOSEN_SCRIPTS[@]} ;do
   # install the library and data files
-  install_dir_single "$selected" &&
+  install_configs "$selected" &&
+  install_dir_recursive "$selected/lib" &&
 
   # install the config file(s)
   install_dir "$selected" "$etc_path" &&
-  pushd "$selected/etc" &&
-  install_dir_recursive "." "$etc_path/$selected" &&
-  popd &&
+  install_dir_recursive "$selected/etc" "$etc_path/$selected" &&
 
   # install any man pages
-  if [[ "$DOCUMENTATION" = 'y' ]]
-  then
-    for manpage in $(find "$selected/doc" -name '*.[1-8]')
-    do
+  if [[ "$DOCUMENTATION" = 'y' ]] ;then
+    for manpage in $(find "$selected/doc" -name '*.[1-8]') ;do
+      local category="man${manpage##*.}"
       # make sure the man dir exists for the needed category first
-      install -v -d -m 0755 "/usr/share/man/man${manpage##*.}" &&
+      install -v -d -m 0755 "$install_man_path/$category" &&
       # install the man page
-      install -v -m 0644 "$manpage" "/usr/share/man/man${manpage##*.}/"
+      install -v -m 0644 "$manpage" "$install_man_path/$category/"
+      chkerr "failed to install $manpage" || return "$?"
     done
   fi &&
 
   # perform any specific install procedures for the selected scripts
-  "install_${selected}"
+  if command -v "install_${selected}" >/dev/null ;then
+    "install_${selected}" || return "$?"
+    chkerr "failed to install $selected" || return "$?"
+  fi
 done
