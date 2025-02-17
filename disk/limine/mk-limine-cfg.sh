@@ -13,6 +13,14 @@ cd /boot
 ROOT=`dracut --print-cmdline|cut -d\  -f1,2`
 #ROOT='root=LABEL=root64'
 
+# build a microcode image
+if `ls /sys/devices/platform/ |grep AMD > /dev/null`;then
+  UCODE=amd
+else
+  UCODE=intel
+fi
+cat /lib/firmware/$UCODE-ucode/* > $UCODE-uc.img
+
 DEST=limine.conf
 
 cat > $DEST << EOF
@@ -20,8 +28,10 @@ limine:config:
 
 
 verbose:yes
+timeout:no
 cmdline: $ROOT
 interface_branding:SourceMage GNU/Linux (Limine boot)
+interface_branding_colour: 6
 wallpaper:boot():/limine/smgl-splash.png
 
 EOF
@@ -31,6 +41,7 @@ for VX in `ls vmlinuz-* | cut -d- -f2|sort -r`;do
 /Linux $VX
 protocol:linux
 path:boot():/vmlinuz-$VX
+module_path:boot():/$UCODE-uc.img
 EOF
 
   MOD='initramfs-$VX.img'
@@ -51,7 +62,7 @@ path:boot():/memtest+
 EOF
 fi
 
-if [[ -d sys/firmware/efi ]];then
+if [[ -d /sys/firmware/efi ]];then
   echo This is a UEFI system
 
 # check for Windows
@@ -60,8 +71,8 @@ if [[ -d sys/firmware/efi ]];then
     echo Windows installation found at $WB
     cat >> $DEST << EOF
 /Windows
-    protocol: efi_chainload
-    image_path: hd(0,1):/bootmgfw.efi
+    protocol: efi
+    image_path: hdd(0:1):/bootmgfw.efi
 EOF
   fi
 
@@ -87,8 +98,8 @@ else  # non UEFI
     echo Windows installation found at $WB
   cat >> $DEST << EOF
 /Windows
-    protocol: bios_chainload
-    image_path: hd(0,1):/bootmgfw
+    protocol: bios
+    image_path: hdd(0:1):/bootmgfw
 EOF
   fi
 fi
