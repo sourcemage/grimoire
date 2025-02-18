@@ -92,6 +92,14 @@ else
    echo Windows installation NOT found
 fi
 
+cat << EOF
+
+Check the generated $DEST carefully, especially for Windows
+/boot should be a FAT32 partition
+Copy /usr/share/limine/* to /boot/limine/
+On UEFI systems, the kernel needs efi support
+EOF
+
 if [[ -n $SFX ]];then
   cat << EOF
 Finally, to create an entry in the UEFI Firmware,
@@ -107,7 +115,5 @@ efibootmgr --create\
 
 EOF
 fi
-
-echo Check the generated $DEST carefully, especially for Windows
 
 ## add a reboot option ??
