@@ -18,6 +18,7 @@ OPTS+=" docdir=${INSTALL_ROOT}/usr/share/doc/systemd-${VERSION}"
 
 OPTS+=" $SYSTEMD_BINFMT"    &&
 OPTS+=" $SYSTEMD_ACL"       &&
+OPTS+=" $SYSTEMD_EFI"       &&
 OPTS+=" $SYSTEMD_HOSTNAMED" &&
 OPTS+=" $SYSTEMD_TIMEDATED" &&
 OPTS+=" $SYSTEMD_LOCALED"   &&
