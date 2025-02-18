@@ -13,6 +13,15 @@ cd /boot
 #ROOT=`dracut --print-cmdline|cut -d\  -f1,2`
 ROOT='root=LABEL=root'
 
+if [[ -d /sys/firmware/efi ]];then
+  echo This is a UEFI system
+  SFX='.efi'
+else
+  echo This is a legacy BIOS system
+fi
+
+
+
 # build a microcode image
 if `ls /sys/devices/platform/ |grep AMD > /dev/null`;then
   UCODE=amd
@@ -35,14 +44,16 @@ interface_branding_colour: 6
 wallpaper:boot():/limine/smgl-splash.png
 wallpaper_style: centered
 term_font_scale: 2x2
+
 EOF
 
 for VX in `ls vmlinuz-* | cut -d- -f2|sort -r`;do
   cat >> $DEST << EOF
 /Linux $VX
 protocol:linux
-path:boot():/vmlinuz-$VX
+path:boot():/vmlinuz-${VX}${SFX}
 module_path:boot():/$UCODE-uc.img
+
 EOF
 
   MOD="initramfs-$VX.img"
@@ -63,22 +74,26 @@ path:boot():/memtest+
 EOF
 fi
 
-if [[ -d /sys/firmware/efi ]];then
-  echo This is a UEFI system
-
 # check for Windows
-  if WIN=`blkid | grep SYSTEM_DRV`; then
-    WB=${WIN%:*}
-    echo Windows installation found at $WB
-    cat >> $DEST << EOF
+if WIN=`blkid | grep SYSTEM_DRV`; then
+  WB=${WIN%:*}
+  echo Windows installation found at $WB
+  cat >> $DEST << EOF
 /Windows
-    protocol: efi
-    image_path: hdd(1:1):/bootmgfw.efi
+  image_path: hdd(1:1):/bootmgfw${SFX}
 EOF
+
+  if [[ -n $SFX ]];then
+    echo  protocol: efi >> $DEST
+  else
+     echo  protocol: bios >> $DEST 
   fi
+else
+   echo Windows installation NOT found
+fi
 
-
-cat << EOF
+if [[ -n $SFX ]];then
+  cat << EOF
 Finally, to create an entry in the UEFI Firmware,
    use the following command,
    changing /dev/...  as appropriate:
@@ -91,24 +106,8 @@ efibootmgr --create\
            --loader '/limine/BOOTX64.EFI' 
 
 EOF
-else  # non UEFI
-  echo this is not a UEFI system
-# check for Windows
-  if WIN=`blkid | grep SYSTEM_DRV`; then
-    WB=${WIN%:*}
-    echo Windows installation found at $WB
-  cat >> $DEST << EOF
-/Windows
-    protocol: bios
-    image_path: hdd(1:1):/bootmgfw
-EOF
-  else
-    echo Windows installation NOT found
-  fi
 fi
 
-cat << EOF
-Check the generated $DEST carefully, especially for Windows
-EOF
+echo Check the generated $DEST carefully, especially for Windows
 
 ## add a reboot option ??
