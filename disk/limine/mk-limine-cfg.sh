@@ -10,8 +10,8 @@
 
 
 cd /boot
-ROOT=`dracut --print-cmdline|cut -d\  -f1,2`
-#ROOT='root=LABEL=root64'
+#ROOT=`dracut --print-cmdline|cut -d\  -f1,2`
+ROOT='root=LABEL=root'
 
 # build a microcode image
 if `ls /sys/devices/platform/ |grep AMD > /dev/null`;then
@@ -33,7 +33,8 @@ cmdline: $ROOT
 interface_branding:SourceMage GNU/Linux (Limine boot)
 interface_branding_colour: 6
 wallpaper:boot():/limine/smgl-splash.png
-
+wallpaper_style: centered
+term_font_scale: 2x2
 EOF
 
 for VX in `ls vmlinuz-* | cut -d- -f2|sort -r`;do
@@ -44,10 +45,10 @@ path:boot():/vmlinuz-$VX
 module_path:boot():/$UCODE-uc.img
 EOF
 
-  MOD='initramfs-$VX.img'
+  MOD="initramfs-$VX.img"
   if [[ -f $MOD ]];then
     cat >> $DEST << EOF
-       module_path:boot():$MOD
+       module_path:boot():/$MOD
 EOF
   fi
 done  # linux kernels
@@ -72,7 +73,7 @@ if [[ -d /sys/firmware/efi ]];then
     cat >> $DEST << EOF
 /Windows
     protocol: efi
-    image_path: hdd(0:1):/bootmgfw.efi
+    image_path: hdd(1:1):/bootmgfw.efi
 EOF
   fi
 
@@ -83,9 +84,9 @@ Finally, to create an entry in the UEFI Firmware,
    changing /dev/...  as appropriate:
 
 efibootmgr --create\
-           --disk /dev/sda...\
-           --disk /dev/nvme...\
-           --part 1\
+####           --disk /dev/sda1  ...\   ####
+####           --disk /dev/nvme0n1 ...\ ####
+####           --part 1\
            --label "SMGL Linux with Limine"\
            --loader '/limine/BOOTX64.EFI' 
 
@@ -99,11 +100,15 @@ else  # non UEFI
   cat >> $DEST << EOF
 /Windows
     protocol: bios
-    image_path: hdd(0:1):/bootmgfw
+    image_path: hdd(1:1):/bootmgfw
 EOF
+  else
+    echo Windows installation NOT found
   fi
 fi
 
 cat << EOF
 Check the generated $DEST carefully, especially for Windows
 EOF
+
+## add a reboot option ??
