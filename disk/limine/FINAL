@@ -1,0 +1,34 @@
+cat << EOF
+${MESSAGE_COLOR}In order to use Limine:
+
+/boot should be a FAT32 partition
+Copy /usr/share/limine/* to /boot/limine/
+On UEFI systems, the kernel needs efi support
+EOF
+
+if [[ -d /sys/firmware/efi ]];then
+  message This is a UEFI system
+  cat << EOF
+In order to use Limine on a UEFI system, we must 
+create an entry in the UEFI Firmware.
+
+Use the following command,
+   changing /dev/...  as appropriate:
+
+efibootmgr --create\
+####           --disk /dev/sda1  ...\   ####
+####           --disk /dev/nvme0n1 ...\ ####
+####           --part 1\
+           --label "SMGL Linux with Limine"\
+           --loader '/limine/BOOTX64.EFI' 
+
+EOF
+else
+   message This is a legacy BIOS system
+   message You will need to run \'limine bios-install ...\'
+fi
+cat << EOF
+You will need to create a limine.conf file each time the Linux kernel changes.
+Consider using the mk-limine-cfg.sh script provided.
+${DEFAULT_COLOR}
+EOF

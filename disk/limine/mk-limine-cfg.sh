@@ -51,7 +51,7 @@ for VX in `ls vmlinuz-* | cut -d- -f2|sort -r`;do
   cat >> $DEST << EOF
 /Linux $VX
 protocol:linux
-path:boot():/vmlinuz-${VX}${SFX}
+path:boot():/vmlinuz-${VX}
 module_path:boot():/$UCODE-uc.img
 
 EOF
@@ -92,28 +92,5 @@ else
    echo Windows installation NOT found
 fi
 
-cat << EOF
-
-Check the generated $DEST carefully, especially for Windows
-/boot should be a FAT32 partition
-Copy /usr/share/limine/* to /boot/limine/
-On UEFI systems, the kernel needs efi support
-EOF
-
-if [[ -n $SFX ]];then
-  cat << EOF
-Finally, to create an entry in the UEFI Firmware,
-   use the following command,
-   changing /dev/...  as appropriate:
-
-efibootmgr --create\
-####           --disk /dev/sda1  ...\   ####
-####           --disk /dev/nvme0n1 ...\ ####
-####           --part 1\
-           --label "SMGL Linux with Limine"\
-           --loader '/limine/BOOTX64.EFI' 
-
-EOF
-fi
-
+echo Check the generated $DEST carefully, especially for Windows
 ## add a reboot option ??
