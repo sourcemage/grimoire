@@ -1,3 +1,5 @@
+# FIXME: port to box2d 3.0
+OPTS+=' --without-system-box2d' &&
 # Use our own wrappers instead of libreoffice's buildsystem support
 OPTS+=' --disable-ccache' &&
 # Release build type
