@@ -1,0 +1,2 @@
+OPTS+=' -DKDE_INSTALL_PREFIX_SCRIPT=1'
+default_build

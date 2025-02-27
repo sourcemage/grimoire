@@ -1,0 +1,4 @@
+#LDFLAGS+=" -lGLU"
+OPTS+=' -DUSE_VERSIONLESS_TARGETS=1'
+OPTS+=" -DKF_MAJOR=6"
+default_build

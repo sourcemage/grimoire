@@ -1,0 +1,2 @@
+OPTS+=" -DKF_IGNORE_PLATFORM_CHECK=1"
+default_build
