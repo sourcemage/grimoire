@@ -59,7 +59,7 @@ fi &&
 
 # workaround for https://github.com/llvm/llvm-project/issues/109537
 if [[ "$LLVM_WITH_LIBCLC" == y ]] ;then
-  OPTS="$OPTS -DLLVM_SPIRV=$(command -v llvm-spirv)"
+  OPTS="$OPTS -DLLVM_SPIRV=$(command -v llvm-spirv || true)"
 fi &&
 
 if [[ "$LLVM_WITH_LLD" == y ]] ;then
@@ -135,7 +135,7 @@ if [ -n "$LLVM_TOOLCHAIN_COMPILER" ] ;then
       OPTS="$OPTS -DCMAKE_CXX_COMPILER=g++"
       ;;
   esac
-fi
+fi &&
 
 if [ -n "$LLVM_TOOLCHAIN_LINKER" ] ;then
   local linker="$LLVM_TOOLCHAIN_LINKER" &&
