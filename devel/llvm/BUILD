@@ -59,7 +59,15 @@ fi &&
 
 # workaround for https://github.com/llvm/llvm-project/issues/109537
 if [[ "$LLVM_WITH_LIBCLC" == y ]] ;then
-  OPTS="$OPTS -DLLVM_SPIRV=$(command -v llvm-spirv || true)"
+  local spirvcmd="$(command -v llvm-spirv)"
+  if [ -z "$spirvcmd" ] ;then
+    message "${PROBLEM_COLOR}libclc with SPIR-V support requires llvm-spirv (https://github.com/llvm/llvm-project/issues/109537),${NORMAL_COLOR}"
+    message "${PROBLEM_COLOR}but llvm-spirv was not found in your system.${NORMAL_COLOR}"
+    message "${PROBLEM_COLOR}Cast llvm with SPIR-V but without libclc once,${NORMAL_COLOR}"
+    message "${PROBLEM_COLOR}then you may recast (cast -r) with libclc also enabled.${NORMAL_COLOR}"
+    return 1
+  fi &&
+  OPTS="$OPTS -DLLVM_SPIRV=$spirvcmd"
 fi &&
 
 if [[ "$LLVM_WITH_LLD" == y ]] ;then
