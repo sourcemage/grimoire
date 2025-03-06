@@ -9,7 +9,10 @@ depends  python3                                                 &&
 depends  icu     "--with-system-icu"                             &&
 
 depends  glib2                                                   &&
-vdepends <<< "at-spi2-core >= 2.45.0"                            &&
+vdepends <<! 
+        at-spi2-core >= 2.45.0
+        cbindgen >= 0.26.0
+!
 
 if [[ $FIREFOX_SCCACHE == 'y' ]]; then
   depends sccache
@@ -49,7 +52,7 @@ depends  libwebp       "--with-system-webp"                      &&
 
 depends  nspr               "--with-system-nspr"                 &&
 
-local NSS_BRANCH="3.91"                                          &&
+local NSS_BRANCH="3.101"                                         &&
 if spell_ok nss                                                  &&
    is_version_less "$(installed_version nss)" "${NSS_BRANCH}"; then
   depends  -sub "${NSS_BRANCH}" nss  "--with-system-nss"
@@ -72,17 +75,11 @@ depends libnotify                                                &&
 depends pixman              "--enable-system-pixman"             &&
 
 depends rust                                                     &&
-depends cbindgen                                                 &&
 
 depends nodejs                                                   &&
 
 depends startup-notification                                     &&
 depends gconf2                                                   &&
-
-optional_depends  wireless_tools \
-                  "--enable-necko-wifi" \
-                  "--disable-necko-wifi" \
-                  "for Necko WiFi scanning" &&
 
 for b in $FIREFOX_AUDIO
 do
@@ -125,7 +122,16 @@ if is_depends_enabled $SPELL alsa-lib; then
   depends yasm
 fi &&
 
-depends dbus-glib "--enable-dbus" &&
+optional_depends dbus \
+                 "--enable-dbus" \
+                 "--disable-dbus --disable-necko-wifi" \
+                 "for DBus support" &&
+if is_depends_enabled "${SPELL}" "dbus" ; then
+  optional_depends wireless_tools \
+                   "--enable-necko-wifi" \
+                   "" \
+                   "for Necko WiFi scanning"
+fi &&
 
 # Firefox is currently borked and does not compile without OpenGL headers
 #optional_depends  OPENGL \

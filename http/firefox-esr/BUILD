@@ -57,8 +57,9 @@ else
 fi &&
 
 for option in $OPTS; do
-  echo "ac_add_options $option" >> .mozconfig
-done &&
+  echo "ac_add_options $option"
+done  >> .mozconfig &&
 
-echo "mk_add_options MOZ_MAKE_FLAGS=\"-j${MAKE_NJOBS:-1}\"" >> .mozconfig &&
+echo "mk_add_options MOZ_MAKE_FLAGS=\"-j$((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS))\"" \
+>> .mozconfig &&
 MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE=none ./mach build
