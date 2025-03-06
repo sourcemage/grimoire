@@ -58,7 +58,7 @@ if [[ "$LLVM_WITH_LIBCLC" == y ]] ;then
 fi &&
 
 # workaround for https://github.com/llvm/llvm-project/issues/109537
-if [[ "$LLVM_WITH_LIBCLC" == y ]] ;then
+if [[ "$LLVM_WITH_LIBCLC" == y ]] && list_find "$LLVM_LIBCLC_TARGETS" spirv;then
   local spirvcmd="$(command -v llvm-spirv)"
   if [ -z "$spirvcmd" ] ;then
     message "${PROBLEM_COLOR}libclc with SPIR-V support requires llvm-spirv (https://github.com/llvm/llvm-project/issues/109537),${NORMAL_COLOR}"
