@@ -65,6 +65,9 @@ meson_opt feature "xmlconfig"              "$MESA_XMLCONFIG" &&
 
 if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
   meson_opt list "gallium-drivers" "$MESA_GALLIUM"
+else
+  # default would be auto
+  meson_opt list "gallium-drivers" ""
 fi &&
 
 if [ -n "$MESA_RUSTICL_DRIVERS" ] ;then
@@ -93,6 +96,9 @@ fi &&
 
 if [ -n "$MESA_VULKAN" ] && ! list_find "$MESA_VULKAN" none ;then
   meson_opt list "vulkan-drivers" "$MESA_VULKAN"
+else
+  # default would be auto
+  meson_opt list "vulkan-drivers" ""
 fi &&
 
 if [ -n "$MESA_VULKAN_LAYERS" ] && ! list_find "$MESA_VULKAN_LAYERS" none ;then
