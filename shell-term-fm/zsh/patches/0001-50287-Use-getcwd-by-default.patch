@@ -1,0 +1,67 @@
+From ae681ce7abe4cc0ff788e6003b4503fe46b0bdc1 Mon Sep 17 00:00:00 2001
+From: Peter Stephenson <p.stephenson@samsung.com>
+Date: Thu, 26 May 2022 09:33:43 +0100
+Subject: [PATCH] 50287: Use getcwd by default.
+
+Upstream-Status: Backport
+Origin: Upstream
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ ChangeLog    |    5 +++++
+ configure    |    4 ++--
+ configure.ac |    8 ++++++--
+ 3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 5425b198fb93..a277171ad3be 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2022-05-26  Peter Stephenson  <p.stephenson@samsung.com>
++
++	* 50287: configure.ac: Turn on use of getcwd by default.  Leave
++	the ability to turn it off per OS configuration.
++
+ 2022-05-14  dana  <dana@dana.is>
+ 
+ 	* unposted: Config/version.mk: Update for 5.9
+diff --git a/configure.ac b/configure.ac
+index c72148d0600b..77e381f5019e 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -2021,11 +2021,15 @@ if test x$zsh_cv_sys_superroot = xyes; then
+ fi
+ 
+ dnl CHECK FOR SYSTEMS REQUIRING GETCWD
++dnl This is now turned on by default, as we expect modern getcwd
++dnl implementations to work correctly.  Any exceptions should be added
++dnl to the first case.  Currently there are none, hence it is forced
++dnl not to match.
+ AC_CACHE_CHECK(whether we should use the native getcwd,
+ zsh_cv_use_getcwd,
+ [case "${host_cpu}-${host_vendor}-${host_os}" in
+-    *QNX*) zsh_cv_use_getcwd=yes ;;
+-    *) zsh_cv_use_getcwd=no ;;
++    *NOMATCH*) zsh_cv_use_getcwd=no ;;
++    *) zsh_cv_use_getcwd=yes ;;
+  esac])
+ AH_TEMPLATE([USE_GETCWD],
+ [Define to 1 if you need to use the native getcwd.])
+diff --git a/configure b/configure
+index 13a7a19538ca..86939eb9ec6b 100755
+--- a/configure
++++ b/configure
+@@ -13132,8 +13132,8 @@ then :
+   printf %s "(cached) " >&6
+ else $as_nop
+   case "${host_cpu}-${host_vendor}-${host_os}" in
+-    *QNX*) zsh_cv_use_getcwd=yes ;;
+-    *) zsh_cv_use_getcwd=no ;;
++    *NOMATCH*) zsh_cv_use_getcwd=no ;;
++    *) zsh_cv_use_getcwd=yes ;;
+  esac
+ fi
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $zsh_cv_use_getcwd" >&5
+-- 
+2.48.1
+
