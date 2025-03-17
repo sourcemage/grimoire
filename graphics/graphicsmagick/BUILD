@@ -1,10 +1,7 @@
 OPTS="--enable-shared ${OPTS}"       &&
 OPTS="$GRAPHICSMAGICK_16BIT ${OPTS}" &&
-
-if [[ $GM_SNAP != y ]]
-then
-  OPTS="--without-png ${OPTS}"
-fi  &&
-
+OPTS+=' --disable-static' &&
 default_build &&
-make perl-build
+if is_depends_enabled $SPELL perl;then
+  make perl-build
+fi
