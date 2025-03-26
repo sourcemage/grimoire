@@ -10,4 +10,5 @@ if [[ ! -z $GLIBCVER ]] && [[ ${GLIBCVER/.} > 24 ]]; then
 fi &&
 
 OPTS="$OPTS $NTP_IPV6" &&
+CFLAGS+=" -Wno-incompatible-pointer-types" &&
 default_build
