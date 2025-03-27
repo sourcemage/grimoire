@@ -4,7 +4,7 @@ fi &&
 # memory in GiB
 MEM=`grep MemTotal /proc/meminfo|uniq|cut -d: -f2|cut -dk  -f1` &&
 ((MEM=$MEM/1024**2)) &&
-JOBS=`echo "$MEM" / "1.3" | bc` &&
+JOBS=`echo "$MEM" / "1.6" | bc` &&
 echo  $JOBS &&
 
 export NINJAFLAGS="-j$JOBS -l$JOBS" &&
