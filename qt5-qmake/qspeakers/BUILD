@@ -1,0 +1,5 @@
+cd $SOURCE_DIRECTORY &&
+  /opt/qt6/bin/qmake \
+     QMAKE_CONFIG="$OPTS" QMAKE_CFLAGS="$CFLAGS" QMAKE_CXXFLAGS="$CXXFLAGS" \
+  *.pro PREFIX=$INSTALL_ROOT/usr &&
+  make
