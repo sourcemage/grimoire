@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sat, 22 Aug 2026 12:00:00 +0200
+Subject: [PATCH] Use the standard va_copy
+
+__va_copy is a pre-C99 glibc spelling that musl does not provide, so the
+fallback plain assignment of a va_list was used instead, which is invalid
+where va_list is an array type.  va_copy is C99 and always available.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ libgst/callin.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/libgst/callin.c b/libgst/callin.c
+index 4cccf879e3da..5f83c2441dc4 100644
+--- a/libgst/callin.c
++++ b/libgst/callin.c
+@@ -99,8 +99,8 @@ _gst_va_msg_send (OOP receiver,
+   if (!_gst_smalltalk_initialized)
+     _gst_initialize (NULL, NULL, GST_NO_TTY);
+ 
+-#ifdef __va_copy
+-  __va_copy (save, ap);
++#ifdef va_copy
++  va_copy (save, ap);
+ #else
+   save = ap;
+ #endif
