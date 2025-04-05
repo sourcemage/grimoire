@@ -1,7 +1,32 @@
 #!/bin/bash
-# a script to summon alldfl tarballs and update sha5sum.txt
+# a script to summon all dfl tarballs and update sha5sum.txt
 
 VV=`grep VERSION= DFL_VERSIONS| cut -d= -f2`
-summon `ls|grep dfl`
+#summon `ls|grep dfl`
 SPOOL=/var/spool/sorcery
-sha512sum ${SPOOL}/dfl*${VV}* |sed "s|${SPOOL}/||"> sha5sum.txt
+#sha512sum ${SPOOL}/dfl*${VV}* |sed "s|${SPOOL}/||"> sha5sum.txt
+sha512sum ${SPOOL}/dfl*${VV}* > sum.txt
+
+# sometimes the tarball has a commit  id in the expanded files
+# so we need to extract the tarball to determine the directory name
+
+# format is:
+# checksum filename commit-id
+
+TMP=$XDG_RUNTIME_DIR/XXX
+mkdir -p $TMP
+rm sha5sum.txt
+
+while read -r LL;do
+  cd $TMP
+    SUM=`echo $LL|cut -d\  -f1`
+    FF=`echo $LL|cut -d\  -f2`
+    tar xf $FF
+    DIR=`ls`
+    COMMIT=${DIR##*-}
+    rm -r $DIR
+  cd -
+    F1=`echo $FF| sed "s|${SPOOL}/||"`
+  echo  $SUM $F1 $COMMIT >> sha5sum.txt
+done < sum.txt
+rm sum.txt
