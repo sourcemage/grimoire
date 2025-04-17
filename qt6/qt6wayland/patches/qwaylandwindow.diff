@@ -1,0 +1,51 @@
+diff --git a/src/client/qwaylandwindow.cpp b/src/client/qwaylandwindow.cpp
+index 7a3bf6ddcae849eb14a44e34f2758f77488895bb..578a84e998f90cdf9beaddce8344c55fb23aedf0 100644
+--- a/src/client/qwaylandwindow.cpp
++++ b/src/client/qwaylandwindow.cpp
+@@ -106,6 +106,7 @@ void QWaylandWindow::initWindow()
+      */
+     mSurface->attach(nullptr, 0, 0);
+     mSurface->commit();
++    resetFrameCallback();
+ 
+     if (window()->type() == Qt::Desktop)
+         return;
+@@ -325,6 +326,15 @@ void QWaylandWindow::resetSurfaceRole()
+     delete std::exchange(mShellSurface, nullptr);
+     delete std::exchange(mSubSurfaceWindow, nullptr);
+     emit surfaceRoleDestroyed();
++
++    resetFrameCallback();
++    mInFrameRender = false;
++    mWaitingToApplyConfigure = false;
++    mExposed = false;
++}
++
++void QWaylandWindow::resetFrameCallback()
++{
+     {
+         QMutexLocker lock(&mFrameSyncMutex);
+         if (mFrameCallback) {
+@@ -338,10 +348,7 @@ void QWaylandWindow::resetSurfaceRole()
+         killTimer(mFrameCallbackCheckIntervalTimerId);
+         mFrameCallbackCheckIntervalTimerId = -1;
+     }
+-    mInFrameRender = false;
+     mFrameCallbackTimedOut = false;
+-    mWaitingToApplyConfigure = false;
+-    mExposed = false;
+ }
+ 
+ QWaylandWindow *QWaylandWindow::fromWlSurface(::wl_surface *surface)
+diff --git a/src/client/qwaylandwindow_p.h b/src/client/qwaylandwindow_p.h
+index 1a99efb8d6c0580bcccfb73a17e3afeeccb32803..ac08f1f084a2586635f3405bc326cccda85eb69e 100644
+--- a/src/client/qwaylandwindow_p.h
++++ b/src/client/qwaylandwindow_p.h
+@@ -351,6 +351,7 @@ private:
+     bool shouldCreateShellSurface() const;
+     bool shouldCreateSubSurface() const;
+     void resetSurfaceRole();
++    void resetFrameCallback();
+     QPlatformScreen *calculateScreenFromSurfaceEvents() const;
+     void setOpaqueArea(const QRegion &opaqueArea);
+     bool isOpaque() const;
