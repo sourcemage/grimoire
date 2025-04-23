@@ -245,20 +245,31 @@ if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
     config_query MESA_GALLIUM_D3D12_VIDEO "Build gallium with Direct3D12 video support?" n
   fi &&
 
-  config_query MESA_OPENCL_ENABLE "Build gallium OpenCL (clover) frontend?" n &&
+if [[ "${MESA_BRANCH}" != "scm" ]]; then
+    config_query MESA_OPENCL_ENABLE "Build gallium OpenCL (clover) frontend?" n &&
 
-  if [[ "$MESA_OPENCL_ENABLE" == "y" ]] ;then
-    config_query_list MESA_OPENCL "How should the gallium OpenCL (clover) frontend be built?" \
-                      icd \
-                      standalone
-  fi &&
+    if [[ "$MESA_OPENCL_ENABLE" == "y" ]] ;then
+      config_query_list MESA_OPENCL "How should the gallium OpenCL (clover) frontend be built?" \
+                        icd \
+                        standalone
+    fi
+else
+  persistent_remove MESA_OPENCL_ENABLE &&
+  persistent_remove MESA_OPENCL
+fi &&
 
   config_query MESA_RUSTICL "Build gallium rusticl (OpenCL) frontend (requires rust)?" n &&
 
   if [[ "$MESA_RUSTICL" == "y" ]] ;then
+    local AVAILABLE_MESA_RUSTICL_DRIVERS &&
+    AVAILABLE_MESA_RUSTICL_DRIVERS="asahi" &&
+    if [[ "${MESA_BRANCH}" == "scm" ]]; then
+      AVAILABLE_MESA_RUSTICL_DRIVERS="${AVAILABLE_MESA_RUSTICL_DRIVERS} radeonsi"
+    fi &&
+
     config_query_multi MESA_RUSTICL_DRIVERS "Which drivers to enable with rusticl by default?" \
                        auto \
-                       asahi
+                       ${AVAILABLE_MESA_RUSTICL_DRIVERS}
   fi &&
 
   # EGL requires DRI, which is only enabled if gallium is enabled

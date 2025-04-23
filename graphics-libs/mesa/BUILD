@@ -40,7 +40,6 @@ meson_opt boolean "gallium-d3d10umd"       "$MESA_GALLIUM_D3D10" &&
 meson_opt feature "gallium-d3d12-graphics" "$MESA_GALLIUM_D3D12_PIPELINE" &&
 meson_opt feature "gallium-d3d12-video"    "$MESA_GALLIUM_D3D12_VIDEO" &&
 meson_opt boolean "gallium-extra-hud"      "$MESA_GALLIUM_HUD" &&
-meson_opt choice  "gallium-opencl"         "${MESA_OPENCL:-disabled}" &&
 meson_opt boolean "gallium-rusticl"        "$MESA_RUSTICL" &&
 meson_opt feature "gallium-xa"             "$MESA_GALLIUM_XA" &&
 meson_opt feature "gbm"                    "$MESA_GBM" &&
@@ -62,6 +61,10 @@ meson_opt boolean "spirv-to-dxil"          "$MESA_SPIRV_DXIL" &&
 meson_opt boolean "teflon"                 "$MESA_TEFLON" &&
 meson_opt feature "xlib-lease"             "$MESA_XLIB_LEASE" &&
 meson_opt feature "xmlconfig"              "$MESA_XMLCONFIG" &&
+
+if [[ "${MESA_BRANCH}" != "scm" ]]; then
+  meson_opt choice  "gallium-opencl"         "${MESA_OPENCL:-disabled}"
+fi &&
 
 if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
   meson_opt list "gallium-drivers" "$MESA_GALLIUM"
