@@ -149,7 +149,6 @@ if [ -n "$LLVM_TOOLCHAIN_LINKER" ] ;then
   local linker="$LLVM_TOOLCHAIN_LINKER" &&
   case "$linker" in
     default)
-      linker="SYSTEM"
       case "$(readlink -f "$(command -v ld)" | sed 's,^.*/,,')" in
         lld|ld*.lld) OPTS="$OPTS -DLLVM_ENABLE_LLD=ON" ;;
       esac
