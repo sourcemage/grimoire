@@ -1,5 +1,6 @@
 CFLAGS+=" -Wno-unused-but-set-variable -Wno-unused-variable -Wno-maybe-uninitialized"
 CFLAGS+=" -Wno-incompatible-pointer-types" &&
+CFLAGS+=' -std=gnu17' &&
 # need a comma separated list
 OPTS="--with-drivers=`echo ${GS_PRINTERS} | \
       sed "s/  */ /g;s/^ *//;s/ *$/ /;s/^NONE //;s/ /,/g"`JAPAN,FILES \
