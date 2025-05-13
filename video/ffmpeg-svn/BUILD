@@ -16,7 +16,6 @@ check_tmp_noexec /tmp &&
              --enable-pthreads                       \
              --disable-static                        \
              --disable-debug                         \
-             --enable-postproc                       \
              --enable-gpl                            \
              $OPTS                         &&
 check_tmp_noexec /tmp &&
