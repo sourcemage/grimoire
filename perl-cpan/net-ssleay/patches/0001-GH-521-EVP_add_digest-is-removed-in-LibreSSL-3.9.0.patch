@@ -1,0 +1,48 @@
+From 33817997113fec992aa4784976d2d99cd9272379 Mon Sep 17 00:00:00 2001
+From: Heikki Vatiainen <hvn@radiatorsoftware.com>
+Date: Sun, 27 Apr 2025 23:42:49 +0300
+Subject: [PATCH] GH-521 EVP_add_digest is removed in LibreSSL 3.9.0.
+
+EVP_add_digest is no longer available in LibreSSL 3.9.0 and later.
+
+Thanks to Derrik Pates for report and patch.
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ SSLeay.xs          | 4 ++++
+ lib/Net/SSLeay.pod | 2 ++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/SSLeay.xs b/SSLeay.xs
+index e345ebd0c5a8..c1e33e6891c6 100644
+--- a/SSLeay.xs
++++ b/SSLeay.xs
+@@ -7493,8 +7493,12 @@ SSL_CTX_set_tlsext_ticket_getkey_cb(ctx,callback=&PL_sv_undef,data=&PL_sv_undef)
+ 
+ #endif
+ 
++#if !defined(LIBRESSL_VERSION_NUMBER) || (LIBRESSL_VERSION_NUMBER < 0x3090000fL) /* LibreSSL < 3.9.0 */
++
+ int EVP_add_digest(const EVP_MD *digest)
+ 
++#endif
++
+ #ifndef OPENSSL_NO_SHA
+ 
+ const EVP_MD *EVP_sha1()
+diff --git a/lib/Net/SSLeay.pod b/lib/Net/SSLeay.pod
+index f8de99234f94..8052a16e9f3f 100644
+--- a/lib/Net/SSLeay.pod
++++ b/lib/Net/SSLeay.pod
+@@ -9019,6 +9019,8 @@ B<COMPATIBILITY:> not available in Net-SSLeay-1.42 and before; requires at least
+     #
+     # returns: value corresponding to openssl's EVP_MD structure
+ 
++B<COMPATIBILITY:> no longer available in LibreSSL 3.9.0 and later
++
+ =item * EVP_add_digest
+ 
+     my $rv = Net::SSLeay::EVP_add_digest($digest);
+-- 
+2.49.0
+
