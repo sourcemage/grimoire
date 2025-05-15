@@ -41,6 +41,8 @@ message "${MESSAGE_COLOR}OPTS=$OPTS${DEFAULT_COLOR}" &&
           --disable-codegen-tests \
                     $OPTS &&
 
+ln -sf bootstrap.toml config.toml &&
+
 # various switches to disable static build, downloading and using llvm
 # toolchain from rust CI and to set user profile
 sed -e "s;profile =.*;profile = 'user';" \
