@@ -1,5 +1,2 @@
-#OPTS+=' --enable-shared --disable--static' &&
-#case "$HOST" in
-#  (*-gnu) LDFLAGS+=" -lintl" ;;
-#esac &&
+OPTS+=' -DCMAKE_POLICY_VERSION_MINIMUM=3.5' &&
 default_build
