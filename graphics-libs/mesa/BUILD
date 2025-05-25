@@ -35,13 +35,11 @@ meson_opt list "platforms" "$MESA_PLATFORMS" &&
 meson_opt boolean "amd-use-llvm"           "$MESA_AMD_LLVM" &&
 meson_opt boolean "draw-use-llvm"          "$MESA_DRAW_LLVM" &&
 meson_opt feature "egl"                    "$MESA_EGL" &&
-meson_opt boolean "gallium-nine"           "$MESA_GALLIUM_D3D9" &&
 meson_opt boolean "gallium-d3d10umd"       "$MESA_GALLIUM_D3D10" &&
 meson_opt feature "gallium-d3d12-graphics" "$MESA_GALLIUM_D3D12_PIPELINE" &&
 meson_opt feature "gallium-d3d12-video"    "$MESA_GALLIUM_D3D12_VIDEO" &&
 meson_opt boolean "gallium-extra-hud"      "$MESA_GALLIUM_HUD" &&
 meson_opt boolean "gallium-rusticl"        "$MESA_RUSTICL" &&
-meson_opt feature "gallium-xa"             "$MESA_GALLIUM_XA" &&
 meson_opt feature "gbm"                    "$MESA_GBM" &&
 meson_opt feature "gles1"                  "$MESA_GLES1" &&
 meson_opt feature "gles2"                  "$MESA_GLES23" &&
@@ -63,6 +61,8 @@ meson_opt feature "xlib-lease"             "$MESA_XLIB_LEASE" &&
 meson_opt feature "xmlconfig"              "$MESA_XMLCONFIG" &&
 
 if [[ "${MESA_BRANCH}" != "scm" ]]; then
+  meson_opt boolean "gallium-nine"           "$MESA_GALLIUM_D3D9" &&
+  meson_opt feature "gallium-xa"             "$MESA_GALLIUM_XA" &&
   meson_opt choice  "gallium-opencl"         "${MESA_OPENCL:-disabled}"
 fi &&
 
