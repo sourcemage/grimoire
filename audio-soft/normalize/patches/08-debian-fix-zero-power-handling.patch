@@ -1,0 +1,26 @@
+Author: Matthias Heintze <ma@fam-heintze.de>
+Description: Correctly skip multiple subsequent files with zero power
+  (see #791890).
+Index: normalize-audio-0.7.7/src/normalize.c
+===================================================================
+--- normalize-audio-0.7.7.orig/src/normalize.c
++++ normalize-audio-0.7.7/src/normalize.c
+@@ -466,7 +466,7 @@ warranty; not even for MERCHANTABILITY o
+     compute_levels(sis, fnames, nfiles);
+ 
+     /* anything that came back with a level of -1 was bad, so remove it */
+-    for (i = 0; i < nfiles; i++) {
++    for (i = 0; i < nfiles; ) {
+       if (sis[i].level < 0) {
+ 	nfiles--;
+ 	memmove(sis + i, sis + i + 1,
+@@ -475,7 +475,8 @@ warranty; not even for MERCHANTABILITY o
+ 		(nfiles - i) * sizeof(char *));
+ 	memmove(progress_info.file_sizes + i, progress_info.file_sizes + i + 1,
+ 		(nfiles - i) * sizeof(off_t));
+-      }
++      } else
++	++i;
+     }
+ 
+     if (batch_mode || mix_mode) {
