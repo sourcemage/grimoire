@@ -31,10 +31,6 @@ if [[ $SQLITE_VERSION == tea ]]; then
   # reset options to these
   OPTS="--with-tcl=$INSTALL_ROOT/usr/lib" &&
 
-  if list_find "$SQLITE_TSAFE" "--enable-threadsafe"; then
-    OPTS="--enable-threads $OPTS"
-  fi &&
-
   cd tea &&
   default_build
 fi
