@@ -1,3 +1,13 @@
+CFLAGS+=' -Wno-error=maybe-uninitialized'
+CFLAGS+=' -Wno-error=array-bounds='
+CFLAGS+=' -Wno-error=unused-function'
+
+#CFLAGS+=' -Wno-error=bidi-chars'
+#CFLAGS+=' -Wno-error=format-truncation'
+#CFLAGS+=' -Wno-error=tringop-overflow'
+#CFLAGS+=' -Wno-error=nonnull'
+#CFLAGS+=' -Wno-error='
+#CFLAGS+=' -Wno-error='
 create_group scanner &&
 
 if [[ $IPV6 == y ]]; then
