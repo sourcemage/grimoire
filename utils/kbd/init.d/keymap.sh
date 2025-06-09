@@ -15,21 +15,13 @@ start()
 {
   [[ "$TTY_NUMS" ]] && [[ "$SETFONT_ARGS" ]] &&
     required_executable /bin/setfont
-  [[ "$KEYMAP$INCLUDEMAPS" ]] &&
+  if [[ "$KEYMAP$INCLUDEMAPS" ]]; then
     required_executable /bin/loadkeys
-
-  if [[ "$KEYMAP" ]]; then
-    echo "$(/bin/loadkeys $KEYMAP 2>&1)"
+    # Add .inc suffix for known files, just in case, shouldn't be needed
+    INCLUDEMAPS=$(echo "$INCLUDEMAPS" | sed -E 's/\<(azerty-layout|compose|euro1|linux-keys-bare|linux-keys-extd|linux-with-alt-and-altgr|linux-with-modeshift-altgr|linux-with-two-alt-keys|qwerty-layout|qwertz-layout|apple-a1048-base|apple-a1243-fn-reverse|apple-a1243-fn|mac-azerty-layout|mac-linux-keys-bare|mac-qwerty-layout|mac-qwertz-layout)\>/&.inc/g')
+    /bin/loadkeys $KEYMAP $INCLUDEMAPS 2>&1
     evaluate_retval
   fi
-
-  for a in $INCLUDEMAPS; do
-    [[ $(find /usr/share/kbd/keymaps/ -type f -name "$a.inc*" 2>/dev/null) ]] &&
-    [[ ! $(find /usr/share/kbd/keymaps/ -type f -name "$a.map*" 2>/dev/null) ]] &&
-      a="$a.inc"
-    echo "$(/bin/loadkeys $a 2>&1)"
-    evaluate_retval
-  done
 
   [[ "$DEVICES" == "devfs" ]] && DEV_TTY="vc/" || DEV_TTY="tty"
 
@@ -39,16 +31,12 @@ start()
     /bin/dumpkeys | /bin/loadkeys --unicode
   fi
 
-  if [[ "$TTY_NUMS" == '*' ]]; then
-    TTY_NUMS=
-    for a in $(grep ^tty.*: /etc/inittab); do
-      TTY_NUMS="$TTY_NUMS $(expr "$a" : 'tty\([0-9]*\):.*')"
-    done
-  fi
+  [[ "$TTY_NUMS" == '*' ]] &&
+    TTY_NUMS=$(awk -F: '/^tty[0-9]*:/ { n=$1; sub(/^tty/, "", n); print n }' /etc/inittab)
 
   for n in $TTY_NUMS; do
     echo "Loading settings for $DEV_TTY$n..."
-    [[ "$UNICODE_START" ]] && /bin/echo -ne "\033%G" > /dev/$DEV_TTY$n
+    [[ "$UNICODE_START" ]] && echo -ne "\033%G" > /dev/$DEV_TTY$n
     if [[ "$SETFONT_ARGS" ]]; then
       /bin/setfont $SETFONT_ARGS -C /dev/$DEV_TTY$n
       evaluate_retval
@@ -58,7 +46,7 @@ start()
   [[ -f $dropfile ]] && rm $dropfile
   STATUS_VARS="KEYMAP INCLUDEMAPS SETFONT_ARGS TTY_NUMS UNICODE_START DEV_TTY"
   for a in $STATUS_VARS; do
-    /bin/echo "$a=\"${!a}\"" >> $dropfile
+    echo "$a=\"${!a}\"" >> $dropfile
   done
 }
 
@@ -71,7 +59,7 @@ stop()
 
   [[ "$KEYMAP$INCLUDEMAPS" ]] &&
     required_executable /bin/loadkeys &&
-    echo "$(/bin/loadkeys defkeymap 2>&1)"
+    /bin/loadkeys defkeymap 2>&1
 
   [[ "$UNICODE_START" ]] &&
     required_executable /bin/unicode_stop &&
@@ -79,7 +67,7 @@ stop()
 
   for n in $TTY_NUMS; do
     echo "Unloading settings for $DEV_TTY$n..."
-    [[ "$UNICODE_START" ]] && /bin/echo -ne '\033%@' > /dev/$DEV_TTY$n
+    [[ "$UNICODE_START" ]] && echo -ne '\033%@' > /dev/$DEV_TTY$n
     if [[ "$SETFONT_ARGS" ]]; then
       /bin/setfont default8x16 -C /dev/$DEV_TTY$n
       evaluate_retval
