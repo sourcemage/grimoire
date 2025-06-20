@@ -1,0 +1,50 @@
+default_pre_build  &&
+
+if [[ "$GCC_CLOOG" == "y" ]]; then
+  cd "$SOURCE_DIRECTORY" &&
+  unpack_file 3          &&
+  mv isl-$ISL_VERSION isl
+fi &&
+
+if list_find "$GCC_COMPILER" "ada" ; then
+  cd $SOURCE_DIRECTORY  &&
+
+  mkdir ${SOURCE13/.tar.bz2}  &&
+  cd ${SOURCE13/.tar.bz2}  &&
+  unpack_file 13  &&
+
+  #
+  # This section is used to build a gnat bootstrap cache
+  #
+  touch $SOURCE_DIRECTORY/gcc/cstamp-h.in  &&
+  touch $SOURCE_DIRECTORY/gcc/ada/[es]info.h  &&
+  touch $SOURCE_DIRECTORY/gcc/ada/nmake.ad[bs]  &&
+
+
+  sedit 's:and Nam is "gnatgcc":and Nam is "gcc":'  \
+        $SOURCE_DIRECTORY/gcc/ada/osint.ads &&
+  cd ${SOURCE_DIRECTORY}
+  #
+  # End Ada bootstrap cache code
+  #
+fi  &&
+
+cd ${SOURCE_DIRECTORY}          &&
+
+patch_bundled_libtool \
+	libgo/config/ltmain.sh \
+	isl/interface/ltmain.sh \
+	isl/ltmain.sh &&
+
+apply_patch_dir patches &&
+
+mk_source_dir $SOURCE_DIRECTORY.bld  &&
+
+sed -i 's/install_to_$(INSTALL_DEST) //' libiberty/Makefile.in &&
+sed -i 's@\./fixinc\.sh@-c true@' gcc/Makefile.in &&
+
+# Fix build without libxcrypt
+if ! is_depends_enabled $SPELL libxcrypt; then
+  sed -i -e 's/^#define SANITIZER_INTERCEPT_CRYPT_R .*/#define SANITIZER_INTERCEPT_CRYPT_R 0/' \
+    libsanitizer/sanitizer_common/sanitizer_platform_interceptors.h
+fi
