@@ -1,3 +1,44 @@
+# the standalone slots know none of the options below: they are a bare
+# llvm tree, configured where they were unpacked, and the only choices
+# their spells ever offered were targets, RTTI and polly
+if [[ $LLVM_LAYOUT == standalone ]]; then
+  case "$HOST" in
+    (*-musl)
+      OPTS+=' -DLIBCXX_HAS_MUSL_LIBC=YES'
+      ;;
+  esac &&
+
+  # Remove -DPIC from compiler flags, produces build errors
+  CXXFLAGS="${CXXFLAGS//-DPIC}" &&
+
+  # Default target, not detected correctly
+  OPTS+=" -DLLVM_DEFAULT_TARGET_TRIPLE=$HOST" &&
+
+  OPTS+=" -DLLVM_TARGETS_TO_BUILD=${LLVM_TARGETS// /;}" &&
+
+  # recommended by mesa project
+  OPTS+=" -DLLVM_LINK_LLVM_DYLIB=1 -DCMAKE_BUILD_TYPE=RELEASE" &&
+
+  OPTS+=" -DLLVM_BUILD_BENCHMARKS=OFF" &&
+  OPTS+=" -DLLVM_INCLUDE_BENCHMARKS=OFF" &&
+  OPTS+=" -DLLVM_INCLUDE_TESTS=OFF" &&
+
+  # prevent unnecessary use of libedit and ncurses
+  OPTS+=" -DLLVM_ENABLE_LIBEDIT=OFF" &&
+  OPTS+=" -DLLVM_ENABLE_TERMINFO=OFF" &&
+  OPTS+=" -DLLVM_ENABLE_BACKTRACES=OFF" &&
+
+  # Enable RTTI if requested, recommended, changing it breaks the ABI
+  if [[ y == "$LLVM_WITH_RTTI" ]]; then
+    OPTS+=" -DLLVM_ENABLE_RTTI=ON"
+  else
+    OPTS+=" -DLLVM_ENABLE_RTTI=OFF"
+  fi &&
+
+  cmake_build "$INSTALL_ROOT$LLVM_PREFIX"
+  return
+fi
+
 case "$HOST" in
   (*-musl)
     OPTS="$OPTS -DLIBCXX_HAS_MUSL_LIBC=YES"
@@ -23,7 +64,7 @@ OPTS="$OPTS -DLLVM_INCLUDE_BENCHMARKS=OFF" &&
 OPTS="$OPTS -DLLVM_INCLUDE_TESTS=OFF" &&
 
 # prevent unnecessary use of libedit and ncurses
-if ! is_depends_enabled $SPELL libedit;then
+if ! is_depends_enabled $SPELL_INSTANCE libedit;then
   OPTS="$OPTS -DLLVM_ENABLE_LIBEDIT=OFF" &&
   OPTS="$OPTS -DLLVM_ENABLE_TERMINFO=OFF" &&
   OPTS="$OPTS -DLLVM_ENABLE_BACKTRACES=OFF"
@@ -174,4 +215,4 @@ if [ -n "$LLVM_PROJECTS" ] ;then
   OPTS="$OPTS -DLLVM_ENABLE_PROJECTS=${LLVM_PROJECTS// /;}"
 fi &&
 
-cmake_build -S ../llvm
+cmake_build -S ../llvm "$INSTALL_ROOT$LLVM_PREFIX"

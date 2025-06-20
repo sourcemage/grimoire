@@ -1,24 +1,29 @@
 cmake_install &&
 
-ln -sfn /usr/share/clang/run-clang-tidy.py /usr/bin/run-clang-tidy &&
+# nothing below is built unless clang is, and the standalone slots never
+# build it; everything installed here belongs to the slot's own prefix
+if [[ "$LLVM_WITH_CLANG" == y ]]; then
+  ln -sfn "$LLVM_PREFIX/share/clang/run-clang-tidy.py" \
+          "$INSTALL_ROOT$LLVM_PREFIX/bin/run-clang-tidy"
+fi &&
 
 if [[ "$LLVM_WITH_ANALYZER" == "y" ]]
 then
-  target="$INSTALL_ROOT/usr/share/llvm" &&
+  target="$INSTALL_ROOT$LLVM_PREFIX/share/llvm" &&
 
   cd "$SOURCE_DIRECTORY/clang/tools" &&
 
   install -v -o root -g root -m 0755 -d "$target/scan-build" &&
 
   for i in ccc-analyzer c++-analyzer; do
-    install -v -o root -g root -m 0755 -t "${INSTALL_ROOT}/usr/bin/" scan-build/libexec/${i}
+    install -v -o root -g root -m 0755 -t "$INSTALL_ROOT$LLVM_PREFIX/bin/" scan-build/libexec/${i}
   done &&
 
   for i in build view; do
-    install -v -o root -g root -m 0755 -t "${INSTALL_ROOT}/usr/bin/" scan-${i}/bin/scan-${i}
+    install -v -o root -g root -m 0755 -t "$INSTALL_ROOT$LLVM_PREFIX/bin/" scan-${i}/bin/scan-${i}
   done &&
 
-  ln -sf "/usr/bin/ccc-analyzer" "${INSTALL_ROOT}/usr/bin/c++-analyzer" &&
+  ln -sf "$LLVM_PREFIX/bin/ccc-analyzer" "$INSTALL_ROOT$LLVM_PREFIX/bin/c++-analyzer" &&
 
   for i in scanview.css sorttable.js; do
     install -v -o root -g root -m 0644 -t "$target/scan-build" scan-build/share/scan-build/${i}
@@ -30,9 +35,11 @@ then
     install -v -o root -g root -m 0644 -t "$target/scan-view" scan-view/share/${i}
   done &&
 
-  install -v -o root -g root -m 0644 -t "${INSTALL_ROOT}/usr/share/man/man1/" scan-build/man/scan-build.1
+  install -v -o root -g root -m 0755 -d "$INSTALL_ROOT$LLVM_PREFIX/share/man/man1" &&
+  install -v -o root -g root -m 0644 -t "$INSTALL_ROOT$LLVM_PREFIX/share/man/man1/" scan-build/man/scan-build.1
 fi &&
 
-if [[ "$LLVM_WITH_CLANG" == y ]] && spell_ok python3; then
+# only the system llvm has any business in the system python
+if [[ $SLOT == 0 ]] && [[ "$LLVM_WITH_CLANG" == y ]] && spell_ok python3; then
   cp -Rv "${SOURCE_DIRECTORY}/clang/bindings/python/clang" "${INSTALL_ROOT}/usr/lib/python$(installed_version python3 | cut -f1,2 -d.)/"
 fi
