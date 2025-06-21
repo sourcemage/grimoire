@@ -7,6 +7,8 @@ ulimit -f unlimited &&
 CFLAGS=${CFLAGS/-pipe/}     &&
 CXXFLAGS=${CXXFLAGS/-pipe/} &&
 
+OPTS+=" $GCC_OPTS" &&
+
 if list_find "$GCC_COMPILER" "fortran"; then
   OPTS+=" --enable-libquadmath"
 else
