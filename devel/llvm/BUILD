@@ -110,7 +110,14 @@ fi &&
 
 if list_find "$LLVM_RUNTIMES" "compiler-rt" ;then
   OPTS="$OPTS -DLLVM_TOOL_COMPILER_RT_BUILD=ON" &&
-  OPTS="$OPTS -DCOMPILER_RT_INCLUDE_TESTS=OFF"
+  OPTS="$OPTS -DCOMPILER_RT_INCLUDE_TESTS=OFF" &&
+  case "$HOST" in
+    (*-musl)
+      # GWP-ASan causes a linking failure because it unconditionally thinks
+      # the libc contains a backtrace function. (as of 19.1.7)
+      OPTS+=' -DCOMPILER_RT_BUILD_GWP_ASAN=OFF'
+      ;;
+  esac
 fi &&
 
 if list_find "$LLVM_RUNTIMES" "libcxx" ;then
