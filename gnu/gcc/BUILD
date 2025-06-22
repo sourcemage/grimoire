@@ -57,6 +57,8 @@ else
 fi  &&
 
 if [ "x$GCC_NO_MARCH" = xy ]; then
+  CFLAGS="${CFLAGS//-march=x86_64}" &&
+  CXXFLAGS="${CXXFLAGS//-march=x86_64}" &&
   CFLAGS="${CFLAGS//-march=/-mtune=}" &&
   CXXFLAGS="${CXXFLAGS//-march=/-mtune=}"
 fi &&
