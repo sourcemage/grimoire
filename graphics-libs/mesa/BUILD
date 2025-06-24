@@ -51,7 +51,6 @@ meson_opt boolean "gpuvis"                 "$MESA_GPUVIS" &&
 meson_opt feature "intel-rt"               "$MESA_INTEL_RAYTRACE" &&
 meson_opt boolean "llvm-orcjit"            "$MESA_LLVM_ORCJIT" &&
 meson_opt boolean "opengl"                 "$MESA_OPENGL" &&
-meson_opt boolean "osmesa"                 "$MESA_OSMESA" &&
 meson_opt boolean "perfetto"               "$MESA_PERFETTO" &&
 meson_opt feature "shader-cache"           "$MESA_SHADER_CACHE" &&
 meson_opt feature "shared-llvm"            "$link_llvm_shared" &&
@@ -63,7 +62,8 @@ meson_opt feature "xmlconfig"              "$MESA_XMLCONFIG" &&
 if [[ "${MESA_BRANCH}" != "scm" ]]; then
   meson_opt boolean "gallium-nine"           "$MESA_GALLIUM_D3D9" &&
   meson_opt feature "gallium-xa"             "$MESA_GALLIUM_XA" &&
-  meson_opt choice  "gallium-opencl"         "${MESA_OPENCL:-disabled}"
+  meson_opt choice  "gallium-opencl"         "${MESA_OPENCL:-disabled}" &&
+  meson_opt boolean "osmesa"                 "$MESA_OSMESA"
 fi &&
 
 if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
