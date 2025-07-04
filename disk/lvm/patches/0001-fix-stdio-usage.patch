@@ -1,0 +1,83 @@
+From af9be4007b4b2f986a3c1b5568305ebf263e64cc Mon Sep 17 00:00:00 2001
+From: Natanael Copa <ncopa@alpinelinux.org>
+Date: Wed, 16 Nov 2022 10:42:39 +0100
+Subject: [PATCH] fix stdio usage
+
+Origin: Alpine Linux
+Upstream-Status: Unknown
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ lib/commands/toolcontext.c | 4 ++++
+ tools/lvmcmdline.c         | 6 +++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/lib/commands/toolcontext.c b/lib/commands/toolcontext.c
+index 30fc5d4f22f2..132f9896fa05 100644
+--- a/lib/commands/toolcontext.c
++++ b/lib/commands/toolcontext.c
+@@ -1670,6 +1670,7 @@ struct cmd_context *create_toolcontext(unsigned is_clvmd,
+ 	reset_lvm_errno(1);
+ 
+ 	/* Set in/out stream buffering before glibc */
++#ifdef __GLIBC__
+ 	if (set_buffering
+ 	    && !cmd->running_on_valgrind /* Skipping within valgrind execution. */
+ #ifdef SYS_gettid
+@@ -1713,6 +1714,7 @@ struct cmd_context *create_toolcontext(unsigned is_clvmd,
+ 	} else if (!set_buffering)
+ 		/* Without buffering, must not use stdin/stdout */
+ 		init_silent(1);
++#endif
+ 
+ 	/*
+ 	 * Environment variable LVM_SYSTEM_DIR overrides this below.
+@@ -2047,6 +2049,7 @@ void destroy_toolcontext(struct cmd_context *cmd)
+ 	if (cmd->cft_def_hash)
+ 		dm_hash_destroy(cmd->cft_def_hash);
+ 
++#ifdef __GLIBC__
+ 	if (!cmd->running_on_valgrind && cmd->linebuffer) {
+ 		int flags;
+ 		/* Reset stream buffering to defaults */
+@@ -2070,6 +2073,7 @@ void destroy_toolcontext(struct cmd_context *cmd)
+ 
+ 		free(cmd->linebuffer);
+ 	}
++#endif
+ 
+ 	destroy_config_context(cmd);
+ 
+diff --git a/tools/lvmcmdline.c b/tools/lvmcmdline.c
+index ce5d9d4dc2bd..e98f218212f3 100644
+--- a/tools/lvmcmdline.c
++++ b/tools/lvmcmdline.c
+@@ -3409,7 +3409,7 @@ static int _check_standard_fds(void)
+ 	int err = is_valid_fd(STDERR_FILENO);
+ 
+ 	if (!is_valid_fd(STDIN_FILENO) &&
+-	    !(stdin = fopen(_PATH_DEVNULL, "r"))) {
++	    !freopen(_PATH_DEVNULL, "r", stdin)) {
+ 		if (err)
+ 			perror("stdin stream open");
+ 		else
+@@ -3419,7 +3419,7 @@ static int _check_standard_fds(void)
+ 	}
+ 
+ 	if (!is_valid_fd(STDOUT_FILENO) &&
+-	    !(stdout = fopen(_PATH_DEVNULL, "w"))) {
++	    !freopen(_PATH_DEVNULL, "w", stdout)) {
+ 		if (err)
+ 			perror("stdout stream open");
+ 		/* else no stdout */
+@@ -3427,7 +3427,7 @@ static int _check_standard_fds(void)
+ 	}
+ 
+ 	if (!is_valid_fd(STDERR_FILENO) &&
+-	    !(stderr = fopen(_PATH_DEVNULL, "w"))) {
++	    !freopen(_PATH_DEVNULL, "w", stderr)) {
+ 		printf("stderr stream open: %s\n",
+ 		       strerror(errno));
+ 		return 0;
+-- 
+2.50.0
+
