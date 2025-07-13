@@ -1,0 +1,64 @@
+diff --git a/Makefile b/Makefile
+index 557f28e..7edc4ae 100644
+--- a/Makefile
++++ b/Makefile
+@@ -310,12 +310,28 @@ ifeq ($(shared),yes)
+ 	$(SYMLINK_CMD) $(notdir $<) $@
+     endif
+   endif
++  THIRD_LIB = $(OUT)/libmupdf-third.$(SO)
++  $(THIRD_LIB) : $(THIRD_OBJ)
++	$(LINK_SO_CMD) $(THIRD_LIBS) $(LIBCRYPTO_LIBS) $(LIBS)
++
++ifneq ($(USE_SYSTEM_GLUT),yes)
++  THIRD_GLUT_LIB = $(OUT)/libmupdf-glut.$(SO)
++  $(THIRD_GLUT_LIB) : $(THIRD_GLUT_OBJ)
++	$(LINK_SO_CMD) $(THIRD_GLUT_LIBS) $(LIBCRYPTO_LIBS) $(LIBS)
++endif
++
++THREAD_LIB = $(OUT)/libmupdf-threads.$(SO)
++$(THREAD_LIB) : $(THREAD_OBJ)
++	$(LINK_SO_CMD) $(THREAD_LIBS) $(LIBCRYPTO_LIBS) $(LIBS)
++
++PKCS7_LIB = $(OUT)/libmupdf-pkcs7.$(SO)
++$(PKCS7_LIB) : $(PKCS7_OBJ)
++	$(LINK_SO_CMD) $(PKCS7_LIBS) $(LIBCRYPTO_LIBS) $(LIBS)
+ else
+   MUPDF_LIB = $(OUT)/libmupdf.a
+   THIRD_LIB = $(OUT)/libmupdf-third.a
+   $(MUPDF_LIB) : $(MUPDF_OBJ)
+   $(THIRD_LIB) : $(THIRD_OBJ)
+-endif
+ 
+ ifneq ($(USE_SYSTEM_GLUT),yes)
+   THIRD_GLUT_LIB = $(OUT)/libmupdf-glut.a
+@@ -327,6 +343,7 @@ $(THREAD_LIB) : $(THREAD_OBJ)
+ 
+ PKCS7_LIB = $(OUT)/libmupdf-pkcs7.a
+ $(PKCS7_LIB) : $(PKCS7_OBJ)
++endif
+ 
+ # --- Main tools and viewers ---
+ 
+@@ -451,7 +451,7 @@ SO_INSTALL_MODE ?= 644
+ 
+ third: $(THIRD_LIB)
+ extra-libs: $(THIRD_GLUT_LIB)
+-libs: $(MUPDF_LIB) $(THIRD_LIB) $(COMMERCIAL_LIBS)
++libs: $(MUPDF_LIB) $(THIRD_LIB) $(COMMERCIAL_LIBS) $(THREAD_LIB) $(PKCS7_LIB)
+ commercial-libs: $(COMMERCIAL_LIBS)
+ tools: $(TOOL_APPS)
+ apps: $(TOOL_APPS) $(VIEW_APPS)
+@@ -470,6 +470,12 @@ install-libs: libs install-headers
+ 	install -d $(DESTDIR)$(libdir)
+ ifeq ($(shared),yes)
+ 	install -m $(SO_INSTALL_MODE) $(OUT)/libmupdf.$(SO)$(SO_VERSION) $(DESTDIR)$(libdir)/libmupdf.$(SO)$(SO_VERSION)
++	install -m $(SO_INSTALL_MODE) $(THIRD_LIB) $(DESTDIR)$(libdir)
++	install -m $(SO_INSTALL_MODE) $(THREAD_LIB) $(DESTDIR)$(libdir)
++	install -m $(SO_INSTALL_MODE) $(PKCS7_LIB) $(DESTDIR)$(libdir)
++  ifneq ($(USE_SYSTEM_GLUT),yes)
++	install -m $(SO_INSTALL_MODE) $(THIRD_GLUT_LIB) $(DESTDIR)$(libdir)
++  endif
+   ifneq ($(OS),OpenBSD)
+ 	ln -sf libmupdf.$(SO)$(SO_VERSION) $(DESTDIR)$(libdir)/libmupdf.$(SO)$(SO_VERSION_MAJOR)
+ 	ln -sf libmupdf.$(SO)$(SO_VERSION) $(DESTDIR)$(libdir)/libmupdf.$(SO)
