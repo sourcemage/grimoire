@@ -1,7 +1,14 @@
 . "${GRIMOIRE}/MESON_DEPENDS" &&
 
 if [[ "${PIPEWIRE_BRANCH}" == "scm" ]]; then
-  depends git
+  depends git &&
+  optional_depends systemd "libsystemd=enabled logind=enabled logind-provider=libsystemd" \
+                           "libsystemd=disabled" \
+                           "SystemD support"
+else
+  optional_depends systemd "systemd=enabled logind=enabled logind-provider=libsystemd" \
+                           "systemd=disabled" \
+                           "SystemD support"
 fi &&
 depends PKG-CONFIG                  &&
 depends ncurses                     &&
@@ -49,8 +56,9 @@ optional_depends libxfixes "x11-xfixes=enabled" "x11-xfixes=disabled"  \
 optional_depends LIBPULSE "libpulse=enabled" "libpulse=disabled"       \
                           "PulseAudio support"                         &&
 optional_depends sdl2   "sdl2=enabled" "sdl2=disabled" "for SDL2 support" &&
-optional_depends systemd "systemd=enabled" "systemd=disabled" "SystemD support" &&
 if ! is_depends_enabled $SPELL systemd;then
+  optional_depends elogind "logind=enabled logind-provider=libelogind" "logind=disabled" \
+                         "Enable logind integration via elogind?" &&
   depends eudev "udev=enabled"
 fi &&
 
