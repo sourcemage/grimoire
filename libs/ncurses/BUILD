@@ -5,6 +5,10 @@ if [[ $UTF8 == y ]]; then
   OPTS="$OPTS  --enable-widec"
 fi  &&
 OPTS+=" --with-shared --enable-pc-files" &&
+
+# for GCC >= 15
+CFLAGS="-std=gnu17 ${CFLAGS}" &&
+
 ./configure       --prefix="$TRACK_ROOT"/usr \
               --sysconfdir="$TRACK_ROOT"/etc \
            --localstatedir="$TRACK_ROOT"/var \
