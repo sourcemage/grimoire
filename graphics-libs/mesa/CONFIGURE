@@ -214,19 +214,6 @@ if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
 
   config_query MESA_GALLIUM_HUD "Enable HUD block/NIC I/O HUD status support?" n &&
 
-  local allow_xa
-  # XA state tracker requires one of the following gallium drivers
-  for driver in nouveau freedreno i915 svga ;do
-    if check_gallium "$driver" ;then
-      allow_xa="y"
-    fi
-  done &&
-
-  if [[ "$allow_xa" == "y" ]] &&
-     [[ "${MESA_BRANCH}" == "stable" ]]; then
-    config_query MESA_GALLIUM_XA "Build gallium XA frontend?" n
-  fi &&
-
   if check_gallium vmware ;then
     if ! check_gallium svga ;then
       message "The vmware driver requires gallium svga; adding gallium svga." &&
@@ -235,9 +222,6 @@ if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
   fi &&
 
   if check_gallium llvmpipe softpipe ;then
-    if [[ "${MESA_BRANCH}" == "stable" ]]; then
-      config_query MESA_GALLIUM_D3D9 "Build gallium Direct3D9 (nine) frontend?" n
-    fi &&
     if check_driver WSL ;then
       config_query MESA_GALLIUM_D3D10 "Build gallium Direct3D10 (WDDM UMD) frontend?" n
     fi
@@ -247,19 +231,6 @@ if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
     config_query MESA_GALLIUM_D3D12_PIPELINE "Build gallium with Direct3D12 graphics pipeline support?" n &&
     config_query MESA_GALLIUM_D3D12_VIDEO "Build gallium with Direct3D12 video support?" n
   fi &&
-
-if [[ "${MESA_BRANCH}" != "scm" ]]; then
-    config_query MESA_OPENCL_ENABLE "Build gallium OpenCL (clover) frontend?" n &&
-
-    if [[ "$MESA_OPENCL_ENABLE" == "y" ]] ;then
-      config_query_list MESA_OPENCL "How should the gallium OpenCL (clover) frontend be built?" \
-                        icd \
-                        standalone
-    fi
-else
-  persistent_remove MESA_OPENCL_ENABLE &&
-  persistent_remove MESA_OPENCL
-fi &&
 
   config_query MESA_RUSTICL "Build gallium rusticl (OpenCL) frontend (requires rust)?" n &&
 
@@ -339,12 +310,6 @@ config_query MESA_GLES1 "Support OpenGL ES 1.x?" n &&
 config_query MESA_GLES23 "Support OpenGL ES 2.x and 3.x?" n &&
 config_query MESA_OPENGL "Enable desktop OpenGL support?" y &&
 config_query MESA_GBM "Enable generic buffer management (GBM) support?" n &&
-
-if [[ "${MESA_BRANCH}" == "stable" ]]; then
-  config_query MESA_OSMESA "Build OSmesa to support off-screen rendering?" n
-else
-  persistent_remove MESA_OSMESA
-fi &&
 
 config_query_list MESA_GLX_CHOICE "Which GLX build type (dri recommended)?" \
                   disabled \
@@ -429,4 +394,11 @@ persistent_add MESA_GLX &&
 persistent_add MESA_TOOLS &&
 persistent_add MESA_VULKAN &&
 persistent_add MESA_VULKAN_LAYERS &&
-persistent_remove MESA_OPENCL_SPIRV
+
+# Clean up
+persistent_remove MESA_OPENCL_SPIRV &&
+persistent_remove MESA_GALLIUM_XA &&
+persistent_remove MESA_GALLIUM_D3D9 &&
+persistent_remove MESA_OPENCL_ENABLE &&
+persistent_remove MESA_OPENCL &&
+persistent_remove MESA_OSMESA

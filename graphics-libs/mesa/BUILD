@@ -59,13 +59,6 @@ meson_opt boolean "teflon"                 "$MESA_TEFLON" &&
 meson_opt feature "xlib-lease"             "$MESA_XLIB_LEASE" &&
 meson_opt feature "xmlconfig"              "$MESA_XMLCONFIG" &&
 
-if [[ "${MESA_BRANCH}" != "scm" ]]; then
-  meson_opt boolean "gallium-nine"           "$MESA_GALLIUM_D3D9" &&
-  meson_opt feature "gallium-xa"             "$MESA_GALLIUM_XA" &&
-  meson_opt choice  "gallium-opencl"         "${MESA_OPENCL:-disabled}" &&
-  meson_opt boolean "osmesa"                 "$MESA_OSMESA"
-fi &&
-
 if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
   meson_opt list "gallium-drivers" "$MESA_GALLIUM"
 else
