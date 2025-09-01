@@ -25,7 +25,7 @@ BOOTSTRAP_FLAGS="--with-toolset=gcc -prefix=${INSTALL_ROOT}/usr" &&
 
 # Don't specify with-libraries when you don't select them so it builds them all
 if [[ $BOOST_SELECT_LIBS == "y" ]]; then
-  BOOTSTRAP_FLAGS="${BOOTSTRAP_FLAGS} --with-libraries=${BOOST_LIBS}" 
+  BOOTSTRAP_FLAGS="${BOOTSTRAP_FLAGS} --with-libraries=${BOOST_LIBS// /,}"
 fi &&
 ./bootstrap.sh $BOOTSTRAP_FLAGS                   && 
 
