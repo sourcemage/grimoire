@@ -1,0 +1,66 @@
+From 8205c62d0a684bf8fbc44479cea8a13f2915db88 Mon Sep 17 00:00:00 2001
+From: Treeve Jelbert <treeve@sourcemage.org>
+Date: Fri, 19 Sep 2025 13:55:35 +0200
+Subject: [PATCH] ffmpeg8 fix
+
+---
+ src/h264vaapiencoder.cpp   | 7 ++++++-
+ src/libopenh264encoder.cpp | 6 ++++++
+ src/libx264encoder.cpp     | 6 ++++++
+ 3 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/h264vaapiencoder.cpp b/src/h264vaapiencoder.cpp
+index 0cf251b..e9c87d2 100644
+--- a/src/h264vaapiencoder.cpp
++++ b/src/h264vaapiencoder.cpp
+@@ -127,7 +127,12 @@ bool H264VAAPIEncoder::initialize(const QSize &size)
+     } else {
+         m_avCodecContext->global_quality = 35;
+     }
+-
++// fix for ffmpeg8
++#ifndef FF_PROFILE_H264_MAIN
++#define FF_PROFILE_H264_MAIN AV_PROFILE_H264_MAIN
++#define FF_PROFILE_H264_HIGH AV_PROFILE_H264_HIGH
++#define FF_PROFILE_H264_CONSTRAINED_BASELINE AV_PROFILE_H264_CONSTRAINED_BASELINE
++#endif
+     switch (m_profile) {
+     case H264Profile::Baseline:
+         m_avCodecContext->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
+diff --git a/src/libopenh264encoder.cpp b/src/libopenh264encoder.cpp
+index db6ed4d..8ff48d1 100644
+--- a/src/libopenh264encoder.cpp
++++ b/src/libopenh264encoder.cpp
+@@ -55,6 +55,12 @@ bool LibOpenH264Encoder::initialize(const QSize &size)
+         // "q" here stands for "quantization", but that effectively impacts quality.
+         m_avCodecContext->qmin = m_avCodecContext->qmax = percentageToAbsoluteQuality(m_quality);
+     }
++// fix for ffmpeg8
++#ifndef FF_PROFILE_H264_MAIN
++#define FF_PROFILE_H264_MAIN AV_PROFILE_H264_MAIN
++#define FF_PROFILE_H264_HIGH AV_PROFILE_H264_HIGH
++#define FF_PROFILE_H264_CONSTRAINED_BASELINE AV_PROFILE_H264_CONSTRAINED_BASELINE
++#endif
+ 
+     switch (m_profile) {
+     case H264Profile::Baseline:
+diff --git a/src/libx264encoder.cpp b/src/libx264encoder.cpp
+index d9fe44f..b4d20ba 100644
+--- a/src/libx264encoder.cpp
++++ b/src/libx264encoder.cpp
+@@ -66,6 +66,12 @@ bool LibX264Encoder::initialize(const QSize &size)
+         m_avCodecContext->global_quality = 35;
+     }
+ 
++// fix for ffmpeg8
++#ifndef FF_PROFILE_H264_MAIN
++#define FF_PROFILE_H264_MAIN AV_PROFILE_H264_MAIN
++#define FF_PROFILE_H264_HIGH AV_PROFILE_H264_HIGH
++#define FF_PROFILE_H264_BASELINE AV_PROFILE_H264_BASELINE
++#endif
+     switch (m_profile) {
+     case H264Profile::Baseline:
+         m_avCodecContext->profile = FF_PROFILE_H264_BASELINE;
+-- 
+2.51.0
+
