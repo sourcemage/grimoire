@@ -1,3 +1,4 @@
+CFLAGS+=' -Wno-incompatible-pointer-types' &&
 disable_pic  &&
 
 if list_find "$FFMPEG_PROGRAMS" "none"; then
