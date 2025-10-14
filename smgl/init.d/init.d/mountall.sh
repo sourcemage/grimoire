@@ -156,7 +156,7 @@ start()
 
 #As per FHS sm bug #10509
   echo "Cleaning out /var/run..."
-  [ -d /var/run ] && recursive_rm /var/run/*
+  ! [ -h /var/run ] && [ -d /var/run ] && recursive_rm /var/run/*
   evaluate_retval
 
   if [ "$CLEAN_TMP" == "yes" ] ; then
