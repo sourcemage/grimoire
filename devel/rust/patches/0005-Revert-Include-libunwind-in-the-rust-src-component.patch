@@ -13,16 +13,207 @@ Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
 diff --git a/src/bootstrap/src/core/build_steps/dist.rs b/src/bootstrap/src/core/build_steps/dist.rs
 --- a/src/bootstrap/src/core/build_steps/dist.rs
 +++ b/src/bootstrap/src/core/build_steps/dist.rs
-@@ -801,8 +801,6 @@ fn copy_src_dirs(
-         const LLVM_PROJECTS: &[&str] = &[
+@@ -53,7 +53,11 @@ fn should_build_extended_tool(builder: &Builder<'_>, tool: &str) -> bool {
+     if !builder.config.extended {
+         return false;
+     }
+-    builder.config.tools.as_ref().is_none_or(|tools| tools.contains(tool))
++    builder
++        .config
++        .tools
++        .as_ref()
++        .is_none_or(|tools| tools.contains(tool))
+ }
+ 
+ #[derive(Debug, Clone, Hash, PartialEq, Eq)]
+@@ -87,8 +91,16 @@ impl Step for Docs {
+         let mut tarball = Tarball::new(builder, "rust-docs", &host.triple);
+         tarball.set_product_name("Rust Documentation");
+         tarball.add_bulk_dir(builder.doc_out(host), dest);
+-        tarball.add_file(builder.src.join("src/doc/robots.txt"), dest, FileType::Regular);
+-        tarball.add_file(builder.src.join("src/doc/sitemap.txt"), dest, FileType::Regular);
++        tarball.add_file(
++            builder.src.join("src/doc/robots.txt"),
++            dest,
++            FileType::Regular,
++        );
++        tarball.add_file(
++            builder.src.join("src/doc/sitemap.txt"),
++            dest,
++            FileType::Regular,
++        );
+         Some(tarball.generate())
+     }
+ 
+@@ -162,7 +174,8 @@ impl Step for RustcDocs {
+ 
+     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
+         let builder = run.builder;
+-        run.alias("rustc-docs").default_condition(builder.config.compiler_docs)
++        run.alias("rustc-docs")
++            .default_condition(builder.config.compiler_docs)
+     }
+ 
+     fn make_run(run: RunConfig<'_>) {
+@@ -175,7 +188,10 @@ impl Step for RustcDocs {
+ 
+         let mut tarball = Tarball::new(builder, "rustc-docs", &target.triple);
+         tarball.set_product_name("Rustc Documentation");
+-        tarball.add_bulk_dir(builder.compiler_doc_out(target), "share/doc/rust/html/rustc");
++        tarball.add_bulk_dir(
++            builder.compiler_doc_out(target),
++            "share/doc/rust/html/rustc",
++        );
+         tarball.generate()
+     }
+ }
+@@ -269,8 +285,10 @@ fn make_win_dist(plat_root: &Path, target: TargetSelection, builder: &Builder<'_
+     let target_libs = find_files(&target_libs, &lib_path);
+ 
+     //Copy platform tools to platform-specific bin directory
+-    let plat_target_bin_self_contained_dir =
+-        plat_root.join("lib/rustlib").join(target).join("bin/self-contained");
++    let plat_target_bin_self_contained_dir = plat_root
++        .join("lib/rustlib")
++        .join(target)
++        .join("bin/self-contained");
+     fs::create_dir_all(&plat_target_bin_self_contained_dir)
+         .expect("creating plat_target_bin_self_contained_dir failed");
+     for src in target_tools {
+@@ -286,8 +304,10 @@ fn make_win_dist(plat_root: &Path, target: TargetSelection, builder: &Builder<'_
+     );
+ 
+     //Copy platform libs to platform-specific lib directory
+-    let plat_target_lib_self_contained_dir =
+-        plat_root.join("lib/rustlib").join(target).join("lib/self-contained");
++    let plat_target_lib_self_contained_dir = plat_root
++        .join("lib/rustlib")
++        .join(target)
++        .join("lib/self-contained");
+     fs::create_dir_all(&plat_target_lib_self_contained_dir)
+         .expect("creating plat_target_lib_self_contained_dir failed");
+     for src in target_libs {
+@@ -588,7 +608,10 @@ impl Step for Rustc {
+             }
+ 
+             // Debugger scripts
+-            builder.ensure(DebuggerScripts { sysroot: image.to_owned(), target });
++            builder.ensure(DebuggerScripts {
++                sysroot: image.to_owned(),
++                target,
++            });
+ 
+             generate_target_spec_json_schema(builder, image);
+ 
+@@ -607,7 +630,11 @@ impl Step for Rustc {
+ 
+             // The REUSE-managed license files
+             let license = |path: &Path| {
+-                builder.install(path, &image.join("share/doc/rust/licenses"), FileType::Regular);
++                builder.install(
++                    path,
++                    &image.join("share/doc/rust/licenses"),
++                    FileType::Regular,
++                );
+             };
+             for entry in t!(std::fs::read_dir(builder.src.join("LICENSES"))).flatten() {
+                 license(&entry.path());
+@@ -663,7 +690,11 @@ impl Step for DebuggerScripts {
+         let dst = sysroot.join("lib/rustlib/etc");
+         t!(fs::create_dir_all(&dst));
+         let cp_debugger_script = |file: &str| {
+-            builder.install(&builder.src.join("src/etc/").join(file), &dst, FileType::Regular);
++            builder.install(
++                &builder.src.join("src/etc/").join(file),
++                &dst,
++                FileType::Regular,
++            );
+         };
+         if target.contains("windows-msvc") {
+             // windbg debugger scripts
+@@ -774,7 +805,11 @@ fn copy_target_libs(
+             );
+         } else if dependency_type == DependencyType::Target || builder.config.is_host_target(target)
+         {
+-            builder.copy_link(&path, &dst.join(path.file_name().unwrap()), FileType::NativeLibrary);
++            builder.copy_link(
++                &path,
++                &dst.join(path.file_name().unwrap()),
++                FileType::NativeLibrary,
++            );
+         }
+     }
+ }
+@@ -794,7 +829,10 @@ pub struct Std {
+ 
+ impl Std {
+     pub fn new(builder: &Builder<'_>, target: TargetSelection) -> Self {
+-        Std { build_compiler: builder.compiler_for_std(builder.top_stage), target }
++        Std {
++            build_compiler: builder.compiler_for_std(builder.top_stage),
++            target,
++        }
+     }
+ }
+ 
+@@ -820,8 +858,9 @@ impl Step for Std {
+ 
+         // It's possible that std was uplifted and thus built with a different build compiler
+         // So we need to read the stamp that was actually generated when std was built
+-        let stamp =
+-            builder.std(build_compiler, target).expect("Standard library has to be built for dist");
++        let stamp = builder
++            .std(build_compiler, target)
++            .expect("Standard library has to be built for dist");
+ 
+         let mut tarball = Tarball::new(builder, "rust-std", &target.triple);
+         tarball.include_target_in_component_name(true);
+@@ -962,7 +1001,10 @@ impl Step for Analysis {
+         let mut removed = src.clone();
+         removed.push("removed.json");
+         let mut f = t!(std::fs::File::create(removed));
+-        t!(write!(f, r#"{{ "warning": "The `rust-analysis` component has been removed." }}"#));
++        t!(write!(
++            f,
++            r#"{{ "warning": "The `rust-analysis` component has been removed." }}"#
++        ));
+ 
+         let mut tarball = Tarball::new(builder, "rust-analysis", &target.triple);
+         tarball.include_target_in_component_name(true);
+@@ -1010,7 +1052,6 @@ fn copy_src_dirs(
+ 
+         static LLVM_PROJECTS: &[&str] = &[
              "llvm-project/clang",
-             "llvm-project\\clang",
 -            "llvm-project/libunwind",
--            "llvm-project\\libunwind",
              "llvm-project/lld",
-             "llvm-project\\lld",
              "llvm-project/lldb",
-@@ -907,7 +907,7 @@ impl Step for Src {
+             "llvm-project/llvm",
+@@ -1081,7 +1122,11 @@ fn copy_src_dirs(
+         // - If the path is a file, we will iterate to it and then check it's filename
+         // - If the path is a dir, if it's dir name contains an excluded string, we will not even
+         //   recurse into it.
+-        let last_component = path.iter().next_back().map(|s| s.to_str().unwrap()).unwrap();
++        let last_component = path
++            .iter()
++            .next_back()
++            .map(|s| s.to_str().unwrap())
++            .unwrap();
+         !EXCLUDES.contains(&last_component)
+     }
+ 
+@@ -1089,8 +1134,9 @@ fn copy_src_dirs(
+     for item in src_dirs {
+         let dst = &dst_dir.join(item);
+         t!(fs::create_dir_all(dst));
+-        builder
+-            .cp_link_filtered(&base.join(item), dst, &|path| filter_fn(exclude_dirs, item, path));
++        builder.cp_link_filtered(&base.join(item), dst, &|path| {
++            filter_fn(exclude_dirs, item, path)
++        });
+     }
+ }
+ 
+@@ -1133,7 +1179,7 @@ impl Step for Src {
          copy_src_dirs(
              builder,
              &builder.src,
@@ -31,3 +222,281 @@ diff --git a/src/bootstrap/src/core/build_steps/dist.rs b/src/bootstrap/src/core
              &[
                  // not needed and contains symlinks which rustup currently
                  // chokes on when unpacking.
+@@ -1166,7 +1212,8 @@ impl Step for PlainSourceTarball {
+ 
+     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
+         let builder = run.builder;
+-        run.alias("rustc-src").default_condition(builder.config.rust_dist_src)
++        run.alias("rustc-src")
++            .default_condition(builder.config.rust_dist_src)
+     }
+ 
+     fn make_run(run: RunConfig<'_>) {
+@@ -1253,7 +1300,10 @@ impl Step for PlainSourceTarball {
+             }
+         };
+         write_git_info(builder.rust_info().info(), plain_dst_src);
+-        write_git_info(builder.cargo_info.info(), &plain_dst_src.join("./src/tools/cargo"));
++        write_git_info(
++            builder.cargo_info.info(),
++            &plain_dst_src.join("./src/tools/cargo"),
++        );
+ 
+         if builder.config.dist_vendor {
+             builder.require_and_update_all_submodules();
+@@ -1263,8 +1313,9 @@ impl Step for PlainSourceTarball {
+                 .iter()
+                 .chain(build_helper::RUSTC_PGO_CRATES)
+                 .map(|pkg| {
+-                    let mut manifest_path =
+-                        builder.src.join("./src/tools/rustc-perf/collector/compile-benchmarks");
++                    let mut manifest_path = builder
++                        .src
++                        .join("./src/tools/rustc-perf/collector/compile-benchmarks");
+                     manifest_path.push(pkg);
+                     manifest_path.push("Cargo.toml");
+                     manifest_path
+@@ -1340,7 +1391,11 @@ impl Step for Cargo {
+         tarball.set_overlay(OverlayKind::Cargo);
+ 
+         tarball.add_file(&cargo.tool_path, "bin", FileType::Executable);
+-        tarball.add_file(etc.join("_cargo"), "share/zsh/site-functions", FileType::Regular);
++        tarball.add_file(
++            etc.join("_cargo"),
++            "share/zsh/site-functions",
++            FileType::Regular,
++        );
+         tarball.add_renamed_file(
+             etc.join("cargo.bashcomp.sh"),
+             "etc/bash_completion.d",
+@@ -1517,7 +1572,8 @@ impl Step for CraneliftCodegenBackend {
+             .config
+             .enabled_codegen_backends(run.builder.host_target)
+             .contains(&CodegenBackendKind::Cranelift);
+-        run.alias("rustc_codegen_cranelift").default_condition(clif_enabled_by_default)
++        run.alias("rustc_codegen_cranelift")
++            .default_condition(clif_enabled_by_default)
+     }
+ 
+     fn make_run(run: RunConfig<'_>) {
+@@ -1637,7 +1693,8 @@ impl Step for Extended {
+ 
+     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
+         let builder = run.builder;
+-        run.alias("extended").default_condition(builder.config.extended)
++        run.alias("extended")
++            .default_condition(builder.config.extended)
+     }
+ 
+     fn make_run(run: RunConfig<'_>) {
+@@ -1652,7 +1709,10 @@ impl Step for Extended {
+     /// Creates a combined installer for the specified target in the provided stage.
+     fn run(self, builder: &Builder<'_>) {
+         let target = self.target;
+-        builder.info(&format!("Dist extended stage{} ({target})", builder.top_stage));
++        builder.info(&format!(
++            "Dist extended stage{} ({target})",
++            builder.top_stage
++        ));
+ 
+         let mut tarballs = Vec::new();
+         let mut built_tools = HashSet::new();
+@@ -1675,7 +1735,14 @@ impl Step for Extended {
+         // the std files during uninstall. To do this ensure that rustc comes
+         // before rust-std in the list below.
+         tarballs.push(builder.ensure(Rustc { target_compiler }));
+-        tarballs.push(builder.ensure(Std { build_compiler, target }).expect("missing std"));
++        tarballs.push(
++            builder
++                .ensure(Std {
++                    build_compiler,
++                    target,
++                })
++                .expect("missing std"),
++        );
+ 
+         if target.is_windows_gnu() {
+             tarballs.push(builder.ensure(Mingw { target }).expect("missing mingw"));
+@@ -1781,7 +1848,11 @@ impl Step for Extended {
+                     &work.join(format!("{}-{}", pkgname(builder, name), target.triple)),
+                     &pkg.join(name),
+                 );
+-                builder.install(&etc.join("pkg/postinstall"), &pkg.join(name), FileType::Script);
++                builder.install(
++                    &etc.join("pkg/postinstall"),
++                    &pkg.join(name),
++                    FileType::Script,
++                );
+                 pkgbuild(name);
+             };
+             prepare("rustc");
+@@ -1802,12 +1873,20 @@ impl Step for Extended {
+                 }
+             }
+             // create an 'uninstall' package
+-            builder.install(&etc.join("pkg/postinstall"), &pkg.join("uninstall"), FileType::Script);
++            builder.install(
++                &etc.join("pkg/postinstall"),
++                &pkg.join("uninstall"),
++                FileType::Script,
++            );
+             pkgbuild("uninstall");
+ 
+             builder.create_dir(&pkg.join("res"));
+             builder.create(&pkg.join("res/LICENSE.txt"), &license);
+-            builder.install(&etc.join("gfx/rust-logo.png"), &pkg.join("res"), FileType::Regular);
++            builder.install(
++                &etc.join("gfx/rust-logo.png"),
++                &pkg.join("res"),
++                FileType::Regular,
++            );
+             let mut cmd = command("productbuild");
+             cmd.arg("--distribution")
+                 .arg(xform(&etc.join("pkg/Distribution.xml")))
+@@ -1849,7 +1928,9 @@ impl Step for Extended {
+                     name.to_string()
+                 };
+                 builder.cp_link_r(
+-                    &work.join(format!("{}-{}", pkgname(builder, name), target.triple)).join(dir),
++                    &work
++                        .join(format!("{}-{}", pkgname(builder, name), target.triple))
++                        .join(dir),
+                     &exe.join(name),
+                 );
+                 builder.remove(&exe.join(name).join("manifest.in"));
+@@ -2046,8 +2127,14 @@ impl Step for Extended {
+             }
+ 
+             let candle = |input: &Path| {
+-                let output = exe.join(input.file_stem().unwrap()).with_extension("wixobj");
+-                let arch = if target.contains("x86_64") { "x64" } else { "x86" };
++                let output = exe
++                    .join(input.file_stem().unwrap())
++                    .with_extension("wixobj");
++                let arch = if target.contains("x86_64") {
++                    "x64"
++                } else {
++                    "x86"
++                };
+                 let mut cmd = command(&candle);
+                 cmd.current_dir(&exe)
+                     .arg("-nologo")
+@@ -2158,7 +2245,10 @@ impl Step for Extended {
+             cmd.run(builder);
+ 
+             if !builder.config.dry_run() {
+-                t!(move_file(exe.join(&filename), distdir(builder).join(&filename)));
++                t!(move_file(
++                    exe.join(&filename),
++                    distdir(builder).join(&filename)
++                ));
+             }
+         }
+     }
+@@ -2197,7 +2287,14 @@ fn add_env(
+ 
+     // ensure these variables are defined
+     let mut define_optional_tool = |tool_name: &str, env_name: &str| {
+-        cmd.env(env_name, if built_tools.contains(tool_name) { "1" } else { "0" });
++        cmd.env(
++            env_name,
++            if built_tools.contains(tool_name) {
++                "1"
++            } else {
++                "0"
++            },
++        );
+     };
+     define_optional_tool("rustfmt", "CFG_RUSTFMT");
+     define_optional_tool("clippy", "CFG_CLIPPY");
+@@ -2218,7 +2315,11 @@ fn install_llvm_file(
+     if source.is_symlink() {
+         // If we have a symlink like libLLVM-18.so -> libLLVM.so.18.1, install the target of the
+         // symlink, which is what will actually get loaded at runtime.
+-        builder.install(&t!(fs::canonicalize(source)), destination, FileType::NativeLibrary);
++        builder.install(
++            &t!(fs::canonicalize(source)),
++            destination,
++            FileType::NativeLibrary,
++        );
+ 
+         let full_dest = destination.join(source.file_name().unwrap());
+         if install_symlink {
+@@ -2503,8 +2604,10 @@ impl Step for LlvmBitcodeLinker {
+     fn run(self, builder: &Builder<'_>) -> Option<GeneratedTarball> {
+         let target = self.target;
+ 
+-        let llbc_linker = builder
+-            .ensure(tool::LlvmBitcodeLinker::from_build_compiler(self.build_compiler, target));
++        let llbc_linker = builder.ensure(tool::LlvmBitcodeLinker::from_build_compiler(
++            self.build_compiler,
++            target,
++        ));
+ 
+         let self_contained_bin_dir = format!("lib/rustlib/{}/bin/self-contained", target.triple);
+ 
+@@ -2513,7 +2616,11 @@ impl Step for LlvmBitcodeLinker {
+         tarball.set_overlay(OverlayKind::LlvmBitcodeLinker);
+         tarball.is_preview(true);
+ 
+-        tarball.add_file(&llbc_linker.tool_path, self_contained_bin_dir, FileType::Executable);
++        tarball.add_file(
++            &llbc_linker.tool_path,
++            self_contained_bin_dir,
++            FileType::Executable,
++        );
+ 
+         Some(tarball.generate())
+     }
+@@ -2607,8 +2714,15 @@ impl Step for RustDev {
+         // compiler libraries.
+         let dst_libdir = tarball.image_dir().join("lib");
+         maybe_install_llvm(builder, target, &dst_libdir, true);
+-        let link_type = if builder.llvm_link_shared() { "dynamic" } else { "static" };
+-        t!(std::fs::write(tarball.image_dir().join("link-type.txt"), link_type), dst_libdir);
++        let link_type = if builder.llvm_link_shared() {
++            "dynamic"
++        } else {
++            "static"
++        };
++        t!(
++            std::fs::write(tarball.image_dir().join("link-type.txt"), link_type),
++            dst_libdir
++        );
+ 
+         // Copy the `compiler-rt` source, so that `library/profiler_builtins`
+         // can potentially use it to build the profiler runtime without needing
+@@ -2727,7 +2841,8 @@ impl Step for ReproducibleArtifacts {
+     }
+ 
+     fn make_run(run: RunConfig<'_>) {
+-        run.builder.ensure(ReproducibleArtifacts { target: run.target });
++        run.builder
++            .ensure(ReproducibleArtifacts { target: run.target });
+     }
+ 
+     fn run(self, builder: &Builder<'_>) -> Self::Output {
+@@ -2745,7 +2860,11 @@ impl Step for ReproducibleArtifacts {
+             tarball.add_file(profile, ".", FileType::Regular);
+             added_anything = true;
+         }
+-        if added_anything { Some(tarball.generate()) } else { None }
++        if added_anything {
++            Some(tarball.generate())
++        } else {
++            None
++        }
+     }
+ 
+     fn metadata(&self) -> Option<StepMetadata> {
+@@ -2774,7 +2893,9 @@ impl Step for Gcc {
+ 
+     fn run(self, builder: &Builder<'_>) -> Self::Output {
+         let tarball = Tarball::new(builder, "gcc", &self.target.triple);
+-        let output = builder.ensure(super::gcc::Gcc { target: self.target });
++        let output = builder.ensure(super::gcc::Gcc {
++            target: self.target,
++        });
+         tarball.add_file(&output.libgccjit, "lib", FileType::NativeLibrary);
+         tarball.generate()
+     }
