@@ -9,7 +9,7 @@ DEFAULT_TARGET = nonmerge
 NETPBMLIBTYPE=unixshared
 NETPBMLIBSUFFIX=so
 STATICLIB_TOO=n
-CFLAGS = $CFLAGS
+CFLAGS = $CFLAGS -std=gnu89
 CFLAGS_MERGE = -Wno-missing-declarations -Wno-missing-prototypes -fno-common
 LDRELOC = ld --reloc
 LINKER_CAN_DO_EXPLICIT_LIBRARY = Y
