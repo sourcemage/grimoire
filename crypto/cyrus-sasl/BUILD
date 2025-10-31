@@ -6,6 +6,9 @@ if [[ "$CS_DB" == none ]]; then
   OPTS="$OPTS --with-dblib=none"
 fi &&
 
+# Old-style function declarations go against new compiler defaults.
+CFLAGS="$CFLAGS -std=gnu89" &&
+
 OPTS="$OPTS \
   $CS_PLAIN \
   $CS_LOGIN \
