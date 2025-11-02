@@ -1,6 +1,8 @@
+. "${GRIMOIRE}/MESON_DEPENDS" &&
 . "$GRIMOIRE"/VDEPENDS &&
 depends llvm &&
 depends -sub "PNG" cairo &&
+depends cargo-c &&
 depends fontconfig &&
 depends freetype2 &&
 depends glib2 &&
@@ -14,28 +16,34 @@ if is_depends_enabled libxml2 icu;then
   depends icu
 fi &&
 depends pixman &&
-depends gdk-pixbuf2 &&
 vdepends <<! &&
 	rust >= 1.39.0
 !
+optional_depends gdk-pixbuf2 \
+                 "pixbuf-loader=enabled" \
+                 "pixbuf-loader=disabled" \
+                 "for GDK-Pixbuf SVG loader" &&
 
 optional_depends gtk-doc                               \
-                 "--enable-gtk-doc"                    \
-                 "--disable-gtk-doc"                   \
-                 "Build documentation with gtk-doc"    &&
+                 "docs=enabled"                        \
+                 "docs=disabled"                       \
+"Build documentation with gtk-doc (needs ${SPELL_COLOR}docutils${DEFAULT_COLOR} as well)" &&
+if is_depends_enabled "${SPELL}" "gtk-doc"; then
+  depends docutils
+fi &&
 
 message "${MESSAGE_COLOR}NOTICE: Vala bindings require ${SPELL_COLOR}gobject-introspection${MESSAGE_COLOR} installed.${DEFAULT_COLOR}" &&
 
 optional_depends vala                                  \
-                 "--enable-vala=yes"                   \
-                 "--enable-vala=no"                    \
+                 "vala=enabled"                        \
+                 "vala=disabled"                       \
                  "build vala bindings"                 &&
 
 if is_depends_enabled $SPELL vala; then
   depends gobject-introspection
 else
   optional_depends gobject-introspection               \
-                 "--enable-introspection"              \
-                 "--disable-introspection"             \
+                 "introspection=enabled"               \
+                 "introspection=disabled"              \
                  "Enable introspection"
 fi
