@@ -1,11 +1,16 @@
-ARCH="$(uname -m)" &&
-if [[ "${ARCH}" = 'x86_64' ]]; then
-  message "Wine64 does NOT run 32bit apps. You can, however, build a 64bit Wine." &&
-  message "Probably this is not what you want. If you say 'n' to the next question" &&
-  message "an attempt will be made to build a 32bit Wine, which will fail if you" &&
-  message "do not have a multilib system." &&
-  config_query_option WINE64 'Build a 64bit Wine?' n '--enable-win64' ''
-fi &&
+case "$(uname -m):$VERSION" in
+(x86_64:10.[0-8])
+  message "Before Wine 10.9, our 64-bit builds don't have WoW64 (32-bit) support; so" &&
+  message "probably this isn't what you want. If you say 'n' to the next question we" &&
+  message "will attempt 32-bit build, which will fail if you do not have a multilib system." &&
+  config_query_option WINE64 'Build a 64-bit Wine?' n '--enable-win64' ''
+  ;;
+(x86_64:*)
+  message "Starting with Wine 10.9, WoW64 is enabled by default in 64-bit builds, thus it" &&
+  message "can run 32-bit applications too." &&
+  config_query_option WINE64 'Build a 64-bit Wine?' y '--enable-win64' ''
+  ;;
+esac &&
 
 # Remove on 2015-02-03
 persistent_remove WINE_SC2_LOGIN
