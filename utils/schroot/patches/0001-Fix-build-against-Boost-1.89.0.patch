@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Holger Hoffstätte <holger@applied-asynchrony.com>
+Date: Tue, 16 Sep 2025 15:37:42 +0200
+Subject: [PATCH] Fix build against Boost 1.89.0
+
+boost-1.89.0 removed the (empty for a long time) boost_system, which is
+now header-only, and cmake configuration now fails:
+
+	CMake Error at /usr/lib/cmake/Boost-1.89.0/BoostConfig.cmake:141 (find_package):
+	  Could not find a package configuration file provided by "boost_system"
+	  (requested version 1.89.0) with any of the following names:
+
+	    boost_systemConfig.cmake
+	    boost_system-config.cmake
+
+	  Add the installation prefix of "boost_system" to CMAKE_PREFIX_PATH or set
+	  "boost_system_DIR" to a directory containing one of the above files.  If
+	  "boost_system" provides a separate development package or SDK, be sure it
+	  has been installed.
+	Call Stack (most recent call first):
+	  /usr/lib/cmake/Boost-1.89.0/BoostConfig.cmake:262 (boost_find_component)
+	  /usr/share/cmake/Modules/FindBoost.cmake:609 (find_package)
+	  CMakeLists.txt:61 (find_package)
+
+Ref: https://codeberg.org/shelter/reschroot/issues/33
+Origin: Upstream
+[ismael@sourcemage.org: patch normalized and description added]
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 35da3380..fa4b55db 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -59,7 +59,11 @@ find_package(Threads REQUIRED)
+
+ include(FindBoost)
+ find_package(Boost REQUIRED
+-             COMPONENTS filesystem system iostreams program_options regex)
++             COMPONENTS filesystem iostreams program_options regex)
++if(Boost_MAJOR_VERSION EQUAL 1 AND Boost_MINOR_VERSION LESS 69)
++  list(APPEND BOOST_REQUIRED_COMPONENTS system)
++  find_package(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
++endif()
+
+ # HEADER CHECKS
+ include(CheckIncludeFileCXX)
+
