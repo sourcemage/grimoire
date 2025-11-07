@@ -1,0 +1,5 @@
+OPTS+=' -DOTIO_DEPENDENCIES_INSTALL=off'  &&
+OPTS+=' -DOTIO_AUTOMATIC_SUBMODULES=off'  &&
+#OPTS+=' -D' 
+cmake_build
+
