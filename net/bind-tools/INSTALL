@@ -1,17 +1,22 @@
-INSTALL_EXEC="install -v -m755 -o root -g root" &&
-INSTALL="install -v -m644 -o root -g root"      &&
-
-for exec in delv dig nsupdate; do
-  cd "$SOURCE_DIRECTORY/bin/$exec"            &&
-  $INSTALL_EXEC $exec "$INSTALL_ROOT/usr/bin"
+cd "$SOURCE_DIRECTORY"/builddir &&
+for exec in \
+	delv \
+	dig \
+	dnssec-dsfromkey \
+	dnssec-importkey \
+	dnssec-keyfromlabel \
+	dnssec-keygen \
+	dnssec-revoke \
+	dnssec-settime \
+	dnssec-signzone \
+	dnssec-verify \
+	host \
+	nslookup \
+	nsupdate
+do
+  install -v -m555 -o root -g root "$exec" "$INSTALL_ROOT/usr/bin" &&
+  install -v -m444 -o root -g root "$exec.1" "$INSTALL_ROOT/usr/share/man/man1/" || exit 1
 done &&
-
-$INSTALL_EXEC "$SOURCE_DIRECTORY/bin/dig/host" "$INSTALL_ROOT/usr/bin/"
-
-$INSTALL "$SOURCE_DIRECTORY/doc/man/"{delv,dig,host,nslookup,nsupdate}.1 "$INSTALL_ROOT/usr/share/man/man1/" &&
-
-cd "$SOURCE_DIRECTORY/bin/dnssec" &&
-for i in dsfromkey importkey keyfromlabel keygen revoke settime signzone verify; do
-  $INSTALL_EXEC dnssec-$i "$INSTALL_ROOT/usr/bin/" &&
-  $INSTALL "$SOURCE_DIRECTORY/doc/man/dnssec-$i.8" "$INSTALL_ROOT/usr/share/man/man8/"
+for lib in libdns libisc libisccfg libns; do
+  install -v -m555 -o root -g root "$lib-$VERSION.so" "$INSTALL_ROOT/usr/lib" || exit 1
 done
