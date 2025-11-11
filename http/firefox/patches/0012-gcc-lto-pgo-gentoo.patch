@@ -1,0 +1,153 @@
+diff --git a/build/moz.configure/lto-pgo.configure b/build/moz.configure/lto-pgo.configure
+index 165541b79842..372e100bc6c2 100644
+--- a/build/moz.configure/lto-pgo.configure
++++ b/build/moz.configure/lto-pgo.configure
+@@ -96,12 +96,16 @@ set_config("PGO_PROFILE_PATH", pgo_profile_path)
+ 
+ @depends(
+     "--enable-profile-use",
++    c_compiler,
+     pgo_profile_path,
+     llvm_profdata,
+     llvm_profdata_order,
+     build_environment,
+ )
+-def orderfile_path(profile_use, path, profdata, profdata_order, build_env):
++def orderfile_path(profile_use, compiler, path, profdata, profdata_order, build_env):
++    if compiler.type == "gcc":
++        return None
++
+     if not profile_use:
+         return None
+ 
+@@ -145,7 +149,7 @@ def pgo_flags(
+         return namespace(
+             gen_cflags=["-fprofile-generate"],
+             gen_ldflags=["-fprofile-generate"],
+-            use_cflags=["-fprofile-use", "-fprofile-correction", "-Wcoverage-mismatch"],
++            use_cflags=["-fprofile-use", "-fprofile-correction", "-Wno-coverage-mismatch"],
+             use_ldflags=["-fprofile-use"],
+         )
+ 
+diff --git a/build/pgo/profileserver.py b/build/pgo/profileserver.py
+index faf15719a053..dde982ef09a4 100755
+--- a/build/pgo/profileserver.py
++++ b/build/pgo/profileserver.py
+@@ -96,9 +96,22 @@ if __name__ == "__main__":
+     locations = ServerLocations()
+     locations.add_host(host="127.0.0.1", port=PORT, options="primary,privileged")
+ 
+-    old_profraw_files = glob.glob("*.profraw")
+-    for f in old_profraw_files:
+-        os.remove(f)
++    using_gcc = False
++    try:
++        if build.config_environment.substs.get('CC_TYPE') == 'gcc':
++            using_gcc = True
++    except BuildEnvironmentNotFoundException:
++        pass
++
++    if using_gcc:
++        for dirpath, _, filenames in os.walk('.'):
++            for f in filenames:
++                if f.endswith('.gcda'):
++                    os.remove(os.path.join(dirpath, f))
++    else:
++        old_profraw_files = glob.glob('*.profraw')
++        for f in old_profraw_files:
++            os.remove(f)
+ 
+     with TemporaryDirectory() as profilePath:
+         # TODO: refactor this into mozprofile
+@@ -228,6 +241,11 @@ if __name__ == "__main__":
+             print("Firefox exited successfully, but produced a crashreport")
+             sys.exit(1)
+ 
++        if using_gcc: 
++            print('Copying profile data....')
++            os.system('pwd');
++            os.system('tar cf profdata.tar.gz `find . -name "*.gcda"`; cd ..; tar xf instrumented/profdata.tar.gz;');
++ 
+         llvm_profdata = env.get("LLVM_PROFDATA")
+         if llvm_profdata:
+             profraw_files = glob.glob("*.profraw")
+diff --git a/gfx/2d/moz.build b/gfx/2d/moz.build
+index 67238befa3bf..8d3d7048744b 100644
+--- a/gfx/2d/moz.build
++++ b/gfx/2d/moz.build
+@@ -130,11 +130,11 @@ if CONFIG["INTEL_ARCHITECTURE"]:
+     DEFINES["USE_SSE2"] = True
+     # The file uses SSE2 intrinsics, so it needs special compile flags on some
+     # compilers.
+-    SOURCES["ConvolutionFilterAVX2.cpp"].flags += ["-mavx2"]
++    SOURCES["ConvolutionFilterAVX2.cpp"].flags += ["-mavx2", "-fno-lto"]
+     SOURCES["ConvolutionFilterSSE2.cpp"].flags += CONFIG["SSE2_FLAGS"]
+     SOURCES["FilterProcessingSSE2.cpp"].flags += CONFIG["SSE2_FLAGS"]
+     SOURCES["ImageScalingSSE2.cpp"].flags += CONFIG["SSE2_FLAGS"]
+-    SOURCES["SwizzleAVX2.cpp"].flags += ["-mavx2"]
++    SOURCES["SwizzleAVX2.cpp"].flags += ["-mavx2", "-fno-lto"]
+     SOURCES["SwizzleSSE2.cpp"].flags += CONFIG["SSE2_FLAGS"]
+     SOURCES["SwizzleSSSE3.cpp"].flags += CONFIG["SSSE3_FLAGS"]
+ 
+diff --git a/gfx/skia/generate_mozbuild.py b/gfx/skia/generate_mozbuild.py
+index 8f2fa5ddbd49..8ed44780fdc3 100755
+--- a/gfx/skia/generate_mozbuild.py
++++ b/gfx/skia/generate_mozbuild.py
+@@ -50,8 +50,8 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':
+ if CONFIG['INTEL_ARCHITECTURE']:
+     SOURCES['skia/modules/skcms/skcms.cc'].flags += ['-DSKCMS_DISABLE_SKX']
+     skia_ssse3_flags = ['-Dskvx=skvx_ssse3', '-mssse3']
+-    skia_avx_flags = ['-Dskvx=skvx_avx', '-mavx']
+-    skia_hsw_flags = ['-Dskvx=skvx_hsw', '-mavx2', '-mf16c', '-mfma']
++    skia_avx_flags = ['-Dskvx=skvx_avx', '-mavx', '-fno-lto']
++    skia_hsw_flags = ['-Dskvx=skvx_hsw', '-mavx2', '-mf16c', '-mfma', '-fno-lto']
+     SOURCES['skia/src/core/SkBitmapProcState_opts_ssse3.cpp'].flags += skia_ssse3_flags
+     SOURCES['skia/src/core/SkBlitMask_opts_ssse3.cpp'].flags += skia_ssse3_flags
+     SOURCES['skia/src/core/SkSwizzler_opts_ssse3.cpp'].flags += ['-Dskvx=skvx_ssse3']
+diff --git a/gfx/skia/moz.build b/gfx/skia/moz.build
+index b944b3fad445..329aa846385b 100644
+--- a/gfx/skia/moz.build
++++ b/gfx/skia/moz.build
+@@ -603,8 +603,8 @@ if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'windows':
+ if CONFIG['INTEL_ARCHITECTURE']:
+     SOURCES['skia/modules/skcms/skcms.cc'].flags += ['-DSKCMS_DISABLE_SKX']
+     skia_ssse3_flags = ['-Dskvx=skvx_ssse3', '-mssse3']
+-    skia_avx_flags = ['-Dskvx=skvx_avx', '-mavx']
+-    skia_hsw_flags = ['-Dskvx=skvx_hsw', '-mavx2', '-mf16c', '-mfma']
++    skia_avx_flags = ['-Dskvx=skvx_avx', '-mavx', '-fno-lto']
++    skia_hsw_flags = ['-Dskvx=skvx_hsw', '-mavx2', '-mf16c', '-mfma', '-fno-lto']
+     SOURCES['skia/src/core/SkBitmapProcState_opts_ssse3.cpp'].flags += skia_ssse3_flags
+     SOURCES['skia/src/core/SkBlitMask_opts_ssse3.cpp'].flags += skia_ssse3_flags
+     SOURCES['skia/src/core/SkSwizzler_opts_ssse3.cpp'].flags += ['-Dskvx=skvx_ssse3']
+diff --git a/security/sandbox/linux/moz.build b/security/sandbox/linux/moz.build
+index c346b8574921..f682ef9f2923 100644
+--- a/security/sandbox/linux/moz.build
++++ b/security/sandbox/linux/moz.build
+@@ -112,9 +112,8 @@ if CONFIG["CC_TYPE"] in ("clang", "gcc"):
+ # gcc lto likes to put the top level asm in syscall.cc in a different partition
+ # from the function using it which breaks the build.  Work around that by
+ # forcing there to be only one partition.
+-for f in CONFIG["OS_CXXFLAGS"]:
+-    if f.startswith("-flto") and CONFIG["CC_TYPE"] != "clang":
+-        LDFLAGS += ["--param lto-partitions=1"]
++if CONFIG['CC_TYPE'] != 'clang':
++    LDFLAGS += ['--param', 'lto-partitions=1']
+ 
+ DEFINES["NS_NO_XPCOM"] = True
+ DisableStlWrapping()
+diff --git a/toolkit/components/terminator/nsTerminator.cpp b/toolkit/components/terminator/nsTerminator.cpp
+index a96b4f361b63..b8d5edef629f 100644
+--- a/toolkit/components/terminator/nsTerminator.cpp
++++ b/toolkit/components/terminator/nsTerminator.cpp
+@@ -328,6 +328,11 @@ void nsTerminator::StartWatchdog() {
+   }
+ #endif
+ 
++  // Disable watchdog for PGO train builds - writting profile information at
++  // exit may take time and it is better to make build hang rather than
++  // silently produce poorly performing binary.
++  crashAfterMS = INT32_MAX;
++
+   UniquePtr<Options> options(new Options());
+   // crashAfterTicks is guaranteed to be > 0 as
+   // crashAfterMS >= ADDITIONAL_WAIT_BEFORE_CRASH_MS >> HEARTBEAT_INTERVAL_MS
