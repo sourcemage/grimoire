@@ -1,4 +1,2 @@
-#LDFLAGS+=" -lGLU"
-OPTS+=' -DUSE_VERSIONLESS_TARGETS=1'
-OPTS+=" -DKF_MAJOR=6"
+OPTS+=' -DFETCH_OTIO=0 ' &&
 default_build
