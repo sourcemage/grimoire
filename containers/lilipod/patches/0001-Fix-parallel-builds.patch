@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sun, 16 Nov 2025 06:09:11 +0100
+Subject: [PATCH] Fix parallel builds
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ Makefile |   11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index efc1d924bc10..1c752029450e 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,14 +1,13 @@
+-.PHONY: all lilipod pty coverage
++.PHONY: all coverage clean
+ 
+-all: clean pty lilipod
++all: pty lilipod
+ 
+ clean:
+ 	@rm -f lilipod
+ 	@rm -f pty
+ 	@rm -f pty.tar.gz
+ 
+-lilipod:
+-	@rm -f lilipod
++lilipod: pty.tar.gz
+ 	CGO_ENABLED=0 go build -mod vendor -ldflags="-s -w -X 'github.com/89luca89/lilipod/pkg/constants.Version=$${RELEASE_VERSION:-0.0.0}'" -o lilipod main.go
+ 
+ coverage:
+@@ -22,7 +21,7 @@ coverage:
+ 	CGO_ENABLED=0 go build -mod vendor -cover -o coverage/lilipod main.go
+ 
+ pty:
+-	@rm -f pty
+-	@rm -f pty.tar.gz
+ 	CGO_ENABLED=0 go build -mod vendor -gcflags=all="-l -B -C" -ldflags="-s -w -X 'main.version=$${RELEASE_VERSION:-0.0.0}'" -o pty ptyagent/main.go ptyagent/pty.go
++
++pty.tar.gz: pty
+ 	tar czfv pty.tar.gz pty
