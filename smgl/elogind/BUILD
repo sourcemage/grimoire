@@ -1,5 +1,6 @@
 # Fails to build with -Ofast
 CFLAGS="${CFLAGS//-Ofast/-O2}" &&
+CFLAGS="${CFLAGS//-ffast-math}" &&
 
 OPTS="smack=false tests=unsafe split-usr=true split-bin=true
   default-hierarchy=hybrid nobody-group=nogroup ${OPTS}" &&
