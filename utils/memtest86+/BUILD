@@ -1,4 +1,4 @@
 export LD=ld.bfd &&
-cd build64 &&
+cd build/x86_64 &&
 make
 
