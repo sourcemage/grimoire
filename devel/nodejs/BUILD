@@ -2,6 +2,8 @@ CXXFLAGS+=" -Wno-deprecated-declarations" &&
 # -Ofast breaks other projects (Firefox)
 CFLAGS="${CFLAGS//-Ofast/-O2}" &&
 CXXFLAGS="${CXXFLAGS//-Ofast/-O2}" &&
+CFLAGS="${CFLAGS//-ffast-math}" &&
+CXXFLAGS="${CXXFLAGS//-ffast-math}" &&
 
 if is_depends_enabled ${SPELL} llvm; then
   disable_stack_clash_protection &&
