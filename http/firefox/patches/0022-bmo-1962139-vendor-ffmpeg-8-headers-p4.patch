@@ -1,0 +1,45 @@
+
+# HG changeset patch
+# User Landry Breuil <landry@openbsd.org>
+# Date 1763998694 0
+# Node ID eb8352183323a78e60ab16855494e4e07e41314b
+# Parent  568e210639f79dda7823455a3fded66735466344
+Bug 1962139 - FF_PROFILE defines were renamed to AV_PROFILE in ffmpeg8 r=media-playback-reviewers,alwu
+
+Differential Revision: https://phabricator.services.mozilla.com/D272255
+
+
+diff --git a/dom/media/platforms/ffmpeg/FFmpegVideoEncoder.cpp b/dom/media/platforms/ffmpeg/FFmpegVideoEncoder.cpp
+--- a/dom/media/platforms/ffmpeg/FFmpegVideoEncoder.cpp
++++ b/dom/media/platforms/ffmpeg/FFmpegVideoEncoder.cpp
+@@ -113,21 +113,29 @@ struct H264Setting {
+ };
+ 
+ struct H264LiteralSetting {
+   int mValue;
+   nsLiteralCString mString;
+   H264Setting get() const { return {mValue, mString.AsString()}; }
+ };
+ 
++#if LIBAVCODEC_VERSION_MAJOR < 62
+ static constexpr H264LiteralSetting H264Profiles[]{
+     {FF_PROFILE_H264_BASELINE, "baseline"_ns},
+     {FF_PROFILE_H264_MAIN, "main"_ns},
+     {FF_PROFILE_H264_EXTENDED, ""_ns},
+     {FF_PROFILE_H264_HIGH, "high"_ns}};
++#else
++static constexpr H264LiteralSetting H264Profiles[]{
++    {AV_PROFILE_H264_BASELINE, "baseline"_ns},
++    {AV_PROFILE_H264_MAIN, "main"_ns},
++    {AV_PROFILE_H264_EXTENDED, ""_ns},
++    {AV_PROFILE_H264_HIGH, "high"_ns}};
++#endif
+ 
+ static Maybe<H264Setting> GetH264Profile(const H264_PROFILE& aProfile) {
+   switch (aProfile) {
+     case H264_PROFILE::H264_PROFILE_UNKNOWN:
+       return Nothing();
+     case H264_PROFILE::H264_PROFILE_BASE:
+       return Some(H264Profiles[0].get());
+     case H264_PROFILE::H264_PROFILE_MAIN:
+
