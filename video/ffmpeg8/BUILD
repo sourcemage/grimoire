@@ -35,6 +35,10 @@ LDFLAGS=${LDFLAGS//-Wl,--as-needed/}  &&
 
 OPTS="--disable-cuda --disable-cuvid $OPTS" &&
 
+# Avoid libglslang; unstable ABI breaks the build too often,
+# it has been replaced by shaderc (also preferred by upstream)
+OPTS+=" --disable-libglslang" &&
+
 check_tmp_noexec /tmp &&
 ./configure  --prefix=${INSTALL_ROOT}/usr            \
              --mandir=${INSTALL_ROOT}/usr/share/man  \
