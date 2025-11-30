@@ -1,2 +1,2 @@
-PATH+="$QT6DIR/bin" &&
+PATH+=":$QT6DIR/bin" &&
 default_build
