@@ -1,2 +1,2 @@
 OPTS="$IRSSI_OPTS $OPTS" &&
-default_build
+meson_build
