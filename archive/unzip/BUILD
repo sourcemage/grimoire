@@ -1,3 +1,8 @@
+# Force a specific C standard to avoid build failures with newer compilers
+case "$($CC --help)" in
+  (*\ -std=*) CFLAGS+=' -std=gnu99';;
+esac &&
+
 DEFINES='-DACORN_FTYPE_NFS -DWILD_STOP_AT_DIR -DLARGE_FILE_SUPPORT \
          -DUNICODE_SUPPORT -DUNICODE_WCHAR -DUTF8_MAYBE_NATIVE -DNO_LCHMOD \
          -DDATE_FORMAT=DF_YMD -DNOMEMCPY -DNO_WORKING_ISPRINT' &&
