@@ -1,3 +1,8 @@
+# Force a specific C standard to avoid build failures with newer compilers
+case "$(${CC-gcc} --help)" in
+  (*\ -std=*) CFLAGS+=' -std=c17';;
+esac &&
+
 #
 # The mt-st package installs the mt manpage
 #
