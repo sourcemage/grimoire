@@ -1,3 +1,8 @@
+# Force a specific C standard to avoid build failures with newer compilers
+case "$(${CC-gcc} --help)" in
+  (*\ -std=*) CFLAGS+=' -std=c17';;
+esac &&
+
 # For use in INSTALL for Bug #16031
 persistent_add gmp_old_version &&
 if spell_ok ${SPELL}; then
