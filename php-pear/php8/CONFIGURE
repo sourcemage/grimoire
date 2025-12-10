@@ -1,0 +1,149 @@
+. "$GRIMOIRE/FUNCTIONS" &&
+
+message "${MESSAGE_COLOR}PEAR support will enable the CLI version and force depends on libxml2" &&
+message "It will also enable some PCRE support (internal recommended)${DEFAULT_COLOR}" &&
+# prior pear enabledness
+if list_find "$PHP_OPTS" "--enable-pear" ; then
+  PHP_PEAR="y"
+fi &&
+
+config_query PHP_PEAR "Do you want PEAR support?" y &&
+
+config_query_option PHP_OPTS "Enable IPv6?" n \
+                    "--enable-ipv6" "--disable-ipv6" &&
+
+config_query_option PHP_OPTS "Enable sockets support?" y \
+                    "--enable-sockets" "--disable-sockets" &&
+
+config_query_option PHP_OPTS "Enable FTP support?" y \
+                    "--enable-ftp" "--disable-ftp" &&
+
+config_query_option PHP_OPTS "Enable calendar support?" y \
+                    "--enable-calendar" "--disable-calendar" &&
+
+config_query_option PHP_OPTS "Enable pcntl support (Only affects CLI/CGI)" n \
+                    "--enable-pcntl" "--disable-pcntl" &&
+
+message "${MESSAGE_COLOR}Apache-based and *CGI SAPIs are mutually exclusive (though both FastCGI and CGI can be enabled at the same time)${DEFAULT_COLOR}" &&
+
+config_query_list PHP_SAPI "What SAPI do you want to use?" \
+                            apache cgi none &&
+
+if [[ $PHP_SAPI == cgi ]]; then
+  list_add "PHP_OPTS" "--enable-cgi --without-apxs --without-apxs2" &&
+
+  if is_version_less "${VERSION}" 5.3; then
+    config_query_option PHP_OPTS "Enable FastCGI SAPI?" n \
+                        "--enable-fastcgi" "--disable-fastcgi"
+  else
+    message "${MESSAGE_COLOR}The FastCGI SAPI is now always enabled since PHP 5.3.0${DEFAULT_COLOR}"
+  fi
+elif [[ $PHP_SAPI == apache ]]; then
+  config_query_list PHP_APACHE "Which Apache module to build?" \
+                                handler filter
+fi &&
+
+if [[ "${PHP_PEAR}" == "y" ]] || list_find "$PHP_OPTS" "--enable-cgi" || list_find "$PHP_OPTS" "--enable-fastcgi" ; then
+  message "${MESSAGE_COLOR}Enabling CLI version for PEAR/CGI/FastCGI support${DEFAULT_COLOR}" &&
+  list_add "PHP_OPTS" "--enable-cli"
+else
+  config_query_option PHP_OPTS "Enable CLI version?" y \
+                                "--enable-cli" \
+                                "--disable-cli"
+fi &&
+
+config_query_option PHP_OPTS "Enable multibyte support?"  n \
+                    "--enable-mbstring --enable-mbregex" \
+                    "--disable-mbstring --disable-mbregex" &&
+
+message "${MESSAGE_COLOR}See http://us.php.net/dba.installation for more info${DEFAULT_COLOR}" &&
+message "${MESSAGE_COLOR}Not recommended: dbm, ndbm. NOTE: qdbm conflicts with dbm and gdbm${DEFAULT_COLOR}" &&
+config_query_multi PHP_DBA_DRIVERS "Select dbm-style database drivers (if any)" none gdbm db4 flatfile inifile qdbm &&
+
+if ! list_find "${PHP_DBA_DRIVERS}" "none"; then
+  list_add "PHP_OPTS" "--enable-dba" &&
+  
+  if list_find "${PHP_DBA_DRIVERS}" "flatfile"; then
+    list_add "PHP_OPTS" "--enable-inifile"
+  else
+    list_add "PHP_OPTS" "--disable-inifile"
+  fi &&
+
+  if list_find "${PHP_DBA_DRIVERS}" "flatfile"; then
+    list_add "PHP_OPTS" "--enable-flatfile"
+  else
+    list_add "PHP_OPTS" "--disable-flatfile"
+  fi
+else
+  list_add "PHP_OPTS" "--disable-dba"
+fi &&
+
+# get the native simple drivers (5.4 drops SQLite 2 support)
+local DB_DRIVERS="mysql mysqli pgsql sqlite3 firebird unixODBC iODBC" &&
+
+config_query_multi PHP_DATABASE_DRIVERS "Select vendor specific database drivers to install (if any)" \
+                                         none all $DB_DRIVERS &&
+
+# for PDO-only drivers
+if list_find "${PHP_DATABASE_DRIVERS}" "sqlite3" || list_find "${PHP_DATABASE_DRIVERS}" "firebird"; then
+  list_add "PHP_OPTS" "--enable-pdo"
+else
+  # ask if they want the PDO drivers for the drivers they selected
+  config_query_option PHP_OPTS "Enable PHP Data Objects?" y \
+                                "--enable-pdo" \
+                                "--disable-pdo"
+fi &&
+
+if list_find "$PHP_OPTS" "--enable-pdo"; then
+  local PDO_DRIVERS="mysql pgsql unixODBC iODBC" &&
+
+  for foo in $PDO_DRIVERS; do
+    if list_find "${PHP_DATABASE_DRIVERS}" "$foo" || list_find "${PHP_DATABASE_DRIVERS}" "all"; then
+      # odbc special case
+      if [[ "$foo" == "unixODBC" ]]; then
+        config_query_option PHP_OPTS "Enable PDO driver for unixodbc?" n \
+                                      "--with-pdo-odbc=unixODBC,${INSTALL_ROOT}/usr" \
+                                      ""
+      elif [[ "$foo" == "iODBC" ]]; then
+        config_query_option PHP_OPTS "Enable PDO driver for libiodbc?" n \
+                                      "--with-pdo-odbc=iODBC,${INSTALL_ROOT}/usr" \
+                                      ""
+      else
+        config_query_option PHP_OPTS "Enable PDO driver for $foo?" n \
+                                      "--with-pdo-$foo=${INSTALL_ROOT}/usr" \
+                                      "--without-pdo-$foo"
+      fi
+    else
+      if [[ "$foo" != "unixODBC" ]] && [[ "$foo" != "iODBC" ]]; then
+        # be sure that the PDO driver is disabled
+        list_add "PHP_OPTS" "--without-pdo-$foo"
+      fi
+    fi
+  done
+fi &&
+
+config_query_option PHP_OPTS "Enable shmop support?" n \
+                    "--enable-shmop" "--disable-shmop" &&
+
+config_query_option PHP_OPTS "Enable ZIP support?" n \
+                    "--enable-zip" "--disable-zip" &&
+
+config_query_option PHP_OPTS "Enable System V message queues support?" n \
+                    "--enable-sysvmsg" "--disable-sysvmsg" &&
+
+config_query_option PHP_OPTS "Enable System V semaphore support?" n \
+                    "--enable-sysvsem" "--disable-sysvsem" &&
+
+config_query_option PHP_OPTS "Enable System V shared memory support?" n \
+                    "--enable-sysvshm" "--disable-sysvshm" &&
+
+config_query_list PHP_GD "Which GD library to use?" \
+                  none internal external &&
+
+if [[ "$PHP_PEAR" == "y" ]]; then
+  config_query_list PHP_PCRE "Which PCRE library to use (internal reccomended)?" \
+                              internal external
+else
+  config_query_list PHP_PCRE "Which PCRE library to use (internal reccomended)?" \
+                              internal external none
+fi

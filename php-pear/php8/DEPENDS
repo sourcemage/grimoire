@@ -1,0 +1,268 @@
+. ${GRIMOIRE}/FUNCTIONS &&
+
+# takes two params
+# $1 is the driver name
+# $2 is the spell name (for depending)
+function db_driver_depends() {
+  local db_driver="$1"
+  local db_spell="$2"
+
+  if list_find "$PHP_DATABASE_DRIVERS" "$db_driver" || list_find "$PHP_DATABASE_DRIVERS" "all"; then
+    depends $db_spell "--with-$db_driver"
+  else
+    list_add "PHP_OPTS" "--without-$db_driver"
+  fi
+}
+
+depends flex &&
+depends oniguruma &&
+# Officially these are optional, but we require them because some other
+# optional extensions depend on it, and they're omnipresent anyway
+depends readline "--with-readline" &&
+depends zlib "--with-zlib" &&
+
+optional_depends bzip2 \
+                 "--with-bz2" "--without-bz2" \
+                 "for compression support" &&
+
+if [[ "$PHP_PEAR" == "y" ]]; then
+  depends libxml2 '--enable-xml --enable-dom --with-xmlrpc'
+else
+  optional_depends libxml2 \
+                   "--enable-xml --enable-dom --with-xmlrpc" \
+                   "--disable-xml --disable-dom --without-xmlrpc --disable-xmlreader --disable-xmlwriter --disable-simplexml" \
+                   "For XML support (required for SOAP)"
+fi &&
+
+optional_depends libxslt \
+                 "--with-xsl" "--without-xsl" \
+                 "for XSLT support" &&
+
+if is_depends_enabled $SPELL libxml2 ; then
+  config_query_option PHP_OPTS "Enable SOAP support?" n \
+                      "--enable-soap" "--disable-soap"
+else
+  list_add "PHP_OPTS" "--disable-soap"
+fi &&
+
+optional_depends pth \
+                 "--with-tsrm-pth=${INSTALL_ROOT}/usr" "--with-tsrm-pthreads" \
+                 "use GNU Portable Threads instead of POSIX threads" &&
+
+if [[ $PHP_SAPI == apache ]]; then
+  case "${PHP_APACHE}" in
+    handler) depends APACHE;;
+    filter) depends APACHE2 '--with-apxs2 --without-apxs';;
+  esac &&
+
+  if [[ "$(get_spell_provider $SPELL APACHE)" == 'apache1' ]]; then
+    list_add "PHP_OPTS" "--with-apxs --without-apxs2"
+  else
+    list_add "PHP_OPTS" "--with-apxs2 --without-apxs"
+  fi
+fi &&
+
+if [[ "$PHP_PCRE" == "none" ]]; then
+ list_add "PHP_OPTS" "--without-pcre-regex --without-pcre"
+elif [[ "$PHP_PCRE" == "external" ]]; then
+  depends pcre "--with-pcre-regex=${INSTALL_ROOT}/usr" 
+fi &&
+
+optional_depends C-CLIENT \
+                 "--with-imap=${INSTALL_ROOT}/usr" "--without-imap" \
+                 "for IMAP support" &&
+
+optional_depends SSL \
+                 "--with-openssl" "--without-openssl" \
+                 "for OpenSSL support" &&
+
+if is_depends_enabled $SPELL $(get_spell_provider $SPELL C-CLIENT); then
+  if is_depends_enabled $SPELL $(get_spell_provider $SPELL SSL); then
+    list_add "PHP_OPTS" "--with-imap-ssl"
+  else
+    optional_depends SSL \
+                     "--with-imap-ssl" \
+                     "--without-imap-ssl" \
+                     "for SSL support with IMAP (but not elsewhere)"
+  fi
+fi &&
+
+optional_depends MAIL-TRANSPORT-AGENT "" "" "for SMTP support" &&
+
+optional_depends aspell \
+                 "--with-pspell" "--without-pspell" \
+                 "use aspell for spelling functions" &&
+
+optional_depends mhash \
+                 "--with-mhash" "--without-mhash" \
+                 "for hash functions support" &&
+
+optional_depends enchant \
+                 "--with-enchant" "--without-enchant" \
+                 "use enchant for spelling functions?" &&
+
+optional_depends icu \
+                 "--enable-intl --with-icu-dir=${INSTALL_ROOT}/usr" \
+                 "--disable-intl --without-icu-dir" \
+                 "for ICU unicode (internationalization) support" &&
+
+optional_depends libmcrypt \
+                 "--with-mcrypt" "--without-mcrypt" \
+                 "for crypto library" &&
+
+optional_depends curl \
+                 "--with-curl" "--without-curl" \
+                 "for cURL URL stream functions" &&
+
+optional_depends net-snmp \
+                 "--with-snmp" "--without-snmp" \
+                 "for SNMP support" &&
+
+if is_depends_enabled $SPELL curl; then
+    config_query_option PHP_OPTS "Do you want to use cURL for URL streams in core PHP functions?" n \
+                        "--with-curlwrappers" "--without-curlwrappers" &&
+    depends -sub NO_ARES curl '--with-curl'
+fi &&
+
+optional_depends gmp \
+                 "--with-gmp" "--without-gmp" \
+                 "GNU multi-precision library support" &&
+
+optional_depends krb5 \
+                 "--with-kerberos" "--without-kerberos" \
+                 "for Kerberos support" &&
+
+optional_depends GETTEXT \
+                 "--with-gettext" "--without-gettext" \
+                 "for GNU gettext support" &&
+
+# new database madness
+# DB_DRIVERS="mysql mysqli pgsql sqlite sqlite3 firebird unixODBC iODBC"
+# PDO_DRIVERS="mysql pgsql firebird unixODBC iODBC"
+if list_find "$PHP_DATABASE_DRIVERS" "mysql" || list_find "$PHP_DATABASE_DRIVERS" "all"; then
+  depends MYSQL &&
+
+  if is_version_less 5.2.9999 "${VERSION}"; then
+    config_query PHP_MYSQLND "Do you want to use the MySQL Native Driver [mysqlnd]? (expiremental)" n &&
+
+    if [[ "${PHP_MYSQLND}" == "y" ]]; then
+      list_add "PHP_OPTS" "--with-mysql=mysqlnd"
+    else
+      list_add "PHP_OPTS" "--with-mysql=${INSTALL_ROOT}/usr"
+    fi
+  else
+    list_add "PHP_OPTS" "--with-mysql=${INSTALL_ROOT}/usr"
+  fi
+else
+  list_add "PHP_OPTS" "--without-mysql"
+fi &&
+
+db_driver_depends "mysqli" "MYSQL" &&
+db_driver_depends "pgsql" "postgresql" &&
+db_driver_depends "sqlite3" "sqlite" &&
+
+if list_find "${PHP_DATABASE_DRIVERS}" "firebird"; then
+  depends firebird "--with-pdo-firebird=${INSTALL_ROOT}/usr"
+else
+  list_add "PHP_OPTS" "--without-pdo-firebird"
+fi &&
+
+if list_find "${PHP_DATABASE_DRIVERS}" "sqlite3"; then
+  depends sqlite "--with-pdo-sqlite=${INSTALL_ROOT}/usr"
+else
+  list_add "PHP_OPTS" "--without-pdo-sqlite"
+fi &&
+
+# unixODBC and iODBC are mutually exclusive... first one in wins?
+if list_find "$PHP_DATABASE_DRIVERS" "unixODBC" || list_find "$PHP_DATABASE_DRIVERS" "all"; then
+  depends unixodbc "--with-unixODBC=${INSTALL_ROOT}/usr --without-iodbc"
+elif list_find "$PHP_DATABASE_DRIVERS" "iODBC"; then
+  depends unixodbc "--with-iodbc=${INSTALL_ROOT}/usr --without-unixODBC"
+else
+  list_add "PHP_OPTS" "--without-iodbc --without-unixODBC"
+fi &&
+
+# DBA drivers
+if list_find "${PHP_OPTS}" "--enable-dba"; then
+  for foo in $PHP_DBA_DRIVERS; do
+    if [[ $foo != none ]]; then
+      # handle the few special cases
+      if [[ "$foo" == "db4" ]]; then
+        depends db "--with-db4"
+      elif [[ "$foo" != "flatfile" ]] && [[ "$foo" != "inifile" ]]; then
+        depends $foo "--with-$foo"
+      fi
+    fi
+  done
+fi &&
+
+optional_depends openldap \
+                 "--with-ldap" "--without-ldap" \
+                 "for LDAP support" &&
+
+if is_depends_enabled $SPELL openldap; then
+  optional_depends LIBSASL \
+                 "--with-ldap-sasl" "--without-ldap-sasl" \
+                 "for LDAP with Cyrus SASL support" &&
+
+  if list_find "${PHP_OPTS}" "--with-ldap-sasl"; then
+    depends -sub openldap SASL
+  fi
+fi &&
+
+optional_depends mm \
+                 "--with-mm" "--without-mm" \
+                 "for sharing memory between related processes" &&
+
+optional_depends tidy \
+                 "--with-tidy" "--without-tidy" \
+                 "for HTML Tidy support" &&
+
+optional_depends re2c \
+                 "" "" \
+                 "to regenerate PHP parsers" &&
+
+optional_depends libexif \
+                 "--enable-exif" "--disable-exif" \
+                 "for image metadata support" &&
+
+if [[ "${PHP_GD}" == "external" ]]; then
+    depends gd "--with-gd=${INSTALL_ROOT}/usr --enable-gd-native-ttf" 
+fi &&
+
+if [[ "${PHP_GD}" != "none" ]]; then
+    optional_depends libxpm \
+                     "--with-xpm-dir=${INSTALL_ROOT}/usr" \
+                     "--without-xpm-dir" \
+                     "for XPM image support" &&
+
+  if [[ "${PHP_GD}" == "internal" ]]; then
+    depends JPEG "--with-jpeg-dir=${INSTALL_ROOT}/usr" &&
+    depends libpng "--with-png-dir=${INSTALL_ROOT}/usr"
+  else
+    optional_depends JPEG \
+                     "--with-jpeg-dir=${INSTALL_ROOT}/usr" \
+                     "--without-jpeg-dir" \
+                     "for JPEG support (for GD)" &&
+
+    optional_depends libpng \
+                     "--with-png-dir=${INSTALL_ROOT}/usr" \
+                     "--without-png-dir" \
+                     "for PNG support (for GD)"
+  fi &&
+
+  optional_depends t1lib \
+                   "--with-t1lib=${INSTALL_ROOT}/usr" \
+                   "--without-t1lib" \
+                   "for t1lib support" &&
+
+  optional_depends freetype2 \
+                   "--with-freetype-dir=${INSTALL_ROOT}/usr" \
+                   "--without-freetype-dir" \
+                   "for freetype2 support" &&
+
+  optional_depends font-jis-misc \
+                   "--enable-gd-jis-conv" \
+                   "--disable-gd-jis-conv" \
+                   "for JIS-mapped Japanese font support"
+fi
