@@ -33,17 +33,24 @@ optional_depends gtk-doc                                                    \
                  "gtkdoc=disabled"                                          \
                  "build API reference documentation?"                       &&
 
-optional_depends libsoup                                                    \
-                 "http_backend=soup"                                        \
-                 ""                                                         \
-                 "Use libsoup as http backend (curl otherwise)?"            &&
+local OSTREE_SUBDEP="CURL" &&
 
-if is_depends_enabled $SPELL libsoup; then
-  depends -sub WITH_SOUP ostree
+if [[ "${FLATPAK_BRANCH}" == pre-release ]]; then
+  depends curl
 else
-  depends curl "http_backend=curl" &&
-  depends -sub WITH_CURL ostree
+  optional_depends libsoup                                                  \
+                   "http_backend=soup"                                      \
+                   ""                                                       \
+                   "Use libsoup as http backend (curl otherwise)?"          &&
+
+  if is_depends_enabled $SPELL libsoup; then
+    OSTREE_SUBDEP="SOUP"
+  else
+    depends curl "http_backend=curl"
+  fi
 fi &&
+
+depends -sub "WITH_${OSTREE_SUBDEP}" ostree &&
 
 optional_depends zstd                                                       \
                  "libzstd=enabled"                                          \
