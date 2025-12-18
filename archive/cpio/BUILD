@@ -3,12 +3,6 @@ case "$(${CC-gcc} --help)" in
   (*\ -std=*) CFLAGS+=' -std=c17';;
 esac &&
 
-#
-# The mt-st package installs the mt manpage
-#
-sedit  's: mt.1::'  doc/Makefile.am  &&
-sedit  's: mt.1::'  doc/Makefile.in  &&
-
 OPTS+=" --build=${BUILD}" &&
 if [[ $CROSS_INSTALL == on ]]; then
   OPTS+=" --host=${HOST}"
