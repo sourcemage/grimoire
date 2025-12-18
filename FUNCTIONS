@@ -1098,6 +1098,43 @@ function cast_dependents_on_update()
 }
 
 #---
+## Force specific programming language dialects to avoid build failures.
+## Newer compilers might default to a backwards incompatible dialect, which
+## can break buildsystems not testing for it.
+#---
+force_dialect()
+{
+  while ! [ $# = 0 ]; do
+    case "$1" in
+      ( c89 | gnu89 \
+      | c99 | gnu99 \
+      | c11 | gnu11 \
+      | c17 | gnu17 \
+      | c23 | gnu23 )
+        case "$(${CC:-cc} --help)" in
+          (*\ -std=*) CFLAGS+=" -std=$1";;
+        esac
+        ;;
+      ( c++98 | gnu++98 \
+      | c++11 | gnu++11 \
+      | c++14 | gnu++14 \
+      | c++17 | gnu++17 \
+      | c++20 | gnu++20 \
+      | c++23 | gnu++23 \
+      | c++26 | gnu++26 )
+        case "$(${CXX:-c++} --help)" in
+          (*\ -std=*) CXXFLAGS+=" -std=$1";;
+        esac
+        ;;
+      (*)
+        message "${PROBLEM_COLOR}Unknown language dialect: $FILE_COLOR$1$DEFAULT_COLOR"
+        ;;
+    esac
+    shift
+  done
+}
+
+#---
 ## Trigger check_self on a certain version jump (known ABI breakage).
 ## You know that a spell changed ABI most recently in version x, so you
 ## provide this version and the function checks if updating the spell
