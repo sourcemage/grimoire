@@ -9,8 +9,10 @@ esac &&
 sedit  's: mt.1::'  doc/Makefile.am  &&
 sedit  's: mt.1::'  doc/Makefile.in  &&
 
-  OPTS="$OPTS --build=${BUILD}"
-  [[ $CROSS_INSTALL == on ]] && OPTS="$OPTS --host=${HOST}"
+OPTS+=" --build=${BUILD}" &&
+if [[ $CROSS_INSTALL == on ]]; then
+  OPTS+=" --host=${HOST}"
+fi &&
 
   ./configure --prefix=${TRACK_ROOT}/usr  \
           --sysconfdir=${TRACK_ROOT}/etc  \
