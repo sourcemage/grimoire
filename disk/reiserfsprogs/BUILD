@@ -1,4 +1,4 @@
 # Fixes Bug #1108
 OPTS="$OPTS --sbindir=${INSTALL_ROOT}/sbin" &&
-CFLAGS+=" -std=gnu90"
+force_dialect gnu89 &&
 default_build
