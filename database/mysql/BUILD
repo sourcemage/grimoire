@@ -60,8 +60,7 @@ OPTS="$OPTS --with-mysqld-user=mysql  --without-bench    \
         --enable-assembler --enable-thread-safe-client"  &&
 
 # Fix compiling with gcc 6+ (C++11 and newer)
-export CFLAGS=" -std=gnu++98 ${CFLAGS}"                  &&
-export CXXFLAGS=" -std=gnu++98 ${CXXFLAGS}"              &&
+force_dialect gnu++98 &&
 
 default_build                                            &&
 
