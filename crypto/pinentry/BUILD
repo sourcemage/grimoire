@@ -6,5 +6,5 @@ elif is_depends_enabled $SPELL qt4;then
   export PKG_CONFIG_PATH="$QT4DIR/lib/pkgconfig"
   export PATH+=":$QT4DIR/bin"
 fi &&
-CXXFLAGS+=" -std=c++11" &&
+force_dialect c++11 &&
 default_build
