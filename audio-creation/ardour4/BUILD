@@ -6,5 +6,5 @@ OPTS="--noconfirm \
       $OPTS" &&
 # C++11 features used in glibmm headers.
 # Should one fix it there? Globally?!
-CXXFLAGS="$CXXFLAGS -std=c++11" &&
+force_dialect c++11 &&
 waf_build
