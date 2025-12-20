@@ -1,3 +1,2 @@
-CFLAGS="-std=c99 ${CFLAGS}" &&
-
+force_dialect c99 &&
 default_build
