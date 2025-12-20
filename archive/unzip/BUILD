@@ -1,7 +1,5 @@
 # Force a specific C standard to avoid build failures with newer compilers
-case "$(${CC-gcc} --help)" in
-  (*\ -std=*) CFLAGS+=' -std=gnu99';;
-esac &&
+force_dialect gnu99 &&
 
 DEFINES='-DACORN_FTYPE_NFS -DWILD_STOP_AT_DIR -DLARGE_FILE_SUPPORT \
          -DUNICODE_SUPPORT -DUNICODE_WCHAR -DUTF8_MAYBE_NATIVE -DNO_LCHMOD \
