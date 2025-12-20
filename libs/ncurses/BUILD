@@ -7,7 +7,7 @@ fi  &&
 OPTS+=" --with-shared --enable-pc-files" &&
 
 # for GCC >= 15
-CFLAGS="-std=gnu17 ${CFLAGS}" &&
+force_dialect gnu17 &&
 
 ./configure       --prefix="$TRACK_ROOT"/usr \
               --sysconfdir="$TRACK_ROOT"/etc \
