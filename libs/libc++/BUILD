@@ -1,4 +1,4 @@
-CXXFLAGS="-std=c++11 ${CXXFLAGS}" &&
+force_dialect c++11 &&
 
 OPTS="-DCMAKE_C_COMPILER=clang \
       -DCMAKE_CXX_COMPILER=clang++ \
