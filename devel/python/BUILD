@@ -9,7 +9,7 @@ if [[ -f $INSTALL_ROOT/usr/lib/python$PYTHON_VERSION/pydcop.py ]]; then
     "$SOURCE_DIRECTORY/spell-tmp"
 fi &&
 
-CFLAGS="$CFLAGS -std=gnu89" &&
+force_dialect gnu89 &&
 default_build &&
 
 # python -c 'print "(c)", "lynx"*3'
