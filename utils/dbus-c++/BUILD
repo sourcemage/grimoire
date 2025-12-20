@@ -1,2 +1,3 @@
-CXXFLAGS+=" -std=c++11 -fpermissive" &&
+force_dialect c++11 &&
+CXXFLAGS+=" -fpermissive" &&
 default_build
