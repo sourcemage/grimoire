@@ -1,4 +1,4 @@
 OPTS+=" --libdir=$INSTALL_ROOT/usr/lib" &&
-CFLAGS+=" -std=c99" &&
 LDFLAGS+=" -L$INSTALL_ROOT/lib" &&
+force_dialect c99 &&
 default_build
