@@ -1,2 +1,2 @@
-CXXFLAGS+=" --std=c++03" &&
+force_dialect c++98 &&
 default_build
