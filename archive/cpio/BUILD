@@ -1,7 +1,5 @@
 # Force a specific C standard to avoid build failures with newer compilers
-case "$(${CC-gcc} --help)" in
-  (*\ -std=*) CFLAGS+=' -std=c17';;
-esac &&
+force_dialect c17 &&
 
 OPTS+=" --build=${BUILD}" &&
 if [[ $CROSS_INSTALL == on ]]; then
