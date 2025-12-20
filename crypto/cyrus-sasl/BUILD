@@ -7,7 +7,7 @@ if [[ "$CS_DB" == none ]]; then
 fi &&
 
 # Old-style function declarations go against new compiler defaults.
-CFLAGS="$CFLAGS -std=gnu89" &&
+force_dialect gnu89 &&
 
 OPTS="$OPTS \
   $CS_PLAIN \
