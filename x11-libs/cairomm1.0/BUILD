@@ -1,2 +1,2 @@
-CXXFLAGS+=" -std=c++17" &&
+force_dialect c++17 &&
 default_build
