@@ -1,3 +1,2 @@
-CXXFLAGS="-std=c++0x ${CXXFLAGS}" &&
-
+force_dialect c++11 &&
 make
