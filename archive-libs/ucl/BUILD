@@ -1,5 +1,5 @@
 OPTS="--enable-shared $OPTS" &&
 
-CFLAGS+=" -std=gnu90" &&
+force_dialect gnu89 &&
 
 default_build
