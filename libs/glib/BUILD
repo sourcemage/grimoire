@@ -1,2 +1,2 @@
-CFLAGS+=" -std=gnu89" &&
+force_dialect gnu89 &&
 default_build
