@@ -1,7 +1,5 @@
 # Force a specific C standard to avoid build failures with newer compilers
-case "$(${CC-gcc} --help)" in
-  (*\ -std=*) CFLAGS+=' -std=gnu17';;
-esac &&
+force_dialect gnu17 &&
 
 # Keep dependencies minimal: If for some reason glib2 is broken, it cannot
 # subsequently be built when pkg-config is also broken due to linking to
