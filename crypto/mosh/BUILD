@@ -1,2 +1,2 @@
-CXXFLAGS+=' -std=gnu++20'
+force_dialect gnu++20 &&
 default_build
