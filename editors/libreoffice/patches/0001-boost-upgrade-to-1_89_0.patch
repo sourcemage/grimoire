@@ -1,0 +1,635 @@
+From d6d7f6c1522865e41538f36d76b8638539b692a6 Mon Sep 17 00:00:00 2001
+From: Xisco Fauli <xiscofauli@libreoffice.org>
+Date: Mon, 18 Aug 2025 15:55:17 +0200
+Subject: [PATCH 1/2] boost: upgrade to 1_89_0
+
+libs/system/src/error_code.cpp no longer exists in boost so the static
+boost_system library can be removed
+
+<https://dev-www.libreoffice.org/src/boost_1_89_0.tar.xz> has been generated (on
+Debian 12) with
+
+> $ wget https://archives.boost.io/release/1.89.0/source/boost_1_89_0.tar.bz2
+> $ printf '85a33fa22621b4f314f8e85e1a5e2a9363d22e4f4992925d4bb3bc631b5a0c7a boost_1_89_0.tar.bz2' | sha256sum -c # cf. <https://www.boost.org/users/history/version_1_89_0.html>
+> boost_1_89_0.tar.bz2: OK
+> $ external/boost/repack_tarball.sh boost_1_89_0.tar.bz2
+> Unpacking boost_1_89_0.tar.bz2 ...
+> Removing unnecessary files ...
+> Creating boost_1_89_0.tar.xz ...
+> Cleaning up ...
+> b3a976c659961f1d7fae9a8e58d6729a11f5473abaf2ef0e623f53777c86475d  boost_1_89_0.tar.xz
+> Done.
+
+Change-Id: I1278e7f301b083c692539165293ca5ee7f0ab5ae
+Reviewed-on: https://gerrit.libreoffice.org/c/core/+/189876
+Reviewed-by: Xisco Fauli <xiscofauli@libreoffice.org>
+Tested-by: Jenkins
+[ismael@sourcemage.org: Added autoconf output]
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ RepositoryExternal.mk                         |  17 -
+ configure                                     | 249 ------------------------
+ configure.ac                                  |  11 -
+ download.lst                                  |   4 
+ external/boost/Module_boost.mk                |   1 
+ external/boost/StaticLibrary_boost_system.mk  |  29 --
+ external/liborcus/ExternalProject_liborcus.mk |   3 
+ external/liborcus/Library_orcus-parser.mk     |   1 
+ external/liborcus/Library_orcus.mk            |   1 
+ m4/ax_boost_system.m4                         | 121 -----------
+ solenv/gbuild/platform/com_GCC_defs.mk        |   1 
+ solenv/gbuild/platform/com_MSC_defs.mk        |   1 
+ vcl/commonfuzzer.mk                           |   1 
+ 13 files changed, 4 insertions(+), 435 deletions(-)
+ delete mode 100644 external/boost/StaticLibrary_boost_system.mk
+ delete mode 100644 m4/ax_boost_system.m4
+
+diff --git a/RepositoryExternal.mk b/RepositoryExternal.mk
+index 757a38162190..8820a1ed34bd 100644
+--- a/RepositoryExternal.mk
++++ b/RepositoryExternal.mk
+@@ -642,13 +642,6 @@ endef
+ 
+ gb_ExternalProject__use_boost_iostreams :=
+ 
+-define gb_LinkTarget__use_boost_system
+-$(call gb_LinkTarget__use_boost_lib,$(1),$(BOOST_SYSTEM_LIB))
+-
+-endef
+-
+-gb_ExternalProject__use_boost_system :=
+-
+ define gb_LinkTarget__use_boost_headers
+ $(call gb_LinkTarget_set_include,$(1),\
+ 	$$(INCLUDE) \
+@@ -701,15 +694,6 @@ define gb_ExternalProject__use_boost_iostreams
+ $(call gb_ExternalProject_use_static_libraries,$(1),boost_iostreams)
+ endef
+ 
+-define gb_LinkTarget__use_boost_system
+-$(call gb_LinkTarget__use_boost_lib,$(1),boost_system)
+-
+-endef
+-
+-define gb_ExternalProject__use_boost_system
+-$(call gb_ExternalProject_use_static_libraries,$(1),boost_system)
+-endef
+-
+ define gb_LinkTarget__use_boost_headers
+ $(call gb_LinkTarget_use_unpacked,$(1),boost)
+ $(call gb_LinkTarget_set_include,$(1),\
+diff --git a/configure.ac b/configure.ac
+index ca159d01f4a3..a95455dc4468 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -11456,19 +11456,10 @@ fi
+ dnl ===================================================================
+ dnl Orcus
+ dnl ===================================================================
+ libo_CHECK_SYSTEM_MODULE([orcus],[ORCUS],[liborcus-0.20 >= 0.20.0])
+-if test "$with_system_orcus" != "yes"; then
+-    if test "$SYSTEM_BOOST" = "TRUE"; then
+-        dnl Link with Boost.System
+-        dnl This seems to be necessary since boost 1.50 (1.48 does not need it,
+-        dnl 1.49 is untested). The macro BOOST_THREAD_DONT_USE_SYSTEM mentioned
+-        dnl in documentation has no effect.
+-        AX_BOOST_SYSTEM
+-    fi
+-fi
++
+ dnl FIXME by renaming SYSTEM_LIBORCUS to SYSTEM_ORCUS in the build system world
+ SYSTEM_LIBORCUS=$SYSTEM_ORCUS
+-AC_SUBST([BOOST_SYSTEM_LIB])
+ AC_SUBST(SYSTEM_LIBORCUS)
+ 
+ dnl ===================================================================
+diff --git a/download.lst b/download.lst
+index b248aa60c0db..c558cfaa6795 100644
+--- a/download.lst
++++ b/download.lst
+@@ -14,8 +14,8 @@ ARGON2_TARBALL := phc-winner-argon2-20190702.tar.gz
+ # so that git cherry-pick
+ # will not run into conflicts
+ # please repack the tarball using external/boost/repack_tarball.sh
+-BOOST_SHA256SUM := 5c67a448c562f1606e38203ba7ed7e8d7453581b6b9ca324e96205eae0da5ff8
+-BOOST_TARBALL := boost_1_88_0.tar.xz
++BOOST_SHA256SUM := b3a976c659961f1d7fae9a8e58d6729a11f5473abaf2ef0e623f53777c86475d
++BOOST_TARBALL := boost_1_89_0.tar.xz
+ # three static lines
+ # so that git cherry-pick
+ # will not run into conflicts
+diff --git a/external/boost/Module_boost.mk b/external/boost/Module_boost.mk
+index 252bf1c9a3b3..f12e5dafa980 100644
+--- a/external/boost/Module_boost.mk
++++ b/external/boost/Module_boost.mk
+@@ -13,7 +13,6 @@ $(eval $(call gb_Module_add_targets,boost,\
+ 	StaticLibrary_boost_date_time \
+ 	StaticLibrary_boost_filesystem \
+ 	StaticLibrary_boost_locale \
+-	StaticLibrary_boost_system \
+ 	StaticLibrary_boost_iostreams \
+ 	UnpackedTarball_boost \
+ ))
+diff --git a/external/boost/StaticLibrary_boost_system.mk b/external/boost/StaticLibrary_boost_system.mk
+deleted file mode 100644
+index e4b05d7b5cde..000000000000
+--- a/external/boost/StaticLibrary_boost_system.mk
++++ /dev/null
+@@ -1,29 +0,0 @@
+-# -*- Mode: makefile-gmake; tab-width: 4; indent-tabs-mode: t -*-
+-#
+-# This file is part of the LibreOffice project.
+-#
+-# This Source Code Form is subject to the terms of the Mozilla Public
+-# License, v. 2.0. If a copy of the MPL was not distributed with this
+-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+-#
+-
+-$(eval $(call gb_StaticLibrary_StaticLibrary,boost_system))
+-
+-$(eval $(call gb_StaticLibrary_use_unpacked,boost_system,boost))
+-
+-$(eval $(call gb_StaticLibrary_set_warnings_disabled,boost_system))
+-
+-# disable "auto link" "feature" on MSVC
+-$(eval $(call gb_StaticLibrary_add_defs,boost_system,\
+-	-DBOOST_ALL_NO_LIB \
+-))
+-
+-$(eval $(call gb_StaticLibrary_use_external,boost_system,boost_headers))
+-
+-$(eval $(call gb_StaticLibrary_set_generated_cxx_suffix,boost_system,cpp))
+-
+-$(eval $(call gb_StaticLibrary_add_generated_exception_objects,boost_system,\
+-	UnpackedTarball/boost/libs/system/src/error_code \
+-))
+-
+-# vim: set noet sw=4 ts=4:
+diff --git a/external/liborcus/ExternalProject_liborcus.mk b/external/liborcus/ExternalProject_liborcus.mk
+index 97d1c54b02d8..d2e05226e4f1 100644
+--- a/external/liborcus/ExternalProject_liborcus.mk
++++ b/external/liborcus/ExternalProject_liborcus.mk
+@@ -15,7 +15,6 @@ $(eval $(call gb_ExternalProject_use_externals,liborcus, \
+     boost_headers \
+     boost_filesystem \
+     boost_iostreams \
+-    boost_system \
+ 	mdds_headers \
+     zlib \
+ ))
+@@ -41,7 +40,7 @@ endif
+ ifneq ($(SYSTEM_BOOST),)
+ liborcus_LIBS+=$(BOOST_SYSTEM_LIB) $(BOOST_IOSTREAMS_LIB) $(BOOST_FILESYSTEM_LIB)
+ else
+-liborcus_LIBS+=-L$(gb_StaticLibrary_WORKDIR) -lboost_system -lboost_iostreams -lboost_filesystem
++liborcus_LIBS+=-L$(gb_StaticLibrary_WORKDIR) -lboost_iostreams -lboost_filesystem
+ endif
+ ifeq ($(OS),ANDROID)
+ liborcus_LIBS+=$(gb_STDLIBS)
+diff --git a/external/liborcus/Library_orcus-parser.mk b/external/liborcus/Library_orcus-parser.mk
+index ef1393a998d1..5d0667953941 100644
+--- a/external/liborcus/Library_orcus-parser.mk
++++ b/external/liborcus/Library_orcus-parser.mk
+@@ -14,7 +14,6 @@ $(eval $(call gb_Library_use_unpacked,orcus-parser,liborcus))
+ $(eval $(call gb_Library_use_externals,orcus-parser,\
+ 	boost_headers \
+ 	boost_filesystem \
+-	boost_system \
+ 	mdds_headers \
+ 	zlib \
+ ))
+diff --git a/external/liborcus/Library_orcus.mk b/external/liborcus/Library_orcus.mk
+index 776f5c2f04ad..f896e4236695 100644
+--- a/external/liborcus/Library_orcus.mk
++++ b/external/liborcus/Library_orcus.mk
+@@ -15,7 +15,6 @@ $(eval $(call gb_Library_use_externals,orcus,\
+ 	boost_headers \
+ 	boost_filesystem \
+ 	boost_iostreams \
+-	boost_system \
+ 	mdds_headers \
+ 	zlib \
+ ))
+diff --git a/m4/ax_boost_system.m4 b/m4/ax_boost_system.m4
+deleted file mode 100644
+index 323e2a676a8e..000000000000
+--- a/m4/ax_boost_system.m4
++++ /dev/null
+@@ -1,121 +0,0 @@
+-# ===========================================================================
+-#     https://www.gnu.org/software/autoconf-archive/ax_boost_system.html
+-# ===========================================================================
+-#
+-# SYNOPSIS
+-#
+-#   AX_BOOST_SYSTEM
+-#
+-# DESCRIPTION
+-#
+-#   Test for System library from the Boost C++ libraries. The macro requires
+-#   a preceding call to AX_BOOST_BASE. Further documentation is available at
+-#   <http://randspringer.de/boost/index.html>.
+-#
+-#   This macro calls:
+-#
+-#     AC_SUBST(BOOST_SYSTEM_LIB)
+-#
+-#   And sets:
+-#
+-#     HAVE_BOOST_SYSTEM
+-#
+-# LICENSE
+-#
+-#   Copyright (c) 2008 Thomas Porschberg <thomas@randspringer.de>
+-#   Copyright (c) 2008 Michael Tindal
+-#   Copyright (c) 2008 Daniel Casimiro <dan.casimiro@gmail.com>
+-#
+-#   Copying and distribution of this file, with or without modification, are
+-#   permitted in any medium without royalty provided the copyright notice
+-#   and this notice are preserved. This file is offered as-is, without any
+-#   warranty.
+-
+-#serial 20
+-
+-AC_DEFUN([AX_BOOST_SYSTEM],
+-[
+-	AC_ARG_WITH([boost-system],
+-	AS_HELP_STRING([--with-boost-system@<:@=special-lib@:>@],
+-                   [use the System library from boost - it is possible to specify a certain library for the linker
+-                        e.g. --with-boost-system=boost_system-gcc-mt ]),
+-        [
+-        if test "$withval" = "no"; then
+-			want_boost="no"
+-        elif test "$withval" = "yes"; then
+-            want_boost="yes"
+-            ax_boost_user_system_lib=""
+-        else
+-		    want_boost="yes"
+-		ax_boost_user_system_lib="$withval"
+-		fi
+-        ],
+-        [want_boost="yes"]
+-	)
+-
+-	if test "x$want_boost" = "xyes"; then
+-        AC_REQUIRE([AC_PROG_CC])
+-        AC_REQUIRE([AC_CANONICAL_BUILD])
+-		CPPFLAGS_SAVED="$CPPFLAGS"
+-		CPPFLAGS="$CPPFLAGS $BOOST_CPPFLAGS"
+-		export CPPFLAGS
+-
+-		LDFLAGS_SAVED="$LDFLAGS"
+-		LDFLAGS="$LDFLAGS $BOOST_LDFLAGS"
+-		export LDFLAGS
+-
+-        AC_CACHE_CHECK(whether the Boost::System library is available,
+-					   ax_cv_boost_system,
+-        [AC_LANG_PUSH([C++])
+-			 CXXFLAGS_SAVE=$CXXFLAGS
+-			 CXXFLAGS=
+-
+-			 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[@%:@include <boost/system/error_code.hpp>]],
+-				    [[boost::system::error_category *a = 0;]])],
+-                   ax_cv_boost_system=yes, ax_cv_boost_system=no)
+-			 CXXFLAGS=$CXXFLAGS_SAVE
+-             AC_LANG_POP([C++])
+-		])
+-		if test "x$ax_cv_boost_system" = "xyes"; then
+-			AC_SUBST(BOOST_CPPFLAGS)
+-
+-			AC_DEFINE(HAVE_BOOST_SYSTEM,,[define if the Boost::System library is available])
+-            BOOSTLIBDIR=`echo $BOOST_LDFLAGS | sed -e 's/@<:@^\/@:>@*//'`
+-
+-			LDFLAGS_SAVE=$LDFLAGS
+-            if test "x$ax_boost_user_system_lib" = "x"; then
+-                for libextension in `ls -r $BOOSTLIBDIR/libboost_system* 2>/dev/null | sed 's,.*/lib,,' | sed 's,\..*,,'` ; do
+-                     ax_lib=${libextension}
+-				    AC_CHECK_LIB($ax_lib, exit,
+-                                 [BOOST_SYSTEM_LIB="-l$ax_lib"; AC_SUBST(BOOST_SYSTEM_LIB) link_system="yes"; break],
+-                                 [link_system="no"])
+-				done
+-                if test "x$link_system" != "xyes"; then
+-                for libextension in `ls -r $BOOSTLIBDIR/boost_system* 2>/dev/null | sed 's,.*/,,' | sed -e 's,\..*,,'` ; do
+-                     ax_lib=${libextension}
+-				    AC_CHECK_LIB($ax_lib, exit,
+-                                 [BOOST_SYSTEM_LIB="-l$ax_lib"; AC_SUBST(BOOST_SYSTEM_LIB) link_system="yes"; break],
+-                                 [link_system="no"])
+-				done
+-                fi
+-
+-            else
+-               for ax_lib in $ax_boost_user_system_lib boost_system-$ax_boost_user_system_lib; do
+-				      AC_CHECK_LIB($ax_lib, exit,
+-                                   [BOOST_SYSTEM_LIB="-l$ax_lib"; AC_SUBST(BOOST_SYSTEM_LIB) link_system="yes"; break],
+-                                   [link_system="no"])
+-                  done
+-
+-            fi
+-            if test "x$ax_lib" = "x"; then
+-                AC_MSG_ERROR(Could not find a version of the Boost::System library!)
+-            fi
+-			if test "x$link_system" = "xno"; then
+-				AC_MSG_ERROR(Could not link against $ax_lib !)
+-			fi
+-		fi
+-
+-		CPPFLAGS="$CPPFLAGS_SAVED"
+-	LDFLAGS="$LDFLAGS_SAVED"
+-	fi
+-])
+diff --git a/solenv/gbuild/platform/com_GCC_defs.mk b/solenv/gbuild/platform/com_GCC_defs.mk
+index 0dbeecf531f1..ba0dc22cce9b 100644
+--- a/solenv/gbuild/platform/com_GCC_defs.mk
++++ b/solenv/gbuild/platform/com_GCC_defs.mk
+@@ -46,7 +46,6 @@ gb_COMPILEROPTFLAGS += $(if $(ENABLE_HARDENING_FLAGS),$(HARDENING_OPT_CFLAGS))
+ gb_AFLAGS := $(AFLAGS)
+ 
+ gb_COMPILERDEFS := \
+-	-DBOOST_SYSTEM_NO_DEPRECATED \
+ 	-DCPPU_ENV=$(CPPU_ENV) \
+ 	$(if $(filter EMSCRIPTEN,$(OS)),-U_FORTIFY_SOURCE) \
+ 
+diff --git a/solenv/gbuild/platform/com_MSC_defs.mk b/solenv/gbuild/platform/com_MSC_defs.mk
+index e915036b54c8..12bac932532d 100644
+--- a/solenv/gbuild/platform/com_MSC_defs.mk
++++ b/solenv/gbuild/platform/com_MSC_defs.mk
+@@ -47,7 +47,6 @@ endif
+ 
+ gb_COMPILERDEFS := \
+ 	-DBOOST_OPTIONAL_USE_OLD_DEFINITION_OF_NONE \
+-	-DBOOST_SYSTEM_NO_DEPRECATED \
+ 	-D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING \
+ 	-D_SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING \
+ 	-D_SILENCE_CXX17_RESULT_OF_DEPRECATION_WARNING \
+diff --git a/vcl/commonfuzzer.mk b/vcl/commonfuzzer.mk
+index 15f68b5ce3c6..d38fdd27fe35 100644
+--- a/vcl/commonfuzzer.mk
++++ b/vcl/commonfuzzer.mk
+@@ -14,7 +14,6 @@ fuzzer_externals = \
+     orcus-parser \
+     boost_locale \
+     boost_filesystem \
+-    boost_system \
+     boost_iostreams \
+     curl \
+     dtoa \
+diff --git a/configure b/configure
+index 8bea2f488629..17986d68b015 100755
+--- a/configure
++++ b/configure
+@@ -37785,255 +37785,6 @@ fi
+ 
+ 
+ 
+-if test "$with_system_orcus" != "yes"; then
+-    if test "$SYSTEM_BOOST" = "TRUE"; then
+-
+-
+-# Check whether --with-boost-system was given.
+-if test ${with_boost_system+y}
+-then :
+-  withval=$with_boost_system;
+-        if test "$withval" = "no"; then
+-			want_boost="no"
+-        elif test "$withval" = "yes"; then
+-            want_boost="yes"
+-            ax_boost_user_system_lib=""
+-        else
+-		    want_boost="yes"
+-		ax_boost_user_system_lib="$withval"
+-		fi
+-
+-else $as_nop
+-  want_boost="yes"
+-
+-fi
+-
+-
+-	if test "x$want_boost" = "xyes"; then
+-
+-
+-		CPPFLAGS_SAVED="$CPPFLAGS"
+-		CPPFLAGS="$CPPFLAGS $BOOST_CPPFLAGS"
+-		export CPPFLAGS
+-
+-		LDFLAGS_SAVED="$LDFLAGS"
+-		LDFLAGS="$LDFLAGS $BOOST_LDFLAGS"
+-		export LDFLAGS
+-
+-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether the Boost::System library is available" >&5
+-printf %s "checking whether the Boost::System library is available... " >&6; }
+-if test ${ax_cv_boost_system+y}
+-then :
+-  printf %s "(cached) " >&6
+-else $as_nop
+-  ac_ext=cpp
+-ac_cpp='$CXXCPP $CPPFLAGS'
+-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+-
+-			 CXXFLAGS_SAVE=$CXXFLAGS
+-			 CXXFLAGS=
+-
+-			 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+-#include <boost/system/error_code.hpp>
+-int
+-main (void)
+-{
+-boost::system::error_category *a = 0;
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-if ac_fn_cxx_try_compile "$LINENO"
+-then :
+-  ax_cv_boost_system=yes
+-else $as_nop
+-  ax_cv_boost_system=no
+-fi
+-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+-			 CXXFLAGS=$CXXFLAGS_SAVE
+-             ac_ext=c
+-ac_cpp='$CPP $CPPFLAGS'
+-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+-ac_compiler_gnu=$ac_cv_c_compiler_gnu
+-
+-
+-fi
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ax_cv_boost_system" >&5
+-printf "%s\n" "$ax_cv_boost_system" >&6; }
+-		if test "x$ax_cv_boost_system" = "xyes"; then
+-
+-
+-
+-printf "%s\n" "#define HAVE_BOOST_SYSTEM /**/" >>confdefs.h
+-
+-            BOOSTLIBDIR=`echo $BOOST_LDFLAGS | sed -e 's/[^\/]*//'`
+-
+-			LDFLAGS_SAVE=$LDFLAGS
+-            if test "x$ax_boost_user_system_lib" = "x"; then
+-                for libextension in `ls -r $BOOSTLIBDIR/libboost_system* 2>/dev/null | sed 's,.*/lib,,' | sed 's,\..*,,'` ; do
+-                     ax_lib=${libextension}
+-				    as_ac_Lib=`printf "%s\n" "ac_cv_lib_$ax_lib""_exit" | $as_tr_sh`
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for exit in -l$ax_lib" >&5
+-printf %s "checking for exit in -l$ax_lib... " >&6; }
+-if eval test \${$as_ac_Lib+y}
+-then :
+-  printf %s "(cached) " >&6
+-else $as_nop
+-  ac_check_lib_save_LIBS=$LIBS
+-LIBS="-l$ax_lib  $LIBS"
+-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+-
+-/* Override any GCC internal prototype to avoid an error.
+-   Use char because int might match the return type of a GCC
+-   builtin and then its argument prototype would still apply.  */
+-char exit ();
+-int
+-main (void)
+-{
+-return exit ();
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-if ac_fn_c_try_link "$LINENO"
+-then :
+-  eval "$as_ac_Lib=yes"
+-else $as_nop
+-  eval "$as_ac_Lib=no"
+-fi
+-rm -f core conftest.err conftest.$ac_objext conftest.beam \
+-    conftest$ac_exeext conftest.$ac_ext
+-LIBS=$ac_check_lib_save_LIBS
+-fi
+-eval ac_res=\$$as_ac_Lib
+-	       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+-printf "%s\n" "$ac_res" >&6; }
+-if eval test \"x\$"$as_ac_Lib"\" = x"yes"
+-then :
+-  BOOST_SYSTEM_LIB="-l$ax_lib";  link_system="yes"; break
+-else $as_nop
+-  link_system="no"
+-fi
+-
+-				done
+-                if test "x$link_system" != "xyes"; then
+-                for libextension in `ls -r $BOOSTLIBDIR/boost_system* 2>/dev/null | sed 's,.*/,,' | sed -e 's,\..*,,'` ; do
+-                     ax_lib=${libextension}
+-				    as_ac_Lib=`printf "%s\n" "ac_cv_lib_$ax_lib""_exit" | $as_tr_sh`
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for exit in -l$ax_lib" >&5
+-printf %s "checking for exit in -l$ax_lib... " >&6; }
+-if eval test \${$as_ac_Lib+y}
+-then :
+-  printf %s "(cached) " >&6
+-else $as_nop
+-  ac_check_lib_save_LIBS=$LIBS
+-LIBS="-l$ax_lib  $LIBS"
+-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+-
+-/* Override any GCC internal prototype to avoid an error.
+-   Use char because int might match the return type of a GCC
+-   builtin and then its argument prototype would still apply.  */
+-char exit ();
+-int
+-main (void)
+-{
+-return exit ();
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-if ac_fn_c_try_link "$LINENO"
+-then :
+-  eval "$as_ac_Lib=yes"
+-else $as_nop
+-  eval "$as_ac_Lib=no"
+-fi
+-rm -f core conftest.err conftest.$ac_objext conftest.beam \
+-    conftest$ac_exeext conftest.$ac_ext
+-LIBS=$ac_check_lib_save_LIBS
+-fi
+-eval ac_res=\$$as_ac_Lib
+-	       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+-printf "%s\n" "$ac_res" >&6; }
+-if eval test \"x\$"$as_ac_Lib"\" = x"yes"
+-then :
+-  BOOST_SYSTEM_LIB="-l$ax_lib";  link_system="yes"; break
+-else $as_nop
+-  link_system="no"
+-fi
+-
+-				done
+-                fi
+-
+-            else
+-               for ax_lib in $ax_boost_user_system_lib boost_system-$ax_boost_user_system_lib; do
+-				      as_ac_Lib=`printf "%s\n" "ac_cv_lib_$ax_lib""_exit" | $as_tr_sh`
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for exit in -l$ax_lib" >&5
+-printf %s "checking for exit in -l$ax_lib... " >&6; }
+-if eval test \${$as_ac_Lib+y}
+-then :
+-  printf %s "(cached) " >&6
+-else $as_nop
+-  ac_check_lib_save_LIBS=$LIBS
+-LIBS="-l$ax_lib  $LIBS"
+-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+-
+-/* Override any GCC internal prototype to avoid an error.
+-   Use char because int might match the return type of a GCC
+-   builtin and then its argument prototype would still apply.  */
+-char exit ();
+-int
+-main (void)
+-{
+-return exit ();
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-if ac_fn_c_try_link "$LINENO"
+-then :
+-  eval "$as_ac_Lib=yes"
+-else $as_nop
+-  eval "$as_ac_Lib=no"
+-fi
+-rm -f core conftest.err conftest.$ac_objext conftest.beam \
+-    conftest$ac_exeext conftest.$ac_ext
+-LIBS=$ac_check_lib_save_LIBS
+-fi
+-eval ac_res=\$$as_ac_Lib
+-	       { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+-printf "%s\n" "$ac_res" >&6; }
+-if eval test \"x\$"$as_ac_Lib"\" = x"yes"
+-then :
+-  BOOST_SYSTEM_LIB="-l$ax_lib";  link_system="yes"; break
+-else $as_nop
+-  link_system="no"
+-fi
+-
+-                  done
+-
+-            fi
+-            if test "x$ax_lib" = "x"; then
+-                as_fn_error $? "Could not find a version of the Boost::System library!" "$LINENO" 5
+-            fi
+-			if test "x$link_system" = "xno"; then
+-				as_fn_error $? "Could not link against $ax_lib !" "$LINENO" 5
+-			fi
+-		fi
+-
+-		CPPFLAGS="$CPPFLAGS_SAVED"
+-	LDFLAGS="$LDFLAGS_SAVED"
+-	fi
+-
+-    fi
+-fi
+ SYSTEM_LIBORCUS=$SYSTEM_ORCUS
+ 
+ 
