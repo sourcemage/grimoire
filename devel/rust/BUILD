@@ -59,6 +59,9 @@ else
   sed "/^\[build\]/atools = \[ \"${RUST_TOOLS// /\", \"}\" \]" -i bootstrap.toml
 fi &&
 
+# Allow boostrapping on musl-based systems
+sed -i '/^\[target\..*-musl]$/acrt-static = false' bootstrap.toml &&
+
 export CARGO_HOME="$SOURCE_DIRECTORY/cargo_home" &&
 
 python3 ./x.py build  --config="${SOURCE_DIRECTORY}/config.toml" \
