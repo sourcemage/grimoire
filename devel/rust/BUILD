@@ -49,14 +49,14 @@ sed -e "s;profile =.*;profile = 'user';" \
     -e '/^\[llvm\]/adownload-ci-llvm = false' \
     -e '/^\[rust\]/alld = false' \
     -e '/^\[llvm\]/aninja = false' \
-    -e '/^\[build\]/aoptimized-compiler-builtins = false' -i config.toml &&
+    -e '/^\[build\]/aoptimized-compiler-builtins = false' -i bootstrap.toml &&
 
  if list_find "${RUST_TOOLS}" "none"; then
-   sed '/^\[build\]/atools = \[\]' -i config.toml
+   sed '/^\[build\]/atools = \[\]' -i bootstrap.toml
 elif list_find "${RUST_TOOLS}" "default"; then
-  sed '/^\[build\]/atools = \[ "cargo", "rustdoc" \]' -i config.toml
+  sed '/^\[build\]/atools = \[ "cargo", "rustdoc" \]' -i bootstrap.toml
 else
-  sed "/^\[build\]/atools = \[ \"${RUST_TOOLS// /\", \"}\" \]" -i config.toml
+  sed "/^\[build\]/atools = \[ \"${RUST_TOOLS// /\", \"}\" \]" -i bootstrap.toml
 fi &&
 
 export CARGO_HOME="$SOURCE_DIRECTORY/cargo_home" &&
