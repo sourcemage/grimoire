@@ -1,7 +1,6 @@
-# - disable building shared library
-# - kill is provided by coreutils
+# - disable building static library
 # - enable SIGWINCH handling for top
-OPTS+=' --disable-static --disable-kill --enable-sigwinch' &&
+OPTS="--disable-static --enable-sigwinch ${OPTS}" &&
 # simpleinit-msb provides pidof
 if spell_ok "simpleinit-msb"; then
   OPTS+=" --disable-pidof"
