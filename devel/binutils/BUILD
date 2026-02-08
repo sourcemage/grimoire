@@ -35,4 +35,4 @@ if [[ "${BINUTILS_LIBIBERTY}" == "y" ]]; then
 fi &&
 make_normal &&
 # set default linker
-ln -sf ld.bfd INSTALL_ROOT/usr/bin/ld
+ln -sf "ld.${BINUTILS_LINKER}" "INSTALL_ROOT/usr/bin/ld"
