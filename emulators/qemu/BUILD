@@ -24,5 +24,8 @@ esac &&
             $QEMU_OPTS                      \
             $OPTS                           &&
 
+# slightly modified upstream fix for libfdt
+patch -p1 < "${SPELL_DIRECTORY}/fix-discarded-const.patch" &&
+
 # Pass down ARFLAGS to workaround a bug in QEMU's build system
 ARFLAGS=rv make
