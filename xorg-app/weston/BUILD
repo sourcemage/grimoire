@@ -7,7 +7,6 @@ OPTS+=" simple-clients=egl" &&
 #OPTS+=" backend-wayland=true" &&
 OPTS+=" backend-default=auto" &&
 OPTS+=" shell-desktop=true" &&
-OPTS+=" shell-fullscreen=true" &&
 OPTS+=" shell-kiosk=true" &&
 #OPTS+=" image-jpeg=true" &&
 OPTS+=" tools=terminal" &&
