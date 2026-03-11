@@ -1,0 +1,14 @@
+# up_trigger stuff that still uses old giflib so it's not broken afterwards
+
+if spell_ok  giflib ||
+   spell_ok  giflib5; then
+  message "Switching from giflib or giflib5 to giflib6 requires recompiling spells using giflib/5"
+  message "Figuring out what spells need to be recast, this may take a while."
+  local dependees="$(show_up_depends giflib) $(show_up_depends giflib5)" &&
+  for each in ${dependees}; do
+    if gaze install $each | xargs readelf -d 2> /dev/null |
+       grep -q "NEEDED.*libgif"; then
+         up_trigger $each cast_self
+    fi
+  done
+fi
