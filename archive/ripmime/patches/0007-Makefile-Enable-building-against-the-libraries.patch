@@ -1,0 +1,62 @@
+From b9d923b4f547b7347886879a040cd6ab12c558ba Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Tue, 17 Mar 2026 09:07:02 +0100
+Subject: [PATCH 7/8] Makefile: Enable building against the libraries
+
+The use-solib variable controls which one is used:
+- use-solib=y           => dynamically linked libripmime
+- use-solib=n (default) => traditional build
+
+Added RPATH to support installing to non-standard directories, and -fPIC
+so the code is relocatable.
+
+I see no need to preserve building against the .o files directly.
+
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ Makefile | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 45a65b1095b0..d247da7cc41c 100644
+--- a/Makefile
++++ b/Makefile
+@@ -56,6 +56,9 @@ ${RIPOLE_OBJS} tnef/tnef.o:
+ 
+ CFLAGS-y   = ${CFLAGS}
+ LDFLAGS-y  = ${LDFLAGS}
++LDFLAGS-y += -Wl,-rpath,${libdir}
++
++CFLAGS-${use-solib}  += -fPIC
+ 
+ solib          := libripmime.so.1.4.0
+ solib-soname   != awk -vlib=${solib} -vsuffix="\\.so\\.[0-9]+" \
+@@ -80,13 +83,14 @@ libripmime.a: ${OFILES} ripmime-api.o
+ clean::
+ 	rm -f libripmime.a
+ 
+-ripl: ripmime.a
+-	${CC} ${CFLAGS} ripmime.c ripmime.a -o ripmime
+-
++use-solib = n
++-lib := ${use-solib:y=${solib}} ${use-solib:n=libripmime.a}
++-lib := ${-lib:y=}
++-lib := ${-lib:n=}
+ 
+ ripmime.o: buildcodes.h
+-ripmime: ${OFILES} ripmime.o
+-	${CC} ${LDFLAGS-y} ${CFLAGS-y} ${COMPONENTS} $@.o -o $@ ${OFILES} ${LIBS}
++ripmime: ${-lib} ripmime.o buildcodes.h
++	${CC} ${LDFLAGS-y} ${CFLAGS-y} ${COMPONENTS} $@.o -o $@ ${-lib} ${LIBS}
+ 
+ riptest: ${OFILES}
+ 	${CC} ${LDFLAGS-y} ${CFLAGS-y} $@.c ${OFILES} -o $@
+@@ -155,6 +159,8 @@ _ != { \
+ 	echo '    libdir = '${libdir:Q}$(call quote,libdir); \
+ 	echo '  datarootdir = '${datarootdir:Q}$(call quote,datarootdir); \
+ 	echo '    mandir = '${mandir:Q}$(call quote,mandir); \
++	echo; \
++	echo 'use-solib     = '${use-solib:Q}$(call quote,use-solib); \
+ 	} > .config
+ include .config
+ 
