@@ -1,2 +1,1 @@
-${MAKE:-make} -j $((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS)) \
-                 "lazy-extractors" "completions" "${SPELL}"
+python3 -m build --wheel --skip-dependency-check --no-isolation

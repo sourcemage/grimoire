@@ -1,20 +1,6 @@
-mkdir -p "${INSTALL_ROOT}/usr/bin" &&
-install -m755 "${SPELL}" "${INSTALL_ROOT}/usr/bin/${SPELL}" &&
+mkdir -p "${SOURCE_DIRECTORY}/builddir" &&
+PYTHONPATH="${SPELL/-/_}" python3 -m installer --destdir="${SOURCE_DIRECTORY}/builddir" dist/*.whl &&
 
-if is_depends_enabled "${SPELL}" "bash-completion"; then
-  mkdir -p "${INSTALL_ROOT}/usr/share/bash-completion/completions" &&
-  install -m644 "completions/bash/${SPELL}" \
-                "${INSTALL_ROOT}/usr/share/bash-completion/completions/${SPELL}"
-fi &&
-
-if is_depends_enabled "${SPELL}" "fish"; then
-  mkdir -p "${INSTALL_ROOT}/usr/share/fish/vendor_completions.d" &&
-  install -m644 "completions/fish/${SPELL}.fish" \
-                "${INSTALL_ROOT}/usr/share/fish/vendor_competions.d/${SPELL}.fish"
-fi &&
-
-if is_depends_enabled "${SPELL}" "zsh"; then
-  mkdir -p "${INSTALL_ROOT}/usr/share/zsh/site-functiions" &&
-  install -m644 "completions/zsh/_${SPELL}" \
-                "${INSTALL_ROOT}/usr/share/zsh/site-functions/_${SPELL}"
-fi
+cd "${SOURCE_DIRECTORY}/builddir" &&
+find . | cpio --pass-through --make-directories --unconditional --verbose \
+              "${INSTALL_ROOT}/"
