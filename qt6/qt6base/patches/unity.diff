@@ -1,0 +1,189 @@
+diff --git a/src/corelib/io/qfsfileengine_p.h b/src/corelib/io/qfsfileengine_p.h
+index 8ad673bf0bf..9a54b7554b0 100644
+--- a/src/corelib/io/qfsfileengine_p.h
++++ b/src/corelib/io/qfsfileengine_p.h
+@@ -215,6 +215,41 @@ class Q_AUTOTEST_EXPORT QFSFileEnginePrivate : public QAbstractFileEnginePrivate
+         // ReadOnly by itself never creates.
+         return (openMode & QFile::WriteOnly) && !(openMode & QFile::ExistingOnly);
+     }
++
++#if defined(Q_OS_UNIX)
++    /*!
++        \internal
++
++        Returns the stdio open flags corresponding to a QIODevice::OpenMode.
++    */
++    static int openModeToOpenFlags(QIODevice::OpenMode mode)
++    {
++        int oflags = QT_OPEN_RDONLY;
++#  ifdef QT_LARGEFILE_SUPPORT
++        oflags |= QT_OPEN_LARGEFILE;
++#  endif
++
++        if ((mode & QIODevice::ReadWrite) == QIODevice::ReadWrite)
++            oflags = QT_OPEN_RDWR;
++        else if (mode & QIODevice::WriteOnly)
++            oflags = QT_OPEN_WRONLY;
++
++        if (openModeCanCreate(mode))
++            oflags |= QT_OPEN_CREAT;
++
++        if (mode & QIODevice::Truncate)
++            oflags |= QT_OPEN_TRUNC;
++
++        if (mode & QIODevice::Append)
++            oflags |= QT_OPEN_APPEND;
++
++        if (mode & QIODevice::NewOnly)
++            oflags |= QT_OPEN_EXCL;
++
++        return oflags;
++    }
++#endif // Q_OS_UNIX
++
+ protected:
+     QFSFileEnginePrivate(QAbstractFileEngine *q);
+ 
+diff --git a/src/corelib/io/qfsfileengine_unix.cpp b/src/corelib/io/qfsfileengine_unix.cpp
+index abf5a0c7db4..0f292998161 100644
+--- a/src/corelib/io/qfsfileengine_unix.cpp
++++ b/src/corelib/io/qfsfileengine_unix.cpp
+@@ -28,38 +28,6 @@
+ 
+ QT_BEGIN_NAMESPACE
+ 
+-/*!
+-    \internal
+-
+-    Returns the stdio open flags corresponding to a QIODevice::OpenMode.
+-*/
+-static inline int openModeToOpenFlags(QIODevice::OpenMode mode)
+-{
+-    int oflags = QT_OPEN_RDONLY;
+-#ifdef QT_LARGEFILE_SUPPORT
+-    oflags |= QT_OPEN_LARGEFILE;
+-#endif
+-
+-    if ((mode & QFile::ReadWrite) == QFile::ReadWrite)
+-        oflags = QT_OPEN_RDWR;
+-    else if (mode & QFile::WriteOnly)
+-        oflags = QT_OPEN_WRONLY;
+-
+-    if (QFSFileEnginePrivate::openModeCanCreate(mode))
+-        oflags |= QT_OPEN_CREAT;
+-
+-    if (mode & QFile::Truncate)
+-        oflags |= QT_OPEN_TRUNC;
+-
+-    if (mode & QFile::Append)
+-        oflags |= QT_OPEN_APPEND;
+-
+-    if (mode & QFile::NewOnly)
+-        oflags |= QT_OPEN_EXCL;
+-
+-    return oflags;
+-}
+-
+ static inline QString msgOpenDirectory()
+ {
+     const char message[] = QT_TRANSLATE_NOOP("QIODevice", "file to open is a directory");
+diff --git a/src/corelib/io/qioring_linux.cpp b/src/corelib/io/qioring_linux.cpp
+index a28dbb7fc50..ad758007a97 100644
+--- a/src/corelib/io/qioring_linux.cpp
++++ b/src/corelib/io/qioring_linux.cpp
+@@ -10,6 +10,7 @@ QT_REQUIRE_CONFIG(liburing);
+ #include <QtCore/qscopedvaluerollback.h>
+ #include <QtCore/private/qcore_unix_p.h>
+ #include <QtCore/private/qfiledevice_p.h>
++#include <QtCore/private/qfsfileengine_p.h>
+ 
+ #include <liburing.h>
+ #include <sys/mman.h>
+@@ -459,35 +460,6 @@ static void prepareFileReadWrite(io_uring_sqe *sqe, const QIORingRequestOffsetFd
+     sqe->addr = quint64(address);
+ }
+ 
+-// @todo: stolen from qfsfileengine_unix.cpp
+-static inline int openModeToOpenFlags(QIODevice::OpenMode mode)
+-{
+-    int oflags = QT_OPEN_RDONLY;
+-#ifdef QT_LARGEFILE_SUPPORT
+-    oflags |= QT_OPEN_LARGEFILE;
+-#endif
+-
+-    if ((mode & QIODevice::ReadWrite) == QIODevice::ReadWrite)
+-        oflags = QT_OPEN_RDWR;
+-    else if (mode & QIODevice::WriteOnly)
+-        oflags = QT_OPEN_WRONLY;
+-
+-    if ((mode & QIODevice::WriteOnly)
+-        && !(mode & QIODevice::ExistingOnly)) // QFSFileEnginePrivate::openModeCanCreate(mode))
+-        oflags |= QT_OPEN_CREAT;
+-
+-    if (mode & QIODevice::Truncate)
+-        oflags |= QT_OPEN_TRUNC;
+-
+-    if (mode & QIODevice::Append)
+-        oflags |= QT_OPEN_APPEND;
+-
+-    if (mode & QIODevice::NewOnly)
+-        oflags |= QT_OPEN_EXCL;
+-
+-    return oflags;
+-}
+-
+ /*!
+     \internal
+     Because vectored operations are also affected by the maximum size
+@@ -598,7 +570,7 @@ auto QIORing::prepareRequest(io_uring_sqe *sqe, GenericRequestType &request) ->
+                 *openRequest = request.template requestData<Operation::Open>();
+         sqe->fd = AT_FDCWD; // Could also support proper openat semantics
+         sqe->addr = reinterpret_cast<quint64>(openRequest->path.native().c_str());
+-        sqe->open_flags = openModeToOpenFlags(openRequest->flags);
++        sqe->open_flags = QFSFileEnginePrivate::openModeToOpenFlags(openRequest->flags);
+         auto &mode = sqe->len;
+         mode = 0666; // With an explicit API we can use QtPrivate::toMode_t() for this
+         break;
+diff --git a/src/corelib/io/qrandomaccessasyncfile_darwin.mm b/src/corelib/io/qrandomaccessasyncfile_darwin.mm
+index 80c1affa642..8d1cf465b73 100644
+--- a/src/corelib/io/qrandomaccessasyncfile_darwin.mm
++++ b/src/corelib/io/qrandomaccessasyncfile_darwin.mm
+@@ -540,29 +540,6 @@ static bool isBarrierOperation(QIOOperation::Type type)
+     });
+ }
+ 
+-// stolen from qfsfileengine_unix.cpp
+-static inline int openModeToOpenFlags(QIODevice::OpenMode mode)
+-{
+-    int oflags = QT_OPEN_RDONLY;
+-#ifdef QT_LARGEFILE_SUPPORT
+-    oflags |= QT_OPEN_LARGEFILE;
+-#endif
+-    if ((mode & QIODevice::ReadWrite) == QIODevice::ReadWrite)
+-        oflags = QT_OPEN_RDWR;
+-    else if (mode & QIODevice::WriteOnly)
+-        oflags = QT_OPEN_WRONLY;
+-    if ((mode & QIODevice::WriteOnly)
+-        && !(mode & QIODevice::ExistingOnly)) // QFSFileEnginePrivate::openModeCanCreate(mode))
+-        oflags |= QT_OPEN_CREAT;
+-    if (mode & QIODevice::Truncate)
+-        oflags |= QT_OPEN_TRUNC;
+-    if (mode & QIODevice::Append)
+-        oflags |= QT_OPEN_APPEND;
+-    if (mode & QIODevice::NewOnly)
+-        oflags |= QT_OPEN_EXCL;
+-    return oflags;
+-}
+-
+ void QRandomAccessAsyncFileNativeBackend::executeOpen(OperationInfo &opInfo)
+ {
+     if (m_fileState != FileState::OpenPending) {
+@@ -572,7 +549,7 @@ static inline int openModeToOpenFlags(QIODevice::OpenMode mode)
+ 
+     const QByteArray nativeName = QFile::encodeName(QDir::toNativeSeparators(m_filePath));
+ 
+-    int openFlags = openModeToOpenFlags(m_openMode);
++    int openFlags = QFSFileEnginePrivate::openModeToOpenFlags(m_openMode);
+     openFlags |= O_NONBLOCK;
+ 
+     auto sharedThis = this;
