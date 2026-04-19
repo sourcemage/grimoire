@@ -2,10 +2,7 @@ OPTS="--enable-shared  $PYTHON3_OPTS $OPTS" &&
 OPTS="--with-ensurepip=no $OPTS"            &&
 
 # Optimizations build fails for 3.13 and 3.14
-if [[ "${PYTHON3_BRANCH}" != "devel" &&
-      "${PYTHON3_BRANCH}" != "3.14" &&
-      "${PYTHON3_BRANCH}" != "stable" &&
-      "${PYTHON3_BRANCH}" != "3.13"  ]]; then
+if ! [[ "${PYTHON3_BRANCH}" =~ devel|stable|3\.1[34] ]]; then
   OPTS+=" --enable-optimizations"
 fi                                          &&
 OPTS+=" --with-computed-gotos"              &&
