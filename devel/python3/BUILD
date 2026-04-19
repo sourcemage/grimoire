@@ -1,3 +1,4 @@
+. "${GRIMOIRE}/FUNCTIONS" &&
 OPTS="--enable-shared  $PYTHON3_OPTS $OPTS" &&
 OPTS="--with-ensurepip=no $OPTS"            &&
 
@@ -6,6 +7,12 @@ if ! [[ "${PYTHON3_BRANCH}" =~ devel|stable|3\.1[34] ]]; then
   OPTS+=" --enable-optimizations"
 fi                                          &&
 OPTS+=" --with-computed-gotos"              &&
+
+# fix to build with LibreSSL >= 4.3.0
+if [[ "$(get_spell_provider ${SPELL} SSL)" == "libressl" ]] &&
+      ! is_version_less "$(installed_version libressl)" "4.3.0"; then
+      LDFLAGS="-Wl,-z,execstack ${LDFLAGS}"
+fi                                          &&
 
 OPTS="$OPTS --build=${BUILD}"
 
