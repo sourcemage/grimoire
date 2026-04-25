@@ -1,8 +1,11 @@
+OPTS+=" --disable-static" &&
 OPTS="${OPTS} --with-distro=none --with-avahi-user=avahi --with-avahi-group=avahi" &&
 OPTS="${OPTS} --with-avahi-priv-access-group=netdev " &&
 
 if [[ "$AVAHI_AUTOIPD" == 'y' ]]; then
   OPTS="${OPTS} --with-autoipd-user=avahi-autoipd --with-autoipd-group=avahi-autoipd"
+else
+  OPTS+=" --disable-autoipd"
 fi &&
 
 if [[ "$AVAHI_DAEMON" == 'n' ]]; then
@@ -19,10 +22,6 @@ fi &&
 
 if [[ "$AVAHI_COMPAT_HOWL" == 'y' ]]; then
   OPTS="$OPTS --enable-compat-howl"
-fi &&
-
-if ! is_depends_enabled $SPELL pygtk2; then
-  OPTS="$OPTS --disable-pygtk"
 fi &&
 
 if ! is_depends_enabled $SPELL gdbm; then
