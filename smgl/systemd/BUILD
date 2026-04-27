@@ -54,4 +54,6 @@ create_account systemd-oom  &&
 create_group systemd-timesync  &&
 create_account systemd-timesync  &&
 
+CFLAGS+=' -Wno-discarded-qualifiers' &&
+CFLAGS+=' -Wno-error=override-init' &&
 default_build
