@@ -2,8 +2,7 @@
 CFLAGS="${CFLAGS//-Ofast/-O2}" &&
 CFLAGS="${CFLAGS//-ffast-math}" &&
 
-OPTS="smack=false tests=unsafe split-usr=true split-bin=true
-  default-hierarchy=hybrid nobody-group=nogroup ${OPTS}" &&
+OPTS="smack=false tests=unsafe split-bin=true nobody-group=nogroup ${OPTS}" &&
 
 case $(get_spell_provider ${SPELL} INIT) in
           openrc) OPTS="cgroup-controller=openrc ${OPTS}"  ;;
