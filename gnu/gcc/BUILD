@@ -125,7 +125,6 @@ OPTS="--enable-checking=release $OPTS"                             &&
 OPTS="--enable-default-pie $OPTS"                                  &&
 OPTS="--enable-default-ssp $OPTS"                                  &&
 OPTS="--enable-cet=auto $OPTS"                                     &&
-OPTS="--disable-libatomic $OPTS"                                   &&
 OPTS="--enable-lto $OPTS"                                          &&
 OPTS="$GCC_MULTILIB $OPTS"                                         &&
 
