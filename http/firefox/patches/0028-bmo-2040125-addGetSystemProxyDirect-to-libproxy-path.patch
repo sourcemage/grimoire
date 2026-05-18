@@ -1,0 +1,47 @@
+
+# HG changeset patch
+# User Christoph Moench-Tegeder <cmt@burggraben.net>
+# Date 1779091292 0
+# Node ID 6ad0c97b2327484e240b6d2e2cdefada0dc3a9fb
+# Parent  0fca3f59f8b7268de25c4e04a3283171442d0320
+Bug 2040125 - add GetSystemProxyDirect() to libproxy path r=valentin,necko-reviewers
+
+In bmo #2028356 a "fast-path to skip proxy resolution[...]" was added,
+but the required method GetSystemProxyDirect() was not added for
+libproxy-enabled builds (all other cases - general Unix without
+libproxy, OSX, Windows - got that function).
+
+This makes a "--enable-libproxy" build (MOZ_ENABLE_LIBPROXY) fail at
+startup, as the symbol for nsUnixSystemProxySettings::GetSystemProxyDirect()
+does not resolve.
+
+This adds GetSystemProxyDirect() to the MOZ_ENABLE_LIBPROXY case - it's
+trivial, as we cannot know what libproxy will return for a specific URL,
+thus the fast-path does not apply and we can just return "false".
+
+Differential Revision: https://phabricator.services.mozilla.com/D300937
+
+
+diff --git a/toolkit/system/unixproxy/nsLibProxySettings.cpp b/toolkit/system/unixproxy/nsLibProxySettings.cpp
+--- a/toolkit/system/unixproxy/nsLibProxySettings.cpp
++++ b/toolkit/system/unixproxy/nsLibProxySettings.cpp
+@@ -106,11 +106,18 @@ nsresult nsUnixSystemProxySettings::GetP
+ }
+ 
+ NS_IMETHODIMP
+ nsUnixSystemProxySettings::GetSystemWPADSetting(bool* aSystemWPADSetting) {
+   *aSystemWPADSetting = false;
+   return NS_OK;
+ }
+ 
++// we do not know if libproxy would return DIRECT or PROXY
++NS_IMETHODIMP
++nsUnixSystemProxySettings::GetSystemProxyDirect(bool* aResult) {
++  *aResult = false;
++  return NS_OK;
++}
++
+ NS_IMPL_COMPONENT_FACTORY(nsUnixSystemProxySettings) {
+   return do_AddRef(new nsUnixSystemProxySettings()).downcast<nsISupports>();
+ }
+
