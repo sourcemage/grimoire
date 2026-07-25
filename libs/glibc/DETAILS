@@ -1,7 +1,6 @@
 . "$GRIMOIRE/FUNCTIONS"
 # Watch: https://ftp.gnu.org/gnu/glibc/
            SPELL=glibc
-      PATCHLEVEL=1
            TMPFS=off
   if [[ "${GLIBC_BRANCH}" == "scm" ]]; then
          VERSION=$(get_scm_version)
@@ -11,16 +10,16 @@ SOURCE_DIRECTORY="${BUILD_DIRECTORY}/${SPELL}-git"
       SOURCE_URL="git://sourceware.org/git/glibc.git:$SPELL-git"
    SOURCE_IGNORE=volatile
   else
-         VERSION=2.43
-     SOURCE_HASH="sha512:25765f86bf54a22fc69dd13023ec9be59bd7e1f9d6ea1630cf21851898df2043bb8a01538c4b5fdd06495d0163289362b0768b391b0617f709b89a777168291c"
-  SECURITY_PATCH=27
+         VERSION=2.44
+     SOURCE_HASH="sha512:963dc0275f7738653379909b64ee32e28f13cca77440f2cf9bd0ab82cb183f6cd1f7376d25cc5442de69b972713bd81bf0e38dbcca9b2a4d6649843e76fd50a5"
+  SECURITY_PATCH=28
           SOURCE=$SPELL-$VERSION.tar.xz
 SOURCE_DIRECTORY="${BUILD_DIRECTORY}/${SPELL}-${VERSION}"
    SOURCE_URL[0]=$GNU_URL/$SPELL/$SOURCE
   fi
   if [[ $GLIBC_SANITIZE_HEADERS == n ]]; then
- HEADERS_VERSION=6.18.7
-    SOURCE3_HASH="sha512:b7661da9b9844933999391a00149ea0e861c31bb6df1a3b3201e946c0d60acf0d60b6da604c956d75cda5d67d39261eb01a123e02cb0b48391b8739f16c8af3c"
+ HEADERS_VERSION=7.1.5
+    SOURCE3_HASH="sha512:17f95307b6e86a0794df146d97256ba4783b7a494f5eb43aafc14d64367541874cec7f6e8c2ea724eca149db18e4bd5880bf28a8c5e47ae8a769776bbd955af8"
  HEADERS_MAJOR_VERSION=$(echo $HEADERS_VERSION|cut -f1 -d.)
          SOURCE3=linux-${HEADERS_VERSION}.tar.xz
   SOURCE3_URL[0]="$KERNEL_URL/pub/linux/kernel/v${HEADERS_MAJOR_VERSION}.x/$SOURCE3"
@@ -72,6 +71,19 @@ SOURCE_DIRECTORY="${BUILD_DIRECTORY}/${SPELL}-${VERSION}"
          SOURCE3=linux-${LATEST_6}.tar.xz
     SOURCE3_HASH="${source_hash}"
     HEADERS_VDIR=v6.x
+      if [[ ${HEADERS_VERSION} != *.0 ]]; then
+        SOURCE7=patch-${HEADERS_VERSION}.xz
+        SOURCE7_HASH="sha512:${sha512sum}"
+      fi
+         ;;
+       7.*)
+        . "${LINUX_DIRECTORY}/info/kernels/${LATEST_7}"
+        . "${LINUX_DIRECTORY}/info/patches/maintenance_patches_7/${LATEST_maintenance_patches_7}"
+ HEADERS_VERSION=$(echo $LATEST_maintenance_patches_7 | sed "s/patch-//")
+ HEADERS_VERSION=${HEADERS_VERSION:-$LATEST_7}
+         SOURCE3=linux-${LATEST_7}.tar.xz
+    SOURCE3_HASH="${source_hash}"
+    HEADERS_VDIR=v7.x
       if [[ ${HEADERS_VERSION} != *.0 ]]; then
         SOURCE7=patch-${HEADERS_VERSION}.xz
         SOURCE7_HASH="sha512:${sha512sum}"
