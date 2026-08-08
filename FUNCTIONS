@@ -298,11 +298,17 @@ function  install_www_files ()
 ## Apply patches from a directory
 #---------------------------------------------------------------------
 apply_patch_dir() {
-  local dir="$SPELL_DIRECTORY/$1"
+  local dir
+  case "$1" in
+    (/*) dir="$1";;
+    (*)  dir="$SPELL_DIRETORY/$1" ;;
+  esac
+  message "Patch Directory: $dir"
   # Check the directory exists and contains files.
-  if [ -d "$dir" ] && [ "$(ls -Af $dir/*.diff $dir/*.patch 2>/dev/null)" ]
+  if [ -d "$dir" ] && [ "$(ls -Af "$dir"/*.diff "$dir"/*.patch 2>/dev/null)" ]
   then
-    find "$dir" \( -name \*.patch -o -name \*.diff \) -print0 |
+    find "$dir" \( -name Attic \) -prune -o \
+        \( -name \*.patch -o -name \*.diff \) -print0 |
     sort -zV | xargs -r -0 -n 1 -t patch -fp1 -i
   else
     message "${MESSAGE_COLOR}No patches found.$DEFAULT_COLOR"
