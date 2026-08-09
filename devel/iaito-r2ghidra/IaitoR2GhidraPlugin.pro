@@ -9,7 +9,7 @@ INCLUDEPATH    += ../ ../../ ../../core ../../common ../../widgets ../../dialogs
 
 QMAKE_CXXFLAGS += $$system("pkg-config --cflags r_core")
 LIBS           += $$system("pkg-config --libs r_core")
-LIBS           += -L$$(R2GHIDRA_PLUGDIR) -lcore_r2ghidra
+LIBS           += -Wl,-rpath=$$(R2GHIDRA_PLUGDIR) -L$$(R2GHIDRA_PLUGDIR) -lcore_r2ghidra
 
 TEMPLATE        = lib
 CONFIG         += plugin
