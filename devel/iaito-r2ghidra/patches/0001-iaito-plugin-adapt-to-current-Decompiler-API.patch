@@ -1,0 +1,70 @@
+From 22b96f759328a0d99d4da9ebfcbc390d3e093787 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sat, 8 Aug 2026 21:44:19 +0000
+Subject: [PATCH] iaito-plugin: Adapt to current Decompiler API
+
+Decompiler now requires decompileSync to be implemented in addition
+to decompileAt and the plugin no longer assumes r2ghidra's own
+source tree is available at build time.
+---
+ iaito-plugin/R2GhidraDecompiler.cpp | 17 +++++++++++++----
+ iaito-plugin/R2GhidraDecompiler.h   |  1 +
+ 2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/iaito-plugin/R2GhidraDecompiler.cpp b/iaito-plugin/R2GhidraDecompiler.cpp
+index 4632a4f..047f097 100644
+--- a/iaito-plugin/R2GhidraDecompiler.cpp
++++ b/iaito-plugin/R2GhidraDecompiler.cpp
+@@ -1,7 +1,6 @@
+ /* radare - LGPL - Copyright 2019 - thestr4ng3r */
+ 
+ #include "R2GhidraDecompiler.h"
+-#include "../src/r2ghidra.h"
+ 
+ #include <Iaito.h>
+ 
+@@ -9,16 +8,26 @@
+ #include <QJsonObject>
+ #include <QJsonArray>
+ 
++// Declared locally: r2ghidra.h lives in r2ghidra's own source tree, which
++// isn't available here, this plugin only links against the already built
++// and installed core_r2ghidra library.
++R_API RCodeMeta *r2ghidra_decompile_annotated_code(RCore *core, ut64 addr);
++
+ R2GhidraDecompiler::R2GhidraDecompiler(QObject *parent)
+ 	: Decompiler("r2ghidra", "Ghidra", parent)
+ {
+ 	task = DecompilerFinished;
+ }
+ 
+-void R2GhidraDecompiler::decompileAt(ut64 addr)
++RCodeMeta *R2GhidraDecompiler::decompileSync(RVA addr)
++{
++	return r2ghidra_decompile_annotated_code(Core()->core(), addr);
++}
++
++void R2GhidraDecompiler::decompileAt(RVA addr)
+ {
+ 	task = DecompilerRunning;
+-	RCodeMeta *code = r2ghidra_decompile_annotated_code(Core()->core(), addr);
+-	emit finished(code); //Here, we emit RAnnotatedCode *code or by value
++	RCodeMeta *code = decompileSync(addr);
++	emit finished(code); //Here, we emit RCodeMeta *code or by value
+ 	task = DecompilerFinished;
+ }
+diff --git a/iaito-plugin/R2GhidraDecompiler.h b/iaito-plugin/R2GhidraDecompiler.h
+index 039ad5d..8e830dd 100644
+--- a/iaito-plugin/R2GhidraDecompiler.h
++++ b/iaito-plugin/R2GhidraDecompiler.h
+@@ -15,6 +15,7 @@ class R2GhidraDecompiler: public Decompiler
+ 	public:
+ 		R2GhidraDecompiler(QObject *parent = nullptr);
+ 		void decompileAt(RVA addr) override;
++		RCodeMeta *decompileSync(RVA addr) override;
+ 		bool isRunning() override				{ return task == DecompilerRunning; }
+ };
+ 
+-- 
+2.54.0
+
