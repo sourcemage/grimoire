@@ -298,7 +298,17 @@ function  install_www_files ()
 ## Apply patches from a directory
 #---------------------------------------------------------------------
 apply_patch_dir() {
-  local dir
+  local dir stripdirs=1 patchopts=()
+  while :
+  do
+    case "$1" in
+      (-C)  patchopts+=(-d "$2"); shift 2;;
+      (-p*) stripdirs="${1#-p}";  shift;;
+      (--) shift;&
+      (*) break;;
+    esac
+  done
+  patchopts+=(-f -p"$stripdirs")
   case "$1" in
     (/*) dir="$1";;
     (*)  dir="$SPELL_DIRECTORY/$1" ;;
@@ -309,7 +319,7 @@ apply_patch_dir() {
   then
     find "$dir" \( -name Attic \) -prune -o \
         \( -name \*.patch -o -name \*.diff \) -print0 |
-    sort -zV | xargs -r -0 -n 1 -t patch -fp1 -i
+    sort -zV | xargs -r -0 -n 1 -t -- patch "${patchopts[@]}" -i
   else
     message "${MESSAGE_COLOR}No patches found.$DEFAULT_COLOR"
   fi
