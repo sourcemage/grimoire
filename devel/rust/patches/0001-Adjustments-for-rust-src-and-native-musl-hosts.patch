@@ -1,0 +1,175 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Wed, 12 Aug 2026 18:49:43 +0200
+Subject: [PATCH] Adjustments for the rust-src component and native musl hosts
+
+1. Don't include libunwind in the rust-src component.  The component only
+   needs the standard library sources, and the llvm-project tree is removed
+   from the sources before building.
+
+2. Use the system toolchain for musl targets on native musl hosts.
+
+   rustc ships its own copies of the musl CRT objects, libc.a and an LLVM
+   libunwind build, and links musl targets in "self-contained" mode, so that
+   a glibc host can produce musl binaries without a musl toolchain.
+
+   On a native musl system that indirection is unnecessary: the system
+   toolchain already provides those objects, and it's the only one guaranteed
+   to match the installed libc.  It also forces bootstrap to build the
+   vendored copies out of the llvm-project tree.
+
+   Gate the self-contained behaviour on the host environment, so that
+   cross-compilation from glibc hosts keeps working unchanged, and default
+   musl targets to dynamic linking on a native musl host, as the system
+   toolchain does for every other language.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@iodev.co.uk>
+---
+ compiler/rustc_target/src/spec/base/linux_musl.rs                        |   11 ++++++++++
+ compiler/rustc_target/src/spec/targets/aarch64_unknown_linux_musl.rs     |    5 ++--
+ compiler/rustc_target/src/spec/targets/i586_unknown_linux_musl.rs        |    5 ++--
+ compiler/rustc_target/src/spec/targets/i686_unknown_linux_musl.rs        |    5 ++--
+ compiler/rustc_target/src/spec/targets/powerpc64le_unknown_linux_musl.rs |    5 ++--
+ compiler/rustc_target/src/spec/targets/x86_64_unknown_linux_musl.rs      |    5 ++--
+ src/bootstrap/src/core/build_steps/dist.rs                               |    3 --
+ src/bootstrap/src/core/config/target_selection.rs                        |    4 ++-
+ 8 files changed, 30 insertions(+), 13 deletions(-)
+
+diff --git a/src/bootstrap/src/core/build_steps/dist.rs b/src/bootstrap/src/core/build_steps/dist.rs
+index cfcb144..529be48 100644
+--- a/src/bootstrap/src/core/build_steps/dist.rs
++++ b/src/bootstrap/src/core/build_steps/dist.rs
+@@ -1065,7 +1108,6 @@ fn copy_src_dirs(
+ 
+         static LLVM_PROJECTS: &[&str] = &[
+             "llvm-project/clang",
+-            "llvm-project/libunwind",
+             "llvm-project/lld",
+             "llvm-project/lldb",
+             "llvm-project/llvm",
+@@ -1191,7 +1238,7 @@ impl Step for Src {
+         copy_src_dirs(
+             builder,
+             &builder.src,
+-            &["library", "src/llvm-project/libunwind"],
++            &["library"],
+             &[
+                 // not needed and contains symlinks which rustup currently
+                 // chokes on when unpacking.
+diff --git a/compiler/rustc_target/src/spec/base/linux_musl.rs b/compiler/rustc_target/src/spec/base/linux_musl.rs
+index cfcb144..529be48 100644
+--- a/compiler/rustc_target/src/spec/base/linux_musl.rs
++++ b/compiler/rustc_target/src/spec/base/linux_musl.rs
+@@ -1,6 +1,17 @@
+ use crate::spec::{Env, LinkSelfContainedDefault, TargetOptions, base, crt_objects};
+ 
+ pub(crate) fn opts() -> TargetOptions {
++    // On a native musl host the system toolchain provides the CRT objects and
++    // the unwinder, and it is the only one guaranteed to match the installed
++    // libc, so link against it instead of the copies shipped with rustc.
++    if cfg!(target_env = "musl") {
++        return TargetOptions {
++            env: Env::Musl,
++            link_self_contained: LinkSelfContainedDefault::False,
++            ..base::linux::opts()
++        };
++    }
++
+     TargetOptions {
+         env: Env::Musl,
+         pre_link_objects_self_contained: crt_objects::pre_musl_self_contained(),
+diff --git a/compiler/rustc_target/src/spec/targets/aarch64_unknown_linux_musl.rs b/compiler/rustc_target/src/spec/targets/aarch64_unknown_linux_musl.rs
+index cfcb144..529be48 100644
+--- a/compiler/rustc_target/src/spec/targets/aarch64_unknown_linux_musl.rs
++++ b/compiler/rustc_target/src/spec/targets/aarch64_unknown_linux_musl.rs
+@@ -14,8 +14,9 @@
+         | SanitizerSet::MEMORY
+         | SanitizerSet::THREAD;
+ 
+-    // FIXME(compiler-team#422): musl targets should be dynamically linked by default.
+-    base.crt_static_default = true;
++    // FIXME(compiler-team#422): musl targets should be dynamically linked by
++    // default; a native musl host already is.
++    base.crt_static_default = !cfg!(target_env = "musl");
+ 
+     Target {
+         llvm_target: "aarch64-unknown-linux-musl".into(),
+diff --git a/compiler/rustc_target/src/spec/targets/i586_unknown_linux_musl.rs b/compiler/rustc_target/src/spec/targets/i586_unknown_linux_musl.rs
+index cfcb144..529be48 100644
+--- a/compiler/rustc_target/src/spec/targets/i586_unknown_linux_musl.rs
++++ b/compiler/rustc_target/src/spec/targets/i586_unknown_linux_musl.rs
+@@ -5,7 +5,8 @@
+     base.rustc_abi = None; // overwrite the SSE2 ABI set by the base target
+     base.cpu = "pentium".into();
+     base.llvm_target = "i586-unknown-linux-musl".into();
+-    // FIXME(compiler-team#422): musl targets should be dynamically linked by default.
+-    base.crt_static_default = true;
++    // FIXME(compiler-team#422): musl targets should be dynamically linked by
++    // default; a native musl host already is.
++    base.crt_static_default = !cfg!(target_env = "musl");
+     base
+ }
+diff --git a/compiler/rustc_target/src/spec/targets/i686_unknown_linux_musl.rs b/compiler/rustc_target/src/spec/targets/i686_unknown_linux_musl.rs
+index cfcb144..529be48 100644
+--- a/compiler/rustc_target/src/spec/targets/i686_unknown_linux_musl.rs
++++ b/compiler/rustc_target/src/spec/targets/i686_unknown_linux_musl.rs
+@@ -12,8 +12,9 @@
+     base.max_atomic_width = Some(64);
+     base.add_pre_link_args(LinkerFlavor::Gnu(Cc::Yes, Lld::No), &["-m32", "-Wl,-melf_i386"]);
+     base.stack_probes = StackProbeType::Inline;
+-    // FIXME(compiler-team#422): musl targets should be dynamically linked by default.
+-    base.crt_static_default = true;
++    // FIXME(compiler-team#422): musl targets should be dynamically linked by
++    // default; a native musl host already is.
++    base.crt_static_default = !cfg!(target_env = "musl");
+ 
+     // The unwinder used by i686-unknown-linux-musl, the LLVM libunwind
+     // implementation, apparently relies on frame pointers existing... somehow.
+diff --git a/compiler/rustc_target/src/spec/targets/powerpc64le_unknown_linux_musl.rs b/compiler/rustc_target/src/spec/targets/powerpc64le_unknown_linux_musl.rs
+index cfcb144..529be48 100644
+--- a/compiler/rustc_target/src/spec/targets/powerpc64le_unknown_linux_musl.rs
++++ b/compiler/rustc_target/src/spec/targets/powerpc64le_unknown_linux_musl.rs
+@@ -9,8 +9,9 @@
+     base.add_pre_link_args(LinkerFlavor::Gnu(Cc::Yes, Lld::No), &["-m64"]);
+     base.max_atomic_width = Some(64);
+     base.stack_probes = StackProbeType::Inline;
+-    // FIXME(compiler-team#422): musl targets should be dynamically linked by default.
+-    base.crt_static_default = true;
++    // FIXME(compiler-team#422): musl targets should be dynamically linked by
++    // default; a native musl host already is.
++    base.crt_static_default = !cfg!(target_env = "musl");
+     base.cfg_abi = CfgAbi::ElfV2;
+     base.llvm_abiname = LlvmAbi::ElfV2;
+ 
+diff --git a/compiler/rustc_target/src/spec/targets/x86_64_unknown_linux_musl.rs b/compiler/rustc_target/src/spec/targets/x86_64_unknown_linux_musl.rs
+index cfcb144..529be48 100644
+--- a/compiler/rustc_target/src/spec/targets/x86_64_unknown_linux_musl.rs
++++ b/compiler/rustc_target/src/spec/targets/x86_64_unknown_linux_musl.rs
+@@ -16,8 +16,9 @@
+         | SanitizerSet::MEMORY
+         | SanitizerSet::THREAD;
+     base.supports_xray = true;
+-    // FIXME(compiler-team#422): musl targets should be dynamically linked by default.
+-    base.crt_static_default = true;
++    // FIXME(compiler-team#422): musl targets should be dynamically linked by
++    // default; a native musl host already is.
++    base.crt_static_default = !cfg!(target_env = "musl");
+ 
+     Target {
+         llvm_target: "x86_64-unknown-linux-musl".into(),
+diff --git a/src/bootstrap/src/core/config/target_selection.rs b/src/bootstrap/src/core/config/target_selection.rs
+index cfcb144..529be48 100644
+--- a/src/bootstrap/src/core/config/target_selection.rs
++++ b/src/bootstrap/src/core/config/target_selection.rs
+@@ -97,7 +97,9 @@
+     }
+ 
+     pub fn needs_crt_begin_end(&self) -> bool {
+-        self.contains("musl") && !self.contains("unikraft")
++        // A native musl host links against the system toolchain, which already
++        // provides these objects; see rustc_target's linux_musl base.
++        !cfg!(target_env = "musl") && self.contains("musl") && !self.contains("unikraft")
+     }
+ 
+     /// Path to the file defining the custom target, if any.

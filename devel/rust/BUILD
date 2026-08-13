@@ -67,9 +67,10 @@ export CARGO_HOME="$SOURCE_DIRECTORY/cargo_home" &&
 python3 ./x.py build  --config="${SOURCE_DIRECTORY}/config.toml" \
 -j $((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS)) &&
 
-# fake install
-if spell_ok "${SPELL}"; then
-  mkdir -p "${SOURCE_DIRECTORY}/INSTALL_ROOT" &&
-  DESTDIR="${SOURCE_DIRECTORY}/INSTALL_ROOT" python3 ./x.py install \
-    --config="${SOURCE_DIRECTORY}/config.toml" -j"${MAKE_NJOBS:-1}"
-fi
+# Stage the install here, so INSTALL only has to copy the tree.  Running x.py
+# from INSTALL would compile with a different set of C(XX)FLAGS than the ones
+# set up above, which both rebuilds half of rustc and breaks it.
+mkdir -p "${SOURCE_DIRECTORY}/INSTALL_ROOT" &&
+DESTDIR="${SOURCE_DIRECTORY}/INSTALL_ROOT" python3 ./x.py install \
+  --config="${SOURCE_DIRECTORY}/config.toml" \
+  -j $((${#DISTCC_HOSTS[*]} * JOBS_PER_HOST + MAKE_NJOBS))
