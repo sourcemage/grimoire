@@ -2,7 +2,7 @@ cd nspr &&
 if [[ ${SMGL_COMPAT_ARCHS[0]} == 64 ]]; then
   OPTS="--enable-64bit $OPTS"
 fi &&
-OPTS="$OPTS --with-mozilla --enable-optimize" &&
+OPTS="$OPTS --with-mozilla --enable-optimize --disable-cplus" &&
 
 LDFLAGS="-lstdc++ $LDFLAGS" &&
 
