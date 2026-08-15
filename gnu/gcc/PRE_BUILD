@@ -31,22 +31,45 @@ fi  &&
 
 cd ${SOURCE_DIRECTORY}          &&
 
-apply_patch_dir patches &&
+if [[ $SLOT == 14 ]]; then
+  patch_bundled_libtool \
+	libgo/config/ltmain.sh \
+	isl/interface/ltmain.sh \
+	isl/ltmain.sh
+fi &&
 
-# fix broken build of libatomic, which is needed by qtwebengine
-sed -i "/rm.*libatomic.la/D" libatomic/Makefile.in &&
+# every slot has a patch dir of its own, named after the major it
+# patches, since a patch for one version rarely applies to another
+apply_patch_dir patches/${VERSION%%.*} &&
 
-# Drop .la files like everyone else.
-find . -name Makefile.in \
-| xargs sed -i 's,^\(LIBTOOL[[:space:]]*=[[:space:]]*\),\1'"$GRIMOIRE"'/libtool-nola ,' &&
+if [[ $SLOT == 0 ]]; then
+  # fix broken build of libatomic, which is needed by qtwebengine
+  sed -i "/rm.*libatomic.la/D" libatomic/Makefile.in
+fi &&
+
+if [[ $SLOT != 14 ]]; then
+  # Drop .la files like everyone else.
+  find . -name Makefile.in \
+  | xargs sed -i 's,^\(LIBTOOL[[:space:]]*=[[:space:]]*\),\1'"$GRIMOIRE"'/libtool-nola ,'
+fi &&
 
 mk_source_dir $SOURCE_DIRECTORY.bld  &&
 
 sed -i 's/install_to_$(INSTALL_DEST) //' libiberty/Makefile.in &&
 sed -i 's@\./fixinc\.sh@-c true@' gcc/Makefile.in &&
 
-# Fix build without libxcrypt
-if ! is_depends_enabled $SPELL libxcrypt; then
-  sed -i -e 's/^#define SANITIZER_INTERCEPT_CRYPT_R .*/#define SANITIZER_INTERCEPT_CRYPT_R 0/' \
-    libsanitizer/sanitizer_common/sanitizer_platform_interceptors.h
+if [[ $SLOT != 10 ]]; then
+  # Fix build without libxcrypt
+  if ! is_depends_enabled $SPELL_INSTANCE libxcrypt; then
+    sed -i -e 's/^#define SANITIZER_INTERCEPT_CRYPT_R .*/#define SANITIZER_INTERCEPT_CRYPT_R 0/' \
+      libsanitizer/sanitizer_common/sanitizer_platform_interceptors.h
+  fi
+fi &&
+
+if [[ $SLOT == 10 ]]; then
+  case "$HOST" in
+  (*-musl)
+    patch -fp1 -i "$SPELL_DIRECTORY/ssp_nonshared.diff"
+    ;;
+  esac
 fi

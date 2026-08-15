@@ -1,8 +1,11 @@
+# only the system compiler's ABI is the system's; a slot under /opt
+# takes nobody with it when it changes
+if [[ $SLOT == 0 ]]; then
 LC_ALL=C
 LC_CTYPE=C
 LANG=C
 local OLD_SPELL_VERSION=""
-spell_ok $SPELL && OLD_SPELL_VERSION="$(installed_version $SPELL)"
+spell_ok $SPELL_INSTANCE && OLD_SPELL_VERSION="$(installed_version $SPELL_INSTANCE)"
 if [ "$VERSION" != "$OLD_SPELL_VERSION" ]; then
   # recast the split compiler spells on a gcc version update, see bug #9813
   # this includes g77 for the upgrade from 3.4.x to 4.x compilers
@@ -20,8 +23,10 @@ if [[ ${OLD_SPELL_VERSION%%.*} < "5" ]];then
     message "${MESSAGE_COLOR}This is an ABI-incompatible update of g++..."
     message "Determining which spells need to be recast, this may take a while.${DEFAULT_COLOR}"
 
-    for other_spell in $(gaze installed | cut -d: -f1); do
-      [[ $SPELL != $other_spell ]] || continue
+    # a row of gaze installed is instance:version:status:updated, and
+    # the instance is what has to be recast, slot and all
+    for other_spell in $(gaze installed | sed 's/\(:[^:]*\)\{3\}$//'); do
+      [[ $SPELL_INSTANCE != $other_spell ]] || continue
       if gaze install $other_spell \
          | xargs file -e apptype -e ascii -e compress -e tar \
          | grep '\<ELF\>.*\<dynamically linked\>' \
@@ -38,4 +43,5 @@ fi
 if [[ -e "$INSTALL_ROOT/usr/lib/libstdc++.la" ]]; then
   . $GRIMOIRE/la_remove_up_trigger.function
   la_remove_up_trigger 1
+fi
 fi

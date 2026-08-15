@@ -9,23 +9,27 @@ make CFLAGS="$CFLAGS" BOOT_CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"  \
      install &&
 make_normal &&
 
-# add standard symlinks
-for i in cc c89 c99 c17; do
-  ln -vsf gcc "$INSTALL_ROOT/usr/bin/$i" || return 1
-done &&
+# the unsuffixed names, the loader link and /lib/cpp are the system's,
+# and there is only one system compiler to own them
+if [[ $SLOT == 0 ]]; then
+  # add standard symlinks
+  for i in cc c89 c99 c17; do
+    ln -vsf gcc "$INSTALL_ROOT/usr/bin/$i" || return 1
+  done &&
 
-if [[ "$HOST" == x86_64-* ]]; then
-  [ -d /lib64 -a ! -f /lib/ld-linux-x86-64.so.2 -a -f /lib64/ld-linux-x86-64.so.2 ] &&
-    ln -s $TRACK_ROOT/lib64/ld-linux-x86-64.so.2 /lib/ld-linux-x86-64.so.2
-  true  # see bug 8626 for info about this conditional
-fi &&
+  if [[ "$HOST" == x86_64-* ]]; then
+    [ -d /lib64 -a ! -f /lib/ld-linux-x86-64.so.2 -a -f /lib64/ld-linux-x86-64.so.2 ] &&
+      ln -s $TRACK_ROOT/lib64/ld-linux-x86-64.so.2 /lib/ld-linux-x86-64.so.2
+    true  # see bug 8626 for info about this conditional
+  fi &&
 
-ln -vsf ${TRACK_ROOT}/usr/bin/cpp ${INSTALL_ROOT}/lib/cpp &&
+  ln -vsf ${TRACK_ROOT}/usr/bin/cpp ${INSTALL_ROOT}/lib/cpp &&
 
-if list_find "$GCC_COMPILER" "ada" ; then
-  cd ${INSTALL_ROOT}/usr/lib/gcc/${BUILD}/${VERSION}/adalib &&
-  local MAJOR_VERSION="$(echo $VERSION | cut -f1 -d.)" &&
-  local MINOR_VERSION="$(echo $VERSION | cut -f2 -d.)" &&
-  ln -sfn libgnat-${MAJOR_VERSION}.so libgnat-${MAJOR_VERSION}.${MINOR_VERSION}.so &&
-  ln -sfn libgnarl-${MAJOR_VERSION}.so libgnarl-${MAJOR_VERSION}.${MINOR_VERSION}.so
+  if list_find "$GCC_COMPILER" "ada" ; then
+    cd ${INSTALL_ROOT}/usr/lib/gcc/${BUILD}/${VERSION}/adalib &&
+    local MAJOR_VERSION="$(echo $VERSION | cut -f1 -d.)" &&
+    local MINOR_VERSION="$(echo $VERSION | cut -f2 -d.)" &&
+    ln -sfn libgnat-${MAJOR_VERSION}.so libgnat-${MAJOR_VERSION}.${MINOR_VERSION}.so &&
+    ln -sfn libgnarl-${MAJOR_VERSION}.so libgnarl-${MAJOR_VERSION}.${MINOR_VERSION}.so
+  fi
 fi

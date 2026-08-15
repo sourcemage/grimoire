@@ -45,8 +45,10 @@ fi  &&
 disable_fortify_source         &&
 disable_cf_protection          &&
 
+# whatever slot is being cast, what builds it is the system compiler,
+# and the system compiler is slot 0
 # fixes seg-fault on libiberty/splay.c in v 4.3.2
-if is_version_less $(installed_version $SPELL) 5.0.0; then
+if is_version_less $(installed_version $SPELL:0) 5.0.0; then
   CFLAGS="-O1 $CFLAGS"
 fi &&
 
@@ -78,14 +80,18 @@ if list_find "$GCC_COMPILER" "ada" ; then
   ADA_PATH=${SOURCE13/.tar.bz2/}  &&
   PATH=$SOURCE_DIRECTORY/$ADA_PATH/bin:$PATH  &&
 
-  export CC="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin/gcc" &&
+  # the older bootstrap tarball unpacks without the usr/ level
+  ADA_ROOT=$SOURCE_DIRECTORY/$ADA_PATH  &&
+  if [[ -d $ADA_ROOT/usr/bin ]]; then ADA_ROOT=$ADA_ROOT/usr; fi  &&
 
-  export INCLUDE_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gcc/$HOST/${VERSION13}/include"  &&
-  export LIB_DIR="$SOURCE_DIRECTORY/$ADA_PATH/usr/lib/gcc/$HOST/${VERSION13}/"  &&
+  export CC="$ADA_ROOT/bin/gcc" &&
+
+  export INCLUDE_DIR="$ADA_ROOT/lib/gcc/$HOST/${VERSION13}/include"  &&
+  export LIB_DIR="$ADA_ROOT/lib/gcc/$HOST/${VERSION13}/"  &&
   export LDFLAGS="-L${LIB_DIR}"  &&
   export LIBRARY_PATH="$LIB_DIR"  &&
   export LD_LIBRARY_PATH="$LIB_DIR"  &&
-  export COMPILER_PATH="$SOURCE_DIRECTORY/$ADA_PATH/usr/bin"  &&
+  export COMPILER_PATH="$ADA_ROOT/bin"  &&
 
   export ADA_OBJECTS_PATH="$LIB_DIR/adalib"  &&
   export ADA_INCLUDE_PATH="$LIB_DIR/adainclude"  &&
@@ -95,11 +101,22 @@ if list_find "$GCC_COMPILER" "ada" ; then
 fi  &&
 
 OPTS="$GCJ_HOME $OPTS"                                             &&
-OPTS="--prefix=${INSTALL_ROOT}/usr $OPTS"                          &&
-OPTS="--libdir=${INSTALL_ROOT}/usr/lib $OPTS"                      &&
-OPTS="--libexecdir=${INSTALL_ROOT}/usr/lib $OPTS"                  &&
-OPTS="--mandir=${INSTALL_ROOT}/usr/share/man $OPTS"                &&
-OPTS="--infodir=${INSTALL_ROOT}/usr/share/info $OPTS"              &&
+OPTS="--prefix=${INSTALL_ROOT}$GCC_PREFIX $OPTS"                   &&
+# only the system compiler owns the unsuffixed names and the paths the
+# rest of the system is built against, and only it is worth the time a
+# bootstrap costs -- a slot beside it is built by it
+if [[ $SLOT == 0 ]]; then
+  OPTS="--libdir=${INSTALL_ROOT}/usr/lib $OPTS"                    &&
+  OPTS="--libexecdir=${INSTALL_ROOT}/usr/lib $OPTS"                &&
+  OPTS="--mandir=${INSTALL_ROOT}/usr/share/man $OPTS"              &&
+  OPTS="--infodir=${INSTALL_ROOT}/usr/share/info $OPTS"            &&
+  OPTS="--enable-bootstrap $OPTS"                                  &&
+  OPTS="$GCC_MULTILIB $OPTS"
+else
+  OPTS="--program-suffix=-${VERSION%%.*} $OPTS"                    &&
+  OPTS="--with-gcc-major-version-only $OPTS"                       &&
+  OPTS="--disable-bootstrap $OPTS"
+fi                                                                 &&
 OPTS="--with-bugurl=http://bugs.sourcemage.org $OPTS"              &&
 OPTS="--enable-languages=${GCC_COMPILER// /,},lto $OPTS"           &&
 OPTS="--enable-shared $OPTS"                                       &&
@@ -108,7 +125,6 @@ OPTS="--enable-__cxa_atexit $OPTS"                                 &&
 OPTS="--disable-libunwind-exceptions $OPTS"                        &&
 OPTS="--enable-clocale=gnu $OPTS"                                  &&
 OPTS="--disable-libstdcxx-pch $OPTS"                               &&
-OPTS="--enable-bootstrap $OPTS"                                    &&
 OPTS="--enable-gnu-unique-object $OPTS"                            &&
 OPTS="--enable-linker-build-id $OPTS"                              &&
 if [[ "$GCC_CLOOG" == "y" ]]; then
@@ -126,7 +142,6 @@ OPTS="--enable-default-pie $OPTS"                                  &&
 OPTS="--enable-default-ssp $OPTS"                                  &&
 OPTS="--enable-cet=auto $OPTS"                                     &&
 OPTS="--enable-lto $OPTS"                                          &&
-OPTS="$GCC_MULTILIB $OPTS"                                         &&
 
 case "$HOST" in
 *-musl)
@@ -134,7 +149,10 @@ case "$HOST" in
   OPTS="--disable-libmpx $OPTS" &&
   OPTS="--disable-libmudflap $OPTS" &&
   OPTS="--disable-libsanitizer $OPTS" &&
-  OPTS="--disable-symvers $OPTS"
+  OPTS="--disable-symvers $OPTS" &&
+  if [[ $SLOT == 10 ]]; then
+    OPTS="--disable-libssp $OPTS"
+  fi
   ;;
 esac &&
 
@@ -144,7 +162,9 @@ export glibcxx_cv_c99_math_cxx98=yes glibcxx_cv_c99_math_cxx11=yes &&
 cd $SOURCE_DIRECTORY.bld                                              &&
 $SOURCE_DIRECTORY/configure $OPTS                                     &&
 
-if is_version_less $(installed_version $SPELL) 4.9.0; then
+# $GCC_TARGET is only asked after for slot 0; the other slots are not
+# bootstrapped and take the default target
+if is_version_less $(installed_version $SPELL:0) 4.9.0; then
   if ! spell_ok gcc49; then
     message "${PROBLEM_COLOR}" 1>&2 &&
     message "This version of gcc needs gcc >= 4.9.0 to be able to compile. Spell" 1>&2 &&

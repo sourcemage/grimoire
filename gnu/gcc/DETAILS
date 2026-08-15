@@ -1,7 +1,34 @@
 # Watch: https://ftp.gnu.org/gnu/gcc href="gcc-([0-9.]+)/"
            SPELL=gcc
-         VERSION=16.2.0
-     ISL_VERSION=0.24
+case "$SLOT" in
+            ('')    SLOT=0 ;&
+             (0) VERSION=16.2.0
+             ISL_VERSION=0.24
+                ISL_SITE=https://libisl.sourceforge.io
+                ISL_HASH=sha512:ff6bdcff839e1cd473f2a0c1e4dd4a3612ec6fee4544ccbc62b530a7248db2cf93b4b99bf493a86ddf2aba00e768927265d5d411f92061ea85fd7929073428e8
+             ADA_VERSION=12.1.0
+                 ;;
+            (14) VERSION=14.4.0
+             ISL_VERSION=0.24
+                ISL_SITE=https://libisl.sourceforge.io
+                ISL_HASH=sha512:ff6bdcff839e1cd473f2a0c1e4dd4a3612ec6fee4544ccbc62b530a7248db2cf93b4b99bf493a86ddf2aba00e768927265d5d411f92061ea85fd7929073428e8
+             ADA_VERSION=12.1.0
+                 ;;
+            (10) VERSION=10.5.0
+             ISL_VERSION=0.20
+                ISL_SITE=http://isl.gforge.inria.fr
+                ISL_HASH=sha512:394bccd22d8e63cb052a60ad8b1a75f4ec43916a9482c66f5167b534b538161179c47919815983b7fbc20dfaa1a590e88b251850aa092bbffc2891635bf30dc4
+             ADA_VERSION=8.2.0
+                 ;;
+esac
+# slot 0 is the system compiler and owns /usr; every other slot lives
+# in a prefix of its own and wears its major on every binary name, so
+# that no two slots ever write the same path
+if [[ $SLOT == 0 ]]; then
+      GCC_PREFIX=/usr
+else
+      GCC_PREFIX=/opt/gcc-${VERSION%%.*}
+fi
  BASE_SOURCE_URL="https://ftp.gnu.org/pub/gnu/gcc/gcc-$VERSION"
           SOURCE=gcc-$VERSION.tar.xz
          SOURCE2=$SOURCE.sig
@@ -15,8 +42,8 @@ SOURCE_DIRECTORY="${BUILD_DIRECTORY}/gcc-${VERSION}"
 
 if [[ "$GCC_CLOOG" == "y" ]]; then
          SOURCE3=isl-${ISL_VERSION}.tar.xz
-  SOURCE3_URL[0]=https://libisl.sourceforge.io/$SOURCE3
-    SOURCE3_HASH=sha512:ff6bdcff839e1cd473f2a0c1e4dd4a3612ec6fee4544ccbc62b530a7248db2cf93b4b99bf493a86ddf2aba00e768927265d5d411f92061ea85fd7929073428e8
+  SOURCE3_URL[0]=$ISL_SITE/$SOURCE3
+    SOURCE3_HASH=$ISL_HASH
 fi
 
 if list_find "$GCC_COMPILER" "ada" ; then
@@ -36,8 +63,8 @@ if list_find "$GCC_COMPILER" "ada" ; then
 #
 
   case "${SMGL_COMPAT_ARCHS[1]}" in
-    x86_64) VERSION13=12.1.0 ARCH13=x86_64 ;;
-    *)      VERSION13=4.7.1 ARCH13=i686 ;;
+    x86_64) VERSION13=$ADA_VERSION ARCH13=x86_64 ;;
+    *)      VERSION13=4.7.1        ARCH13=i686   ;;
   esac
       SOURCE13=ada-$VERSION13-$ARCH13-pc-linux-gnu.tar.bz2
   SOURCE13_URL[0]=https://download.sourcemage.org/distro/$SOURCE13
@@ -53,8 +80,8 @@ fi
         WEB_SITE=https://gcc.gnu.org/
         KEYWORDS="compiler"
          ENTERED=20040420
-           SHORT="the GNU C compiler collection"
+           SHORT="the GNU compiler collection, version ${VERSION%%.*}.x"
             DOCS="$DOCS INSTALL"
 cat << EOF
-The entire GNU C Compiler collection.
+The entire GNU Compiler Collection.
 EOF

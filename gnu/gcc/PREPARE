@@ -1,8 +1,28 @@
 . $GRIMOIRE/config_query_multi.function &&
 
 message "${MESSAGE_COLOR}Note: C and C++ compilers are always built${DEFAULT_COLOR}" &&
+
+# a slot that was a spell of its own until now inherits the answer that
+# spell was given, so that nobody is asked again what they already said
+if [[ ! $GCC_COMPILER ]]; then
+  case $SLOT in
+    14) persistent_read gcc-14 GCC_COMPILER    GCC_COMPILER ;;
+    10) persistent_read gcc-10 GCC_10_COMPILER GCC_COMPILER ;;
+  esac
+fi
+
 list_remove GCC_COMPILER c &&
 list_remove GCC_COMPILER c++ &&
+
+# a slot answers these for itself -- the config is kept per instance --
+# so the older ones may be built with a different set of front ends,
+# and are only offered the ones they have
+GCC_LANGUAGES="ada brig d fortran go jit objc obj-c++" &&
+if [[ $SLOT == 10 ]]; then
+  list_remove GCC_LANGUAGES go   &&
+  list_remove GCC_LANGUAGES jit
+fi &&
+
 config_query_multi GCC_COMPILER "Select the additional compilers you want" \
                                 none \
                                 ada \
@@ -13,10 +33,12 @@ config_query_multi GCC_COMPILER "Select the additional compilers you want" \
                                 jit \
                                 objc \
                                 obj-c++ \
+                                $GCC_LANGUAGES \
                                 all &&
 list_remove GCC_COMPILER none    &&
 if list_find "$GCC_COMPILER" "all" ; then
   list_remove GCC_COMPILER all   &&
+<<<<<<< HEAD
   list_add GCC_COMPILER ada      &&
   list_add GCC_COMPILER brig     &&
   list_add GCC_COMPILER d        &&
@@ -25,4 +47,9 @@ if list_find "$GCC_COMPILER" "all" ; then
   list_add GCC_COMPILER jit      &&
   list_add GCC_COMPILER objc     &&
   list_add GCC_COMPILER obj-c++
+=======
+  for language in $GCC_LANGUAGES; do
+    list_add GCC_COMPILER $language
+  done
+>>>>>>> 278701bec907 (gcc: Merge gcc-10 and gcc-14 in as slots)
 fi
