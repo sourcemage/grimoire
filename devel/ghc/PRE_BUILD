@@ -9,21 +9,11 @@ fi  &&
 mk_source_dir $SOURCE_DIRECTORY &&
 cd $SOURCE_DIRECTORY &&
 
-if ! spell_ok "$SPELL"; then
-  unpack_file 2 &&
-  mv "$SPELL-$VERSION" ghc-bin
-fi &&
+# The bootstrap compiler unpacks as ghc-$BOOT_VERSION-<target platform>, which
+# is not the platform name its tarball is published under.
+unpack_file 2 &&
+mv $SPELL-$BOOT_VERSION-* ghc-bin &&
 
-unpack_file &&
-
-cd ${SOURCE_DIRECTORY}/${SPELL}-${VERSION} &&
-
-if [[ $GHC_NO_OPTS == "y" ]] ; then
-  echo "BuildFlavour = quickest" > mk/build.mk.settings
-else
-  echo "BuildFlavour = perf" > mk/build.mk.settings
-fi &&
-
-cat mk/build.mk.{settings,sample} > mk/build.mk &&
-
-python3 boot
+# Source distributions are shipped already booted: no boot script, no
+# mk/build.mk, and the Alex/Happy output is pre-generated.
+unpack_file
