@@ -1,3 +1,9 @@
+# LLVM_ENABLE_DOXYGEN only teaches cmake to install docs/doxygen/html;
+# the target that fills it joins "all" when LLVM_BUILD_DOCS is on
+if is_depends_enabled $SPELL_INSTANCE doxygen; then
+  OPTS+=" -DLLVM_BUILD_DOCS=ON"
+fi &&
+
 # the standalone slots know none of the options below: they are a bare
 # llvm tree, configured where they were unpacked, and the only choices
 # their spells ever offered were targets, RTTI and polly
