@@ -28,10 +28,11 @@ python3 $SOURCE_DIRECTORY/$SPELL-$VERSION/hadrian/bootstrap/bootstrap.py \
 
 cd $SOURCE_DIRECTORY/$SPELL-$VERSION &&
 
-# Only --prefix and --with-ghc matter here; Hadrian installs through the
-# binary distribution's own configure, which is run again in INSTALL.
+# Only --prefix and GHC matter here; Hadrian installs through the binary
+# distribution's own configure, which is run again in INSTALL.  --with-ghc is
+# a hard error since 9.12, the boot compiler goes in the GHC variable now.
 ./configure --prefix=${INSTALL_ROOT}/usr  \
-            --with-ghc=$BOOT_GHC          \
+            GHC=$BOOT_GHC                 \
                        $OPTS              &&
 
 $SOURCE_DIRECTORY/hadrian-boot/_build/bin/hadrian \
