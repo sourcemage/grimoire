@@ -4,6 +4,16 @@ if is_depends_enabled $SPELL_INSTANCE doxygen; then
   OPTS+=" -DLLVM_BUILD_DOCS=ON"
 fi &&
 
+if list_find "$LLVM_TARGETS" all; then
+  LLVM_TARGETS=all
+fi &&
+if list_find "$LLVM_EXPERIMENTAL_TARGETS" all; then
+  LLVM_EXPERIMENTAL_TARGETS=all
+fi &&
+if list_find "$LLVM_LIBCLC_TARGETS" all; then
+  LLVM_LIBCLC_TARGETS=all
+fi &&
+
 # the standalone slots know none of the options below: they are a bare
 # llvm tree, configured where they were unpacked, and the only choices
 # their spells ever offered were targets, RTTI and polly
