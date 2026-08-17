@@ -6,6 +6,11 @@ function detect_setup_file() {
     echo Setup.hs
   elif [ -r Setup.lhs ] ; then
     echo Setup.lhs
+  elif ! tr '\n' ' ' < "$(ls ./*.cabal | head -n1)" |
+       grep -qiE 'build-type:[[:space:]]*(Custom|Hooks)' ; then
+    # Since Cabal 2.0 an sdist may legitimately ship no setup file
+    printf 'import Distribution.Simple\nmain = defaultMain\n' > Setup.hs &&
+    echo Setup.hs
   else
     message "${PROBLEM_COLOR}Cannot detect setup file!${DEFAULT_COLOR}"
     return 1
