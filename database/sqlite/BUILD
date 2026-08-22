@@ -23,7 +23,7 @@ fi &&
 
 LDFLAGS="-ldl $LDFLAGS" &&
 CFLAGS="${CFLAGS//-ffast-math}" &&
-OPTS="$SQLITE_TSAFE $OPTS" &&
+OPTS="$SQLITE_TSAFE $SQLITE_SESSION $OPTS" &&
 
 default_build &&
 
