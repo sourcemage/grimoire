@@ -18,4 +18,9 @@ OPTS="--with-x11                        \
       $BOCHS_OPTS                       \
       $OPTS"                            &&
 
+case "$HOST" in
+  (*-musl)
+    OPTS+=' lt_cv_deplibs_check_method=pass_all' ;;
+esac &&
+
 CFLAGS="$CFLAGS" CXXFLAGS="$CFLAGS" default_build

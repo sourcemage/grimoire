@@ -1,0 +1,57 @@
+From 38e26b4e88724d431e7ab4aa3997e563d5a7a0cb Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <iluceno@suse.de>
+Date: Sat, 22 Aug 2026 10:56:13 +0200
+Subject: [PATCH 2/2] Use newterm instead of reassigning stdin/stdout
+
+The BX_DEBUGGER_TERM path pointed curses at a freshly opened pty by
+assigning to stdin/stdout. glibc happens to declare those as plain
+'extern FILE *', but musl declares them 'FILE *const', so the build
+fails.
+
+C does not require the three standard streams to be modifiable lvalues
+at all.
+
+ncurses' newterm exists for exactly this: it takes the input and output
+FILE * explicitly. Using it removes the need to swap and restore the
+standard streams.
+
+The fdopen mode also had to change from "wr" to "w+": "wr" is not a
+valid mode string.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ bochs/gui/term.cc | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/gui/term.cc b/gui/term.cc
+index cf9f4cce0cac..4c94eb0f3322 100644
+--- a/gui/term.cc
++++ b/gui/term.cc
+@@ -186,21 +186,18 @@ void bx_term_gui_c::specific_init(int argc, char **argv, unsigned headerbar_y)
+   // really ends up having fun
+   if (!strcmp(SIM->get_param_string(BXPN_LOG_FILENAME)->getptr(), "-"))
+     BX_PANIC(("cannot log to stderr in term mode"));
++  initscr();
+ #else
+-  FILE *old_stdin = stdin;
+-  FILE *old_stdout = stdout;
++  FILE *scr_fp = NULL;
+   scr_fd = open("/dev/ptmx",O_RDWR);
+   if(scr_fd > 0){
+-    stdin = stdout = fdopen(scr_fd,"wr");
++    scr_fp = fdopen(scr_fd,"w+");
+     grantpt(scr_fd);
+     unlockpt(scr_fd);
+     fprintf(stderr, "\nBochs connected to screen \"%s\"\n",ptsname(scr_fd));
+   }
+-#endif
+-  initscr();
+-#if BX_DEBUGGER_TERM
+-  stdin = old_stdin;
+-  stdout = old_stdout;
++  if (scr_fp == NULL || newterm(NULL, scr_fp, scr_fp) == NULL)
++    initscr();
+ #endif
+   start_color();
+   cbreak();
