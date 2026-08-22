@@ -47,8 +47,8 @@ pidfile=/var/run/cgred.pid
 [ -x $PROGRAM ] || exit 1
 
 # Read in configuration options.
-if [ -f "/etc/sysconfig/cgred.conf" ] ; then
-	. /etc/sysconfig/cgred.conf
+if [ -f "/etc/sysconfig/cgred" ] ; then
+	. /etc/sysconfig/cgred
 	OPTIONS="$NODAEMON $LOG"
 	if [ -n "$LOG_FILE" ]; then
 		OPTIONS="$OPTIONS --logfile=$LOG_FILE"
@@ -73,7 +73,22 @@ start()
 	num=`grep "cgroup" /proc/mounts | awk '$3=="cgroup"' | wc -l`
 	if [ $num -eq 0 ]; then
 		echo
-		print_status failure $"Cannot find cgroups, is cgconfig service running?"
+		if awk '$3 == "cgroup2" { found = 1 } END { exit !found }' /proc/mounts; then
+			print_status failure $"cgrulesengd only understands cgroup v1, and this host runs the unified hierarchy"
+			echo "$servicename: disable this service; cgconfig delegates a subtree"
+			echo "$servicename: to each user instead of classifying processes here"
+		else
+			print_status failure $"Cannot find cgroups, is cgconfig service running?"
+		fi
+		return 1
+	fi
+
+	# cgrulesengd hears about new processes through the kernel's process
+	# event connector, which registers /proc/net/connector when it is built
+	# in. Without it the daemon starts and then stays permanently idle.
+	if [ ! -e /proc/net/connector ]; then
+		echo
+		print_status failure $"kernel lacks CONFIG_CONNECTOR, cgrulesengd cannot see new processes"
 		return 1
 	fi
 	loadproc ${PROGRAM} ${OPTIONS}

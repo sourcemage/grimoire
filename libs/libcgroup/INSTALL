@@ -5,17 +5,17 @@ install -d -m 0755 "${INSTALL_ROOT}"/etc/cgconfig.d/  &&
 install_config_file  "${SOURCE_DIRECTORY}"/samples/cgrules.conf  \
   "${INSTALL_ROOT}"/etc/cgrules.conf                             &&
 
-install_config_file  "${SOURCE_DIRECTORY}"/samples/cgconfig.conf  \
-  "${INSTALL_ROOT}"/etc/cgconfig.conf                             &&
-
 install_config_file  "${SOURCE_DIRECTORY}"/samples/cgsnapshot_blacklist.conf  \
   "${INSTALL_ROOT}"/etc/cgsnapshot_blacklist.conf                             &&
 
-install_config_file  "${SCRIPT_DIRECTORY}"/conf/cgconfig.conf  \
-  "${INSTALL_ROOT}"/etc/cgconfig.conf                          &&
+# samples/cgconfig.conf with the cgroup v2 caveats appended; the init.d/*.conf
+# counterparts are installed into /etc/sysconfig by sorcery itself
+install_config_file  "${SCRIPT_DIRECTORY}"/etc/cgconfig.conf  \
+  "${INSTALL_ROOT}"/etc/cgconfig.conf                         &&
 
-# Install SysConfig files as Sorcery doesn't seem to want to pick up the init.d/*.conf files
-for SYSCONF in cgconfig cgred; do
-  install_config_file  "${SPELL_DIRECTORY}"/init.d/${SYSCONF}.conf  \
-    "${INSTALL_ROOT}"/etc/sysconfig/${SYSCONF}
-done
+# Puts each login session in a scope below the subtree cgconfig delegates to
+# its user; without it sessions stay in the root cgroup, where an unprivileged
+# process may not create a cgroup of its own.
+install -d "$INSTALL_ROOT"/etc/profile.d/  &&
+install_config_file  "$SPELL_DIRECTORY"/profile.d/cgroup-session.sh  \
+  "$INSTALL_ROOT"/etc/profile.d/cgroup-session.sh

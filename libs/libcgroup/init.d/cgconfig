@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Start/Stop the workload manager
+# Set up the control group hierarchy.
 #
 # Copyright IBM Corporation. 2008
 #
@@ -15,9 +15,11 @@
 #
 # cgconfig Control Groups Configuration Startup
 # chkconfig: - 5 95
-# description: This script runs the cgconfigparser utility to parse and setup
-#              the control group filesystem. It uses /etc/cgconfig.conf
-#              and parses the configuration specified in there.
+# description: Sets up the control group filesystem.  On the unified (cgroup
+#              v2) hierarchy it mounts /sys/fs/cgroup, makes the available
+#              controllers usable by child cgroups and delegates a subtree to
+#              each user.  If /etc/cgconfig.conf declares v1 mount points it
+#              falls back to running cgconfigparser on it instead.
 
 ### BEGIN INIT INFO
 # Short-Description:    Create and setup control group filesystem(s)
@@ -34,15 +36,169 @@ NEEDS="+local_fs +syslog"
 # get correct location of binaries from configure
 prefix=/usr/;exec_prefix=${prefix};sbindir=${exec_prefix}/sbin
 servicename=cgconfig
-PROGRAM=$sbindir/cgconfigparser
+# auto_init insists PROGRAM be executable, and the unified hierarchy needs
+# nothing from libcgroup itself; cgconfigparser is only used for the v1 path.
+PROGRAM=/bin/mount
+CGCONFIGPARSER=$sbindir/cgconfigparser
 CONFIG_FILE=/etc/cgconfig.conf
 lockfile=/var/lock/${servicename}
 
 # read the config
 CREATE_DEFAULT=yes
+CGROUP_ROOT=/sys/fs/cgroup
+CGROUP_MOUNT_OPTIONS=nsdelegate,memory_recursiveprot
+# Controllers to hand down to child cgroups; empty means every controller the
+# kernel offers.
+CGROUP_CONTROLLERS=
+# Parent of the per-user delegated subtrees.
+USER_SLICE=user.slice
+# Delegate a subtree to every user in this UID range, plus DELEGATE_USERS.
+DELEGATE=yes
+DELEGATE_UID_MIN=1000
+DELEGATE_UID_MAX=60000
+DELEGATE_USERS=
 if [ -e /etc/sysconfig/cgconfig ]; then
 	. /etc/sysconfig/cgconfig
 fi
+
+#
+# cgroup v2 (unified hierarchy)
+#
+# A controller belongs to exactly one hierarchy, so v1 and v2 cannot both be
+# used for it; whichever is mounted first wins.  This is why the v1 path below
+# is only taken when the admin has explicitly asked for it.
+#
+
+cgroup_fstype() {
+	awk -v root="$CGROUP_ROOT" '$2 == root { type = $3 } END { print type }' \
+		/proc/self/mounts
+}
+
+# True when /etc/cgconfig.conf asks for v1 mount points, i.e. when the admin
+# has deliberately configured the legacy hierarchies.
+wants_cgroup_v1() {
+	[ -s "$CONFIG_FILE" ] &&
+	grep -q '^[[:space:]]*mount[[:space:]]*{' "$CONFIG_FILE"
+}
+
+mount_cgroup2() {
+	case "$(cgroup_fstype)" in
+	(cgroup2)
+		return 0
+		;;
+	(cgroup)
+		print_status warning "$CGROUP_ROOT holds a cgroup v1 hierarchy"
+		echo "$servicename: replace the $CGROUP_ROOT line in /etc/fstab with"
+		echo "$servicename:     none $CGROUP_ROOT cgroup2 $CGROUP_MOUNT_OPTIONS 0 0"
+		echo "$servicename: the controllers cannot be handed to v2 while v1 holds them"
+		return 1
+		;;
+	esac
+
+	mkdir -p "$CGROUP_ROOT" &&
+	mount -t cgroup2 -o "$CGROUP_MOUNT_OPTIONS" cgroup2 "$CGROUP_ROOT"
+}
+
+# A cgroup can only offer a controller to its children after listing it in
+# cgroup.subtree_control, and it can only offer what its own parent gave it in
+# cgroup.controllers.  Enable them one at a time so that one controller the
+# kernel refuses does not take the rest down with it.
+enable_controllers() {
+	local cg=$1 avail want c
+
+	avail=$(cat "$cg/cgroup.controllers" 2>/dev/null) || return 0
+	want=${CGROUP_CONTROLLERS:-$avail}
+
+	for c in $want; do
+		case " $avail " in
+		(*" $c "*)
+			echo "+$c" > "$cg/cgroup.subtree_control" 2>/dev/null
+			;;
+		esac
+	done
+
+	return 0
+}
+
+# Delegation hands a subtree to an unprivileged user.  The kernel checks the
+# owner of the directory itself, of cgroup.procs and cgroup.threads (moving a
+# process) and of cgroup.subtree_control (handing controllers further down);
+# nothing else must become writable, or the user could escape the subtree.
+delegate_cgroup() {
+	local cg=$1 owner=$2 f
+
+	mkdir -p "$cg" || return 1
+	chown "$owner" "$cg" || return 1
+
+	for f in cgroup.procs cgroup.threads cgroup.subtree_control; do
+		if [ -e "$cg/$f" ]; then
+			chown "$owner" "$cg/$f" || return 1
+		fi
+	done
+
+	return 0
+}
+
+delegated_users() {
+	awk -F: -v min="$DELEGATE_UID_MIN" -v max="$DELEGATE_UID_MAX" \
+		'$3 >= min && $3 <= max { print $3 }' /etc/passwd
+
+	local user uid
+
+	for user in $DELEGATE_USERS; do
+		uid=$(id -u "$user" 2>/dev/null) && echo "$uid"
+	done
+}
+
+setup_user_slices() {
+	local slice=$CGROUP_ROOT/$USER_SLICE uid
+
+	mkdir -p "$slice" || return 1
+
+	# user.slice itself never holds processes - sessions go into a scope
+	# below their own user-<uid>.slice - so it is free to pass controllers
+	# down.
+	enable_controllers "$slice"
+
+	for uid in $(delegated_users | sort -un); do
+		delegate_cgroup "$slice/user-$uid.slice" "$uid" ||
+			print_status warning "could not delegate user-$uid.slice"
+	done
+
+	return 0
+}
+
+start_v2() {
+	mount_cgroup2 || return 1
+
+	# The root cgroup is the only one exempt from the "no internal
+	# processes" rule, so it can keep the boot-time processes and still
+	# pass controllers down.
+	enable_controllers "$CGROUP_ROOT"
+
+	if [ "$DELEGATE" = "yes" ]; then
+		setup_user_slices || return 1
+	fi
+
+	print_status success
+	return 0
+}
+
+stop_v2() {
+	local slice=$CGROUP_ROOT/$USER_SLICE cg
+
+	# rmdir on a cgroup that still holds processes fails, so this only
+	# reaps the ones that are genuinely finished.
+	for cg in "$slice"/*/*/ "$slice"/*/ "$slice"/; do
+		[ -d "$cg" ] && rmdir "$cg" 2>/dev/null
+	done
+
+	return 0
+}
+
+#
+# cgroup v1 (legacy, driven by /etc/cgconfig.conf)
+#
 
 create_default_groups() {
 	defaultcgroup=
@@ -92,19 +248,13 @@ create_default_groups() {
                  2>/dev/null || :
 }
 
-start() {
-	echo -n "Starting cgconfig service: "
+start_v1() {
 	if [ -f "$lockfile" ] && lscgroup > /dev/null 2>&1; then
 		print_status warning "cgroups are already mounted"
 		return 0
 	fi  &&
 
-	if [ ! -s $CONFIG_FILE ]; then
-		print_status failure "$CONFIG_FILE is not configured"
-		return 6
-	fi  &&
-
-	$PROGRAM -l $CONFIG_FILE
+	$CGCONFIGPARSER -l $CONFIG_FILE
 	evaluate_retval || ( print_status failure "Failed to parse $CONFIG_FILE" && return 1 )
 
 	if [ $CREATE_DEFAULT = "yes" ]; then
@@ -114,21 +264,51 @@ start() {
 	touch "$lockfile" || ( print_status failure "Failed to touch $lockfile" && return 1 )
 }
 
-stop() {
-	echo -n "Stopping cgconfig service: "
+stop_v1() {
 	cgclear -l $CONFIG_FILE
 	rm -f "$lockfile"
 	evaluate_retval
 }
 
-status() {
-	if [ -f "$lockfile" ]; then
-		print_status success "${servicename} already started" &&
-		return 0
+#
+# init script entry points
+#
+
+start() {
+	echo -n "Starting cgconfig service: "
+
+	if wants_cgroup_v1; then
+		start_v1
 	else
-		print_status failure "${servicename} not started" &&
-		return 0
+		start_v2
 	fi
+}
+
+stop() {
+	echo -n "Stopping cgconfig service: "
+
+	if [ "$(cgroup_fstype)" = cgroup2 ]; then
+		stop_v2
+		print_status success
+	else
+		stop_v1
+	fi
+}
+
+status() {
+	case "$(cgroup_fstype)" in
+	(cgroup2)
+		print_status success "${servicename}: unified hierarchy on $CGROUP_ROOT"
+		;;
+	(cgroup)
+		print_status success "${servicename}: legacy v1 hierarchy on $CGROUP_ROOT"
+		;;
+	(*)
+		print_status failure "${servicename} not started"
+		;;
+	esac
+
+	return 0
 }
 
 restart() {
@@ -136,4 +316,3 @@ restart() {
 	sleep 1
 	start
 }
-
