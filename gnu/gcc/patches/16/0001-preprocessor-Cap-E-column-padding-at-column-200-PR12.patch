@@ -1,0 +1,154 @@
+From 71263f0d2d76ab43cb25210aabd7e603330e17f3 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <iluceno@suse.de>
+Date: Fri, 21 Aug 2026 14:42:52 +0200
+Subject: [PATCH] preprocessor: Cap -E column padding at column 200 [PR126913]
+
+The first token of a non-directive output line is padded out to the
+column it had in the source, "so the output is easy to read".
+
+do_line_change is also reached mid-line, from scan_translation_unit,
+whenever a linemarker has to be emitted -- which happens on every
+expansion context switch, notably for an object-like macro from a
+system header.  A line carrying M such macros pays the column cost M
+times, so the output grows as the square of the line length:
+
+  #include <stdbool.h>
+  static const _Bool a[] = {true,true,...,0};
+
+  N=1000  src=5055   -E=5093292
+  N=8000  src=40055  -E=320744292
+
+40 KB of source, 320 MB of output, ~99.9% spaces.
+
+Nobody reads column 287,000, and -E output is overwhelmingly machine
+input now.  Cap the padding at column 200 and emit none past it,
+leaving the separating space scan_translation_unit already supplies;
+truncating the run would be as misleading and far more expensive.
+
+The reproducer becomes linear, 320 MB -> 280 KB at N=8000.  Preprocessing
+60 libiberty translation units and the 407 tests in gcc.dg/cpp is
+byte-identical to before.
+
+	PR preprocessor/126913
+
+gcc/c-family/ChangeLog:
+
+	* c-ppoutput.cc (MAX_PADDING_COLUMN): New macro.
+	(do_line_change): Emit no column padding past MAX_PADDING_COLUMN.
+
+gcc/ChangeLog:
+
+	* doc/cpp.texi (Preprocessor Output): Document the cap.
+	(Implementation-defined behavior): Likewise.
+
+gcc/testsuite/ChangeLog:
+
+	* gcc.dg/cpp/pr126913.c: New test.
+	* gcc.dg/cpp/pr126913.h: New test header.
+
+Upstream-Status: Submitted
+  [https://gcc.gnu.org/bugzilla/show_bug.cgi?id=126913]
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ gcc/c-family/c-ppoutput.cc          |  8 ++++++++
+ gcc/doc/cpp.texi                    |  5 +++--
+ gcc/testsuite/gcc.dg/cpp/pr126913.c | 21 +++++++++++++++++++++
+ gcc/testsuite/gcc.dg/cpp/pr126913.h |  5 +++++
+ 4 files changed, 37 insertions(+), 2 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.dg/cpp/pr126913.c
+ create mode 100644 gcc/testsuite/gcc.dg/cpp/pr126913.h
+
+diff --git a/gcc/c-family/c-ppoutput.cc b/gcc/c-family/c-ppoutput.cc
+index a8c8a021503e..74558c22c59d 100644
+--- a/gcc/c-family/c-ppoutput.cc
++++ b/gcc/c-family/c-ppoutput.cc
+@@ -44,6 +44,8 @@ static struct
+ 				   object.  */
+ } print;
+ 
++#define MAX_PADDING_COLUMN 200
++
+ /* Defined and undefined macros being queued for output with -dU at
+    the next newline.  */
+ struct macro_queue
+@@ -667,6 +669,9 @@ do_line_change (cpp_reader *pfile, const cpp_token *token,
+      reconstruct tabs; we can't get it right in general, and nothing
+      ought to care.  Some things do care; the fault lies with them.
+ 
++     Past MAX_PADDING_COLUMN drop the padding rather than truncate it: a
++     partial run would be as misleading and far more expensive.
++
+      Also do not output the spaces if this is a CPP_PRAGMA token.  In this
+      case, libcpp has provided the location of the first token after #pragma,
+      so we would start at the wrong column.  */
+@@ -675,6 +680,9 @@ do_line_change (cpp_reader *pfile, const cpp_token *token,
+       int spaces = LOCATION_COLUMN (src_loc) - 2;
+       print.printed = true;
+ 
++      if (spaces > MAX_PADDING_COLUMN - 2)
++	spaces = 0;
++
+       while (-- spaces >= 0)
+ 	putc (' ', print.outf);
+     }
+diff --git a/gcc/doc/cpp.texi b/gcc/doc/cpp.texi
+index 859b5395047a..2fce5889e84a 100644
+--- a/gcc/doc/cpp.texi
++++ b/gcc/doc/cpp.texi
+@@ -4050,7 +4050,8 @@ e.g.@: a single space.  In GNU CPP, whitespace between tokens is collapsed
+ to become a single space, with the exception that the first token on a
+ non-directive line is preceded with sufficient spaces that it appears in
+ the same column in the preprocessed output that it appeared in the
+-original source file.  This is so the output is easy to read.
++original source file.  This is so the output is easy to read.  A token
++past column 200 is not padded at all.
+ CPP does not insert any
+ whitespace where there was none in the original source, except where
+ necessary to prevent an accidental token paste.
+@@ -4443,7 +4444,7 @@ You can override the default with @option{-fdollars-in-identifiers} or
+ In textual output, each whitespace sequence is collapsed to a single
+ space.  For aesthetic reasons, the first token on each non-directive
+ line of output is preceded with sufficient spaces that it appears in the
+-same column as it did in the original source file.
++same column as it did in the original source file, up to column 200.
+ 
+ @item The numeric value of character constants in preprocessor expressions.
+ 
+diff --git a/gcc/testsuite/gcc.dg/cpp/pr126913.c b/gcc/testsuite/gcc.dg/cpp/pr126913.c
+new file mode 100644
+index 000000000000..9876f158ba25
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/cpp/pr126913.c
+@@ -0,0 +1,21 @@
++/* PR preprocessor/126913: column padding is capped, so a long line does
++   not cost O(columns) bytes for every macro expanded on it.  */
++
++/* { dg-do preprocess } */
++/* { dg-options "" } */
++
++#include "pr126913.h"
++
++/* Column 21, under the cap: padded as before.  */
++                    int under_cap;
++
++/* Column 261, past the cap: only the separating space.  */
++                                                                                                                                                                                                                                                                    int over_cap;
++
++/* Each expansion restarts the padding from its own column; this line
++   alone used to emit tens of kilobytes of spaces.  */
++static const int a[] = {PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,PR126913_TRUE,0};
++
++/* { dg-final { scan-file pr126913.i "\n {20}int under_cap;" } } */
++/* { dg-final { scan-file pr126913.i "\n int over_cap;" } } */
++/* { dg-final { scan-file-not pr126913.i " {200}" } } */
+diff --git a/gcc/testsuite/gcc.dg/cpp/pr126913.h b/gcc/testsuite/gcc.dg/cpp/pr126913.h
+new file mode 100644
+index 000000000000..94dca812dea1
+--- /dev/null
++++ b/gcc/testsuite/gcc.dg/cpp/pr126913.h
+@@ -0,0 +1,5 @@
++#pragma GCC system_header
++
++/* Expanding this mid-line switches expansion context, which emits a
++   linemarker pair and restarts the column padding.  */
++#define PR126913_TRUE 1
