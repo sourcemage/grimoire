@@ -1,0 +1,224 @@
+From 9a79455563ee93ce5823171fafd2b5e240e90cda Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <iluceno@suse.de>
+Date: Fri, 14 Aug 2026 09:27:33 +0200
+Subject: [PATCH] Autosave: never pop up a save-as dialog
+
+Imported and new workbooks have no file to write back to, so
+gui_file_save falls back to save-as.  Skip them instead, and show a
+warning icon in the status area saying why.
+
+Upstream-Status: Submitted
+  [https://gitlab.gnome.org/GNOME/gnumeric/-/merge_requests/44]
+Signed-off-by: Ismael Luceno <iluceno@suse.de>
+---
+ src/dialogs/wbcg.ui | 15 ++++++++++++
+ src/gui-file.c      |  2 +-
+ src/wbc-gtk-impl.h  |  1 +
+ src/wbc-gtk.c       | 58 ++++++++++++++++++++++++++++++++++++++++++---
+ src/workbook.c      | 17 +++++++++++++
+ src/workbook.h      |  1 +
+ 6 files changed, 90 insertions(+), 4 deletions(-)
+
+diff --git a/src/dialogs/wbcg.ui b/src/dialogs/wbcg.ui
+index 8ad457e55c76..b02e692c564b 100644
+--- a/src/dialogs/wbcg.ui
++++ b/src/dialogs/wbcg.ui
+@@ -280,6 +280,21 @@
+                 <property name="position">0</property>
+               </packing>
+             </child>
++            <child>
++              <object class="GtkImage" id="autosave_off_image">
++                <property name="visible">False</property>
++                <property name="no_show_all">True</property>
++                <property name="can_focus">False</property>
++                <property name="icon_name">dialog-warning</property>
++                <property name="icon_size">1</property>
++              </object>
++              <packing>
++                <property name="expand">False</property>
++                <property name="fill">False</property>
++                <property name="pack_type">end</property>
++                <property name="position">0</property>
++              </packing>
++            </child>
+             <child>
+               <object class="GtkStatusbar" id="status_text">
+                 <property name="visible">True</property>
+diff --git a/src/gui-file.c b/src/gui-file.c
+index 82f096f268a3..dcf81e54c594 100644
+--- a/src/gui-file.c
++++ b/src/gui-file.c
+@@ -870,7 +870,7 @@ gui_file_save (WBCGtk *wbcg, WorkbookView *wb_view)
+ 		wb_view_preferred_size (wb_view, a.width, a.height);
+ 	}
+ 
+-	if (wb->file_format_level < GO_FILE_FL_AUTO)
++	if (workbook_needs_save_as (wb))
+ 		return gui_file_save_as (wbcg, wb_view,
+ 					 GNM_FILE_SAVE_AS_STYLE_SAVE, NULL,
+ 					 TRUE);
+diff --git a/src/wbc-gtk-impl.h b/src/wbc-gtk-impl.h
+index dd102521eb9d..6c23a80072b2 100644
+--- a/src/wbc-gtk-impl.h
++++ b/src/wbc-gtk-impl.h
+@@ -86,6 +86,7 @@ struct WBCGtk_ {
+         gboolean   autosave_prompt;
+         gint       autosave_time;
+         guint      autosave_timer;
++        GtkWidget *autosave_off_image;	/* Shown when we cannot autosave */
+ 
+ 	PangoFontDescription *font_desc;
+ 
+diff --git a/src/wbc-gtk.c b/src/wbc-gtk.c
+index 66013d34bf86..0df0346304fa 100644
+--- a/src/wbc-gtk.c
++++ b/src/wbc-gtk.c
+@@ -294,6 +294,43 @@ get_all_scgs (WBCGtk *wbcg)
+ 
+ /* Autosave */
+ 
++/*
++ * Returns: %NULL if autosave can save the current workbook, or a short
++ * reason why it cannot.  Saving such a workbook needs a "save as", and
++ * that is not something autosave gets to do.
++ */
++static char const *
++wbcg_autosave_blocked_reason (WBCGtk *wbcg)
++{
++	WorkbookView *wb_view = wb_control_view (GNM_WBC (wbcg));
++	Workbook *wb = wb_view ? wb_view_get_workbook (wb_view) : NULL;
++
++	if (wb == NULL || !workbook_needs_save_as (wb))
++		return NULL;
++
++	if (go_doc_get_uri (GO_DOC (wb)) == NULL)
++		return _("Not autosaved: never saved.");
++
++	return _("Not autosaved: imported.");
++}
++
++/* Say so in the status area.  Not a dialog: autosave stays out of the way. */
++static void
++wbcg_update_autosave_indicator (WBCGtk *wbcg)
++{
++	char const *reason;
++
++	if (wbcg->autosave_off_image == NULL)
++		return;
++
++	reason = wbcg->autosave_time > 0
++		? wbcg_autosave_blocked_reason (wbcg)
++		: NULL;
++	if (reason != NULL)
++		gtk_widget_set_tooltip_text (wbcg->autosave_off_image, reason);
++	gtk_widget_set_visible (wbcg->autosave_off_image, reason != NULL);
++}
++
+ static gboolean
+ cb_autosave (WBCGtk *wbcg)
+ {
+@@ -308,6 +345,11 @@ cb_autosave (WBCGtk *wbcg)
+ 
+ 	if (wbcg->autosave_time > 0 &&
+ 	    go_doc_is_dirty (wb_view_get_doc (wb_view))) {
++		/* Never let an autosave pop up a save-as dialog. */
++		if (wbcg_autosave_blocked_reason (wbcg) != NULL) {
++			wbcg_update_autosave_indicator (wbcg);
++			return TRUE;
++		}
+ 		if (wbcg->autosave_prompt && !dialog_autosave_prompt (wbcg))
+ 			return TRUE;
+ 		gui_file_save (wbcg, wb_view);
+@@ -377,6 +419,7 @@ wbcg_set_autosave_time (WBCGtk *wbcg, int secs)
+ 
+ 	wbcg->autosave_time = secs;
+ 	wbcg_autosave_activate (wbcg);
++	wbcg_update_autosave_indicator (wbcg);
+ }
+ 
+ /****************************************************************************/
+@@ -1351,6 +1394,14 @@ wbcg_update_title (WBCGtk *wbcg)
+ 	g_free (basename);
+ }
+ 
++/* URI and dirty changes can both affect whether we can autosave. */
++static void
++wbcg_doc_state_changed (WBCGtk *wbcg)
++{
++	wbcg_update_title (wbcg);
++	wbcg_update_autosave_indicator (wbcg);
++}
++
+ static void
+ wbcg_sheet_remove_all (WorkbookControl *wbc)
+ {
+@@ -3121,17 +3172,17 @@ wbcg_view_changed (WBCGtk *wbcg,
+ 			g_signal_connect_object
+ 			(G_OBJECT (wb),
+ 			 "notify::uri",
+-			 G_CALLBACK (wbcg_update_title),
++			 G_CALLBACK (wbcg_doc_state_changed),
+ 			 wbcg, G_CONNECT_SWAPPED);
+ 
+ 		wbcg->sig_notify_dirty =
+ 			g_signal_connect_object
+ 			(G_OBJECT (wb),
+ 			 "notify::dirty",
+-			 G_CALLBACK (wbcg_update_title),
++			 G_CALLBACK (wbcg_doc_state_changed),
+ 			 wbcg, G_CONNECT_SWAPPED);
+ 
+-		wbcg_update_title (wbcg);
++		wbcg_doc_state_changed (wbcg);
+ 	}
+ }
+ 
+@@ -5087,6 +5138,7 @@ wbc_gtk_init (GObject *obj)
+ 	wbcg->progress_bar = GET_GUI_ITEM ("progress_bar");
+ 	wbcg->auto_expr_label = GET_GUI_ITEM ("auto_expr_label");
+ 	wbcg->status_text = GET_GUI_ITEM ("status_text");
++	wbcg->autosave_off_image = GET_GUI_ITEM ("autosave_off_image");
+ 	wbcg->tabs_paned = GET_GUI_ITEM ("tabs_paned");
+ 	wbcg->status_area = GET_GUI_ITEM ("status_area");
+ 	wbcg->notebook_area = GET_GUI_ITEM ("notebook_area");
+diff --git a/src/workbook.c b/src/workbook.c
+index f457e28d628d..e8a01ba0e291 100644
+--- a/src/workbook.c
++++ b/src/workbook.c
+@@ -582,6 +582,23 @@ workbook_get_last_export_uri (Workbook *wb)
+ 	return wb->last_export_uri;
+ }
+ 
++/**
++ * workbook_needs_save_as:
++ * @wb: #Workbook
++ *
++ * A workbook needs a "save as" when it has no file it can be written back
++ * to without loss: it was created from scratch or imported.
++ *
++ * Returns: %TRUE if saving @wb requires asking for a location and a format.
++ **/
++gboolean
++workbook_needs_save_as (Workbook const *wb)
++{
++	g_return_val_if_fail (GNM_IS_WORKBOOK (wb), TRUE);
++
++	return wb->file_format_level < GO_FILE_FL_AUTO;
++}
++
+ /**
+  * workbook_set_file_exporter:
+  * @wb: #Workbook
+diff --git a/src/workbook.h b/src/workbook.h
+index a38c6984f934..1c74c78e232b 100644
+--- a/src/workbook.h
++++ b/src/workbook.h
+@@ -58,6 +58,7 @@ GOFileSaver *workbook_get_file_exporter	(Workbook *wb);
+ gchar const *workbook_get_last_export_uri (Workbook *wb);
+ void         workbook_set_file_exporter	  (Workbook *wb, GOFileSaver *fs);
+ void         workbook_set_last_export_uri (Workbook *wb, const gchar *uri);
++gboolean     workbook_needs_save_as       (Workbook const *wb);
+ 
+ /* See also sheet_foreach_cell_in_region */
+ GnmValue   *workbook_foreach_cell_in_range (GnmEvalPos const  *pos,
