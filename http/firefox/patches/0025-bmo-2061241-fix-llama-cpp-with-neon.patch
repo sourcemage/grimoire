@@ -1,0 +1,67 @@
+upstream: https://github.com/ggml-org/llama.cpp/pull/26860
+
+From acb20b139639ec1b7c78739d98f3b04f500ff689 Mon Sep 17 00:00:00 2001
+From: Pascal <admin@serveurperso.com>
+Date: Mon, 10 Aug 2026 20:51:29 +0200
+Subject: [PATCH 1/2] ggml-cpu: gate __fp16 on __ARM_FP16_FORMAT_IEEE
+
+__ARM_NEON only signals NEON availability. The __fp16 type also needs
+the IEEE half format, implied on AArch64 but selected with
+-mfp16-format=ieee on 32 bit Arm, where the compiler otherwise rejects
+the type.
+
+The guard keeps every toolchain that provides the type on the same code
+and sends that one configuration to the generic lookup path.
+---
+ ggml/src/ggml-cpu/simd-mappings.h | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/third_party/llama.cpp/ggml/src/ggml-cpu/simd-mappings.h b/third_party/llama.cpp/ggml/src/ggml-cpu/simd-mappings.h
+index fca5119e1..4179605d5 100644
+--- a/third_party/llama.cpp/ggml/src/ggml-cpu/simd-mappings.h
++++ b/third_party/llama.cpp/ggml/src/ggml-cpu/simd-mappings.h
+@@ -29,13 +29,14 @@ extern "C" {
+ // FP16 to FP32 conversion
+
+ // 16-bit float
+-// on Arm, we use __fp16
++// on Arm, we use __fp16, which requires the IEEE fp16 format: implied on AArch64, selected by
++//     -mfp16-format=ieee on 32-bit Arm, where the compiler may otherwise reject the type
+ // on x86, we use uint16_t
+ //
+ // for old CUDA compilers (<= 11), we use uint16_t: ref https://github.com/ggml-org/llama.cpp/pull/10616
+ // for     MUSA compilers        , we use uint16_t: ref https://github.com/ggml-org/llama.cpp/pull/11843
+ //
+-#if defined(__ARM_NEON) && !(defined(__CUDACC__) && __CUDACC_VER_MAJOR__ <= 11) && !defined(__MUSACC__)
++#if defined(__ARM_NEON) && defined(__ARM_FP16_FORMAT_IEEE) && !(defined(__CUDACC__) && __CUDACC_VER_MAJOR__ <= 11) && !defined(__MUSACC__)
+     #define GGML_CPU_COMPUTE_FP16_TO_FP32(x) neon_compute_fp16_to_fp32(x)
+     #define GGML_CPU_COMPUTE_FP32_TO_FP16(x) neon_compute_fp32_to_fp16(x)
+ 
+
+From cf1070103a1d10e4f73d258f51f121021b05919c Mon Sep 17 00:00:00 2001
+From: Pascal <admin@serveurperso.com>
+Date: Tue, 11 Aug 2026 13:09:21 +0200
+Subject: [PATCH 2/2] ggml-cpu: gate the NEON+FMA block on
+ __ARM_FP16_FORMAT_IEEE
+
+Both halves of the F16 section dereference __fp16, so armv7 with
+neon-vfpv4 hits the same unknown type error. Without the IEEE
+format the configuration now falls back to the scalar path.
+
+Address review from @JonathanC-ARM
+---
+ ggml/src/ggml-cpu/simd-mappings.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/third_party/llama.cpp/ggml/src/ggml-cpu/simd-mappings.h b/third_party/llama.cpp/ggml/src/ggml-cpu/simd-mappings.h
+index 8c6a15680096..10ce4bfc593b 100644
+--- a/third_party/llama.cpp/ggml/src/ggml-cpu/simd-mappings.h
++++ b/third_party/llama.cpp/ggml/src/ggml-cpu/simd-mappings.h
+@@ -328,7 +328,7 @@ inline static float ggml_lookup_fp16_to_fp32(ggml_fp16_t f) {
+     #define GGML_F16_VEC_REDUCE         GGML_F32Cx4_REDUCE
+ #endif
+ 
+-#elif defined(__ARM_NEON) && defined(__ARM_FEATURE_FMA)
++#elif defined(__ARM_NEON) && defined(__ARM_FEATURE_FMA) && defined(__ARM_FP16_FORMAT_IEEE)
+ 
+ #define GGML_SIMD
