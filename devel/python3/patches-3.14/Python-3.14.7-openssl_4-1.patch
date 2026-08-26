@@ -1,0 +1,1071 @@
+Submitted By:            Xi Ruoyao <xry111 at xry111 dot site>
+Date:                    2026-05-11
+Initial Package Version: 3.14.5
+Upstream Status:         Applied
+Origin:                  Upstream, see the cherry picked from labels for
+                         SHA.  The changes to kTLS (which is only
+                         supported since 3.15) are dropped.  The 4th
+                         change is edited to avoid the conflict with
+                         "fix reference leaks in `ssl.SSLContext` objects":
+                         the latter is already in both 3.15 (1decc7ee20cf)
+                         and 3.14.5 (3a2a686cc45d), but in 3.15 it's before
+                         our 4th change, so the different order causes a
+                         conflict.
+Description:             Fix build failure and runtime issues with
+                         OpenSSL 4.0.
+
+From 39fd67895df14ce98a87190dc918430797c51064 Mon Sep 17 00:00:00 2001
+From: Victor Stinner <vstinner@python.org>
+Date: Wed, 25 Mar 2026 07:44:47 +0100
+Subject: [PATCH 1/5] gh-146207: Add support for OpenSSL 4.0.0 alpha1 (#146217)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+OpenSSL 4.0.0 alpha1 removed these functions:
+
+* SSLv3_method()
+* TLSv1_method()
+* TLSv1_1_method()
+* TLSv1_2_method()
+
+Other changes:
+
+* Update test_openssl_version().
+* Update multissltests.py for OpenSSL 4.
+* Add const qualifier to fix compiler warnings.
+
+Co-authored-by: Bénédikt Tran <10796600+picnixz@users.noreply.github.com>
+(cherry picked from commit 3364e7e62fa24d0e19133fb0f90b1c24ef1110c5)
+---
+ Lib/test/test_ssl.py       | 52 ++++++++++++++++++++------------------
+ Modules/_ssl.c             | 27 ++++++++++++++++----
+ Modules/_ssl/cert.c        |  3 ++-
+ Tools/ssl/multissltests.py |  7 ++++-
+ 4 files changed, 58 insertions(+), 31 deletions(-)
+
+diff --git a/Lib/test/test_ssl.py b/Lib/test/test_ssl.py
+index 10615365a27..c2bd2d566db 100644
+--- a/Lib/test/test_ssl.py
++++ b/Lib/test/test_ssl.py
+@@ -396,7 +396,7 @@ def test_constants(self):
+         ssl.OP_NO_COMPRESSION
+         self.assertEqual(ssl.HAS_SNI, True)
+         self.assertEqual(ssl.HAS_ECDH, True)
+-        self.assertEqual(ssl.HAS_TLSv1_2, True)
++        self.assertIsInstance(ssl.HAS_TLSv1_2, bool)
+         self.assertEqual(ssl.HAS_TLSv1_3, True)
+         ssl.OP_NO_SSLv2
+         ssl.OP_NO_SSLv3
+@@ -587,11 +587,11 @@ def test_openssl_version(self):
+         # Some sanity checks follow
+         # >= 1.1.1
+         self.assertGreaterEqual(n, 0x10101000)
+-        # < 4.0
+-        self.assertLess(n, 0x40000000)
++        # < 5.0
++        self.assertLess(n, 0x50000000)
+         major, minor, fix, patch, status = t
+         self.assertGreaterEqual(major, 1)
+-        self.assertLess(major, 4)
++        self.assertLess(major, 5)
+         self.assertGreaterEqual(minor, 0)
+         self.assertLess(minor, 256)
+         self.assertGreaterEqual(fix, 0)
+@@ -657,12 +657,14 @@ def test_openssl111_deprecations(self):
+             ssl.OP_NO_TLSv1_2,
+             ssl.OP_NO_TLSv1_3
+         ]
+-        protocols = [
+-            ssl.PROTOCOL_TLSv1,
+-            ssl.PROTOCOL_TLSv1_1,
+-            ssl.PROTOCOL_TLSv1_2,
+-            ssl.PROTOCOL_TLS
+-        ]
++        protocols = []
++        if hasattr(ssl, 'PROTOCOL_TLSv1'):
++            protocols.append(ssl.PROTOCOL_TLSv1)
++        if hasattr(ssl, 'PROTOCOL_TLSv1_1'):
++            protocols.append(ssl.PROTOCOL_TLSv1_1)
++        if hasattr(ssl, 'PROTOCOL_TLSv1_2'):
++            protocols.append(ssl.PROTOCOL_TLSv1_2)
++        protocols.append(ssl.PROTOCOL_TLS)
+         versions = [
+             ssl.TLSVersion.SSLv3,
+             ssl.TLSVersion.TLSv1,
+@@ -1156,6 +1158,7 @@ def test_min_max_version(self):
+                 ssl.TLSVersion.TLSv1,
+                 ssl.TLSVersion.TLSv1_1,
+                 ssl.TLSVersion.TLSv1_2,
++                ssl.TLSVersion.TLSv1_3,
+                 ssl.TLSVersion.SSLv3,
+             }
+         )
+@@ -1169,7 +1172,7 @@ def test_min_max_version(self):
+         with self.assertRaises(ValueError):
+             ctx.minimum_version = 42
+ 
+-        if has_tls_protocol(ssl.PROTOCOL_TLSv1_1):
++        if has_tls_protocol('PROTOCOL_TLSv1_1'):
+             ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_1)
+ 
+             self.assertIn(
+@@ -1664,23 +1667,24 @@ def test__create_stdlib_context(self):
+         self.assertFalse(ctx.check_hostname)
+         self._assert_context_options(ctx)
+ 
+-        if has_tls_protocol(ssl.PROTOCOL_TLSv1):
++        if has_tls_protocol('PROTOCOL_TLSv1'):
+             with warnings_helper.check_warnings():
+                 ctx = ssl._create_stdlib_context(ssl.PROTOCOL_TLSv1)
+             self.assertEqual(ctx.protocol, ssl.PROTOCOL_TLSv1)
+             self.assertEqual(ctx.verify_mode, ssl.CERT_NONE)
+             self._assert_context_options(ctx)
+ 
+-        with warnings_helper.check_warnings():
+-            ctx = ssl._create_stdlib_context(
+-                ssl.PROTOCOL_TLSv1_2,
+-                cert_reqs=ssl.CERT_REQUIRED,
+-                check_hostname=True
+-            )
+-        self.assertEqual(ctx.protocol, ssl.PROTOCOL_TLSv1_2)
+-        self.assertEqual(ctx.verify_mode, ssl.CERT_REQUIRED)
+-        self.assertTrue(ctx.check_hostname)
+-        self._assert_context_options(ctx)
++        if has_tls_protocol('PROTOCOL_TLSv1_2'):
++            with warnings_helper.check_warnings():
++                ctx = ssl._create_stdlib_context(
++                    ssl.PROTOCOL_TLSv1_2,
++                    cert_reqs=ssl.CERT_REQUIRED,
++                    check_hostname=True
++                )
++            self.assertEqual(ctx.protocol, ssl.PROTOCOL_TLSv1_2)
++            self.assertEqual(ctx.verify_mode, ssl.CERT_REQUIRED)
++            self.assertTrue(ctx.check_hostname)
++            self._assert_context_options(ctx)
+ 
+         ctx = ssl._create_stdlib_context(purpose=ssl.Purpose.CLIENT_AUTH)
+         self.assertEqual(ctx.protocol, ssl.PROTOCOL_TLS_SERVER)
+@@ -3576,10 +3580,10 @@ def test_protocol_tlsv1_2(self):
+                            client_options=ssl.OP_NO_TLSv1_2)
+ 
+         try_protocol_combo(ssl.PROTOCOL_TLS, ssl.PROTOCOL_TLSv1_2, 'TLSv1.2')
+-        if has_tls_protocol(ssl.PROTOCOL_TLSv1):
++        if has_tls_protocol('PROTOCOL_TLSv1'):
+             try_protocol_combo(ssl.PROTOCOL_TLSv1_2, ssl.PROTOCOL_TLSv1, False)
+             try_protocol_combo(ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_TLSv1_2, False)
+-        if has_tls_protocol(ssl.PROTOCOL_TLSv1_1):
++        if has_tls_protocol('PROTOCOL_TLSv1_1'):
+             try_protocol_combo(ssl.PROTOCOL_TLSv1_2, ssl.PROTOCOL_TLSv1_1, False)
+             try_protocol_combo(ssl.PROTOCOL_TLSv1_1, ssl.PROTOCOL_TLSv1_2, False)
+ 
+diff --git a/Modules/_ssl.c b/Modules/_ssl.c
+index 1235eff72f7..5c615513fdb 100644
+--- a/Modules/_ssl.c
++++ b/Modules/_ssl.c
+@@ -134,6 +134,17 @@ static void _PySSLFixErrno(void) {
+ #error Unsupported OpenSSL version
+ #endif
+ 
++#if (OPENSSL_VERSION_NUMBER >= 0x40000000L)
++#  define OPENSSL_NO_SSL3
++#  define OPENSSL_NO_TLS1
++#  define OPENSSL_NO_TLS1_1
++#  define OPENSSL_NO_TLS1_2
++#  define OPENSSL_NO_SSL3_METHOD
++#  define OPENSSL_NO_TLS1_METHOD
++#  define OPENSSL_NO_TLS1_1_METHOD
++#  define OPENSSL_NO_TLS1_2_METHOD
++#endif
++
+ /* OpenSSL API 1.1.0+ does not include version methods */
+ #ifndef OPENSSL_NO_SSL3_METHOD
+ extern const SSL_METHOD *SSLv3_method(void);
+@@ -1133,7 +1144,7 @@ _asn1obj2py(_sslmodulestate *state, const ASN1_OBJECT *name, int no_name)
+ 
+ static PyObject *
+ _create_tuple_for_attribute(_sslmodulestate *state,
+-                            ASN1_OBJECT *name, ASN1_STRING *value)
++                            const ASN1_OBJECT *name, const ASN1_STRING *value)
+ {
+     Py_ssize_t buflen;
+     PyObject *pyattr;
+@@ -1162,16 +1173,16 @@ _create_tuple_for_attribute(_sslmodulestate *state,
+ }
+ 
+ static PyObject *
+-_create_tuple_for_X509_NAME (_sslmodulestate *state, X509_NAME *xname)
++_create_tuple_for_X509_NAME(_sslmodulestate *state, const X509_NAME *xname)
+ {
+     PyObject *dn = NULL;    /* tuple which represents the "distinguished name" */
+     PyObject *rdn = NULL;   /* tuple to hold a "relative distinguished name" */
+     PyObject *rdnt;
+     PyObject *attr = NULL;   /* tuple to hold an attribute */
+     int entry_count = X509_NAME_entry_count(xname);
+-    X509_NAME_ENTRY *entry;
+-    ASN1_OBJECT *name;
+-    ASN1_STRING *value;
++    const X509_NAME_ENTRY *entry;
++    const ASN1_OBJECT *name;
++    const ASN1_STRING *value;
+     int index_counter;
+     int rdn_level = -1;
+     int retcode;
+@@ -6506,9 +6517,15 @@ sslmodule_init_constants(PyObject *m)
+     ADD_INT_CONST("PROTOCOL_TLS", PY_SSL_VERSION_TLS);
+     ADD_INT_CONST("PROTOCOL_TLS_CLIENT", PY_SSL_VERSION_TLS_CLIENT);
+     ADD_INT_CONST("PROTOCOL_TLS_SERVER", PY_SSL_VERSION_TLS_SERVER);
++#ifndef OPENSSL_NO_TLS1
+     ADD_INT_CONST("PROTOCOL_TLSv1", PY_SSL_VERSION_TLS1);
++#endif
++#ifndef OPENSSL_NO_TLS1_1
+     ADD_INT_CONST("PROTOCOL_TLSv1_1", PY_SSL_VERSION_TLS1_1);
++#endif
++#ifndef OPENSSL_NO_TLS1_2
+     ADD_INT_CONST("PROTOCOL_TLSv1_2", PY_SSL_VERSION_TLS1_2);
++#endif
+ 
+ #define ADD_OPTION(NAME, VALUE) if (sslmodule_add_option(m, NAME, (VALUE)) < 0) return -1
+ 
+diff --git a/Modules/_ssl/cert.c b/Modules/_ssl/cert.c
+index f2e7be89668..061b0fb3171 100644
+--- a/Modules/_ssl/cert.c
++++ b/Modules/_ssl/cert.c
+@@ -128,7 +128,8 @@ _ssl_Certificate_get_info_impl(PySSLCertificate *self)
+ }
+ 
+ static PyObject*
+-_x509name_print(_sslmodulestate *state, X509_NAME *name, int indent, unsigned long flags)
++_x509name_print(_sslmodulestate *state, const X509_NAME *name,
++                int indent, unsigned long flags)
+ {
+     PyObject *res;
+     BIO *biobuf;
+diff --git a/Tools/ssl/multissltests.py b/Tools/ssl/multissltests.py
+index 85a8cd38f41..5c56fd9d116 100755
+--- a/Tools/ssl/multissltests.py
++++ b/Tools/ssl/multissltests.py
+@@ -414,9 +414,11 @@ class BuildOpenSSL(AbstractBuilder):
+     def _post_install(self):
+         if self.version.startswith("3."):
+             self._post_install_3xx()
++        elif self.version.startswith("4."):
++            self._post_install_4xx()
+ 
+     def _build_src(self, config_args=()):
+-        if self.version.startswith("3."):
++        if self.version.startswith(("3.", "4.")):
+             config_args += ("enable-fips",)
+         super()._build_src(config_args)
+ 
+@@ -432,6 +434,9 @@ def _post_install_3xx(self):
+             lib64 = self.lib_dir + "64"
+             os.symlink(lib64, self.lib_dir)
+ 
++    def _post_install_4xx(self):
++        self._post_install_3xx()
++
+     @property
+     def short_version(self):
+         """Short version for OpenSSL download URL"""
+-- 
+2.54.0
+
+From e0a85be907f4978334458f6ad75a3ca66eb0e0a4 Mon Sep 17 00:00:00 2001
+From: Sam Gross <colesbury@gmail.com>
+Date: Tue, 30 Dec 2025 19:45:44 -0500
+Subject: [PATCH 2/5] gh-140795: Keep 'err' in local variable in _ssl.c
+ (gh-143275)
+
+The error return code doesn't need to be mutable state on the SSLSocket.
+This simplifes thread-safety and avoids potential reentrancy issues.
+
+(cherry picked from commit 96ab379dcaa93630a230402b8183a26ac99097bd)
+---
+ Modules/_ssl.c | 23 ++++++-----------------
+ 1 file changed, 6 insertions(+), 17 deletions(-)
+
+diff --git a/Modules/_ssl.c b/Modules/_ssl.c
+index 5c615513fdb..978c47d6b95 100644
+--- a/Modules/_ssl.c
++++ b/Modules/_ssl.c
+@@ -344,7 +344,6 @@ typedef struct {
+     enum py_ssl_server_or_client socket_type;
+     PyObject *owner; /* weakref to Python level "owner" passed to servername callback */
+     PyObject *server_hostname;
+-    _PySSLError err; /* last seen error from various sources */
+     /* Some SSL callbacks don't have error reporting. Callback wrappers
+      * store exception information on the socket. The handshake, read, write,
+      * and shutdown methods check for chained exceptions.
+@@ -653,11 +652,10 @@ PySSL_ChainExceptions(PySSLSocket *sslsock) {
+ }
+ 
+ static PyObject *
+-PySSL_SetError(PySSLSocket *sslsock, const char *filename, int lineno)
++PySSL_SetError(PySSLSocket *sslsock, _PySSLError err, const char *filename, int lineno)
+ {
+     PyObject *type;
+     char *errstr = NULL;
+-    _PySSLError err;
+     enum py_ssl_error p = PY_SSL_ERROR_NONE;
+     unsigned long e = 0;
+ 
+@@ -670,8 +668,6 @@ PySSL_SetError(PySSLSocket *sslsock, const char *filename, int lineno)
+     e = ERR_peek_last_error();
+ 
+     if (sslsock->ssl != NULL) {
+-        err = sslsock->err;
+-
+         switch (err.ssl) {
+         case SSL_ERROR_ZERO_RETURN:
+             errstr = "TLS/SSL connection has been closed (EOF)";
+@@ -869,7 +865,6 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
+ {
+     PySSLSocket *self;
+     SSL_CTX *ctx = sslctx->ctx;
+-    _PySSLError err = { 0 };
+ 
+     if ((socket_type == PY_SSL_SERVER) &&
+         (sslctx->protocol == PY_SSL_VERSION_TLS_CLIENT)) {
+@@ -897,7 +892,6 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
+     self->shutdown_seen_zero = 0;
+     self->owner = NULL;
+     self->server_hostname = NULL;
+-    self->err = err;
+     self->exc = NULL;
+ 
+     /* Make sure the SSL error state is initialized */
+@@ -1053,7 +1047,6 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
+         err = _PySSL_errno(ret < 1, self->ssl, ret);
+         Py_END_ALLOW_THREADS;
+         _PySSL_FIX_ERRNO;
+-        self->err = err;
+ 
+         if (PyErr_CheckSignals())
+             goto error;
+@@ -1089,7 +1082,7 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
+     Py_XDECREF(sock);
+ 
+     if (ret < 1)
+-        return PySSL_SetError(self, __FILE__, __LINE__);
++        return PySSL_SetError(self, err, __FILE__, __LINE__);
+     if (PySSL_ChainExceptions(self) < 0)
+         return NULL;
+     Py_RETURN_NONE;
+@@ -2529,7 +2522,6 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
+         err = _PySSL_errno(retval == 0, self->ssl, retval);
+         Py_END_ALLOW_THREADS;
+         _PySSL_FIX_ERRNO;
+-        self->err = err;
+ 
+         if (PyErr_CheckSignals())
+             goto error;
+@@ -2562,7 +2554,7 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
+ 
+     Py_XDECREF(sock);
+     if (retval == 0)
+-        return PySSL_SetError(self, __FILE__, __LINE__);
++        return PySSL_SetError(self, err, __FILE__, __LINE__);
+     if (PySSL_ChainExceptions(self) < 0)
+         return NULL;
+     return PyLong_FromSize_t(count);
+@@ -2591,10 +2583,9 @@ _ssl__SSLSocket_pending_impl(PySSLSocket *self)
+     err = _PySSL_errno(count < 0, self->ssl, count);
+     Py_END_ALLOW_THREADS;
+     _PySSL_FIX_ERRNO;
+-    self->err = err;
+ 
+     if (count < 0)
+-        return PySSL_SetError(self, __FILE__, __LINE__);
++        return PySSL_SetError(self, err, __FILE__, __LINE__);
+     else
+         return PyLong_FromLong(count);
+ }
+@@ -2686,7 +2677,6 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
+         err = _PySSL_errno(retval == 0, self->ssl, retval);
+         Py_END_ALLOW_THREADS;
+         _PySSL_FIX_ERRNO;
+-        self->err = err;
+ 
+         if (PyErr_CheckSignals())
+             goto error;
+@@ -2719,7 +2709,7 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
+              err.ssl == SSL_ERROR_WANT_WRITE);
+ 
+     if (retval == 0) {
+-        PySSL_SetError(self, __FILE__, __LINE__);
++        PySSL_SetError(self, err, __FILE__, __LINE__);
+         goto error;
+     }
+     if (self->exc != NULL)
+@@ -2799,7 +2789,6 @@ _ssl__SSLSocket_shutdown_impl(PySSLSocket *self)
+         err = _PySSL_errno(ret < 0, self->ssl, ret);
+         Py_END_ALLOW_THREADS;
+         _PySSL_FIX_ERRNO;
+-        self->err = err;
+ 
+         /* If err == 1, a secure shutdown with SSL_shutdown() is complete */
+         if (ret > 0)
+@@ -2847,7 +2836,7 @@ _ssl__SSLSocket_shutdown_impl(PySSLSocket *self)
+     }
+     if (ret < 0) {
+         Py_XDECREF(sock);
+-        PySSL_SetError(self, __FILE__, __LINE__);
++        PySSL_SetError(self, err, __FILE__, __LINE__);
+         return NULL;
+     }
+     if (self->exc != NULL)
+-- 
+2.54.0
+
+From 42ed13e4df478b2e6444ade1c6e420d167215384 Mon Sep 17 00:00:00 2001
+From: AZero13 <gfunni234@gmail.com>
+Date: Thu, 11 Dec 2025 09:30:39 -0500
+Subject: [PATCH 3/5] gh-142438: Added missing GIL release in
+ _PySSL_keylog_callback when keylog_bio is unset (gh-142439)
+
+(cherry picked from commit 44d3dc64914d5e97708c466c0414ccb2698e38d6)
+---
+ .../Library/2025-12-08-18-12-44.gh-issue-142438.UF_0nd.rst    | 1 +
+ Modules/_ssl/debughelpers.c                                   | 4 +++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+ create mode 100644 Misc/NEWS.d/next/Library/2025-12-08-18-12-44.gh-issue-142438.UF_0nd.rst
+
+diff --git a/Misc/NEWS.d/next/Library/2025-12-08-18-12-44.gh-issue-142438.UF_0nd.rst b/Misc/NEWS.d/next/Library/2025-12-08-18-12-44.gh-issue-142438.UF_0nd.rst
+new file mode 100644
+index 00000000000..ec6b3ff09e3
+--- /dev/null
++++ b/Misc/NEWS.d/next/Library/2025-12-08-18-12-44.gh-issue-142438.UF_0nd.rst
+@@ -0,0 +1 @@
++Fixed a possible leaked GIL in _PySSL_keylog_callback.
+diff --git a/Modules/_ssl/debughelpers.c b/Modules/_ssl/debughelpers.c
+index 608ef07b5c5..2bf76c62f0e 100644
+--- a/Modules/_ssl/debughelpers.c
++++ b/Modules/_ssl/debughelpers.c
+@@ -131,7 +131,7 @@ _PySSL_keylog_callback(const SSL *ssl, const char *line)
+     PyThread_type_lock lock = get_state_sock(ssl_obj)->keylog_lock;
+     assert(lock != NULL);
+     if (ssl_obj->ctx->keylog_bio == NULL) {
+-        return;
++        goto done;
+     }
+     /*
+      * The lock is neither released on exit nor on fork(). The lock is
+@@ -155,6 +155,8 @@ _PySSL_keylog_callback(const SSL *ssl, const char *line)
+                                              ssl_obj->ctx->keylog_filename);
+         ssl_obj->exc = PyErr_GetRaisedException();
+     }
++
++done:
+     PyGILState_Release(threadstate);
+ }
+ 
+-- 
+2.54.0
+
+From 38363436df38abec2054293e71612d700fd25cb4 Mon Sep 17 00:00:00 2001
+From: Sam Gross <colesbury@gmail.com>
+Date: Mon, 12 Jan 2026 12:14:13 -0500
+Subject: [PATCH 4/5] gh-140795: Remove 'exc' field in SSLObject (gh-143491)
+
+The 'exc' field was used by our debug SSL callbacks. Keep the exception
+in the normal per-thread state to avoid shared mutable state between
+threads.
+
+This also avoids a reference count leak if the Python callback raised an
+exception because it can be called multiple times per SSL operation.
+
+(cherry picked from commit 7d155d7915dcb46f0b900010b11804c1c0da0719)
+---
+ Lib/test/test_ssl.py        | 14 ++++++
+ Modules/_ssl.c              | 95 ++++++++++++++++++++++---------------
+ Modules/_ssl/debughelpers.c | 19 +++++---
+ 3 files changed, 85 insertions(+), 43 deletions(-)
+
+diff --git a/Lib/test/test_ssl.py b/Lib/test/test_ssl.py
+index c2bd2d566db..62f0b2d1613 100644
+--- a/Lib/test/test_ssl.py
++++ b/Lib/test/test_ssl.py
+@@ -5171,6 +5171,20 @@ def msg_cb(conn, direction, version, content_type, msg_type, data):
+         with self.assertRaises(TypeError):
+             client_context._msg_callback = object()
+ 
++    def test_msg_callback_exception(self):
++        client_context, server_context, hostname = testing_context()
++
++        def msg_cb(conn, direction, version, content_type, msg_type, data):
++            raise RuntimeError("msg_cb exception")
++
++        client_context._msg_callback = msg_cb
++        server = ThreadedEchoServer(context=server_context, chatty=False)
++        with server:
++            with client_context.wrap_socket(socket.socket(),
++                                            server_hostname=hostname) as s:
++                with self.assertRaisesRegex(RuntimeError, "msg_cb exception"):
++                    s.connect((HOST, server.port))
++
+     def test_msg_callback_tls12(self):
+         client_context, server_context, hostname = testing_context()
+         client_context.maximum_version = ssl.TLSVersion.TLSv1_2
+diff --git a/Modules/_ssl.c b/Modules/_ssl.c
+index 978c47d6b95..196d0533b48 100644
+--- a/Modules/_ssl.c
++++ b/Modules/_ssl.c
+@@ -344,11 +344,6 @@ typedef struct {
+     enum py_ssl_server_or_client socket_type;
+     PyObject *owner; /* weakref to Python level "owner" passed to servername callback */
+     PyObject *server_hostname;
+-    /* Some SSL callbacks don't have error reporting. Callback wrappers
+-     * store exception information on the socket. The handshake, read, write,
+-     * and shutdown methods check for chained exceptions.
+-     */
+-    PyObject *exc;
+ } PySSLSocket;
+ 
+ #define PySSLSocket_CAST(op)    ((PySSLSocket *)(op))
+@@ -641,18 +636,12 @@ fill_and_set_sslerror(_sslmodulestate *state,
+     PyUnicodeWriter_Discard(writer);
+ }
+ 
+-static int
+-PySSL_ChainExceptions(PySSLSocket *sslsock) {
+-    if (sslsock->exc == NULL)
+-        return 0;
+-
+-    _PyErr_ChainExceptions1(sslsock->exc);
+-    sslsock->exc = NULL;
+-    return -1;
+-}
+-
++// Set the appropriate SSL error exception.
++// err - error information from SSL and libc
++// exc - if not NULL, an exception from _debughelpers.c callback to be chained
+ static PyObject *
+-PySSL_SetError(PySSLSocket *sslsock, _PySSLError err, const char *filename, int lineno)
++PySSL_SetError(PySSLSocket *sslsock, _PySSLError err, PyObject *exc,
++               const char *filename, int lineno)
+ {
+     PyObject *type;
+     char *errstr = NULL;
+@@ -760,7 +749,7 @@ PySSL_SetError(PySSLSocket *sslsock, _PySSLError err, const char *filename, int
+     }
+     fill_and_set_sslerror(state, sslsock, type, p, errstr, lineno, e);
+     ERR_clear_error();
+-    PySSL_ChainExceptions(sslsock);
++    _PyErr_ChainExceptions1(exc);  // chain any exceptions from callbacks
+     return NULL;
+ }
+ 
+@@ -892,7 +881,6 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
+     self->shutdown_seen_zero = 0;
+     self->owner = NULL;
+     self->server_hostname = NULL;
+-    self->exc = NULL;
+ 
+     /* Make sure the SSL error state is initialized */
+     ERR_clear_error();
+@@ -1013,6 +1001,7 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
+ {
+     int ret;
+     _PySSLError err;
++    PyObject *exc = NULL;
+     int sockstate, nonblocking;
+     PySocketSockObject *sock = GET_SOCKET(self);
+     PyTime_t timeout, deadline = 0;
+@@ -1048,6 +1037,12 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
+         Py_END_ALLOW_THREADS;
+         _PySSL_FIX_ERRNO;
+ 
++        // Get any exception that occurred in a debughelpers.c callback
++        exc = PyErr_GetRaisedException();
++        if (exc != NULL) {
++            break;
++        }
++
+         if (PyErr_CheckSignals())
+             goto error;
+ 
+@@ -1082,13 +1077,15 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
+     Py_XDECREF(sock);
+ 
+     if (ret < 1)
+-        return PySSL_SetError(self, err, __FILE__, __LINE__);
+-    if (PySSL_ChainExceptions(self) < 0)
++        return PySSL_SetError(self, err, exc, __FILE__, __LINE__);
++    if (exc != NULL) {
++        PyErr_SetRaisedException(exc);
+         return NULL;
++    }
+     Py_RETURN_NONE;
+ error:
++    assert(exc == NULL);
+     Py_XDECREF(sock);
+-    PySSL_ChainExceptions(self);
+     return NULL;
+ }
+ 
+@@ -2339,9 +2336,7 @@ _ssl__SSLSocket_owner_set_impl(PySSLSocket *self, PyObject *value)
+ static int
+ PySSL_traverse(PyObject *op, visitproc visit, void *arg)
+ {
+-    PySSLSocket *self = PySSLSocket_CAST(op);
+-    Py_VISIT(self->exc);
+-    Py_VISIT(Py_TYPE(self));
++    Py_VISIT(Py_TYPE(op));
+     return 0;
+ }
+ 
+@@ -2353,7 +2348,6 @@ PySSL_clear(PyObject *op)
+     Py_CLEAR(self->ctx);
+     Py_CLEAR(self->owner);
+     Py_CLEAR(self->server_hostname);
+-    Py_CLEAR(self->exc);
+     return 0;
+ }
+ 
+@@ -2473,6 +2467,7 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
+     int retval;
+     int sockstate;
+     _PySSLError err;
++    PyObject *exc = NULL;
+     int nonblocking;
+     PySocketSockObject *sock = GET_SOCKET(self);
+     PyTime_t timeout, deadline = 0;
+@@ -2523,6 +2518,11 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
+         Py_END_ALLOW_THREADS;
+         _PySSL_FIX_ERRNO;
+ 
++        exc = PyErr_GetRaisedException();
++        if (exc != NULL) {
++            break;
++        }
++
+         if (PyErr_CheckSignals())
+             goto error;
+ 
+@@ -2554,13 +2554,15 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
+ 
+     Py_XDECREF(sock);
+     if (retval == 0)
+-        return PySSL_SetError(self, err, __FILE__, __LINE__);
+-    if (PySSL_ChainExceptions(self) < 0)
++        return PySSL_SetError(self, err, exc, __FILE__, __LINE__);
++    if (exc != NULL) {
++        PyErr_SetRaisedException(exc);
+         return NULL;
++    }
+     return PyLong_FromSize_t(count);
+ error:
++    assert(exc == NULL);
+     Py_XDECREF(sock);
+-    PySSL_ChainExceptions(self);
+     return NULL;
+ }
+ 
+@@ -2585,7 +2587,7 @@ _ssl__SSLSocket_pending_impl(PySSLSocket *self)
+     _PySSL_FIX_ERRNO;
+ 
+     if (count < 0)
+-        return PySSL_SetError(self, err, __FILE__, __LINE__);
++        return PySSL_SetError(self, err, NULL, __FILE__, __LINE__);
+     else
+         return PyLong_FromLong(count);
+ }
+@@ -2613,6 +2615,7 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
+     int retval;
+     int sockstate;
+     _PySSLError err;
++    PyObject *exc = NULL;
+     int nonblocking;
+     PySocketSockObject *sock = GET_SOCKET(self);
+     PyTime_t timeout, deadline = 0;
+@@ -2678,6 +2681,11 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
+         Py_END_ALLOW_THREADS;
+         _PySSL_FIX_ERRNO;
+ 
++        exc = PyErr_GetRaisedException();
++        if (exc != NULL) {
++            break;
++        }
++
+         if (PyErr_CheckSignals())
+             goto error;
+ 
+@@ -2709,13 +2717,18 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
+              err.ssl == SSL_ERROR_WANT_WRITE);
+ 
+     if (retval == 0) {
+-        PySSL_SetError(self, err, __FILE__, __LINE__);
++        PySSL_SetError(self, err, exc, __FILE__, __LINE__);
++        exc = NULL;
+         goto error;
+     }
+-    if (self->exc != NULL)
++    else if (exc != NULL) {
++        PyErr_SetRaisedException(exc);
++        exc = NULL;
+         goto error;
++    }
+ 
+ done:
++    assert(exc == NULL);
+     Py_XDECREF(sock);
+     if (!group_right_1) {
+         _PyBytes_Resize(&dest, count);
+@@ -2726,7 +2739,7 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
+     }
+ 
+ error:
+-    PySSL_ChainExceptions(self);
++    assert(exc == NULL);
+     Py_XDECREF(sock);
+     if (!group_right_1)
+         Py_XDECREF(dest);
+@@ -2745,6 +2758,7 @@ _ssl__SSLSocket_shutdown_impl(PySSLSocket *self)
+ /*[clinic end generated code: output=ca1aa7ed9d25ca42 input=98d9635cd4e16514]*/
+ {
+     _PySSLError err;
++    PyObject *exc = NULL;
+     int sockstate, nonblocking, ret;
+     int zeros = 0;
+     PySocketSockObject *sock = GET_SOCKET(self);
+@@ -2790,6 +2804,11 @@ _ssl__SSLSocket_shutdown_impl(PySSLSocket *self)
+         Py_END_ALLOW_THREADS;
+         _PySSL_FIX_ERRNO;
+ 
++        exc = PyErr_GetRaisedException();
++        if (exc != NULL) {
++            break;
++        }
++
+         /* If err == 1, a secure shutdown with SSL_shutdown() is complete */
+         if (ret > 0)
+             break;
+@@ -2836,11 +2855,14 @@ _ssl__SSLSocket_shutdown_impl(PySSLSocket *self)
+     }
+     if (ret < 0) {
+         Py_XDECREF(sock);
+-        PySSL_SetError(self, err, __FILE__, __LINE__);
++        PySSL_SetError(self, err, exc, __FILE__, __LINE__);
++        return NULL;
++    }
++    else if (exc != NULL) {
++        Py_XDECREF(sock);
++        PyErr_SetRaisedException(exc);
+         return NULL;
+     }
+-    if (self->exc != NULL)
+-        goto error;
+     if (sock)
+         /* It's already INCREF'ed */
+         return (PyObject *) sock;
+@@ -2848,8 +2870,8 @@ _ssl__SSLSocket_shutdown_impl(PySSLSocket *self)
+         Py_RETURN_NONE;
+ 
+ error:
++    assert(exc == NULL);
+     Py_XDECREF(sock);
+-    PySSL_ChainExceptions(self);
+     return NULL;
+ }
+ 
+@@ -3051,7 +3073,6 @@ static PyType_Slot PySSLSocket_slots[] = {
+     {Py_tp_getset, ssl_getsetlist},
+     {Py_tp_dealloc, PySSL_dealloc},
+     {Py_tp_traverse, PySSL_traverse},
+-    {Py_tp_clear, PySSL_clear},
+     {0, 0},
+ };
+ 
+diff --git a/Modules/_ssl/debughelpers.c b/Modules/_ssl/debughelpers.c
+index 2bf76c62f0e..ac629d2cf6b 100644
+--- a/Modules/_ssl/debughelpers.c
++++ b/Modules/_ssl/debughelpers.c
+@@ -26,6 +26,8 @@ _PySSL_msg_callback(int write_p, int version, int content_type,
+         return;
+     }
+ 
++    PyObject *exc = PyErr_GetRaisedException();
++
+     PyObject *ssl_socket;  /* ssl.SSLSocket or ssl.SSLObject */
+     if (ssl_obj->owner)
+         PyWeakref_GetRef(ssl_obj->owner, &ssl_socket);
+@@ -73,13 +75,13 @@ _PySSL_msg_callback(int write_p, int version, int content_type,
+         version, content_type, msg_type,
+         buf, len
+     );
+-    if (res == NULL) {
+-        ssl_obj->exc = PyErr_GetRaisedException();
+-    } else {
+-        Py_DECREF(res);
+-    }
++    Py_XDECREF(res);
+     Py_XDECREF(ssl_socket);
+ 
++    if (exc != NULL) {
++        _PyErr_ChainExceptions1(exc);
++    }
++
+     PyGILState_Release(threadstate);
+ }
+ 
+@@ -122,10 +124,13 @@ _PySSL_keylog_callback(const SSL *ssl, const char *line)
+ {
+     PyGILState_STATE threadstate;
+     PySSLSocket *ssl_obj = NULL;  /* ssl._SSLSocket, borrowed ref */
++    PyObject *exc;
+     int res, e;
+ 
+     threadstate = PyGILState_Ensure();
+ 
++    exc = PyErr_GetRaisedException();
++
+     ssl_obj = (PySSLSocket *)SSL_get_app_data(ssl);
+     assert(Py_IS_TYPE(ssl_obj, get_state_sock(ssl_obj)->PySSLSocket_Type));
+     PyThread_type_lock lock = get_state_sock(ssl_obj)->keylog_lock;
+@@ -153,10 +158,12 @@ _PySSL_keylog_callback(const SSL *ssl, const char *line)
+         errno = e;
+         PyErr_SetFromErrnoWithFilenameObject(PyExc_OSError,
+                                              ssl_obj->ctx->keylog_filename);
+-        ssl_obj->exc = PyErr_GetRaisedException();
+     }
+ 
+ done:
++    if (exc != NULL) {
++        _PyErr_ChainExceptions1(exc);
++    }
+     PyGILState_Release(threadstate);
+ }
+ 
+-- 
+2.54.0
+
+From e3e9e34e19a1e070620b23c0bf30b2892c9f52bf Mon Sep 17 00:00:00 2001
+From: Victor Stinner <vstinner@python.org>
+Date: Mon, 4 May 2026 13:52:57 +0200
+Subject: [PATCH 5/5] gh-148292: Update _ssl._SSLSocket for OpenSSL 4 (#149102)
+
+The _SSLSocket object now remembers if it gets an EOF error. In this
+case, read(), sendfile(), write() and do_handshake method calls fail
+with SSLEOFError without calling the underlying OpenSSL function.
+
+Co-authored-by: Gregory P. Smith <greg@krypto.org>
+(cherry picked from commit 7b7fa3f9bf3d7cdf3eb669d02b386e05b39c402a)
+---
+ Lib/test/test_ssl.py                          | 82 +++++++++++++++++++
+ ...-04-28-17-47-55.gh-issue-148292.oIq3ml.rst |  7 ++
+ Modules/_ssl.c                                | 42 ++++++++++
+ 3 files changed, 131 insertions(+)
+ create mode 100644 Misc/NEWS.d/next/Library/2026-04-28-17-47-55.gh-issue-148292.oIq3ml.rst
+
+diff --git a/Lib/test/test_ssl.py b/Lib/test/test_ssl.py
+index 62f0b2d1613..5e58cb658fe 100644
+--- a/Lib/test/test_ssl.py
++++ b/Lib/test/test_ssl.py
+@@ -2711,6 +2711,36 @@ def close(self):
+     def stop(self):
+         self.active = False
+ 
++class TestEOFServer(threading.Thread):
++    def __init__(self):
++        super().__init__()
++        self.listening = threading.Event()
++        self.address = None
++
++    def run(self):
++        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
++        context.load_cert_chain(CERTFILE)
++        server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
++        with server_sock:
++            server_sock.settimeout(support.SHORT_TIMEOUT)
++            server_sock.bind((HOST, 0))
++            server_sock.listen(5)
++
++            self.address = server_sock.getsockname()
++            self.listening.set()
++
++            sock, addr = server_sock.accept()
++            sslconn = context.wrap_socket(sock, server_side=True)
++            with sslconn:
++                request = b''
++                while chunk := sslconn.recv(1024):
++                    request += chunk
++                    if b'\n' in chunk:
++                        break
++
++                sslconn.sendall(b'server\n')
++                sslconn.shutdown(socket.SHUT_WR)
++
+ class AsyncoreEchoServer(threading.Thread):
+ 
+     # this one's based on asyncore.dispatcher
+@@ -4745,6 +4775,58 @@ def background(sock):
+                     if cm.exc_value is not None:
+                         raise cm.exc_value
+ 
++    def test_got_eof(self):
++        # gh-148292: Test that _ssl._SSLSocket behaves the same on all OpenSSL
++        # versions on calling methods after EOF (after the first SSLEOFError).
++
++        server = TestEOFServer()
++        server.start()
++        if not server.listening.wait(support.SHORT_TIMEOUT):
++            raise RuntimeError("server took too long")
++        self.addCleanup(server.join)
++
++        context = ssl.create_default_context(cafile=CERTFILE)
++        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
++        sock.settimeout(support.SHORT_TIMEOUT)
++        sock.connect(server.address)
++        sslsock = context.wrap_socket(sock, server_hostname='localhost')
++        with sslsock:
++            sslsock.sendall(b'client\n')
++            # test the _ssl._SSLSocket object, not ssl.SSLSocket
++            sslobj = sslsock._sslobj
++
++            data = sslobj.read(1024)
++            self.assertEqual(data, b'server\n')
++
++            # The second read gets EOF error and sets got_eof_error to 1
++            with self.assertRaises(ssl.SSLEOFError):
++                sslobj.read(1024)
++
++            # Following read(), sendfile(), write() and do_handshake() calls
++            # must raise SSLEOFError
++            with self.assertRaises(ssl.SSLEOFError):
++                # The _SSLSocket remembers the previous EOF error
++                # and raises again SSLEOFError
++                sslobj.read(1024)
++            if hasattr(sslobj, 'sendfile'):
++                with open(__file__, "rb") as fp:
++                    with self.assertRaises(ssl.SSLEOFError):
++                        sslobj.sendfile(fp.fileno(), 0, 1)
++            with self.assertRaises(ssl.SSLEOFError):
++                sslobj.write(b'client2\n')
++            with self.assertRaises(ssl.SSLEOFError):
++                sslsock.do_handshake()
++
++            self.assertEqual(sslsock.pending(), 0)
++            try:
++                sslsock.shutdown(socket.SHUT_WR)
++            except OSError as exc:
++                self.assertEqual(exc.errno, errno.ENOTCONN)
++            else:
++                # On Windows and on OpenSSL 1.1.1, shutdown() doesn't
++                # raise an error
++                pass
++
+ 
+ @unittest.skipUnless(has_tls_version('TLSv1_3') and ssl.HAS_PHA,
+                      "Test needs TLS 1.3 PHA")
+diff --git a/Misc/NEWS.d/next/Library/2026-04-28-17-47-55.gh-issue-148292.oIq3ml.rst b/Misc/NEWS.d/next/Library/2026-04-28-17-47-55.gh-issue-148292.oIq3ml.rst
+new file mode 100644
+index 00000000000..e1f308df5a6
+--- /dev/null
++++ b/Misc/NEWS.d/next/Library/2026-04-28-17-47-55.gh-issue-148292.oIq3ml.rst
+@@ -0,0 +1,7 @@
++:mod:`ssl`: Update :class:`ssl.SSLSocket` and :class:`ssl.SSLObject` for
++OpenSSL 4. The classes now remember if they get a :exc:`ssl.SSLEOFError`. In this
++case, following :meth:`~ssl.SSLSocket.read`, :meth:`!sendfile`,
++:meth:`~ssl.SSLSocket.write`, and :meth:`~ssl.SSLSocket.do_handshake` calls
++raise :exc:`ssl.SSLEOFError` without calling the underlying OpenSSL function.
++Thanks to that, :class:`ssl.SSLSocket` behaves the same on all OpenSSL versions
++on EOF.  Patch by Victor Stinner.
+diff --git a/Modules/_ssl.c b/Modules/_ssl.c
+index 196d0533b48..47cd17c0e37 100644
+--- a/Modules/_ssl.c
++++ b/Modules/_ssl.c
+@@ -344,6 +344,16 @@ typedef struct {
+     enum py_ssl_server_or_client socket_type;
+     PyObject *owner; /* weakref to Python level "owner" passed to servername callback */
+     PyObject *server_hostname;
++    // gh-148292: If non-zero, read(), sendfile(), write() and do_handshake()
++    // methods raise SSLEOFError without calling the underlying OpenSSL
++    // function. Set to 1 on PY_SSL_ERROR_EOF error.
++    //
++    // On OpenSSL 4, if SSL_read_ex() fails with
++    // SSL_R_UNEXPECTED_EOF_WHILE_READING, the following SSL_read_ex() call
++    // fails with a generic protocol error (ERR_peek_last_error() returns 0).
++    // Use got_eof_error to have the same behavior on OpenSSL 4 and newer and
++    // on OpenSSL 3 and older.
++    int got_eof_error;
+ } PySSLSocket;
+ 
+ #define PySSLSocket_CAST(op)    ((PySSLSocket *)(op))
+@@ -491,6 +501,10 @@ fill_and_set_sslerror(_sslmodulestate *state,
+     PyObject *init_value, *msg, *key;
+     PyUnicodeWriter *writer = NULL;
+ 
++    if (ssl_errno == PY_SSL_ERROR_EOF && sslsock != NULL) {
++        sslsock->got_eof_error = 1;
++    }
++
+     if (errcode != 0) {
+         int lib, reason;
+ 
+@@ -636,6 +650,18 @@ fill_and_set_sslerror(_sslmodulestate *state,
+     PyUnicodeWriter_Discard(writer);
+ }
+ 
++
++static void
++set_eof_error(PySSLSocket *sslsock)
++{
++    _sslmodulestate *state = get_state_sock(sslsock);
++    fill_and_set_sslerror(state, sslsock, state->PySSLEOFErrorObject,
++                          PY_SSL_ERROR_EOF,
++                          "EOF occurred in violation of protocol",
++                          __LINE__, 0);
++}
++
++
+ // Set the appropriate SSL error exception.
+ // err - error information from SSL and libc
+ // exc - if not NULL, an exception from _debughelpers.c callback to be chained
+@@ -881,6 +907,7 @@ newPySSLSocket(PySSLContext *sslctx, PySocketSockObject *sock,
+     self->shutdown_seen_zero = 0;
+     self->owner = NULL;
+     self->server_hostname = NULL;
++    self->got_eof_error = 0;
+ 
+     /* Make sure the SSL error state is initialized */
+     ERR_clear_error();
+@@ -1022,6 +1049,11 @@ _ssl__SSLSocket_do_handshake_impl(PySSLSocket *self)
+         BIO_set_nbio(SSL_get_wbio(self->ssl), nonblocking);
+     }
+ 
++    if (self->got_eof_error) {
++        set_eof_error(self);
++        goto error;
++    }
++
+     timeout = GET_SOCKET_TIMEOUT(sock);
+     has_timeout = (timeout > 0);
+     if (has_timeout) {
+@@ -2490,6 +2522,11 @@ _ssl__SSLSocket_write_impl(PySSLSocket *self, Py_buffer *b)
+         BIO_set_nbio(SSL_get_wbio(self->ssl), nonblocking);
+     }
+ 
++    if (self->got_eof_error) {
++        set_eof_error(self);
++        goto error;
++    }
++
+     timeout = GET_SOCKET_TIMEOUT(sock);
+     has_timeout = (timeout > 0);
+     if (has_timeout) {
+@@ -2636,6 +2673,11 @@ _ssl__SSLSocket_read_impl(PySSLSocket *self, Py_ssize_t len,
+         Py_INCREF(sock);
+     }
+ 
++    if (self->got_eof_error) {
++        set_eof_error(self);
++        goto error;
++    }
++
+     if (!group_right_1) {
+         dest = PyBytes_FromStringAndSize(NULL, len);
+         if (dest == NULL)
+-- 
+2.54.0
+
