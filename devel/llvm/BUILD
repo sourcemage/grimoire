@@ -110,7 +110,7 @@ if [[ "$LLVM_WITH_FLANG" == y ]] ;then
 fi &&
 
 if [[ "$LLVM_WITH_LIBCLC" == y ]] ;then
-  LLVM_PROJECTS="$LLVM_PROJECTS libclc" &&
+  if [[ $SLOT != 0 ]]; then LLVM_PROJECTS="$LLVM_PROJECTS libclc"; fi &&
   OPTS="$OPTS -DLIBCLC_TARGETS_TO_BUILD=${LLVM_LIBCLC_TARGETS// /;}"
 fi &&
 
