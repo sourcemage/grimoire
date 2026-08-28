@@ -55,8 +55,7 @@ fi &&
 BUILD_ZLIB=False BUILD_BZIP2=0 \
 setarch ${HOST%%-*} ./Configure -Doptimize="$CFLAGS" $CONFIG_OPTS $PERL_PATHS &&
 
-make depend  &&
-make         &&
+default_build_make depend all &&
 
 if [[ $NEW_CUSTOM  ==  y ]]; then
    cp config.sh $PERL_CONFIG
