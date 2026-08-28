@@ -1,0 +1,35 @@
+From f1463d7b57118d6fe850b581f7fe15f2e52311da Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Fri, 28 Aug 2026 12:51:00 +0200
+Subject: [PATCH] catgets: Handle invalid catalog descriptor
+
+catopen returns -1 on failure, but catgets dereferenced its catd argument
+unconditionally, so passing that value crashed. POSIX allows catgets to
+fail with EBADF for an invalid descriptor and requires it to return the
+caller-supplied default string.
+
+Callers relying on this are common: tcsh calls catopen unconditionally and
+feeds the result to catgets without checking it, so every tcsh invocation
+segfaulted on a system with no message catalogs installed.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ src/locale/catgets.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/locale/catgets.c b/src/locale/catgets.c
+index 71c31c1d6d01..01a4121551c2 100644
+--- a/src/locale/catgets.c
++++ b/src/locale/catgets.c
+@@ -15,6 +15,10 @@ static int cmp(const void *a, const void *b)
+ 
+ char *catgets (nl_catd catd, int set_id, int msg_id, const char *s)
+ {
++	if (catd == (nl_catd)-1) {
++		errno = EBADF;
++		return (char *)s;
++	}
+ 	const char *map = (const char *)catd;
+ 	uint32_t nsets = V(map+4);
+ 	const char *sets = map+20;
