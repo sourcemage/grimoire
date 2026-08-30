@@ -1,8 +1,14 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+if [[ "$LLVM_WITH_SPIRV" == y ]]; then
+  unpack_file 33 &&
+  ln -s "../../SPIRV-LLVM-Translator-${SPIRV_VERSION}" llvm/tools/llvm-spirv
+fi &&
+
 if [[ $LLVM_LAYOUT == standalone ]]; then
   # one tarball holding llvm itself, with the cmake modules it was split
   # away from, and polly, laid back beside it
-  default_pre_build &&
-  cd "$SOURCE_DIRECTORY" &&
 
   if [[ $SLOT == 15 ]]; then
     apply_patch_dir patches-llvm15 &&
@@ -19,8 +25,6 @@ if [[ $LLVM_LAYOUT == standalone ]]; then
     mv polly-${VERSION}.src tools/polly
   fi &&
 
-  cd "$SOURCE_DIRECTORY" &&
-
   # small cmake related fix for libffi
   if spell_ok libffi;then
     FFI=`pkg-config --cflags-only-I libffi` &&
@@ -31,7 +35,6 @@ if [[ $LLVM_LAYOUT == standalone ]]; then
 
   # do not build all backends
   sed -i "/^set.*all\"$/s/all//"  CMakeLists.txt
-  return
 fi &&
 
 if [[ $LLVM_LAYOUT == split ]]; then
@@ -117,19 +120,11 @@ if [[ $LLVM_LAYOUT == split ]]; then
   if list_find "$LLVM_RUNTIMES" "openmp"; then
     unpack_file 29 &&
     mv "openmp-${VERSION}.src" openmp
-  fi &&
-
-  if [[ "$LLVM_WITH_SPIRV" == y ]]; then
-    unpack_file 33 &&
-    ln -s "../../SPIRV-LLVM-Translator-${SPIRV_VERSION}" llvm/tools/llvm-spirv
   fi
-  return
 fi &&
 
-default_pre_build &&
-cd "$SOURCE_DIRECTORY" &&
-
-if [[ "$LLVM_WITH_SPIRV" == y ]]; then
-  unpack_file 33 &&
-  ln -s "../../SPIRV-LLVM-Translator-${SPIRV_VERSION}" llvm/tools/llvm-spirv
+# fix kernel header path
+if [[ $SLOT == 22 ]] &&
+   list_find "$LLVM_RUNTIMES" "compiler-rt"; then
+  sed "/scc\.h/s;<linux;<uapi/linux;" -i "${SOURCE_DIRECTORY}/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.cpp"
 fi
