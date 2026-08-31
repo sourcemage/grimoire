@@ -1,0 +1,15 @@
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+unpack_file 2 &&
+unpack_file 3 &&
+unpack_file 4 &&
+unpack_file 5 &&
+apply_patch_dir patches &&
+sedit '/^# Generate deployment script/i\if(NOT DISABLE_DEPLOY_SCRIPT)' CMakeLists.txt &&
+sedit '/^install(SCRIPT ${deploy_script})$/a\endif()' CMakeLists.txt &&
+sedit '/#include "document.h"/a\#include <climits>' src/core/document/document.cpp &&
+sedit 's/static_cast<QChar>(mDocument->GetControlChar(mCurrentPosition))/static_cast<QChar>(static_cast<uint16_t>(mDocument->GetControlChar(mCurrentPosition)))/' \
+	src/files/rtf/write/rtfwriter.cpp &&
+sedit '/#include <memory>/a\#include <unistd.h>' \
+	src/third-party/chillout/src/chillout/posix/posixcrashhandler.cpp &&
+sedit 's/^      hunspell$/      hunspell-1.7\n      execinfo\n      tbb/' CMakeLists.txt
