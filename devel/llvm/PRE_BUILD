@@ -1,42 +1,3 @@
-default_pre_build &&
-cd "$SOURCE_DIRECTORY" &&
-
-if [[ "$LLVM_WITH_SPIRV" == y ]]; then
-  unpack_file 33 &&
-  ln -s "../../SPIRV-LLVM-Translator-${SPIRV_VERSION}" llvm/tools/llvm-spirv
-fi &&
-
-if [[ $LLVM_LAYOUT == standalone ]]; then
-  # one tarball holding llvm itself, with the cmake modules it was split
-  # away from, and polly, laid back beside it
-
-  if [[ $SLOT == 15 ]]; then
-    apply_patch_dir patches-llvm15 &&
-    unpack_file 21 &&
-    mv cmake-${VERSION}.src/Modules/*cmake cmake
-  else
-    unpack_file 21 &&
-    mv cmake-${VERSION}.src/Modules cmake &&
-    sed '/LLVM_COMMON_CMAKE_UTILS /s;\.\./;;' -i CMakeLists.txt
-  fi &&
-
-  if [[ "$LLVM_WITH_POLLY" == y ]]; then
-    unpack_file 11 &&
-    mv polly-${VERSION}.src tools/polly
-  fi &&
-
-  # small cmake related fix for libffi
-  if spell_ok libffi;then
-    FFI=`pkg-config --cflags-only-I libffi` &&
-    FFI=${FFI//-I/} &&
-    FFI=${FFI//\ */} &&
-    sed -i "/FFI_I/s|\"\"|\"$FFI\"|" CMakeLists.txt
-  fi  &&
-
-  # do not build all backends
-  sed -i "/^set.*all\"$/s/all//"  CMakeLists.txt
-fi &&
-
 if [[ $LLVM_LAYOUT == split ]]; then
   # a tarball per component, unpacked into the tree they would have come
   # in had upstream shipped one
@@ -120,7 +81,51 @@ if [[ $LLVM_LAYOUT == split ]]; then
   if list_find "$LLVM_RUNTIMES" "openmp"; then
     unpack_file 29 &&
     mv "openmp-${VERSION}.src" openmp
-  fi
+  fi &&
+  if [[ "$LLVM_WITH_SPIRV" == y ]]; then
+    unpack_file 33 &&
+    ln -s "../../SPIRV-LLVM-Translator-${SPIRV_VERSION}" llvm/tools/llvm-spirv
+  fi &&
+  return
+fi &&
+
+default_pre_build &&
+cd "$SOURCE_DIRECTORY" &&
+
+if [[ "$LLVM_WITH_SPIRV" == y ]]; then
+  unpack_file 33 &&
+  ln -s "../../SPIRV-LLVM-Translator-${SPIRV_VERSION}" llvm/tools/llvm-spirv
+fi &&
+
+if [[ $LLVM_LAYOUT == standalone ]]; then
+  # one tarball holding llvm itself, with the cmake modules it was split
+  # away from, and polly, laid back beside it
+
+  if [[ $SLOT == 15 ]]; then
+    apply_patch_dir patches-llvm15 &&
+    unpack_file 21 &&
+    mv cmake-${VERSION}.src/Modules/*cmake cmake
+  else
+    unpack_file 21 &&
+    mv cmake-${VERSION}.src/Modules cmake &&
+    sed '/LLVM_COMMON_CMAKE_UTILS /s;\.\./;;' -i CMakeLists.txt
+  fi &&
+
+  if [[ "$LLVM_WITH_POLLY" == y ]]; then
+    unpack_file 11 &&
+    mv polly-${VERSION}.src tools/polly
+  fi &&
+
+  # small cmake related fix for libffi
+  if spell_ok libffi;then
+    FFI=`pkg-config --cflags-only-I libffi` &&
+    FFI=${FFI//-I/} &&
+    FFI=${FFI//\ */} &&
+    sed -i "/FFI_I/s|\"\"|\"$FFI\"|" CMakeLists.txt
+  fi  &&
+
+  # do not build all backends
+  sed -i "/^set.*all\"$/s/all//"  CMakeLists.txt
 fi &&
 
 # fix kernel header path
