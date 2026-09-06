@@ -5,7 +5,6 @@ OPTS+=" renderer-gl=true" &&
 OPTS+=" simple-clients=egl" &&
 #OPTS+=" backend-drm=true" &&
 #OPTS+=" backend-wayland=true" &&
-OPTS+=" backend-default=auto" &&
 OPTS+=" shell-desktop=true" &&
 OPTS+=" shell-kiosk=true" &&
 #OPTS+=" image-jpeg=true" &&
