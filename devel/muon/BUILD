@@ -20,7 +20,7 @@ fi &&
 CC=cc ./bootstrap.sh build &&
 
 # stage 2
-local MUON_SETUP="build/muon setup" &&
+local MUON_SETUP="./build/muon-bootstrap setup" &&
 local MUON_SETUP_OPTS &&
 
 for MO in $OPTS; do
