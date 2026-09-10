@@ -1,0 +1,2 @@
+OPTS+=' -DINSTALL_PAM_CONFIGURATION=OFF' &&
+default_build
