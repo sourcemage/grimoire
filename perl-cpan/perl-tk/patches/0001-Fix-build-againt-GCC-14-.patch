@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sat, 12 Sep 2026 20:50:53 +0200
+Subject: [PATCH] Fix build againt GCC 14+
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ pTk/Xlib.h                   |    2 +-
+ pTk/mTk/generic/tkCanvText.c |    2 +-
+ pTk/mTk/generic/tkEvent.c    |    1 +
+ pTk/mTk/generic/tkImage.c    |    2 ++
+ 4 files changed, 5 insertions(+), 2 deletions(-)
+
+--- a/pTk/Xlib.h
++++ b/pTk/Xlib.h
+@@ -20,7 +20,7 @@
+ extern Window XCreateWindow  _ANSI_ARGS_((Display *, Window, int, int, unsigned int, unsigned int, unsigned int, int, unsigned int, Visual *, long unsigned int, XSetWindowAttributes *));
+ extern Atom *XListProperties  _ANSI_ARGS_((Display *, Window, int *));
+ extern XHostAddress *XListHosts  _ANSI_ARGS_((Display *, int *, int *));
+-extern KeySym XKeycodeToKeysym  _ANSI_ARGS_((Display *, unsigned int, int));
++extern KeySym XKeycodeToKeysym  _ANSI_ARGS_((Display *, KeyCode, int));
+ extern KeySym XStringToKeysym  _ANSI_ARGS_((const char *));
+ extern VisualID XVisualIDFromVisual  _ANSI_ARGS_((Visual *));
+ extern Window XRootWindow  _ANSI_ARGS_((Display *, int));
+--- a/pTk/mTk/generic/tkEvent.c
++++ b/pTk/mTk/generic/tkEvent.c
+@@ -1153,6 +1153,7 @@
+ Time
+ TkCurrentTime(dispPtr, fallbackCurrent)
+     TkDisplay *dispPtr;		/* Display for which the time is desired. */
++    int fallbackCurrent;		/* 1 means use current time if no event. */
+ {
+     register XEvent *eventPtr;
+     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
+--- a/pTk/mTk/generic/tkImage.c
++++ b/pTk/mTk/generic/tkImage.c
+@@ -1083,6 +1083,8 @@
+ int y;
+ int width;
+ int height;
++int imgWidth;
++int imgHeight;
+ {
+     Tk_Tile tile = (Tk_Tile) clientData;
+     Tk_TileChange *handler;
+--- a/pTk/mTk/generic/tkCanvText.c
++++ b/pTk/mTk/generic/tkCanvText.c
+@@ -1234,7 +1234,7 @@
+ 				 * index. */
+ {
+     TextItem *textPtr = (TextItem *) itemPtr;
+-    size_t length;
++    int length;
+     int c;
+     TkCanvas *canvasPtr = (TkCanvas *) canvas;
+     Tk_CanvasTextInfo *textInfoPtr = textPtr->textInfoPtr;

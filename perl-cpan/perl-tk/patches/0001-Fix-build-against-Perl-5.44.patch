@@ -1,0 +1,143 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sat, 12 Sep 2026 20:50:53 +0200
+Subject: [PATCH] Fix build against Perl 5.44
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ Event/Event.xs     |    2 +-
+ config/pregcomp2.c |    2 +-
+ encGlue.c          |   29 +++++++++++------------------
+ objGlue.c          |    5 ++++-
+ tkGlue.c           |    6 +-----
+ 5 files changed, 20 insertions(+), 24 deletions(-)
+
+--- a/config/pregcomp2.c
++++ b/config/pregcomp2.c
+@@ -4,5 +4,5 @@
+ 
+ int main() {
+     SV* sv = newSViv(0);
+-    regexp* rx = pregcomp(sv, 0);
++    REGEXP* rx = pregcomp(sv, 0);
+ }
+--- a/encGlue.c
++++ b/encGlue.c
+@@ -27,10 +27,6 @@
+ 
+ #ifdef SvUTF8
+ 
+-#ifndef utf8_to_uv
+-#define utf8_to_uv utf8_to_uvchr
+-#endif
+-
+ #ifndef UTF8_MAXBYTES_CASE
+ #define UTF8_MAXBYTES_CASE UTF8_MAXLEN_UCLC
+ #endif
+@@ -79,28 +75,28 @@
+ Tcl_UniCharIsAlpha(int ch)
+ {
+  dTHX;
+- return Perl_is_uni_alpha(aTHX_ ch);
++ return isALPHA_uvchr(ch);
+ }
+ 
+ int
+ Tcl_UniCharIsWordChar(int ch)
+ {
+  dTHX;
+- return Perl_is_uni_alnum(aTHX_ ch);
++ return isWORDCHAR_uvchr(ch);
+ }
+ 
+ int
+ Tcl_UniCharIsSpace(int ch)
+ {
+  dTHX;
+- return Perl_is_uni_space(aTHX_ ch);
++ return isSPACE_uvchr(ch);
+ }
+ 
+ int
+ Tcl_UniCharIsUpper(int ch)
+ {
+  dTHX;
+- return Perl_is_uni_upper(aTHX_ ch);
++ return isUPPER_uvchr(ch);
+ }
+ 
+ int
+@@ -152,13 +148,8 @@
+ Tcl_UtfToUniChar (CONST char * src,Tcl_UniChar * chPtr)
+ {
+  dTHX;
+-#if defined(utf8_to_uvchr)
+  STRLEN len;
+- *chPtr = utf8_to_uv((U8 *)src,&len);
+-#else
+- I32 len;
+- *chPtr = utf8_to_uv((U8 *)src,&len);
+-#endif
++ *chPtr = utf8_to_uvchr_buf((U8 *)src, (U8 *)src + UTF8_CHK_SKIP(src), &len);
+  return len;
+ }
+ 
+@@ -273,7 +264,7 @@
+  while (*s)
+   {
+    STRLEN len;
+-   Perl_to_utf8_lower(aTHX_ s, d, &len );
++   toLOWER_utf8_safe(s, s + UTF8_CHK_SKIP(s), d, &len );
+    d += len;
+    s += len;
+   }
+@@ -290,7 +281,7 @@
+  while (*s)
+   {
+    STRLEN len;
+-   Perl_to_utf8_upper(aTHX_ s, d, &len );
++   toUPPER_utf8_safe(s, s + UTF8_CHK_SKIP(s), d, &len );
+    d += len;
+    s += len;
+   }
+--- a/objGlue.c
++++ b/objGlue.c
+@@ -627,7 +627,10 @@
+  sv_utf8_downgrade(objPtr, 0);
+  if (lengthPtr)
+   {
+-   return (unsigned char *) SvPV(objPtr, *lengthPtr);
++   STRLEN len;
++   unsigned char *s = (unsigned char *) SvPV(objPtr, len);
++   *lengthPtr = (int) len;
++   return s;
+   }
+  else
+   {
+--- a/tkGlue.c
++++ b/tkGlue.c
+@@ -5543,11 +5543,7 @@
+  char *XEventMethods = "abcdfhkmopstvwxyABDEKNRSTWXY#";
+  char buf[128];
+  CV *cv;
+-#if PERL_REVISION > 5 || (PERL_REVISION == 5 && PERL_VERSION >= 9)
+-#define COP_WARNINGS_TYPE STRLEN*
+-#else
+-#define COP_WARNINGS_TYPE SV*
+-#endif
++#define COP_WARNINGS_TYPE void*
+ #ifdef pWARN_NONE
+  COP_WARNINGS_TYPE old_warn = PL_curcop->cop_warnings;
+  PL_curcop->cop_warnings = pWARN_NONE;
+--- a/Event/Event.xs
++++ b/Event/Event.xs
+@@ -1532,7 +1532,7 @@
+ BOOT:
+  {
+ #ifdef pWARN_NONE
+-  SV *old_warn = PL_curcop->cop_warnings;
++  void *old_warn = PL_curcop->cop_warnings;
+   PL_curcop->cop_warnings = pWARN_NONE;
+ #endif
+   newXS("Tk::Event::INIT", XS_Tk__Event_INIT, file);
