@@ -1,0 +1,307 @@
+From 0acdfdd74054caec85a75ba20c7ac236f6ebd893 Mon Sep 17 00:00:00 2001
+From: Erick Tryzelaar <etryzelaar@google.com>
+Date: Thu, 30 Jul 2026 20:53:45 +0000
+Subject: [PATCH] Fix variadic template union layout recursion and generic
+ field codegen
+
+In llvm/llvm-project#185449, LLVM's libc++ changed a header to use a
+recursive self-referential type, which looks approximately like:
+
+```
+template <class A0, class... As> union RUnion { A0 arg; RUnion<As...> u; };
+template <class A> union RUnion<A> { A arg; };
+struct Wrap { RUnion<int, float> u; };
+```
+
+This code caused bindgen to panic. The problem seems to be that bindgen
+can't handle the recursive self-referential union. Digging into the
+code, it seems that when this type is being parsed, `with_loaned_item`
+removes the type from the context. Later on, when parsing the
+CompKind::Union, CompInfo::layout would call resolve_type on an item
+that was loaned out, so it panics. This bug was filed in #3397.
+
+This patch avoids that by first keeping track of which items we have
+loaed out with `with_loaned_item`, then changing `safe_resolve_type` to
+panic if we don't have an entry for that type, or it has been loaned
+out. Then we've updated the call sites to use it.
+
+This also adds LLVM-21 tests, since clang generates different code than
+LLVM-20.
+
+Test: cargo test -p bindgen-tests
+
+TAG=agy
+CONV=619bdf72-4d2d-494f-8cb0-f61a6db9674c
+---
+ .github/workflows/bindgen.yml                 |  8 +--
+ bindgen-tests/Cargo.toml                      |  1 +
+ .../libclang-21/issue-544-stylo-creduce-2.rs  | 17 +++++
+ .../tests/libclang-21/nsBaseHashtable.rs      | 57 +++++++++++++++++
+ .../tests/recursive_alias_canonicalization.rs | 32 ++++++++++
+ .../tests/expectations/tests/transform-op.rs  | 64 +++----------------
+ .../tests/variadic_template_union.rs          | 59 +++++++++++++++++
+ .../variadic_template_union_alignment.rs      | 53 +++++++++++++++
+ .../recursive_alias_canonicalization.hpp      | 11 ++++
+ .../tests/headers/variadic_template_union.hpp |  9 +++
+ .../variadic_template_union_alignment.hpp     | 33 ++++++++++
+ bindgen-tests/tests/tests.rs                  | 10 ++-
+ bindgen/ir/comp.rs                            | 58 ++++++++++++++++-
+ bindgen/ir/context.rs                         | 52 +++++++++++++--
+ bindgen/ir/enum_ty.rs                         |  4 +-
+ bindgen/ir/ty.rs                              | 14 ++--
+ 16 files changed, 402 insertions(+), 80 deletions(-)
+ create mode 100644 bindgen-tests/tests/expectations/tests/libclang-21/issue-544-stylo-creduce-2.rs
+ create mode 100644 bindgen-tests/tests/expectations/tests/libclang-21/nsBaseHashtable.rs
+ create mode 100644 bindgen-tests/tests/expectations/tests/recursive_alias_canonicalization.rs
+ create mode 100644 bindgen-tests/tests/expectations/tests/variadic_template_union.rs
+ create mode 100644 bindgen-tests/tests/expectations/tests/variadic_template_union_alignment.rs
+ create mode 100644 bindgen-tests/tests/headers/recursive_alias_canonicalization.hpp
+ create mode 100644 bindgen-tests/tests/headers/variadic_template_union.hpp
+ create mode 100644 bindgen-tests/tests/headers/variadic_template_union_alignment.hpp
+
+diff --git a/third_party/rust/bindgen/ir/comp.rs b/third_party/rust/bindgen/ir/comp.rs
+index 2760775cea..5fb4d8b73d 100644
+--- a/third_party/rust/bindgen/ir/comp.rs
++++ b/third_party/rust/bindgen/ir/comp.rs
+@@ -1082,6 +1082,12 @@ impl CompInfo {
+             return None;
+         }
+ 
++        // Uninstantiated template unions do not have layout in C++ and can cause
++        // infinite layout recursion if fields reference the union template.
++        if self.kind == CompKind::Union && !self.template_params.is_empty() {
++            return None;
++        }
++
+         let mut max_size = 0;
+         // Don't allow align(0)
+         let mut max_align = 1;
+@@ -1707,13 +1713,61 @@ impl CompInfo {
+             ctx.options().default_non_copy_union_style
+         };
+ 
++        let field_can_copy = |field_data: &FieldData| -> bool {
++            let ty = field_data.ty();
++            if !ty.can_derive_copy(ctx) {
++                return false;
++            }
++            if ctx.in_codegen_phase() &&
++                ctx.uses_any_template_parameters(ty.into())
++            {
++                return false;
++            }
++            true
++        };
++
+         let all_can_copy = self.fields().iter().all(|f| match *f {
++            Field::DataMember(ref field_data) => field_can_copy(field_data),
++            Field::Bitfields(_) => true,
++        });
++
++        let has_generic_params = self.fields().iter().any(|f| match *f {
+             Field::DataMember(ref field_data) => {
+-                field_data.ty().can_derive_copy(ctx)
++                ctx.in_codegen_phase() &&
++                    ctx.uses_any_template_parameters(field_data.ty().into())
+             }
+-            Field::Bitfields(_) => true,
++            Field::Bitfields(_) => false,
+         });
+ 
++        let has_by_value_recursive_field =
++            self.fields().iter().any(|f| match *f {
++                Field::DataMember(ref field_data) => {
++                    let mut ty = ctx.safe_resolve_type(field_data.ty());
++                    while let Some(t) = ty {
++                        if t.name().is_some_and(|n| name.ends_with(n)) {
++                            return true;
++                        }
++                        match *t.kind() {
++                            super::ty::TypeKind::ResolvedTypeRef(inner) |
++                            super::ty::TypeKind::Alias(inner) => {
++                                ty = ctx.safe_resolve_type(inner);
++                            }
++                            _ => return false,
++                        }
++                    }
++                    false
++                }
++                Field::Bitfields(_) => false,
++            });
++
++        // If the union has generic template parameters and does not contain a recursive
++        // template field by value (which would produce E0072 in Rust), emit as a native
++        // Rust union with ManuallyDrop<T> fields ((true, false)) so the Rust compiler
++        // computes the correct size and alignment upon instantiation.
++        if has_generic_params && !has_by_value_recursive_field {
++            return (true, false);
++        }
++
+         if !all_can_copy && union_style == NonCopyUnionStyle::BindgenWrapper {
+             return (false, false);
+         }
+diff --git a/third_party/rust/bindgen/ir/context.rs b/third_party/rust/bindgen/ir/context.rs
+index b5b6b4a000..3d5f6a8e79 100644
+--- a/third_party/rust/bindgen/ir/context.rs
++++ b/third_party/rust/bindgen/ir/context.rs
+@@ -349,6 +349,13 @@ pub(crate) struct BindgenContext {
+     /// potentially break that assumption.
+     currently_parsed_types: Vec<PartialType>,
+ 
++    /// A stack of items currently loaned out by `with_loaned_item`.
++    ///
++    /// This allows us to distinguish between:
++    /// 1) An existing item that is currently being traversed recursively.
++    /// 2) An unknown or invalid item ID (which should panic).
++    currently_loaned_items: Vec<ItemId>,
++
+     /// A map with all the already parsed macro names. This is done to avoid
+     /// hard errors while parsing duplicated macros, as well to allow macro
+     /// expression parsing.
+@@ -586,6 +593,7 @@ If you encounter an error missing from this list, please file an issue or a PR!"
+             current_module: root_module_id,
+             semantic_parents: Default::default(),
+             currently_parsed_types: vec![],
++            currently_loaned_items: vec![],
+             parsed_macros: Default::default(),
+             replacements: Default::default(),
+             collected_typerefs: false,
+@@ -984,9 +992,13 @@ If you encounter an error missing from this list, please file an issue or a PR!"
+         F: (FnOnce(&BindgenContext, &mut Item) -> T),
+     {
+         let mut item = self.items[id.0].take().unwrap();
++        self.currently_loaned_items.push(id);
+ 
+         let result = f(self, &mut item);
+ 
++        let popped = self.currently_loaned_items.pop();
++        debug_assert_eq!(popped, Some(id));
++
+         let existing = self.items[id.0].replace(item);
+         assert!(existing.is_none());
+ 
+@@ -1464,13 +1476,38 @@ If you encounter an error missing from this list, please file an issue or a PR!"
+         self.resolve_item(func_id).kind().expect_function()
+     }
+ 
+-    /// Resolve the given `ItemId` as a type, or `None` if there is no item with
+-    /// the given ID.
++    /// Returns `true` if `id` is currently loaned out by `with_loaned_item`.
++    pub(crate) fn is_currently_loaned_item<Id: Into<ItemId>>(
++        &self,
++        id: Id,
++    ) -> bool {
++        self.currently_loaned_items.contains(&id.into())
++    }
++
++    /// Resolve the given `ItemId` as a type.
++    ///
++    /// Returns `Some(&Type)` if the item resolves to a type.
++    /// Returns `None` if the item is currently loaned out by `with_loaned_item`
++    /// (indicating an intentional recursive reference).
+     ///
+-    /// Panics if the ID resolves to an item that is not a type.
++    /// Panics if bindgen has no awareness of the given type ID during codegen.
+     pub(crate) fn safe_resolve_type(&self, type_id: TypeId) -> Option<&Type> {
+-        self.resolve_item_fallible(type_id)
+-            .map(|t| t.kind().expect_type())
++        let id: ItemId = type_id.into();
++        match self.items.get(id.0) {
++            Some(Some(item)) => item.kind().as_type(),
++            // When an item slot is `None` because it is currently loaned out by
++            // `with_loaned_item`, intentionally return `None` to signal recursion.
++            Some(None) if self.is_currently_loaned_item(id) => None,
++            _ => {
++                // During AST parsing and template resolution (`!self.in_codegen_phase()`),
++                // forward-declared items or template references may not yet be populated
++                // in `self.items`, so returning `None` is expected. During codegen,
++                // however, all valid IR items must be present in `self.items`.
++                assert!(!self.in_codegen_phase(), "Not an item: {type_id:?}");
++
++                None
++            }
++        }
+     }
+ 
+     /// Resolve the given `ItemId` into an `Item`, or `None` if no such item
+@@ -1624,8 +1661,9 @@ If you encounter an error missing from this list, please file an issue or a PR!"
+         ty: &clang::Type,
+         location: Cursor,
+     ) -> Option<TypeId> {
+-        let num_expected_args =
+-            self.resolve_type(template).num_self_template_params(self);
++        let num_expected_args = self
++            .safe_resolve_type(template)
++            .map_or(0, |t| t.num_self_template_params(self));
+         if num_expected_args == 0 {
+             warn!(
+                 "Tried to instantiate a template for which we could not \
+diff --git a/third_party/rust/bindgen/ir/enum_ty.rs b/third_party/rust/bindgen/ir/enum_ty.rs
+index 8566622100..20b2de73b3 100644
+--- a/third_party/rust/bindgen/ir/enum_ty.rs
++++ b/third_party/rust/bindgen/ir/enum_ty.rs
+@@ -71,8 +71,8 @@ impl Enum {
+             .and_then(|et| Item::from_ty(&et, declaration, None, ctx).ok());
+         let mut variants = vec![];
+ 
+-        let variant_ty =
+-            repr.and_then(|r| ctx.resolve_type(r).safe_canonical_type(ctx));
++        let variant_ty = repr
++            .and_then(|r| ctx.safe_resolve_type(r)?.safe_canonical_type(ctx));
+         let is_bool = variant_ty.is_some_and(Type::is_bool);
+ 
+         // Assume signedness since the default type by the C standard is an int.
+diff --git a/third_party/rust/bindgen/ir/ty.rs b/third_party/rust/bindgen/ir/ty.rs
+index 805138b7a9..8c0a2fd0df 100644
+--- a/third_party/rust/bindgen/ir/ty.rs
++++ b/third_party/rust/bindgen/ir/ty.rs
+@@ -209,9 +209,9 @@ impl Type {
+                     None
+                 }
+             }
+-            TypeKind::ResolvedTypeRef(inner) => {
+-                ctx.resolve_type(inner).is_incomplete_array(ctx)
+-            }
++            TypeKind::ResolvedTypeRef(inner) => ctx
++                .safe_resolve_type(inner)
++                .and_then(|t| t.is_incomplete_array(ctx)),
+             _ => None,
+         }
+     }
+@@ -223,7 +223,7 @@ impl Type {
+                 TypeKind::Comp(ref ci) => ci.layout(ctx),
+                 TypeKind::Array(inner, 0) => Some(Layout::new(
+                     0,
+-                    ctx.resolve_type(inner).layout(ctx)?.align,
++                    ctx.safe_resolve_type(inner)?.layout(ctx)?.align,
+                 )),
+                 // FIXME(emilio): This is a hack for anonymous union templates.
+                 // Use the actual pointer size!
+@@ -232,7 +232,7 @@ impl Type {
+                     ctx.target_pointer_size(),
+                 )),
+                 TypeKind::ResolvedTypeRef(inner) => {
+-                    ctx.resolve_type(inner).layout(ctx)
++                    ctx.safe_resolve_type(inner)?.layout(ctx)
+                 }
+                 _ => None,
+             }
+@@ -327,10 +327,10 @@ impl Type {
+             TypeKind::ResolvedTypeRef(inner) |
+             TypeKind::Alias(inner) |
+             TypeKind::TemplateAlias(inner, _) => {
+-                ctx.resolve_type(inner).safe_canonical_type(ctx)
++                ctx.safe_resolve_type(inner)?.safe_canonical_type(ctx)
+             }
+             TypeKind::TemplateInstantiation(ref inst) => ctx
+-                .resolve_type(inst.template_definition())
++                .safe_resolve_type(inst.template_definition())?
+                 .safe_canonical_type(ctx),
+ 
+             TypeKind::UnresolvedTypeRef(..) => None,
+--- a/third_party/rust/bindgen/.cargo-checksum.json	2026-08-26 23:11:58.000000000 +0200
++++ b/third_party/rust/bindgen/.cargo-checksum.json	2026-09-05 13:43:28.573438355 +0200
+@@ -1 +1 @@
+-{"files":{"Cargo.toml":"188ef4c8e80b77bb2069881b0fadfdb71a72a7439a823a57862356a587ef0055","LICENSE":"c23953d9deb0a3312dbeaf6c128a657f3591acee45067612fa68405eaa4525db","build.rs":"f7a10af0a21662e104e0058da7e3471a20be328eef6c7c41988525be90fdfe92","callbacks.rs":"3f0ed344a4d27fc8f893f21b1f9cd742d85ccbc23441d745e8a147b6072469bd","clang.rs":"e991300ce9b1f0b9fb4a0b4bd32e899b6cfa546f034858f08bf57678b3d7044c","codegen/bitfield_unit.rs":"1d598b042a9ce6c2f8a2c6eb44c9ee6e2d41865f25fe34ce747a0376c4d9b951","codegen/bitfield_unit_tests.rs":"9915cb19bf37fc1013fc72753bae153f7c249280daec94b25fb461f9936dffa4","codegen/dyngen.rs":"1b42f7fa9fb65ff2fa898b289a3b934d7b21c5ba6c1b3e37aa97f0faa87769a0","codegen/error.rs":"67680c4d171d63848d9eb4ddd5f100be7463564e8c1c9203fefc0e61a19dfdec","codegen/helpers.rs":"9bcec3163826edc9b22256c9bf33dd2964809349b801fc6fa5e9158da4eb0458","codegen/impl_debug.rs":"3e55b361aa56d9b6ef2bdb96ede983385a3b1030aa0f46235cb4d218ad66b2a1","codegen/impl_partialeq.rs":"d4fb2ef354086c3dd5a4c4b69d5deab652fdef225725e28dc694e791c1573d0c","codegen/mod.rs":"b106576fce6df7a3933eaa112d805d42653c2d1287953a002a3bb70b38715f87","codegen/postprocessing/merge_extern_blocks.rs":"3e244fe62abcadcb6dae069c37d21220f5351dc7b8c33c5576a5193731933c4c","codegen/postprocessing/mod.rs":"160a6d6701cabf2514e23570df1bd1b648c909cc27b7c583f21d98fe0c16722e","codegen/postprocessing/sort_semantically.rs":"5099e8fc134a92cb72b585bd95854a52ff81e2f5307c3b83617d83e7408302ee","codegen/serialize.rs":"d57eb31ba0fda825241f886336279573050b396e52badf3886e0bc76a15110ad","codegen/struct_layout.rs":"b5f4a010d60586e5079284f7f02af53d961f02a8e6a2cf09dfab2127f20c3734","deps.rs":"297dcc2be53af1a3ea4f77e16902a641f3e6f0baad09c06a6ea26050a0281c18","diagnostics.rs":"9c80043ac9fa8f683019577f311853a0d5929e41a95b3255736f80105914cdfa","extra_assertions.rs":"1596b7e7f031714dc699ebda135e795f1ecfc971ce9de6861a3c00e77fcef011","features.rs":"cde8d530d03c2793cbbb257db3d64e345af26731b73f45b4b60a618d062443c3","ir/analysis/derive.rs":"42ef56b1adda1b4d2797c7845b909fde8c87e2bf51920b490b7129936d5c494c","ir/analysis/has_destructor.rs":"d75be0d349e744ef198d89f04274cc024e36eb255fe7fb7b660ce805c8977bae","ir/analysis/has_float.rs":"9fb88d05c5920e9000e5cb6e87775c0d1042a6b11205577e281ba281e6e6acdb","ir/analysis/has_type_param_in_array.rs":"0975d1ce43bcba97eb303635118e74d494d46ac67cf5ee53faf6f6584a556cef","ir/analysis/has_vtable.rs":"dcaf36d4d0148db3b5690166e32853a58eda7721c9ea5217723a5dba7d5295b8","ir/analysis/mod.rs":"93edca96d765dfa19ac231198027b0ba48c623502a8be1dbf799a241cd6b304b","ir/analysis/sizedness.rs":"0b78e70737e038ebdee2c3d195194a060c9287000b9059ded0686728a89b4ff2","ir/analysis/template_params.rs":"a8dfd3e02b1745a5b7c6faa16309bd0b8a88d76b7fedca27c322782cc9e77177","ir/annotations.rs":"8397ced62808fe99dfdde35792cd8b2389e7828d752a6c8aa3a70c1e14595e11","ir/comment.rs":"57863204d329ae82872ecc4829cc299969ff07da3a32a4a13d7d84429f55b84d","ir/comp.rs":"8df9d537b17994f85b3d506658c20b080d18b805ca8b73cc7af15f4d5397e8ef","ir/context.rs":"e9e1ed78f2258ff2556688d658ebf422308732924683c7860853f1c38a607066","ir/derive.rs":"09860cffec0ebecce31da0c6c9ea0cf9a0d4784262ff4eb16ea459c0d0782ac9","ir/dot.rs":"8b8f6dd13e662fcb4114949025cb43467b34fa4998a3371c101db5dd82688f44","ir/enum_ty.rs":"5d7ae2e3de172d9812425e8cc6e30d559b0743620b3b09f7d72f3b05a7e1ce98","ir/function.rs":"94bdc59bc39e043825d6cbbf5a461329462f0eb74c4c216002e1da86bf93e46b","ir/int.rs":"1bf1e4d87eca13ee2fc38ff4d56c266f303f188796f5c0d290f53162798d2d01","ir/item.rs":"6983232b2362f4d23261754f0ef242162ce66bbe9398a7707a88cb7bcee0f0fd","ir/item_kind.rs":"799fab994b5ed35045786a68003c2c12b6601cf3b07e8ccc0b9acd6f921217e0","ir/layout.rs":"7a7173efde2a9daed8562d657bad563922f798e44055e35899dd47badd46c52d","ir/mod.rs":"a3b98b1732111a980a795c72eaf1e09101e842ef2de76b4f2d4a7857f8d4cee4","ir/module.rs":"617867617ebd7e56157a9ba057441ce11a33c25138a1da64646f44ccaae7c762","ir/objc.rs":"092c7f32cec4191aa6235e4554420ab2053e0c7fec5ece016a7ed303763e8547","ir/template.rs":"1114c0924323f8b30bb32dbb3f6730dd7f5bc1f0771ad5099738e8e57111c07d","ir/traversal.rs":"3ebde94ead0fe69d51541ab61d700c7c1f6382574e4c110b8c7fe3e2c6218f19","ir/ty.rs":"2a229e98f65ac2c7ae5e9e866a5f945b0488fd7a61b2a8a1c6cf28b6827b7667","ir/var.rs":"2a94decd3adfdccd3bd0015b460d180838e3c92b122b632eed44032b80cad120","lib.rs":"805f7d4547f4e9e3ab024e98e39c6c3c2b74f2fd6cdd657915a5d0bbd7655dab","log_stubs.rs":"a636d59af2fd3745c2e416e1ab8a1e1a3888ea84cd4657a321ce22f15e0c5a87","options/as_args.rs":"a1a5e7f0dde82590371fc1a9ea5fde7f3e2252530ca74d98bb49a8ce06cc864f","options/cli.rs":"7712b6d4d3f8f4dc9a07e5e0fe21687b05c118e70e9c1952a2eebc34da20c2c4","options/helpers.rs":"f4a7681e29b2dcc3be9249478c499d685b9e29d4f4ca4ae8bff7a91668cd8f15","options/mod.rs":"2bedfdd6aa9817bdc8155ca8290e0d6055ef6d7a90353d6cb99ddc6121609693","parse.rs":"fce3616e0464aa7414888e5d00d4df18c83bb3034a1c807d36a07a3c586e475a","regex_set.rs":"d8995adb9e5cecc2d738e662a62d5081150bf967cb67e1206070e22b7265578a","time.rs":"1429af446b2b38c70ceec82c4202d4822c618cad47ba502dce72dbdc4cbb425e"},"package":null}
+\ Kein Zeilenumbruch am Dateiende.
++{"files":{"Cargo.toml":"188ef4c8e80b77bb2069881b0fadfdb71a72a7439a823a57862356a587ef0055","LICENSE":"c23953d9deb0a3312dbeaf6c128a657f3591acee45067612fa68405eaa4525db","build.rs":"f7a10af0a21662e104e0058da7e3471a20be328eef6c7c41988525be90fdfe92","callbacks.rs":"3f0ed344a4d27fc8f893f21b1f9cd742d85ccbc23441d745e8a147b6072469bd","clang.rs":"e991300ce9b1f0b9fb4a0b4bd32e899b6cfa546f034858f08bf57678b3d7044c","codegen/bitfield_unit.rs":"1d598b042a9ce6c2f8a2c6eb44c9ee6e2d41865f25fe34ce747a0376c4d9b951","codegen/bitfield_unit_tests.rs":"9915cb19bf37fc1013fc72753bae153f7c249280daec94b25fb461f9936dffa4","codegen/dyngen.rs":"1b42f7fa9fb65ff2fa898b289a3b934d7b21c5ba6c1b3e37aa97f0faa87769a0","codegen/error.rs":"67680c4d171d63848d9eb4ddd5f100be7463564e8c1c9203fefc0e61a19dfdec","codegen/helpers.rs":"9bcec3163826edc9b22256c9bf33dd2964809349b801fc6fa5e9158da4eb0458","codegen/impl_debug.rs":"3e55b361aa56d9b6ef2bdb96ede983385a3b1030aa0f46235cb4d218ad66b2a1","codegen/impl_partialeq.rs":"d4fb2ef354086c3dd5a4c4b69d5deab652fdef225725e28dc694e791c1573d0c","codegen/mod.rs":"b106576fce6df7a3933eaa112d805d42653c2d1287953a002a3bb70b38715f87","codegen/postprocessing/merge_extern_blocks.rs":"3e244fe62abcadcb6dae069c37d21220f5351dc7b8c33c5576a5193731933c4c","codegen/postprocessing/mod.rs":"160a6d6701cabf2514e23570df1bd1b648c909cc27b7c583f21d98fe0c16722e","codegen/postprocessing/sort_semantically.rs":"5099e8fc134a92cb72b585bd95854a52ff81e2f5307c3b83617d83e7408302ee","codegen/serialize.rs":"d57eb31ba0fda825241f886336279573050b396e52badf3886e0bc76a15110ad","codegen/struct_layout.rs":"b5f4a010d60586e5079284f7f02af53d961f02a8e6a2cf09dfab2127f20c3734","deps.rs":"297dcc2be53af1a3ea4f77e16902a641f3e6f0baad09c06a6ea26050a0281c18","diagnostics.rs":"9c80043ac9fa8f683019577f311853a0d5929e41a95b3255736f80105914cdfa","extra_assertions.rs":"1596b7e7f031714dc699ebda135e795f1ecfc971ce9de6861a3c00e77fcef011","features.rs":"cde8d530d03c2793cbbb257db3d64e345af26731b73f45b4b60a618d062443c3","ir/analysis/derive.rs":"42ef56b1adda1b4d2797c7845b909fde8c87e2bf51920b490b7129936d5c494c","ir/analysis/has_destructor.rs":"d75be0d349e744ef198d89f04274cc024e36eb255fe7fb7b660ce805c8977bae","ir/analysis/has_float.rs":"9fb88d05c5920e9000e5cb6e87775c0d1042a6b11205577e281ba281e6e6acdb","ir/analysis/has_type_param_in_array.rs":"0975d1ce43bcba97eb303635118e74d494d46ac67cf5ee53faf6f6584a556cef","ir/analysis/has_vtable.rs":"dcaf36d4d0148db3b5690166e32853a58eda7721c9ea5217723a5dba7d5295b8","ir/analysis/mod.rs":"93edca96d765dfa19ac231198027b0ba48c623502a8be1dbf799a241cd6b304b","ir/analysis/sizedness.rs":"0b78e70737e038ebdee2c3d195194a060c9287000b9059ded0686728a89b4ff2","ir/analysis/template_params.rs":"a8dfd3e02b1745a5b7c6faa16309bd0b8a88d76b7fedca27c322782cc9e77177","ir/annotations.rs":"8397ced62808fe99dfdde35792cd8b2389e7828d752a6c8aa3a70c1e14595e11","ir/comment.rs":"57863204d329ae82872ecc4829cc299969ff07da3a32a4a13d7d84429f55b84d","ir/comp.rs":"d3a5ad60522158668a8a22ccbcd3edbbf614524eed581a433c06a19f5df34fa7","ir/context.rs":"740cc127c1db37e1b720a646a90db1cb599bd179f01de788f9c3d5d52b497bb6","ir/derive.rs":"09860cffec0ebecce31da0c6c9ea0cf9a0d4784262ff4eb16ea459c0d0782ac9","ir/dot.rs":"8b8f6dd13e662fcb4114949025cb43467b34fa4998a3371c101db5dd82688f44","ir/enum_ty.rs":"064e562909e41fadbb8054291a711f221127fe7073608b1f2f8037fa0c1867bf","ir/function.rs":"94bdc59bc39e043825d6cbbf5a461329462f0eb74c4c216002e1da86bf93e46b","ir/int.rs":"1bf1e4d87eca13ee2fc38ff4d56c266f303f188796f5c0d290f53162798d2d01","ir/item.rs":"6983232b2362f4d23261754f0ef242162ce66bbe9398a7707a88cb7bcee0f0fd","ir/item_kind.rs":"799fab994b5ed35045786a68003c2c12b6601cf3b07e8ccc0b9acd6f921217e0","ir/layout.rs":"7a7173efde2a9daed8562d657bad563922f798e44055e35899dd47badd46c52d","ir/mod.rs":"a3b98b1732111a980a795c72eaf1e09101e842ef2de76b4f2d4a7857f8d4cee4","ir/module.rs":"617867617ebd7e56157a9ba057441ce11a33c25138a1da64646f44ccaae7c762","ir/objc.rs":"092c7f32cec4191aa6235e4554420ab2053e0c7fec5ece016a7ed303763e8547","ir/template.rs":"1114c0924323f8b30bb32dbb3f6730dd7f5bc1f0771ad5099738e8e57111c07d","ir/traversal.rs":"3ebde94ead0fe69d51541ab61d700c7c1f6382574e4c110b8c7fe3e2c6218f19","ir/ty.rs":"19e920817230f44f9a81558915596cbd93f9166025224002fc5654758e1df2b1","ir/var.rs":"2a94decd3adfdccd3bd0015b460d180838e3c92b122b632eed44032b80cad120","lib.rs":"805f7d4547f4e9e3ab024e98e39c6c3c2b74f2fd6cdd657915a5d0bbd7655dab","log_stubs.rs":"a636d59af2fd3745c2e416e1ab8a1e1a3888ea84cd4657a321ce22f15e0c5a87","options/as_args.rs":"a1a5e7f0dde82590371fc1a9ea5fde7f3e2252530ca74d98bb49a8ce06cc864f","options/cli.rs":"7712b6d4d3f8f4dc9a07e5e0fe21687b05c118e70e9c1952a2eebc34da20c2c4","options/helpers.rs":"f4a7681e29b2dcc3be9249478c499d685b9e29d4f4ca4ae8bff7a91668cd8f15","options/mod.rs":"2bedfdd6aa9817bdc8155ca8290e0d6055ef6d7a90353d6cb99ddc6121609693","parse.rs":"fce3616e0464aa7414888e5d00d4df18c83bb3034a1c807d36a07a3c586e475a","regex_set.rs":"d8995adb9e5cecc2d738e662a62d5081150bf967cb67e1206070e22b7265578a","time.rs":"1429af446b2b38c70ceec82c4202d4822c618cad47ba502dce72dbdc4cbb425e"},"package":null}
