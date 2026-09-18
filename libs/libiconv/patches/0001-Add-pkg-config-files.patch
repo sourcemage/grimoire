@@ -1,0 +1,113 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Thu, 18 Sep 2026 01:00:00 +0200
+Subject: [PATCH] Add pkg-config files
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+--- a/libiconv.pc.in
++++ b/libiconv.pc.in
+@@ -0,0 +1,10 @@
++prefix=@prefix@
++exec_prefix=@exec_prefix@
++libdir=@libdir@
++includedir=@includedir@
++
++Name: GNU libiconv
++Description: GNU character set conversion library
++Version: @PACKAGE_VERSION@
++Libs: -L${libdir} -liconv
++Cflags: -I${includedir}
+--- a/libcharset.pc.in
++++ b/libcharset.pc.in
+@@ -0,0 +1,10 @@
++prefix=@prefix@
++exec_prefix=@exec_prefix@
++libdir=@libdir@
++includedir=@includedir@
++
++Name: libcharset
++Description: Character set name lookup, from GNU libiconv
++Version: @PACKAGE_VERSION@
++Libs: -L${libdir} -lcharset
++Cflags: -I${includedir}
+--- a/configure.ac
++++ b/configure.ac
+@@ -211,4 +211,6 @@
+ fi
+ AC_CONFIG_FILES([include/iconv.h:include/iconv.h.build.in])
+ AC_CONFIG_FILES([include/iconv.h.inst:include/iconv.h.in])
++AC_CONFIG_FILES([libiconv.pc])
++AC_CONFIG_FILES([libcharset.pc])
+ AC_OUTPUT
+--- a/configure
++++ b/configure
+@@ -33701,6 +33701,10 @@
+ 
+ ac_config_files="$ac_config_files include/iconv.h.inst:include/iconv.h.in"
+ 
++ac_config_files="$ac_config_files libiconv.pc"
++
++ac_config_files="$ac_config_files libcharset.pc"
++
+ cat >confcache <<\_ACEOF
+ # This file is a shell script that caches the results of configure
+ # tests run on this system so they can be shared between configure
+@@ -34890,6 +34894,8 @@
+     "tests/Makefile") CONFIG_FILES="$CONFIG_FILES tests/Makefile" ;;
+     "include/iconv.h") CONFIG_FILES="$CONFIG_FILES include/iconv.h:include/iconv.h.build.in" ;;
+     "include/iconv.h.inst") CONFIG_FILES="$CONFIG_FILES include/iconv.h.inst:include/iconv.h.in" ;;
++    "libiconv.pc") CONFIG_FILES="$CONFIG_FILES libiconv.pc" ;;
++    "libcharset.pc") CONFIG_FILES="$CONFIG_FILES libcharset.pc" ;;
+ 
+   *) as_fn_error $? "invalid argument: '$ac_config_target'" "$LINENO" 5;;
+   esac
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -14,6 +14,7 @@
+ libdir = @libdir@
+ includedir = @includedir@
+ mandir = @mandir@
++pkgconfigdir = $(libdir)/pkgconfig
+ 
+ # Programs used by "make":
+ RM = rm -f
+@@ -56,6 +57,9 @@
+ 	$(INSTALL_DATA) include/iconv.h.inst $(DESTDIR)$(includedir)/iconv.h
+ 	cd po && $(MAKE) install prefix='$(prefix)' exec_prefix='$(exec_prefix)' datarootdir='$(datarootdir)' datadir='$(datadir)'
+ 	cd man && $(MAKE) install prefix='$(prefix)' exec_prefix='$(exec_prefix)' datarootdir='$(datarootdir)' datadir='$(datadir)' mandir='$(mandir)'
++	if [ ! -d $(DESTDIR)$(pkgconfigdir) ] ; then $(mkinstalldirs) $(DESTDIR)$(pkgconfigdir) ; fi
++	$(INSTALL_DATA) libiconv.pc $(DESTDIR)$(pkgconfigdir)/libiconv.pc
++	$(INSTALL_DATA) libcharset.pc $(DESTDIR)$(pkgconfigdir)/libcharset.pc
+ 
+ install-strip : lib/localcharset.h force
+ 	cd libcharset && $(MAKE) install-strip prefix='$(prefix)' exec_prefix='$(exec_prefix)' libdir='$(libdir)'
+@@ -66,6 +70,9 @@
+ 	$(INSTALL_DATA) include/iconv.h.inst $(DESTDIR)$(includedir)/iconv.h
+ 	cd po && $(MAKE) install-strip prefix='$(prefix)' exec_prefix='$(exec_prefix)' datarootdir='$(datarootdir)' datadir='$(datadir)'
+ 	cd man && $(MAKE) install-strip prefix='$(prefix)' exec_prefix='$(exec_prefix)' datarootdir='$(datarootdir)' datadir='$(datadir)' mandir='$(mandir)'
++	if [ ! -d $(DESTDIR)$(pkgconfigdir) ] ; then $(mkinstalldirs) $(DESTDIR)$(pkgconfigdir) ; fi
++	$(INSTALL_DATA) libiconv.pc $(DESTDIR)$(pkgconfigdir)/libiconv.pc
++	$(INSTALL_DATA) libcharset.pc $(DESTDIR)$(pkgconfigdir)/libcharset.pc
+ 
+ installdirs : force
+ 	cd libcharset && $(MAKE) installdirs prefix='$(prefix)' exec_prefix='$(exec_prefix)' libdir='$(libdir)'
+@@ -75,6 +82,7 @@
+ 	if [ ! -d $(DESTDIR)$(includedir) ] ; then $(mkinstalldirs) $(DESTDIR)$(includedir) ; fi
+ 	cd po && $(MAKE) installdirs prefix='$(prefix)' exec_prefix='$(exec_prefix)' datarootdir='$(datarootdir)' datadir='$(datadir)'
+ 	cd man && $(MAKE) installdirs prefix='$(prefix)' exec_prefix='$(exec_prefix)' datarootdir='$(datarootdir)' datadir='$(datadir)' mandir='$(mandir)'
++	if [ ! -d $(DESTDIR)$(pkgconfigdir) ] ; then $(mkinstalldirs) $(DESTDIR)$(pkgconfigdir) ; fi
+ 
+ uninstall : force
+ 	cd libcharset && $(MAKE) uninstall prefix='$(prefix)' exec_prefix='$(exec_prefix)' libdir='$(libdir)'
+@@ -82,6 +90,8 @@
+ 	cd srclib && $(MAKE) uninstall prefix='$(prefix)' exec_prefix='$(exec_prefix)' libdir='$(libdir)'
+ 	cd src && $(MAKE) uninstall prefix='$(prefix)' exec_prefix='$(exec_prefix)' libdir='$(libdir)'
+ 	$(RM) $(DESTDIR)$(includedir)/iconv.h
++	$(RM) $(DESTDIR)$(pkgconfigdir)/libiconv.pc
++	$(RM) $(DESTDIR)$(pkgconfigdir)/libcharset.pc
+ 	cd po && $(MAKE) uninstall prefix='$(prefix)' exec_prefix='$(exec_prefix)' datarootdir='$(datarootdir)' datadir='$(datadir)'
+ 	cd man && $(MAKE) uninstall prefix='$(prefix)' exec_prefix='$(exec_prefix)' datarootdir='$(datarootdir)' datadir='$(datadir)' mandir='$(mandir)'
+ 

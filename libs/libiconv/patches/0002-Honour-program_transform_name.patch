@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Thu, 18 Sep 2026 00:30:00 +0200
+Subject: [PATCH] Honour program_transform_name
+
+configure accepts --program-prefix/--program-suffix and computes
+program_transform_name, but the hand-written makefiles ignore it, so
+the option is silently dropped.  Distributions that need GNU iconv to
+coexist with a libc that has its own (musl, uClibc) have to rename
+bin/iconv after the fact.
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+--- a/src/Makefile.in
++++ b/src/Makefile.in
+@@ -40,6 +40,7 @@
+ # Programs used by "make install-strip":
+ STRIP = @STRIP@
+ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
++transform = @program_transform_name@
+ install_sh = @install_sh@
+ 
+ #### End of system configuration section. ####
+@@ -114,7 +115,7 @@
+ # ../lib/libiconv.la entirely.
+ install : all force
+ 	if [ ! -d $(DESTDIR)$(bindir) ] ; then $(mkinstalldirs) $(DESTDIR)$(bindir) ; fi
+-	$(INSTALL_PROGRAM_ENV) $(LIBTOOL_INSTALL) $(INSTALL_PROGRAM) iconv$(EXEEXT) $(DESTDIR)$(bindir)/iconv$(EXEEXT)
++	$(INSTALL_PROGRAM_ENV) $(LIBTOOL_INSTALL) $(INSTALL_PROGRAM) iconv$(EXEEXT) $(DESTDIR)$(bindir)/`echo iconv | sed '$(transform)'`$(EXEEXT)
+ 
+ install-strip : force
+ 	case '$(INSTALL_PROGRAM)' in \
+@@ -128,7 +129,7 @@
+ 	if [ ! -d $(DESTDIR)$(bindir) ] ; then $(mkinstalldirs) $(DESTDIR)$(bindir) ; fi
+ 
+ uninstall : force
+-	$(LIBTOOL_UNINSTALL) $(RM) $(DESTDIR)$(bindir)/iconv$(EXEEXT)
++	$(LIBTOOL_UNINSTALL) $(RM) $(DESTDIR)$(bindir)/`echo iconv | sed '$(transform)'`$(EXEEXT)
+ 
+ check : all
+ 
+--- a/man/Makefile.in
++++ b/man/Makefile.in
+@@ -23,6 +23,7 @@
+ INSTALL = @INSTALL@
+ INSTALL_PROGRAM = @INSTALL_PROGRAM@
+ INSTALL_DATA = @INSTALL_DATA@
++transform = @program_transform_name@
+ mkinstalldirs = $(SHELL) @top_srcdir@/build-aux/mkinstalldirs
+ 
+ #### End of system configuration section. ####
+@@ -36,7 +37,7 @@
+ 
+ install : force
+ 	if [ ! -d $(DESTDIR)$(mandir)/man1 ] ; then $(mkinstalldirs) $(DESTDIR)$(mandir)/man1 ; fi
+-	builddir="`pwd`"; cd $(srcdir) && for f in *.1 ; do (cd "$$builddir"; echo $(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(mandir)/man1/$$f ; $(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(mandir)/man1/$$f) ; done
++	builddir="`pwd`"; cd $(srcdir) && for f in *.1 ; do (cd "$$builddir"; t=`echo $$f | sed -e 's/\.1$$//' -e '$(transform)'`.1; echo $(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(mandir)/man1/$$t ; $(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(mandir)/man1/$$t) ; done
+ 	if [ ! -d $(DESTDIR)$(mandir)/man3 ] ; then $(mkinstalldirs) $(DESTDIR)$(mandir)/man3 ; fi
+ 	builddir="`pwd`"; cd $(srcdir) && for f in *.3 ; do (cd "$$builddir"; echo $(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(mandir)/man3/$$f ; $(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(mandir)/man3/$$f) ; done
+ 	if [ ! -d $(DESTDIR)$(htmldir) ] ; then $(mkinstalldirs) $(DESTDIR)$(htmldir) ; fi
+@@ -50,7 +51,7 @@
+ 	if [ ! -d $(DESTDIR)$(htmldir) ] ; then $(mkinstalldirs) $(DESTDIR)$(htmldir) ; fi
+ 
+ uninstall : force
+-	cd $(srcdir) && for f in *.1 ; do echo $(RM) $(DESTDIR)$(mandir)/man1/$$f ; $(RM) $(DESTDIR)$(mandir)/man1/$$f ; done
++	cd $(srcdir) && for f in *.1 ; do t=`echo $$f | sed -e 's/\.1$$//' -e '$(transform)'`.1; echo $(RM) $(DESTDIR)$(mandir)/man1/$$t ; $(RM) $(DESTDIR)$(mandir)/man1/$$t ; done
+ 	cd $(srcdir) && for f in *.3 ; do echo $(RM) $(DESTDIR)$(mandir)/man3/$$f ; $(RM) $(DESTDIR)$(mandir)/man3/$$f ; done
+ 	cd $(srcdir) && for f in *.html ; do echo $(RM) $(DESTDIR)$(htmldir)/$$f ; $(RM) $(DESTDIR)$(htmldir)/$$f ; done
+ 
