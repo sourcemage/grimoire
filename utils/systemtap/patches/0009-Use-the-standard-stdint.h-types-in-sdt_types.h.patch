@@ -1,0 +1,99 @@
+From 1f6968ee4620c253d5a38a32b0ef8689d9f61ea7 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:53:24 +0200
+Subject: [PATCH 09/12] Use the standard <stdint.h> types in sdt_types.h
+
+sdt_types.h describes the on-disk layout of the .probes section with
+__uint32_t and __uint64_t.  Those are glibc's internal typedefs from
+<sys/types.h>; they are not standard and musl does not define them, so
+the header and its user tapsets.cxx both fail:
+
+  sdt_types.h:23:3: error: '__uint32_t' does not name a type
+
+Include <stdint.h> and spell the types uint32_t and uint64_t.  They are
+the same types, so the layout is unchanged.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ sdt_types.h | 26 ++++++++++++++------------
+ tapsets.cxx |  8 ++++----
+ 2 files changed, 18 insertions(+), 16 deletions(-)
+
+diff --git a/sdt_types.h b/sdt_types.h
+index 171395b4..1667e367 100644
+--- a/sdt_types.h
++++ b/sdt_types.h
+@@ -6,6 +6,8 @@
+ #ifndef _SDT_TYPES_H
+ #define _SDT_TYPES_H    1
+ 
++#include <stdint.h>
++
+ #define UPROBE1_TYPE 0x31425250 /* "PRB1" (little-endian) */
+ #define UPROBE2_TYPE 0x32425055 /* "UPB2" */
+ #define UPROBE3_TYPE 0x33425055 /* "UPB3" */
+@@ -20,22 +22,22 @@ typedef enum
+ 
+ typedef struct
+ {
+-  __uint32_t type_a;
+-  __uint32_t type_b;
+-  __uint64_t name;
+-  __uint64_t arg;
++  uint32_t type_a;
++  uint32_t type_b;
++  uint64_t name;
++  uint64_t arg;
+ }  stap_sdt_probe_entry_v1;
+ 
+ typedef struct
+ {
+-  __uint32_t type_a;
+-  __uint32_t type_b;
+-  __uint64_t name;
+-  __uint64_t provider;
+-  __uint64_t arg_count;
+-  __uint64_t arg_string;
+-  __uint64_t pc;
+-  __uint64_t semaphore;
++  uint32_t type_a;
++  uint32_t type_b;
++  uint64_t name;
++  uint64_t provider;
++  uint64_t arg_count;
++  uint64_t arg_string;
++  uint64_t pc;
++  uint64_t semaphore;
+ }   stap_sdt_probe_entry_v2;
+ 
+ #endif /* _SDT_TYPES_H */
+diff --git a/tapsets.cxx b/tapsets.cxx
+index b72a680c..4334efc9 100644
+--- a/tapsets.cxx
++++ b/tapsets.cxx
+@@ -9607,12 +9607,12 @@ sdt_query::iterate_over_probe_entries()
+ 	  // the sentinel.
+ 	  if (sess.verbose > 5)
+             clog << _F("got unknown probe_type : 0x%x", probe_type) << endl;
+-	  probe_scn_offset += sizeof(__uint32_t);
++	  probe_scn_offset += sizeof(uint32_t);
+ 	  continue;
+ 	}
+-      if ((long)pbe_v1 % sizeof(__uint64_t)) // we have stap_sdt_probe_entry_v1.type_b
++      if ((long)pbe_v1 % sizeof(uint64_t)) // we have stap_sdt_probe_entry_v1.type_b
+ 	{
+-	  pbe_v1 = (stap_sdt_probe_entry_v1*)((char*)pbe_v1 - sizeof(__uint32_t));
++	  pbe_v1 = (stap_sdt_probe_entry_v1*)((char*)pbe_v1 - sizeof(uint32_t));
+ 	  if (pbe_v1->type_b != uprobe1_type)
+ 	    continue;
+ 	}
+@@ -9641,7 +9641,7 @@ sdt_query::iterate_over_probe_entries()
+ 	    arg_string = (char*)((char*)pdata->d_buf + pbe_v2->arg_string - (char*)probe_scn_addr);
+ 	  // skip over pbe_v2, probe_name text and provider text
+ 	  probe_scn_offset = ((long)(pbe_v2->name) - (long)(probe_scn_addr)) + probe_name.length();
+-	  probe_scn_offset += sizeof (__uint32_t) - probe_scn_offset % sizeof (__uint32_t);
++	  probe_scn_offset += sizeof (uint32_t) - probe_scn_offset % sizeof (uint32_t);
+ 	}
+       if (sess.verbose > 4)
+ 	clog << _("saw .probes ") << probe_name << (provider_name != "" ? _(" (provider ")+provider_name+") " : "")

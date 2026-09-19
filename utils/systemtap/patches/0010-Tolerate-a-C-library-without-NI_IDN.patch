@@ -1,0 +1,39 @@
+From 322e7ae824021797f8ee92b39490fce386cb71ed Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:53:42 +0200
+Subject: [PATCH 10/12] Tolerate a C library without NI_IDN
+
+nss-server-info.cxx passes NI_NAMEREQD|NI_IDN to getnameinfo() when
+resolving a compile server's host name.  NI_IDN is a GNU extension and
+musl does not define it:
+
+  nss-server-info.cxx:1971:55: error: 'NI_IDN' was not declared in this scope
+
+Define it to 0 when absent.  The lookup still works; an internationalised
+host name is just reported in its ACE ("xn--...") form rather than
+decoded to Unicode.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ nss-server-info.cxx | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/nss-server-info.cxx b/nss-server-info.cxx
+index 444773ef..1f1c62d4 100644
+--- a/nss-server-info.cxx
++++ b/nss-server-info.cxx
+@@ -41,6 +41,13 @@ extern "C" {
+ #include <pwd.h>
+ }
+ 
++// NI_IDN asks getnameinfo() to convert an internationalised host name to
++// its Unicode form.  It is a GNU extension; where it is missing the name
++// is simply left in its IDN/ACE encoding.
++#ifndef NI_IDN
++#define NI_IDN 0
++#endif
++
+ #if HAVE_AVAHI
+ extern "C" {
+ #include <avahi-client/client.h>

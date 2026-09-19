@@ -1,0 +1,50 @@
+From 7c2a6f2cfa2112598ba89e76c9e8f9afe40d0ac2 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:58:53 +0200
+Subject: [PATCH 12/12] Use off_t rather than __off_t in staprun
+
+__off_t is a glibc internal typedef.  musl does not define it, so
+staprun.h and staprun_funcs.c fail to compile:
+
+  staprun/staprun.h:237:44: error: unknown type name '__off_t'
+
+off_t is the standard name for the same type, and stat.st_size -- the
+value every one of these parameters receives -- is already an off_t.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ staprun/staprun_funcs.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/staprun/staprun_funcs.c b/staprun/staprun_funcs.c
+index 8cc4acfe..d0d66468 100644
+--- a/staprun/staprun_funcs.c
++++ b/staprun/staprun_funcs.c
+@@ -207,7 +207,7 @@ int insert_module(
+ }
+ 
+ static Elf_Scn *
+-find_section_in_module(const void* module_file, const __off_t st_size, const char *section_name)
++find_section_in_module(const void* module_file, const off_t st_size, const char *section_name)
+ {
+ 	char *name;
+ 	size_t shstrndx;
+@@ -246,7 +246,7 @@ find_section_in_module(const void* module_file, const __off_t st_size, const cha
+ }
+ 
+ int
+-rename_module(void* module_file, const __off_t st_size)
++rename_module(void* module_file, const off_t st_size)
+ {
+ 	int length_to_replace;
+ 	char newname[MODULE_NAME_LEN];
+@@ -585,7 +585,7 @@ check_uprobes_module_path (
+ static privilege_t get_module_required_credentials (
+   const char *module_path,
+   const void* module_file __attribute__ ((unused)),
+-  const __off_t st_size __attribute__ ((unused))
++  const off_t st_size __attribute__ ((unused))
+ )
+ {
+   Elf_Scn *scn = 0;

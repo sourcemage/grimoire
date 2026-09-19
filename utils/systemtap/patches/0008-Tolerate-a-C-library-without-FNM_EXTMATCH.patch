@@ -1,0 +1,39 @@
+From 58fd33186c111c53b3fd1280cbbad0f0dd5342ec Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:53:08 +0200
+Subject: [PATCH 08/12] Tolerate a C library without FNM_EXTMATCH
+
+tapsets.cxx passes FNM_EXTMATCH to fnmatch() when matching kernel
+function names.  The flag is a GNU extension; musl does not
+have it, so the build stops with
+
+  tapsets.cxx:12341:71: error: 'FNM_EXTMATCH' was not declared in this scope
+
+Define it to 0 when absent.  Ordinary glob patterns keep working; only
+the ksh-style !(...) / @(...) extended patterns are unavailable, and
+those cannot be supported without an extended fnmatch() in any case.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ tapsets.cxx | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/tapsets.cxx b/tapsets.cxx
+index 3c96d828..b72a680c 100644
+--- a/tapsets.cxx
++++ b/tapsets.cxx
+@@ -118,6 +118,13 @@ extern "C" {
+ #include <inttypes.h>
+ }
+ 
++// FNM_EXTMATCH (ksh-style !(...), @(...) and friends) is a GNU extension.
++// Where it is missing, fall back to matching the pattern as a plain glob,
++// which is all a non-glibc C library can offer.
++#ifndef FNM_EXTMATCH
++#define FNM_EXTMATCH 0
++#endif
++
+ using namespace std;
+ using namespace __gnu_cxx;
+ 

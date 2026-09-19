@@ -1,0 +1,52 @@
+From 320a0076e9b674554c7170787c69ed5a29157d0d Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:51:17 +0200
+Subject: [PATCH 04/12] Stop relying on the GNU basename() from <string.h>
+
+buildrun.cxx and remote.cxx call basename() on a "const char *" without
+including <libgen.h>.  That only works with glibc, which offers a second,
+non-modifying basename() from <string.h> whenever _GNU_SOURCE is set.
+musl has only the POSIX one, and it lives in <libgen.h> and takes a
+"char *", so both files fail:
+
+  buildrun.cxx:1062:53: error: 'basename' was not declared in this scope
+
+Including <libgen.h> is not a fix here: the POSIX basename() may modify
+its argument, which these two call sites are not prepared for.  Use the
+same std::string idiom the rest of buildrun.cxx already uses instead.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ buildrun.cxx | 3 ++-
+ remote.cxx   | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/buildrun.cxx b/buildrun.cxx
+index 93e2e9f4..99cc2eb9 100644
+--- a/buildrun.cxx
++++ b/buildrun.cxx
+@@ -1059,7 +1059,8 @@ make_kernel_run_command (systemtap_session& s, const string& remotedir,
+           if (remotedir.empty())
+             opt_u.append(s.uprobes_path);
+           else
+-            opt_u.append(remotedir + "/" + basename(s.uprobes_path.c_str()));
++            opt_u.append(remotedir + "/"
++                         + s.uprobes_path.substr(s.uprobes_path.rfind('/')+1)); // basename
+         }
+       cmd.push_back(opt_u);
+     }
+diff --git a/remote.cxx b/remote.cxx
+index 86fae247..95a90764 100644
+--- a/remote.cxx
++++ b/remote.cxx
+@@ -538,7 +538,8 @@ class stapsh : public remote {
+ 
+         if (!s->uprobes_path.empty())
+           {
+-            string remoteuprobes = basename(s->uprobes_path.c_str());
++            string remoteuprobes =
++              s->uprobes_path.substr(s->uprobes_path.rfind('/')+1); // basename
+             if ((rc = send_file(s->uprobes_path, remoteuprobes)))
+               return rc;
+ 

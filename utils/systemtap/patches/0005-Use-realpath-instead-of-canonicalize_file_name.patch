@@ -1,0 +1,47 @@
+From d493979e8c4419b3bde09228c594ea84cd842aaa Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:51:43 +0200
+Subject: [PATCH 05/12] Use realpath() instead of canonicalize_file_name()
+
+canonicalize_file_name() is a GNU extension.  musl does not provide it,
+so client-nss.cxx and session.cxx fail to compile there:
+
+  session.cxx:1565:15: error: 'canonicalize_file_name' was not declared
+
+POSIX.1-2008 realpath(path, NULL) is defined to do the same thing --
+resolve the path and return a malloc'd buffer -- and both call sites
+already free() the result, so the change is a straight substitution.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ client-nss.cxx | 2 +-
+ session.cxx    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/client-nss.cxx b/client-nss.cxx
+index ecc45dd4..f2beea3e 100644
+--- a/client-nss.cxx
++++ b/client-nss.cxx
+@@ -577,7 +577,7 @@ nss_client_backend::include_file_or_directory (const string &subdir,
+ 
+   // Canonicalize the given path and remove the leading /.
+   string rpath;
+-  char *cpath = canonicalize_file_name (path.c_str ());
++  char *cpath = realpath (path.c_str (), NULL);
+   if (! cpath)
+     {
+       // It can not be canonicalized. Use the name relative to
+diff --git a/session.cxx b/session.cxx
+index 881b87f8..2aa504ef 100644
+--- a/session.cxx
++++ b/session.cxx
+@@ -1562,7 +1562,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
+ 	  } else {
+ 	      char *spath;
+ 	      assert(optarg);
+-	      spath = canonicalize_file_name (optarg);
++	      spath = realpath (optarg, NULL);
+ 	      if (spath == NULL) {
+ 		  cerr << _F("ERROR: %s is an invalid directory for --sysroot", optarg) << endl;
+ 		  return 1;

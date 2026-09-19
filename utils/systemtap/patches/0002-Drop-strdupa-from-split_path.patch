@@ -1,0 +1,49 @@
+From ba6955b9d8ab96977e3ec444674b0b41ebcdaee0 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:50:43 +0200
+Subject: [PATCH 02/12] Drop strdupa() from split_path()
+
+strdupa() is a GNU extension.  musl provides it, but as
+
+  #define strdupa(x) strcpy(alloca(strlen(x)+1),x)
+
+and alloca() returns void*, which C++ will not convert implicitly:
+
+  staputil.cxx:300:10: error: invalid conversion from 'void*' to 'char*'
+
+Use a std::vector<char> for each of the two writable copies that
+dirname() and basename() need.  This also removes the unbounded
+stack allocation, which was proportional to the path length.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ staputil.cxx | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/staputil.cxx b/staputil.cxx
+index be162d58..63a2b184 100644
+--- a/staputil.cxx
++++ b/staputil.cxx
+@@ -295,14 +295,13 @@ remove_file_or_dir (const char *name)
+ void 
+ split_path (string &path, string &directory, string &entry)
+ {
+-  char *dirc, *basec, *bname, *dname;
+-
+-  dirc = strdupa (path.c_str());
+-  basec = strdupa (path.c_str());
+-  dname = dirname (dirc);
+-  bname = basename (basec);
+-  directory = dname;
+-  entry = bname;
++  // dirname() and basename() are allowed to modify their argument, so
++  // give each one a private, writable copy of the path.
++  vector<char> dirc (path.c_str(), path.c_str() + path.size() + 1);
++  vector<char> basec (dirc);
++
++  directory = dirname (dirc.data());
++  entry = basename (basec.data());
+ }
+ 
+ 

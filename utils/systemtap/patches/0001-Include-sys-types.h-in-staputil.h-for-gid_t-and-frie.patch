@@ -1,0 +1,36 @@
+From 8a7b88087b59f94dd3e794ab91e272bf759ed0a2 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:50:28 +0200
+Subject: [PATCH 01/12] Include <sys/types.h> in staputil.h for gid_t and
+ friends
+
+staputil.h declares get_gid(), in_group_id() and run_unprivileged()
+using gid_t, uid_t and pid_t, but it only includes <signal.h>,
+<stdint.h>, <spawn.h>, <assert.h> and <poll.h>.
+
+glibc happens to define all three types as a side effect of <signal.h>.
+musl does not: its <signal.h> declares pid_t and uid_t but never gid_t,
+so every translation unit that includes staputil.h fails with
+
+  staputil.h:100:12: error: 'gid_t' does not name a type
+
+Include <sys/types.h>, which POSIX makes the home of these types.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ staputil.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/staputil.h b/staputil.h
+index 6dee9cbc..b0dad86d 100644
+--- a/staputil.h
++++ b/staputil.h
+@@ -27,6 +27,7 @@ extern "C" {
+ #include <spawn.h>
+ #include <assert.h>
+ #include <poll.h>
++#include <sys/types.h>
+ }
+ 
+ // Sanity check C++11 support.  We're only requiring GCC 4.4's level of

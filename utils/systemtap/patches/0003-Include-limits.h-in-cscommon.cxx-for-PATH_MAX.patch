@@ -1,0 +1,30 @@
+From f38c06ffa615b0704db48395036d79f9abc2946b Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:50:56 +0200
+Subject: [PATCH 03/12] Include <limits.h> in cscommon.cxx for PATH_MAX
+
+generate_mok() declares "char tmpdir[PATH_MAX]" and passes PATH_MAX to
+snprintf(), but nothing in the include list defines PATH_MAX.  glibc
+leaks it in through <ssl.h> -> ... -> <limits.h>; musl does not, so the
+file fails to compile:
+
+  cscommon.cxx:300:15: error: 'PATH_MAX' was not declared in this scope
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ cscommon.cxx | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/cscommon.cxx b/cscommon.cxx
+index 5b46ee83..2301d420 100644
+--- a/cscommon.cxx
++++ b/cscommon.cxx
+@@ -29,6 +29,7 @@ extern "C"
+ #include <ssl.h>
+ #include <sys/stat.h>
+ #include <dirent.h>
++#include <limits.h>
+ #include <unistd.h>
+ }
+ 

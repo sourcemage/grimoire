@@ -1,0 +1,131 @@
+From 8669c305d9741329237723424221f7af528cfad3 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:52:34 +0200
+Subject: [PATCH 07/12] Make the nftw() FTW_ACTIONRETVAL use in main.cxx
+ optional
+
+FTW_ACTIONRETVAL, FTW_CONTINUE and FTW_SKIP_SUBTREE are GNU extensions.
+musl has none of them, so main.cxx does not compile there:
+
+  main.cxx:499:16: error: 'FTW_SKIP_SUBTREE' was not declared in this scope
+
+Simply #defining the three constants, as some distributions do, is wrong:
+without FTW_ACTIONRETVAL a non-zero callback return aborts the whole walk
+instead of pruning one subtree, so the tapset search would stop at the
+first directory outside PATH.
+
+Instead, hoist the pruning rule into a want_path() predicate applied to
+each candidate file, which gives the same set of files whether or not the
+subtree was pruned, and make the FTW_SKIP_SUBTREE return a pure
+optimisation used only where the extension exists.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ main.cxx | 43 ++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 34 insertions(+), 9 deletions(-)
+
+diff --git a/main.cxx b/main.cxx
+index e9a005ef..29befe83 100644
+-- a/main.cxx
++++ b/main.cxx
+@@ -482,13 +482,38 @@ run_sdt_benchmark(systemtap_session& s)
+ static set<string> files;
+ static string path_dir;
+ 
++// FTW_ACTIONRETVAL and its return codes are GNU extensions.  Where they
++// are missing (e.g. musl) fall back to walking the whole tree and
++// let want_path() below do the filtering the skip was there to do.
++#ifdef FTW_ACTIONRETVAL
++#define STAP_FTW_FLAGS        FTW_ACTIONRETVAL
++#define STAP_FTW_SKIP_SUBTREE FTW_SKIP_SUBTREE
++#define STAP_FTW_CONTINUE     FTW_CONTINUE
++#else
++#define STAP_FTW_FLAGS        0
++#define STAP_FTW_SKIP_SUBTREE 0
++#define STAP_FTW_CONTINUE     0
++#endif
++
++// True for the files the collect_* callbacks are allowed to pick up:
++// those sitting directly in the directory being walked, plus anything
++// below the PATH subdirectory.  This mirrors the FTW_SKIP_SUBTREE test
++// below, so the result is the same with or without FTW_ACTIONRETVAL.
++static bool want_path(const char* fpath, struct FTW* ftwbuf)
++{
++  if (ftwbuf->level <= 1)
++    return true;
++  return strncmp(path_dir.c_str(), fpath, path_dir.size()) == 0 &&
++         fpath[path_dir.size()] == '/';
++}
++
+ static int collect_stp(const char* fpath, const struct stat*,
+                        int typeflag, struct FTW* ftwbuf)
+ {
+   if (typeflag == FTW_F)
+     {
+       const char* ext = strrchr(fpath, '.');
+-      if (ext && (strcmp(".stp", ext) == 0))
++      if (ext && (strcmp(".stp", ext) == 0) && want_path(fpath, ftwbuf))
+         files.insert(fpath);
+     }
+   else if (typeflag == FTW_D && ftwbuf->level > 0)
+@@ -496,9 +521,9 @@ static int collect_stp(const char* fpath, const struct stat*,
+       // Only recurse for PATH root directory
+       if (strncmp(path_dir.c_str(), fpath, path_dir.size()) != 0 ||
+           (fpath[path_dir.size()] != '/' && fpath[path_dir.size()] != '\0'))
+-        return FTW_SKIP_SUBTREE;
++        return STAP_FTW_SKIP_SUBTREE;
+     }
+-  return FTW_CONTINUE;
++  return STAP_FTW_CONTINUE;
+ }
+ 
+ static int collect_stpm(const char* fpath, const struct stat*,
+@@ -507,7 +532,7 @@ static int collect_stpm(const char* fpath, const struct stat*,
+   if (typeflag == FTW_F)
+     {
+       const char* ext = strrchr(fpath, '.');
+-      if (ext && (strcmp(".stpm", ext) == 0))
++      if (ext && (strcmp(".stpm", ext) == 0) && want_path(fpath, ftwbuf))
+         files.insert(fpath);
+     }
+   else if (typeflag == FTW_D && ftwbuf->level > 0)
+@@ -515,9 +540,9 @@ static int collect_stpm(const char* fpath, const struct stat*,
+       // Only recurse for PATH root directory
+       if (strncmp(path_dir.c_str(), fpath, path_dir.size()) != 0 ||
+           (fpath[path_dir.size()] != '/' && fpath[path_dir.size()] != '\0'))
+-        return FTW_SKIP_SUBTREE;
++        return STAP_FTW_SKIP_SUBTREE;
+     }
+-  return FTW_CONTINUE;
++  return STAP_FTW_CONTINUE;
+ }
+ 
+ #if !HAVE_BPF_DECLS
+@@ -638,7 +663,7 @@ passes_0_4 (systemtap_session &s)
+             {
+               files.clear();
+               path_dir = string(PKGDATADIR) + "/examples";
+-              (void) nftw(path_dir.c_str(), collect_stp, 1, FTW_ACTIONRETVAL);
++              (void) nftw(path_dir.c_str(), collect_stp, 1, STAP_FTW_FLAGS);
+ 
+               vector<string> examples;
+               for (auto it = files.begin(); it != files.end(); ++it)
+@@ -730,7 +755,7 @@ passes_0_4 (systemtap_session &s)
+ 	  // now iterate upon it
+ 	  for (unsigned k=0; k<version_suffixes.size(); k++)
+ 	    {
+-              int flags = FTW_ACTIONRETVAL;
++              int flags = STAP_FTW_FLAGS;
+ 	      string dir = s.include_path[i] + version_suffixes[k];
+               files.clear();
+               // we need to set this for the nftw() callback
+@@ -812,7 +837,7 @@ passes_0_4 (systemtap_session &s)
+ 	  // now iterate upon it
+ 	  for (unsigned k=0; k<version_suffixes.size(); k++)
+ 	    {
+-              int flags = FTW_ACTIONRETVAL;
++              int flags = STAP_FTW_FLAGS;
+ 	      string dir = s.include_path[i] + version_suffixes[k];
+               files.clear();
+               // we need to set this for the nftw() callback

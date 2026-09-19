@@ -1,0 +1,33 @@
+From 249cac44eac9a5e706b41a7b7fb8b006192441ea Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Sat, 19 Sep 2026 05:51:55 +0200
+Subject: [PATCH 06/12] Call open() rather than open64() in setupdwfl.cxx
+
+open64() is an LFS64 alias that only glibc defines; musl dropped the
+LFS64 aliases entirely, so setupdwfl.cxx fails there:
+
+  setupdwfl.cxx:1649:17: error: 'open64' was not declared in this scope
+
+configure.ac already runs AC_SYS_LARGEFILE, so plain open() is the
+64-bit one everywhere systemtap builds, and /sys/kernel/notes is a few
+hundred bytes in any case.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ setupdwfl.cxx | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/setupdwfl.cxx b/setupdwfl.cxx
+index 02b94a7c..48dbe5ec 100644
+--- a/setupdwfl.cxx
++++ b/setupdwfl.cxx
+@@ -1646,7 +1646,7 @@ get_kernel_build_id(systemtap_session &s)
+              << endl;
+ 
+       const char *notesfile = "/sys/kernel/notes";
+-      int fd = open64 (notesfile, O_RDONLY);
++      int fd = open (notesfile, O_RDONLY);
+       if (fd >= 0)
+         {
+           assert (sizeof (Elf32_Nhdr) == sizeof (GElf_Nhdr));
