@@ -1,0 +1,112 @@
+From 2a4df0c08245fd837f798fb3f8a0cee7ef5ecdb3 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sat, 15 Aug 2026 04:00:00 +0100
+Subject: [PATCH 3/5] Explain cgroup and mqueue setup failures
+
+Both of these fail on hosts that are otherwise fine, and the errno alone
+does not say what to do about it:
+
+- A host still running a cgroup v1 hierarchy cannot mount cgroup2, and a
+  user with no delegated cgroup v2 subtree gets EACCES creating its own
+  scope.  Name the requirement and point at --cgroupns host.
+- A missing /dev/mqueue mountpoint on the host breaks both the private and
+  the shared IPC paths.  Give the mount command and the fstab line.
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ pkg/containerutils/rootfs_utils.go | 54 +++++++++++++++++++++++++-----
+ 1 file changed, 46 insertions(+), 8 deletions(-)
+
+diff --git a/pkg/containerutils/rootfs_utils.go b/pkg/containerutils/rootfs_utils.go
+index 0400c2feda0c..2def3c58bb70 100644
+--- a/pkg/containerutils/rootfs_utils.go
++++ b/pkg/containerutils/rootfs_utils.go
+@@ -78,24 +78,52 @@ func setupCgroupfs(conf utils.Config) error {
+ 	if err != nil {
+ 		logging.LogDebug("error: %+v", err)
+ 
+-		return fmt.Errorf("error setting cgroups %w", err)
++		return fmt.Errorf(
++			"cannot mount a cgroup2 filesystem: %w\n"+
++				"A unified (cgroup v2) hierarchy is required. If this host still "+
++				"uses cgroup v1, either switch it to cgroup v2 or run with "+
++				"--cgroupns host to skip cgroup setup",
++			err)
+ 	}
+ 
+ 	// move our process to a dedicated scope, so that eventual init systems
+ 	// won't encour problems with unknown PIDs
+-	err = os.MkdirAll("/sys/fs/cgroup/container-"+conf.Names+".scope", 0o755)
++	scope := "/sys/fs/cgroup/container-" + conf.Names + ".scope"
++
++	err = os.MkdirAll(scope, 0o755)
+ 	if err != nil {
+-		return err
++		if os.IsPermission(err) {
++			return fmt.Errorf(
++				"cannot create cgroup %s: %w\n"+
++					"This user cannot write to its own cgroup, so a rootless "+
++					"container cannot be placed in a scope of its own.\n"+
++					"Delegate a writable cgroup v2 subtree to the user (see the "+
++					"\"Delegation\" section of the kernel cgroup-v2 documentation), "+
++					"or run with --cgroupns host to skip cgroup setup entirely",
++				scope, err)
++		}
++
++		return fmt.Errorf("cannot create cgroup %s: %w", scope, err)
+ 	}
+ 
+-	file, err := os.Create("/sys/fs/cgroup/container-" + conf.Names + ".scope/cgroup.procs")
++	file, err := os.Create(scope + "/cgroup.procs")
+ 	if err != nil {
+-		return err
++		return fmt.Errorf("cannot open %s/cgroup.procs: %w", scope, err)
+ 	}
+ 
++	defer file.Close()
++
+ 	_, err = fmt.Fprint(file, 0)
++	if err != nil {
++		return fmt.Errorf(
++			"cannot move the container process into %s: %w\n"+
++				"Writing to cgroup.procs also needs write access to the "+
++				"cgroup.procs of the common ancestor cgroup; a properly "+
++				"delegated subtree provides this",
++			scope, err)
++	}
+ 
+-	return err
++	return nil
+ }
+ 
+ // we need to setup the /dev/pts mountpoint, by mounting a new devpts filesystem
+@@ -249,7 +277,12 @@ func setupMounts(path string, conf utils.Config) error {
+ 		if err != nil {
+ 			logging.LogDebug("error: %+v", err)
+ 
+-			return fmt.Errorf("error setting IPC private namespace - /dev/mqueue: %w", err)
++			return fmt.Errorf(
++				"cannot mount mqueue on %s: %w\n"+
++					"The host has no /dev/mqueue mountpoint. Create it with:\n"+
++					"    sudo mkdir -p /dev/mqueue && sudo mount -t mqueue mqueue /dev/mqueue\n"+
++					"and add \"mqueue /dev/mqueue mqueue defaults\" to /etc/fstab to persist it",
++				filepath.Join(path, "/dev/mqueue"), err)
+ 		}
+ 	} else {
+ 		logging.LogDebug("setting up shared IPC namespace")
+@@ -268,7 +301,12 @@ func setupMounts(path string, conf utils.Config) error {
+ 		if err != nil {
+ 			logging.LogDebug("error: %+v", err)
+ 
+-			return fmt.Errorf("error setting IPC namespace - /dev/mqueue: %w", err)
++			return fmt.Errorf(
++				"cannot bind-mount the host's /dev/mqueue: %w\n"+
++					"The host has no /dev/mqueue mountpoint. Create it with:\n"+
++					"    sudo mkdir -p /dev/mqueue && sudo mount -t mqueue mqueue /dev/mqueue\n"+
++					"and add \"mqueue /dev/mqueue mqueue defaults\" to /etc/fstab to persist it",
++				err)
+ 		}
+ 	}
+ 
