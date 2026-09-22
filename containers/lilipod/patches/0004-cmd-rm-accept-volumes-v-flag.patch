@@ -1,0 +1,53 @@
+From d5a92a02ff42db6fdb4f5accbae9713174e44dc3 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Tue, 22 Sep 2026 00:00:00 +0000
+Subject: [PATCH 4/5] cmd/rm: accept --volumes/-v flag
+
+Distrobox (and other podman/docker-CLI-compatible tooling) invokes
+container-manager teardown as:
+
+    <manager> rm --volumes <container>
+
+lilipod's `rm` command did not declare this flag, so cobra rejected
+the call outright with "unknown flag: --volumes", breaking distrobox
+integration (see 89luca89/distrobox issue #1710 and discussion #2199).
+
+lilipod already unconditionally removes a container's private volume
+directory ($LILIPOD_HOME/volumes/<id>) on `rm`, so this patch only
+needs to accept and parse the flag for CLI compatibility; no change
+to the removal behavior itself is required. The flag is intentionally
+not force-required to be true, matching podman/docker where `-v` is
+optional and `rm` without it still works.
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ cmd/rm.go | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/cmd/rm.go b/cmd/rm.go
+index ae85fef4972f..a328f92a33e6 100644
+--- a/cmd/rm.go
++++ b/cmd/rm.go
+@@ -31,6 +31,7 @@ func NewRmCommand() *cobra.Command {
+ 	rmCommand.Flags().BoolP("force", "f", false, "force remove container")
+ 	rmCommand.Flags().BoolP("all", "a", false, "remove all containers")
+ 	rmCommand.Flags().BoolP("help", "h", false, "show help")
++	rmCommand.Flags().BoolP("volumes", "v", false, "remove anonymous volumes associated with the container")
+ 
+ 	return rmCommand
+ }
+@@ -41,6 +42,12 @@ func rm(cmd *cobra.Command, arguments []string) error {
+ 		return err
+ 	}
+ 
++	// accepted for compatibility with podman/docker/distrobox; no-op
++	_, err = cmd.Flags().GetBool("volumes")
++	if err != nil {
++		return err
++	}
++
+ 	if force {
+ 		err := exec.Command(os.Args[0], append([]string{"stop", "-f"}, arguments...)...).Run()
+ 		if err != nil {
