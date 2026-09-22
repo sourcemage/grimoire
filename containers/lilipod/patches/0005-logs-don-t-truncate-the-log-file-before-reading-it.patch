@@ -1,0 +1,58 @@
+From c2fce66fc2bf20f7ceca18b964b7722e1cf88e34 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@iodev.co.uk>
+Date: Tue, 22 Sep 2026 20:38:22 +0000
+Subject: [PATCH 5/5] logs: don't truncate the log file before reading it
+
+logs() opened the container's current-logs file with os.Create(),
+which truncates any existing content before opening it. That file is
+the same one start (via procutils.RunDetached) already created and
+has been writing the container's stdout/stderr into, so calling
+"lilipod logs <container>" wipes it to zero bytes an instant before
+reading it back -- every invocation of "logs" destroys the very
+output it's supposed to show, and returns nothing.
+
+This is especially harmful when a container fails during rootfs
+setup, before the entrypoint process starts: that failure is the
+only diagnostic ever written for the container, and "logs" erases
+it on the first read. Front-ends like distrobox, which call "logs"
+right after a failed "start" specifically to explain what went
+wrong to the user, end up printing nothing instead.
+
+Only create the file if it doesn't exist yet, mirroring what "logs"
+already does two lines above when checking the container exists.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ cmd/logs.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/cmd/logs.go b/cmd/logs.go
+index a356919..3c9e795 100644
+--- a/cmd/logs.go
++++ b/cmd/logs.go
+@@ -65,9 +65,19 @@ func logs(cmd *cobra.Command, arguments []string) error {
+ 		return err
+ 	}
+ 
+-	_, err = os.Create(containerutils.GetDir(container) + "/current-logs")
+-	if err != nil {
+-		return err
++	// Ensure the log file exists, but do not truncate it if it's already
++	// there. "start" (via procutils.RunDetached) already created this
++	// file and wrote the container's stdout/stderr into it; blindly
++	// os.Create()-ing it here truncates that content to zero bytes right
++	// before we open it for reading, so every "logs" call -- including
++	// the one distrobox makes right after a failed "start" to explain
++	// what went wrong -- silently returns nothing, destroying the very
++	// diagnostic it was trying to show.
++	if !fileutils.Exist(containerutils.GetDir(container) + "/current-logs") {
++		_, err = os.Create(containerutils.GetDir(container) + "/current-logs")
++		if err != nil {
++			return err
++		}
+ 	}
+ 
+ 	file, err := os.Open(containerutils.GetDir(container) + "/current-logs")
+-- 
+2.43.0
