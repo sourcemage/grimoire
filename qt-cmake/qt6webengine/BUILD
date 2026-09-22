@@ -1,6 +1,7 @@
-if is_depends_enabled $SPELL nodejs-bin;then
-  export PATH+=":/opt/nodejs/bin"
-fi &&
+OPTS+=' -DQT_NO_PACKAGE_VERSION_INCOMPATIBLE_WARNING=TRUE' &&
+OPTS+=' -DQT_NO_PACKAGE_VERSION_CHECK=TRUE' &&
+OPTS+=' -DQT_BUILD_EXAMPLES_BY_DEFAULT=OFF' &&
+OPTS+=' -DQT_GENERATE_SBOM=OFF' &&
 # memory in GiB
 MEM=`grep MemTotal /proc/meminfo|uniq|cut -d: -f2|cut -dk  -f1` &&
 ((MEM=$MEM/1024**2)) &&
