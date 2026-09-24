@@ -1,0 +1,99 @@
+From 4c221edbf8a2ee3e0073713f5c39cfd91feabcbe Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <iluceno@suse.de>
+Date: Wed, 23 Sep 2026 12:32:37 +0200
+Subject: [PATCH 2/2] screencast: notify when no PipeWire session manager is
+ running
+
+Send desktop notifications too; the warning added previously only shows
+up in the log and most users will just see an application that captures
+nothing.
+
+Upstream-Status: Submitted
+  [https://github.com/emersion/xdg-desktop-portal-wlr/pull/402]
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ include/screencast_common.h          |  1 +
+ src/screencast/pipewire_screencast.c | 41 ++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)
+
+diff --git a/include/screencast_common.h b/include/screencast_common.h
+index 6f2b7f5..d298bbb 100644
+--- a/include/screencast_common.h
++++ b/include/screencast_common.h
+@@ -113,6 +113,7 @@ struct xdpw_screencast_context {
+ 	struct spa_hook pwr_registry_listener;
+ 	uint32_t pwr_metadata_id;
+ 	bool pwr_session_manager;
++	bool pwr_session_manager_notified;
+ 
+ 	// wlroots
+ 	struct wl_list output_list;
+diff --git a/src/screencast/pipewire_screencast.c b/src/screencast/pipewire_screencast.c
+index 2adf668..32bfa2b 100644
+--- a/src/screencast/pipewire_screencast.c
++++ b/src/screencast/pipewire_screencast.c
+@@ -664,6 +664,45 @@ static const struct pw_stream_events pwr_stream_events = {
+ 	.process = pwr_handle_stream_on_process,
+ };
+ 
++// Show a desktop notification (best effort, fire and forget), since the
++// failure otherwise shows up only as a client that captures nothing.
++static void pwr_notify_no_session_manager(struct xdpw_screencast_context *ctx) {
++	if (ctx->pwr_session_manager_notified) {
++		return;
++	}
++	ctx->pwr_session_manager_notified = true;
++
++	sd_bus_message *msg = NULL;
++	int ret = sd_bus_message_new_method_call(ctx->state->bus, &msg,
++		"org.freedesktop.Notifications", "/org/freedesktop/Notifications",
++		"org.freedesktop.Notifications", "Notify");
++	if (ret < 0) {
++		goto err;
++	}
++	ret = sd_bus_message_append(msg, "susss", "xdg-desktop-portal-wlr", 0u,
++		"dialog-warning", "Screen sharing will not work",
++		"PipeWire has no session manager running (is WirePlumber started?). "
++		"Screencast streams will stay paused and the sharing application "
++		"will show nothing.");
++	if (ret < 0) {
++		goto err;
++	}
++	ret = sd_bus_message_append(msg, "asa{sv}i", 0, 0, 15000);
++	if (ret < 0) {
++		goto err;
++	}
++	ret = sd_bus_send(ctx->state->bus, msg, NULL);
++	if (ret < 0) {
++		goto err;
++	}
++	sd_bus_message_unref(msg);
++	return;
++
++err:
++	logprint(DEBUG, "pipewire: failed to send notification: %s", strerror(-ret));
++	sd_bus_message_unref(msg);
++}
++
+ void xdpw_pwr_stream_create(struct xdpw_screencast_instance *cast) {
+ 	struct xdpw_screencast_context *ctx = cast->ctx;
+ 	struct xdpw_state *state = ctx->state;
+@@ -674,6 +713,7 @@ void xdpw_pwr_stream_create(struct xdpw_screencast_instance *cast) {
+ 		logprint(WARN, "pipewire: no session manager detected (no 'default' "
+ 			"metadata found); the stream will most likely stay paused and "
+ 			"clients will fail to capture. Is WirePlumber running?");
++		pwr_notify_no_session_manager(ctx);
+ 	}
+ 
+ 	uint8_t buffer[2 * 1024];
+@@ -754,6 +794,7 @@ static void pwr_registry_global(void *data, uint32_t id, uint32_t permissions,
+ 	}
+ 	ctx->pwr_metadata_id = id;
+ 	ctx->pwr_session_manager = true;
++	ctx->pwr_session_manager_notified = false;
+ 	logprint(INFO, "pipewire: session manager detected ('default' metadata, id %u)", id);
+ }
+ 
+-- 
+2.43.0
+
