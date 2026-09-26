@@ -1,0 +1,48 @@
+. "$GRIMOIRE"/QT6_DEPENDS &&
+depends extra-cmake-modules &&
+depends libx11 &&
+depends libxfixes &&
+depends libxtst &&
+depends qt6declarative &&
+depends qt6svg &&
+depends qt6tools &&
+
+optional_depends qca-qt6 \
+        -DWITH_QCA_ENCRYPTION=ON \
+        -DWITH_QCA_ENCRYPTION=OFF \
+        'encrypted tabs support' &&
+
+if is_depends_enabled $SPELL qca-qt6; then
+  optional_depends qtkeychain \
+          -DWITH_KEYCHAIN=ON \
+          -DWITH_KEYCHAIN=OFF \
+          'keep the encryption password in the system keyring'
+else
+  OPTS+=' -DWITH_KEYCHAIN=OFF'
+fi &&
+
+optional_depends knotifications \
+        -DWITH_NATIVE_NOTIFICATIONS=ON \
+        -DWITH_NATIVE_NOTIFICATIONS=OFF \
+        'native desktop notifications' &&
+
+if is_depends_enabled $SPELL knotifications; then
+  depends kstatusnotifieritem
+fi &&
+
+optional_depends kguiaddons '' '' 'better Wayland clipboard integration' &&
+
+if ! is_depends_enabled $SPELL kguiaddons; then
+  # fall back to the bundled systemclipboard, which needs the Wayland client
+  depends qt6wayland
+fi &&
+
+optional_depends miniaudio \
+        -DWITH_AUDIO=ON \
+        -DWITH_AUDIO=OFF \
+        'audio playback support' &&
+
+optional_depends gnome-shell \
+        -DWITH_GNOME_CLIPBOARD_EXTENSION=ON \
+        -DWITH_GNOME_CLIPBOARD_EXTENSION=OFF \
+        'GNOME Shell clipboard monitoring extension'
