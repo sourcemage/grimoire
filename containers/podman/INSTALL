@@ -1,0 +1,19 @@
+install_targets=(install.bin install.remote install.completions) &&
+if is_depends_enabled $SPELL go-md2man; then
+  install_targets+=(install.man)
+fi &&
+make \
+  PREFIX="$INSTALL_ROOT"/usr \
+  DESTDIR="$INSTALL_ROOT" \
+  "${install_targets[@]}" &&
+
+install -d "$INSTALL_ROOT/etc/containers" &&
+install -Dm644 vendor/go.podman.io/common/pkg/config/containers.conf \
+  "$INSTALL_ROOT/usr/share/containers/containers.conf.example" &&
+install -Dm644 vendor/go.podman.io/storage/storage.conf \
+  "$INSTALL_ROOT/usr/share/containers/storage.conf.example" &&
+
+if [[ ! -e "$INSTALL_ROOT/etc/containers/registries.conf" ]]; then
+  >"$INSTALL_ROOT/etc/containers/registries.conf" \
+    echo 'unqualified-search-registries = ["docker.io"]'
+fi
