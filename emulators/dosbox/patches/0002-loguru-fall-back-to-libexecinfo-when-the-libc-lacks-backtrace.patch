@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Mon, 28 Sep 2026 00:37:38 +0200
+Subject: [PATCH] loguru: fall back to libexecinfo when the libc lacks backtrace
+
+Checking the symbol as well is not enough: on musl and the BSDs the header
+is shipped but the implementation is not in the libc, so disabling
+stacktraces there needlessly drops a feature. Look for libexecinfo when the
+symbol is missing from the libc, and only give up when neither provides it.
+
+The symbol check has to be done as C++: the backtrace() prototype sits
+behind __USE_GNU, so as C it is reported missing on glibc too and the build
+then asks for a library that conflicts with the libc it came from.
+
+Ask pkg-config for libexecinfo instead of searching for the library by
+name, and link it against loguru rather than against the executable: dosbox
+is defined before this directory is added, so the library was reaching the
+front of the link line, before the archive that needs it, and --as-needed
+dropped it again.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+--- a/src/libs/loguru/CMakeLists.txt
++++ b/src/libs/loguru/CMakeLists.txt
+@@ -3,10 +3,23 @@
+ set(STACK_INCLUDES cxxabi.h dlfcn.h execinfo.h)
+ 
+ check_include_files("${STACK_INCLUDES}" HAS_STACK_INCLUDES LANGUAGE CXX)
++check_symbol_exists(backtrace "execinfo.h" HAS_BACKTRACE LANGUAGE CXX)
+ 
+-if (HAS_STACK_INCLUDES)
++# Some platforms ship the header but keep the implementation out of the libc
++# (musl, the BSDs); there it lives in libexecinfo.
++if (HAS_STACK_INCLUDES AND NOT HAS_BACKTRACE)
++	pkg_check_modules(EXECINFO IMPORTED_TARGET libexecinfo)
++	if (EXECINFO_FOUND)
++		set(HAS_BACKTRACE TRUE)
++	endif()
++endif()
++
++if (HAS_STACK_INCLUDES AND HAS_BACKTRACE)
+ 	target_compile_definitions(loguru PRIVATE LOGURU_STACKTRACES=1)
+ 	target_link_options(dosbox PRIVATE "-rdynamic")
++	if (EXECINFO_FOUND)
++		target_link_libraries(loguru PRIVATE PkgConfig::EXECINFO)
++	endif()
+ endif()
+ 
+ if (NOT MSVC)
