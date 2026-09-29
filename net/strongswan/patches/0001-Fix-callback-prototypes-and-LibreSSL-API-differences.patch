@@ -1,0 +1,269 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Tue, 29 Sep 2026 03:25:05 +0200
+Subject: [PATCH] Fix callback prototypes and LibreSSL API differences
+
+GCC 14 rejects an implicit conversion between incompatible function
+pointer types, and several of the callbacks installed here are helpers
+taking a narrower set of arguments than the field they are assigned to.
+Cast at the assignment site instead of widening the helpers, which have
+callers of their own.
+
+LibreSSL reports an OpenSSL 1.1.1 version number without carrying the
+additions that number stands for: it defines neither EVP_PKEY_ED448 nor
+EVP_PKEY_X448, has no SHAKE-based extendable output functions, and still
+takes the pre-1.1.0 low-level EC code path. Test for those features
+directly so the plugin also builds against LibreSSL.
+
+Upstream-Status: Pending
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ src/libcharon/encoding/payloads/encrypted_payload.c       | 2 +-
+ src/libcharon/plugins/updown/updown_handler.c             | 2 +-
+ ...strongswan/plugins/openssl/openssl_ec_diffie_hellman.c | 8 ++++----
+ ...libstrongswan/plugins/openssl/openssl_ed_private_key.c | 2 ++
+ src/libstrongswan/plugins/openssl/openssl_ed_public_key.c | 2 ++
+ src/libstrongswan/plugins/openssl/openssl_engine.c        | 2 ++
+ src/libstrongswan/plugins/openssl/openssl_plugin.c        | 2 ++
+ ...ibstrongswan/plugins/openssl/openssl_rsa_private_key.c | 2 +-
+ ...bstrongswan/plugins/openssl/openssl_x_diffie_hellman.c | 4 ++++
+ src/libstrongswan/plugins/openssl/openssl_xof.c           | 2 +-
+ src/libstrongswan/processing/scheduler.c                  | 2 +-
+ src/libstrongswan/utils/identification.c                  | 6 +++---
+ src/pki/command.c                                         | 2 +-
+ 13 files changed, 25 insertions(+), 13 deletions(-)
+
+diff --git a/src/libcharon/encoding/payloads/encrypted_payload.c b/src/libcharon/encoding/payloads/encrypted_payload.c
+index 0766eb39154a..c3f716755efc 100644
+--- a/src/libcharon/encoding/payloads/encrypted_payload.c
++++ b/src/libcharon/encoding/payloads/encrypted_payload.c
+@@ -1023,7 +1023,7 @@ encrypted_fragment_payload_t *encrypted_fragment_payload_create()
+ 				.get_length = _frag_get_length,
+ 				.add_payload = _frag_add_payload,
+ 				.remove_payload = (void*)return_null,
+-				.generate_payloads = nop,
++				.generate_payloads = (void*)nop,
+ 				.set_transform = _frag_set_transform,
+ 				.get_transform = _frag_get_transform,
+ 				.encrypt = _frag_encrypt,
+diff --git a/src/libcharon/plugins/updown/updown_handler.c b/src/libcharon/plugins/updown/updown_handler.c
+index d06a9ecd0d0c..df05b56139a3 100644
+--- a/src/libcharon/plugins/updown/updown_handler.c
++++ b/src/libcharon/plugins/updown/updown_handler.c
+@@ -220,7 +220,7 @@ updown_handler_t *updown_handler_create()
+ 			.handler = {
+ 				.handle = _handle,
+ 				.release = _release,
+-				.create_attribute_enumerator = enumerator_create_empty,
++				.create_attribute_enumerator = (void*)enumerator_create_empty,
+ 			},
+ 			.create_dns_enumerator = _create_dns_enumerator,
+ 			.destroy = _destroy,
+diff --git a/src/libstrongswan/plugins/openssl/openssl_ec_diffie_hellman.c b/src/libstrongswan/plugins/openssl/openssl_ec_diffie_hellman.c
+index 3e85e2db5e14..b5ee45735fec 100644
+--- a/src/libstrongswan/plugins/openssl/openssl_ec_diffie_hellman.c
++++ b/src/libstrongswan/plugins/openssl/openssl_ec_diffie_hellman.c
+@@ -22,7 +22,7 @@
+ #include <openssl/ec.h>
+ #include <openssl/objects.h>
+ 
+-#if OPENSSL_VERSION_NUMBER < 0x1010000fL
++#if OPENSSL_VERSION_NUMBER < 0x1010000fL || defined(LIBRESSL_VERSION_NUMBER)
+ #include <openssl/bn.h>
+ #elif OPENSSL_VERSION_NUMBER >= 0x30000000L
+ #include <openssl/bn.h>
+@@ -82,7 +82,7 @@ struct private_openssl_ec_diffie_hellman_t {
+ 	bool computed;
+ };
+ 
+-#if OPENSSL_VERSION_NUMBER < 0x1010000fL
++#if OPENSSL_VERSION_NUMBER < 0x1010000fL || defined(LIBRESSL_VERSION_NUMBER)
+ /**
+  * Convert a chunk to an EC_POINT and set it on the given key. The x and y
+  * coordinates of the point have to be concatenated in the chunk.
+@@ -211,7 +211,7 @@ METHOD(key_exchange_t, set_public_key, bool,
+ 		this->pub = EVP_PKEY_new();
+ 	}
+ 
+-#if OPENSSL_VERSION_NUMBER < 0x1010000fL
++#if OPENSSL_VERSION_NUMBER < 0x1010000fL || defined(LIBRESSL_VERSION_NUMBER)
+ 	if (!chunk2ecp(this->ec_group, value, this->pub))
+ 	{
+ 		DBG1(DBG_LIB, "ECDH public value is malformed");
+@@ -235,7 +235,7 @@ METHOD(key_exchange_t, set_public_key, bool,
+ METHOD(key_exchange_t, get_public_key, bool,
+ 	private_openssl_ec_diffie_hellman_t *this, chunk_t *value)
+ {
+-#if OPENSSL_VERSION_NUMBER < 0x1010000fL
++#if OPENSSL_VERSION_NUMBER < 0x1010000fL || defined(LIBRESSL_VERSION_NUMBER)
+ 	return ecp2chunk(this->ec_group, this->key, value);
+ #else
+ 	chunk_t pub;
+diff --git a/src/libstrongswan/plugins/openssl/openssl_ed_private_key.c b/src/libstrongswan/plugins/openssl/openssl_ed_private_key.c
+index 67ffd784954a..99627dcec661 100644
+--- a/src/libstrongswan/plugins/openssl/openssl_ed_private_key.c
++++ b/src/libstrongswan/plugins/openssl/openssl_ed_private_key.c
+@@ -252,9 +252,11 @@ private_key_t *openssl_ed_private_key_create(EVP_PKEY *key, bool engine)
+ 		case EVP_PKEY_ED25519:
+ 			type = KEY_ED25519;
+ 			break;
++#ifdef EVP_PKEY_ED448
+ 		case EVP_PKEY_ED448:
+ 			type = KEY_ED448;
+ 			break;
++#endif
+ 		default:
+ 			EVP_PKEY_free(key);
+ 			return NULL;
+diff --git a/src/libstrongswan/plugins/openssl/openssl_ed_public_key.c b/src/libstrongswan/plugins/openssl/openssl_ed_public_key.c
+index 20694f80f379..1671d65a3f3d 100644
+--- a/src/libstrongswan/plugins/openssl/openssl_ed_public_key.c
++++ b/src/libstrongswan/plugins/openssl/openssl_ed_public_key.c
+@@ -62,7 +62,9 @@ int openssl_ed_key_type(key_type_t type)
+ 		case KEY_ED25519:
+ 			return EVP_PKEY_ED25519;
+ 		case KEY_ED448:
++#ifdef EVP_PKEY_ED448
+ 			return EVP_PKEY_ED448;
++#endif
+ 		default:
+ 			return 0;
+ 	}
+diff --git a/src/libstrongswan/plugins/openssl/openssl_engine.c b/src/libstrongswan/plugins/openssl/openssl_engine.c
+index aa760ca97728..98e607970848 100644
+--- a/src/libstrongswan/plugins/openssl/openssl_engine.c
++++ b/src/libstrongswan/plugins/openssl/openssl_engine.c
+@@ -169,7 +169,9 @@ private_key_t *openssl_private_key_connect(key_type_t type, va_list args)
+ #endif
+ #if OPENSSL_VERSION_NUMBER >= 0x1010100fL && !defined(OPENSSL_NO_EC)
+ 		case EVP_PKEY_ED25519:
++#ifdef EVP_PKEY_ED448
+ 		case EVP_PKEY_ED448:
++#endif
+ 			return openssl_ed_private_key_create(key, TRUE);
+ #endif /* OPENSSL_VERSION_NUMBER */
+ 		default:
+diff --git a/src/libstrongswan/plugins/openssl/openssl_plugin.c b/src/libstrongswan/plugins/openssl/openssl_plugin.c
+index 1eb079dfa6e8..c3d7bf295a7a 100644
+--- a/src/libstrongswan/plugins/openssl/openssl_plugin.c
++++ b/src/libstrongswan/plugins/openssl/openssl_plugin.c
+@@ -303,8 +303,10 @@ static private_key_t *openssl_private_key_load(key_type_t type, va_list args)
+ #endif
+ #if OPENSSL_VERSION_NUMBER >= 0x1010100fL && !defined(OPENSSL_NO_EC)
+ 				case EVP_PKEY_ED25519:
++#ifdef EVP_PKEY_ED448
+ 				case EVP_PKEY_ED448:
+ 					return openssl_ed_private_key_create(key, FALSE);
++#endif
+ #endif /* OPENSSL_VERSION_NUMBER */
+ 				default:
+ 					EVP_PKEY_free(key);
+diff --git a/src/libstrongswan/plugins/openssl/openssl_rsa_private_key.c b/src/libstrongswan/plugins/openssl/openssl_rsa_private_key.c
+index 70becc15d283..7ed7548827e1 100644
+--- a/src/libstrongswan/plugins/openssl/openssl_rsa_private_key.c
++++ b/src/libstrongswan/plugins/openssl/openssl_rsa_private_key.c
+@@ -763,7 +763,7 @@ openssl_rsa_private_key_t *openssl_rsa_private_key_load(key_type_t type,
+ 		BN_CTX *ctx;
+ 		BIGNUM *bn_n, *bn_e, *bn_d, *bn_p, *bn_q, *dmp1, *dmq1, *iqmp;
+ 
+-		ctx = BN_CTX_secure_new();
++		ctx = BN_CTX_new();
+ 		if (!ctx)
+ 		{
+ 			goto error;
+diff --git a/src/libstrongswan/plugins/openssl/openssl_x_diffie_hellman.c b/src/libstrongswan/plugins/openssl/openssl_x_diffie_hellman.c
+index a7df04b6c27f..da3f03557a92 100644
+--- a/src/libstrongswan/plugins/openssl/openssl_x_diffie_hellman.c
++++ b/src/libstrongswan/plugins/openssl/openssl_x_diffie_hellman.c
+@@ -66,8 +66,10 @@ static int map_key_type(key_exchange_method_t ke)
+ 	{
+ 		case CURVE_25519:
+ 			return EVP_PKEY_X25519;
++#ifdef EVP_PKEY_X448
+ 		case CURVE_448:
+ 			return EVP_PKEY_X448;
++#endif
+ 		default:
+ 			return 0;
+ 	}
+@@ -170,9 +172,11 @@ key_exchange_t *openssl_x_diffie_hellman_create(key_exchange_method_t ke)
+ 		case CURVE_25519:
+ 			ctx = EVP_PKEY_CTX_new_id(NID_X25519, NULL);
+ 			break;
++#ifdef EVP_PKEY_X448
+ 		case CURVE_448:
+ 			ctx = EVP_PKEY_CTX_new_id(NID_X448, NULL);
+ 			break;
++#endif
+ 		default:
+ 			break;
+ 	}
+diff --git a/src/libstrongswan/plugins/openssl/openssl_xof.c b/src/libstrongswan/plugins/openssl/openssl_xof.c
+index 78bb535f2df1..81035a4acb9c 100644
+--- a/src/libstrongswan/plugins/openssl/openssl_xof.c
++++ b/src/libstrongswan/plugins/openssl/openssl_xof.c
+@@ -17,7 +17,7 @@
+ #include <openssl/evp.h>
+ 
+ /* SHA3 was added with 1.1.1 */
+-#if OPENSSL_VERSION_NUMBER >= 0x1010100fL && !defined(OPENSSL_NO_SHAKE)
++#if OPENSSL_VERSION_NUMBER >= 0x1010100fL && !defined(OPENSSL_NO_SHAKE) && !defined(LIBRESSL_VERSION_NUMBER)
+ 
+ #include "openssl_xof.h"
+ 
+diff --git a/src/libstrongswan/processing/scheduler.c b/src/libstrongswan/processing/scheduler.c
+index a5637ce6fb1c..b1210c7b42b2 100644
+--- a/src/libstrongswan/processing/scheduler.c
++++ b/src/libstrongswan/processing/scheduler.c
+@@ -329,7 +329,7 @@ scheduler_t * scheduler_create()
+ 	this->heap = (event_t**)calloc(this->heap_size + 1, sizeof(event_t*));
+ 
+ 	job = callback_job_create_with_prio((callback_job_cb_t)schedule, this,
+-										NULL, return_false, JOB_PRIO_CRITICAL);
++										NULL, (callback_job_cancel_t)return_false, JOB_PRIO_CRITICAL);
+ 	lib->processor->queue_job(lib->processor, (job_t*)job);
+ 
+ 	return &this->public;
+diff --git a/src/libstrongswan/utils/identification.c b/src/libstrongswan/utils/identification.c
+index 7c9c3fd03ae0..c22e7c739d2c 100644
+--- a/src/libstrongswan/utils/identification.c
++++ b/src/libstrongswan/utils/identification.c
+@@ -1374,7 +1374,7 @@ static private_identification_t *identification_create(id_type_t type)
+ 			this->public.hash = _hash_binary;
+ 			this->public.equals = _equals_binary;
+ 			this->public.matches = _matches_any;
+-			this->public.contains_wildcards = return_true;
++			this->public.contains_wildcards = (bool (*)(identification_t *))return_true;
+ 			break;
+ 		case ID_FQDN:
+ 		case ID_RFC822_ADDR:
+@@ -1405,13 +1405,13 @@ static private_identification_t *identification_create(id_type_t type)
+ 			this->public.hash = _hash_binary;
+ 			this->public.equals = _equals_binary;
+ 			this->public.matches = _matches_range;
+-			this->public.contains_wildcards = return_false;
++			this->public.contains_wildcards = (bool (*)(identification_t *))return_false;
+ 			break;
+ 		default:
+ 			this->public.hash = _hash_binary;
+ 			this->public.equals = _equals_binary;
+ 			this->public.matches = _matches_binary;
+-			this->public.contains_wildcards = return_false;
++			this->public.contains_wildcards = (bool (*)(identification_t *))return_false;
+ 			break;
+ 	}
+ 	return this;
+diff --git a/src/pki/command.c b/src/pki/command.c
+index 4ea72077d4ab..e9de9bcc0119 100644
+--- a/src/pki/command.c
++++ b/src/pki/command.c
+@@ -269,7 +269,7 @@ int command_dispatch(int c, char *v[])
+ 	active = help_idx = registered;
+ 	argc = c;
+ 	argv = v;
+-	command_register((command_t){help, 'h', "help", "show usage information"});
++	command_register((command_t){(void*)help, 'h', "help", "show usage information"});
+ 
+ 	build_opts();
+ 	op = getopt_long(c, v, command_optstring, command_opts, NULL);
+-- 
