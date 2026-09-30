@@ -1,5 +1,6 @@
-# musl's libc has its own <crypt.h>, keep libxcrypt's out of its way
-OPTS+=" --includedir=$INSTALL_ROOT/usr/include/xcrypt"
+# keep libxcrypt out of libc's way
+OPTS+=" --includedir=$INSTALL_ROOT/usr/include/xcrypt" &&
+OPTS+=" --disable-xcrypt-compat-files" &&
 
 OPTS="$BUILD_STATIC $OPTS" &&
 OPTS="$OBSOLETE_APIS $OPTS" &&
