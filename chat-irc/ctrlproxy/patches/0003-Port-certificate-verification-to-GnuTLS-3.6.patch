@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sat,  3 Oct 2026 02:05:09 +0200
+Subject: [PATCH 3/4] Port certificate verification to GnuTLS 3.6
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ src/gnutls.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+--- a/src/gnutls.c
++++ b/src/gnutls.c
+@@ -48,16 +48,25 @@
+ verify_certificate (gnutls_session session, const char *hostname, GError **err)
+ {
+ 	int status;
++	int ret;
+ 
+-	status = gnutls_certificate_verify_peers (session);
++	ret = gnutls_certificate_verify_peers2 (session, &status);
+ 
+-	if (status == GNUTLS_E_NO_CERTIFICATE_FOUND) {
++	if (ret == GNUTLS_E_NO_CERTIFICATE_FOUND) {
+ 		g_set_error (err, SSL_ERROR,
+ 			     SSL_ERROR_CERTIFICATE,
+ 			     "No SSL certificate was sent.");
+ 		return FALSE;
+ 	}
+ 
++	if (ret < 0 && ret != GNUTLS_E_CERTIFICATE_VERIFICATION_ERROR) {
++		g_set_error (err, SSL_ERROR,
++			     SSL_ERROR_CERTIFICATE,
++			     "Unable to verify the SSL certificate: %s",
++			     gnutls_strerror (ret));
++		return FALSE;
++	}
++
+ 	if (status & GNUTLS_CERT_INVALID ||
+ #ifdef GNUTLS_CERT_NOT_TRUSTED
+ 	    status & GNUTLS_CERT_NOT_TRUSTED ||
+

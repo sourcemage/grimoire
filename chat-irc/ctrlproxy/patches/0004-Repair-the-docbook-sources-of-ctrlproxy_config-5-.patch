@@ -1,0 +1,246 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sat,  3 Oct 2026 02:05:09 +0200
+Subject: [PATCH 4/4] Repair the docbook sources of ctrlproxy_config(5)
+
+config-reference.xml is XIncluded into ctrlproxy_config.5.xml, so it has
+to parse as a document of its own.  It does not: the file opens a
+<variablelist> that closes after the [global] settings and then continues
+with a stray </refsect2>, further <refsect2> blocks, orphaned
+<varlistentry> elements closed by a dangling --> and a trailing
+</refsect1></variablelist>, so libxml2 stops at "Extra content at the end
+of the document" and xsltproc exits 6, which fails the doc target and
+therefore the whole install.
+
+Give the include a well formed file holding just the [global] variable
+list and move the sections that were misfiled there -- [admin],
+[log-custom], [log-irssi] and REPLICATION -- into ctrlproxy_config.5.xml
+next to [global], where they render as sections of the manual.
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ doc/config-reference.xml   | 97 --------------------------------------
+ doc/ctrlproxy_config.5.xml | 96 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 96 insertions(+), 97 deletions(-)
+
+--- a/doc/config-reference.xml
++++ b/doc/config-reference.xml
+@@ -91,57 +91,6 @@
+ 				for new connections.</para>
+ 		</listitem>
+ 		</varlistentry>
+-	</variablelist>
+-
+-
+-	<para>If the [admin] section is present, ControlProxy will 
+-		create a fake network with a control channel that can 
+-		be used for administration.
+-	</para>
+-
+-	<variablelist>
+-		<varlistentry>
+-			<term>no_privmsg</term>
+-			<listitem><para>
+-			       Don't interpret messages to the 
+-			       user <emphasis>ctrlproxy</emphasis> as administration commands.
+-			</para>
+-			<para>
+-				This option would be needed if you want to be able to 
+-			       send messages to an actual user with the 
+-			       nickname <emphasis>ctrlproxy</emphasis>.
+-		</para></listitem>
+-		</varlistentry>
+-	</variablelist>
+-</refsect2>
+-
+-<refsect2>
+-	<title>[log-custom]</title>
+-
+-	<para>
+-		If the [log-custom] section is present, ControlProxy 
+-		will write a log to <filename>~/.ctrlproxy/log-custom/</filename>
+-	</para>
+-</refsect2>
+-
+-<refsect2>
+-	<title>[log-irssi]</title>
+-
+-	<para>If the [log-irssi] section is present, ControlProxy 
+-		will write irssi-style log files to <filename>~/.ctrlproxy/log-irssi/NETWORK/CHANNEL</filename>.
+-	</para>
+-
+-	<variablelist>
+-		<varlistentry>
+-			<term>logfile</term>
+-			<listitem><para>
+-				       Directory in which logs will be written (defaults 
+-				       to <filename>~/.ctrlproxy/log-irssi/</filename>.
+-			</para></listitem>
+-		</varlistentry>
+-	</variablelist>
+-</refsect2>
+-
+ 		<varlistentry>
+ 			<term>auto-away-message</term>
+ 			<listitem><para>
+@@ -186,52 +135,6 @@
+ 					command.
+ 				</para>
+ 			</listitem>
+-		</varlistentry>-->
+-
+-<refsect1>
+-	<title>REPLICATION</title>
+-
+-	<para>When a client connects, ctrlproxy will send information about 
+-		the channels the user is on. Optionally, it can also send 
+-		some of the messages that were received before the client connected 
+-		(replication).
+-	</para>
+-
+-	<para>
+-		The <parameter>replication</parameter> variable determines what 
+-		kind of replication is used. At the moment, the following 
+-		values are supported:
+-	</para>
+-
+-	<variablelist>
+-		<varlistentry>
+-			<term>none</term>
+-			<listitem><para>No replication.</para></listitem>
+-		</varlistentry>
+-
+-		<varlistentry>
+-			<term>highlight</term>
+-			<listitem><para>
+-				Send messages that one of a set of regular expressions. 
+-				The regular expressions should be specified in 
+-				variable.</para></listitem>
+-		</varlistentry>
+-
+-		<varlistentry>
+-			<term>lastdisconnect</term>
+-			<listitem><para>
+-					Send all messages since the last client disconnected.
+-			</para></listitem>
+-		</varlistentry>
+-
+-		<varlistentry>
+-			<term>simple</term>
+-			<listitem><para>
+-					Send all messages since the last message said by 
+-					the user.</para></listitem>
+ 		</varlistentry>
+ 	</variablelist>
+ 
+-</refsect1>
+-
+-</variablelist>
+--- a/doc/ctrlproxy_config.5.xml
++++ b/doc/ctrlproxy_config.5.xml
+@@ -41,6 +41,102 @@
+ 
+ </refsect2>
+ 
++<refsect2>
++	<title>[admin]</title>
++
++	<para>If the [admin] section is present, ControlProxy will
++		create a fake network with a control channel that can
++		be used for administration.
++	</para>
++
++	<variablelist>
++		<varlistentry>
++			<term>no_privmsg</term>
++			<listitem><para>
++			       Don't interpret messages to the
++			       user <emphasis>ctrlproxy</emphasis> as administration commands.
++			</para>
++			<para>
++				This option would be needed if you want to be able to
++			       send messages to an actual user with the
++			       nickname <emphasis>ctrlproxy</emphasis>.
++		</para></listitem>
++		</varlistentry>
++	</variablelist>
++</refsect2>
++
++<refsect2>
++	<title>[log-custom]</title>
++
++	<para>
++		If the [log-custom] section is present, ControlProxy
++		will write a log to <filename>~/.ctrlproxy/log-custom/</filename>
++	</para>
++</refsect2>
++
++<refsect2>
++	<title>[log-irssi]</title>
++
++	<para>If the [log-irssi] section is present, ControlProxy
++		will write irssi-style log files to <filename>~/.ctrlproxy/log-irssi/NETWORK/CHANNEL</filename>.
++	</para>
++
++	<variablelist>
++		<varlistentry>
++			<term>logfile</term>
++			<listitem><para>
++				       Directory in which logs will be written (defaults
++				       to <filename>~/.ctrlproxy/log-irssi/</filename>.
++			</para></listitem>
++		</varlistentry>
++	</variablelist>
++</refsect2>
++
++<refsect1>
++	<title>REPLICATION</title>
++
++	<para>When a client connects, ctrlproxy will send information about
++		the channels the user is on. Optionally, it can also send
++		some of the messages that were received before the client connected
++		(replication).
++	</para>
++
++	<para>
++		The <parameter>replication</parameter> variable determines what
++		kind of replication is used. At the moment, the following
++		values are supported:
++	</para>
++
++	<variablelist>
++		<varlistentry>
++			<term>none</term>
++			<listitem><para>No replication.</para></listitem>
++		</varlistentry>
++
++		<varlistentry>
++			<term>highlight</term>
++			<listitem><para>
++				Send messages that one of a set of regular expressions.
++				The regular expressions should be specified in
++				variable.</para></listitem>
++		</varlistentry>
++
++		<varlistentry>
++			<term>lastdisconnect</term>
++			<listitem><para>
++					Send all messages since the last client disconnected.
++			</para></listitem>
++		</varlistentry>
++
++		<varlistentry>
++			<term>simple</term>
++			<listitem><para>
++					Send all messages since the last message said by
++					the user.</para></listitem>
++		</varlistentry>
++	</variablelist>
++
++</refsect1>
+ </refsect1>
+ 
+ <refsect1>
+

@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sat,  3 Oct 2026 02:05:09 +0200
+Subject: [PATCH 2/4] Drop the stale libgcrypt initialisation
+
+_gnutls_init() calls gcry_control(GCRYCTL_ENABLE_QUICK_RANDOM, 0) to keep
+gnutls off the blocking /dev/random, but gnutls has not used libgcrypt for
+its crypto backend since 3.0 and does not link it, so the call resolves to
+an undefined gcry_control at link time and cannot influence gnutls anyway.
+
+Drop the call and the now unused gcrypt.h include instead of pulling
+libgcrypt into the link.
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ src/gnutls.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+--- a/src/gnutls.c
++++ b/src/gnutls.c
+@@ -18,7 +18,6 @@
+ 
+ #include <glib.h>
+ 
+-#include <gcrypt.h>
+ #include <gnutls/gnutls.h>
+ #include <gnutls/x509.h>
+ 
+@@ -452,9 +451,6 @@
+ static void
+ _gnutls_init (void)
+ {
+-	/* to disallow usage of the blocking /dev/random */
+-	gcry_control (GCRYCTL_ENABLE_QUICK_RANDOM, 0);
+-
+ 	gnutls_global_init ();
+ 	gnutls_inited = TRUE;
+ }
+
