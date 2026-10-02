@@ -1,0 +1,66 @@
+From 373dd347a52282615b5a56c3b6b92183c07ffa8f Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <iluceno@suse.de>
+Date: Fri, 2 Oct 2026 00:28:10 +0200
+Subject: [PATCH 3/3] gui/term.cc: close the debugger pty after curses has
+ shut down
+
+bx_term_gui_c::exit() closed the pty master before tearing curses down, so
+every sequence endwin() still wanted to send - the screen clear, the cursor
+restore and exit_ca_mode - was written to a closed descriptor and lost. The
+terminal attached to the pty was left with the last frame of the guest on
+screen and the cursor still hidden. The FILE* from fdopen() was never
+closed either.
+
+Keep the FILE* around and hand it to fclose() after endwin(), which flushes
+what is left and closes the descriptor with it. If fdopen() failed the pty
+is still ours, so close it directly.
+
+Upstream-Status: Submitted [https://github.com/bochs-emu/Bochs/pull/903]
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ gui/term.cc | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/gui/term.cc b/gui/term.cc
+index 281b5e23a..c34b90dee 100644
+--- a/gui/term.cc
++++ b/gui/term.cc
+@@ -58,6 +58,7 @@
+ static bx_term_gui_c *theGui = NULL;
+ #if BX_DEBUGGER_TERM
+ static int scr_fd = -1;
++static FILE *scr_fp = NULL;
+ #endif
+ IMPLEMENT_GUI_PLUGIN_CODE(term)
+ 
+@@ -188,7 +189,6 @@
+     BX_PANIC(("cannot log to stderr in term mode"));
+   initscr();
+ #else
+-  FILE *scr_fp = NULL;
+   scr_fd = open("/dev/ptmx",O_RDWR);
+   if(scr_fd > 0){
+     scr_fp = fdopen(scr_fd,"w+");
+@@ -688,13 +688,18 @@
+ void bx_term_gui_c::exit(void)
+ {
+   if (!initialized) return;
+-#if BX_DEBUGGER_TERM
+-  if(scr_fd > 0)
+-    close(scr_fd);
+-#endif
+   clear();
+   flush();
+   endwin();
++#if BX_DEBUGGER_TERM
++  if (scr_fp != NULL) {
++    fclose(scr_fp);   // also closes scr_fd
++    scr_fp = NULL;
++  } else if (scr_fd > 0) {
++    close(scr_fd);    // fdopen() failed, the pty is ours alone
++  }
++  scr_fd = -1;
++#endif
+   BX_DEBUG(("exiting"));
+ }
+ 
