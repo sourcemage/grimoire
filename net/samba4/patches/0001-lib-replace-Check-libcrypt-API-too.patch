@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sat,  3 Oct 2026 03:23:38 +0200
+Subject: [PATCH] lib/replace: Check libcrypt API too
+
+Do not use crypt_r()/crypt_rn() when <crypt.h> does not declare it.
+
+lib/replace/wscript probes for crypt_r and crypt_rn with CHECK_FUNCS_IN(),
+which only resolves the symbol in the library, but that is not enough.
+
+Upstream-Status: Pending
+Origin: User Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ lib/replace/wscript | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+--- a/lib/replace/wscript
++++ b/lib/replace/wscript
+@@ -709,6 +709,21 @@
+     conf.CHECK_FUNCS_IN('crypt_r', 'crypt', checklibc=True)
+     conf.CHECK_FUNCS_IN('crypt_rn', 'crypt', checklibc=True)
+
++    if (conf.CONFIG_SET('HAVE_CRYPT_RN') and
++        not conf.CHECK_CODE('''
++                if (crypt_rn) {
++                    return 0;
++                }
++                return 1;
++                ''',
++                            'HAVE_DECL_CRYPT_RN',
++                            headers='crypt.h',
++                            link=False,
++                            cflags='-Werror=implicit-function-declaration',
++                            msg='Checking for crypt_rn declared by crypt.h')):
++        for func in ('crypt_r', 'crypt_rn'):
++            conf.undefine('HAVE_%s' % func.upper())
++
+     conf.CHECK_VARIABLE('rl_event_hook', define='HAVE_DECL_RL_EVENT_HOOK', always=True,
+                         headers='readline.h readline/readline.h readline/history.h')
+     conf.CHECK_VARIABLE('program_invocation_short_name', headers='errno.h')

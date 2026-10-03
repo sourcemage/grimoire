@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sat,  3 Oct 2026 03:23:38 +0200
+Subject: [PATCH 2/2] source3: Only build regedit when the ncurses form library is usable
+
+source3/wscript_configure_system_ncurses runs CHECK_FUNCS_IN() for the
+ncurses, menu, panel and form libraries and then throws the answers away:
+HAVE_NCURSES is derived from the four headers alone.  ncurses installs its
+headers unconditionally, so on a system where the form library cannot be
+linked the rule still claims regedit is buildable and
+source3/utils/regedit.c fails with undefined references to new_field(),
+new_form(), set_field_back() and friends.
+
+Requiring the functions the rule already probes for makes it report the
+truth, and regedit is skipped instead of breaking the build.
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ source3/wscript_configure_system_ncurses | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+--- a/source3/wscript_configure_system_ncurses
++++ b/source3/wscript_configure_system_ncurses
+@@ -21,7 +21,14 @@
+ if conf.CONFIG_SET('HAVE_NCURSES_H') and \
+    conf.CONFIG_SET('HAVE_MENU_H') and \
+    conf.CONFIG_SET('HAVE_PANEL_H') and \
+-   conf.CONFIG_SET('HAVE_FORM_H'):
++   conf.CONFIG_SET('HAVE_FORM_H') and \
++   conf.CONFIG_SET('HAVE_INITSCR') and \
++   conf.CONFIG_SET('HAVE_SET_MENU_ITEMS') and \
++   conf.CONFIG_SET('HAVE_ITEM_COUNT') and \
++   conf.CONFIG_SET('HAVE_NEW_PANEL') and \
++   conf.CONFIG_SET('HAVE_SHOW_PANEL') and \
++   conf.CONFIG_SET('HAVE_NEW_FIELD') and \
++   conf.CONFIG_SET('HAVE_NEW_FORM'):
+     conf.DEFINE('HAVE_NCURSES', '1')
+ else:
+     conf.undefine('HAVE_NCURSES')
