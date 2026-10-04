@@ -1,0 +1,212 @@
+.TH UASM 1 "October 2026" "uasm 2.57r" "User Commands"
+.SH NAME
+uasm \- Masm-compatible macro assembler
+.SH SYNOPSIS
+.B uasm
+.RI [ options ]
+.IR asm-file ...
+.RI [ @env_var ]
+.SH DESCRIPTION
+.B uasm
+assembles Intel syntax assembly into object files or flat binaries.  It is a
+fork of JWasm and reads Masm source: the
+.B .MODEL
+directive, the
+.B PROC
+and
+.B ENDP
+procedure forms and the usual segment and data directives all work, and an
+internal macro library provides the Masm mnemonics.  Extensions over Masm,
+and the places where the syntax differs from it, are listed in
+.IR Doc/enh.txt .
+.PP
+Unless another output format is selected, objects are written in Intel OMF.
+Formats such as
+.BR -bin ,
+.B -mz
+and
+.B -pe
+produce a linked image rather than a relocatable object, and are meant for
+boot sectors, DOS and Windows executables.
+.PP
+Any number of source files may be given, each with its own options.
+.B @
+arguments read further options from an environment variable, or from a file
+named by it.
+.SH OPTIONS
+.SS Output format
+.TP
+.B -bin
+Plain binary output.
+.TP
+.B -coff
+MS COFF object, 32-bit.
+.TP
+.B -elf
+ELF object, 32-bit.
+.TP
+.B -elf64
+ELF object, 64-bit.
+.TP
+.B -macho64
+Mach-O object, 64-bit.
+.TP
+.B -mz
+DOS MZ executable.
+.TP
+.B -omf
+Intel OMF object.  This is the default.
+.TP
+.B -pe
+Windows PE executable, 32 or 64-bit.
+.TP
+.B -win64
+MS COFF object, 64-bit.
+.TP
+.B -pie
+Generate a position independent image.  ELF64 and Mach-O64 only.
+.SS File names
+.TP
+.BI -Fo " file"
+Write the object to
+.IR file .
+A name without an extension gets
+.B .o
+appended.
+.TP
+.BI -Fl " file"
+Write a listing to
+.IR file .
+.TP
+.BI -Fw " file"
+Write errors to
+.IR file .
+.TP
+.BI -Fi " file"
+Include
+.I file
+before assembling.
+.TP
+.BI "-I " directory
+Add
+.I directory
+to the include path.
+.TP
+.BI "-D " name [= text ]
+Define a text macro.
+.SS Code generation
+.TP
+.BI -0 " .. " -10 [ p ]
+Set the target CPU, from 8086 (0, the default) to x86-64 (10).  A trailing
+.B p
+allows privileged instructions.
+.TP
+.BI -arch SSE | AVX
+Select the instruction set extensions the macro library generates for.
+.TP
+.BI -G p | c | f | z
+Set the calling convention to Pascal, C, Fastcall or stdcall.
+.TP
+.BI -m t | s | c | m | l | h | f
+Set the memory model.
+.TP
+.BI -Zp [ n ]
+Set the structure alignment to
+.IR n .
+.TP
+.BI -Sp [ n ]
+Set the segment alignment to
+.IR n .
+.TP
+.B -Zg
+Generate code that matches Masm byte for byte.
+.TP
+.B -nomlib
+Do not use the internal macro library.
+.TP
+.B -zcm ", " -zcw
+Decorate C names with a leading underscore, or leave them alone.
+.SS Diagnostics
+.TP
+.BI -W level
+Set the warning level, 0 to 4.  The default is 2.
+.TP
+.B -WX
+Treat warnings as errors.
+.TP
+.BI -e number
+Stop after
+.I number
+errors.  The default is 50.
+.TP
+.B -Zs
+Check the syntax only.
+.TP
+.B -eq
+Do not report errors.
+.TP
+.B -q ", " -nologo
+Do not print the version banner.
+.SS Listing contents
+.TP
+.B -EP
+Write the preprocessed source to standard output.
+.TP
+.B -Sa
+Produce a maximal source listing.
+.TP
+.B -Sf
+List the first pass.
+.TP
+.B -Sg
+Include the generated code in the listing.
+.TP
+.B -Sn
+Omit the symbol table from the listing.
+.TP
+.B -Sx
+List false conditionals.
+.SH ENVIRONMENT
+.TP
+.B INCLUDE
+A colon separated list of include directories, added to by
+.BR -I .
+.SH EXIT STATUS
+.B uasm
+exits with status 0 when every file assembled without an error, and non-zero
+otherwise.
+.SH EXAMPLES
+Write a freestanding 64-bit Linux program that prints a line, and link it:
+.PP
+.RS
+.nf
+$ cat hello.asm
+        .code
+PUBLIC _start
+_start:
+        lea     rdx, msg
+        mov     ecx, edx
+        mov     edx, len
+        mov     eax, 1           ; sys_write
+        mov     edi, 1           ; stdout
+        syscall
+        mov     eax, 60          ; sys_exit
+        xor     edi, edi
+        syscall
+
+msg     db      'hello, world', 10
+len     equ     $-msg
+        END
+
+$ uasm -10p -elf64 -Fo hello.o hello.asm
+$ gcc -nostdlib -static -o hello hello.o
+$ ./hello
+hello, world
+.fi
+.RE
+.SH SEE ALSO
+.PP
+.I /usr/share/doc/uasm
+holds the upstream readme, the change log, the licence and the developer
+notes under
+.IR Doc/ .

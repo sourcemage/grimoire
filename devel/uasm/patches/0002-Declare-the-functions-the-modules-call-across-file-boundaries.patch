@@ -1,0 +1,111 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ismael Luceno <ismael@sourcemage.org>
+Date: Sun,  4 Oct 2026 12:47:40 +0200
+Subject: [PATCH 2/3] Declare the functions the modules call across file boundaries
+
+Ten functions are called from a module that never sees a declaration of
+them: OutputInterleavedBytes, BackPatch, SymSimd, RunLineQueue,
+get_curr_srcfile, GetLineNumber, tolower, CreateMacroLibCases32,
+CreateMacroLibCases64 and AddSimdTypes.  GCC 14 makes every implicit
+declaration an error.  Add the include or the extern that each of the
+six calling modules is missing, next to the ones it already declares by
+hand.
+
+None of the callees return a pointer, so nothing miscompiled while they
+were implicit.
+
+Upstream-Status: Pending
+Origin: Source Mage
+Signed-off-by: Ismael Luceno <ismael@sourcemage.org>
+---
+ H/macrolib.h | 2 ++
+ assemble.c   | 1 +
+ codegenv2.c  | 2 ++
+ data.c       | 1 +
+ invoke.c     | 1 +
+ simd.c       | 1 +
+ types.c      | 2 ++
+ 7 files changed, 10 insertions(+)
+
+--- a/assemble.c
++++ b/assemble.c
+@@ -38,6 +38,7 @@
+ #include "listing.h"
+ #include "msgtext.h"
+ #include "myassert.h"
++#include "simd.h"
+ #include "linnum.h"
+ #include "cpumodel.h"
+ #include "lqueue.h"
+--- a/codegenv2.c
++++ b/codegenv2.c
+@@ -1,6 +1,7 @@
+ 
+ #include "codegenv2.h"
+ 
++#include <ctype.h>
+ #include <time.h>
+ #include "globals.h"
+ #include "parser.h"
+@@ -9,6 +10,7 @@
+ #include "fixup.h"
+ #include "fastpass.h"
+ #include "myassert.h"
++#include "input.h"
+ #include "types.h"
+ #include "macro.h"
+ #include "listing.h"
+--- a/data.c
++++ b/data.c
+@@ -85,6 +85,7 @@
+ extern ret_code segm_override( const struct expr *, struct code_info * );
+ extern struct asym *SegOverride;
+ extern const char szNull[];
++extern void OutputInterleavedBytes( const unsigned char *pbytes, int len, struct fixup *fixup );
+ extern UINT_PTR UTF8toWideChar(const unsigned char *pSource, UINT_PTR nSourceLen, UINT_PTR *nSourceDone, unsigned short *szTarget, UINT_PTR nTargetMax);
+ static ret_code data_item( int *, struct asm_tok[], struct asym *, uint_32, const struct asym *, uint_32, bool inside_struct, bool, bool, int );
+ 
+--- a/invoke.c
++++ b/invoke.c
+@@ -71,6 +71,7 @@
+ extern enum special_token stackreg[];
+ extern struct dsym *CurrStruct;
+ extern UINT_PTR UTF8toWideChar(const unsigned char *pSource, UINT_PTR nSourceLen, UINT_PTR *nSourceDone, unsigned short *szTarget, UINT_PTR nTargetMax);
++extern ret_code      BackPatch( struct asym *sym );
+ 
+ #ifdef __I86__
+ #define NUMQUAL (long)
+--- a/H/macrolib.h
++++ b/H/macrolib.h
+@@ -3,6 +3,8 @@
+ #define _MACROLIB_H_
+ 
+ void InitAutoMacros64();
++void CreateMacroLibCases64();
++void CreateMacroLibCases32();
+ void InitAutoMacros32();
+ 
+ #endif
+\ No newline at end of file
+--- a/simd.c
++++ b/simd.c
+@@ -10,6 +10,7 @@
+ #include "simd.h"
+ #include "globals.h"
+ #include "symbols.h"
++#include "lqueue.h"
+ 
+ extern void     AddLineQueue(const char *line);
+ extern void     AddLineQueueX(const char *fmt, ...);
+--- a/types.c
++++ b/types.c
+@@ -24,6 +24,8 @@
+ #include "fastpass.h"
+ #include "myassert.h"
+ 
++extern void SymSimd( struct dsym *sym );
++
+ /* v2.04: changed to 0 */
+ //#define ANYNAME 1 /* fixme: this probably should be changed to 0 */
+ #define ANYNAME 0
+-- 
