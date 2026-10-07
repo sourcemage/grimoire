@@ -1,0 +1,126 @@
+From ba08170ed8a9e11e8bf65af50209863df977b1b1 Mon Sep 17 00:00:00 2001
+From: Tobias Stoeckmann <tobias@stoeckmann.org>
+Date: Sun, 6 Sep 2026 13:18:47 +0200
+Subject: [PATCH] digest: Add nettle 4 support
+
+Add support for nettle 4 by using the correct headers and function
+signatures.
+
+Resolves #2876
+
+Signed-off-by: Tobias Stoeckmann <tobias@stoeckmann.org>
+---
+ libarchive/archive_digest.c         | 24 ++++++++++++++++++++++++
+ libarchive/archive_digest_private.h | 14 ++++++++++++++
+ 2 files changed, 38 insertions(+)
+
+diff --git a/libarchive/archive_digest.c b/libarchive/archive_digest.c
+index ab6db12beb..fe07cea6c8 100644
+--- a/libarchive/archive_digest.c
++++ b/libarchive/archive_digest.c
+@@ -271,7 +271,11 @@ __archive_md5update(archive_md5_ctx *ctx, const void *indata,
+ static int
+ __archive_md5final(archive_md5_ctx *ctx, void *md)
+ {
++#if NETTLE_VERSION_MAJOR < 4
+   md5_digest(ctx, MD5_DIGEST_SIZE, md);
++#else
++  md5_digest(ctx, md);
++#endif
+   return (ARCHIVE_OK);
+ }
+ 
+@@ -454,7 +458,11 @@ __archive_ripemd160update(archive_rmd160_ctx *ctx, const void *indata,
+ static int
+ __archive_ripemd160final(archive_rmd160_ctx *ctx, void *md)
+ {
++#if NETTLE_VERSION_MAJOR < 4
+   ripemd160_digest(ctx, RIPEMD160_DIGEST_SIZE, md);
++#else
++  ripemd160_digest(ctx, md);
++#endif
+   return (ARCHIVE_OK);
+ }
+ 
+@@ -678,7 +686,11 @@ __archive_sha1update(archive_sha1_ctx *ctx, const void *indata,
+ static int
+ __archive_sha1final(archive_sha1_ctx *ctx, void *md)
+ {
++#if NETTLE_VERSION_MAJOR < 4
+   sha1_digest(ctx, SHA1_DIGEST_SIZE, md);
++#else
++  sha1_digest(ctx, md);
++#endif
+   return (ARCHIVE_OK);
+ }
+ 
+@@ -954,7 +966,11 @@ __archive_sha256update(archive_sha256_ctx *ctx, const void *indata,
+ static int
+ __archive_sha256final(archive_sha256_ctx *ctx, void *md)
+ {
++#if NETTLE_VERSION_MAJOR < 4
+   sha256_digest(ctx, SHA256_DIGEST_SIZE, md);
++#else
++  sha256_digest(ctx, md);
++#endif
+   return (ARCHIVE_OK);
+ }
+ 
+@@ -1202,7 +1218,11 @@ __archive_sha384update(archive_sha384_ctx *ctx, const void *indata,
+ static int
+ __archive_sha384final(archive_sha384_ctx *ctx, void *md)
+ {
++#if NETTLE_VERSION_MAJOR < 4
+   sha384_digest(ctx, SHA384_DIGEST_SIZE, md);
++#else
++  sha384_digest(ctx, md);
++#endif
+   return (ARCHIVE_OK);
+ }
+ 
+@@ -1474,7 +1494,11 @@ __archive_sha512update(archive_sha512_ctx *ctx, const void *indata,
+ static int
+ __archive_sha512final(archive_sha512_ctx *ctx, void *md)
+ {
++#if NETTLE_VERSION_MAJOR < 4
+   sha512_digest(ctx, SHA512_DIGEST_SIZE, md);
++#else
++  sha512_digest(ctx, md);
++#endif
+   return (ARCHIVE_OK);
+ }
+ 
+diff --git a/libarchive/archive_digest_private.h b/libarchive/archive_digest_private.h
+index 7db999450e..fd4f9e3a0d 100644
+--- a/libarchive/archive_digest_private.h
++++ b/libarchive/archive_digest_private.h
+@@ -135,6 +135,9 @@
+ #endif
+ 
+ /* Nettle crypto headers */
++#if defined(HAVE_NETTLE_VERSION_H)
++#include <nettle/version.h>
++#endif
+ #if defined(ARCHIVE_CRYPTO_MD5_NETTLE)
+ #include <nettle/md5.h>
+ #endif
+@@ -145,8 +148,19 @@
+   defined(ARCHIVE_CRYPTO_SHA256_NETTLE) ||\
+   defined(ARCHIVE_CRYPTO_SHA384_NETTLE) ||\
+   defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
++#if NETTLE_VERSION_MAJOR < 4
++#if defined(HAVE_NETTLE_SHA_H)
+ #include <nettle/sha.h>
+ #endif
++#else
++#if defined(HAVE_NETTLE_SHA1_H)
++#include <nettle/sha1.h>
++#endif
++#if defined(HAVE_NETTLE_SHA2_H)
++#include <nettle/sha2.h>
++#endif
++#endif
++#endif
+ 
+ /* OpenSSL crypto headers */
+ #if defined(ARCHIVE_CRYPTO_MD5_OPENSSL) ||\
