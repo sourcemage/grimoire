@@ -1,4 +1,4 @@
 QT6DIR=$INSTALL_ROOT/opt/qt6 &&
 OPTS+=" -DQT_UNITY_BUILD=false" &&
 OPTS+=' -DLITEHTML_BUILD_TESTING=off' &&
-cmake_build
+cmake_build $QT6DIR
