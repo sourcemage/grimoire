@@ -10,4 +10,6 @@ echo  $JOBS &&
 
 export NINJAFLAGS="-j$JOBS -l$JOBS" &&
 
-default_build
+# install with qt6
+QT6DIR=$INSTALL_ROOT/opt/qt6 &&
+cmake_build $QT6DIR
