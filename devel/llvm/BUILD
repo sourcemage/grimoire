@@ -110,7 +110,14 @@ if [[ "$LLVM_WITH_FLANG" == y ]] ;then
 fi &&
 
 if [[ "$LLVM_WITH_LIBCLC" == y ]] ;then
-  if [[ $SLOT != 0 ]]; then LLVM_PROJECTS="$LLVM_PROJECTS libclc"; fi &&
+  if [[ $SLOT != 0 ]]; then
+    LLVM_PROJECTS="$LLVM_PROJECTS libclc"
+  else
+  # for LLVM 23
+    for libclc_target in ${LLVM_LIBCLC_TARGETS}; do
+      OPTS="${OPTS} -DRUNTIMES_${libclc_target}_LLVM_ENABLE_RUNTIMES=libclc"
+    done
+  fi &&
   OPTS="$OPTS -DLIBCLC_TARGETS_TO_BUILD=${LLVM_LIBCLC_TARGETS// /;}"
 fi &&
 
