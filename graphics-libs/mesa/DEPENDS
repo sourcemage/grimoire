@@ -43,6 +43,17 @@ if list_find "$MESA_GALLIUM" radeonsi || list_find "$MESA_VULKAN" amd ;then
   buildsys_depends LIBELF
 fi &&
 
+# these drivers compile OpenCL C kernels during the build (mesa-clc, see
+# with_driver_using_cl in meson.build), which links libclang and the SPIR-V
+# translator (LLVMSPIRVLib) and needs SPIRV-Tools; without them configure
+# stops: "CLC requires LLVM"
+if list_find "$MESA_GALLIUM" iris crocus panfrost ||
+   list_find "$MESA_VULKAN" intel intel_hasvk panfrost nouveau ;then
+  need_llvm="y" &&
+  LLVM_SUB_DEPS="CLANG SPIRV $LLVM_SUB_DEPS" &&
+  buildsys_depends spirv-tools
+fi &&
+
 if list_find "$MESA_VULKAN" nouveau ;then
   buildsys_depends rust &&
   buildsys_depends rust-bindgen
