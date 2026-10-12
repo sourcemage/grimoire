@@ -223,8 +223,10 @@ if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
   fi &&
 
   if check_gallium llvmpipe softpipe ;then
-    if check_driver WSL ;then
+    if check_driver WSL || [[ "${MESA_BRANCH}" == "stable" ]];then
       config_query MESA_GALLIUM_D3D10 "Build gallium Direct3D10 (WDDM UMD) frontend?" n
+    else
+      persistent_remove MESA_GALLIUM_D3D10
     fi
   fi &&
 
@@ -254,7 +256,7 @@ if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
   fi &&
 
   if [[ "$MESA_EGL" == "y" ]] ;then
-    local egldefaults="drm surfaceless" &&
+    local egldefaults="surfaceless" &&
     if check_platform x11 ;then
       egldefaults="$egldefaults x11"
     fi &&
@@ -401,4 +403,5 @@ persistent_remove MESA_GALLIUM_D3D9 &&
 persistent_remove MESA_OPENCL_ENABLE &&
 persistent_remove MESA_OPENCL &&
 persistent_remove MESA_OSMESA &&
-list_remove MESA_EGL_DEFAULT "wayland"
+list_remove MESA_EGL_DEFAULT "wayland" &&
+list_remove MESA_EGL_DEFAULT "drm"

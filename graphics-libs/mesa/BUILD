@@ -35,7 +35,6 @@ meson_opt list "platforms" "$MESA_PLATFORMS" &&
 meson_opt boolean "amd-use-llvm"           "$MESA_AMD_LLVM" &&
 meson_opt boolean "draw-use-llvm"          "$MESA_DRAW_LLVM" &&
 meson_opt feature "egl"                    "$MESA_EGL" &&
-meson_opt boolean "gallium-d3d10umd"       "$MESA_GALLIUM_D3D10" &&
 meson_opt feature "gallium-d3d12-graphics" "$MESA_GALLIUM_D3D12_PIPELINE" &&
 meson_opt feature "gallium-d3d12-video"    "$MESA_GALLIUM_D3D12_VIDEO" &&
 meson_opt boolean "gallium-extra-hud"      "$MESA_GALLIUM_HUD" &&
@@ -60,6 +59,9 @@ meson_opt feature "xlib-lease"             "$MESA_XLIB_LEASE" &&
 meson_opt feature "xmlconfig"              "$MESA_XMLCONFIG" &&
 meson_opt boolean "libgbm-external"        "${MESA_EXTERNAL_GBM}" &&
 
+if [[ "${MESA_BRANCH}" != "scm" ]]; then
+  meson_opt boolean "gallium-d3d10umd"       "$MESA_GALLIUM_D3D10"
+fi &&
 if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
   meson_opt list "gallium-drivers" "$MESA_GALLIUM"
 else
