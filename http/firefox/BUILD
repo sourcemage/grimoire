@@ -17,6 +17,10 @@ export MOZ_NOSPAM=1 &&
 # System rustc has no debuginfo
 export RUSTFLAGS="-C debuginfo=0" &&
 
+# rustc knows no "pc" vendor for linux, so its triplet has to be asked
+# for rather than derived from ours (see the RUST_TARGET patch)
+export RUST_TARGET=$(rustc -vV | sed -n "s/^host: //p") &&
+
 export MOZBUILD_STATE_PATH="${SOURCE_DIRECTORY}/mozbuild" &&
 
 #
