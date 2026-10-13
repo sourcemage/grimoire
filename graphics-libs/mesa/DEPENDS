@@ -79,7 +79,15 @@ if list_find "$MESA_TOOLS" intel-ui ;then
   buildsys_depends gtk+3
 fi &&
 
-LLVM_SUB_DEPS="LIBCLC ${LLVM_SUB_DEPS}" &&
+if [[ "${MESA_RUSTICL}" == "y" ]]; then
+  need_llvm="y" &&
+  LLVM_SUB_DEPS="LIBCLC ${LLVM_SUB_DEPS}" &&
+  config_query_multi MESA_LIBCLC_STATIC_LINK "Which libclc SPIR-V targets to link statically?" \
+                     none \
+                     all \
+                     spirv \
+                     spirv64
+fi &&
 
 if [[ "${need_llvm}" == "y" ]] ;then
   buildsys_depends -sub "${LLVM_SUB_DEPS## }" llvm -o llvm
@@ -88,12 +96,6 @@ else
 fi &&
 
 if is_depends_enabled "$SPELL" llvm ;then
-  config_query_multi MESA_LIBCLC_STATIC_LINK "Which libclc SPIR-V targets to link statically?" \
-                     none \
-                     all \
-                     spirv \
-                     spirv64 \
-                     &&
   config_query_list MESA_LINK_LLVM_SHARED "How to link against LLVM (shared recommended)?" \
                     shared \
                     static \
