@@ -1,8 +1,6 @@
-diff --git a/config/system-headers.mozbuild b/config/system-headers.mozbuild
-index b8c1415..fafdbb9 100644
 --- a/config/system-headers.mozbuild
 +++ b/config/system-headers.mozbuild
-@@ -1331,6 +1331,19 @@ if CONFIG["MOZ_SYSTEM_AV1"]:
+@@ -1331,6 +1331,22 @@
          "dav1d/dav1d.h",
      ]
  
@@ -14,40 +12,33 @@ index b8c1415..fafdbb9 100644
 +
 +if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
 +    system_headers += [
++        'harfbuzz/hb-blob.h',
++        'harfbuzz/hb-face.h',
 +        'harfbuzz/hb-glib.h',
 +        'harfbuzz/hb-ot.h',
 +        'harfbuzz/hb.h',
++        'harfbuzz/hb-subset.h',
 +    ]
 +
  if CONFIG["MOZ_SYSTEM_ICU"]:
      system_headers += [
          "unicode/calendar.h",
-diff --git a/dom/base/moz.build b/dom/base/moz.build
-index 108ccbf..73cbb21 100644
 --- a/dom/base/moz.build
 +++ b/dom/base/moz.build
-@@ -628,6 +628,9 @@ FINAL_LIBRARY = "xul"
+@@ -628,6 +628,10 @@
  if CONFIG["MOZ_WIDGET_TOOLKIT"] == "gtk":
      CXXFLAGS += CONFIG["MOZ_GTK3_CFLAGS"]
  
 +if CONFIG["MOZ_SYSTEM_HARFBUZZ"]:
 +    CXXFLAGS += CONFIG["MOZ_HARFBUZZ_CFLAGS"]
++    DEFINES["HB_EXTERN"] = 'extern __attribute__((visibility("default")))'
 +
  GeneratedFile(
      "UseCounterList.h",
      script="gen-usecounters.py",
-diff --git a/gfx/graphite2/geckoextra/moz.build b/gfx/graphite2/geckoextra/moz.build
-new file mode 100644
-index 0000000..e0c5c51
---- /dev/null
+--- a/gfx/graphite2/geckoextra/moz.build
 +++ b/gfx/graphite2/geckoextra/moz.build
-@@ -0,0 +1,25 @@
-+# -*- Mode: python; indent-tabs-mode: nil; tab-width: 40 -*-
-+# vim: set filetype=python:
-+# This Source Code Form is subject to the terms of the Mozilla Public
-+# License, v. 2.0. If a copy of the MPL was not distributed with this
-+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-+
+@@ -0,0 +1,19 @@
 +EXPORTS.graphite2 += [
 +    'include/GraphiteExtra.h',
 +    'include/GraphiteStructsForRLBox.h',
@@ -67,11 +58,9 @@ index 0000000..e0c5c51
 +AllowCompilerWarnings()
 +
 +FINAL_LIBRARY = 'xul'
-diff --git a/gfx/moz.build b/gfx/moz.build
-index 86d559e..9415cec 100644
 --- a/gfx/moz.build
 +++ b/gfx/moz.build
-@@ -14,6 +14,14 @@ with Files("skia/**"):
+@@ -14,6 +14,14 @@
  with Files("angle/**"):
      BUG_COMPONENT = ("Core", "Graphics: ANGLE")
  
@@ -86,7 +75,7 @@ index 86d559e..9415cec 100644
  DIRS += [
      "cairo",
      "2d",
-@@ -23,8 +31,6 @@ DIRS += [
+@@ -23,8 +31,6 @@
      "qcms",
      "gl",
      "layers",
@@ -95,39 +84,45 @@ index 86d559e..9415cec 100644
      "ots/src",
      "thebes",
      "ipc",
-diff --git a/gfx/skia/generate_mozbuild.py b/gfx/skia/generate_mozbuild.py
-index 2599b54..4f24b22 100755
 --- a/gfx/skia/generate_mozbuild.py
 +++ b/gfx/skia/generate_mozbuild.py
-@@ -98,6 +98,9 @@ LOCAL_INCLUDES += [
-     "/gfx/harfbuzz/src",
- ]
+@@ -97,7 +97,12 @@
+-LOCAL_INCLUDES += [
+-    "/gfx/harfbuzz/src",
+-]
++if not CONFIG['MOZ_SYSTEM_HARFBUZZ']:
++    LOCAL_INCLUDES += [
++        "/gfx/harfbuzz/src",
++    ]
  
 +if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
 +    CXXFLAGS += CONFIG['MOZ_HARFBUZZ_CFLAGS']
++    DEFINES['HB_EXTERN'] = 'extern __attribute__((visibility("default")))'
 +
  if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk', 'android'):
      LOCAL_INCLUDES += [
          "/gfx/cairo/cairo/src",
-diff --git a/gfx/skia/moz.build b/gfx/skia/moz.build
-index 29e5adf..eeb3765 100644
 --- a/gfx/skia/moz.build
 +++ b/gfx/skia/moz.build
-@@ -650,6 +650,9 @@ LOCAL_INCLUDES += [
-     "/gfx/harfbuzz/src",
- ]
+@@ -649,7 +649,12 @@
+-LOCAL_INCLUDES += [
+-    "/gfx/harfbuzz/src",
+-]
++if not CONFIG['MOZ_SYSTEM_HARFBUZZ']:
++    LOCAL_INCLUDES += [
++        "/gfx/harfbuzz/src",
++    ]
  
 +if CONFIG['MOZ_SYSTEM_HARFBUZZ']:
 +    CXXFLAGS += CONFIG['MOZ_HARFBUZZ_CFLAGS']
++    DEFINES['HB_EXTERN'] = 'extern __attribute__((visibility("default")))'
 +
  if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk', 'android'):
      LOCAL_INCLUDES += [
          "/gfx/cairo/cairo/src",
-diff --git a/gfx/thebes/moz.build b/gfx/thebes/moz.build
-index 68c4f26..1e3c14f 100644
 --- a/gfx/thebes/moz.build
 +++ b/gfx/thebes/moz.build
-@@ -287,7 +287,13 @@ if CONFIG["MOZ_WAYLAND"]:
+@@ -287,7 +287,14 @@
  
  LOCAL_INCLUDES += CONFIG["SKIA_INCLUDES"]
  
@@ -139,42 +134,50 @@ index 68c4f26..1e3c14f 100644
 +
 +if CONFIG["MOZ_SYSTEM_HARFBUZZ"]:
 +    CXXFLAGS += CONFIG["MOZ_HARFBUZZ_CFLAGS"]
++    DEFINES["HB_EXTERN"] = 'extern __attribute__((visibility("default")))'
  
  COMPILE_FLAGS["WARNINGS_CXXFLAGS"] += ["-Werror=switch"]
  
-diff --git a/intl/unicharutil/util/moz.build b/intl/unicharutil/util/moz.build
-index c936134..3528895 100644
+--- a/layout/inspector/moz.build
++++ b/layout/inspector/moz.build
+@@ -38,5 +38,8 @@
+ FINAL_LIBRARY = "xul"
+ LOCAL_INCLUDES += [
+     "../style",
+     "/dom/base",
+ ]
++if CONFIG["MOZ_SYSTEM_HARFBUZZ"]:
++    CXXFLAGS += CONFIG["MOZ_HARFBUZZ_CFLAGS"]
++    DEFINES["HB_EXTERN"] = 'extern __attribute__((visibility("default")))'
 --- a/intl/unicharutil/util/moz.build
 +++ b/intl/unicharutil/util/moz.build
-@@ -22,6 +22,9 @@ UNIFIED_SOURCES += [
+@@ -22,6 +22,10 @@
      "nsUnicodeProperties.cpp",
  ]
  
 +if CONFIG["MOZ_SYSTEM_HARFBUZZ"]:
 +    CXXFLAGS += CONFIG["MOZ_HARFBUZZ_CFLAGS"]
++    DEFINES["HB_EXTERN"] = 'extern __attribute__((visibility("default")))'
 +
  include("/ipc/chromium/chromium-config.mozbuild")
  
  GeneratedFile(
-diff --git a/netwerk/dns/moz.build b/netwerk/dns/moz.build
-index 7e3bff4..693292f 100644
 --- a/netwerk/dns/moz.build
 +++ b/netwerk/dns/moz.build
-@@ -107,6 +107,9 @@ GeneratedFile(
+@@ -107,6 +107,10 @@
      "etld_data.inc", script="prepare_tlds.py", inputs=["effective_tld_names.dat"]
  )
  
 +if CONFIG["MOZ_SYSTEM_HARFBUZZ"]:
 +    CXXFLAGS += CONFIG["MOZ_HARFBUZZ_CFLAGS"]
++    DEFINES["HB_EXTERN"] = 'extern __attribute__((visibility("default")))'
 +
  # need to include etld_data.inc
  LOCAL_INCLUDES += [
      "/netwerk/base",
-diff --git a/security/rlbox/moz.build b/security/rlbox/moz.build
-index 64545f5..a8f9235 100644
 --- a/security/rlbox/moz.build
 +++ b/security/rlbox/moz.build
-@@ -45,6 +45,9 @@ if CONFIG["MOZ_WASM_SANDBOXING_GRAPHITE"]:
+@@ -45,6 +45,9 @@
      for k, v in graphite_defines:
          WASM_DEFINES[k] = v
      LOCAL_INCLUDES += ["/gfx/graphite2/src"]
@@ -184,11 +187,9 @@ index 64545f5..a8f9235 100644
  
  if CONFIG["MOZ_WASM_SANDBOXING_OGG"]:
      include("/media/libogg/sources.mozbuild")
-diff --git a/toolkit/library/moz.build b/toolkit/library/moz.build
-index 7ce1adf..a590148 100644
 --- a/toolkit/library/moz.build
 +++ b/toolkit/library/moz.build
-@@ -294,6 +294,12 @@ if CONFIG["MOZ_SYSTEM_PNG"]:
+@@ -294,6 +294,13 @@
  if CONFIG["MOZ_SYSTEM_WEBP"]:
      OS_LIBS += CONFIG["MOZ_WEBP_LIBS"]
  
@@ -197,15 +198,14 @@ index 7ce1adf..a590148 100644
 +
 +if CONFIG["MOZ_SYSTEM_HARFBUZZ"]:
 +    OS_LIBS += CONFIG["MOZ_HARFBUZZ_LIBS"]
++    OS_LIBS += CONFIG["MOZ_HARFBUZZ_SUBSET_LIBS"]
 +
  if CONFIG["MOZ_SYSTEM_LIBEVENT"]:
      OS_LIBS += CONFIG["MOZ_LIBEVENT_LIBS"]
  
-diff --git a/toolkit/moz.configure b/toolkit/moz.configure
-index f8149b7..1efab61 100644
 --- a/toolkit/moz.configure
 +++ b/toolkit/moz.configure
-@@ -1289,6 +1289,26 @@ def enable_cairo_ft(target, tree_freetype, freetype2_info):
+@@ -1316,6 +1316,30 @@
  set_config("MOZ_ENABLE_CAIRO_FT", True, when=enable_cairo_ft)
  set_config("CAIRO_FT_CFLAGS", ft2_info.cflags, when=enable_cairo_ft)
  
@@ -224,10 +224,14 @@ index f8149b7..1efab61 100644
 +option("--with-system-harfbuzz",
 +       help="Use system harfbuzz (located with pkgconfig)")
 +
-+system_harfbuzz = pkg_check_modules("MOZ_HARFBUZZ", "harfbuzz >= 2.7.4",
++system_harfbuzz = pkg_check_modules("MOZ_HARFBUZZ", "harfbuzz >= 10.0.0",
 +                                    when="--with-system-harfbuzz")
 +
-+set_config("MOZ_SYSTEM_HARFBUZZ", depends_if(system_harfbuzz)(lambda _: True))
++system_harfbuzz_subset = pkg_check_modules("MOZ_HARFBUZZ_SUBSET", "harfbuzz-subset >= 10.0.0",
++                                           when="--with-system-harfbuzz")
++
++set_config("MOZ_SYSTEM_HARFBUZZ",
++           depends_if(system_harfbuzz)(lambda _: True))
 +
  
  # WebDriver (HTTP / BiDi)

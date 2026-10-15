@@ -1,0 +1,32 @@
+From e5d3224118cacf44e21f1e576507d19f9a6110c0 Mon Sep 17 00:00:00 2001
+From: Kui-Feng Lee <thinker.li@gmail.com>
+Date: Mon, 12 Oct 2026 09:23:57 +0000
+Subject: [PATCH] Bug 2080242 - Include WidgetUtilsGtk.h for Wayland builds in
+ nsAppShell.cpp. r=stransky,gtk-reviewers,emilio
+
+nsAppShell::IsSessionRestoreSupported() calls IsGnomeDesktopEnvironment()
+under MOZ_WAYLAND, but WidgetUtilsGtk.h, which declares it, was included
+under MOZ_ENABLE_DBUS only. Builds with dbus disabled fail to compile.
+
+Include the header when either is enabled: the dbus code uses
+IsCancelledGError() and the Wayland code uses IsGnomeDesktopEnvironment().
+
+Differential Revision: https://phabricator.services.mozilla.com/D332621
+---
+ widget/gtk/nsAppShell.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/widget/gtk/nsAppShell.cpp b/widget/gtk/nsAppShell.cpp
+index 84f3b84894de1..c12edd495e9d7 100644
+--- a/widget/gtk/nsAppShell.cpp
++++ b/widget/gtk/nsAppShell.cpp
+@@ -29,7 +29,8 @@
+ #include "prenv.h"
+ #ifdef MOZ_ENABLE_DBUS
+ #  include <gio/gio.h>
+-
++#endif
++#if defined(MOZ_ENABLE_DBUS) || defined(MOZ_WAYLAND)
+ #  include "WidgetUtilsGtk.h"
+ #endif
+ #include "HeadlessScreenHelper.h"
