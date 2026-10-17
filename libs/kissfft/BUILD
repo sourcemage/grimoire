@@ -1,0 +1,4 @@
+OPTS+=" -DKISSFFT_DATATYPE=${KISSSDATA}" &&
+OPTS+=' -DKISSFFT_TEST=off' &&
+cmake_build
+
