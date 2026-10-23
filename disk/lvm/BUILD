@@ -5,6 +5,7 @@ LDFLAGS+=" -fuse-ld=bfd" &&
             --libdir=$INSTALL_ROOT/lib      		\
             --sysconfdir=$INSTALL_ROOT/etc  		\
             --mandir=$INSTALL_ROOT/usr/share/man 	\
+            --disable-nls                               \
             $LVM_OPTS $OPTS                             &&
 
 if [[ $LVM_DM_ONLY == y ]]; then
