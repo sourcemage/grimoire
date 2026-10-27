@@ -1,0 +1,105 @@
+
+# HG changeset patch
+# User stransky <stransky@redhat.com>
+# Date 1792577994 0
+# Node ID 2813b702a77384ef089652d759fc1d29947000ba
+# Parent  db0240a6cd187c744f85aaf9b27e6dd4f03b66f2
+Bug 2084134 [Wayland] Use full color range by default for wl_surface r=emilio,gtk-reviewers
+
+Differential Revision: https://phabricator.services.mozilla.com/D335938
+
+
+diff --git a/widget/gtk/BufferSurface.h b/widget/gtk/BufferSurface.h
+--- a/widget/gtk/BufferSurface.h
++++ b/widget/gtk/BufferSurface.h
+@@ -247,17 +247,17 @@ class BufferSurface {
+   // Textures and EGLImages created over surface planes by CreateTextures().
+   // They're owned by mGL context and released by ReleaseTextures().
+   EGLImageKHR mEGLImage[BUFFER_SURFACE_PLANES] = {};
+   GLuint mTexture[BUFFER_SURFACE_PLANES] = {};
+ 
+   // Set when underlying surface memory was changed.
+   bool mTextureIsDirty = false;
+ 
+-  mozilla::gfx::ColorRange mColorRange = mozilla::gfx::ColorRange::LIMITED;
++  mozilla::gfx::ColorRange mColorRange = mozilla::gfx::ColorRange::FULL;
+   mozilla::gfx::YUVColorSpace mColorSpace =
+       mozilla::gfx::YUVColorSpace::Default;
+   mozilla::gfx::ColorSpace2 mColorPrimaries =
+       mozilla::gfx::ColorSpace2::UNKNOWN;
+   mozilla::gfx::TransferFunction mTransferFunction =
+       mozilla::gfx::TransferFunction::Default;
+   mozilla::gfx::HDRMetadata mHDRMetadata{};
+   // Chroma location in wp_color_representation_surface_v1_chroma_location
+diff --git a/widget/gtk/DMABufSurface.cpp b/widget/gtk/DMABufSurface.cpp
+--- a/widget/gtk/DMABufSurface.cpp
++++ b/widget/gtk/DMABufSurface.cpp
+@@ -2671,17 +2671,16 @@ already_AddRefed<DMABufSurfaceRGBA> DMAB
+   if (vao) {
+     gl->fBindVertexArray(oldVAO);
+     gl->fDeleteVertexArrays(1, &vao);
+   }
+   gl->fDeleteBuffers(1, &vbo);
+ 
+   target->SetTransferFunction(gfx::TransferFunction::PQ);
+   target->SetYUVColorSpace(gfx::YUVColorSpace::BT2020);
+-  target->SetColorRange(gfx::ColorRange::FULL);
+   target->SetColorPrimaries(gfx::ColorSpace2::BT2020);
+   target->SetHDRMetadata(GetHDRMetadata());
+ 
+   // Add fence to commit all changes before we derive wl_buffer from it.
+   target->FenceSet();
+ 
+   // We're finished here, keep dmabuf memory only.
+   // TODO: skip/move?
+diff --git a/widget/gtk/SHMBufSurface.cpp b/widget/gtk/SHMBufSurface.cpp
+--- a/widget/gtk/SHMBufSurface.cpp
++++ b/widget/gtk/SHMBufSurface.cpp
+@@ -215,16 +215,17 @@ already_AddRefed<DMABufSurface> SHMBufSu
+   if (!surface) {
+     LOGDMABUF("SHMBufSurfaceRGBA::UploadToDMABufSurface() failed!");
+     return nullptr;
+   }
+   LOGDMABUF("SHMBufSurfaceRGBA::UploadToDMABufSurface() buffer [%p]",
+             GetImageData());
+   surface->SetColorPrimaries(mColorPrimaries);
+   surface->SetTransferFunction(mTransferFunction);
++  surface->SetColorRange(mColorRange);
+   surface->DisableRecycle();
+   return surface.forget();
+ }
+ 
+ bool SHMBufSurfaceRGBA::UploadTexture(int aPlane, bool aNeedInit) {
+   MOZ_DIAGNOSTIC_ASSERT(!aPlane, "SHM RGBA surface has one plane only!");
+ 
+   LOGDMABUF("SHMBufSurfaceRGBA::UploadTexture()");
+diff --git a/widget/gtk/WaylandSurface.cpp b/widget/gtk/WaylandSurface.cpp
+--- a/widget/gtk/WaylandSurface.cpp
++++ b/widget/gtk/WaylandSurface.cpp
+@@ -1518,22 +1518,21 @@ static const struct wp_image_description
+ void WaylandSurface::SetColorRepresentationLocked(
+     const WaylandSurfaceLock& aProofOfLock, int aWLColorCoeficients,
+     bool aFullRange, uint32_t aWPChromaLocation) {
+   auto* colorRepresentation =
+       WaylandDisplayGet()->GetColorRepresentationManager();
+   if (!colorRepresentation) {
+     return;
+   }
+-
+   LOGWAYLAND(
+       "WaylandSurface::SetColorRepresentationLocked() color coefficients %s "
+-      "full range %d",
+-      BufferSurface::GetWLColorCoeficientsName(aWLColorCoeficients),
+-      aFullRange);
++      "full range %d aWPChromaLocation %d",
++      BufferSurface::GetWLColorCoeficientsName(aWLColorCoeficients), aFullRange,
++      aWPChromaLocation);
+ 
+   MOZ_DIAGNOSTIC_ASSERT(!mColorRepresentationSurface);
+   mColorRepresentationSurface = WUniquePtr<wp_color_representation_surface_v1>(
+       wp_color_representation_manager_v1_get_surface(colorRepresentation,
+                                                      mSurface.get()));
+   if (aWPChromaLocation) {
+     wp_color_representation_surface_v1_set_chroma_location(
+         mColorRepresentationSurface.get(), aWPChromaLocation);
+
