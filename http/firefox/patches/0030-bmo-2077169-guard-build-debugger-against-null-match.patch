@@ -1,0 +1,38 @@
+
+# HG changeset patch
+# User Vitaliy <vitalij@gmx.com>
+# Date 1793607108 0
+# Node ID ac698bbb140f04a6cf11f96d6e79d311d329251d
+# Parent  bb6c97aab762ef6612fa992f1fcf689d6831e681
+Bug 2077169 - [devtools] Guard build-debugger.js against null match. r=devtools-reviewers,nchevobbe
+
+Differential Revision: https://phabricator.services.mozilla.com/D338065
+
+
+diff --git a/devtools/client/shared/build/build-debugger.js b/devtools/client/shared/build/build-debugger.js
+--- a/devtools/client/shared/build/build-debugger.js
++++ b/devtools/client/shared/build/build-debugger.js
+@@ -52,17 +52,21 @@ function transformMC({ types: t }) {
+           if (value.startsWith(".")) {
+             // Create full path
+             // e.g. z:\build\build\src\devtools\client\debugger\src\utils\source-queue
+             let newValue = _path.join(_path.dirname(filePath), value);
+ 
+             // Select the devtools portion of the path
+             // e.g. devtools\client\debugger\src\utils\source-queue
+             if (!newValue.startsWith("devtools")) {
+-              newValue = newValue.match(/.*(devtools.*)/)[1];
++              const m = newValue.match(/.*(devtools.*)/);
++              if (!m) {
++                return;
++              }
++              newValue = m[1];
+             }
+ 
+             // Replace forward slashes with back slashes
+             // e.g devtools/client/debugger/src/utils/source-queue
+             newValue = newValue.replace(/\\/g, "/");
+ 
+             value = newValue;
+           }
+
