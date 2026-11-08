@@ -90,7 +90,7 @@ config_query_multi LLVM_RUNTIMES \
 # selecting "all" runtimes in the LLVM build system will only enable libcxx,
 # libcxxabi, and libunwind, instead of actually all possible supported
 # runtimes, so specify them manually
-if list_find "$runtimes" "all" ;then
+if list_find "$LLVM_RUNTIMES" "all" ;then
   LLVM_RUNTIMES="${runtimes#all }"
 fi &&
 
@@ -129,6 +129,16 @@ config_query LLVM_WITH_POLLY    "Build the polyhedral optimizer (polly)?" n &&
 config_query LLVM_WITH_LLD      "Build the LLVM linker (lld)?" n &&
 config_query LLVM_WITH_MLIR     "Build the LLVM multi-level intermediate representation (MLIR)?" n &&
 config_query LLVM_WITH_FLANG    "Build the flang fortran frontend (selects MLIR)?" n &&
+
+# the runtimes are configured with the just-built clang, so building any of
+# them (chosen above, or selected by flang or lld below) needs clang;
+# without it the build fails with "could not find TARGET clang-resource-headers"
+if [[ "$LLVM_WITH_CLANG" != y ]] &&
+   [[ -n "${LLVM_RUNTIMES// }" || "$LLVM_WITH_FLANG" == y || "$LLVM_WITH_LLD" == y ]] ;then
+  message "${MESSAGE_COLOR}The runtime libraries need clang, enabling clang.${DEFAULT_COLOR}" &&
+  LLVM_WITH_CLANG=y &&
+  persistent_add LLVM_WITH_CLANG
+fi &&
 
 if [[ "$LLVM_WITH_CLANG" == y ]] ;then
   config_query LLVM_WITH_LIBCLC "Build the LLVM OpenCL implementation (libclc)?" n &&
