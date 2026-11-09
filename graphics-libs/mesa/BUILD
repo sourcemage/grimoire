@@ -59,9 +59,6 @@ meson_opt feature "xlib-lease"             "$MESA_XLIB_LEASE" &&
 meson_opt feature "xmlconfig"              "$MESA_XMLCONFIG" &&
 meson_opt boolean "libgbm-external"        "${MESA_EXTERNAL_GBM}" &&
 
-if [[ "${MESA_BRANCH}" != "scm" ]]; then
-  meson_opt boolean "gallium-d3d10umd"       "$MESA_GALLIUM_D3D10"
-fi &&
 if [ -n "$MESA_GALLIUM" ] && ! list_find "$MESA_GALLIUM" none ;then
   meson_opt list "gallium-drivers" "$MESA_GALLIUM"
 else
