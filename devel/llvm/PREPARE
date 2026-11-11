@@ -61,7 +61,8 @@ libclc_targets="$libclc_targets r600--"
 libclc_targets="$libclc_targets spirv-mesa3d-"
 libclc_targets="$libclc_targets spirv64-mesa3d-"
 
-local runtimes="all" &&
+local runtimes="none" &&
+runtimes="$runtimes all" &&
 runtimes="$runtimes compiler-rt" &&
 runtimes="$runtimes libcxx" &&
 runtimes="$runtimes libcxxabi" &&
@@ -87,11 +88,17 @@ config_query_multi LLVM_RUNTIMES \
                    $runtimes \
                    &&
 
+# "none" (the default) builds no runtimes, even if others (or "all") were
+# also picked; an empty list means no runtimes (and so no need for clang below)
+if list_find "$LLVM_RUNTIMES" "none" ;then
+  LLVM_RUNTIMES=""
+fi &&
+
 # selecting "all" runtimes in the LLVM build system will only enable libcxx,
 # libcxxabi, and libunwind, instead of actually all possible supported
 # runtimes, so specify them manually
 if list_find "$LLVM_RUNTIMES" "all" ;then
-  LLVM_RUNTIMES="${runtimes#all }"
+  LLVM_RUNTIMES="${runtimes#none all }"
 fi &&
 
 if list_find "$LLVM_EXPERIMENTAL_TARGETS" SPIRV ;then
