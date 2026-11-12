@@ -89,9 +89,10 @@ config_query_multi LLVM_RUNTIMES \
                    &&
 
 # "none" (the default) builds no runtimes, even if others (or "all") were
-# also picked; an empty list means no runtimes (and so no need for clang below)
+# also picked. Keep "none" itself as the answer: an empty answer is saved as
+# unanswered, so the question would come back on every cast. BUILD skips it.
 if list_find "$LLVM_RUNTIMES" "none" ;then
-  LLVM_RUNTIMES=""
+  LLVM_RUNTIMES="none"
 fi &&
 
 # selecting "all" runtimes in the LLVM build system will only enable libcxx,
@@ -141,7 +142,8 @@ config_query LLVM_WITH_FLANG    "Build the flang fortran frontend (selects MLIR)
 # them (chosen above, or selected by flang or lld below) needs clang;
 # without it the build fails with "could not find TARGET clang-resource-headers"
 if [[ "$LLVM_WITH_CLANG" != y ]] &&
-   [[ -n "${LLVM_RUNTIMES// }" || "$LLVM_WITH_FLANG" == y || "$LLVM_WITH_LLD" == y ]] ;then
+   [[ ( -n "${LLVM_RUNTIMES// }" && "$LLVM_RUNTIMES" != none ) ||
+      "$LLVM_WITH_FLANG" == y || "$LLVM_WITH_LLD" == y ]] ;then
   message "${MESSAGE_COLOR}The runtime libraries need clang, enabling clang.${DEFAULT_COLOR}" &&
   LLVM_WITH_CLANG=y &&
   persistent_add LLVM_WITH_CLANG

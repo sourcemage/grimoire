@@ -70,9 +70,11 @@ OPTS="$OPTS -DLLVM_DEFAULT_TARGET_TRIPLE=$HOST" &&
 # LLVM_targets and runtimes
 OPTS="$OPTS -DLLVM_TARGETS_TO_BUILD=${LLVM_TARGETS// /;}" &&
 OPTS="$OPTS -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=${LLVM_EXPERIMENTAL_TARGETS// /;}" &&
-# no runtimes chosen: leave LLVM_ENABLE_RUNTIMES unset rather than empty
-if [[ -n "${LLVM_RUNTIMES// }" ]] ;then
-  OPTS="$OPTS -DLLVM_ENABLE_RUNTIMES=${LLVM_RUNTIMES// /;}"
+# "none" is kept as the saved answer, so drop it here; no runtimes left:
+# leave LLVM_ENABLE_RUNTIMES unset rather than empty
+local runtimes_list="${LLVM_RUNTIMES//none/}" &&
+if [[ -n "${runtimes_list// }" ]] ;then
+  OPTS="$OPTS -DLLVM_ENABLE_RUNTIMES=${runtimes_list// /;}"
 fi &&
 
 # recommended by mesa project
