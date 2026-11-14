@@ -1,0 +1,62 @@
+default_install &&
+
+# libwebp's autotools build installs no CMake package files, so CMake
+# projects that look for WebP with find_package (openimageio 3.2, for
+# one) don't find it. Install the same package and targets libwebp's own
+# CMake build would: WebP::webp, WebP::webpdecoder, WebP::webpdemux,
+# WebP::libwebpmux and WebP::sharpyuv
+WEBP_CMAKE="${INSTALL_ROOT}/usr/share/WebP/cmake" &&
+mkdir -p "$WEBP_CMAKE" &&
+cat > "$WEBP_CMAKE/WebPConfig.cmake" <<EOF &&
+# Written by the Source Mage libwebp spell (libwebp is built with autotools)
+set(WebP_VERSION ${VERSION})
+set(WEBP_VERSION \${WebP_VERSION})
+EOF
+cat >> "$WEBP_CMAKE/WebPConfig.cmake" <<'EOF' &&
+get_filename_component(_webp_prefix "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+set(WebP_INCLUDE_DIR "${_webp_prefix}/include")
+set(WebP_INCLUDE_DIRS ${WebP_INCLUDE_DIR})
+set(WEBP_INCLUDE_DIRS ${WebP_INCLUDE_DIR})
+set(WebP_LIBRARIES "")
+# target name, then library file name
+foreach(_webp_lib sharpyuv:sharpyuv webp:webp webpdecoder:webpdecoder
+                  webpdemux:webpdemux libwebpmux:webpmux)
+  string(REPLACE ":" ";" _webp_lib "${_webp_lib}")
+  list(GET _webp_lib 0 _webp_target)
+  list(GET _webp_lib 1 _webp_file)
+  if(NOT TARGET WebP::${_webp_target} AND EXISTS "${_webp_prefix}/lib/lib${_webp_file}.so")
+    add_library(WebP::${_webp_target} SHARED IMPORTED)
+    set_target_properties(WebP::${_webp_target} PROPERTIES
+      IMPORTED_LOCATION "${_webp_prefix}/lib/lib${_webp_file}.so"
+      INTERFACE_INCLUDE_DIRECTORIES "${_webp_prefix}/include")
+  endif()
+  if(TARGET WebP::${_webp_target})
+    list(APPEND WebP_LIBRARIES ${_webp_target})
+  endif()
+endforeach()
+# as in libwebp's own CMake build: webp uses sharpyuv, demux and mux use webp
+if(TARGET WebP::sharpyuv AND TARGET WebP::webp)
+  set_property(TARGET WebP::webp APPEND PROPERTY INTERFACE_LINK_LIBRARIES WebP::sharpyuv)
+endif()
+foreach(_webp_target webpdemux libwebpmux)
+  if(TARGET WebP::${_webp_target} AND TARGET WebP::webp)
+    set_property(TARGET WebP::${_webp_target} APPEND PROPERTY INTERFACE_LINK_LIBRARIES WebP::webp)
+  endif()
+endforeach()
+set(WEBP_LIBRARIES "${WebP_LIBRARIES}")
+unset(_webp_prefix)
+unset(_webp_lib)
+unset(_webp_target)
+unset(_webp_file)
+EOF
+cat > "$WEBP_CMAKE/WebPConfigVersion.cmake" <<EOF
+set(PACKAGE_VERSION "${VERSION}")
+if(PACKAGE_FIND_VERSION VERSION_GREATER PACKAGE_VERSION)
+  set(PACKAGE_VERSION_COMPATIBLE FALSE)
+else()
+  set(PACKAGE_VERSION_COMPATIBLE TRUE)
+  if(PACKAGE_FIND_VERSION STREQUAL PACKAGE_VERSION)
+    set(PACKAGE_VERSION_EXACT TRUE)
+  endif()
+endif()
+EOF
