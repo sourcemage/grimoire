@@ -18,6 +18,10 @@ depends gdk-pixbuf2               &&
 
 depends xdg-dbus-proxy "system_dbus_proxy=${INSTALL_ROOT}/usr/bin/xdg-dbus-proxy" &&
 
+depends curl &&
+
+depends -sub "WITH_CURL" ostree &&
+
 optional_depends dconf                                                      \
                  "dconf=enabled"                                            \
                  "dconf=disabled"                                           \
@@ -28,29 +32,18 @@ optional_depends gobject-introspection                                      \
                  "gir=disabled"                                             \
                  "Build GObject-Introspection metadata?"                    \
 
-optional_depends gtk-doc                                                    \
-                 "gtkdoc=enabled"                                           \
-                 "gtkdoc=disabled"                                          \
-                 "build API reference documentation?"                       &&
-
-local OSTREE_SUBDEP="CURL" &&
-
 if [[ "${FLATPAK_BRANCH}" == pre-release ]]; then
-  depends curl
+  optional_depends xmlto                                                    \
+                   "api_docs=enabled"                                       \
+                   "api_docs=disabled"                                      \
+                   "build API reference documentation?"
 else
-  optional_depends libsoup                                                  \
-                   "http_backend=soup"                                      \
-                   ""                                                       \
-                   "Use libsoup as http backend (curl otherwise)?"          &&
-
-  if is_depends_enabled $SPELL libsoup; then
-    OSTREE_SUBDEP="SOUP"
-  else
-    depends curl "http_backend=curl"
-  fi
+  optional_depends gtk-doc                                                  \
+                   "gtkdoc=enabled"                                         \
+                   "gtkdoc=disabled"                                        \
+                   "build API reference documentation?"
 fi &&
 
-depends -sub "WITH_${OSTREE_SUBDEP}" ostree &&
 
 optional_depends zstd                                                       \
                  "libzstd=enabled"                                          \
