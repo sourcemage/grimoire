@@ -48,6 +48,7 @@ ln -sf bootstrap.toml config.toml &&
 sed -e "s;profile =.*;profile = 'user';" \
     -e '/^\[llvm\]/adownload-ci-llvm = false' \
     -e '/^\[rust\]/alld = false' \
+    -e '/^\[rust\]/adeny-warnings = false' \
     -e '/^\[llvm\]/aninja = false' \
     -e '/^\[build\]/aoptimized-compiler-builtins = false' -i bootstrap.toml &&
 
